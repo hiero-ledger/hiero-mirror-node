@@ -6,10 +6,10 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
+import org.hiero.mirror.web3.config.OpCodeTracerConfiguration;
 import org.hiero.mirror.web3.service.OpcodeService;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,18 +19,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.server.ResponseStatusException;
 
 @CustomLog
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/contracts/results")
-@ConditionalOnProperty(prefix = "hiero.mirror.web3.opcode.tracer", name = "enabled", havingValue = "true")
 class OpcodesController {
 
     static final String MISSING_GZIP_HEADER_MESSAGE = "Accept-Encoding: gzip header is required";
 
     private final OpcodeService opcodeService;
     private final ThrottleManager throttleManager;
+    private final OpCodeTracerConfiguration properties;
 
     /**
      * <p>
@@ -56,11 +57,15 @@ class OpcodesController {
             @RequestParam(required = false, defaultValue = "false") boolean memory,
             @RequestParam(required = false, defaultValue = "false") boolean storage,
             @RequestHeader(value = HttpHeaders.ACCEPT_ENCODING) String acceptEncoding) {
-        validateAcceptEncodingHeader(acceptEncoding);
-        throttleManager.throttleOpcodeRequest();
+        if (properties.isEnabled()) {
+            validateAcceptEncodingHeader(acceptEncoding);
+            throttleManager.throttleOpcodeRequest();
 
-        final var request = new OpcodeRequest(transactionIdOrHash, stack, memory, storage);
-        return opcodeService.processOpcodeCall(request);
+            final var request = new OpcodeRequest(transactionIdOrHash, stack, memory, storage);
+            return opcodeService.processOpcodeCall(request);
+        }
+
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     }
 
     /**

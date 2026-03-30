@@ -13,7 +13,6 @@ import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration;
 import org.springframework.boot.flyway.autoconfigure.FlywayConfigurationCustomizer;
 import org.springframework.boot.flyway.autoconfigure.FlywayDataSource;
@@ -28,6 +27,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableAsync
 @EnableResilientMethods
 @EntityScan("org.hiero.mirror.importer.repository.upsert")
+@EnableScheduling
 @CustomLog
 @RequiredArgsConstructor
 @AutoConfigureBefore(FlywayAutoConfiguration.class) // Since this configuration creates FlywayConfigurationCustomizer
@@ -73,13 +73,4 @@ class ImporterConfiguration {
             throw new IllegalStateException("Cannot enable both block source and record downloader");
         }
     }
-
-    @Configuration(proxyBeanMethods = false)
-    @ConditionalOnProperty(
-            prefix = "spring.task.scheduling",
-            name = "enabled",
-            havingValue = "true",
-            matchIfMissing = true)
-    @EnableScheduling
-    protected static class SchedulingConfiguration {}
 }

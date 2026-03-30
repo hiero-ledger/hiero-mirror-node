@@ -24,6 +24,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.downloader.AbstractLinkedStreamDownloaderTest;
 import org.hiero.mirror.importer.downloader.Downloader;
 import org.hiero.mirror.importer.downloader.DownloaderProperties;
+import org.hiero.mirror.importer.downloader.block.BlockDownloaderProperties;
 import org.hiero.mirror.importer.downloader.block.CutoverService;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
@@ -43,6 +44,8 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
 
     @Mock(strictness = LENIENT)
     private CutoverService cutoverService;
+
+    private final BlockDownloaderProperties blockDownloaderProperties = new BlockDownloaderProperties();
 
     protected Map<String, RecordFile> recordFileMap;
     protected SidecarProperties sidecarProperties;
@@ -91,7 +94,8 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
                 signatureFileReader,
                 streamFileNotifier,
                 streamFileProvider,
-                recordFileReader);
+                recordFileReader,
+                blockDownloaderProperties);
     }
 
     protected void setupRecordFiles(Map<String, RecordFile> recordFileMap) {

@@ -30,18 +30,15 @@ import org.hiero.mirror.importer.config.CacheProperties;
 import org.hiero.mirror.importer.domain.EvmAddressMapping;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.repository.EntityRepository;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 
 @Named
 @Order(2)
 @CustomLog
 @RequiredArgsConstructor
-@ConditionalOnProperty(
-        name = "hiero.mirror.importer.parser.record.entity.persist.synthetic-contract-log-evm-address-lookup",
-        havingValue = "true")
 final class SyntheticLogListener implements EntityListener, RecordStreamFileListener {
     static final int MAX_CACHE_LOAD_ENTRIES = 30000;
 
@@ -51,16 +48,24 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
     private final ParserContext parserContext;
     private final CacheProperties cacheProperties;
     private final EntityRepository entityRepository;
+    private final EntityProperties entityProperties;
+
+    @Override
+    public boolean isEnabled() {
+        return entityProperties.getPersist().isSyntheticContractLogEvmAddressLookup();
+    }
 
     @Override
     @Timed
     public void onEnd(RecordFile recordFile) {
-        final var logUpdaters = parserContext.getTransient(SyntheticLogUpdater.class);
-        final var keys = parserContext.getEvmAddressLookupIds();
-        final var entityMap = getEvmCache().getAll(keys);
+        if (isEnabled()) {
+            final var logUpdaters = parserContext.getTransient(SyntheticLogUpdater.class);
+            final var keys = parserContext.getEvmAddressLookupIds();
+            final var entityMap = getEvmCache().getAll(keys);
 
-        for (var updater : logUpdaters) {
-            updater.updateContractLog(entityMap);
+            for (var updater : logUpdaters) {
+                updater.updateContractLog(entityMap);
+            }
         }
     }
 
