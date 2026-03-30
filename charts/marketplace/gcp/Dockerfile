@@ -29,8 +29,12 @@ RUN yq -i '. *= load("marketplace/gcp/values.yaml")' hedera-mirror/values.yaml &
 ARG TAG
 RUN sed -i "s/\$TAG/$TAG/g" marketplace/gcp/schema.yaml
 
-# Update dependencies every time since base image is not well maintained
-RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/* && pip3 install "pyOpenSSL>=26.0.0"
+# Update base image dependencies every time since it is not well maintained
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip3 install --no-cache-dir "pyOpenSSL>=26.0.0"
 
 # Run helm template to render and verify templates
 RUN helm dependency update hedera-mirror
