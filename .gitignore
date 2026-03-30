@@ -125,7 +125,7 @@ local.properties
 rest/__tests__/integration/*.spec.test.js
 
 # esbuild bundle output
-rest/dist/
+rest/buildDist/
 
 # Rosetta
 rosetta-cli

@@ -3,6 +3,10 @@
 import {jest} from '@jest/globals';
 import matchers from 'jest-extended';
 import log4js from 'log4js';
+import {recordQuery} from './tableUsage.js';
+import {setRecordQuery} from '../utils.js';
+
+setRecordQuery(recordQuery);
 
 global.logger = log4js.getLogger();
 

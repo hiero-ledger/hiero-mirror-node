@@ -11,13 +11,10 @@ await build({
   platform: 'node',
   target: 'node24',
   format: 'esm',
-  outdir: 'dist',
+  outdir: 'buildDist',
   splitting: true, // preserves dynamic imports as separate chunks
   minify: true, // reduces bundle size ~50%, lowering V8 parse/JIT memory at startup
-  external: [
-    './__tests__/*', // test-only dynamic import in utils.js
-    ...externalPackages,
-  ],
+  external: [...externalPackages],
   banner: {
     // The SPDX header is required by license policy.
     // The createRequire line fixes CJS packages that call require() for Node.js built-ins
@@ -27,13 +24,13 @@ await build({
   logLevel: 'info',
 });
 
-// Copy static assets into dist so the bundled app can locate them at runtime.
+// Copy static assets into buildDist so the bundled app can locate them at runtime.
 // config.js uses import.meta.url to resolve the default config directory, which
-// points to dist/ after bundling, so config/ must live at dist/config/.
-cpSync('config', 'dist/config', {recursive: true});
+// points to buildDist/ after bundling, so config/ must live at buildDist/config/.
+cpSync('config', 'buildDist/config', {recursive: true});
 // openapiHandler.js resolves api/v1/openapi.yml via process.cwd(), so api/ must
-// be at the app root at runtime. Copying it into dist/ keeps all static assets together.
-cpSync('api', 'dist/api', {recursive: true});
+// be at the app root at runtime. Copying it into buildDist/ keeps all static assets together.
+cpSync('api', 'buildDist/api', {recursive: true});
 
 // Generate a minimal package.json for the runtime Docker image that only lists
 // the packages kept external from the bundle. This allows the Dockerfile runtime
@@ -48,4 +45,4 @@ const runtimePackage = {
   type: 'module',
   dependencies: Object.fromEntries(externalPackages.map((pkg) => [pkg, dependencies[pkg]])),
 };
-writeFileSync('dist/package.json', JSON.stringify(runtimePackage, null, 2));
+writeFileSync('buildDist/package.json', JSON.stringify(runtimePackage, null, 2));
