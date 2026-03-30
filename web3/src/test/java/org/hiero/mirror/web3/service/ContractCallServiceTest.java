@@ -512,7 +512,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
     }
 
     @Test
-    void ethCallWithValueAndSenderContractFails() {
+    void ethCallWithValueAndSenderContractSucceeds() {
         // Given
         final var receiverEntity = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
@@ -521,13 +521,11 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var serviceParameters = getContractExecutionParametersWithValue(
                 BlockType.LATEST, HEX_PREFIX, contractAddress, receiverAddress, 10L);
 
-        // Then
-        assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
-                .isInstanceOf(MirrorEvmTransactionException.class)
-                .extracting("detail")
-                .asString()
-                .matches(".*payer account .* is a smart contract.*");
+        // When
+        final var result = contractExecutionService.processCall(serviceParameters);
 
+        // Then
+        assertThat(result).isEqualTo(HEX_PREFIX);
         assertGasLimit(serviceParameters);
     }
 
