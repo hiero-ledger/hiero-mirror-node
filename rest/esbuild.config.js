@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {build} from 'esbuild';
-import {cpSync} from 'fs';
+// Generate a minimal package.json for the runtime Docker image that only lists
+// the packages kept external from the bundle. This allows the Dockerfile runtime
+// stage to run `npm install` with a much smaller dependency tree instead of installing
+// all production dependencies.
+import {cpSync, readFileSync, writeFileSync} from 'fs';
 
 const externalPackages = ['log4js', 'swagger-ui-express'];
 
@@ -14,7 +18,7 @@ await build({
   outdir: 'buildDist',
   splitting: true, // preserves dynamic imports as separate chunks
   minify: true, // reduces bundle size ~50%, lowering V8 parse/JIT memory at startup
-  external: [...externalPackages],
+  external: externalPackages,
   banner: {
     // The SPDX header is required by license policy.
     // The createRequire line fixes CJS packages that call require() for Node.js built-ins
@@ -32,11 +36,6 @@ cpSync('config', 'buildDist/config', {recursive: true});
 // be at the app root at runtime. Copying it into buildDist/ keeps all static assets together.
 cpSync('api', 'buildDist/api', {recursive: true});
 
-// Generate a minimal package.json for the runtime Docker image that only lists
-// the packages kept external from the bundle. This allows the Dockerfile runtime
-// stage to run `npm install` with a much smaller dependency tree instead of installing
-// all production dependencies.
-import {readFileSync, writeFileSync} from 'fs';
 const {name, version, dependencies} = JSON.parse(readFileSync('package.json', 'utf8'));
 const runtimePackage = {
   name,
