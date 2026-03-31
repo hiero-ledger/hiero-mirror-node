@@ -58,7 +58,7 @@ function retag_single() {
 sed "-i.bak" "s/version: .*/version: ${target_tag}/" values.yaml
 
 # Build Marketplace deployer image
-docker buildx build --push -f ./Dockerfile --provenance false -t "${registry}/deployer:${target_tag}" -t "${registry}/deployer:${target_tag_minor}" --platform linux/amd64 --build-arg TAG="${target_tag}" --annotation "manifest,manifest-descriptor:${annotation}" ../..
+docker buildx build --pull --push -f ./Dockerfile --provenance false -t "${registry}/deployer:${target_tag}" -t "${registry}/deployer:${target_tag_minor}" --platform linux/amd64 --build-arg TAG="${target_tag}" --annotation "manifest,manifest-descriptor:${annotation}" ../..
 
 # Re-tag our manually built postgresql-repmgr image
 docker buildx imagetools create "${registry}/postgresql-repmgr:${postgresql_tag}" --tag "${registry}/postgresql-repmgr:${target_tag}" --tag "${registry}/postgresql-repmgr:${target_tag_minor}" --annotation "index,manifest-descriptor:${annotation}"

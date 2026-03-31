@@ -17,7 +17,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.29.0")
+    set("blockNodeVersion", "0.30.1")
     set("consensusNodeVersion", "0.72.0-rc.2")
     set("grpcVersion", "1.80.0")
     set("jooq.version", "3.20.11") // Must match buildSrc/build.gradle.kts

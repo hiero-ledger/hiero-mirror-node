@@ -77,13 +77,14 @@
   },
   "baseUrlPath": "/api/v1",
   "overrides": {
-    "flatted": "3.4.0",
+    "flatted": "3.4.2",
     "glob": "13.0.6",
     "@istanbuljs/load-nyc-config": {
       "js-yaml": "3.14.2"
     },
     "multer": "2.1.1",
-    "test-exclude": "7.0.1"
+    "path-to-regexp": "8.4.0",
+    "test-exclude": "8.0.0"
   },
   "bundleDependencies": true
 }

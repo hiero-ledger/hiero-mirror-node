@@ -247,6 +247,8 @@ public class TransactionExecutionService {
         final var account = accountReadableKVState.get(accountIDNum);
         if (account == null) {
             throwPayerAccountNotFoundException(SENDER_NOT_FOUND);
+        } else if (account.smartContract()) {
+            return EntityIdUtils.toAccountId(systemEntity.treasuryAccount());
         } else if (!account.hasKey() || account.key().equals(IMMUTABILITY_SENTINEL_KEY)) {
             // If the account is hollow, complete it in the state as a workaround
             // as this happens in HandleWorkflow in hedera-app but calling the
