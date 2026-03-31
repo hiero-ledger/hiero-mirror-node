@@ -1472,15 +1472,13 @@ const parseTokenBalances = (tokenBalances) => {
 
 const isTestEnv = () => process.env.NODE_ENV === 'test';
 
-const recordQuery = (() => {
-  let func;
-  return async (callerInfo, query) => {
-    if (!func) {
-      func = (await import('./__tests__/tableUsage')).recordQuery;
-    }
-    func(callerInfo, query);
-  };
-})();
+let recordQueryImpl = async (_callerInfo, _query) => {};
+
+export const setRecordQuery = (fn) => {
+  recordQueryImpl = fn;
+};
+
+const recordQuery = (callerInfo, query) => recordQueryImpl(callerInfo, query);
 
 /**
  * Gets the pool class with queryQuietly

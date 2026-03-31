@@ -162,6 +162,7 @@ spotless {
         targetExclude(
             "**/build/**",
             "**/buildDist/**",
+            "**/dist/**",
             "**/node_modules/**",
             "**/__tests__/integration/*.spec.test.js",
             "tools/mirror-report/index.js",

@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {jest} from '@jest/globals';
 import request from 'supertest';
 
 // set env vars before importing config implicitly
 process.env['HIERO_MIRROR_COMMON_SHARD'] = 1;
 process.env['HIERO_MIRROR_COMMON_REALM'] = 2;
+
+jest.resetModules();
 
 const config = (await import('../config')).default;
 const EntityId = (await import('../entityId')).default;
