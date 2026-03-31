@@ -68,14 +68,6 @@ public interface EntityIdService {
     Optional<EntityId> lookupEntityId(ByteString aliasOrEvmAddress);
 
     /**
-     * For an address represented by byte[], loads the 20-byte evm_address / alias
-     *
-     * @param accountAddress to use for search
-     * @return trimmed 20-byte address bytes
-     */
-    Optional<byte[]> lookupAliasOrEvmAddressBytes(byte[] accountAddress);
-
-    /**
      * Used to notify the system of new aliases / evm addresses for potential use in future lookups.
      *
      * @param entity The entity which may have alias or evm address

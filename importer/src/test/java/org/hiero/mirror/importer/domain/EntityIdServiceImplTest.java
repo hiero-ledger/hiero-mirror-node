@@ -451,31 +451,6 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         assertThat(entityIdService.lookupEntityId(ByteString.EMPTY)).hasValue(EntityId.EMPTY);
     }
 
-    @Test
-    void lookupAliasOrEvmAddressBytesDeletedAccount() {
-        var entity = domainBuilder
-                .entity()
-                .customize(e -> e.evmAddress(EVM_ADDRESS).deleted(true))
-                .persist();
-        assertThat(entityIdService.lookupAliasOrEvmAddressBytes(
-                        entity.toEntityId().toAccountID().toByteArray()))
-                .isEmpty();
-    }
-
-    @Test
-    void lookupAliasOrEvmAddressBytesWithAccountThatAlreadyHasIt() {
-        var entity =
-                domainBuilder.entity().customize(e -> e.evmAddress(EVM_ADDRESS)).persist();
-        assertThat(entityIdService.lookupAliasOrEvmAddressBytes(
-                        getProtoAccountId(entity).toByteArray()))
-                .isEmpty();
-    }
-
-    @Test
-    void lookupAliasOrEvmAddressBytesNull() {
-        assertThat(entityIdService.lookupAliasOrEvmAddressBytes(null)).isEmpty();
-    }
-
     private AccountID getProtoAccountId(Entity account) {
         var accountId = AccountID.newBuilder().setShardNum(account.getShard()).setRealmNum(account.getRealm());
         if (account.getAlias() == null) {

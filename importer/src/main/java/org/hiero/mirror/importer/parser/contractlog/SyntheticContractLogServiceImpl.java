@@ -53,13 +53,8 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         contractLog.setRootContractId(log.getEntityId());
         contractLog.setPayerAccountId(recordItem.getPayerAccountId());
         contractLog.setTopic0(log.getTopic0());
-
-        var topic1 =
-                entityIdService.lookupAliasOrEvmAddressBytes(log.getTopic1()).orElse(log.getTopic1());
-        var topic2 =
-                entityIdService.lookupAliasOrEvmAddressBytes(log.getTopic2()).orElse(log.getTopic2());
-        contractLog.setTopic1(topic1);
-        contractLog.setTopic2(topic2);
+        contractLog.setTopic1(log.getTopic1());
+        contractLog.setTopic2(log.getTopic2());
         contractLog.setTopic3(log.getTopic3());
         contractLog.setTransactionIndex(recordItem.getTransactionIndex());
 
@@ -69,7 +64,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         contractLog.setTransactionHash(transactionHash);
         contractLog.setSyntheticTransfer(log instanceof TransferContractLog);
 
-        contractLog.setBloom(isContract(recordItem) ? createBloom(log, topic1, topic2) : empty);
+        contractLog.setBloom(isContract(recordItem) ? createBloom(log) : empty);
 
         entityListener.onContractLog(contractLog);
     }
@@ -127,17 +122,15 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
      * Creates a bloom filter for a synthetic contract log using the log's address, topics, and data.
      *
      * @param log the synthetic contract log
-     * @param topic1 sender's address bytes with evm_address/alias if available
-     * @param topic2 receiver's address bytes with evm_address/alias if available
      * @return the bloom filter as a byte array
      */
-    private byte[] createBloom(SyntheticContractLog log, byte[] topic1, byte[] topic2) {
+    private byte[] createBloom(SyntheticContractLog log) {
         final var evmAddress = DomainUtils.toEvmAddress(log.getEntityId());
         final var logsBloomFilter = new LogsBloomFilter();
         logsBloomFilter.insertAddress(evmAddress);
         logsBloomFilter.insertTopic(log.getTopic0());
-        logsBloomFilter.insertTopic(topic1);
-        logsBloomFilter.insertTopic(topic2);
+        logsBloomFilter.insertTopic(log.getTopic1());
+        logsBloomFilter.insertTopic(log.getTopic2());
         logsBloomFilter.insertTopic(log.getTopic3());
         return logsBloomFilter.toArrayUnsafe();
     }

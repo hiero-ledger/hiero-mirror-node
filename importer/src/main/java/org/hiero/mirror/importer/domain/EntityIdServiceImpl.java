@@ -20,7 +20,6 @@ import java.util.concurrent.Callable;
 import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -81,22 +80,6 @@ public class EntityIdServiceImpl implements EntityIdService {
             return EMPTY;
         }
         return lookup(AccountID.newBuilder().setAlias(aliasOrEvmAddress).build());
-    }
-
-    @Override
-    public Optional<byte[]> lookupAliasOrEvmAddressBytes(byte[] accountAddress) {
-        if (accountAddress == null || accountAddress.length == 0) {
-            return Optional.empty();
-        }
-        var entityId = DomainUtils.fromTrimmedEvmAddress(accountAddress);
-        if (EntityId.isEmpty(entityId)) {
-            return Optional.empty();
-        }
-        return entityRepository
-                .findById(entityId.getId())
-                .filter(e -> !Boolean.TRUE.equals(e.getDeleted()))
-                .map(this::aliasOrEvmAddressTopicBytes)
-                .filter(bytes -> !ArrayUtils.isEmpty(bytes));
     }
 
     @Override
@@ -223,18 +206,5 @@ public class EntityIdServiceImpl implements EntityIdService {
 
         // Check cache first in case the 20-byte evm address hasn't persisted to db
         return cacheLookup(fromBytes(evmAddress), () -> findByEvmAddress(evmAddress));
-    }
-
-    private byte[] aliasOrEvmAddressTopicBytes(Entity entity) {
-        if (!ArrayUtils.isEmpty(entity.getEvmAddress())) {
-            return DomainUtils.trim(entity.getEvmAddress());
-        }
-        if (!ArrayUtils.isEmpty(entity.getAlias())) {
-            byte[] evm = aliasToEvmAddress(entity.getAlias());
-            if (evm != null) {
-                return DomainUtils.trim(evm);
-            }
-        }
-        return null;
     }
 }
