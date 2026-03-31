@@ -815,8 +815,9 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
-    @Test
-    void createFungibleToken() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void createFungibleToken(final boolean isSenderSmartContract) throws Exception {
         // Given
         final var value = 10000L * 100_000_000_000L;
         final var sender = accountEntityWithSufficientBalancePersist();
@@ -827,7 +828,10 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         testWeb3jService.setValue(value);
 
-        testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
+        testWeb3jService.setSender(
+                isSenderSmartContract
+                        ? contract.getContractAddress()
+                        : toAddress(sender.toEntityId()).toHexString());
 
         final var treasuryAccount = accountEntityPersist();
 
