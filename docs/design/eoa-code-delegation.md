@@ -57,10 +57,10 @@ called `delegation_address`.
 -- add_code_delegations_support.sql
 
 alter table if exists entity
-  add column if not exists delegation_address bytea null;
+add column if not exists delegation_address bytea null;
 
 alter table if exists entity_history
-  add column if not exists delegation_address bytea null;
+add column if not exists delegation_address bytea null;
 ```
 
 Each EOA can have only one `delegation_address` set. To delete it, the address part of the identifier is set to the empty
