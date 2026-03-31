@@ -743,7 +743,7 @@ const addEthereumTransaction = async (ethereumTransaction) => {
   );
 
   if (ethTx.authorization_list != null) {
-    ethTx.authorization_list = JSON.stringify(ethTx.authorization_list);
+    ethTx.authorization_list = JSONStringify(ethTx.authorization_list);
   }
 
   ethTx.payer_account_id = encodedIdFromSpecValue(ethTx.payer_account_id);

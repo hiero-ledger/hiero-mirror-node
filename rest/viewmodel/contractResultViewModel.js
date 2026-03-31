@@ -25,8 +25,8 @@ class ContractResultViewModel {
       ? toHexString(contractResult.evmAddress, true)
       : contractId.toEvmAddress();
     this.amount = contractResult.amount;
-    if (config.response.enableDelegationAddress) {
-      this.authorization_list = contractResult.authorizationList ?? null;
+    if (config.response.enableDelegationAddress && !isEmpty(contractResult.authorizationList)) {
+      this.authorization_list = contractResult.authorizationList;
     }
     this.bloom = this.#encodeBloom(contractResult.bloom);
     this.call_result = toHexString(contractResult.callResult, true);

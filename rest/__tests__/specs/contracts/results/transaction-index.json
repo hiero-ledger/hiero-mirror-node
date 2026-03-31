@@ -146,7 +146,6 @@
         "access_list": "0x",
         "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
         "amount": 35,
-        "authorization_list": null,
         "block_gas_used": 400000,
         "block_hash": "0x1eaf1abbd64bbcac7f473f0272671c66d3d1d64f584112b11cd4d2063e736305312fcb305804a48baa41571e71c39c61",
         "block_number": 17,

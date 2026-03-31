@@ -32,7 +32,6 @@
       {
         "address": "0x0000000000000000000000000000000000001389",
         "amount": 20,
-        "authorization_list": null,
         "bloom": "0x0101",
         "call_result": "0x0202",
         "contract_id": "0.0.5001",
@@ -50,7 +49,6 @@
       {
         "address": "0x0000000000000000000000000000000000001389",
         "amount": 30,
-        "authorization_list": null,
         "bloom": "0x0303",
         "call_result": "0x0404",
         "contract_id": "0.0.5001",

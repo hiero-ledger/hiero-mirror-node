@@ -76,7 +76,7 @@ Example:
 ```
 "authorization_list": [
     {
-      "chain_id": "0x01",
+      "chain_id": "0x127",
       "address": "0x1111111111111111111111111111111111111111",
       "nonce": 5,
       "y_parity": 1,
@@ -205,11 +205,6 @@ new column.
 
 - `GET /api/v1/contracts/{contractIdOrAddress}/results`
 - `GET /api/v1/contracts/results`
-
-The existing query that is used by both endpoints needs to be left joined with the `ethereum_transaction` table on:
-`ContractResult.consensus_timestamp = EthereumTransaction.consensus_timestamp`
-and select the `authorization_list` json field as well.
-
 - `GET /api/v1/contracts/{contractIdOrAddress}/results/logs`
 - `GET /api/v1/contracts/{contractIdOrAddress}/state`
 - `GET /api/v1/contracts/results/{transactionIdOrHash}/actions`

@@ -50,29 +50,8 @@
         "gas_consumed": 987,
         "gas_limit": 987654,
         "gas_used": 123,
-        "payer_account_id": 8001,
         "sender_id": 8001,
         "transaction_nonce": 0
-      }
-    ],
-    "ethereumtransactions": [
-      {
-        "authorization_list": [
-          {
-            "chain_id": "0x01",
-            "address": "0x1111111111111111111111111111111111111111",
-            "nonce": 5,
-            "y_parity": 1,
-            "r": "0x2222222222222222222222222222222222222222222222222222222222222222",
-            "s": "0x3333333333333333333333333333333333333333333333333333333333333333"
-          }
-        ],
-        "call_data": "0x0707",
-        "consensus_timestamp": 987654000123456,
-        "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
-        "payer_account_id": "8001",
-        "value": "0x0001158e460913d00000",
-        "_value_description": "2000000000 tinybars = 20000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00"
       }
     ]
   },
@@ -88,16 +67,6 @@
       {
         "address": "0x000000000000000000000000000000000186fb1b",
         "amount": 30,
-        "authorization_list": [
-          {
-            "chain_id": "0x01",
-            "address": "0x1111111111111111111111111111111111111111",
-            "nonce": 5,
-            "y_parity": 1,
-            "r": "0x2222222222222222222222222222222222222222222222222222222222222222",
-            "s": "0x3333333333333333333333333333333333333333333333333333333333333333"
-          }
-        ],
         "bloom": "0x0505",
         "call_result": "0x0606",
         "contract_id": "0.0.25623323",
@@ -115,7 +84,6 @@
       {
         "address": "0x000000000000000000000000000000000186fb1b",
         "amount": 20,
-        "authorization_list": null,
         "bloom": "0x0101",
         "call_result": "0x0202",
         "contract_id": "0.0.25623323",

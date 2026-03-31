@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import isEmpty from 'lodash/isEmpty';
 import camelCase from 'lodash/camelCase';
 import mapKeys from 'lodash/mapKeys';
 
@@ -15,7 +16,7 @@ class EthereumTransaction {
       mapKeys(ethereumTransaction, (v, k) => camelCase(k))
     );
 
-    if (!config.response.enableDelegationAddress) {
+    if (!config.response.enableDelegationAddress || this.authorizationList == null || isEmpty(this.authorizationList)) {
       delete this.authorizationList;
     }
   }

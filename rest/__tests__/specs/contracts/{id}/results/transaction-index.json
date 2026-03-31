@@ -70,7 +70,6 @@
       {
         "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
         "amount": 30,
-        "authorization_list": null,
         "bloom": "0x0303",
         "call_result": "0x0404",
         "contract_id": "0.0.5001",
