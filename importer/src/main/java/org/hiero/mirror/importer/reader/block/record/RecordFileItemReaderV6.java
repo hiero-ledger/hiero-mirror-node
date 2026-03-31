@@ -4,7 +4,7 @@ package org.hiero.mirror.importer.reader.block.record;
 
 import java.io.IOException;
 
-final class RecordFileItemParserV6 extends AbstractRecordFileItemParser {
+final class RecordFileItemReaderV6 extends AbstractRecordFileItemReader {
 
     @Override
     protected void onEnd(final Context context) throws IOException {

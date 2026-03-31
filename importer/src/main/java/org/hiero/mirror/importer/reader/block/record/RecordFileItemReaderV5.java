@@ -9,7 +9,7 @@ import java.io.IOException;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.util.DomainUtils;
 
-final class RecordFileItemParserV5 extends AbstractRecordFileItemParser {
+final class RecordFileItemReaderV5 extends AbstractRecordFileItemReader {
 
     private static final long HASH_OBJECT_CLASS_ID = 0xf422da83a251741eL;
     private static final int HASH_OBJECT_CLASS_VERSION = 1;
@@ -35,7 +35,7 @@ final class RecordFileItemParserV5 extends AbstractRecordFileItemParser {
         dos.writeInt(hapiProtoVersion.getMinor());
         dos.writeInt(hapiProtoVersion.getPatch());
         dos.writeInt(OBJECT_STREAM_VERSION);
-        writeHashObject(dos, context.recordFileItem().getRecordFileContents().getStartObjectRunningHash());
+        writeHashObject(dos, recordStreamFile.getStartObjectRunningHash());
     }
 
     @Override

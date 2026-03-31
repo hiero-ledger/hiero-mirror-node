@@ -24,8 +24,9 @@ public final class BlockFileTransformer implements StreamFileTransformer<RecordF
 
     @Override
     public RecordFile transform(final BlockFile blockFile) {
-        if (blockFile.getRecordFile() != null) {
-            return blockFile.getRecordFile();
+        final var recordFile = blockFile.getRecordFile();
+        if (recordFile != null) {
+            return recordFile;
         }
 
         final var blockHeader = blockFile.getBlockHeader();

@@ -45,6 +45,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.hiero.mirror.importer.reader.block.record.CompositeRecordFileItemReader;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -125,7 +126,7 @@ public final class BlockStreamReaderTest {
                             "bytes", "loadStart", "items", "previousWrappedRecordBlockHash", "wrappedRecordBlockHash")
                     .build();
 
-    private final BlockStreamReader reader = new BlockStreamReaderImpl();
+    private final BlockStreamReader reader = new BlockStreamReaderImpl(new CompositeRecordFileItemReader());
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
 
     @ParameterizedTest(name = "{0}")

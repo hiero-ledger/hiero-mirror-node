@@ -34,6 +34,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Objects;
 import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
@@ -43,15 +44,15 @@ import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
-import org.hiero.mirror.importer.reader.block.record.CompositeRecordFileItemParser;
-import org.hiero.mirror.importer.reader.block.record.RecordFileItemParser;
+import org.hiero.mirror.importer.reader.block.record.RecordFileItemReader;
 import org.jspecify.annotations.Nullable;
 
 @CustomLog
 @Named
+@RequiredArgsConstructor
 public final class BlockStreamReaderImpl implements BlockStreamReader {
 
-    private final RecordFileItemParser recordFileItemParser = new CompositeRecordFileItemParser();
+    private final RecordFileItemReader recordFileItemReader;
 
     @Override
     public BlockFile read(final BlockStream blockStream) {
@@ -65,7 +66,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 .size(size)
                 .version(VERSION);
 
-        final long blockNumber = readBlockHeader(context);
+        readBlockHeader(context);
         final var recordFileItem = context.readBlockItemFor(RECORD_FILE);
         if (recordFileItem == null) {
             readRounds(context);
@@ -94,8 +95,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         } else {
             final int recordFileVersion =
                     blockFile.getBlockProof().getSignedRecordFileProof().getVersion();
-            final var recordFile =
-                    recordFileItemParser.parse(blockNumber, recordFileItem.getRecordFile(), recordFileVersion);
+            final var recordFile = recordFileItemReader.read(recordFileItem.getRecordFile(), recordFileVersion);
             blockFile.setRecordFile(recordFile);
             recordFile.setLoadStart(blockStream.loadStart());
             recordFile.setPreviousWrappedRecordBlockHash(blockFile.getRawPreviousHash());
@@ -116,7 +116,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         context.getBlockFile().previousHash(bytesToHex(previousHash)).rawPreviousHash(previousHash);
     }
 
-    private long readBlockHeader(final ReaderContext context) {
+    private void readBlockHeader(final ReaderContext context) {
         final var blockItem = context.readBlockItemFor(BLOCK_HEADER);
         if (blockItem == null) {
             throw new InvalidStreamFileException("Missing block header in block " + context.getFilename());
@@ -135,7 +135,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
         blockFileBuilder.blockHeader(blockHeader);
         blockFileBuilder.index(blockHeader.getNumber());
-        return blockHeader.getNumber();
     }
 
     private void readBlockProof(final ReaderContext context) {

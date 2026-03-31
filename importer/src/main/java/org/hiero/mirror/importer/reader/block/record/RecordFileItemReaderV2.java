@@ -9,7 +9,7 @@ import java.io.IOException;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
 
-final class RecordFileItemParserV2 extends AbstractRecordFileItemParser {
+final class RecordFileItemReaderV2 extends AbstractRecordFileItemReader {
 
     private static final byte PREV_HASH_MARKER = 0x01;
     private static final byte RECORD_MARKER = 0x02;
@@ -48,7 +48,7 @@ final class RecordFileItemParserV2 extends AbstractRecordFileItemParser {
 
         final var dos = context.dos();
         final var recordStreamFile = context.recordFileItem().getRecordFileContents();
-        dos.writeInt(recordStreamFile.getHapiProtoVersion().getMajor());
+        dos.writeInt(recordStreamFile.getHapiProtoVersion().getMinor());
         dos.writeByte(PREV_HASH_MARKER);
         dos.write(DomainUtils.getHashBytes(recordStreamFile.getStartObjectRunningHash()));
     }

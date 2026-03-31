@@ -24,10 +24,10 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 
-abstract class AbstractRecordFileItemParser implements RecordFileItemParser {
+abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
 
     @Override
-    public RecordFile parse(final long blockNumber, final RecordFileItem recordFileItem, final int version) {
+    public RecordFile read(final RecordFileItem recordFileItem, final int version) {
         try (final var bos = new ByteArrayOutputStream();
                 final var hos = new DigestOutputStream(bos, createSha384Digest());
                 final var dos = new DataOutputStream(hos)) {
@@ -50,7 +50,7 @@ abstract class AbstractRecordFileItemParser implements RecordFileItemParser {
             recordFile.setCount((long) items.size());
             recordFile.setDigestAlgorithm(DigestAlgorithm.SHA_384);
             recordFile.setFileHash(Hex.encodeHexString(context.fileDigest().digest()));
-            recordFile.setIndex(blockNumber);
+            recordFile.setIndex(recordFileItem.getRecordFileContents().getBlockNumber());
             recordFile.setItems(items);
             recordFile.setSize(bytes.length);
             recordFile.setVersion(version);
