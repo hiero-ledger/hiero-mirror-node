@@ -13,7 +13,11 @@ RUN npm config set update-notifier false && \
 COPY . ./
 RUN npm run build && \
     mv node_modules buildDist/node_modules && \
-    npm prune --omit=dev --prefix buildDist
+    npm prune --omit=dev --prefix buildDist && \
+    find buildDist/node_modules \( \
+        -type f \( -name '*.ts' ! -name '*.d.ts' -o -name '*.js.map' -o -name '*.d.ts' -o -name '*.d.ts.map' -o -name '*.tsbuildinfo' \) -o \
+        -type d \( -name tests -o -name __tests__ \) \
+    \) -exec rm -rf {} + 2>/dev/null || true
 
 FROM node:24.14.1-trixie-slim
 LABEL maintainer="mirrornode@hedera.com"

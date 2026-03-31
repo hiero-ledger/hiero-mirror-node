@@ -7,7 +7,7 @@ import {build} from 'esbuild';
 // all production dependencies.
 import {cpSync, readFileSync, writeFileSync} from 'fs';
 
-const externalPackages = ['log4js', 'swagger-ui-express'];
+const externalPackages = ['log4js', 'swagger-ui-express', './__tests__/*'];
 
 await build({
   entryPoints: ['server.js'],
