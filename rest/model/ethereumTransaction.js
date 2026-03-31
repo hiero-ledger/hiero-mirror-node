@@ -16,7 +16,11 @@ class EthereumTransaction {
       mapKeys(ethereumTransaction, (v, k) => camelCase(k))
     );
 
-    if (!config.response.enableDelegationAddress || this.authorizationList == null || isEmpty(this.authorizationList)) {
+    if (config.response.enableDelegationAddress) {
+      if (this.authorizationList == null) {
+        this.authorizationList = [];
+      }
+    } else {
       delete this.authorizationList;
     }
   }

@@ -57,10 +57,10 @@ called `delegation_address`.
 -- add_code_delegations_support.sql
 
 alter table if exists entity
-add column if not exists delegation_address bytea null;
+  add column if not exists delegation_address bytea null;
 
 alter table if exists entity_history
-add column if not exists delegation_address bytea null;
+  add column if not exists delegation_address bytea null;
 ```
 
 Each EOA can have only one `delegation_address` set. To delete it, the address part of the identifier is set to the empty
@@ -76,7 +76,7 @@ Example:
 ```
 "authorization_list": [
     {
-      "chain_id": "0x127",
+      "chain_id": "0x01",
       "address": "0x1111111111111111111111111111111111111111",
       "nonce": 5,
       "y_parity": 1,
@@ -198,13 +198,13 @@ In order to do this the existing DB queries need to be enhanced.
 
 - `GET /api/v1/contracts/{contractIdOrAddress}/results/{timestamp}`
 - `GET /api/v1/contracts/results/{transactionIdOrHash}`
+- `GET /api/v1/contracts/results`
 
 The returned response will contain the new `authorization_list` json field that comes from the `ethereum_transaction` table.
 Only the select part of the existing queries against the `ethereum_transaction` table need to be changed to include the
 new column.
 
 - `GET /api/v1/contracts/{contractIdOrAddress}/results`
-- `GET /api/v1/contracts/results`
 - `GET /api/v1/contracts/{contractIdOrAddress}/results/logs`
 - `GET /api/v1/contracts/{contractIdOrAddress}/state`
 - `GET /api/v1/contracts/results/{transactionIdOrHash}/actions`

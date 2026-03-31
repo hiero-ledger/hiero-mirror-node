@@ -1323,6 +1323,7 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
         1690086061111222333n,
         {
           accessList: null,
+          authorizationList: [],
           chainId: '012a',
           consensusTimestamp: 1690086061111222333n,
           gasPrice: 'ad78ebc5ac620000',
@@ -1342,6 +1343,7 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
         1690086061111222555n,
         {
           accessList: null,
+          authorizationList: [],
           chainId: '012a',
           consensusTimestamp: 1690086061111222555n,
           gasPrice: 'ad78ebc5ac620000',
@@ -1388,7 +1390,7 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
     config.response.enableDelegationAddress = originalFlagValue;
   });
 
-  test('Omits authorization_list when empty and feature flag is enabled', async () => {
+  test('Returns empty authorizationList when null and feature flag is enabled', async () => {
     const originalFlagValue = config.response.enableDelegationAddress;
     config.response.enableDelegationAddress = true;
     await integrationDomainOps.loadEthereumTransactions([
@@ -1407,7 +1409,7 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
 
     const result = await ContractService.getEthereumTransactionsByPayerAndTimestampArray(payer, timestamp);
     const ethTx = result.get(1690086061111222333n);
-    expect(ethTx).not.toHaveProperty('authorizationList');
+    expect(ethTx.authorizationList).toEqual([]);
 
     config.response.enableDelegationAddress = originalFlagValue;
   });

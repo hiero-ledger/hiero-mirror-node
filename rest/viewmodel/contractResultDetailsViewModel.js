@@ -89,15 +89,12 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     if (!isNil(ethTransaction)) {
       this.access_list = utils.toHexStringNonQuantity(ethTransaction.accessList);
       if (config.response.enableDelegationAddress) {
-        const authorizationList = ethTransaction.authorizationList?.map((item) => {
+        this.authorization_list = ethTransaction.authorizationList?.map((item) => {
           const row = new AuthorizationListItem(item);
           row.chain_id = utils.toHexStringQuantity(utils.stripHexPrefix(item.chain_id));
           row.address = utils.toHexString(utils.stripHexPrefix(item.address), true, 40);
           return row;
         });
-        if (!isEmpty(authorizationList)) {
-          this.authorization_list = authorizationList;
-        }
       }
       this.chain_id = utils.toHexStringQuantity(ethTransaction.chainId);
 
