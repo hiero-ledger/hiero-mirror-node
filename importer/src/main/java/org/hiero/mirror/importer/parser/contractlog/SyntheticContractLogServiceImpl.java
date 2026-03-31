@@ -3,12 +3,16 @@
 package org.hiero.mirror.importer.parser.contractlog;
 
 import jakarta.inject.Named;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractLog;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
+import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 
@@ -16,10 +20,9 @@ import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 @RequiredArgsConstructor
 public class SyntheticContractLogServiceImpl implements SyntheticContractLogService {
 
-    private static final int TOPIC_SIZE_BYTES = 32;
-
     private final EntityListener entityListener;
     private final EntityProperties entityProperties;
+    private final EntityIdService entityIdService;
     private final byte[] empty = Bytes.of(0).toArray();
 
     @Override
@@ -29,21 +32,20 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         }
 
         var recordItem = log.getRecordItem();
-        var parentRecordItem = recordItem.getContractRelatedParent();
+        var contractRelatedParentRecordItem = recordItem.getContractRelatedParent();
 
         // We will backfill any EVM-related fungible token transfers that don't have synthetic events produced by CN
         if (isContract(recordItem) && shouldSkipLogCreationForContractTransfer(log)) {
             return;
         }
 
-        long consensusTimestamp = parentRecordItem != null
-                ? parentRecordItem.getConsensusTimestamp()
+        long consensusTimestamp = contractRelatedParentRecordItem != null
+                ? contractRelatedParentRecordItem.getConsensusTimestamp()
                 : recordItem.getConsensusTimestamp();
         int logIndex = recordItem.getAndIncrementLogIndex();
 
         ContractLog contractLog = new ContractLog();
 
-        contractLog.setBloom(isContract(recordItem) ? createBloom(log) : empty);
         contractLog.setConsensusTimestamp(consensusTimestamp);
         contractLog.setContractId(log.getEntityId());
         contractLog.setData(log.getData() != null ? log.getData() : empty);
@@ -51,12 +53,23 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         contractLog.setRootContractId(log.getEntityId());
         contractLog.setPayerAccountId(recordItem.getPayerAccountId());
         contractLog.setTopic0(log.getTopic0());
-        contractLog.setTopic1(log.getTopic1());
-        contractLog.setTopic2(log.getTopic2());
+
+        var topic1 =
+                entityIdService.lookupAliasOrEvmAddressBytes(log.getTopic1()).orElse(log.getTopic1());
+        var topic2 =
+                entityIdService.lookupAliasOrEvmAddressBytes(log.getTopic2()).orElse(log.getTopic2());
+        contractLog.setTopic1(topic1);
+        contractLog.setTopic2(topic2);
         contractLog.setTopic3(log.getTopic3());
         contractLog.setTransactionIndex(recordItem.getTransactionIndex());
-        contractLog.setTransactionHash(recordItem.getTransactionHash());
+
+        byte[] transactionHash = contractRelatedParentRecordItem != null
+                ? contractRelatedParentRecordItem.getTransactionHash()
+                : recordItem.getTransactionHash();
+        contractLog.setTransactionHash(transactionHash);
         contractLog.setSyntheticTransfer(log instanceof TransferContractLog);
+
+        contractLog.setBloom(isContract(recordItem) ? createBloom(log, topic1, topic2) : empty);
 
         entityListener.onContractLog(contractLog);
     }
@@ -72,7 +85,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
             return true;
         }
 
-        var tokenTransfersCount =
+        int tokenTransfersCount =
                 syntheticLog.getRecordItem().getTransactionRecord().getTokenTransferListsCount();
         if (tokenTransfersCount > 2 && !entityProperties.getPersist().isSyntheticContractLogsMulti()) {
             // We have a multi-party fungible transfer scenario and synthetic event creation for
@@ -99,22 +112,32 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
                         transferLog.getTopic1(),
                         transferLog.getTopic2(),
                         transferLog.getTopic3(),
-                        transferLog.getData());
+                        transferLog.getData(),
+                        this::resolveContractLogTopicAccount);
+    }
+
+    private Optional<EntityId> resolveContractLogTopicAccount(byte[] accountReferenceFromLogTopic) {
+        if (ArrayUtils.isEmpty(accountReferenceFromLogTopic)) {
+            return Optional.of(EntityId.EMPTY);
+        }
+        return entityIdService.lookupEntityId(DomainUtils.fromBytes(accountReferenceFromLogTopic));
     }
 
     /**
      * Creates a bloom filter for a synthetic contract log using the log's address, topics, and data.
      *
      * @param log the synthetic contract log
+     * @param topic1 sender's address bytes with evm_address/alias if available
+     * @param topic2 receiver's address bytes with evm_address/alias if available
      * @return the bloom filter as a byte array
      */
-    private byte[] createBloom(SyntheticContractLog log) {
+    private byte[] createBloom(SyntheticContractLog log, byte[] topic1, byte[] topic2) {
         final var evmAddress = DomainUtils.toEvmAddress(log.getEntityId());
         final var logsBloomFilter = new LogsBloomFilter();
         logsBloomFilter.insertAddress(evmAddress);
         logsBloomFilter.insertTopic(log.getTopic0());
-        logsBloomFilter.insertTopic(log.getTopic1());
-        logsBloomFilter.insertTopic(log.getTopic2());
+        logsBloomFilter.insertTopic(topic1);
+        logsBloomFilter.insertTopic(topic2);
         logsBloomFilter.insertTopic(log.getTopic3());
         return logsBloomFilter.toArrayUnsafe();
     }

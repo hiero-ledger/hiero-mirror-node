@@ -9,6 +9,7 @@ import static org.hiero.mirror.importer.util.UtilityTest.ALIAS_ECDSA_SECP256K1;
 import static org.hiero.mirror.importer.util.UtilityTest.EVM_ADDRESS;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
+import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import java.util.stream.Stream;
@@ -427,6 +428,52 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
                 .setAlias(DomainUtils.fromBytes(domainBuilder.evmAddress()))
                 .build();
         assertThat(entityIdService.lookup(accountId)).isNotPresent();
+    }
+
+    @Test
+    void lookupEntityIdByAlias() {
+        var entity =
+                domainBuilder.entity().customize(e -> e.evmAddress(EVM_ADDRESS)).persist();
+        var alias = DomainUtils.fromBytes(ALIAS_ECDSA_SECP256K1);
+        assertThat(entityIdService.lookupEntityId(alias)).hasValue(entity.toEntityId());
+    }
+
+    @Test
+    void lookupEntityIdByEvmAddress() {
+        var entity =
+                domainBuilder.entity().customize(e -> e.evmAddress(EVM_ADDRESS)).persist();
+        assertThat(entityIdService.lookupEntityId(ByteString.copyFrom(EVM_ADDRESS)))
+                .hasValue(entity.toEntityId());
+    }
+
+    @Test
+    void lookupEntityIdEmptyInput() {
+        assertThat(entityIdService.lookupEntityId(ByteString.EMPTY)).hasValue(EntityId.EMPTY);
+    }
+
+    @Test
+    void lookupAliasOrEvmAddressBytesDeletedAccount() {
+        var entity = domainBuilder
+                .entity()
+                .customize(e -> e.evmAddress(EVM_ADDRESS).deleted(true))
+                .persist();
+        assertThat(entityIdService.lookupAliasOrEvmAddressBytes(
+                        entity.toEntityId().toAccountID().toByteArray()))
+                .isEmpty();
+    }
+
+    @Test
+    void lookupAliasOrEvmAddressBytesWithAccountThatAlreadyHasIt() {
+        var entity =
+                domainBuilder.entity().customize(e -> e.evmAddress(EVM_ADDRESS)).persist();
+        assertThat(entityIdService.lookupAliasOrEvmAddressBytes(
+                        getProtoAccountId(entity).toByteArray()))
+                .isEmpty();
+    }
+
+    @Test
+    void lookupAliasOrEvmAddressBytesNull() {
+        assertThat(entityIdService.lookupAliasOrEvmAddressBytes(null)).isEmpty();
     }
 
     private AccountID getProtoAccountId(Entity account) {

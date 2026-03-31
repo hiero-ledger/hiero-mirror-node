@@ -5,8 +5,11 @@ package org.hiero.mirror.importer.parser.contractlog;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.AccountAmount;
@@ -19,6 +22,8 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TokenType;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
+import java.util.Objects;
+import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
@@ -28,8 +33,11 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
+import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.util.Utility;
+import org.hiero.mirror.importer.util.UtilityTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,11 +63,13 @@ final class SyntheticContractLogServiceImplTest {
     @Mock
     private EntityListener entityListener;
 
+    @Mock
+    private EntityIdService entityIdService;
+
     @Captor
     private ArgumentCaptor<ContractLog> contractLogCaptor;
 
     private SyntheticContractLogService syntheticContractLogService;
-
     private RecordItem recordItem;
     private EntityId entityTokenId;
     private EntityId senderId;
@@ -68,7 +78,13 @@ final class SyntheticContractLogServiceImplTest {
 
     @BeforeEach
     void beforeEach() {
-        syntheticContractLogService = new SyntheticContractLogServiceImpl(entityListener, entityProperties);
+        lenient().when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.empty());
+        lenient().when(entityIdService.lookupEntityId(any(ByteString.class))).thenReturn(Optional.empty());
+        lenient()
+                .when(entityIdService.lookupAliasOrEvmAddressBytes(any(byte[].class)))
+                .thenReturn(Optional.empty());
+        syntheticContractLogService =
+                new SyntheticContractLogServiceImpl(entityListener, entityProperties, entityIdService);
         recordItem = recordItemBuilder.tokenMint(TokenType.FUNGIBLE_COMMON).build();
 
         TokenID tokenId = recordItem.getTransactionBody().getTokenMint().getToken();
@@ -554,6 +570,43 @@ final class SyntheticContractLogServiceImplTest {
     }
 
     @Test
+    @DisplayName(
+            "Should skip creation of a log that is already present within the same RecordItem being imported where receiver has an alias")
+    void skipAlreadyPresentContractLogWhereReceiverHasAnAlias() {
+        byte[] topic2FromAliasEvm =
+                DomainUtils.trim(Objects.requireNonNull(Utility.aliasToEvmAddress(UtilityTest.ALIAS_ECDSA_SECP256K1)));
+        var topic2FromLog = ByteString.copyFrom(topic2FromAliasEvm);
+        var topic2Synthetic = DomainUtils.fromBytes(entityIdToBytes(receiverId));
+        reset(entityIdService);
+        lenient().when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.empty());
+        lenient()
+                .when(entityIdService.lookupAliasOrEvmAddressBytes(any(byte[].class)))
+                .thenReturn(Optional.empty());
+        when(entityIdService.lookupEntityId(any(ByteString.class))).thenAnswer(invocation -> {
+            var bs = invocation.<ByteString>getArgument(0);
+            if (topic2FromLog.equals(bs) || topic2Synthetic.equals(bs)) {
+                return Optional.of(receiverId);
+            }
+            return Optional.empty();
+        });
+
+        var existingLogOnRecordWithAliasTopics = erc20TransferContractLogWithTopics(
+                entityTokenId, entityIdToBytes(senderId), topic2FromAliasEvm, amount);
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setContractCallResult(
+                        ContractFunctionResult.newBuilder().addLogInfo(existingLogOnRecordWithAliasTopics)))
+                .build();
+
+        var transferLog = new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount);
+
+        syntheticContractLogService.create(transferLog);
+
+        verify(entityListener, times(0)).onContractLog(any());
+    }
+
+    @Test
     @DisplayName("Should create one of three identical synthetic logs when parent has two matching occurrences")
     void createOneOfThreeIdenticalLogsWhenTwoOccurrencesInParent() {
         // Create a parent with two identical matching contract logs
@@ -818,6 +871,23 @@ final class SyntheticContractLogServiceImplTest {
                 .addTopic(topic0)
                 .addTopic(topic1)
                 .addTopic(topic2)
+                .setData(data)
+                .build();
+    }
+
+    /** ERC-20 Transfer log with explicit topic1/topic2 bytes (e.g. alias-derived EVM addresses on the record). */
+    private ContractLoginfo erc20TransferContractLogWithTopics(
+            EntityId tokenId, byte[] topic1, byte[] topic2, long transferAmount) {
+        var topic0 = ByteString.copyFrom(TRANSFER_SIGNATURE);
+        var topic1Bs = ByteString.copyFrom(topic1);
+        var topic2Bs = ByteString.copyFrom(topic2);
+        var data = ByteString.copyFrom(
+                DomainUtils.trim(Bytes.ofUnsignedLong(transferAmount).toArrayUnsafe()));
+        return ContractLoginfo.newBuilder()
+                .setContractID(tokenId.toContractID())
+                .addTopic(topic0)
+                .addTopic(topic1Bs)
+                .addTopic(topic2Bs)
                 .setData(data)
                 .build();
     }

@@ -25,6 +25,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.binary.Hex;
@@ -34,6 +35,7 @@ import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.ContractAccountResolver;
 import org.hiero.mirror.common.domain.transaction.ContractSlotKey;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.exception.ProtobufException;
@@ -364,17 +366,81 @@ public class DomainUtils {
     }
 
     /**
-     * Compares a contract log's topics and data to the given byte arrays (trim-aware, no allocation).
+     * Matches when the log topic and synthetic topic resolve to the same account number ({@link EntityId#getNum()}).
+     * Both sides are resolved through {@link ContractAccountResolver}, so that address values are always resolved
+     * to account number before comparing.
      */
     public static boolean contractLogTopicsAndDataMatches(
-            ContractLoginfo log, byte[] topic0, byte[] topic1, byte[] topic2, byte[] topic3, byte[] data) {
+            ContractLoginfo log,
+            byte[] topic0,
+            byte[] topic1,
+            byte[] topic2,
+            byte[] topic3,
+            byte[] data,
+            @Nullable ContractAccountResolver accountResolver) {
         var topicList = log.getTopicList();
         int topicCount = topicList.size();
         return trimmedByteStringEquals(topicCount > 0 ? topicList.get(0) : null, topic0)
-                && trimmedByteStringEquals(topicCount > 1 ? topicList.get(1) : null, topic1)
-                && trimmedByteStringEquals(topicCount > 2 ? topicList.get(2) : null, topic2)
+                && transferIndexedAddressTopicMatches(topicCount > 1 ? topicList.get(1) : null, topic1, accountResolver)
+                && transferIndexedAddressTopicMatches(topicCount > 2 ? topicList.get(2) : null, topic2, accountResolver)
                 && trimmedByteStringEquals(topicCount > 3 ? topicList.get(3) : null, topic3)
                 && trimmedByteStringEquals(log.getData(), data);
+    }
+
+    private static boolean transferIndexedAddressTopicMatches(
+            @Nullable ByteString contractResultTopic,
+            @Nullable byte[] syntheticTopic,
+            @Nullable ContractAccountResolver accountResolver) {
+        if (trimmedByteStringEquals(contractResultTopic, syntheticTopic)) {
+            return true;
+        }
+        if (accountResolver == null) {
+            return false;
+        }
+        byte[] contractResultLogTrimmed = trimmedLogTopicBytes(contractResultTopic);
+        byte[] syntheticTrimmed = trimmedLogTopicBytes(syntheticTopic);
+        Optional<EntityId> contractResultLogEntity =
+                resolveTransferIndexedAccount(contractResultLogTrimmed, accountResolver);
+        Optional<EntityId> syntheticLogEntity = resolveTransferIndexedAccount(syntheticTrimmed, accountResolver);
+        if (contractResultLogEntity.isEmpty() || syntheticLogEntity.isEmpty()) {
+            return false;
+        }
+        return accountNumsEqual(contractResultLogEntity.get(), syntheticLogEntity.get());
+    }
+
+    private static byte[] trimmedLogTopicBytes(@Nullable ByteString logTopic) {
+        if (logTopic == null || logTopic.isEmpty()) {
+            return ArrayUtils.EMPTY_BYTE_ARRAY;
+        }
+        return trim(toBytes(logTopic));
+    }
+
+    private static byte[] trimmedLogTopicBytes(@Nullable byte[] syntheticTopic) {
+        if (syntheticTopic == null || syntheticTopic.length == 0) {
+            return ArrayUtils.EMPTY_BYTE_ARRAY;
+        }
+        return trim(syntheticTopic);
+    }
+
+    /**
+     * Resolves an account part of a topic into an entity, including account num
+     */
+    private static Optional<EntityId> resolveTransferIndexedAccount(
+            byte[] trimmedTopic, ContractAccountResolver accountResolver) {
+        if (trimmedTopic.length == 0) {
+            return Optional.of(EntityId.EMPTY);
+        }
+        return accountResolver.lookup(trimmedTopic);
+    }
+
+    private static boolean accountNumsEqual(EntityId firstEntity, EntityId secondEntity) {
+        if (EntityId.isEmpty(firstEntity) && EntityId.isEmpty(secondEntity)) {
+            return true;
+        }
+        if (EntityId.isEmpty(firstEntity) || EntityId.isEmpty(secondEntity)) {
+            return false;
+        }
+        return firstEntity.getNum() == secondEntity.getNum();
     }
 
     /**

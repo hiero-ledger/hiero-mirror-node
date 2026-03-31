@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.domain;
 
+import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import java.util.Optional;
@@ -56,6 +57,23 @@ public interface EntityIdService {
      * @return An optional of the converted EntityId if it can be resolved, or EntityId.EMPTY if none can be resolved.
      */
     Optional<EntityId> lookup(ContractID... contractIds);
+
+    /**
+     * Resolves an account alias or EVM-shaped address (20 bytes) to the corresponding {@link EntityId}
+     * (shard.realm.accountNum).
+     *
+     * @param aliasOrEvmAddress protobuf bytes (alias or raw EVM address form), or empty
+     * @return the resolved {@link EntityId}
+     */
+    Optional<EntityId> lookupEntityId(ByteString aliasOrEvmAddress);
+
+    /**
+     * For an address represented by byte[], loads the 20-byte evm_address / alias
+     *
+     * @param accountAddress to use for search
+     * @return trimmed 20-byte address bytes
+     */
+    Optional<byte[]> lookupAliasOrEvmAddressBytes(byte[] accountAddress);
 
     /**
      * Used to notify the system of new aliases / evm addresses for potential use in future lookups.
