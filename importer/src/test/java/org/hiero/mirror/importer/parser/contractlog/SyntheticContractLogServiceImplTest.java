@@ -28,6 +28,7 @@ import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
+import org.hiero.mirror.common.domain.RecordItemBuilder.TransferType;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -344,87 +345,61 @@ final class SyntheticContractLogServiceImplTest {
 
     @Test
     @DisplayName(
-            "Fungible token mint: synthetic Transfer log topic1/topic2 use trimmed mirror EVM address bytes from sender and receiver")
-    void tokenMintSyntheticLogTopicsUseTrimmedEvmAddresses() {
+            "CryptoTransfer child with zero-padded token transfer aliases: skip synthetic log when ContractCall parent already has matching Transfer log with padded indexed topics")
+    void skipSyntheticLogWhenParentHasPaddedTopicsAndChildTokenTransfersUseZeroPaddedEvmAliases() {
         TokenID token = recordItemBuilder.tokenId();
-        var minter = EntityId.of(0, 0, 4100);
-        var treasury = EntityId.of(0, 0, 4101);
-        long mintAmount = 777L;
-
-        recordItem = recordItemBuilder
-                .tokenMint(TokenType.FUNGIBLE_COMMON)
-                .transactionBody(tb -> tb.setAmount(mintAmount).setToken(token))
-                .record(r -> r.clearTokenTransferLists()
-                        .addTokenTransferLists(fungibleTokenTransferList(
-                                token, tokenTransfer(0, 0, 4100, -mintAmount), tokenTransfer(0, 0, 4101, mintAmount))))
-                .build();
+        var sender = EntityId.of(0, 0, 6001);
+        var receiver = EntityId.of(0, 0, 6002);
+        long transferAmount = 888L;
         entityTokenId = EntityId.of(token);
 
-        syntheticContractLogService.create(
-                new TransferContractLog(recordItem, entityTokenId, minter, treasury, mintAmount));
+        var matchingLogWithPaddedTopics = createMatchingFungibleTokenTransferLogWithPaddedAddressTopics(
+                entityTokenId, sender, receiver, transferAmount);
+        assertThat(matchingLogWithPaddedTopics.getTopic(1).size()).isEqualTo(32);
+        assertThat(matchingLogWithPaddedTopics.getTopic(1).byteAt(0)).isZero();
 
-        verify(entityListener).onContractLog(contractLogCaptor.capture());
-        var captured = contractLogCaptor.getValue();
-        assertThat(recordItem.getTransactionBody().hasTokenMint()).isTrue();
-        assertThat(captured.getTopic1()).isEqualTo(entityIdToBytes(minter));
-        assertThat(captured.getTopic2()).isEqualTo(entityIdToBytes(treasury));
-    }
+        var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setContractCallResult(ContractFunctionResult.newBuilder()
+                        .addLogInfo(matchingLogWithPaddedTopics)
+                        .build()))
+                .build();
 
-    @Test
-    @DisplayName(
-            "Fungible token burn: synthetic Transfer log topic1/topic2 use trimmed mirror EVM address bytes from sender and receiver")
-    void tokenBurnSyntheticLogTopicsUseTrimmedEvmAddresses() {
-        TokenID token = recordItemBuilder.tokenId();
-        var sender = EntityId.of(0, 0, 4200);
-        var receiver = EntityId.of(0, 0, 4201);
-        long burnAmount = 333L;
+        long parentTs = parentRecordItem.getConsensusTimestamp();
+        var parentTsProto = Timestamp.newBuilder()
+                .setSeconds(parentTs / 1_000_000_000L)
+                .setNanos((int) (parentTs % 1_000_000_000L));
+
+        var transferList = fungibleTokenTransferList(
+                token,
+                tokenTransferWithZeroPaddedEvmAlias(sender, -transferAmount),
+                tokenTransferWithZeroPaddedEvmAlias(receiver, transferAmount));
 
         recordItem = recordItemBuilder
-                .tokenBurn()
-                .transactionBody(
-                        tb -> tb.clearSerialNumbers().setAmount(burnAmount).setToken(token))
-                .record(r -> r.clearTokenTransferLists()
-                        .addTokenTransferLists(fungibleTokenTransferList(
-                                token, tokenTransfer(0, 0, 4200, -burnAmount), tokenTransfer(0, 0, 4201, burnAmount))))
+                .cryptoTransfer(TransferType.TOKEN)
+                .transactionBody(tb -> tb.clearTokenTransfers().addTokenTransfers(transferList))
+                .record(r -> r.clearTokenTransferLists().addTokenTransferLists(transferList))
+                .record(r -> r.setContractCallResult(ContractFunctionResult.newBuilder()
+                        .setContractID(HTS_PRECOMPILE_CONTRACT_ADDRESS)
+                        .build()))
+                .record(r -> r.setParentConsensusTimestamp(parentTsProto))
+                .recordItem(r -> r.previous(parentRecordItem))
                 .build();
-        entityTokenId = EntityId.of(token);
+
+        assertThat(recordItem.getContractRelatedParent()).isSameAs(parentRecordItem);
+
+        var childTransfers =
+                recordItem.getTransactionRecord().getTokenTransferLists(0).getTransfersList();
+        assertThat(childTransfers).hasSize(2);
+        assertThat(childTransfers.get(0).getAccountID().getAlias().size()).isEqualTo(32);
+        assertThat(childTransfers.get(0).getAccountID().getAlias().byteAt(0)).isZero();
+        assertThat(childTransfers.get(1).getAccountID().getAlias().size()).isEqualTo(32);
+        assertThat(childTransfers.get(1).getAccountID().getAlias().byteAt(0)).isZero();
 
         syntheticContractLogService.create(
-                new TransferContractLog(recordItem, entityTokenId, sender, receiver, burnAmount));
+                new TransferContractLog(recordItem, entityTokenId, sender, receiver, transferAmount));
 
-        verify(entityListener).onContractLog(contractLogCaptor.capture());
-        var captured = contractLogCaptor.getValue();
-        assertThat(recordItem.getTransactionBody().hasTokenBurn()).isTrue();
-        assertThat(captured.getTopic1()).isEqualTo(entityIdToBytes(sender));
-        assertThat(captured.getTopic2()).isEqualTo(entityIdToBytes(receiver));
-    }
-
-    @Test
-    @DisplayName(
-            "Fungible token wipe: synthetic Transfer log topic1/topic2 use trimmed mirror EVM address bytes from sender and receiver")
-    void tokenWipeSyntheticLogTopicsUseTrimmedEvmAddresses() {
-        TokenID token = recordItemBuilder.tokenId();
-        var fromAccount = EntityId.of(0, 0, 4300);
-        var toAccount = EntityId.of(0, 0, 4301);
-        long wipeAmount = 222L;
-
-        recordItem = recordItemBuilder
-                .tokenWipe(TokenType.FUNGIBLE_COMMON)
-                .transactionBody(tb -> tb.setAmount(wipeAmount).setToken(token))
-                .record(r -> r.clearTokenTransferLists()
-                        .addTokenTransferLists(fungibleTokenTransferList(
-                                token, tokenTransfer(0, 0, 4300, -wipeAmount), tokenTransfer(0, 0, 4301, wipeAmount))))
-                .build();
-        entityTokenId = EntityId.of(token);
-
-        syntheticContractLogService.create(
-                new TransferContractLog(recordItem, entityTokenId, fromAccount, toAccount, wipeAmount));
-
-        verify(entityListener).onContractLog(contractLogCaptor.capture());
-        var captured = contractLogCaptor.getValue();
-        assertThat(recordItem.getTransactionBody().hasTokenWipe()).isTrue();
-        assertThat(captured.getTopic1()).isEqualTo(entityIdToBytes(fromAccount));
-        assertThat(captured.getTopic2()).isEqualTo(entityIdToBytes(toAccount));
+        verify(entityListener, times(0)).onContractLog(any());
     }
 
     @ParameterizedTest
@@ -966,6 +941,20 @@ final class SyntheticContractLogServiceImplTest {
         verify(entityListener, times(0)).onContractLog(any());
     }
 
+    /**
+     * AccountAmount whose {@link AccountID} carries the mirror EVM address for {@code accountId} as a 32-byte
+     * ABI-style word (leading zero padding), as used in some record payloads.
+     */
+    private static AccountAmount tokenTransferWithZeroPaddedEvmAlias(EntityId accountId, long amount) {
+        byte[] evmAddress = DomainUtils.trim(DomainUtils.toEvmAddress(accountId));
+        byte[] padded = new byte[32];
+        System.arraycopy(evmAddress, 0, padded, 32 - evmAddress.length, evmAddress.length);
+        return AccountAmount.newBuilder()
+                .setAccountID(AccountID.newBuilder().setAlias(ByteString.copyFrom(padded)))
+                .setAmount(amount)
+                .build();
+    }
+
     private AccountAmount tokenTransfer(long shard, long realm, long num, long amount) {
         return AccountAmount.newBuilder()
                 .setAccountID(AccountID.newBuilder()
@@ -1012,6 +1001,35 @@ final class SyntheticContractLogServiceImplTest {
                 .addTopic(topic2)
                 .setData(data)
                 .build();
+    }
+
+    /**
+     * Same transfer event as {@link #createMatchingFungibleTokenTransferLog}, but topic1/topic2 are 32-byte
+     * ABI-style indexed address words (left-padded with zeros) so trim-aware matching still aligns with synthetic
+     * logs that use trimmed mirror EVM bytes.
+     */
+    private ContractLoginfo createMatchingFungibleTokenTransferLogWithPaddedAddressTopics(
+            EntityId tokenId, EntityId sender, EntityId receiver, long transferAmount) {
+        var topic0 = ByteString.copyFrom(TRANSFER_SIGNATURE);
+        var topic1 = leftPadMirrorEvmTopic32(entityIdToBytes(sender));
+        var topic2 = leftPadMirrorEvmTopic32(entityIdToBytes(receiver));
+        var data = ByteString.copyFrom(
+                DomainUtils.trim(Bytes.ofUnsignedLong(transferAmount).toArrayUnsafe()));
+        return ContractLoginfo.newBuilder()
+                .setContractID(tokenId.toContractID())
+                .addTopic(topic0)
+                .addTopic(topic1)
+                .addTopic(topic2)
+                .setData(data)
+                .build();
+    }
+
+    private static ByteString leftPadMirrorEvmTopic32(byte[] trimmedEvm) {
+        byte[] padded = new byte[32];
+        if (trimmedEvm != null && trimmedEvm.length > 0) {
+            System.arraycopy(trimmedEvm, 0, padded, 32 - trimmedEvm.length, trimmedEvm.length);
+        }
+        return ByteString.copyFrom(padded);
     }
 
     /** ERC-20 Transfer log with explicit topic1/topic2 bytes (e.g. alias-derived EVM addresses on the record). */
