@@ -12,7 +12,8 @@ RUN npm config set update-notifier false && \
 
 COPY . ./
 RUN npm run build && \
-    npm install --omit=dev --prefix buildDist
+    mv node_modules buildDist/node_modules && \
+    npm prune --omit=dev --prefix buildDist
 
 FROM node:24.14.1-trixie-slim
 LABEL maintainer="mirrornode@hedera.com"

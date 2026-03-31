@@ -161,6 +161,7 @@ spotless {
         target("rest/**/*.js", "tools/**/*.js")
         targetExclude(
             "**/build/**",
+            "**/buildDist/**",
             "**/node_modules/**",
             "**/__tests__/integration/*.spec.test.js",
             "tools/mirror-report/index.js",
