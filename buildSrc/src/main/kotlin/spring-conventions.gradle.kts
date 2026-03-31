@@ -26,7 +26,8 @@ val platform = imagePlatform.ifBlank { null }
 
 tasks.bootBuildImage {
     val env = System.getenv()
-    val image = "docker.io/jesseswirldslabs/${project.name}"
+    val repo = env.getOrDefault("GITHUB_REPOSITORY", "hiero-ledger/hiero-mirror-node")
+    val image = "ghcr.io/${repo}/${project.name}"
 
     buildpacks = listOf("urn:cnb:builder:paketo-buildpacks/java", "paketo-buildpacks/native-image")
     docker {
@@ -36,7 +37,7 @@ tasks.bootBuildImage {
             password = env.getOrDefault("GITHUB_TOKEN", "")
             username = env.getOrDefault("GITHUB_ACTOR", "")
         }
-        tags = listOf("${image}:${project.version}166")
+        tags = listOf("${image}:${project.version}")
     }
 
     val extraBuildArgs =
@@ -52,7 +53,7 @@ tasks.bootBuildImage {
             "BP_OCI_LICENSES" to "Apache-2.0",
             "BP_OCI_REF_NAME" to env.getOrDefault("GITHUB_REF_NAME", "main"),
             "BP_OCI_REVISION" to env.getOrDefault("GITHUB_SHA", ""),
-            "BP_OCI_SOURCE" to "https://github.com/hiero-ledger/hiero-mirror-node",
+            "BP_OCI_SOURCE" to "https://github.com/hiero-ledger/${repo}",
             "BP_OCI_VENDOR" to "Hiero",
         )
 }
@@ -70,8 +71,7 @@ tasks.register<BootRun>("bootRunWithNativeAgent") {
     jvmArgs =
         bootRun.jvmArgs +
             listOf(
-                "-Dspring.aot.enabled=true",
-                "-agentlib:native-image-agent=config-output-dir=${project.projectDir}/src/main/resources/META-INF/native-image/org.hiero.mirror/${project.name}",
+                "-agentlib:native-image-agent=config-output-dir=${project.projectDir}/src/main/resources/META-INF/native-image/org.hiero.mirror/${project.name}"
             )
 
     systemProperties.putAll(bootRun.systemProperties)

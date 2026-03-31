@@ -4,9 +4,7 @@ package org.hiero.mirror.restjava.config;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.restjava.parameter.EntityIdNumParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdParameter;
-import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 import org.hiero.mirror.restjava.parameter.RequestParameterArgumentResolver;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;
@@ -30,7 +28,5 @@ final class WebMvcConfiguration implements WebMvcConfigurer {
     @Override
     public void addFormatters(FormatterRegistry registry) {
         registry.addConverter(String.class, EntityIdParameter.class, EntityIdParameter::valueOf);
-        registry.addConverter(String.class, EntityIdNumParameter.class, EntityIdNumParameter::valueOf);
-        registry.addConverter(String.class, EntityIdRangeParameter.class, EntityIdRangeParameter::valueOf);
     }
 }

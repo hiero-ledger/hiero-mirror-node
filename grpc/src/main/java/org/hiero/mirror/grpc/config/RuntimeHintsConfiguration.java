@@ -23,7 +23,7 @@ final class RuntimeHintsConfiguration {
         @Override
         public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
 
-            // Register @Validated classes so validation applies correctly
+            // Register @Validated classes where @Valid is used on method parameter
             registerReflectionTypes(hints, TopicMessageFilter.class.getName());
         }
     }

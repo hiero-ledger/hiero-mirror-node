@@ -39,15 +39,17 @@ class RedisPublisherTest {
     private RedisPublisher entityListener;
     private ParserContext parserContext;
     private RedisProperties redisProperties;
-    private RecordParserProperties recordParserProperties;
 
     @BeforeEach
     void setup() {
         parserContext = new ParserContext();
         redisProperties = new RedisProperties();
-        recordParserProperties = new RecordParserProperties();
         entityListener = new RedisPublisher(
-                redisProperties, redisOperations, new SimpleMeterRegistry(), parserContext, recordParserProperties);
+                redisProperties,
+                redisOperations,
+                new SimpleMeterRegistry(),
+                parserContext,
+                new RecordParserProperties());
     }
 
     @Test

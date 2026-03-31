@@ -12,5 +12,5 @@ import org.springframework.validation.annotation.Validated;
 @Named
 @Validated
 public class BlockDownloaderProperties {
-    private final boolean enabled = false;
+    private boolean enabled = false;
 }

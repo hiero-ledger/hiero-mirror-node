@@ -17,46 +17,20 @@ import org.springframework.core.type.filter.TypeFilter;
 @NullMarked
 public final class RuntimeHintsHelper {
 
-    private static final MemberCategory[] DEFAULT_CATEGORIES = new MemberCategory[] {
+    private static final MemberCategory[] DEFAULT_CATEGORIES = {
         MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
         MemberCategory.INVOKE_DECLARED_METHODS,
-        MemberCategory.ACCESS_DECLARED_FIELDS
+        MemberCategory.ACCESS_DECLARED_FIELDS,
     };
-
-    public static final MemberCategory[] NONE = new MemberCategory[0];
-    public static final MemberCategory[] UNSAFE_ALLOCATED = new MemberCategory[] {MemberCategory.UNSAFE_ALLOCATED};
-    public static final MemberCategory[] METHODS_ONLY = new MemberCategory[] {MemberCategory.INVOKE_DECLARED_METHODS};
-    public static final MemberCategory[] CONSTRUCTORS_AND_METHODS =
-            new MemberCategory[] {MemberCategory.INVOKE_DECLARED_CONSTRUCTORS, MemberCategory.INVOKE_DECLARED_METHODS};
-    public static final MemberCategory[] FIELDS_AND_METHODS =
-            new MemberCategory[] {MemberCategory.ACCESS_DECLARED_FIELDS, MemberCategory.INVOKE_DECLARED_METHODS};
-
-    public static void registerReflectionField(
-            RuntimeHints hints, ClassLoader loader, String className, String fieldName) {
-        try {
-            final var type = Class.forName(className, false, loader);
-            final var field = type.getDeclaredField(fieldName);
-            hints.reflection().registerField(field);
-        } catch (ClassNotFoundException | NoSuchFieldException ignored) {
-            // no-op
-        }
-    }
-
-    public static void registerJnaAndReflectionTypes(RuntimeHints hints, String... classNames) {
-        registerJnaAndReflectionTypes(hints, DEFAULT_CATEGORIES, classNames);
-    }
-
-    public static void registerJnaAndReflectionTypes(
-            RuntimeHints hints, MemberCategory[] memberCategories, String... classNames) {
-        for (final var className : classNames) {
-            registerType(hints, className, true, memberCategories);
-        }
-    }
-
-    public static void registerJnaAndReflectionType(
-            RuntimeHints hints, String className, MemberCategory... memberCategories) {
-        registerType(hints, className, true, memberCategories);
-    }
+    public static final MemberCategory[] NONE = {};
+    public static final MemberCategory[] UNSAFE_ALLOCATED = {MemberCategory.UNSAFE_ALLOCATED};
+    public static final MemberCategory[] METHODS_ONLY = {MemberCategory.INVOKE_DECLARED_METHODS};
+    public static final MemberCategory[] CONSTRUCTORS_AND_METHODS = {
+        MemberCategory.INVOKE_DECLARED_CONSTRUCTORS, MemberCategory.INVOKE_DECLARED_METHODS
+    };
+    public static final MemberCategory[] FIELDS_AND_METHODS = {
+        MemberCategory.ACCESS_DECLARED_FIELDS, MemberCategory.INVOKE_DECLARED_METHODS
+    };
 
     public static void registerReflectionTypes(RuntimeHints hints, String... classNames) {
         registerReflectionTypes(hints, DEFAULT_CATEGORIES, classNames);
@@ -81,12 +55,12 @@ public final class RuntimeHintsHelper {
     }
 
     public static void registerReflectionType(RuntimeHints hints, String className) {
-        registerType(hints, className, false, DEFAULT_CATEGORIES);
+        registerType(hints, className, DEFAULT_CATEGORIES);
     }
 
     public static void registerReflectionType(
             RuntimeHints hints, String className, MemberCategory... memberCategories) {
-        registerType(hints, className, false, memberCategories);
+        registerType(hints, className, memberCategories);
     }
 
     public static void registerAnnotatedPackage(
@@ -135,14 +109,8 @@ public final class RuntimeHintsHelper {
         }
     }
 
-    private static void registerType(
-            RuntimeHints hints, String className, boolean registerJni, MemberCategory... memberCategories) {
+    private static void registerType(RuntimeHints hints, String className, MemberCategory... memberCategories) {
         final var type = TypeReference.of(className);
-
-        if (registerJni) {
-            hints.jni().registerType(type, builder -> builder.withMembers(memberCategories));
-        }
-
         hints.reflection().registerType(type, memberCategories);
     }
 

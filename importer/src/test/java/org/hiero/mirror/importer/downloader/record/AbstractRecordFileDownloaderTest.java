@@ -45,8 +45,6 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
     @Mock(strictness = LENIENT)
     private CutoverService cutoverService;
 
-    private final BlockDownloaderProperties blockDownloaderProperties = new BlockDownloaderProperties();
-
     protected Map<String, RecordFile> recordFileMap;
     protected SidecarProperties sidecarProperties;
 
@@ -95,7 +93,7 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
                 streamFileNotifier,
                 streamFileProvider,
                 recordFileReader,
-                blockDownloaderProperties);
+                new BlockDownloaderProperties());
     }
 
     protected void setupRecordFiles(Map<String, RecordFile> recordFileMap) {
