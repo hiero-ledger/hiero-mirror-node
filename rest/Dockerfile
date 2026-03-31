@@ -1,4 +1,4 @@
-FROM node:24.14.1-trixie-slim AS builder
+FROM node:25.8.2-trixie-slim AS builder
 WORKDIR /dist
 
 RUN apt-get update && \
@@ -19,7 +19,7 @@ RUN npm run build && \
         -type d \( -name tests -o -name __tests__ \) \
     \) -exec rm -rf {} + 2>/dev/null || true
 
-FROM node:24.14.1-trixie-slim
+FROM node:25.8.2-trixie-slim
 LABEL maintainer="mirrornode@hedera.com"
 
 ENV NODE_ENV=production
