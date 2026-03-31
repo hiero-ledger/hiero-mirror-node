@@ -6,7 +6,7 @@ repositories { gradlePluginPortal() }
 
 dependencies {
     val dockerJavaVersion = "3.7.1"
-    val jooqVersion = "3.20.11" // Always make the version in project root build.gradle.kts match
+    val jooqVersion = "3.21.1" // Always make the version in project root build.gradle.kts match
 
     // Add docker-java dependencies before gradle-docker-plugin to avoid the docker-java jars
     // embedded in the plugin being used by testcontainers-postgresql
@@ -33,7 +33,7 @@ dependencies {
     implementation("org.jooq:jooq-postgres-extensions:${jooqVersion}")
     implementation("org.openapitools:openapi-generator-gradle-plugin:7.20.0")
     implementation("org.owasp:dependency-check-gradle:12.2.0")
-    implementation("org.springframework.boot:spring-boot-gradle-plugin:4.0.4")
+    implementation("org.springframework.boot:spring-boot-gradle-plugin:4.0.5")
     implementation("org.testcontainers:testcontainers-postgresql:2.0.4")
     implementation("org.web3j:web3j-gradle-plugin:5.0.2")
 }
