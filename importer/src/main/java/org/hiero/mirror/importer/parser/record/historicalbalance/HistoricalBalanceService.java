@@ -32,17 +32,12 @@ import org.hiero.mirror.importer.repository.AccountBalanceRepository;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.TokenBalanceRepository;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
 
-@ConditionalOnProperty(
-        name = "enabled",
-        matchIfMissing = true,
-        prefix = "hiero.mirror.importer.parser.record.historical-balance")
 @CustomLog
 @Named
 public class HistoricalBalanceService {
@@ -108,6 +103,10 @@ public class HistoricalBalanceService {
     @Async
     @TransactionalEventListener
     public void onRecordFileParsed(RecordFileParsedEvent event) {
+        if (!properties.isEnabled()) {
+            return;
+        }
+
         if (running.compareAndExchange(false, true)) {
             return;
         }

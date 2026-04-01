@@ -12,12 +12,14 @@ import pgRange, {Range} from 'pg-range';
 import util from 'util';
 
 import * as constants from './constants';
+import {EvmAddressType, userLimitLabel} from './constants';
 import EntityId from './entityId';
 import config from './config';
 import ed25519 from './ed25519';
 import {DbError, InvalidArgumentError, InvalidClauseError} from './errors';
-import {Entity, TransactionResult, TransactionType} from './model';
-import {EvmAddressType, userLimitLabel} from './constants';
+import Entity from './model/entity';
+import TransactionResult from './model/transactionResult';
+import TransactionType from './model/transactionType';
 
 const JSONBig = JSONBigFactory({useNativeBigInt: true});
 
@@ -218,8 +220,12 @@ const parseHbarParam = (hbarParam) => {
 
   if (typeof hbarParam === 'string') {
     const lower = hbarParam.toLowerCase();
-    if (lower === 'true') return true;
-    if (lower === 'false') return false;
+    if (lower === 'true') {
+      return true;
+    }
+    if (lower === 'false') {
+      return false;
+    }
   }
 
   throw new InvalidArgumentError(`Invalid hbar parameter value: ${hbarParam}. Must be 'true' or 'false'`);
@@ -1468,16 +1474,13 @@ const parseTokenBalances = (tokenBalances) => {
 
 const isTestEnv = () => process.env.NODE_ENV === 'test';
 
-const recordQuery = (() => {
-  let func;
-  return async (callerInfo, query) => {
-    if (!func) {
-      func = (await import('./__tests__/tableUsage')).recordQuery;
-    }
+let recordQueryImpl = async (_callerInfo, _query) => {};
 
-    func(callerInfo, query);
-  };
-})();
+export const setRecordQuery = (fn) => {
+  recordQueryImpl = fn;
+};
+
+const recordQuery = (callerInfo, query) => recordQueryImpl(callerInfo, query);
 
 /**
  * Gets the pool class with queryQuietly
@@ -1679,7 +1682,11 @@ const parseTimestampFilters = (
 
   // Note that we don't further check if the range and the eq values can result in an empty range, because some
   // endpoints treat eq operator as lte
-  return {range, eqValues: Array.from(eqValues), neValues: Array.from(neValues)};
+  return {
+    range,
+    eqValues: Array.from(eqValues),
+    neValues: Array.from(neValues),
+  };
 };
 
 /**

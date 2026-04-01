@@ -23,7 +23,6 @@ import {
 } from '../model';
 import ContractTransaction from '../model/contractTransaction';
 import {RecordFileService} from './index';
-
 const {default: defaultLimit} = getResponseLimit();
 const contractLogsFields = `${ContractLog.getFullName(ContractLog.BLOOM)},
 ${ContractLog.getFullName(ContractLog.CONTRACT_ID)},
@@ -179,6 +178,7 @@ class ContractService extends BaseService {
 
   static ethereumTransactionByPayerAndTimestampArrayQuery = `select
         encode(${EthereumTransaction.ACCESS_LIST}, 'hex') ${EthereumTransaction.ACCESS_LIST},
+        ${EthereumTransaction.AUTHORIZATION_LIST},
         encode(${EthereumTransaction.CHAIN_ID}, 'hex') ${EthereumTransaction.CHAIN_ID},
         ${EthereumTransaction.CONSENSUS_TIMESTAMP},
         encode(${EthereumTransaction.GAS_PRICE}, 'hex') ${EthereumTransaction.GAS_PRICE},

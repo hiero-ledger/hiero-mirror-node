@@ -74,7 +74,7 @@ public final class BlockNodeDiscoveryService {
 
         try {
             final var nodes = registeredNodeRepository.findAllByDeletedFalseAndTypeContains(
-                    RegisteredNodeType.BLOCK_NODE.getValue());
+                    RegisteredNodeType.BLOCK_NODE.getId());
 
             final List<BlockNodeProperties> propertiesList = new ArrayList<>(nodes.size());
             for (final var node : nodes) {

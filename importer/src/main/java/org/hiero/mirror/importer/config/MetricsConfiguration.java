@@ -26,7 +26,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,7 +38,7 @@ import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
 
 @CustomLog
-@Configuration
+@Configuration(proxyBeanMethods = false)
 class MetricsConfiguration {
     /**
      * We use string formatting on these statements to be compatible with both v2 and v1.
@@ -115,11 +114,6 @@ class MetricsConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty(
-            prefix = "management.metrics.table",
-            name = "enabled",
-            havingValue = "true",
-            matchIfMissing = true)
     MeterBinder tableMetrics(Environment environment) {
         return registry -> {
             tables.putAll(getTables(environment.acceptsProfiles(Profiles.of("v2"))));

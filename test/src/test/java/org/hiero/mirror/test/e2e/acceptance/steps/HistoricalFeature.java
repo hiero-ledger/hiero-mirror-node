@@ -58,7 +58,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.awaitility.Awaitility;
@@ -72,7 +71,6 @@ import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.hiero.mirror.test.e2e.acceptance.util.ContractCallResponseWrapper;
 
-@CustomLog
 @RequiredArgsConstructor
 public class HistoricalFeature extends AbstractEstimateFeature {
     private static final long CUSTOM_FIXED_FEE_AMOUNT = 10L;

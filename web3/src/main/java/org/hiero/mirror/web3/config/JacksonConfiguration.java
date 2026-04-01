@@ -11,7 +11,7 @@ import org.springframework.boot.jackson2.autoconfigure.Jackson2ObjectMapperBuild
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 class JacksonConfiguration {
 
     // Configure JSON parsing limits to reject malicious input

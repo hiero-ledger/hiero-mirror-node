@@ -755,5 +755,10 @@ class OpcodesControllerTest {
                     contractResultRepository,
                     commonEntityAccessor);
         }
+
+        @Bean
+        OpcodesProperties opCodeTracerConfiguration() {
+            return new OpcodesProperties();
+        }
     }
 }

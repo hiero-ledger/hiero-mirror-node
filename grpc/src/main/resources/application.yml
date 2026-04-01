@@ -51,6 +51,8 @@ server:
   port: 8081
   shutdown: graceful
 spring:
+  aot:
+    enabled: true
   application:
     name: grpc
   datasource:
