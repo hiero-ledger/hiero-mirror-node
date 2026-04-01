@@ -2,10 +2,7 @@
 
 description = "Hiero Mirror Node gRPC API"
 
-plugins {
-    id("org.graalvm.buildtools.native")
-    id("spring-conventions")
-}
+plugins { id("spring-conventions") }
 
 dependencies {
     implementation(project(":common"))

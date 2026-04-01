@@ -56,7 +56,6 @@ import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
-import org.hiero.mirror.web3.config.OpCodeTracerConfiguration;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
@@ -758,8 +757,8 @@ class OpcodesControllerTest {
         }
 
         @Bean
-        OpCodeTracerConfiguration opCodeTracerConfiguration() {
-            return new OpCodeTracerConfiguration();
+        OpcodesProperties opCodeTracerConfiguration() {
+            return new OpcodesProperties();
         }
     }
 }

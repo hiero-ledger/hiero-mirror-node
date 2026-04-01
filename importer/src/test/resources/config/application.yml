@@ -26,6 +26,9 @@ hiero:
           retry:
             maxAttempts: 2
       startDate: 1970-01-01T00:00:00Z
+      task:
+        scheduling:
+          enabled: false
       test:
         performance:
           downloader:

@@ -19,7 +19,9 @@ import org.hiero.base.crypto.SignatureType;
 import org.hiero.base.crypto.TransactionSignature;
 
 /**
- * Implementation of an Ed25519 signature verification provider. This implementation only supports Ed25519 signatures
+ * Shadow base-crypto class from hedera app to prevent eager initialization of SodiumJava
+ * Implementation of an Ed25519 signature verification provider.
+ * This implementation only supports Ed25519 signatures
  * and uses the built-in JDK Ed25519 support introduced in Java 15 (JEP 339).
  */
 public class Ed25519VerificationProvider

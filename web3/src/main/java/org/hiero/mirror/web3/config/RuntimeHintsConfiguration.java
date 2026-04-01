@@ -10,7 +10,6 @@ import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerResourcePa
 
 import com.hedera.node.app.hapi.utils.sysfiles.domain.throttling.ThrottleGroup;
 import com.swirlds.config.api.ConfigData;
-import lombok.CustomLog;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -22,7 +21,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 
 @Configuration(proxyBeanMethods = false)
-@CustomLog
 @ImportRuntimeHints(RuntimeHintsConfiguration.CustomRuntimeHints.class)
 @NullMarked
 final class RuntimeHintsConfiguration {
@@ -66,10 +64,8 @@ final class RuntimeHintsConfiguration {
                     "lib/amd64/**", // pegasys
                     "lib/x86_64/**", // pegasys
                     "genesis/**",
-                    "canonical-prices.json",
-                    "capacities.json",
-                    "constant-weights.json",
-                    "semantic-version.properties");
+                    "*.json",
+                    "*.properties");
         }
     }
 }

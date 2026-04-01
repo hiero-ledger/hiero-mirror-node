@@ -6,6 +6,7 @@ plugins {
     id("com.gorylenko.gradle-git-properties")
     id("docker-conventions")
     id("java-conventions")
+    id("org.graalvm.buildtools.native")
     id("org.cyclonedx.bom")
     id("org.springframework.boot")
 }
@@ -20,6 +21,9 @@ springBoot {
 tasks.named("dockerBuild") { dependsOn(tasks.bootJar) }
 
 tasks.register("run") { dependsOn(tasks.bootRun) }
+
+// This slows down tests too much to keep enabled
+tasks.named("processTestAot") { enabled = false }
 
 val imagePlatform: String by project
 val platform = imagePlatform.ifBlank { null }
@@ -53,7 +57,7 @@ tasks.bootBuildImage {
             "BP_OCI_LICENSES" to "Apache-2.0",
             "BP_OCI_REF_NAME" to env.getOrDefault("GITHUB_REF_NAME", "main"),
             "BP_OCI_REVISION" to env.getOrDefault("GITHUB_SHA", ""),
-            "BP_OCI_SOURCE" to "https://github.com/hiero-ledger/${repo}",
+            "BP_OCI_SOURCE" to "https://github.com/${repo}",
             "BP_OCI_VENDOR" to "Hiero",
         )
 }

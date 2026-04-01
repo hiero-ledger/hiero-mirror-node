@@ -54,30 +54,33 @@ public class RedisPublisher implements BatchPublisher {
         this.timer = PUBLISH_TIMER.tag("type", "redis").register(meterRegistry);
         this.topicMessagesQueue = new ArrayBlockingQueue<>(redisProperties.getQueueCapacity());
 
-        if (isEnabled()) {
-            Executor executor = Executors.newSingleThreadExecutor();
-            executor.execute(() -> {
-                try {
-                    while (true) {
-                        publish(topicMessagesQueue.take());
-                    }
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                }
-            });
+        if (!isEnabled()) {
+            return;
         }
+
+        Executor executor = Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
+            try {
+                while (true) {
+                    publish(topicMessagesQueue.take());
+                }
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+        });
     }
 
     @Override
     @SneakyThrows
     public void onEnd(RecordFile recordFile) {
-        if (isEnabled()) {
-            final var topicMessages = parserContext.get(TopicMessage.class);
+        if (!isEnabled()) {
+            return;
+        }
+        final var topicMessages = parserContext.get(TopicMessage.class);
 
-            if (!topicMessages.isEmpty() && !topicMessagesQueue.offer(topicMessages)) {
-                log.warn("topicMessagesQueue is full, will block until space is available");
-                topicMessagesQueue.put(topicMessages);
-            }
+        if (!topicMessages.isEmpty() && !topicMessagesQueue.offer(topicMessages)) {
+            log.warn("topicMessagesQueue is full, will block until space is available");
+            topicMessagesQueue.put(topicMessages);
         }
     }
 

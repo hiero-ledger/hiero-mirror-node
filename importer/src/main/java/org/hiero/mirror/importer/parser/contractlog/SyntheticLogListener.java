@@ -58,14 +58,15 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
     @Override
     @Timed
     public void onEnd(RecordFile recordFile) {
-        if (isEnabled()) {
-            final var logUpdaters = parserContext.getTransient(SyntheticLogUpdater.class);
-            final var keys = parserContext.getEvmAddressLookupIds();
-            final var entityMap = getEvmCache().getAll(keys);
+        if (!isEnabled()) {
+            return;
+        }
+        final var logUpdaters = parserContext.getTransient(SyntheticLogUpdater.class);
+        final var keys = parserContext.getEvmAddressLookupIds();
+        final var entityMap = getEvmCache().getAll(keys);
 
-            for (var updater : logUpdaters) {
-                updater.updateContractLog(entityMap);
-            }
+        for (var updater : logUpdaters) {
+            updater.updateContractLog(entityMap);
         }
     }
 

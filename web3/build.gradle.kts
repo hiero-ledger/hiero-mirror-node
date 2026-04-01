@@ -9,7 +9,6 @@ plugins {
     id("openapi-conventions")
     id("org.web3j")
     id("org.web3j.solidity")
-    id("org.graalvm.buildtools.native")
     id("spring-conventions")
 }
 

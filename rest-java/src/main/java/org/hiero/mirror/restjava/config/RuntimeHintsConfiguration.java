@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.restjava.config;
 
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_METHODS;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.NONE;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerAnnotatedPackage;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
@@ -18,13 +19,9 @@ import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.Year;
 import java.util.Objects;
-import lombok.CustomLog;
 import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.restjava.config.RuntimeHintsConfiguration.CustomRuntimeHints;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
-import org.hiero.mirror.restjava.jooq.domain.Indexes;
-import org.hiero.mirror.restjava.jooq.domain.enums.AirdropState;
-import org.hiero.mirror.restjava.jooq.domain.tables.AccountBalance;
 import org.hiero.mirror.restjava.jooq.domain.tables.records.NftAllowanceRecord;
 import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
 import org.hiero.mirror.restjava.parameter.RequestParameter;
@@ -56,7 +53,6 @@ import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
 @Configuration(proxyBeanMethods = false)
-@CustomLog
 @ImportRuntimeHints(CustomRuntimeHints.class)
 @NullMarked
 final class RuntimeHintsConfiguration {
@@ -166,13 +162,7 @@ final class RuntimeHintsConfiguration {
                     org.jooq.Record.class,
                     org.jooq.Record[].class);
 
-            registerPackage(hints, loader, AirdropState.class.getPackageName()); // TODO check
-            registerPackage(hints, loader, Indexes.class.getPackageName()); // TODO check
-            registerPackage(hints, loader, AccountBalance.class.getPackageName()); // TODO check
-            registerPackage(
-                    hints,
-                    loader,
-                    NftAllowanceRecord.class.getPackageName()); // TODO probably just need methods and constructors
+            registerPackage(hints, loader, NftAllowanceRecord.class.getPackageName(), CONSTRUCTORS_AND_METHODS);
         }
     }
 }

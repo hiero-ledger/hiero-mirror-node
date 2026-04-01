@@ -6,7 +6,6 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
-import org.hiero.mirror.web3.config.OpCodeTracerConfiguration;
 import org.hiero.mirror.web3.service.OpcodeService;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
@@ -31,7 +30,7 @@ class OpcodesController {
 
     private final OpcodeService opcodeService;
     private final ThrottleManager throttleManager;
-    private final OpCodeTracerConfiguration properties;
+    private final OpcodesProperties properties;
 
     /**
      * <p>
