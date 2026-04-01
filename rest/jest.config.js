@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
+// Set before workers spawn so config.js picks it up when first imported in any worker
+process.env.CONFIG_PATH = '__tests__';
+
 const maxWorkers = process.env.CI ? 2 : '50%'; // 2 workers in CI and 50% of cores number of works in local envs
 const config = {
   collectCoverage: true,
