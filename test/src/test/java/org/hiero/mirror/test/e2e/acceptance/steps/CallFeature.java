@@ -56,7 +56,6 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.math.BigInteger;
 import java.util.List;
-import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
@@ -67,7 +66,6 @@ import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 
-@CustomLog
 @RequiredArgsConstructor
 public class CallFeature extends AbstractFeature {
 

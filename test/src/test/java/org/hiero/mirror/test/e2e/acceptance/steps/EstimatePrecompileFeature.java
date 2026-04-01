@@ -151,7 +151,6 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
-import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.util.encoders.Hex;
@@ -165,7 +164,6 @@ import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 
-@CustomLog
 @RequiredArgsConstructor
 public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     private static final Tuple[] EMPTY_TUPLE_ARRAY = new Tuple[] {};
