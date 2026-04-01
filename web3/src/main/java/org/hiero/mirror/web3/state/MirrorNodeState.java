@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.state;
 
 import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema.EVM_HOOK_STATES_STATE_ID;
 import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema.EVM_HOOK_STORAGE_STATE_ID;
+import static com.hedera.node.app.service.entityid.impl.schemas.V0730EntityIdSchema.HIGHEST_NODE_ID_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_COUNTS_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_USAGES_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_STATE_ID;
@@ -13,6 +14,7 @@ import static com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSche
 
 import com.google.common.annotations.VisibleForTesting;
 import com.hedera.node.app.service.contract.ContractService;
+import com.hedera.node.app.service.entityid.EntityIdService;
 import com.hedera.node.app.service.schedule.ScheduleService;
 import com.hedera.node.app.service.token.TokenService;
 import com.hedera.node.app.state.recordcache.RecordCacheService;
@@ -143,6 +145,7 @@ public class MirrorNodeState implements State {
     }
 
     private void initSingletonStates(final List<SingletonState<?>> singletonStates) {
+        singletonStates.add(new DefaultSingleton(EntityIdService.NAME, HIGHEST_NODE_ID_STATE_ID));
         singletonStates.add(new DefaultSingleton(TokenService.NAME, STAKING_NETWORK_REWARDS_STATE_ID));
         singletonStates.add(new DefaultSingleton(TokenService.NAME, NODE_REWARDS_STATE_ID));
         singletonStates.forEach(
