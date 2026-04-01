@@ -20,6 +20,7 @@ import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
@@ -397,14 +398,52 @@ public class DomainUtils {
             return true;
         }
 
-        byte[] contractResultLogTrimmed = trimmedLogTopicBytes(contractResultTopic);
-        Optional<EntityId> contractResultLogEntity =
-                resolveTransferIndexedAccount(contractResultLogTrimmed, accountResolver);
-        Optional<EntityId> syntheticLogEntity = resolveTransferIndexedAccount(syntheticTopic, accountResolver);
-        if (contractResultLogEntity.isEmpty() || syntheticLogEntity.isEmpty()) {
+        var contractResultLogTrimmed = trimmedLogTopicBytes(contractResultTopic);
+        var contractResultLogEntity = resolveTransferIndexedAccount(contractResultLogTrimmed, accountResolver);
+        if (contractResultLogEntity.isEmpty()) {
+            // Deliberately return true, since we were not able to successfully resolve the alias/evm_address to account
+            // num
+            // and we can't properly compare the existing and synthetically created topics. It's safer to return true
+            // and skip the synthetic log creation.
+            return true;
+        }
+
+        var syntheticLogEntity = convertAccountNumBytesToEntity(syntheticTopic);
+
+        if (syntheticLogEntity.isEmpty()) {
             return false;
         }
         return accountNumsEqual(contractResultLogEntity.get(), syntheticLogEntity.get());
+    }
+
+    public static Optional<EntityId> convertAccountNumBytesToEntity(byte[] accountAddress) {
+        if (accountAddress == null) {
+            return Optional.empty();
+        }
+
+        if (accountAddress.length <= 16) {
+            if (accountAddress.length == 0 || accountAddress.length > Long.BYTES) {
+                return Optional.empty();
+            }
+
+            final var paddedAddress = new byte[Long.BYTES];
+
+            // zero-pad on the left
+            System.arraycopy(
+                    accountAddress, 0, paddedAddress, Long.BYTES - accountAddress.length, accountAddress.length);
+
+            final var accountNum =
+                    ByteBuffer.wrap(paddedAddress).order(ByteOrder.BIG_ENDIAN).getLong();
+
+            final var common = CommonProperties.getInstance();
+            try {
+                return Optional.of(EntityId.of(common.getShard(), common.getRealm(), accountNum));
+            } catch (InvalidEntityException e) {
+                return Optional.empty();
+            }
+        }
+
+        return Optional.empty();
     }
 
     private static byte[] trimmedLogTopicBytes(@Nullable ByteString logTopic) {
