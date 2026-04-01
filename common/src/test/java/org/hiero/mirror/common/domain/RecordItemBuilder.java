@@ -899,6 +899,7 @@ public final class RecordItemBuilder {
         return prng(0);
     }
 
+    @ExcludeFromBuilders
     public Builder<RegisteredNodeCreateTransactionBody.Builder> registeredNodeCreate() {
         final var builder = RegisteredNodeCreateTransactionBody.newBuilder()
                 .setAdminKey(key())
@@ -927,6 +928,7 @@ public final class RecordItemBuilder {
         return new Builder<>(TransactionType.REGISTEREDNODECREATE, builder).receipt(r -> r.setRegisteredNodeId(id()));
     }
 
+    @ExcludeFromBuilders
     public Builder<RegisteredNodeUpdateTransactionBody.Builder> registeredNodeUpdate() {
         final var builder = RegisteredNodeUpdateTransactionBody.newBuilder()
                 .setRegisteredNodeId(id())

@@ -4,7 +4,6 @@ package org.hiero.mirror.restjava.service.fee;
 
 import com.hedera.hapi.node.base.Transaction;
 import com.hedera.hapi.node.transaction.SignedTransaction;
-import com.hedera.hapi.util.UnknownHederaFunctionality;
 import com.hedera.node.app.fees.StandaloneFeeCalculator;
 import com.hedera.pbj.runtime.ParseException;
 import jakarta.inject.Named;
@@ -41,12 +40,6 @@ public final class FeeEstimationService {
             throw new IllegalArgumentException("Unable to parse transaction", e);
         } catch (NullPointerException e) {
             throw new IllegalArgumentException("Unknown transaction type", e);
-        } catch (IllegalStateException e) {
-            if (e.getCause() instanceof UnknownHederaFunctionality) {
-                throw new IllegalArgumentException("Unknown transaction type", e);
-            }
-
-            throw e;
         }
     }
 }
