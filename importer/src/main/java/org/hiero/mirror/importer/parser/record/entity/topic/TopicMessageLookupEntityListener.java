@@ -11,7 +11,7 @@ import org.hiero.mirror.common.domain.topic.TopicMessageLookup;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.db.TimePartitionService;
 import org.hiero.mirror.importer.exception.ImporterException;
-import org.hiero.mirror.importer.parser.record.entity.ConditionOnEntityRecordParser;
+import org.hiero.mirror.importer.parser.record.RecordParserProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
@@ -19,7 +19,6 @@ import org.springframework.core.annotation.Order;
 
 @Named
 @Order(4)
-@ConditionOnEntityRecordParser
 @RequiredArgsConstructor
 public class TopicMessageLookupEntityListener implements EntityListener {
 
@@ -30,11 +29,14 @@ public class TopicMessageLookupEntityListener implements EntityListener {
     private final EntityProperties entityProperties;
     private final ParserContext parserContext;
     private final TimePartitionService timePartitionService;
+    private final RecordParserProperties parserProperties;
 
     @Override
     public boolean isEnabled() {
         var persistProperties = entityProperties.getPersist();
-        if (!(persistProperties.isTopics() && persistProperties.isTopicMessageLookups())) {
+        if (!(parserProperties.isEnabled()
+                && persistProperties.isTopics()
+                && persistProperties.isTopicMessageLookups())) {
             return false;
         }
 

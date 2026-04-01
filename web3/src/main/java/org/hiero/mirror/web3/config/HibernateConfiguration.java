@@ -16,7 +16,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.QueryTimeoutException;
 
 @CustomLog
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @RequiredArgsConstructor
 class HibernateConfiguration implements HibernatePropertiesCustomizer {
 

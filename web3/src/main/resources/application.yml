@@ -54,6 +54,8 @@ server:
     max-http-form-post-size: 1MB
     max-swallow-size: 1MB
 spring:
+  aot:
+    enabled: true
   application:
     name: web3
   datasource:

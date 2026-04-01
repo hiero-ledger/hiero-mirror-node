@@ -10,12 +10,15 @@ import static org.mockito.Mockito.*;
 import com.google.common.primitives.Longs;
 import java.util.*;
 import java.util.function.BinaryOperator;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.config.CacheProperties;
 import org.hiero.mirror.importer.domain.EvmAddressMapping;
+import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,13 +48,15 @@ class SyntheticLogListenerTest {
     @Mock
     private EntityRepository entityRepository;
 
+    private EntityProperties entityProperties;
     private ParserContext parserContext;
     private SyntheticLogListener listener;
 
     @BeforeEach
     void setup() {
+        entityProperties = new EntityProperties(new SystemEntity(CommonProperties.getInstance()));
         parserContext = new ParserContext();
-        listener = new SyntheticLogListener(parserContext, new CacheProperties(), entityRepository);
+        listener = new SyntheticLogListener(parserContext, new CacheProperties(), entityRepository, entityProperties);
     }
 
     @Test

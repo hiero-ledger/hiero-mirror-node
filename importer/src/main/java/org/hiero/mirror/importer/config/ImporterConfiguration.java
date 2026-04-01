@@ -24,7 +24,7 @@ import org.springframework.resilience.annotation.EnableResilientMethods;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @EnableAsync
 @EnableResilientMethods
 @EntityScan("org.hiero.mirror.importer.repository.upsert")
@@ -74,12 +74,13 @@ class ImporterConfiguration {
         }
     }
 
-    @Configuration
+    @Configuration(proxyBeanMethods = false)
     @ConditionalOnProperty(
             prefix = "spring.task.scheduling",
             name = "enabled",
             havingValue = "true",
             matchIfMissing = true)
     @EnableScheduling
+    // This toggle exists only to disable scheduling for test execution and shouldn't be modified by operators
     protected static class SchedulingConfiguration {}
 }

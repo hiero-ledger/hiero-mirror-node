@@ -19,7 +19,7 @@ import org.hiero.mirror.importer.util.Utility;
 import org.postgresql.jdbc.PgArray;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.convert.support.DefaultConversionService;
-import org.springframework.jdbc.core.DataClassRowMapper;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -27,13 +27,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @RequiredArgsConstructor()
 public class ContractResultMigration extends AbstractJavaMigration {
 
-    static final DataClassRowMapper<MigrationContractResult> resultRowMapper;
+    static final BeanPropertyRowMapper<MigrationContractResult> resultRowMapper;
     private static final MigrationVersion VERSION = MigrationVersion.fromVersion("1.46.8");
 
     static {
         DefaultConversionService defaultConversionService = new DefaultConversionService();
         defaultConversionService.addConverter(PgArray.class, Long[].class, ContractResultMigration::convert);
-        resultRowMapper = new DataClassRowMapper<>(MigrationContractResult.class);
+        resultRowMapper = new BeanPropertyRowMapper<>(MigrationContractResult.class);
         resultRowMapper.setConversionService(defaultConversionService);
     }
 
