@@ -175,7 +175,6 @@ The project layout encompasses the Cucumber Feature files, the Runner file(s) an
 
 ### Test Creation
 
-
 To create a new test/scenario follow these steps
 
 1. Update an existing .feature file or create a new .feature file under `src/test/resources/features` with your desired
