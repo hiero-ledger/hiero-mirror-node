@@ -895,6 +895,10 @@ public final class RecordItemBuilder {
         });
     }
 
+    public Builder<UtilPrngTransactionBody.Builder> utilPrng() {
+        return prng(0);
+    }
+
     public Builder<RegisteredNodeCreateTransactionBody.Builder> registeredNodeCreate() {
         final var builder = RegisteredNodeCreateTransactionBody.newBuilder()
                 .setAdminKey(key())
