@@ -10,7 +10,6 @@ import blockTests from './block_tests';
 import contractTests from './contracts_tests';
 import networkTests from './network_tests';
 import scheduleTests from './schedule_tests';
-import stateproofTests from './stateproof_tests';
 import tokenTests from './token_tests';
 import topicTests from './topic_tests.js';
 import transactionTests from './transaction_tests';
@@ -22,7 +21,6 @@ const allTestModules = [
   contractTests,
   networkTests,
   scheduleTests,
-  stateproofTests,
   tokenTests,
   topicTests,
   transactionTests,

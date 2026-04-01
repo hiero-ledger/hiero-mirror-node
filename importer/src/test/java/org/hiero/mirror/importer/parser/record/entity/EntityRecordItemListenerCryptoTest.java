@@ -73,7 +73,6 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
-import org.hiero.mirror.importer.repository.ContractRepository;
 import org.hiero.mirror.importer.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.importer.repository.HookRepository;
 import org.hiero.mirror.importer.repository.NftAllowanceRepository;
@@ -93,7 +92,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
 
 @RequiredArgsConstructor
-class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListenerTest {
+final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListenerTest {
 
     private static final long INITIAL_BALANCE = 1000L;
     private static final EntityId accountId1 = DOMAIN_BUILDER.entityNum(1001);
@@ -102,7 +101,6 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     private static final ByteString ALIAS_KEY = DomainUtils.fromBytes(UtilityTest.ALIAS_ECDSA_SECP256K1);
 
     private final @Qualifier(CACHE_ALIAS) CacheManager cacheManager;
-    private final ContractRepository contractRepository;
     private final CryptoAllowanceRepository cryptoAllowanceRepository;
     private final HookRepository hookRepository;
     private final NftAllowanceRepository nftAllowanceRepository;
@@ -127,12 +125,16 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void cryptoTransferHighVolume(boolean highVolume) {
+    @CsvSource(textBlock = """
+            false, 1
+            true, 100
+            """)
+    void cryptoTransferHighVolume(final boolean highVolume, final long highVolumePricingMultiplier) {
         // given
         var recordItem = recordItemBuilder
                 .cryptoTransfer()
                 .transactionBodyWrapper(b -> b.setHighVolume(highVolume))
+                .record(r -> r.setHighVolumePricingMultiplier(highVolumePricingMultiplier))
                 .build();
 
         // when
@@ -141,7 +143,8 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         // then
         assertThat(transactionRepository.findById(recordItem.getConsensusTimestamp()))
                 .get()
-                .returns(highVolume, org.hiero.mirror.common.domain.transaction.Transaction::getHighVolume);
+                .returns(highVolume, t -> t.getHighVolume())
+                .returns(highVolumePricingMultiplier, t -> t.getHighVolumePricingMultiplier());
     }
 
     @Test

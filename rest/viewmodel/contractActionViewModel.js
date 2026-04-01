@@ -3,14 +3,18 @@
 import EntityId from '../entityId';
 import * as utils from '../utils';
 import {entityTypes} from '../constants';
-import {proto} from '@hiero-ledger/proto';
-import _ from 'lodash';
 
 /**
  * Contract actions view model
  */
 class ContractActionViewModel {
-  static callTypes = _.invert(proto.ContractActionType);
+  static callTypes = {
+    0: 'NO_ACTION',
+    1: 'CALL',
+    2: 'CREATE',
+    3: 'PRECOMPILE',
+    4: 'SYSTEM',
+  };
 
   static resultDataTypes = {
     11: 'OUTPUT',

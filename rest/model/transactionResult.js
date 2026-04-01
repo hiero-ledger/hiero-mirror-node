@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import invert from 'lodash/invert';
 
 const protoToName = {
   0: 'OK',
@@ -393,7 +393,7 @@ const protoToName = {
   526: 'NODE_ACCOUNT_HAS_ZERO_BALANCE',
 };
 
-const nameToProto = _.invert(protoToName);
+const nameToProto = invert(protoToName);
 const SUCCESS = 'SUCCESS';
 const UNKNOWN = 'UNKNOWN';
 

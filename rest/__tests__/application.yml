@@ -10,3 +10,5 @@ hiero:
       redis:
         enabled: false
         maxRetriesPerRequest: 10
+      response:
+        enableDelegationAddress: true

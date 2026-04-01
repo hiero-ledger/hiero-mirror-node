@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import isNil from 'lodash/isNil';
+import last from 'lodash/last';
 import quickLru from 'quick-lru';
 
 import {getMirrorConfig} from './config';
@@ -178,7 +179,7 @@ const nullEntityIdError = new InvalidArgumentError('Null entity ID');
  */
 const checkNullId = (id, isNullable) => {
   let entityId;
-  if (_.isNil(id)) {
+  if (isNil(id)) {
     if (!isNullable) {
       throw nullEntityIdError;
     }
@@ -216,7 +217,7 @@ const parseFromEncodedId = (id, error) => {
  * @return {[string, bigint]}
  */
 const parseFromEvmAddress = (evmAddress) => {
-  const hexDigits = _.last(stripHexPrefix(evmAddress).split('.'));
+  const hexDigits = last(stripHexPrefix(evmAddress).split('.'));
   // The first 24 chars is the prefix and the last 16 is the num
   return [
     hexDigits.slice(0, 24),

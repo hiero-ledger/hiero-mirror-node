@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import isNil from 'lodash/isNil';
+import range from 'lodash/range';
 
 import {Cache} from './cache';
 import config from './config';
@@ -16,6 +17,7 @@ import {
   AssessedCustomFee,
   CryptoTransfer,
   CustomFeeLimits,
+  EntityTransaction,
   NftTransfer,
   StakingRewardTransfer,
   TokenTransfer,
@@ -125,7 +127,7 @@ const createCryptoTransferList = (cryptoTransferList) => {
     return {
       account: EntityId.parse(accountId).toString(),
       amount,
-      is_approval: _.isNil(is_approval) ? false : is_approval,
+      is_approval: isNil(is_approval) ? false : is_approval,
     };
   });
 };
@@ -147,7 +149,7 @@ const createTokenTransferList = (tokenTransferList) => {
       token_id: EntityId.parse(tokenId).toString(),
       account: EntityId.parse(accountId).toString(),
       amount,
-      is_approval: _.isNil(is_approval) ? false : is_approval,
+      is_approval: isNil(is_approval) ? false : is_approval,
     };
   });
 };
@@ -231,7 +233,7 @@ const getStakingRewardTimestamps = (transactions) => {
   return transactions
     .filter(
       (transaction) =>
-        !_.isNil(transaction.crypto_transfer_list) &&
+        !isNil(transaction.crypto_transfer_list) &&
         transaction.crypto_transfer_list.some(
           (cryptoTransfer) => cryptoTransfer.entity_id === EntityId.systemEntity.stakingRewardAccount.getEncodedId()
         )
@@ -263,7 +265,7 @@ const getStakingRewardTransferList = async (stakingRewardTimestamps) => {
     return [];
   }
 
-  const positions = _.range(1, stakingRewardTimestamps.length + 1).map((position) => `$${position}`);
+  const positions = range(1, stakingRewardTimestamps.length + 1).map((position) => `$${position}`);
   const query = `
       select ${StakingRewardTransfer.CONSENSUS_TIMESTAMP},
              json_agg(json_build_object(
@@ -512,11 +514,41 @@ const getTransactionTimestampsQuery = (
     resultTypeQuery,
     transactionTypeQuery
   );
-  const transactionOnlyQuery = `select ${Transaction.CONSENSUS_TIMESTAMP}, ${Transaction.PAYER_ACCOUNT_ID}
-                                from ${Transaction.tableName} as ${Transaction.tableAlias} ${transactionWhereClause}
-                                order by ${Transaction.getFullName(
-                                  Transaction.CONSENSUS_TIMESTAMP
-                                )} ${order} ${limitQuery}`;
+
+  const entityTransactionCondition = accountQuery
+    ? [accountQuery, resultTypeQuery, timestampQuery, transactionTypeQuery]
+        .filter((q) => !!q)
+        .map((q) => q.replace(/(ctl|t)\./g, ''))
+        .join(' and ')
+    : '';
+
+  const nftTransfersUnion = accountQuery
+    ? `union all
+       (select ${EntityTransaction.CONSENSUS_TIMESTAMP}, ${EntityTransaction.PAYER_ACCOUNT_ID}
+        from ${EntityTransaction.tableName}
+        where ${entityTransactionCondition}
+        order by ${EntityTransaction.CONSENSUS_TIMESTAMP} ${order}
+        ${limitQuery}
+       )`
+    : '';
+
+  const transactionOnlyQuery = `
+    select ${
+      accountQuery
+        ? `distinct on (${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)}, ${Transaction.getFullName(
+            Transaction.PAYER_ACCOUNT_ID
+          )})`
+        : ''
+    }
+        ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)},
+        ${Transaction.getFullName(Transaction.PAYER_ACCOUNT_ID)}
+    from (
+        (select ${Transaction.CONSENSUS_TIMESTAMP}, ${Transaction.PAYER_ACCOUNT_ID}
+         from ${Transaction.tableName} as ${Transaction.tableAlias} ${transactionWhereClause}
+         order by ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} ${order} ${limitQuery})
+        ${nftTransfersUnion}
+    ) as ${Transaction.tableAlias}
+    order by ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} ${order} ${limitQuery}`;
 
   if (creditDebitQuery || accountQuery) {
     const cryptoTransferQuery = getTransferDistinctTimestampsQuery(
@@ -569,7 +601,6 @@ const getTransactionTimestampsQuery = (
         order by consensus_timestamp ${order}
             ${limitQuery}`;
   }
-
   return transactionOnlyQuery;
 };
 

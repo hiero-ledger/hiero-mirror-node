@@ -9,6 +9,7 @@ import com.hedera.hashgraph.sdk.AccountCreateTransaction;
 import com.hedera.hashgraph.sdk.AccountDeleteTransaction;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.AccountUpdateTransaction;
+import com.hedera.hashgraph.sdk.BatchTransaction;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.EvmAddress;
 import com.hedera.hashgraph.sdk.Hbar;
@@ -16,6 +17,7 @@ import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.NftId;
 import com.hedera.hashgraph.sdk.PrivateKey;
 import com.hedera.hashgraph.sdk.PublicKey;
+import com.hedera.hashgraph.sdk.Status;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.Transaction;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
@@ -32,6 +34,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
@@ -40,6 +43,8 @@ import org.springframework.core.retry.RetryTemplate;
 @CustomLog
 @Named
 public class AccountClient extends AbstractNetworkClient {
+
+    private static final BigDecimal CRYPTO_TRANSFER_TRANSACTION_FEE = BigDecimal.valueOf(0.0001); // in USD
 
     private final Map<AccountNameEnum, ExpandedAccountId> accountMap = new ConcurrentHashMap<>();
     private final Collection<ExpandedAccountId> accountIds = new CopyOnWriteArrayList<>();
@@ -100,29 +105,23 @@ public class AccountClient extends AbstractNetworkClient {
         return 1; // Run cleanup last so it prints cost
     }
 
-    public NetworkTransactionResponse delete(ExpandedAccountId accountId) {
-        var operatorId = sdkClient.getDefaultOperator().getAccountId();
-
+    public NetworkTransactionResponse delete(final ExpandedAccountId accountId) {
         try {
-            var accountDeleteTransaction = new AccountDeleteTransaction()
+            final var operatorId = sdkClient.getDefaultOperator().getAccountId();
+            final var accountDeleteTransaction = new AccountDeleteTransaction()
                     .setAccountId(accountId.getAccountId())
                     .setTransferAccountId(operatorId)
                     .freezeWith(client)
                     .sign(accountId.getPrivateKey());
-            var response = executeTransactionAndRetrieveReceipt(accountDeleteTransaction);
+            final var response = executeTransactionAndRetrieveReceipt(accountDeleteTransaction);
             log.info("Deleted account {} via {}", accountId, response.getTransactionId());
             return response;
         } catch (Exception e) {
-            try {
-                log.warn(
-                        "Unable to delete account {}. Manually transferring remaining funds to operator: {}",
-                        accountId,
-                        e.getMessage());
-                var amount = Hbar.fromTinybars(getBalance(accountId) - 100_000L);
-                sendCryptoTransfer(accountId, operatorId, amount, accountId.getPrivateKey());
-            } catch (Exception fallbackException) {
-                log.error("Fallback transfer failed: ", fallbackException);
-            }
+            log.warn(
+                    "Unable to delete account {}. Manually transferring remaining funds to operator: {}",
+                    accountId,
+                    e.getMessage());
+            reclaimFund(accountId);
             throw e;
         } finally {
             accountIds.remove(accountId);
@@ -139,7 +138,7 @@ public class AccountClient extends AbstractNetworkClient {
             try {
                 return createNewAccount(acceptanceTestProperties.getChildAccountBalance(), accountNameEnum);
             } catch (Exception e) {
-                log.warn("Issue creating additional account: {}, ex: {}", accountNameEnum, e);
+                log.warn("Issue creating additional account: {}", accountNameEnum, e);
                 return null;
             }
         });
@@ -175,16 +174,63 @@ public class AccountClient extends AbstractNetworkClient {
     }
 
     public NetworkTransactionResponse sendCryptoTransfer(AccountId recipient, Hbar hbarAmount, PrivateKey privateKey) {
-        return sendCryptoTransfer(sdkClient.getExpandedOperatorAccountId(), recipient, hbarAmount, privateKey);
-    }
-
-    private NetworkTransactionResponse sendCryptoTransfer(
-            ExpandedAccountId sender, AccountId recipient, Hbar hbarAmount, PrivateKey privateKey) {
-        var cryptoTransferTransaction = getCryptoTransferTransaction(sender.getAccountId(), recipient, hbarAmount);
+        final var sender = sdkClient.getExpandedOperatorAccountId();
+        final var transaction = getCryptoTransferTransaction(sender.getAccountId(), recipient, hbarAmount);
         var response = executeTransactionAndRetrieveReceipt(
-                cryptoTransferTransaction, privateKey == null ? null : KeyList.of(privateKey), sender);
+                transaction, privateKey == null ? null : KeyList.of(privateKey), sender);
         log.info("Transferred {} from {} to {} via {}", hbarAmount, sender, recipient, response.getTransactionId());
         return response;
+    }
+
+    private void reclaimFund(final ExpandedAccountId sender) {
+        final var amount = Hbar.fromTinybars(getBalance(sender));
+        final var operator = sdkClient.getDefaultOperator();
+        final var recipientId = operator.getAccountId();
+        final var senderId = sender.getAccountId();
+
+        // first try to reclaim the fund with the default operator as the transaction payer
+        try {
+            final var transaction = getCryptoTransferTransaction(senderId, recipientId, amount);
+            executeTransactionAndRetrieveReceipt(transaction, KeyList.of(sender.getPrivateKey()), operator);
+            log.info("Reclaimed {} from {} to {} via {}", amount, sender, operator, transaction.getTransactionId());
+            return;
+        } catch (final Exception ex) {
+            log.error("Unable to transfer fund from {} to {} with {} as the payer", sender, operator, operator, ex);
+        }
+
+        // fallback to sender as payer
+        final long baseBackoffAmount = 10_000_000L; // 0.1 hbar, 5 attempts, the max backoff amount is 1.6 hbar
+        long remainingAmount = amount.toTinybars()
+                - sdkClient.convert(CRYPTO_TRANSFER_TRANSACTION_FEE).toTinybars();
+        for (int attempt = 1, backoffScale = 1; attempt <= 5 && remainingAmount > 0; attempt++) {
+            try {
+                final var transferAmount = Hbar.fromTinybars(remainingAmount);
+                final var transaction = getCryptoTransferTransaction(senderId, recipientId, transferAmount);
+                log.info("Trying to reclaim {} from {}", transferAmount, sender);
+
+                executeTransactionAndRetrieveReceipt(transaction, null, sender);
+                log.info(
+                        "Reclaimed {} from {} to {} via {}",
+                        transferAmount,
+                        sender,
+                        operator,
+                        transaction.getTransactionId());
+                break;
+            } catch (final Exception ex) {
+                log.error("Attempt {}/5: Unable to reclaim fund from {}", attempt, sender, ex);
+
+                if (ex instanceof NetworkException networkException) {
+                    final var status = networkException.getTransactionStatus();
+                    if (status == Status.INSUFFICIENT_ACCOUNT_BALANCE || status == Status.INSUFFICIENT_PAYER_BALANCE) {
+                        // Depending on the state of the node the transaction was sent to, either failing precheck with
+                        // INSUFFICIENT_PAYER_BALANCE or failing postcheck with INSUFFICIENT_ACCOUNT_BALANCE should
+                        // trigger an attempt to transfer a smaller amount
+                        remainingAmount = amount.toTinybars() - baseBackoffAmount * backoffScale;
+                        backoffScale = backoffScale * 2;
+                    }
+                }
+            }
+        }
     }
 
     public AccountCreateTransaction getAccountCreateTransaction(
@@ -374,6 +420,65 @@ public class AccountClient extends AbstractNetworkClient {
         var response = executeTransactionAndRetrieveReceipt(accountUpdateTransaction);
         log.info(" account updated via {}", response.getTransactionId());
         return response;
+    }
+
+    /**
+     * Submits an atomic batch with two inner CryptoTransfer transactions:
+     *  1) funding transfer to an EVM alias -> hollow auto-create
+     *  2) normal transfer to an existing account
+     *
+     *  Returns NetworkTransactionResponse for the batch transaction.
+     */
+    @SneakyThrows
+    public NetworkTransactionResponse submitBatchWithHollowAutoCreateAndNormalTransfer(
+            ExpandedAccountId batchSigner,
+            AccountId hollowAliasAccountId,
+            AccountClient.AccountNameEnum transferRecipientName,
+            long hollowFundingTinybars,
+            long normalTransferTinybars) {
+
+        final var recipient = getAccount(transferRecipientName);
+
+        // Inner #1: hollow auto-create (operator funds alias)
+        final var hollowCreateInner = new TransferTransaction()
+                .addHbarTransfer(client.getOperatorAccountId(), Hbar.fromTinybars(-hollowFundingTinybars))
+                .addHbarTransfer(hollowAliasAccountId, Hbar.fromTinybars(hollowFundingTinybars))
+                .setTransactionMemo(getMemo("Hollow auto-create"))
+                .batchify(client, batchSigner.getPublicKey());
+
+        // Inner #2: normal transfer (operator -> recipient)
+        final var normalTransferInner = new TransferTransaction()
+                .addHbarTransfer(client.getOperatorAccountId(), Hbar.fromTinybars(-normalTransferTinybars))
+                .addHbarTransfer(recipient.getAccountId(), Hbar.fromTinybars(normalTransferTinybars))
+                .setTransactionMemo(getMemo("Normal transfer"))
+                .batchify(client, batchSigner.getPublicKey());
+
+        final var batch =
+                new BatchTransaction().addInnerTransaction(hollowCreateInner).addInnerTransaction(normalTransferInner);
+
+        batch.setMaxTransactionFee(Hbar.from(5));
+
+        return executeTransactionAndRetrieveReceipt(batch, (KeyList) null);
+    }
+
+    /**
+     * Completion transaction (hollow -> full):
+     * payer is the hollow account and it must sign with its ECDSA private key.
+     *
+     * Returns NetworkTransactionResponse for the completion transaction.
+     */
+    @SneakyThrows
+    public NetworkTransactionResponse submitCompletionTransaction(
+            AccountId hollowResolvedAccountId, PrivateKey hollowAccountPrivateKey) {
+        final var completionTx = new TransferTransaction().setTransactionMemo(getMemo("Complete hollow account"));
+
+        final var hollowPayer = new ExpandedAccountId(hollowResolvedAccountId, hollowAccountPrivateKey);
+        final var keys = KeyList.of(hollowAccountPrivateKey);
+        final var completionResponse = executeTransactionAndRetrieveReceipt(completionTx, keys, hollowPayer);
+
+        accountIds.add(hollowPayer);
+
+        return completionResponse;
     }
 
     @RequiredArgsConstructor

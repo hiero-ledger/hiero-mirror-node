@@ -1,29 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
-import anonymize from 'ip-anonymize';
+import includes from 'lodash/includes';
+import isEmpty from 'lodash/isEmpty';
+import isNil from 'lodash/isNil';
+import join from 'lodash/join';
 import crypto from 'crypto';
 import httpContext from 'express-http-context';
 import JSONBigFactory from 'json-bigint';
-import long from 'long';
-import * as math from 'mathjs';
 import pg from 'pg';
 import pgRange, {Range} from 'pg-range';
-import {format} from 'sql-formatter';
 import util from 'util';
 
 import * as constants from './constants';
+import {EvmAddressType, userLimitLabel} from './constants';
 import EntityId from './entityId';
 import config from './config';
 import ed25519 from './ed25519';
 import {DbError, InvalidArgumentError, InvalidClauseError} from './errors';
 import {Entity, TransactionResult, TransactionType} from './model';
-import {EvmAddressType, userLimitLabel} from './constants';
 
 const JSONBig = JSONBigFactory({useNativeBigInt: true});
 
 const responseLimit = config.response.limit;
-const resultSuccess = _.join(TransactionResult.getSuccessProtoIds(), ', ');
+const resultSuccess = join(TransactionResult.getSuccessProtoIds(), ', ');
 
 const opsMap = {
   lt: ' < ',
@@ -81,16 +80,22 @@ const isNumeric = (n) => {
 
 // The max signed long has 19 digits
 const positiveLongRegex = /^\d{1,19}$/;
+const maxLong = 9223372036854775807n;
 
 /**
- * Validates that num is a positive long.
+ * Validates that num is a positive BigInt.
  * @param {number|string} num
  * @param {boolean} allowZero
  * @return {boolean}
  */
 const isPositiveLong = (num, allowZero = false) => {
+  if (!positiveLongRegex.test(num)) {
+    return false;
+  }
+
+  const bigInt = BigInt(num);
   const min = allowZero ? 0 : 1;
-  return positiveLongRegex.test(num) && long.fromValue(num).greaterThanOrEqual(min);
+  return bigInt >= min && bigInt <= maxLong;
 };
 
 /**
@@ -202,6 +207,29 @@ const isValidValueIgnoreCase = (value, validValues) => validValues.includes(valu
 const lowerCaseQueryValue = (queryValue) => (typeof queryValue === 'string' ? queryValue.toLowerCase() : queryValue);
 
 /**
+ * Parses the hbar query parameter
+ * @param {string|undefined} hbarParam
+ * @returns {boolean} true if conversion to hbar/tinybar is requested, false for weibar
+ */
+const parseHbarParam = (hbarParam) => {
+  if (hbarParam === undefined || hbarParam === null) {
+    return true; // Default to true for backward compatibility
+  }
+
+  if (typeof hbarParam === 'string') {
+    const lower = hbarParam.toLowerCase();
+    if (lower === 'true') {
+      return true;
+    }
+    if (lower === 'false') {
+      return false;
+    }
+  }
+
+  throw new InvalidArgumentError(`Invalid hbar parameter value: ${hbarParam}. Must be 'true' or 'false'`);
+};
+
+/**
  * Validate input parameters for the rest apis
  * @param {String} param Parameter to be validated
  * @param {String} opAndVal operator:value to be validated
@@ -269,7 +297,7 @@ const filterValidityChecks = (param, op, val) => {
       ret = isValidEthHashOrHederaHash(val) && op === constants.queryParamOperators.eq;
       break;
     case constants.filterKeys.BLOCK_NUMBER:
-      ret = (isPositiveLong(val, true) || isHexPositiveInt(val, true)) && _.includes(basicOperators, op);
+      ret = (isPositiveLong(val, true) || isHexPositiveInt(val, true)) && includes(basicOperators, op);
       break;
     case constants.filterKeys.CONTRACT_ID:
       ret = isValidContractIdQueryParam(op, val);
@@ -290,6 +318,9 @@ const filterValidityChecks = (param, op, val) => {
       break;
     case constants.filterKeys.FROM:
       ret = EntityId.isValidEntityId(val, true, constants.EvmAddressType.NO_SHARD_REALM);
+      break;
+    case constants.filterKeys.HBAR:
+      ret = isValidBooleanOpAndValue(op, val);
       break;
     case constants.filterKeys.INDEX:
       ret = isNumeric(val) && val >= 0;
@@ -327,7 +358,7 @@ const filterValidityChecks = (param, op, val) => {
       ret = isPositiveLong(val);
       break;
     case constants.filterKeys.SLOT:
-      ret = isValidSlot(val) && _.includes(basicOperators, op);
+      ret = isValidSlot(val) && includes(basicOperators, op);
       break;
     case constants.filterKeys.SPENDER_ID:
       ret = EntityId.isValidEntityId(val);
@@ -416,7 +447,7 @@ const isValidContractIdQueryParam = (op, val) => {
 };
 
 const isValidUserFileId = (val) => {
-  return !_.isNil(val) && val !== '' && EntityId.parse(val).num > 1000;
+  return !isNil(val) && val !== '' && EntityId.parse(val).num > 1000;
 };
 
 /**
@@ -518,9 +549,9 @@ const getLimitParamValue = (values) => {
   let ret = responseLimit.default;
   if (values !== undefined) {
     const value = Array.isArray(values) ? values[values.length - 1] : values;
-    const parsed = long.fromValue(value);
+    const parsed = Number(value);
     const maxLimit = getEffectiveMaxLimit();
-    ret = parsed.greaterThan(maxLimit) ? maxLimit : parsed.toNumber();
+    ret = parsed > maxLimit ? maxLimit : parsed;
   }
   return ret;
 };
@@ -551,7 +582,7 @@ const parseParams = (paramValues, processValue, processQuery, allowMultiple) => 
   const equalValues = new Set();
   for (const paramValue of paramValues) {
     const opAndValue = parseOperatorAndValueFromQueryParam(paramValue);
-    if (_.isNil(opAndValue)) {
+    if (isNil(opAndValue)) {
       continue;
     }
     const processedValue = processValue(opAndValue.value);
@@ -560,7 +591,7 @@ const parseParams = (paramValues, processValue, processQuery, allowMultiple) => 
       equalValues.add(processedValue);
     } else {
       const queryAndValues = processQuery(opAndValue.op, processedValue);
-      if (!_.isNil(queryAndValues)) {
+      if (!isNil(queryAndValues)) {
         partialQueries.push(queryAndValues[0]);
         if (queryAndValues[1]) {
           values.push(...queryAndValues[1]);
@@ -942,7 +973,7 @@ const nowInNs = () => BigInt(Date.now()) * constants.NANOSECONDS_PER_MILLISECOND
  * @return {String} Seconds since epoch (seconds.nnnnnnnnn format)
  */
 const nsToSecNs = (ns, sep = '.') => {
-  if (_.isNil(ns)) {
+  if (isNil(ns)) {
     return null;
   }
 
@@ -985,7 +1016,7 @@ const getFirstDayOfMonth = (secNs, delta = 0) => {
  * @return {String} (seconds.nnnnnnnnn format)
  */
 const incrementTimestampByOneDay = (ns) => {
-  if (_.isNil(ns)) {
+  if (isNil(ns)) {
     return null;
   }
 
@@ -1001,7 +1032,7 @@ const randomString = async (length) => {
 };
 
 const addHexPrefix = (hexData) => {
-  if (_.isEmpty(hexData)) {
+  if (isEmpty(hexData)) {
     return constants.HEX_PREFIX;
   }
 
@@ -1015,7 +1046,7 @@ const addHexPrefix = (hexData) => {
  * @returns {String|null}
  */
 const toUint256 = (val) => {
-  if (_.isNil(val)) {
+  if (isNil(val)) {
     return null;
   }
 
@@ -1042,7 +1073,7 @@ const toHexString = (value, addPrefix = false, padLength = undefined) => {
     encoded = value.toString(16);
   } else if (typeof value === 'string' && hexStrPattern.test(value)) {
     encoded = value;
-  } else if (_.isEmpty(value)) {
+  } else if (isEmpty(value)) {
     return constants.HEX_PREFIX;
   } else if (Array.isArray(value)) {
     encoded = Buffer.from(value).toString('hex');
@@ -1091,12 +1122,12 @@ const IMMUTABLE_SENTINEL_KEY = '3200';
  * @return {Object} Key object - with type decoration for primitive keys, if detected
  */
 const encodeKey = (key) => {
-  if (_.isNil(key)) {
+  if (isNil(key)) {
     return null;
   }
 
   // check for empty case to support differentiation between empty and null keys
-  const keyHex = _.isEmpty(key) ? '' : toHexString(key);
+  const keyHex = isEmpty(key) ? '' : toHexString(key);
   if (keyHex === IMMUTABLE_SENTINEL_KEY) {
     return null;
   }
@@ -1148,16 +1179,16 @@ const encodeBinary = (buffer, encoding) => {
     charEncoding = constants.characterEncoding.UTF8;
   }
 
-  return _.isNil(buffer) ? null : buffer.toString(charEncoding);
+  return isNil(buffer) ? null : buffer.toString(charEncoding);
 };
 
 /**
  *
- * @param {String} num Nullable number
- * @returns {Any} representation of math.bignumber value of parameter or null if null
+ * @param {number} num Nullable number
+ * @returns {string} String representation of a number or null if null
  */
 const getNullableNumber = (num) => {
-  return _.isNil(num) ? null : `${num}`;
+  return num != null && num != undefined ? `${num}` : null;
 };
 
 /**
@@ -1250,7 +1281,7 @@ const buildComparatorFilter = (name, filter) => {
  * @returns {BigInt} nnnnnnnnnnnnnnnnnnn format
  */
 const calculateExpiryTimestamp = (autoRenewPeriod, createdTimestamp, expirationTimestamp) => {
-  return _.isNil(expirationTimestamp) && !_.isNil(createdTimestamp) && !_.isNil(autoRenewPeriod)
+  return isNil(expirationTimestamp) && !isNil(createdTimestamp) && !isNil(autoRenewPeriod)
     ? BigInt(createdTimestamp) + BigInt(autoRenewPeriod) * constants.AUTO_RENEW_PERIOD_MULTIPLE
     : expirationTimestamp;
 };
@@ -1368,7 +1399,7 @@ const formatComparator = (comparator) => {
         comparator.value = parseBooleanValue(comparator.value);
         break;
       case constants.filterKeys.LIMIT:
-        comparator.value = math.min(Number(comparator.value), getEffectiveMaxLimit());
+        comparator.value = Math.min(Number(comparator.value), getEffectiveMaxLimit());
         break;
       case constants.filterKeys.NODE_ID:
       case constants.filterKeys.NONCE:
@@ -1424,12 +1455,12 @@ const formatComparator = (comparator) => {
  * @return {[]|{token_id: string, balance: Number}[]}
  */
 const parseTokenBalances = (tokenBalances) => {
-  if (_.isNil(tokenBalances)) {
+  if (isNil(tokenBalances)) {
     return [];
   }
 
   return tokenBalances
-    .filter((x) => !_.isNil(x.token_id))
+    .filter((x) => !isNil(x.token_id))
     .map((tokenBalance) => {
       const {token_id: tokenId, balance} = tokenBalance;
       return {
@@ -1441,25 +1472,13 @@ const parseTokenBalances = (tokenBalances) => {
 
 const isTestEnv = () => process.env.NODE_ENV === 'test';
 
-/**
- * Masks the given IP based on Google Analytics standards
- * @param {String} ip the IP address from the req object.
- * @returns {String} The masked IP address
- */
-const ipMask = (ip) => {
-  return anonymize(ip, 24, 48);
+let recordQueryImpl = async (_callerInfo, _query) => {};
+
+export const setRecordQuery = (fn) => {
+  recordQueryImpl = fn;
 };
 
-const recordQuery = (() => {
-  let func;
-  return async (callerInfo, query) => {
-    if (!func) {
-      func = (await import('./__tests__/tableUsage')).recordQuery;
-    }
-
-    func(callerInfo, query);
-  };
-})();
+const recordQuery = (callerInfo, query) => recordQueryImpl(callerInfo, query);
 
 /**
  * Gets the pool class with queryQuietly
@@ -1493,6 +1512,7 @@ const getPoolClass = () => {
 
       if (traceEnabled) {
         startTime = Date.now();
+        const {format} = await import('sql-formatter');
         const prettyQuery = format(query, {language: 'postgresql'});
         logger.trace(
           `${callerInfo.function} (${callerInfo.file}:${
@@ -1542,7 +1562,7 @@ const getPoolClass = () => {
  * @returns {Object|null}
  */
 const getStakingPeriod = (stakingPeriod) => {
-  if (_.isNil(stakingPeriod)) {
+  if (isNil(stakingPeriod)) {
     return null;
   } else {
     const stakingPeriodStart = BigInt(stakingPeriod) + 1n;
@@ -1660,7 +1680,11 @@ const parseTimestampFilters = (
 
   // Note that we don't further check if the range and the eq values can result in an empty range, because some
   // endpoints treat eq operator as lte
-  return {range, eqValues: Array.from(eqValues), neValues: Array.from(neValues)};
+  return {
+    range,
+    eqValues: Array.from(eqValues),
+    neValues: Array.from(neValues),
+  };
 };
 
 /**
@@ -1806,7 +1830,6 @@ export {
   getStakingPeriod,
   gtGte,
   incrementTimestampByOneDay,
-  ipMask,
   isByteRange,
   isNonNegativeInt32,
   isPositiveLong,
@@ -1830,6 +1853,7 @@ export {
   parseAccountIdQueryParam,
   parseBalanceQueryParam,
   parseBooleanValue,
+  parseHbarParam,
   parseHexStr,
   getEffectiveMaxLimit,
   parseInteger,

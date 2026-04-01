@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import isNil from 'lodash/isNil';
 
 import {InvalidArgumentError} from '../errors';
 import * as utils from '../utils';
@@ -14,7 +14,7 @@ import * as utils from '../utils';
 class Bound {
   constructor(filterKey, viewModelKey) {
     this.filterKey = filterKey;
-    this.viewModelKey = !_.isNil(viewModelKey) ? viewModelKey : filterKey;
+    this.viewModelKey = !isNil(viewModelKey) ? viewModelKey : filterKey;
     this.equal = null;
     this.lower = null;
     this.next = null;
@@ -30,15 +30,15 @@ class Bound {
   }
 
   hasEqual() {
-    return !_.isNil(this.equal);
+    return !isNil(this.equal);
   }
 
   hasLower() {
-    return !_.isNil(this.lower);
+    return !isNil(this.lower);
   }
 
   hasUpper() {
-    return !_.isNil(this.upper);
+    return !isNil(this.upper);
   }
 
   isEmpty() {

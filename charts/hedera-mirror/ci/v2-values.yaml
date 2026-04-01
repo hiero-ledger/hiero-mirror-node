@@ -37,8 +37,6 @@ rest:
         maxAttempts: 1
       schedule:
         enabled: false
-      stateproof:
-        enabled: false
   resources:
     requests:
       cpu: 200m

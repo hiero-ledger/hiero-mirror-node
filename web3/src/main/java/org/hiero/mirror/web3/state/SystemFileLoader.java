@@ -3,8 +3,9 @@
 package org.hiero.mirror.web3.state;
 
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_FILE_MODULARIZED;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_MODULARIZED;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_FILE;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.CurrentAndNextFeeSchedule;
@@ -32,31 +33,40 @@ import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidFileException;
 import org.hiero.mirror.web3.repository.FileDataRepository;
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.CacheManager;
 import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
 
 @Named
+@NullMarked
 @CustomLog
-@RequiredArgsConstructor
-public class SystemFileLoader {
+public final class SystemFileLoader {
+
+    private static final long NANOS_PER_HOUR = 3600L * DomainUtils.NANOS_PER_SECOND;
 
     private final EvmProperties properties;
     private final FileDataRepository fileDataRepository;
     private final SystemEntity systemEntity;
-
+    private final FileID exchangeRateFileId;
+    private final FileID feeSchedulesFileId;
+    private final FileID simpleFeeSchedulesFileId;
+    private final CacheManager exchangeRatesCacheManager;
+    private final CacheManager defaultSystemFileCacheManager;
     private final V0490FileSchema fileSchema = new V0490FileSchema();
+    private final File genesisNetworkProperties;
     private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
             .maxRetries(9)
             .predicate(e -> e instanceof InvalidFileException)
@@ -65,25 +75,81 @@ public class SystemFileLoader {
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final byte[] mockAddressBook = createMockAddressBook();
 
-    @Getter(lazy = true)
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final Map<FileID, SystemFile> systemFiles = loadAll();
 
-    @Cacheable(
-            cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
-            cacheNames = CACHE_NAME_MODULARIZED,
-            key = "#key",
-            unless = "#result == null")
-    public @Nullable File load(@NonNull FileID key, long consensusTimestamp) {
-        var systemFile = getSystemFiles().get(key);
+    public SystemFileLoader(
+            final EvmProperties properties,
+            final FileDataRepository fileDataRepository,
+            final SystemEntity systemEntity,
+            @Qualifier(CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE) final CacheManager exchangeRatesCacheManager,
+            @Qualifier(CACHE_MANAGER_SYSTEM_FILE) final CacheManager defaultSystemFileCacheManager) {
+        this.properties = properties;
+        this.fileDataRepository = fileDataRepository;
+        this.systemEntity = systemEntity;
+        this.exchangeRateFileId = Utils.toFileID(systemEntity.exchangeRateFile());
+        this.feeSchedulesFileId = Utils.toFileID(systemEntity.feeScheduleFile());
+        this.simpleFeeSchedulesFileId = Utils.toFileID(systemEntity.simpleFeeScheduleFile());
+        this.exchangeRatesCacheManager = exchangeRatesCacheManager;
+        this.defaultSystemFileCacheManager = defaultSystemFileCacheManager;
+        this.genesisNetworkProperties = load(
+                systemEntity.networkPropertyFile(),
+                fileSchema.genesisNetworkProperties(properties.getVersionedConfiguration()));
+    }
+
+    /**
+     * Load system file by id and consensus timestamp.
+     */
+    public @Nullable File load(FileID fileId, long consensusTimestamp) {
+        // Skip database for network properties so that CN props can't override MN props and cause us to break.
+        if (genesisNetworkProperties.fileId().equals(fileId)) {
+            return genesisNetworkProperties;
+        }
+
+        var cacheManager = defaultSystemFileCacheManager;
+
+        if (fileId.equals(exchangeRateFileId)
+                || fileId.equals(feeSchedulesFileId)
+                || fileId.equals(simpleFeeSchedulesFileId)) {
+            cacheManager = exchangeRatesCacheManager;
+            consensusTimestamp = roundDownToHour(consensusTimestamp);
+        }
+
+        final var cacheKey = new CacheKey(fileId, consensusTimestamp);
+        log.debug("Looking up {}", cacheKey);
+        final var cache = cacheManager.getCache(CACHE_NAME);
+
+        if (cache == null) {
+            return loadFromDB(fileId, consensusTimestamp);
+        }
+
+        // Try to return the value from the cache
+        var file = cache.get(cacheKey, File.class);
+        if (file != null) {
+            return file;
+        }
+
+        // The value was not in cache -> try to load from DB
+        var result = loadFromDB(fileId, consensusTimestamp);
+        if (result != null) {
+            log.info("Updating cache for key {}", cacheKey);
+            cache.put(cacheKey, result);
+        }
+
+        return result;
+    }
+
+    private @Nullable File loadFromDB(FileID fileId, long consensusTimestamp) {
+        var systemFile = getSystemFiles().get(fileId);
         if (systemFile == null) {
             return null;
         }
 
-        return loadWithRetry(key, consensusTimestamp, systemFile);
+        return loadWithRetry(fileId, consensusTimestamp, systemFile);
     }
 
-    public boolean isSystemFile(final FileID key) {
-        return getSystemFiles().containsKey(key);
+    public boolean isSystemFile(final FileID fileId) {
+        return getSystemFiles().containsKey(fileId);
     }
 
     /**
@@ -107,8 +173,9 @@ public class SystemFileLoader {
                     .map(fileData -> {
                         try {
                             var bytes = Bytes.wrap(fileData.getFileData());
-                            if (systemFile.codec != null) {
-                                systemFile.codec().parse(bytes.toReadableSequentialData());
+                            var codec = systemFile.codec;
+                            if (codec != null) {
+                                codec.parse(bytes.toReadableSequentialData());
                             }
                             return File.newBuilder().contents(bytes).fileId(key).build();
                         } catch (ParseException e) {
@@ -138,11 +205,14 @@ public class SystemFileLoader {
                         load(systemEntity.feeScheduleFile(), fileSchema.genesisFeeSchedules(configuration)),
                         CurrentAndNextFeeSchedule.PROTOBUF),
                 new SystemFile(
-                        load(systemEntity.exchangeRateFile(), fileSchema.genesisExchangeRates(configuration)),
-                        ExchangeRateSet.PROTOBUF),
+                        load(
+                                systemEntity.simpleFeeScheduleFile(),
+                                fileSchema.genesisSimpleFeesSchedules(configuration)),
+                        FeeSchedule.PROTOBUF),
                 new SystemFile(
-                        load(systemEntity.networkPropertyFile(), fileSchema.genesisNetworkProperties(configuration)),
-                        null),
+                        load(systemEntity.exchangeRateFile(), fileSchema.genesisExchangeRatesBytes(configuration)),
+                        ExchangeRateSet.PROTOBUF),
+                new SystemFile(genesisNetworkProperties, null),
                 new SystemFile(load(systemEntity.hapiPermissionFile(), Bytes.EMPTY), null),
                 new SystemFile(
                         load(
@@ -175,10 +245,9 @@ public class SystemFileLoader {
     }
 
     private byte[] createMockAddressBook() {
-        com.hederahashgraph.api.proto.java.NodeAddressBook.Builder builder =
-                com.hederahashgraph.api.proto.java.NodeAddressBook.newBuilder();
+        final var builder = com.hederahashgraph.api.proto.java.NodeAddressBook.newBuilder();
         long nodeId = 3;
-        NodeAddress.Builder nodeAddressBuilder = NodeAddress.newBuilder()
+        final var nodeAddressBuilder = NodeAddress.newBuilder()
                 .addServiceEndpoint(ServiceEndpoint.newBuilder()
                         .setIpAddressV4(ByteString.copyFromUtf8("127.0.0." + nodeId))
                         .setPort((int) nodeId)
@@ -193,5 +262,21 @@ public class SystemFileLoader {
         return builder.build().toByteArray();
     }
 
-    private record SystemFile(File genesisFile, Codec<?> codec) {}
+    /**
+     * Rounds the given consensus timestamp (nanoseconds) down to the start of the hour (e.g. 00:00, 01:00, 02:00).
+     */
+    private long roundDownToHour(long consensusTimestampNanos) {
+        return (consensusTimestampNanos / NANOS_PER_HOUR) * NANOS_PER_HOUR;
+    }
+
+    private record SystemFile(File genesisFile, @Nullable Codec<?> codec) {}
+
+    private record CacheKey(FileID fileId, long timestamp) {
+
+        @Override
+        public String toString() {
+            final var entityId = EntityId.of(fileId.shardNum(), fileId.realmNum(), fileId.fileNum());
+            return "FileId=" + entityId + ", timestamp=" + Instant.ofEpochSecond(0L, timestamp);
+        }
+    }
 }

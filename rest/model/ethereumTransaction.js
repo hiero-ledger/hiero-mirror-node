@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import camelCase from 'lodash/camelCase';
+import mapKeys from 'lodash/mapKeys';
 
 class EthereumTransaction {
   /**
@@ -9,7 +10,7 @@ class EthereumTransaction {
   constructor(ethereumTransaction) {
     Object.assign(
       this,
-      _.mapKeys(ethereumTransaction, (v, k) => _.camelCase(k))
+      mapKeys(ethereumTransaction, (v, k) => camelCase(k))
     );
   }
 

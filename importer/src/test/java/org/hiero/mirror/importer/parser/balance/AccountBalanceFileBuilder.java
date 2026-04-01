@@ -62,7 +62,6 @@ public class AccountBalanceFileBuilder {
                     .items(accountBalanceList)
                     .loadStart(domainBuilder.timestamp())
                     .name(filename)
-                    .nodeId(0L)
                     .build();
         }
     }

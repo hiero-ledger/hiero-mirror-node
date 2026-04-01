@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.state.singleton;
 import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_STREAM_INFO_STATE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hedera.hapi.node.base.Timestamp;
 import com.hedera.hapi.node.state.blockstream.BlockStreamInfo;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
@@ -27,7 +28,7 @@ class BlockStreamInfoSingletonTest {
     }
 
     @Test
-    @DisplayName("should always return default instance")
+    @DisplayName("does not return default instance")
     void set() {
         // when
         final var blockStreamInfo = BlockStreamInfo.newBuilder()
@@ -37,6 +38,10 @@ class BlockStreamInfoSingletonTest {
         blockStreamInfoSingleton.set(blockStreamInfo);
 
         // then
-        assertThat(blockStreamInfoSingleton.get()).isEqualTo(BlockStreamInfo.DEFAULT);
+        assertThat(blockStreamInfoSingleton.get()).isNotEqualTo(BlockStreamInfo.DEFAULT);
+        assertThat(blockStreamInfoSingleton.get())
+                .isEqualTo(BlockStreamInfo.newBuilder()
+                        .lastHandleTime(Timestamp.newBuilder().seconds(1).build())
+                        .build());
     }
 }

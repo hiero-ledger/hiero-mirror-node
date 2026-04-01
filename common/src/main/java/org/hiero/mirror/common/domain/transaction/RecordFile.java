@@ -92,12 +92,13 @@ public class RecordFile implements StreamFile<RecordItem> {
 
     private String name;
 
-    private Long nodeId;
-
     @Column(name = "prev_hash")
     @JsonProperty("prev_hash")
     @ToString.Exclude
     private String previousHash;
+
+    @ToString.Exclude
+    private byte[] previousWrappedRecordBlockHash;
 
     private Long roundEnd;
 

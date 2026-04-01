@@ -16,7 +16,6 @@ import config from './config';
 import * as constants from './constants';
 import health from './health';
 import schedules from './schedules';
-import stateproof from './stateproof';
 import tokens from './tokens';
 import topicmessage from './topicmessage';
 import transactions from './transactions';
@@ -25,9 +24,7 @@ import {isTestEnv} from './utils';
 import {
   authHandler,
   handleError,
-  metricsHandler,
   openApiValidator,
-  recordIpAndEndpoint,
   requestLogger,
   requestQueryParser,
   responseCacheCheckHandler,
@@ -64,7 +61,7 @@ app.set('query parser', requestQueryParser);
 
 serveSwaggerDocs(app);
 if (openApiValidatorEnabled || isTestEnv()) {
-  openApiValidator(app);
+  await openApiValidator(app);
 }
 
 // middleware functions, Prior to v0.5 define after sets
@@ -90,6 +87,7 @@ app.useExt(authHandler);
 
 // metrics middleware
 if (config.metrics.enabled) {
+  const {metricsHandler} = await import('./middleware/metricsHandler');
   app.useExt(metricsHandler());
 }
 
@@ -120,14 +118,6 @@ app.use(`${apiPrefix}/${BlockRoutes.resource}`, BlockRoutes.router);
 app.getExt(`${apiPrefix}/schedules`, schedules.getSchedules);
 app.getExt(`${apiPrefix}/schedules/:scheduleId`, schedules.getScheduleById);
 
-// stateproof route
-if (config.stateproof.enabled || isTestEnv()) {
-  logger.info('stateproof REST API is enabled, install handler');
-  app.getExt(`${apiPrefix}/transactions/:transactionId/stateproof`, stateproof.getStateProofForTransaction);
-} else {
-  logger.info('stateproof REST API is disabled');
-}
-
 // tokens routes
 app.getExt(`${apiPrefix}/tokens`, tokens.getTokensRequest);
 app.getExt(`${apiPrefix}/tokens/:tokenId`, tokens.getTokenInfoRequest);
@@ -144,11 +134,6 @@ app.getExt(`${apiPrefix}/topics/messages/:consensusTimestamp`, topicmessage.getM
 // transactions routes
 app.getExt(`${apiPrefix}/transactions`, transactions.getTransactions);
 app.getExt(`${apiPrefix}/transactions/:transactionIdOrHash`, transactions.getTransactionsByIdOrHash);
-
-// record ip metrics if enabled
-if (config.metrics.ipMetrics) {
-  app.useExt(recordIpAndEndpoint);
-}
 
 // response data handling middleware
 app.useExt(responseHandler);

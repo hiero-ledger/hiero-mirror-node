@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import isEmpty from 'lodash/isEmpty';
 import quickLru from 'quick-lru';
 
 import BaseService from './baseService';
@@ -81,7 +81,7 @@ class TokenService extends BaseService {
       tokenIdInParams.push(condition.value);
     });
 
-    if (!_.isEmpty(tokenIdInParams)) {
+    if (!isEmpty(tokenIdInParams)) {
       return ` and ${TokenAccount.getFullName(TokenAccount.TOKEN_ID)} in (${tokenIdInParams})`;
     }
   }

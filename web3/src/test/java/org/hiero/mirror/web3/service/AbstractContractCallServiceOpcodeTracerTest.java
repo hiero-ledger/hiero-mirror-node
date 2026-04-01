@@ -15,23 +15,21 @@ import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.gasComparator;
 import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.toHumanReadableMessage;
 import static org.mockito.Mockito.doAnswer;
 
-import com.hedera.hapi.node.base.ResponseCodeEnum;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.tableusage.EndpointContext;
+import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
@@ -92,8 +90,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     protected void verifyOpcodeTracerCall(
             final String callData, final ContractFunctionProviderRecord functionProvider) {
         setOpcodeEndpoint();
-        final var callDataBytes = Bytes.fromHexString(callData);
-        final var debugParameters = getDebugParameters(functionProvider, callDataBytes);
+        final var debugParameters = getDebugParameters(functionProvider, callData);
 
         if (functionProvider.expectedErrorMessage() != null) {
             verifyThrowingOpcodeTracerCall(debugParameters, functionProvider);
@@ -110,8 +107,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                 .contractAddress(Address.fromHexString(contract.getContractAddress()))
                 .build();
 
-        final var callDataBytes = Bytes.fromHexString(callData);
-        final var debugParameters = getDebugParameters(functionProvider, callDataBytes);
+        final var debugParameters = getDebugParameters(functionProvider, callData);
 
         if (functionProvider.expectedErrorMessage() != null) {
             verifyThrowingOpcodeTracerCall(debugParameters, functionProvider);
@@ -132,18 +128,20 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                         .contractCallResult()
                         .toByteArray())
                 .isEqualTo(Bytes.EMPTY.toArray());
-        assertThat(BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage(Bytes.fromHexString(
-                        actual.transactionProcessingResult().functionResult().errorMessage())))
+        assertThat(BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage(
+                        actual.transactionProcessingResult().functionResult().errorMessage()))
                 .isEqualTo(function.expectedErrorMessage());
         assertThat(actual.opcodes().size()).isNotZero();
-        assertThat(toHumanReadableMessage(actual.opcodes().getLast().reason()))
+        assertThat(toHumanReadableMessage(actual.opcodes().getLast().getReason()))
                 .isEqualTo(function.expectedErrorMessage());
     }
 
     protected void verifySuccessfulOpcodeTracerCall(final ContractDebugParameters params) {
         final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, OPTIONS));
-        final var expected =
-                new OpcodesProcessingResult(resultCaptor, params.getReceiver(), contextCaptor.getOpcodes());
+        final var expected = new OpcodesProcessingResult(
+                resultCaptor,
+                params.getReceiver(),
+                contextCaptor.getOpcodeContext().getOpcodes());
         // Compare transaction processing result
         assertThat(actual.transactionProcessingResult())
                 .usingRecursiveComparison()
@@ -157,22 +155,24 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     }
 
     protected void verifyOpcodesResponse(
-            final OpcodesResponse opcodesResponse, final OpcodeTracerOptions options, final Address recipient) {
+            final OpcodesResponse opcodesResponse, final OpcodeContext options, final Address recipient) {
         assertThat(opcodesResponse)
-                .isEqualTo(expectedOpcodesResponse(resultCaptor, contextCaptor.getOpcodes(), recipient));
+                .isEqualTo(expectedOpcodesResponse(
+                        resultCaptor, contextCaptor.getOpcodeContext().getOpcodes(), recipient));
         assertThat(gasCaptor.getValue()).isEqualTo(TRANSACTION_GAS_LIMIT);
-        assertThat(contextCaptor.getOpcodeTracerOptions()).isEqualTo(options);
+        verifyOpcodeOptionsMatch(options);
     }
 
     protected void verifyOpcodesResponseWithExpectedReturnValue(
             final OpcodesResponse opcodesResponse,
-            final OpcodeTracerOptions options,
+            final OpcodeContext options,
             final String expectedReturnValue,
             final Address recipient) {
         assertThat(opcodesResponse)
-                .isEqualTo(expectedOpcodesResponse(resultCaptor, contextCaptor.getOpcodes(), recipient));
+                .isEqualTo(expectedOpcodesResponse(
+                        resultCaptor, contextCaptor.getOpcodeContext().getOpcodes(), recipient));
         assertThat(gasCaptor.getValue()).isEqualTo(TRANSACTION_GAS_LIMIT);
-        assertThat(contextCaptor.getOpcodeTracerOptions()).isEqualTo(options);
+        verifyOpcodeOptionsMatch(options);
 
         assertThat(opcodesResponse.getFailed()).isFalse();
         assertThat(opcodesResponse.getReturnValue()).isEqualTo(expectedReturnValue);
@@ -181,6 +181,13 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                         .filter(o -> o.getOp().equals(CALL_OPCODE_NAME))
                         .count())
                 .isGreaterThan(0);
+    }
+
+    private void verifyOpcodeOptionsMatch(final OpcodeContext options) {
+        final var actual = contextCaptor.getOpcodeContext();
+        assertThat(actual.isStack()).isEqualTo(options.isStack());
+        assertThat(actual.isMemory()).isEqualTo(options.isMemory());
+        assertThat(actual.isStorage()).isEqualTo(options.isStorage());
     }
 
     private OpcodesResponse expectedOpcodesResponse(
@@ -202,28 +209,10 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                                         .map(Entity::toEntityId)
                                         .map(EntityId::toString)
                                         .orElse(null))
-                .failed(!result.responseCodeEnum().equals(ResponseCodeEnum.SUCCESS))
+                .failed(!result.isSuccessful())
                 .gas(result.gasUsed())
-                .opcodes(opcodes.stream()
-                        .map(opcode -> new org.hiero.mirror.rest.model.Opcode()
-                                .depth(opcode.depth())
-                                .gas(opcode.gas())
-                                .gasCost(opcode.gasCost())
-                                .op(opcode.op())
-                                .pc(opcode.pc())
-                                .reason(opcode.reason())
-                                .stack(opcode.stack().stream()
-                                        .map(Bytes::toHexString)
-                                        .toList())
-                                .memory(opcode.memory().stream()
-                                        .map(Bytes::toHexString)
-                                        .toList())
-                                .storage(opcode.storage().entrySet().stream()
-                                        .collect(Collectors.toMap(
-                                                entry -> entry.getKey().toHexString(),
-                                                entry -> entry.getValue().toHexString()))))
-                        .toList())
-                .returnValue(Bytes.fromHexString(result.contractCallResult()).toHexString());
+                .opcodes(opcodes)
+                .returnValue(result.contractCallResult());
     }
 
     private Address entityAddress(Entity entity) {

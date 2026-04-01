@@ -11,10 +11,14 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.PAYER_ACCOUNT_
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
+import static org.hiero.mirror.web3.service.ContractCallService.EVM_INVOCATION_METRIC;
 import static org.hiero.mirror.web3.service.ContractCallService.GAS_LIMIT_METRIC;
 import static org.hiero.mirror.web3.service.ContractCallService.GAS_USED_METRIC;
+import static org.hiero.mirror.web3.service.ContractCallService.TAG_BLOCK;
+import static org.hiero.mirror.web3.service.ContractCallService.TAG_TYPE;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ECDSA_KEY;
@@ -36,6 +40,7 @@ import static org.mockito.Mockito.when;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
 import java.math.BigInteger;
+import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
@@ -52,6 +57,7 @@ import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
+import org.hiero.mirror.web3.state.SystemFileLoader;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -75,12 +81,13 @@ import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.tx.Contract;
 
 @RequiredArgsConstructor
-class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTest {
+final class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTest {
 
     private final BinaryGasEstimator binaryGasEstimator;
     private final RecordFileService recordFileService;
     private final ThrottleProperties throttleProperties;
     private final TransactionExecutionService transactionExecutionService;
+    private final SystemFileLoader systemFileLoader;
 
     @MockitoBean
     private ThrottleManager throttleManager;
@@ -96,7 +103,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
 
     private static Stream<Arguments> provideCustomBlockTypes() {
         return Stream.of(
-                Arguments.of(BlockType.of("0x1"), "0x", false),
+                Arguments.of(BlockType.of("0x1"), HEX_PREFIX, false),
                 Arguments.of(
                         BlockType.of("0x100"),
                         "0x0000000000000000000000000000000000000000000000000000000000000004",
@@ -123,7 +130,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var receiver = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiver);
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
-        final var serviceParameters = getContractExecutionParameters(Bytes.EMPTY, receiverAddress);
+        final var serviceParameters = getContractExecutionParameters(HEX_PREFIX, receiverAddress);
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -264,7 +271,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var receiverAddress = Address.ZERO;
 
         final var contract = testWeb3jService.deployWithoutPersist(ERCTestContract::deploy);
-        final var contractCallData = Bytes.fromHexString(contract.getContractBinary());
+        final var contractCallData = contract.getContractBinary();
 
         final var serviceParametersEthCall = getContractExecutionParameters(
                 contractCallData, toAddress(payer.toEntityId()), receiverAddress, 0L, ETH_CALL);
@@ -323,7 +330,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var receiverAddress = getAliasAddressFromEntity(receiver);
 
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
-        final var serviceParameters = getContractExecutionParameters(Bytes.EMPTY, receiverAddress, senderAddress, 7L);
+        final var serviceParameters = getContractExecutionParameters(HEX_PREFIX, receiverAddress, senderAddress, 7L);
 
         // Then
         assertDoesNotThrow(() -> contractExecutionService.processCall(serviceParameters));
@@ -441,8 +448,8 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         // Given
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         meterRegistry.clear();
-        final var serviceParameters = getContractExecutionParameters(
-                Bytes.fromHexString("0x12345678"), Address.fromHexString(contract.getContractAddress()));
+        final var serviceParameters =
+                getContractExecutionParameters("0x12345678", Address.fromHexString(contract.getContractAddress()));
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -460,7 +467,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var payer = accountEntityPersist(); // Account without alias
 
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, Bytes.EMPTY, toAddress(payer.toEntityId()), receiverAddress, 10L);
+                BlockType.LATEST, HEX_PREFIX, toAddress(payer.toEntityId()), receiverAddress, 10L);
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -477,7 +484,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
         final var notExistingAccountAddress = toAddress(domainBuilder.entityId());
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, Bytes.EMPTY, notExistingAccountAddress, receiverAddress, 10L);
+                BlockType.LATEST, HEX_PREFIX, notExistingAccountAddress, receiverAddress, 10L);
 
         // Then
         assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
@@ -494,7 +501,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
         final var senderEntity = accountEntityPersistCustomizable(e -> e.key(null));
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, Bytes.EMPTY, toAddress(senderEntity.toEntityId()), receiverAddress, 10L);
+                BlockType.LATEST, HEX_PREFIX, toAddress(senderEntity.toEntityId()), receiverAddress, 10L);
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -505,22 +512,20 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
     }
 
     @Test
-    void ethCallWithValueAndSenderContractFails() {
+    void ethCallWithValueAndSenderContractSucceeds() {
         // Given
         final var receiverEntity = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
         final var contractAddress = toAddress(accountEntityPersistCustomizable(e -> e.type(EntityType.CONTRACT))
                 .toEntityId());
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, Bytes.EMPTY, contractAddress, receiverAddress, 10L);
+                BlockType.LATEST, HEX_PREFIX, contractAddress, receiverAddress, 10L);
+
+        // When
+        final var result = contractExecutionService.processCall(serviceParameters);
 
         // Then
-        assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
-                .isInstanceOf(MirrorEvmTransactionException.class)
-                .extracting("detail")
-                .asString()
-                .matches(".*payer account .* is a smart contract.*");
-
+        assertThat(result).isEqualTo(HEX_PREFIX);
         assertGasLimit(serviceParameters);
     }
 
@@ -533,7 +538,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
 
         final var wrongFunctionSignature = "0x12345678";
         final var serviceParameters = getContractExecutionParameters(
-                Bytes.fromHexString(wrongFunctionSignature), Address.fromHexString(contract.getContractAddress()));
+                wrongFunctionSignature, Address.fromHexString(contract.getContractAddress()));
 
         // Then
         assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
@@ -553,7 +558,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var payer = accountEntityWithEvmAddressPersist();
         accountBalancePersist(payer, payer.getCreatedTimestamp());
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, Bytes.EMPTY, toAddress(payer.toEntityId()), receiverAddress, -5L);
+                BlockType.LATEST, HEX_PREFIX, toAddress(payer.toEntityId()), receiverAddress, -5L);
         // Then
         assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
                 .isInstanceOf(MirrorEvmTransactionException.class)
@@ -572,7 +577,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var senderAddress = getAliasAddressFromEntity(senderEntity);
         final var value = senderEntity.getBalance() + 5L;
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, Bytes.EMPTY, senderAddress, receiverAddress, value);
+                BlockType.LATEST, HEX_PREFIX, senderAddress, receiverAddress, value);
         // Then
         if (validatePayerBalance) {
             assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
@@ -599,7 +604,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var senderAddress = getAliasAddressFromEntity(senderEntity);
         final var value = senderEntity.getBalance() + 5L;
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.of("0x96"), Bytes.EMPTY, senderAddress, receiverAddress, value);
+                BlockType.of("0x96"), HEX_PREFIX, senderAddress, receiverAddress, value);
         // Then
         if (validatePayerBalance) {
             assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
@@ -610,6 +615,10 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         }
         assertGasLimit(serviceParameters);
         evmProperties.setValidatePayerBalance(true);
+        final var counter = meterRegistry.find(EVM_INVOCATION_METRIC).counters().stream()
+                .findFirst()
+                .get();
+        assertThat(counter.getId().getTag(TAG_BLOCK)).isEqualTo(YearMonth.now().toString());
     }
 
     @Test
@@ -811,12 +820,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
                 toAddress(token.getTokenId()).toHexString(), getAliasFromEntity(payer), BigInteger.valueOf(2));
 
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST,
-                Bytes.fromHexString(functionCall.encodeFunctionCall()),
-                Address.ZERO,
-                Address.ZERO,
-                callType,
-                100L);
+                BlockType.LATEST, functionCall.encodeFunctionCall(), Address.ZERO, Address.ZERO, callType, 100L);
 
         final long expectedUsedGasByThrottle =
                 (long) (TRANSACTION_GAS_LIMIT * throttleProperties.getGasLimitRefundPercent() / 100f);
@@ -919,7 +923,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
     void callSystemPrecompileWithEmptyData(final String addressHex) {
         // Given
         final var address = Address.fromHexString(addressHex);
-        final var serviceParameters = getContractExecutionParameters(Bytes.EMPTY, address);
+        final var serviceParameters = getContractExecutionParameters(HEX_PREFIX, address);
 
         // Then
         assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
@@ -961,7 +965,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
                 .balance(tokenAmount));
 
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, Bytes.fromHexString(hexData), toAddress(senderAccount.getId()), tokenAddress, 0L);
+                BlockType.LATEST, hexData, toAddress(senderAccount.getId()), tokenAddress, 0L);
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
 
@@ -971,12 +975,19 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
 
     private void assertGasUsedIsPositive(final double gasUsedBeforeExecution, final CallType callType) {
         final var counter = meterRegistry.find(GAS_USED_METRIC).counters().stream()
-                .filter(c -> callType.name().equals(c.getId().getTag("type")))
+                .filter(c -> callType.name().equals(c.getId().getTag(TAG_TYPE)))
+                .findFirst()
+                .get();
+
+        final var counterInvocation = meterRegistry.find(EVM_INVOCATION_METRIC).counters().stream()
+                .filter(c -> callType.name().equals(c.getId().getTag(TAG_TYPE)))
                 .findFirst()
                 .get();
 
         final var gasConsumed = counter.count() - gasUsedBeforeExecution;
         assertThat(gasConsumed).isPositive();
+        assertThat(counterInvocation.count()).isEqualTo(1L);
+        assertThat(counterInvocation.getId().getTag(TAG_BLOCK)).isEqualTo(BlockType.LATEST.toString());
     }
 
     private void assertGasLimit(ContractExecutionParameters parameters) {
@@ -985,7 +996,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
 
     private void assertGasLimit(final CallType callType, final long gasLimit) {
         final var counter = meterRegistry.find(GAS_LIMIT_METRIC).counters().stream()
-                .filter(c -> callType.name().equals(c.getId().getTag("type")))
+                .filter(c -> callType.name().equals(c.getId().getTag(TAG_TYPE)))
                 .findFirst()
                 .get();
 
@@ -993,15 +1004,15 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
     }
 
     private ContractExecutionParameters getContractExecutionParameters(
-            final Bytes data, final Address receiverAddress) {
-        return getContractExecutionParameters(data, receiverAddress, ETH_CALL);
+            final String dataHex, final Address receiverAddress) {
+        return getContractExecutionParameters(dataHex, receiverAddress, ETH_CALL);
     }
 
     private ContractExecutionParameters getContractExecutionParameters(
-            final Bytes data, final Address receiverAddress, final CallType callType) {
+            final String dataHex, final Address receiverAddress, final CallType callType) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .callData(data)
+                .callData(hexToBytes(dataHex))
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
@@ -1020,7 +1031,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
             final long gasLimit) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .callData(Bytes.fromHexString(functionCall.encodeFunctionCall()))
+                .callData(hexToBytes(functionCall.encodeFunctionCall()))
                 .callType(callType)
                 .gas(gasLimit)
                 .isEstimate(false)
@@ -1032,34 +1043,34 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
     }
 
     private ContractExecutionParameters getContractExecutionParametersWithValue(
-            final Bytes data, final Address receiverAddress, final long value) {
-        return getContractExecutionParametersWithValue(BlockType.LATEST, data, Address.ZERO, receiverAddress, value);
+            final String dataHex, final Address receiverAddress, final long value) {
+        return getContractExecutionParametersWithValue(BlockType.LATEST, dataHex, Address.ZERO, receiverAddress, value);
     }
 
     private ContractExecutionParameters getContractExecutionParametersWithValue(
             final BlockType blockType,
-            final Bytes data,
+            final String dataHex,
             final Address senderAddress,
             final Address receiverAddress,
             final long value) {
         return getContractExecutionParametersWithValue(
-                blockType, data, senderAddress, receiverAddress, ETH_CALL, value);
+                blockType, dataHex, senderAddress, receiverAddress, ETH_CALL, value);
     }
 
     private ContractExecutionParameters getContractExecutionParametersWithValue(
             final BlockType blockType,
-            final Bytes data,
+            final String dataHex,
             final Address senderAddress,
             final Address receiverAddress,
             final CallType callType,
             final long value) {
         return ContractExecutionParameters.builder()
                 .block(blockType)
-                .callData(data)
+                .callData(hexToBytes(dataHex))
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
-                .isEstimate(false)
+                .isEstimate(ETH_ESTIMATE_GAS == callType)
                 .isStatic(false)
                 .receiver(receiverAddress)
                 .sender(senderAddress)
@@ -1083,7 +1094,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
             final Address senderAddress, final Address receiverAddress, final long gasPrice, final long value) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .callData(Bytes.EMPTY)
+                .callData(hexToBytes(HEX_PREFIX))
                 .callType(ETH_CALL)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(gasPrice)
@@ -1104,7 +1115,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         @Test
         void callToNonExistingContract() {
             // Given
-            final var serviceParameters = getContractExecutionParameters(Bytes.EMPTY, NON_EXISTING_ADDRESS);
+            final var serviceParameters = getContractExecutionParameters(HEX_PREFIX, NON_EXISTING_ADDRESS);
 
             // When
             final var result = contractExecutionService.processCall(serviceParameters);
@@ -1122,7 +1133,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
             // The NON_EXISTING_ADDRESS should be a valid EVM alias key(Ethereum-style address derived from an ECDSA
             // public key), otherwise INVALID_ALIAS_KEY could be thrown
             final var serviceParameters = getContractExecutionParametersWithValue(
-                    BlockType.LATEST, Bytes.EMPTY, getAliasAddressFromEntity(payer), NON_EXISTING_ADDRESS, 1L);
+                    BlockType.LATEST, HEX_PREFIX, getAliasAddressFromEntity(payer), NON_EXISTING_ADDRESS, 1L);
 
             // When
             final var result = contractExecutionService.processCall(serviceParameters);
@@ -1130,6 +1141,32 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
             // Then
             assertThat(result).isEqualTo(HEX_PREFIX);
             assertGasLimit(serviceParameters);
+        }
+
+        @Test
+        void transferToNonExistingAddressEstimateGas() {
+            // Given
+            final var payer = accountEntityWithEvmAddressPersist();
+
+            // The NON_EXISTING_ADDRESS should be a valid EVM alias key(Ethereum-style address derived from an ECDSA
+            // public key), otherwise INVALID_ALIAS_KEY could be thrown
+            final var serviceParameters = getContractExecutionParametersWithValue(
+                    BlockType.LATEST,
+                    HEX_PREFIX,
+                    getAliasAddressFromEntity(payer),
+                    NON_EXISTING_ADDRESS,
+                    ETH_ESTIMATE_GAS,
+                    10000000L);
+
+            // When
+            final var result = contractExecutionService.processCall(serviceParameters);
+
+            // Then
+            final long expectedGas = 570000L;
+            final long estimatedGas = Long.parseLong(result.substring(2), 16);
+            assertThat(isWithinExpectedGasRange(estimatedGas, expectedGas))
+                    .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimatedGas, expectedGas)
+                    .isTrue();
         }
 
         @Test
@@ -1205,6 +1242,31 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
 
             // Then
             assertDoesNotThrow(() -> contractExecutionService.processCall(params));
+        }
+    }
+
+    @Nested
+    @org.springframework.test.context.TestPropertySource(
+            properties = {"hiero.mirror.web3.evm.properties.fees.simpleFeesEnabled=true"})
+    class WithSimpleFeesEnabled {
+
+        @Test
+        void evmCallWorksWithSimpleFeesEnabled() throws Exception {
+            // Set up test account and deploy contract
+            final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
+            final var payer = accountEntityWithEvmAddressPersist();
+            accountBalancePersist(payer, payer.getCreatedTimestamp());
+            testWeb3jService.setSender(toAddress(payer.toEntityId()).toHexString());
+            final var contract = testWeb3jService.deploy(EthCall::deploy);
+            meterRegistry.clear();
+
+            // Execute a simple pure call to verify EVM works with simple fees enabled
+            final var result = contract.call_multiplySimpleNumbers().send();
+
+            // Verify the call succeeded
+            assertThat(result).isEqualTo(BigInteger.valueOf(4L));
+            assertGasLimit(ETH_CALL, TRANSACTION_GAS_LIMIT);
+            assertGasUsedIsPositive(gasUsedBeforeExecution, ETH_CALL);
         }
     }
 }

@@ -5,6 +5,8 @@ package org.hiero.mirror.test.e2e.acceptance.client;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.test.e2e.acceptance.config.RestProperties.URL_PREFIX;
+import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.UPDATE_TOKEN_KEYS;
+import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.UPDATE_TOKEN_KEYS_SIMPLE_FEES;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Suppliers;
@@ -361,7 +363,7 @@ public class MirrorNodeClient {
         String next = "/network/nodes?limit=25";
 
         do {
-            var response = callRestEndpoint(next, NetworkNodesResponse.class);
+            var response = callRestJavaEndpoint(next, NetworkNodesResponse.class);
             nodes.addAll(response.getNodes());
             next = response.getLinks() != null ? response.getLinks().getNext() : null;
         } while (next != null);
@@ -616,7 +618,11 @@ public class MirrorNodeClient {
                 method.getSelector(),
                 params,
                 sender,
-                method.getActualGas(),
+                UPDATE_TOKEN_KEYS.getSelector().equals(method.getSelector())
+                        ? web3Properties.isSimpleFees()
+                                ? UPDATE_TOKEN_KEYS_SIMPLE_FEES.getActualGas()
+                                : method.getActualGas()
+                        : method.getActualGas(),
                 value,
                 DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
     }

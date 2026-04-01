@@ -40,6 +40,7 @@ import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.util.Utility;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @CustomLog
 @NullMarked
@@ -49,7 +50,6 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(blockNode -> blockNode.properties);
     private static final Range<Long> EMPTY_BLOCK_RANGE = Range.closedOpen(0L, 0L);
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
-    private static final long UNKNOWN_NODE_ID = -1;
 
     private final ManagedChannel statusChannel;
     private final ManagedChannel streamingChannel;
@@ -75,16 +75,22 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final MeterRegistry meterRegistry) {
         final int maxInboundMessageSize =
                 (int) streamProperties.getMaxStreamResponseSize().toBytes();
+        final var host = properties.getHost();
+        final var streamingHost = properties.getStreamingHost();
+        final boolean sameEndpoint = host.equals(streamingHost)
+                && properties.getStatusPort() == properties.getStreamingPort()
+                && properties.isStatusApiRequireTls() == properties.isStreamingApiRequireTls();
+
         this.statusChannel = channelBuilderProvider
-                .get(properties.getHost(), properties.getStatusPort())
+                .get(host, properties.getStatusPort(), properties.isStatusApiRequireTls())
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .build();
 
-        if (properties.getStatusPort() == properties.getStreamingPort()) {
+        if (sameEndpoint) {
             this.streamingChannel = this.statusChannel;
         } else {
             this.streamingChannel = channelBuilderProvider
-                    .get(properties.getHost(), properties.getStreamingPort())
+                    .get(streamingHost, properties.getStreamingPort(), properties.isStreamingApiRequireTls())
                     .maxInboundMessageSize(maxInboundMessageSize)
                     .build();
         }
@@ -130,7 +136,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final CommonDownloaderProperties commonDownloaderProperties,
             final Consumer<BlockStream> onBlockStream) {
         final var callHolder =
-                new AtomicReference<BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse>>();
+                new AtomicReference<@Nullable BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse>>();
 
         try {
             final long endBlockNumber = Objects.requireNonNullElse(
@@ -203,6 +209,10 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         return this;
     }
 
+    /**
+     * If number of failed connections surpass maxAttempts a readmit time(cooldown period)
+     * is enforced before the specific node can be called again
+     */
     private void onError() {
         errorsMetric.increment();
         if (errors.incrementAndGet() >= streamProperties.getMaxSubscribeAttempts()) {
@@ -281,7 +291,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final var filename = firstBlockItem.getItemCase() == BLOCK_HEADER
                     ? BlockFile.getFilename(block.getFirst().getBlockHeader().getNumber(), false)
                     : null;
-            blockStreamConsumer.accept(new BlockStream(block, null, filename, loadStart, UNKNOWN_NODE_ID));
+            blockStreamConsumer.accept(new BlockStream(block, null, filename, loadStart));
         }
 
         long timeout() {

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import camelCase from 'lodash/camelCase';
+import mapKeys from 'lodash/mapKeys';
 
 class Entity {
   static historyTableName = 'entity_history';
@@ -10,6 +11,7 @@ class Entity {
   static AUTO_RENEW_ACCOUNT_ID = 'auto_renew_account_id';
   static AUTO_RENEW_PERIOD = 'auto_renew_period';
   static CREATED_TIMESTAMP = 'created_timestamp';
+  static DELEGATION_ADDRESS = 'delegation_address';
   static DELETED = 'deleted';
   static ETHEREUM_NONCE = 'ethereum_nonce';
   static EVM_ADDRESS = 'evm_address';
@@ -36,7 +38,7 @@ class Entity {
   constructor(entity) {
     Object.assign(
       this,
-      _.mapKeys(entity, (v, k) => _.camelCase(k))
+      mapKeys(entity, (v, k) => camelCase(k))
     );
   }
 

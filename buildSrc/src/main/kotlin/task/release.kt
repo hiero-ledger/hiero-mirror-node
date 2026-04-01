@@ -25,7 +25,7 @@ abstract class Release : DefaultTask() {
         replaceVersion("gradle.properties", "(?<=^version=).+")
         replaceVersion(
             "rest/**/package*.json",
-            "(?<=\"@hiero-ledger/(check-state-proof|mirror-rest|mirror-monitor)\",\\s{3,7}\"version\": \")[^\"]+",
+            "(?<=\"@hiero-ledger/(mirror-rest|mirror-monitor)\",\\s{3,7}\"version\": \")[^\"]+",
         )
         replaceVersion("rest/**/openapi.yml", "(?<=^  version: ).+")
         replaceVersion(

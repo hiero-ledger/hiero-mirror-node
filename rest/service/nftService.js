@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import isEmpty from 'lodash/isEmpty';
 
 import BaseService from './baseService';
 import {filterKeys} from '../constants';
@@ -37,7 +37,7 @@ class NftService extends BaseService {
 
   async getNft(tokenId, serialNumber) {
     const {rows} = await pool.queryQuietly(NftService.nftByIdQuery, [tokenId, serialNumber]);
-    return _.isEmpty(rows) ? null : new Nft(rows[0]);
+    return isEmpty(rows) ? null : new Nft(rows[0]);
   }
 
   /**
@@ -63,7 +63,7 @@ class NftService extends BaseService {
       }),
     ];
 
-    if (!_.isEmpty(spenderIdInFilters)) {
+    if (!isEmpty(spenderIdInFilters)) {
       const paramsForCondition = spenderIdInFilters.map((filter) => {
         params.push(filter.value);
         return `$${params.length}`;

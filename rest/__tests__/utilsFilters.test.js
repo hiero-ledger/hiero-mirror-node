@@ -209,31 +209,6 @@ describe('utils buildFilters tests', () => {
     verifyFilter(formattedFilters[4], constants.filterKeys.ORDER, 'eq', 'desc');
   });
 
-  test('Verify buildFilters for /api/v1/transactions/0.0.3-1234567890-000000123/stateproof?scheduled=true', () => {
-    const filters = {
-      scheduled: 'true',
-    };
-
-    const {badParams, filters: formattedFilters} = utils.buildFilters(filters);
-
-    expect(badParams).toBeEmpty();
-    expect(formattedFilters).toHaveLength(1);
-    verifyFilter(formattedFilters[0], constants.filterKeys.SCHEDULED, 'eq', 'true');
-  });
-
-  test('Verify buildFilters for /api/v1/transactions/0.0.3-1234567890-000000123/stateproof?scheduled=true&scheduled=false', () => {
-    const filters = {
-      scheduled: ['true', 'false'],
-    };
-
-    const {badParams, filters: formattedFilters} = utils.buildFilters(filters);
-
-    expect(badParams).toBeEmpty();
-    expect(formattedFilters).toHaveLength(2);
-    verifyFilter(formattedFilters[0], constants.filterKeys.SCHEDULED, 'eq', 'true');
-    verifyFilter(formattedFilters[1], constants.filterKeys.SCHEDULED, 'eq', 'false');
-  });
-
   test('Verify buildFilters for /api/v1/schedules?account.id=0.0.1024&schedule.id=gte:4000&order=desc&limit=10', () => {
     const filters = {
       'account.id': 'lt:0.0.1024',

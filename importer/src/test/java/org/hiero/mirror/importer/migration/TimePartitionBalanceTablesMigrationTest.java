@@ -104,6 +104,12 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
         assertThat(tableExists("token_balance_old")).isTrue();
     }
 
+    private void accountBalanceFile(long consensusTimestamp) {
+        ownerJdbcTemplate.update(
+                "insert into account_balance_file(consensus_timestamp, count, load_end, load_start, name, node_id) values (?, 1, 1, 0, '0.csv', 0)",
+                consensusTimestamp);
+    }
+
     @Test
     void migrate() {
         // given
@@ -123,10 +129,7 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
         // One balance snapshot before the last 6-hour, the values don't matter
         var timestamp =
                 new AtomicLong(lastSnapshotTimestamp - Duration.ofHours(7).toNanos());
-        domainBuilder
-                .accountBalanceFile()
-                .customize(abf -> abf.consensusTimestamp(timestamp.get()))
-                .persist();
+        accountBalanceFile(timestamp.get());
         domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.balance(100).id(new AccountBalance.Id(timestamp.get(), treasury)))
@@ -143,10 +146,7 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
         // account4's balance and token balance stay the same in all snapshots
         long firstProcessedTimestamp = timestamp.get() + Duration.ofHours(1).toNanos();
         timestamp.set(firstProcessedTimestamp);
-        domainBuilder
-                .accountBalanceFile()
-                .customize(abf -> abf.consensusTimestamp(timestamp.get()))
-                .persist();
+        accountBalanceFile(timestamp.get());
         var expectedAccountBalances = new ArrayList<>(List.of(
                 domainBuilder
                         .accountBalance()
@@ -176,10 +176,7 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
 
         // Second balance snapshot in the 6-hour period
         timestamp.addAndGet(Duration.ofHours(1).toNanos());
-        domainBuilder
-                .accountBalanceFile()
-                .customize(abf -> abf.consensusTimestamp(timestamp.get()))
-                .persist();
+        accountBalanceFile(timestamp.get());
         expectedAccountBalances.add(domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.balance(100).id(new AccountBalance.Id(timestamp.get(), treasury)))
@@ -213,10 +210,7 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
 
         // Third balance snapshot in the 6-hour period
         timestamp.addAndGet(Duration.ofHours(1).toNanos());
-        domainBuilder
-                .accountBalanceFile()
-                .customize(abf -> abf.consensusTimestamp(timestamp.get()))
-                .persist();
+        accountBalanceFile(timestamp.get());
         expectedAccountBalances.add(domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.balance(100).id(new AccountBalance.Id(timestamp.get(), treasury)))
@@ -249,10 +243,7 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
 
         // Forth balance snapshot in the 6-hour period, note account2 was deleted before this snapshot
         timestamp.addAndGet(Duration.ofHours(1).toNanos());
-        domainBuilder
-                .accountBalanceFile()
-                .customize(abf -> abf.consensusTimestamp(timestamp.get()))
-                .persist();
+        accountBalanceFile(timestamp.get());
         expectedAccountBalances.add(domainBuilder
                 .accountBalance()
                 .customize(ab -> ab.balance(100).id(new AccountBalance.Id(timestamp.get(), treasury)))
@@ -284,10 +275,7 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
 
         // Last snapshot, account3 was deleted before this snapshot
         timestamp.set(lastSnapshotTimestamp);
-        domainBuilder
-                .accountBalanceFile()
-                .customize(abf -> abf.consensusTimestamp(timestamp.get()))
-                .persist();
+        accountBalanceFile(timestamp.get());
         expectedAccountBalances.addAll(List.of(
                 domainBuilder
                         .accountBalance()

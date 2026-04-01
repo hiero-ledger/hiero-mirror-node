@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import last from 'lodash/last';
 
 import {getResponseLimit} from '../config';
 import {filterKeys, orderFilterValues, responseDataLabel} from '../constants';
@@ -87,7 +87,7 @@ class CryptoAllowanceController extends BaseController {
     };
 
     if (response.allowances.length === limit) {
-      const lastRow = _.last(response.allowances);
+      const lastRow = last(response.allowances);
       const lastValues = {
         [filterKeys.SPENDER_ID]: lastRow.spender,
       };

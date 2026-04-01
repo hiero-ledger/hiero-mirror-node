@@ -3,10 +3,13 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import static lombok.AccessLevel.PRIVATE;
+import static org.hiero.mirror.common.util.DomainUtils.contractLogTopicsAndDataMatches;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
+import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -53,9 +56,13 @@ import org.springframework.data.util.Version;
 @Value
 public class RecordItem implements StreamItem {
 
+    public static final int HOOK_CONTRACT_NUM = 365;
+
     static final String BAD_TRANSACTION_BYTES_MESSAGE = "Failed to parse transaction bytes";
     static final String BAD_RECORD_BYTES_MESSAGE = "Failed to parse record bytes";
     static final String BAD_TRANSACTION_BODY_BYTES_MESSAGE = "Error parsing transactionBody from transaction";
+
+    private static final Predicate<EntityId> REJECT_ALL = _ -> false;
 
     // Final fields
     @Builder.Default
@@ -65,6 +72,8 @@ public class RecordItem implements StreamItem {
     private final long consensusTimestamp;
 
     private final boolean blockstream;
+    private final Long congestionPricingMultiplier;
+    private final RecordItem hookParent;
     private final RecordItem parent;
     private final EntityId payerAccountId;
     private final RecordItem previous;
@@ -75,6 +84,10 @@ public class RecordItem implements StreamItem {
     private final int transactionIndex;
     private final TransactionRecord transactionRecord;
     private final int transactionType;
+
+    @Setter
+    @NonFinal
+    private List<ContractLoginfo> contractLogs;
 
     @Setter
     @EqualsAndHashCode.Exclude
@@ -88,13 +101,17 @@ public class RecordItem implements StreamItem {
     @NonFinal
     private Map<Long, ContractTransaction> contractTransactions;
 
+    @Builder.Default
+    @NonFinal
+    private Predicate<EntityId> entityNftTransactionPredicate = REJECT_ALL;
+
     @Getter(AccessLevel.NONE)
     @NonFinal
     private EntityTransaction.EntityTransactionBuilder entityTransactionBuilder;
 
+    @Builder.Default
     @NonFinal
-    @Setter
-    private Predicate<EntityId> entityTransactionPredicate;
+    private Predicate<EntityId> entityTransactionPredicate = REJECT_ALL;
 
     @NonFinal
     private Map<Long, EntityTransaction> entityTransactions;
@@ -125,6 +142,50 @@ public class RecordItem implements StreamItem {
         return hookExecutionQueue.poll();
     }
 
+    /**
+     * Attempts to consume a matching contract log by comparing raw topic and data bytes. If a
+     * matching log is found, a synthetic log is not created.
+     *
+     * <p>This method is used to handle duplicate contract logs in the record. When the same log
+     * appears multiple times, a synthetic TransferContractLog can match one occurrence and should
+     * be skipped.
+     *
+     * @param topic0 first topic
+     * @param topic1 second topic
+     * @param topic2 third topic
+     * @param topic3 fourth topic
+     * @param data   log data
+     * @return true if a matching log was found and consumed, false otherwise
+     */
+    public boolean consumeMatchingContractLog(byte[] topic0, byte[] topic1, byte[] topic2, byte[] topic3, byte[] data) {
+        if (contractLogs != null && !contractLogs.isEmpty()) {
+            for (int i = 0; i < contractLogs.size(); i++) {
+                if (contractLogTopicsAndDataMatches(contractLogs.get(i), topic0, topic1, topic2, topic3, data)) {
+                    contractLogs.remove(i);
+                    return true;
+                }
+            }
+        }
+
+        final var parentContractRelatedItem = getContractRelatedParent();
+        if (parentContractRelatedItem != null) {
+            final var parentContractLogs = parentContractRelatedItem.getContractLogs();
+
+            if (parentContractLogs == null || parentContractLogs.isEmpty()) {
+                return false;
+            }
+
+            for (int i = 0; i < parentContractLogs.size(); i++) {
+                if (contractLogTopicsAndDataMatches(parentContractLogs.get(i), topic0, topic1, topic2, topic3, data)) {
+                    parentContractLogs.remove(i);
+                    parentContractRelatedItem.setContractLogs(parentContractLogs);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public void addContractTransaction(EntityId entityId) {
         if (contractTransactionPredicate == null || !contractTransactionPredicate.test(entityId)) {
             return;
@@ -136,8 +197,25 @@ public class RecordItem implements StreamItem {
                 .build());
     }
 
-    public void addEntityId(EntityId entityId) {
-        if (entityTransactionPredicate == null || !entityTransactionPredicate.test(entityId)) {
+    public void addEntityId(final EntityId entityId) {
+        doAddEntityId(entityId, entityTransactionPredicate);
+    }
+
+    public void addNftTransactionEntityId(final EntityId entityId) {
+        doAddEntityId(entityId, entityNftTransactionPredicate);
+    }
+
+    public void setEntityNftTransactionPredicate(final Predicate<EntityId> predicate) {
+        entityNftTransactionPredicate =
+                predicate != null ? predicate.and(entityId -> !payerAccountId.equals(entityId)) : REJECT_ALL;
+    }
+
+    public void setEntityTransactionPredicate(final Predicate<EntityId> predicate) {
+        entityTransactionPredicate = predicate != null ? predicate : REJECT_ALL;
+    }
+
+    private void doAddEntityId(final EntityId entityId, final Predicate<EntityId> predicate) {
+        if (!predicate.test(entityId)) {
             return;
         }
 
@@ -240,6 +318,30 @@ public class RecordItem implements StreamItem {
         return contractTransactions.values();
     }
 
+    public RecordItem getContractRelatedParent() {
+        if (hookParent != null) {
+            return hookParent;
+        }
+        if (parent != null && parent.hasContractResult()) {
+            return parent;
+        }
+        return null;
+    }
+
+    private boolean hasContractResult() {
+        return transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult();
+    }
+
+    private ContractFunctionResult getContractResult() {
+        if (transactionRecord.hasContractCallResult()) {
+            return transactionRecord.getContractCallResult();
+        } else if (transactionRecord.hasContractCreateResult()) {
+            return transactionRecord.getContractCreateResult();
+        }
+
+        return null;
+    }
+
     public static class RecordItemBuilder {
 
         private TransactionRecord.Builder transactionRecordBuilder;
@@ -249,13 +351,27 @@ public class RecordItem implements StreamItem {
                 transactionRecord = transactionRecordBuilder.build();
             }
 
+            this.contractLogs = parseContractLogs();
+
             parseTransaction();
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
             this.parent = parseParent();
+            this.hookParent = parsePossiblyHookContractRelatedParent();
             this.payerAccountId = EntityId.of(transactionBody.getTransactionID().getAccountID());
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
             return buildInternal();
+        }
+
+        private List<ContractLoginfo> parseContractLogs() {
+            if (transactionRecord.hasContractCallResult()) {
+                return new ArrayList<>(transactionRecord.getContractCallResult().getLogInfoList());
+            } else if (transactionRecord.hasContractCreateResult()) {
+                return new ArrayList<>(
+                        transactionRecord.getContractCreateResult().getLogInfoList());
+            }
+
+            return Collections.emptyList();
         }
 
         public RecordItemBuilder transactionRecord(TransactionRecord transactionRecord) {
@@ -292,6 +408,43 @@ public class RecordItem implements StreamItem {
                 }
             }
             return this.parent;
+        }
+
+        private RecordItem parsePossiblyHookContractRelatedParent() {
+            final var currentTxnRecordContractResult = getContractResult();
+
+            if (transactionRecord.hasParentConsensusTimestamp()
+                    && currentTxnRecordContractResult != null
+                    && currentTxnRecordContractResult.getContractID().getContractNum() != HOOK_CONTRACT_NUM
+                    && previous != null) {
+                var candidateRecord = previous;
+
+                while (candidateRecord != null && candidateRecord != parent) {
+                    var candidateTxnRecordContractResult = candidateRecord.getContractResult();
+                    if (candidateTxnRecordContractResult == null) {
+                        break;
+                    }
+
+                    if (candidateTxnRecordContractResult.getContractID().getContractNum() == HOOK_CONTRACT_NUM) {
+                        // we found the first hook child item, which has a ContractResult and is executed via a hook
+                        return candidateRecord;
+                    }
+
+                    candidateRecord = candidateRecord.previous;
+                }
+            }
+
+            return null;
+        }
+
+        private ContractFunctionResult getContractResult() {
+            if (transactionRecord.hasContractCallResult()) {
+                return transactionRecord.getContractCallResult();
+            } else if (transactionRecord.hasContractCreateResult()) {
+                return transactionRecord.getContractCreateResult();
+            }
+
+            return null;
         }
 
         private boolean parseSuccess() {

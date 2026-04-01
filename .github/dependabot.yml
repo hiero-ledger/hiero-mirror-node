@@ -51,16 +51,6 @@ updates:
     schedule:
       interval: "weekly"
 
-  - directory: "/rest/check-state-proof"
-    groups:
-      dependencies:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 10
-    package-ecosystem: "npm"
-    schedule:
-      interval: "weekly"
-
   - directory: "/rosetta"
     groups:
       dependencies:
@@ -88,5 +78,35 @@ updates:
           - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
+    schedule:
+      interval: "weekly"
+
+  - directory: "/tools/bootstrap"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    package-ecosystem: "gomod"
+    schedule:
+      interval: "weekly"
+
+  - directory: "/pinger"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    package-ecosystem: "gomod"
+    schedule:
+      interval: "weekly"
+
+  - directory: "/rest"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    package-ecosystem: "docker"
     schedule:
       interval: "weekly"

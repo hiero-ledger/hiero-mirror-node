@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import isEmpty from 'lodash/isEmpty';
+import isNil from 'lodash/isNil';
+import last from 'lodash/last';
+import range from 'lodash/range';
 
 import BaseController from './baseController';
 import Bound from './bound';
@@ -122,7 +125,7 @@ const extractSqlFromContractFilters = async (filters) => {
     // add the condition 'e.id in ()'
     const start = params.length + 1; // start is the next positional index
     params.push(...contractIdInValues);
-    const positions = _.range(contractIdInValues.length)
+    const positions = range(contractIdInValues.length)
       .map((position) => position + start)
       .map((position) => `$${position}`);
     conditions.push(`${contractIdFullName} in (${positions})`);
@@ -319,6 +322,8 @@ const getLastNonceParamValue = (query) => {
   return nonce;
 };
 
+const acceptedContractResultsByTimestampParameters = new Set([filterKeys.HBAR]);
+
 /**
  * Verify contractId meets entity id format
  */
@@ -360,7 +365,7 @@ const validateContractIdAndConsensusTimestampParam = (consensusTimestamp, contra
 const getAndValidateContractIdAndConsensusTimestampPathParams = async (req) => {
   const {consensusTimestamp, contractId} = req.params;
   validateContractIdAndConsensusTimestampParam(consensusTimestamp, contractId);
-  utils.validateReq(req);
+  utils.validateReq(req, acceptedContractResultsByTimestampParameters);
   const encodedContractId = await ContractService.computeContractIdFromString(contractId);
   return {contractId: encodedContractId, timestamp: utils.parseTimestampParam(consensusTimestamp)};
 };
@@ -552,7 +557,7 @@ class ContractController extends BaseController {
   getContractLogsLowerFilters = (bounds) => {
     let filters = this.getLowerFilters(bounds);
 
-    if (!_.isEmpty(filters)) {
+    if (!isEmpty(filters)) {
       return filters;
     }
 
@@ -564,7 +569,7 @@ class ContractController extends BaseController {
       filters = [timestampBound.equal, indexBound.lower, indexBound.equal, indexBound.upper];
     }
 
-    return filters.filter((f) => !_.isNil(f));
+    return filters.filter((f) => !isNil(f));
   };
 
   /**
@@ -751,7 +756,7 @@ class ContractController extends BaseController {
       contracts: rows.map((row) => formatContractRow(row, ContractViewModel)),
       links: {},
     };
-    const lastRow = _.last(response.contracts);
+    const lastRow = last(response.contracts);
     const lastContractId = lastRow !== undefined ? lastRow.contract_id : null;
     response.links.next = utils.getPaginationLink(
       req,
@@ -874,7 +879,7 @@ class ContractController extends BaseController {
     }
 
     response.results = rows.map((row) => new ContractResultViewModel(row));
-    const lastRow = _.last(response.results);
+    const lastRow = last(response.results);
     const lastContractResultTimestamp = lastRow.timestamp;
     response.links.next = utils.getPaginationLink(
       req,
@@ -968,7 +973,7 @@ class ContractController extends BaseController {
 
     let nextLink = null;
     if (state.length) {
-      const lastRow = _.last(state);
+      const lastRow = last(state);
       const lastSlot = lastRow.slot;
       nextLink = utils.getPaginationLink(
         req,
@@ -999,6 +1004,9 @@ class ContractController extends BaseController {
       return;
     }
 
+    // Extract hbar parameter (default: true)
+    const convertToHbar = utils.parseHbarParam(req.query.hbar);
+
     const {contractId, timestamp} = await getAndValidateContractIdAndConsensusTimestampPathParams(req);
     const contractDetails = await ContractService.getInvolvedContractsByTimestampAndContractId(timestamp, contractId);
     if (!contractDetails) {
@@ -1015,7 +1023,7 @@ class ContractController extends BaseController {
       fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
     }
 
-    if (_.isNil(contractResults[0].callResult)) {
+    if (isNil(contractResults[0].callResult)) {
       // set 206 partial response
       res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
       logger.debug(`getContractResultsByTimestamp returning partial content`);
@@ -1028,7 +1036,8 @@ class ContractController extends BaseController {
       ethTransaction,
       contractLogs,
       contractStateChanges,
-      fileData
+      fileData,
+      convertToHbar
     );
   };
 
@@ -1044,6 +1053,9 @@ class ContractController extends BaseController {
       acceptedContractResultsParameters,
       contractResultsFilterValidityChecks
     );
+
+    // Extract hbar parameter (default: true)
+    const convertToHbar = utils.parseHbarParam(req.query.hbar);
 
     const response = {
       results: [],
@@ -1078,12 +1090,16 @@ class ContractController extends BaseController {
         new ContractResultDetailsViewModel(
           row,
           recordFileMap.get(row.consensusTimestamp),
-          ethereumTransactionMap.get(row.consensusTimestamp)
+          ethereumTransactionMap.get(row.consensusTimestamp),
+          null,
+          null,
+          null,
+          convertToHbar
         )
     );
 
     const isEnd = response.results.length !== limit;
-    const lastRow = _.last(response.results);
+    const lastRow = last(response.results);
     const lastContractResultTimestamp = !isEnd ? lastRow.timestamp : next;
     response.links.next = utils.getPaginationLink(
       req,
@@ -1107,6 +1123,9 @@ class ContractController extends BaseController {
     }
 
     utils.validateReq(req, acceptedSingleContractResultsParameters);
+
+    // Extract hbar parameter (default: true)
+    const convertToHbar = utils.parseHbarParam(req.query.hbar);
 
     let transactionDetails;
 
@@ -1172,10 +1191,11 @@ class ContractController extends BaseController {
       ethTransaction,
       contractLogs,
       contractStateChanges,
-      fileData
+      fileData,
+      convertToHbar
     );
 
-    if (_.isNil(contractResult.callResult)) {
+    if (isNil(contractResult.callResult)) {
       // set 206 partial response
       res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
       logger.debug(`getContractResultsByTransactionId returning partial content`);
@@ -1250,7 +1270,7 @@ class ContractController extends BaseController {
     const actions = rows.map((row) => new ContractActionViewModel(row));
     let nextLink = null;
     if (actions.length) {
-      const lastRow = _.last(actions);
+      const lastRow = last(actions);
       const lastIndex = lastRow.index;
       nextLink = utils.getPaginationLink(
         req,
@@ -1277,7 +1297,8 @@ class ContractController extends BaseController {
     ethTransaction,
     contractLogs,
     contractStateChanges,
-    fileData
+    fileData,
+    convertToHbar = true
   ) => {
     res.locals[responseDataLabel] = new ContractResultDetailsViewModel(
       contractResult,
@@ -1285,7 +1306,8 @@ class ContractController extends BaseController {
       ethTransaction,
       contractLogs,
       contractStateChanges,
-      fileData
+      fileData,
+      convertToHbar
     );
   };
 }
@@ -1315,6 +1337,7 @@ const acceptedContractResultsParameters = new Set([
   filterKeys.FROM,
   filterKeys.BLOCK_HASH,
   filterKeys.BLOCK_NUMBER,
+  filterKeys.HBAR,
   filterKeys.INTERNAL,
   filterKeys.LIMIT,
   filterKeys.ORDER,
@@ -1322,7 +1345,7 @@ const acceptedContractResultsParameters = new Set([
   filterKeys.TRANSACTION_INDEX,
 ]);
 
-const acceptedSingleContractResultsParameters = new Set([filterKeys.NONCE]);
+const acceptedSingleContractResultsParameters = new Set([filterKeys.HBAR, filterKeys.NONCE]);
 
 const acceptedContractStateParameters = new Set([
   filterKeys.LIMIT,

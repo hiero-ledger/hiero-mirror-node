@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import isEmpty from 'lodash/isEmpty';
 
 import AccountAlias from './accountAlias';
 import {getResponseLimit} from './config';
@@ -58,7 +58,7 @@ const formatBalancesResult = (req, result, limit, order) => {
 const entityPublicKeyQuery = `select id from entity where type in ('ACCOUNT', 'CONTRACT') and public_key = $1 limit $2`;
 
 const getAccountIdsByPublicKey = async (publicKey, limit) => {
-  if (_.isEmpty(publicKey)) {
+  if (isEmpty(publicKey)) {
     return null;
   }
 
@@ -67,7 +67,7 @@ const getAccountIdsByPublicKey = async (publicKey, limit) => {
 
   if (result) {
     const ids = result.rows.map((r) => r.id);
-    if (!_.isEmpty(ids)) {
+    if (!isEmpty(ids)) {
       return `ab.account_id in (${ids})`;
     }
   }

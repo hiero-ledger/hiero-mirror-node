@@ -37,10 +37,12 @@ import lombok.CustomLog;
 import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
+import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -58,7 +60,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 .bytes(bytes)
                 .loadStart(blockStream.loadStart())
                 .name(blockStream.filename())
-                .nodeId(blockStream.nodeId())
                 .size(size)
                 .version(VERSION);
 
@@ -75,7 +76,8 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         final var blockFile = blockFileBuilder.build();
         final var items = blockFile.getItems();
         blockFile.setCount((long) items.size());
-        blockFile.setHash(context.getBlockRootHashDigest().digest());
+        blockFile.setRawHash(context.getBlockRootHashDigest().digest());
+        blockFile.setHash(Hex.encodeHexString(blockFile.getRawHash()));
 
         if (!items.isEmpty()) {
             blockFile.setConsensusStart(items.getFirst().getConsensusTimestamp());
@@ -135,9 +137,13 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
     }
 
     private void readEvents(final ReaderContext context) {
-        while (context.readBlockItemFor(EVENT_HEADER) != null) {
+        boolean advanced;
+        do {
+            final int lastIndex = context.getIndex();
+            context.readBlockItemFor(EVENT_HEADER);
             readSignedTransactions(context);
-        }
+            advanced = context.getIndex() != lastIndex;
+        } while (advanced);
     }
 
     private void readSignedTransactions(final ReaderContext context) {

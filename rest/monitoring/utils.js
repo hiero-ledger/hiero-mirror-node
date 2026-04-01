@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {has, isEmpty} from 'lodash-es';
 import log4js from 'log4js';
-import * as math from 'mathjs';
 import parseDuration from 'parse-duration';
 import prettyMilliseconds from 'pretty-ms';
 import querystring from 'querystring';
@@ -49,10 +48,10 @@ const getBackoff = (retryAfter, xRetryIn) => {
   let backoffMillis = Number.isNaN(backoffSeconds) ? 0 : backoffSeconds * 1000;
   if (backoffMillis === 0) {
     backoffMillis = parseDuration(xRetryIn || '0ms');
-    backoffMillis = math.ceil(backoffMillis);
+    backoffMillis = Math.ceil(backoffMillis);
   }
 
-  return math.max(config.retry.minBackoff, backoffMillis);
+  return Math.max(config.retry.minBackoff, backoffMillis);
 };
 
 /**
@@ -283,7 +282,7 @@ const checkMandatoryParams = (elements, option) => {
   const element = Array.isArray(elements) ? elements[0] : elements;
   const {params, message} = option;
   for (let index = 0; index < params.length; index += 1) {
-    if (!_.has(element, params[index])) {
+    if (!has(element, params[index])) {
       return {
         passed: false,
         message: `${message}: ${params[index]}`,
@@ -297,7 +296,7 @@ const checkMandatoryParams = (elements, option) => {
 const checkRespDataFreshness = (resp, option) => {
   const {timestamp, threshold, message} = option;
   const ts = timestamp(Array.isArray(resp) ? resp[0] : resp);
-  const secs = !_.isEmpty(ts) ? ts.split('.')[0] : 0;
+  const secs = !isEmpty(ts) ? ts.split('.')[0] : 0;
   const currSecs = Math.floor(new Date().getTime() / 1000);
   const delta = currSecs - secs;
   if (delta > threshold) {
@@ -451,6 +450,20 @@ const accountIdCompare = (first, second) => {
   return 0;
 };
 
+const incrementTimestamp = (timestamp, increment) => {
+  const dotIndex = timestamp.indexOf('.');
+  if (dotIndex === -1) {
+    return (BigInt(timestamp) + increment).toString();
+  }
+
+  const decimals = timestamp.length - dotIndex - 1;
+  const digits = timestamp.replace('.', '');
+  const result = (BigInt(digits) + increment).toString();
+
+  const padded = result.padStart(decimals + 1, '0');
+  return padded.slice(0, -decimals) + '.' + padded.slice(-decimals);
+};
+
 export {
   CheckRunner,
   DEFAULT_LIMIT,
@@ -467,5 +480,6 @@ export {
   fetchAPIResponse,
   getUrl,
   hasEmptyList,
+  incrementTimestamp,
   testRunner,
 };

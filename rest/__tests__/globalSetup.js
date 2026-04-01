@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {execSync} from 'child_process';
+import {extract} from 'tar';
+import {createGunzip} from 'node:zlib';
+import {pipeline} from 'node:stream/promises';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -9,8 +11,8 @@ import {PostgreSqlContainer} from '@testcontainers/postgresql';
 import {isV2Schema} from './testutils.js';
 
 const FLYWAY_DATA_PATH = path.join('.', 'build', process.platform === 'win32' ? 'flyway data' : 'flyway');
-const FLYWAY_EXE_PATH = path.join('.', 'node_modules', 'node-flywaydb', 'bin', 'flyway');
-const FLYWAY_VERSION = '11.8.2';
+const FLYWAY_VERSION = '12.0.3';
+const FLYWAY_EXE_PATH = path.join('.', 'node_modules', 'flyway', FLYWAY_VERSION, 'flyway');
 
 const DB_NAME = 'mirror_node';
 const OWNER_USER = 'mirror_node';
@@ -54,42 +56,44 @@ const createDbContainer = async (workerId) => {
   throw new Error(`Unable to start PostgreSQL container for worker ${workerId} after all attempts`);
 };
 
-const initializeFlyway = () => {
-  const flywayConfigPath = path.join(FLYWAY_DATA_PATH, `config_global.json`);
-  const flywayConfig = {
-    flywayArgs: {
-      url: 'jdbc:postgresql://127.0.0.1:-1/invalid',
-    },
-    version: FLYWAY_VERSION,
-    downloads: {
-      storageDirectory: FLYWAY_DATA_PATH,
-    },
+const initializeFlyway = async () => {
+  if (fs.existsSync(FLYWAY_EXE_PATH)) {
+    console.info(`Found existing Flyway CLI at ${FLYWAY_EXE_PATH}`);
+    return;
+  }
+
+  const platformMap = {
+    darwin: 'macosx-arm64.tar.gz',
+    linux: 'linux-x64.tar.gz',
+    win32: 'windows-x64.zip',
   };
 
-  fs.mkdirSync(FLYWAY_DATA_PATH, {recursive: true});
-  fs.writeFileSync(flywayConfigPath, JSON.stringify(flywayConfig));
-  const command = `node ${FLYWAY_EXE_PATH} -c "${flywayConfigPath}" info`;
-  const options = {stdio: 'pipe'};
+  const destDir = path.dirname(FLYWAY_EXE_PATH);
+  fs.mkdirSync(destDir, {recursive: true});
 
-  let retries = 10;
-  while (retries-- > 0) {
+  const suffix = platformMap[process.platform];
+  const url = `https://github.com/flyway/flyway/releases/download/flyway-${FLYWAY_VERSION}/flyway-commandline-${FLYWAY_VERSION}-${suffix}`;
+  console.info(`Downloading Flyway from ${url}`);
+
+  for (let i = 0; i < 10; i++) {
     try {
-      execSync(command, options);
-      break;
-    } catch (e) {
-      const errMessage = e.stderr.toString();
-      if (errMessage.includes('-1 not valid')) {
-        console.warn(e.stdout.toString());
-        break;
-      } else {
-        console.warn(errMessage);
+      const response = await fetch(url);
+
+      if (response.ok) {
+        await pipeline(response.body, createGunzip(), extract({cwd: destDir, strip: 1}));
+        console.info(`Downloaded Flyway CLI to ${FLYWAY_EXE_PATH}`);
+        return;
       }
+
+      console.warn(`Failed to download ${url}: ${response.status} ${response.statusText}`);
+      await new Promise((r) => setTimeout(r, 1000));
+    } catch (err) {
+      console.warn(`Failed to download ${url}: ${err}`);
+      await new Promise((r) => setTimeout(r, 1000));
     }
   }
 
-  if (retries < 0) {
-    throw new Error('Failed to initialize flyway');
-  }
+  throw new Error('Failed to initialize flyway');
 };
 
 const startDbContainerServer = () => {
@@ -124,8 +128,8 @@ const startDbContainerServer = () => {
   });
 };
 
-export default () => {
-  initializeFlyway();
+export default async () => {
+  await initializeFlyway();
   startDbContainerServer();
 };
 

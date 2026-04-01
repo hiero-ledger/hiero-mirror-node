@@ -147,6 +147,9 @@ nameOverride: mirror
 networkPolicy:
   enabled: false
 
+pinger:
+  enabled: false
+
 postgresql:
   enabled: true
   metrics:
@@ -434,6 +437,9 @@ stackgres:
           pool_mode: session
         mirror_importer:
           pool_mode: session
+        mirror_web3:
+          max_user_client_connections: 1800
+          max_user_connections: 275
     replicasPerInstance: 1
     resources:
       cpu: 100m

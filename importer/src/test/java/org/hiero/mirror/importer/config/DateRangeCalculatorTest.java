@@ -57,9 +57,9 @@ final class DateRangeCalculatorTest {
 
     @BeforeEach
     void setUp() {
-        blockProperties = new BlockProperties();
         importerProperties = new ImporterProperties();
         importerProperties.setNetwork(ImporterProperties.HederaNetwork.TESTNET);
+        blockProperties = new BlockProperties(importerProperties);
         var commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
         var balanceDownloaderProperties = new BalanceDownloaderProperties(commonDownloaderProperties);
         var recordDownloaderProperties = new RecordDownloaderProperties(commonDownloaderProperties);

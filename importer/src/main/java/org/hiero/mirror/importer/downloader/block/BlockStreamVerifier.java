@@ -2,15 +2,18 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.hiero.mirror.common.util.DomainUtils.toBytes;
+
+import com.hedera.hapi.block.stream.protoc.BlockProof;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FilenameUtils;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -19,6 +22,8 @@ import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransac
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.hiero.mirror.importer.reader.block.BlockStreamReader;
+import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
 import org.jspecify.annotations.NullMarked;
 
 @Named
@@ -26,6 +31,7 @@ import org.jspecify.annotations.NullMarked;
 final class BlockStreamVerifier {
 
     private final BlockFileTransformer blockFileTransformer;
+    private final BlockStateProofHasher blockStateProofHasher;
     private final CutoverService cutoverService;
     private final LedgerIdPublicationTransactionParser ledgerIdPublicationTransactionParser;
     private final StreamFileNotifier streamFileNotifier;
@@ -37,12 +43,14 @@ final class BlockStreamVerifier {
 
     public BlockStreamVerifier(
             final BlockFileTransformer blockFileTransformer,
+            final BlockStateProofHasher blockStateProofHasher,
             final CutoverService cutoverService,
             final LedgerIdPublicationTransactionParser ledgerIdPublicationTransactionParser,
             final MeterRegistry meterRegistry,
             final StreamFileNotifier streamFileNotifier,
             final TssVerifier tssVerifier) {
         this.blockFileTransformer = blockFileTransformer;
+        this.blockStateProofHasher = blockStateProofHasher;
         this.cutoverService = cutoverService;
         this.ledgerIdPublicationTransactionParser = ledgerIdPublicationTransactionParser;
         this.streamFileNotifier = streamFileNotifier;
@@ -97,10 +105,6 @@ final class BlockStreamVerifier {
         }
     }
 
-    private Optional<String> getExpectedPreviousHash() {
-        return cutoverService.getLastRecordFile().map(RecordFile::getHash);
-    }
-
     private void updateLedger(final BlockFile blockFile) {
         final var transaction = blockFile.getLastLedgerIdPublicationTransaction();
         if (blockFile.getIndex() != 0 || transaction == null) {
@@ -136,15 +140,44 @@ final class BlockStreamVerifier {
     }
 
     private void verifyHashChain(final BlockFile blockFile) {
-        getExpectedPreviousHash().ifPresent(expected -> {
-            if (!blockFile.getPreviousHash().contentEquals(expected)) {
-                throw new HashMismatchException(blockFile.getName(), expected, blockFile.getPreviousHash(), "Previous");
+        cutoverService.getLastRecordFile().ifPresent(lastRecordFile -> {
+            final boolean isLastRecordFile = lastRecordFile.getVersion() < BlockStreamReader.VERSION;
+            final var previousHash = lastRecordFile.getHash();
+            if (!isLastRecordFile) {
+                if (!blockFile.getPreviousHash().contentEquals(previousHash)) {
+                    throw new HashMismatchException(
+                            blockFile.getName(), previousHash, blockFile.getPreviousHash(), "Previous");
+                }
+            } else {
+                // First block after cutover
+                blockFile.setPreviousWrappedRecordBlockHash(Hex.decode(blockFile.getPreviousHash()));
+                blockFile.setPreviousHash(previousHash);
             }
         });
     }
 
     private void verifyTssSignature(final BlockFile blockFile) {
         updateLedger(blockFile);
-        // TBA tssVerifier.verify
+
+        final var blockProof = blockFile.getBlockProof();
+        if (!blockProof.hasSignedBlockProof() && !blockProof.hasBlockStateProof()) {
+            throw new InvalidStreamFileException("Invalid block proof case " + blockProof.getProofCase());
+        }
+
+        final byte[] hash = getRootHash(blockFile.getIndex(), blockProof, blockFile.getRawHash());
+        final var tssSignedBlockProof = blockProof.hasSignedBlockProof()
+                ? blockProof.getSignedBlockProof()
+                : blockProof.getBlockStateProof().getSignedBlockProof();
+        final byte[] signature = toBytes(tssSignedBlockProof.getBlockSignature());
+        tssVerifier.verify(blockFile.getIndex(), hash, signature);
+    }
+
+    private byte[] getRootHash(final long blockNumber, final BlockProof blockProof, final byte[] hash) {
+        if (blockProof.hasSignedBlockProof()) {
+            return hash;
+        }
+
+        final var stateProof = blockProof.getBlockStateProof();
+        return blockStateProofHasher.getRootHash(blockNumber, hash, stateProof.getPathsList());
     }
 }

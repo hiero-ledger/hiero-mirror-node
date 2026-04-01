@@ -86,7 +86,7 @@ public abstract class RecordFileMigrationTest extends ImporterIntegrationTest {
                     .loadEnd(recordFile.getLoadEnd())
                     .logsBloom(recordFile.getLogsBloom())
                     .name(recordFile.getName())
-                    .nodeId(recordFile.getNodeId())
+                    .nodeId(0L)
                     .previousHash(recordFile.getPreviousHash())
                     .sidecarCount(recordFile.getSidecarCount())
                     .size(recordFile.getSize())

@@ -66,4 +66,19 @@ debugging purposes and for understanding the update cadence of the underlying da
 | `/api/v1/topics/messages/:timestamp`                     | `topic_message`                                                                                                                                                                |                                                                      |
 | `/api/v1/transactions`                                   | `crypto_transfer`, `token_transfer`, `transaction`                                                                                                                             | Transfers are present only for legacy reasons                        |
 | `/api/v1/transactions/:idOrHash`                         | `assessed_custom_fee`, `crypto_transfer`, `nft_transfer`, `token_transfer`, `transaction`                                                                                      |                                                                      |
-| `/api/v1/transactions/:id/stateproof`                    | `address_book`, `address_book_entry`, `record_file`, `transaction`                                                                                                             | Also downloads RCD files from S3                                     |
+
+## V2 API
+
+There are a number of endpoints that have unfortunate design decisions that make them difficult to use or that don't
+scale with terabytes of data. It would be considered a breaking change if we were to change these endpoints. To address
+them, we would have to create version two of the API. This section documents the API's current shortcomings to note
+these problems for users, and so we know what to fix if we ever decide to create a v2 API.
+
+- `/api/v1/transactions`, `/api/v1/transactions`, and `/api/v1/accounts/{id}` have `max_fee` and `valid_duration_seconds`
+  as strings instead of numbers.
+- `/api/v1/tokens/{id}` has `expiry_timestamp` as a number instead of a string that supports `seconds.nanoseconds`
+  format like the same field in other APIs.
+- The `account.balance` query parameter on `/api/v1/accounts` and `/api/v1/balances` has performance issues since
+  depending upon the parameter value it can scan a large number of rows.
+- List APIs in general have performance issues due to the sharded nature of the underlying tables. We should remove
+  these APIs or change them to only return the most recent data without sorting or pagination.

@@ -163,4 +163,4 @@ const getCacheControlExpiryOrDefault = (headerValue) => {
   return DEFAULT_REDIS_EXPIRY;
 };
 
-export {cacheKeyGenerator, responseCacheCheckHandler, responseCacheUpdateHandler};
+export {cacheKeyGenerator, getCache, responseCacheCheckHandler, responseCacheUpdateHandler};

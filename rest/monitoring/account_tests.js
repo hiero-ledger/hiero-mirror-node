@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {map, max} from 'lodash-es';
 import config from './config';
 
 import {
@@ -65,7 +65,7 @@ const getAccountsWithAccountCheck = async (server) => {
     return {url, ...result};
   }
 
-  const highestAccount = _.max(_.map(accounts, (acct) => acct.account));
+  const highestAccount = max(map(accounts, (acct) => acct.account));
   url = getUrl(server, accountsPath, {
     'account.id': highestAccount,
     limit: 1,
@@ -117,7 +117,7 @@ const getSingleAccount = async (server) => {
     return {url, ...result};
   }
 
-  const highestAccount = _.max(_.map(accounts, (acct) => acct.account));
+  const highestAccount = max(map(accounts, (acct) => acct.account));
   url = getUrl(server, `${accountsPath}/${highestAccount}`);
   const singleAccount = await fetchAPIResponse(url);
 
@@ -222,7 +222,7 @@ const getAccountStakingRewards = async (server) => {
       return {url, ...result};
     }
 
-    accountId = _.max(_.map(accounts, (acct) => acct.account));
+    accountId = max(map(accounts, (acct) => acct.account));
   }
 
   const stakingRewardsPath = `${accountsPath}/${accountId}/rewards`;
@@ -262,7 +262,7 @@ const getCryptoAllowances = async (server) => {
       return {url, ...result};
     }
 
-    accountId = _.max(_.map(accounts, (acct) => acct.account));
+    accountId = max(map(accounts, (acct) => acct.account));
   }
 
   const cryptoAllowancesPath = `${accountsPath}/${accountId}/allowances/crypto`;
@@ -301,7 +301,7 @@ const getTokenAllowances = async (server) => {
       return {url, ...result};
     }
 
-    accountId = _.max(_.map(accounts, (acct) => acct.account));
+    accountId = max(map(accounts, (acct) => acct.account));
   }
 
   const tokenAllowancesPath = `${accountsPath}/${accountId}/allowances/tokens`;
@@ -369,7 +369,7 @@ const getNfts = async (server) => {
       return {url, ...result};
     }
 
-    accountId = _.max(_.map(accounts, (acct) => acct.account));
+    accountId = max(map(accounts, (acct) => acct.account));
   }
 
   const nftsPath = `${accountsPath}/${accountId}/nfts`;

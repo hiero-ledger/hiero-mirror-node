@@ -15,7 +15,7 @@ import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-class MidnightRatesSingletonTest extends Web3IntegrationTest {
+final class MidnightRatesSingletonTest extends Web3IntegrationTest {
 
     private final MidnightRatesSingleton midnightRatesSingleton;
     private final EvmProperties evmProperties;

@@ -2,7 +2,9 @@
 
 import Redis from 'ioredis';
 import config from './config';
-import _ from 'lodash';
+import isEmpty from 'lodash/isEmpty';
+import isNil from 'lodash/isNil';
+import map from 'lodash/map';
 import {JSONParse, JSONStringify} from './utils';
 
 export class Cache {
@@ -91,7 +93,7 @@ export class Cache {
   }
 
   async get(keys, loader, keyMapper = (k) => (k ? k.toString() : k)) {
-    if (_.isEmpty(keys)) {
+    if (isEmpty(keys)) {
       return [];
     }
     if (!this.ready) {
@@ -100,12 +102,12 @@ export class Cache {
 
     const buffers =
       (await this.redis
-        .mgetBuffer(_.map(keys, keyMapper))
+        .mgetBuffer(map(keys, keyMapper))
         .catch((err) => logger.warn(`Redis error during mget: ${err.message}`))) || new Array(keys.length);
     const values = buffers.map((t) => JSONParse(t));
 
     let i = 0;
-    const missingKeys = keys.filter(() => _.isNil(values[i++]));
+    const missingKeys = keys.filter(() => isNil(values[i++]));
 
     if (missingKeys.length > 0) {
       const missing = await loader(missingKeys);
@@ -115,7 +117,7 @@ export class Cache {
       missing.forEach((value) => {
         // Update missing values in Redis array
         for (; j < values.length; j++) {
-          if (_.isNil(values[j])) {
+          if (isNil(values[j])) {
             values[j] = value;
             newValues.push(keyMapper(keys[j]));
             newValues.push(JSONStringify(value));

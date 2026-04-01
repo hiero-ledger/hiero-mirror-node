@@ -60,6 +60,7 @@ import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TokenTransferList;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TransferList;
 import org.hyperledger.besu.datatypes.Address;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -68,6 +69,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.test.context.TestPropertySource;
 
 class ContractCallServicePrecompileModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
 
@@ -813,8 +815,9 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
-    @Test
-    void createFungibleToken() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void createFungibleToken(final boolean isSenderSmartContract) throws Exception {
         // Given
         final var value = 10000L * 100_000_000_000L;
         final var sender = accountEntityWithSufficientBalancePersist();
@@ -825,7 +828,10 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         testWeb3jService.setValue(value);
 
-        testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
+        testWeb3jService.setSender(
+                isSenderSmartContract
+                        ? contract.getContractAddress()
+                        : toAddress(sender.toEntityId()).toHexString());
 
         final var treasuryAccount = accountEntityPersist();
 
@@ -850,6 +856,45 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         verifyEthCallAndEstimateGas(functionCall, contract, value);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
+    }
+
+    @Nested
+    @TestPropertySource(properties = {"hiero.mirror.web3.evm.properties.fees.simpleFeesEnabled=true"})
+    class WithSimpleFeesEnabled {
+
+        @Test
+        void createFungibleTokenWithSimpleFees() throws Exception {
+            // Given
+            final var value = 10000L * 100_000_000_000L;
+            final var sender = accountEntityWithSufficientBalancePersist();
+
+            final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+            testWeb3jService.setValue(value);
+            testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
+
+            final var treasuryAccount = accountEntityPersist();
+            final var token = populateHederaToken(
+                    contract.getContractAddress(), TokenTypeEnum.FUNGIBLE_COMMON, treasuryAccount.toEntityId());
+            final var initialTokenSupply = BigInteger.valueOf(10L);
+            final var decimalPlacesSupportedByToken = BigInteger.valueOf(10L);
+
+            // When
+            final var functionCall =
+                    contract.call_createFungibleTokenExternal(token, initialTokenSupply, decimalPlacesSupportedByToken);
+            final var result = functionCall.send();
+
+            final var contractFunctionProvider = ContractFunctionProviderRecord.builder()
+                    .contractAddress(Address.fromHexString(contract.getContractAddress()))
+                    .sender(toAddress(sender.toEntityId()))
+                    .value(value)
+                    .build();
+
+            // Then
+            assertThat(result.component2()).isNotEqualTo(Address.ZERO.toHexString());
+
+            verifyEthCallAndEstimateGas(functionCall, contract, value);
+            verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
+        }
     }
 
     @Test

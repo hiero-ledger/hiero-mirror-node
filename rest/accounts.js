@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
 import base32 from './base32';
-import {getResponseLimit} from './config';
+import config, {getResponseLimit} from './config';
 import * as constants from './constants';
 import {filterKeys} from './constants';
 import EntityId from './entityId';
@@ -57,6 +56,11 @@ const processRow = (row) => {
     }
   }
 
+  let delegationAddress = row.delegation_address && utils.toHexString(row.delegation_address, true);
+  if (!delegationAddress || delegationAddress === constants.ZERO_EVM_ADDRESS) {
+    delegationAddress = constants.HEX_PREFIX;
+  }
+
   const stakedToNode = row.staked_node_id !== null && row.staked_node_id !== -1;
   return {
     account: entityId.toString(),
@@ -65,6 +69,7 @@ const processRow = (row) => {
     balance,
     created_timestamp: utils.nsToSecNs(row.created_timestamp),
     decline_reward: row.decline_reward,
+    ...(config.response.enableDelegationAddress && {delegation_address: delegationAddress}),
     deleted: row.deleted,
     ethereum_nonce: row.ethereum_nonce,
     evm_address: evmAddress,
@@ -91,6 +96,7 @@ const entityFields = [
   'e.auto_renew_period',
   'e.created_timestamp',
   'e.decline_reward',
+  'e.delegation_address',
   'e.deleted',
   'e.ethereum_nonce',
   'e.evm_address',

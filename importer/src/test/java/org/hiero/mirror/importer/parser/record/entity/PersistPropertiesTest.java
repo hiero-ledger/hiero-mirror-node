@@ -65,6 +65,22 @@ class PersistPropertiesTest {
     }
 
     @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void shouldPersistEntityNftTransaction(final boolean isEntityNftTransactionsPropertyEnabled) {
+        var persistProperties = new EntityProperties.PersistProperties(SYSTEM_ENTITY);
+        persistProperties.setEntityNftTransactions(isEntityNftTransactionsPropertyEnabled);
+        assertThat(persistProperties.shouldPersistEntityNftTransaction(EntityId.of(10)))
+                .isEqualTo(isEntityNftTransactionsPropertyEnabled);
+    }
+
+    @Test
+    void shouldPersistEntityNftTransactionWhenEntityIdIsEmpty() {
+        var persistProperties = new EntityProperties.PersistProperties(SYSTEM_ENTITY);
+        persistProperties.setEntityNftTransactions(true);
+        assertThat(persistProperties.shouldPersistEntityNftTransaction(null)).isFalse();
+    }
+
+    @ParameterizedTest
     @CsvSource(textBlock = """
             true, CRYPTOTRANSFER, true,
             true, CONSENSUSSUBMITMESSAGE, false,

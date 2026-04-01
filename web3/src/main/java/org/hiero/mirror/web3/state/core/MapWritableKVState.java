@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.state.core;
 
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.WritableKVStateBase;
-import java.util.Iterator;
 import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 
@@ -23,17 +22,6 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
 
     @Override
     protected V readFromDataSource(@NonNull K key) {
-        return readableBackingStore.get(key);
-    }
-
-    @NonNull
-    @Override
-    protected Iterator<K> iterateFromDataSource() {
-        return readableBackingStore.keys();
-    }
-
-    @Override
-    protected V getForModifyFromDataSource(@NonNull K key) {
         return readableBackingStore.get(key);
     }
 
@@ -59,8 +47,12 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         MapWritableKVState<?, ?> that = (MapWritableKVState<?, ?>) o;
         return Objects.equals(getStateId(), that.getStateId())
                 && Objects.equals(readableBackingStore, that.readableBackingStore);

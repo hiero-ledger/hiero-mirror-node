@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import camelCase from 'lodash/camelCase';
+import mapKeys from 'lodash/mapKeys';
 
 class CryptoAllowance {
   static historyTableName = 'crypto_allowance_history';
@@ -19,7 +20,7 @@ class CryptoAllowance {
   constructor(cryptoAllowance) {
     Object.assign(
       this,
-      _.mapKeys(cryptoAllowance, (v, k) => _.camelCase(k))
+      mapKeys(cryptoAllowance, (v, k) => camelCase(k))
     );
   }
 

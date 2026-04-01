@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import isEmpty from 'lodash/isEmpty';
+import range from 'lodash/range';
 
 /**
  * Base service class that other services should inherit from for their retrieval business logic
  */
 class BaseService {
   buildWhereSqlStatement(whereQuery, params = []) {
-    if (_.isEmpty(whereQuery)) {
+    if (isEmpty(whereQuery)) {
       return {where: '', params};
     }
 
@@ -18,7 +19,7 @@ class BaseService {
         if (Array.isArray(current.param)) {
           const first = params.length + 1;
           const last = params.push(...current.param);
-          position = `(${_.range(first, last + 1).map((pos) => '$' + pos)})`;
+          position = `(${range(first, last + 1).map((pos) => '$' + pos)})`;
         } else {
           params.push(current.param);
           position = `$${params.length}`;
@@ -57,7 +58,7 @@ class BaseService {
 
   async getSingleRow(query, params) {
     const rows = await this.getRows(query, params);
-    if (_.isEmpty(rows) || rows.length > 1) {
+    if (isEmpty(rows) || rows.length > 1) {
       return null;
     }
 

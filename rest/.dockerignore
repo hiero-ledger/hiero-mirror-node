@@ -7,8 +7,8 @@
 __tests__/
 application.yml
 build/
-check-state-proof/
 coverage/
+dist/
 monitoring/
 node/
 node_modules/

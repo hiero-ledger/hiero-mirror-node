@@ -26,7 +26,7 @@ jobs:
       base_version: ${{ steps.check.outputs.base_version }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
 
@@ -63,7 +63,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
 
@@ -77,7 +77,7 @@ jobs:
           java-version: 25
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@f29f5a9d7b09a7c6b29859002d29d24e1674c884 # v4
+        uses: gradle/actions/setup-gradle@39e147cb9de83bb9910b8ef8bd7fff0ee20fcd6f # v4
 
       - name: Run diff script
         run: |
@@ -94,8 +94,6 @@ jobs:
             "com/swirlds/state/spi/ReadableKVStateBase.java"
             "com/swirlds/state/spi/WritableKVStateBase.java"
             "com/swirlds/state/spi/WritableSingletonStateBase.java"
-            "com/hedera/node/app/service/contract/impl/exec/processors/CustomMessageCallProcessor.java"
-            "com/hedera/node/app/service/contract/impl/state/RootProxyWorldUpdater.java"
           )
 
           # Compare the schemas - in case there is a new version we might need to register a new state.

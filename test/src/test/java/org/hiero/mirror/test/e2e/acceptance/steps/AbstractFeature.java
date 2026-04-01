@@ -67,13 +67,19 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
             throw new RuntimeException("Exchange rates are not initialized.");
         }
         final var fee = useCurrentFee ? exchangeRates.getCurrentRate() : exchangeRates.getNextRate();
-        final double hbarPriceInCents = (double) fee.getCentEquivalent() / fee.getHbarEquivalent();
-        final int usdInCents = 100;
-        // create token requires 1 usd in fees
-        // create token with custom fees requires 2 usd in fees
-        // usdInCents / hbarPriceInCents = amount of hbars equal to 1 usd. Increment that number with 1 for safety and
+        final var hbarPriceInCents = (double) fee.getCentEquivalent() / fee.getHbarEquivalent();
+        final var tokenCreateUsdInCents = 100;
+        // consensus nodes charge 20% extra for smart contract call on top of HAPI fee schedule values
+        final var surchargeForSmartContractCallUsdInCents = 20;
+        // we use at maximum 6 hardcoded keys in the tests, and we need 1 cent for each signature processing
+        final var signatureUsdInCentsBuffer = 6;
+        // create token requires 1 usd + 0.20 usd surcharge + 0.1 usd per signature processing in fees
+        // create token with custom fees requires 2 usd + 0.40 usd surcharge  0.1 usd per signature processing in fees
         // multiply that number with 10 ^ 8 to convert hbar to tinybar
-        return (long) ((usdInCents * usdFee / hbarPriceInCents + 1) * 100000000);
+        return (long) ((((tokenCreateUsdInCents + surchargeForSmartContractCallUsdInCents) * usdFee
+                                + signatureUsdInCentsBuffer)
+                        / hbarPriceInCents)
+                * 100000000);
     }
 
     protected TransactionDetail verifyMirrorTransactionsResponse(MirrorNodeClient mirrorClient, int status) {

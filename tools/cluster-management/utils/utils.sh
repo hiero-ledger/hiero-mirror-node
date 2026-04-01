@@ -323,7 +323,8 @@ function resumeCommonChart() {
       return 1
     fi
     log "Waiting for helmrelease/${HELM_RELEASE_NAME} to become Ready… retrying reconcile"
-    flux reconcile helmrelease "${HELM_RELEASE_NAME}" -n "${COMMON_NAMESPACE}" --with-source >/dev/null 2>&1 || true
+    flux reconcile helmrelease "${HELM_RELEASE_NAME}" -n "${COMMON_NAMESPACE}" \
+      --timeout "${FLUX_RECONCILE_HR_TIMEOUT}" --with-source >/dev/null 2>&1 || true
   done
 
   log "HelmRelease ${HELM_RELEASE_NAME} is Ready"
@@ -332,6 +333,11 @@ function resumeCommonChart() {
 function resumeKustomization() {
   log "Resuming kustomization ${KUSTOMIZATION_NAME} in namespace ${KUSTOMIZATION_NAMESPACE}"
   flux resume kustomization "${KUSTOMIZATION_NAME}" -n "${KUSTOMIZATION_NAMESPACE}"
+}
+
+function suspendKustomization() {
+  log "Suspending kustomization ${KUSTOMIZATION_NAME} in namespace ${KUSTOMIZATION_NAMESPACE}"
+  flux suspend kustomization "${KUSTOMIZATION_NAME}" -n "${KUSTOMIZATION_NAMESPACE}"
 }
 
 function unrouteTraffic() {
@@ -887,6 +893,7 @@ AUTO_UNROUTE="${AUTO_UNROUTE:-true}"
 CITUS_NAMESPACES=
 COMMON_NAMESPACE="${COMMON_NAMESPACE:-common}"
 DISK_PREFIX=
+FLUX_RECONCILE_HR_TIMEOUT="${FLUX_RECONCILE_HR_TIMEOUT:-60m}"
 HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-mirror}"
 KUSTOMIZATION_NAME="${KUSTOMIZATION_NAME:-flux-system}"
 KUSTOMIZATION_NAMESPACE="${KUSTOMIZATION_NAMESPACE:-flux-system}"

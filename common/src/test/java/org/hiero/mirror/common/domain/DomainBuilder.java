@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
+import static org.hiero.mirror.common.domain.node.RegisteredNodeType.BLOCK_NODE;
 import static org.hiero.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 
 import com.google.common.collect.Range;
@@ -45,7 +46,6 @@ import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -85,6 +85,8 @@ import org.hiero.mirror.common.domain.job.ReconciliationJob;
 import org.hiero.mirror.common.domain.job.ReconciliationStatus;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.NodeHistory;
+import org.hiero.mirror.common.domain.node.RegisteredNode;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -131,6 +133,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -180,7 +183,6 @@ public class DomainBuilder {
                 .loadEnd(timestamp + 1)
                 .loadStart(timestamp)
                 .name(name)
-                .nodeId(number())
                 .timeOffset(0);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
@@ -208,7 +210,7 @@ public class DomainBuilder {
                 .memo(text(10))
                 .nodeId(nodeId)
                 .nodeAccountId(entityNum(nodeId + 3))
-                .nodeCertHash(bytes(96))
+                .nodeCertHash(hexBytes(96))
                 .publicKey(text(64))
                 .stake(0L);
 
@@ -766,6 +768,7 @@ public class DomainBuilder {
         var builder = Node.builder()
                 .accountId(entityId())
                 .adminKey(key())
+                .associatedRegisteredNodes(List.of(number(), number()))
                 .createdTimestamp(timestamp)
                 .declineReward(false)
                 .deleted(false)
@@ -793,6 +796,28 @@ public class DomainBuilder {
                         .build())
                 .nodeId(number())
                 .timestampRange(Range.closedOpen(timestamp, timestamp + 10));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<RegisteredNode, RegisteredNode.RegisteredNodeBuilder<?, ?>> registeredNode() {
+        final long timestamp = timestamp();
+        final long nodeId = number();
+        final var builder = RegisteredNode.builder()
+                .adminKey(key())
+                .createdTimestamp(timestamp)
+                .deleted(false)
+                .description("node-" + nodeId)
+                .registeredNodeId(nodeId)
+                .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
+                        .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
+                                .endpointApi(RegisteredServiceEndpoint.BlockNodeApi.STATUS)
+                                .build())
+                        .ipAddress("127.0.0.1")
+                        .port(443)
+                        .requiresTls(true)
+                        .build()))
+                .timestampRange(Range.atLeast(timestamp))
+                .type(List.of(BLOCK_NODE.getId()));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -860,7 +885,6 @@ public class DomainBuilder {
                 .loadEnd(now.toEpochMilli() + 1000L)
                 .loadStart(now.toEpochMilli())
                 .name(instantString + ".rcd.gz")
-                .nodeId(number())
                 .previousHash(hash(96))
                 .roundEnd(round)
                 .roundStart(round)
@@ -1161,9 +1185,11 @@ public class DomainBuilder {
     public DomainWrapper<Transaction, Transaction.TransactionBuilder> transaction() {
         var builder = Transaction.builder()
                 .chargedTxFee(10000000L)
+                .congestionPricingMultiplier(id())
                 .consensusTimestamp(timestamp())
                 .entityId(entityId())
                 .highVolume(false)
+                .highVolumePricingMultiplier(1L)
                 .index(transactionIndex())
                 .initialBalance(10000000L)
                 .itemizedTransfer(List.of(ItemizedTransfer.builder()
@@ -1211,7 +1237,7 @@ public class DomainBuilder {
     }
 
     public byte[] bloomFilter() {
-        return bytes(LogsBloomAggregator.BYTE_SIZE);
+        return bytes(LogsBloomFilter.BYTE_SIZE);
     }
 
     // Helper methods
@@ -1219,6 +1245,15 @@ public class DomainBuilder {
         byte[] bytes = new byte[length];
         random.nextBytes(bytes);
         return bytes;
+    }
+
+    public byte[] hexBytes(int length) {
+        var hexChars = "0123456789abcdef";
+        var result = new byte[length];
+        for (int i = 0; i < length; i++) {
+            result[i] = (byte) hexChars.charAt(random.nextInt(hexChars.length()));
+        }
+        return result;
     }
 
     public EntityId entityId() {
@@ -1314,9 +1349,10 @@ public class DomainBuilder {
 
     public Timestamp protoTimestamp() {
         long timestamp = timestamp();
+        int nanos = Math.toIntExact(timestamp % DomainUtils.NANOS_PER_SECOND);
         return Timestamp.newBuilder()
                 .setSeconds(timestamp / DomainUtils.NANOS_PER_SECOND)
-                .setNanos((int) (timestamp % DomainUtils.NANOS_PER_SECOND))
+                .setNanos(nanos)
                 .build();
     }
 

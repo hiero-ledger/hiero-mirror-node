@@ -47,11 +47,13 @@ final class CutoverServiceImpl implements CutoverService {
 
     @Override
     public Optional<RecordFile> getLastRecordFile() {
-        return Objects.requireNonNull(lastRecordFile.get()).or(() -> {
-            final var last = recordFileRepository.findLatest().or(() -> Optional.of(RecordFile.EMPTY));
-            lastRecordFile.compareAndSet(Optional.empty(), last);
-            return last;
-        });
+        return Objects.requireNonNull(lastRecordFile.get())
+                .or(() -> {
+                    final var last = recordFileRepository.findLatest().or(() -> Optional.of(RecordFile.EMPTY));
+                    lastRecordFile.compareAndSet(Optional.empty(), last);
+                    return last;
+                })
+                .filter(not(RecordFile::isEmpty));
     }
 
     @Override
@@ -128,11 +130,7 @@ final class CutoverServiceImpl implements CutoverService {
 
     private static boolean recordFileMatch(
             final Optional<RecordFile> recordFile, final Predicate<Integer> versionMatcher) {
-        return recordFile
-                .filter(not(RecordFile::isEmpty))
-                .map(RecordFile::getVersion)
-                .map(versionMatcher::test)
-                .orElse(false);
+        return recordFile.map(RecordFile::getVersion).map(versionMatcher::test).orElse(false);
     }
 
     private Optional<RecordFile> findFirst() {

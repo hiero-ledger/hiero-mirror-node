@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import isEmpty from 'lodash/isEmpty';
+import toArray from 'lodash/toArray';
 import EntityId from '../entityId';
 import {nsToSecNs, toHexString} from '../utils';
 import {proto} from '@hiero-ledger/proto';
@@ -26,8 +27,8 @@ class ContractResultViewModel {
     this.bloom = this.#encodeBloom(contractResult.bloom);
     this.call_result = toHexString(contractResult.callResult, true);
     this.contract_id = contractId.toString();
-    this.created_contract_ids = _.toArray(contractResult.createdContractIds).map((id) => EntityId.parse(id).toString());
-    this.error_message = _.isEmpty(contractResult.errorMessage) ? null : contractResult.errorMessage;
+    this.created_contract_ids = toArray(contractResult.createdContractIds).map((id) => EntityId.parse(id).toString());
+    this.error_message = isEmpty(contractResult.errorMessage) ? null : contractResult.errorMessage;
     this.from =
       EntityId.parse(contractResult.senderId, {isNullable: true}).toEvmAddress() ||
       this.#extractSenderFromFunctionResult(contractResult);

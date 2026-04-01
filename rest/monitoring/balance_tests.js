@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {map, max} from 'lodash-es';
 import config from './config';
 
 import {
@@ -79,7 +79,7 @@ const getSingleBalanceById = async (server) => {
     return {url, ...result};
   }
 
-  const highestAccount = _.max(_.map(balances, (balance) => balance.account));
+  const highestAccount = max(map(balances, (balance) => balance.account));
   url = getUrl(server, balancesPath, {'account.id': highestAccount});
   const singleBalance = await fetchAPIResponse(url, jsonRespKey, hasEmptyList(jsonRespKey));
 

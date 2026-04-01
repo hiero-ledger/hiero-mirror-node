@@ -22,20 +22,21 @@ final class StreamFilenameTest {
 
     @Test
     void fromBlockNumber() {
-        var streamFilename = StreamFilename.from(0);
+        final var path = "previewnet/block";
+        final var streamFilename = StreamFilename.from(path, 0);
         assertThat(streamFilename)
-                .returns("gz", StreamFilename::getCompressor)
+                .returns("zstd", StreamFilename::getCompressor)
                 .returns("blk", s -> s.getExtension().getName())
-                .returns("000000000000000000000000000000000000.blk.gz", StreamFilename::getFilename)
-                .returns("000000000000000000000000000000000000.blk.gz", StreamFilename::getFilePath)
-                .returns("blk.gz", StreamFilename::getFullExtension)
-                .returns(null, StreamFilename::getPath)
+                .returns("0000000000000000000.blk.zstd", StreamFilename::getFilename)
+                .returns(path + "/0000/0000/0000/0000/000.blk.zstd", StreamFilename::getBucketFilePath)
+                .returns("blk.zstd", StreamFilename::getFullExtension)
+                .returns(path, StreamFilename::getPath)
                 .returns(StreamType.BLOCK, StreamFilename::getStreamType);
     }
 
     @Test
     void fromNegativeBlockNumber() {
-        assertThatThrownBy(() -> StreamFilename.from(-1))
+        assertThatThrownBy(() -> StreamFilename.from("", -1))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Block number must be non-negative");
     }
@@ -180,18 +181,18 @@ final class StreamFilenameTest {
     }
 
     @ParameterizedTest
-    @CsvSource({
-        "2020-06-03T16_45_00.100200345Z.rcd.gz, , /, 2020-06-03T16_45_00.100200345Z.rcd.gz",
-        "2020-06-03T16_45_00.100200345Z.rcd.gz, some/path, /, some/path/2020-06-03T16_45_00.100200345Z.rcd.gz",
-        "2020-06-03T16_45_00.100200345Z.rcd.gz, some\\path, \\, some\\path\\2020-06-03T16_45_00.100200345Z.rcd.gz",
-        "2020-06-03T16_45_00.100200345Z_02.rcd.gz, mainnet/0/3/record, /, mainnet/0/3/record/sidecar/2020-06-03T16_45_00.100200345Z_02.rcd.gz"
-    })
+    @CsvSource("""
+            2020-06-03T16_45_00.100200345Z.rcd.gz, , /, 2020-06-03T16_45_00.100200345Z.rcd.gz
+            2020-06-03T16_45_00.100200345Z.rcd.gz, some/path, /, some/path/2020-06-03T16_45_00.100200345Z.rcd.gz
+            2020-06-03T16_45_00.100200345Z.rcd.gz, some\\path, \\, some\\path\\2020-06-03T16_45_00.100200345Z.rcd.gz
+            2020-06-03T16_45_00.100200345Z_02.rcd.gz, mainnet/0/3/record, /, mainnet/0/3/record/sidecar/2020-06-03T16_45_00.100200345Z_02.rcd.gz
+            """)
     void getPathProperties(String filename, String path, String pathSeparator, String expectedFilePath) {
         StreamFilename streamFilename = StreamFilename.from(path, filename, pathSeparator);
         assertThat(streamFilename.getFilename()).isEqualTo(filename);
         assertThat(streamFilename.getPath()).isEqualTo(path);
         assertThat(streamFilename.getPathSeparator()).isEqualTo(pathSeparator);
-        assertThat(streamFilename.getFilePath()).isEqualTo(expectedFilePath);
+        assertThat(streamFilename.getBucketFilePath()).isEqualTo(expectedFilePath);
 
         if (streamFilename.getFileType() != SIDECAR) {
             StreamFilename streamFilenameFromPath = StreamFilename.from(expectedFilePath, pathSeparator);
