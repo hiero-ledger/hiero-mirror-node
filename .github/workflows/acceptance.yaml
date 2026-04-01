@@ -42,7 +42,7 @@ jobs:
           - BLOCK
     timeout-minutes: 50
     env:
-      BLOCK_NODE_CHART_VERSION: v0.30.2
+      BLOCK_NODE_CHART_VERSION: v0.31.0-rc1
       CONSENSUS_VERSION: v0.73.0-rc.1
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
