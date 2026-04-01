@@ -72,7 +72,7 @@ final class RuntimeHintsConfiguration {
                     hints,
                     "com/hedera/nativelib/hints/**",
                     "com/hedera/nativelib/wraps/**",
-                    "semantic-version.properties",
+                    "*.properties",
                     "genesis/**");
 
             registerJooqClasses(hints, loader);

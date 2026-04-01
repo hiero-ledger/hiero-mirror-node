@@ -60,9 +60,10 @@ final class RuntimeHintsConfiguration {
                     "darwin-x86-64/**", // besu
                     "linux-aarch64/**", // besu
                     "linux-x86-64/**", // besu
-                    "lib/aarch64/**", // pegasys
-                    "lib/amd64/**", // pegasys
-                    "lib/x86_64/**", // pegasys
+                    "kzg-trusted-setups/mainnet.txt", // besu
+                    "ethereum/ckzg4844/lib/aarch64/**", // pegasys
+                    "ethereum/ckzg4844/lib/amd64/**", // pegasys
+                    "ethereum/ckzg4844/lib/x86_64/**", // pegasys
                     "genesis/**",
                     "*.json",
                     "*.properties");
