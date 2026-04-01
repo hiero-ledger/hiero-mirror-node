@@ -2,14 +2,21 @@
 
 package org.hiero.mirror.importer.parser.contractlog;
 
+import com.google.protobuf.ByteString;
+import com.hederahashgraph.api.proto.java.AccountID;
 import jakarta.inject.Named;
+import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.domain.EntityIdService;
@@ -19,6 +26,11 @@ import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 @Named
 @RequiredArgsConstructor
 public class SyntheticContractLogServiceImpl implements SyntheticContractLogService {
+
+    /** Upper bound for {@code accountNum} in {@link EntityId#of(long, long, long)} (38-bit num). */
+    private static final long MAX_ENTITY_NUM_LONG = (1L << 38) - 1L;
+
+    private static final BigInteger MAX_ENTITY_NUM = BigInteger.valueOf(MAX_ENTITY_NUM_LONG);
 
     private final EntityListener entityListener;
     private final EntityProperties entityProperties;
@@ -46,6 +58,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
 
         ContractLog contractLog = new ContractLog();
 
+        contractLog.setBloom(isContract(recordItem) ? createBloom(log) : empty);
         contractLog.setConsensusTimestamp(consensusTimestamp);
         contractLog.setContractId(log.getEntityId());
         contractLog.setData(log.getData() != null ? log.getData() : empty);
@@ -63,8 +76,6 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
                 : recordItem.getTransactionHash();
         contractLog.setTransactionHash(transactionHash);
         contractLog.setSyntheticTransfer(log instanceof TransferContractLog);
-
-        contractLog.setBloom(isContract(recordItem) ? createBloom(log) : empty);
 
         entityListener.onContractLog(contractLog);
     }
@@ -111,11 +122,36 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
                         this::resolveContractLogTopicAccount);
     }
 
-    private Optional<EntityId> resolveContractLogTopicAccount(byte[] accountReferenceFromLogTopic) {
-        if (ArrayUtils.isEmpty(accountReferenceFromLogTopic)) {
+    private Optional<EntityId> resolveContractLogTopicAccount(byte[] accountAddress) {
+        if (ArrayUtils.isEmpty(accountAddress)) {
             return Optional.of(EntityId.EMPTY);
         }
-        return entityIdService.lookupEntityId(DomainUtils.fromBytes(accountReferenceFromLogTopic));
+
+        if (accountAddress.length <= 16) {
+            if (accountAddress.length == 0 || accountAddress.length > Long.BYTES) {
+                return Optional.empty();
+            }
+
+            final var paddedAddress = new byte[Long.BYTES];
+
+            // zero-pad on the left
+            System.arraycopy(
+                    accountAddress, 0, paddedAddress, Long.BYTES - accountAddress.length, accountAddress.length);
+
+            final var accountNum =
+                    ByteBuffer.wrap(paddedAddress).order(ByteOrder.BIG_ENDIAN).getLong();
+
+            final var common = CommonProperties.getInstance();
+            try {
+                return Optional.of(EntityId.of(common.getShard(), common.getRealm(), accountNum));
+            } catch (InvalidEntityException e) {
+                return Optional.empty();
+            }
+        }
+
+        return entityIdService.lookup(AccountID.newBuilder()
+                .setAlias(ByteString.copyFrom(accountAddress))
+                .build());
     }
 
     /**

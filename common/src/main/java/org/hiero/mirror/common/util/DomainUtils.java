@@ -39,6 +39,7 @@ import org.hiero.mirror.common.domain.transaction.ContractAccountResolver;
 import org.hiero.mirror.common.domain.transaction.ContractSlotKey;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.exception.ProtobufException;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 @CustomLog
@@ -46,6 +47,7 @@ import org.jspecify.annotations.Nullable;
 public class DomainUtils {
 
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+    public static final ByteString EMPTY_BYTE_STRING = ByteString.EMPTY;
     public static final int EVM_ADDRESS_LENGTH = 20;
     public static final long NANOS_PER_SECOND = 1_000_000_000L;
     public static final long TINYBARS_IN_ONE_HBAR = 100_000_000L;
@@ -259,7 +261,7 @@ public class DomainUtils {
             return null;
         }
 
-        if (ByteString.EMPTY.equals(byteString)) {
+        if (EMPTY_BYTE_STRING.equals(byteString)) {
             return Internal.EMPTY_BYTE_ARRAY;
         }
 
@@ -377,7 +379,7 @@ public class DomainUtils {
             byte[] topic2,
             byte[] topic3,
             byte[] data,
-            @Nullable ContractAccountResolver accountResolver) {
+            @NonNull ContractAccountResolver accountResolver) {
         var topicList = log.getTopicList();
         int topicCount = topicList.size();
         return trimmedByteStringEquals(topicCount > 0 ? topicList.get(0) : null, topic0)
@@ -389,19 +391,16 @@ public class DomainUtils {
 
     private static boolean transferIndexedAddressTopicMatches(
             @Nullable ByteString contractResultTopic,
-            @Nullable byte[] syntheticTopic,
-            @Nullable ContractAccountResolver accountResolver) {
+            byte[] syntheticTopic,
+            @NonNull ContractAccountResolver accountResolver) {
         if (trimmedByteStringEquals(contractResultTopic, syntheticTopic)) {
             return true;
         }
-        if (accountResolver == null) {
-            return false;
-        }
+
         byte[] contractResultLogTrimmed = trimmedLogTopicBytes(contractResultTopic);
-        byte[] syntheticTrimmed = trimmedLogTopicBytes(syntheticTopic);
         Optional<EntityId> contractResultLogEntity =
                 resolveTransferIndexedAccount(contractResultLogTrimmed, accountResolver);
-        Optional<EntityId> syntheticLogEntity = resolveTransferIndexedAccount(syntheticTrimmed, accountResolver);
+        Optional<EntityId> syntheticLogEntity = resolveTransferIndexedAccount(syntheticTopic, accountResolver);
         if (contractResultLogEntity.isEmpty() || syntheticLogEntity.isEmpty()) {
             return false;
         }
@@ -413,13 +412,6 @@ public class DomainUtils {
             return ArrayUtils.EMPTY_BYTE_ARRAY;
         }
         return trim(toBytes(logTopic));
-    }
-
-    private static byte[] trimmedLogTopicBytes(@Nullable byte[] syntheticTopic) {
-        if (syntheticTopic == null || syntheticTopic.length == 0) {
-            return ArrayUtils.EMPTY_BYTE_ARRAY;
-        }
-        return trim(syntheticTopic);
     }
 
     /**

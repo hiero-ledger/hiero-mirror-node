@@ -75,14 +75,6 @@ public class EntityIdServiceImpl implements EntityIdService {
     }
 
     @Override
-    public Optional<EntityId> lookupEntityId(ByteString aliasOrEvmAddress) {
-        if (aliasOrEvmAddress == null || aliasOrEvmAddress.isEmpty()) {
-            return EMPTY;
-        }
-        return lookup(AccountID.newBuilder().setAlias(aliasOrEvmAddress).build());
-    }
-
-    @Override
     public Optional<EntityId> lookup(ContractID contractId) {
         return lookup(contractId, true);
     }

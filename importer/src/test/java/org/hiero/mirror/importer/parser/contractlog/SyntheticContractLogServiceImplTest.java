@@ -81,7 +81,7 @@ final class SyntheticContractLogServiceImplTest {
     @BeforeEach
     void beforeEach() {
         lenient().when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.empty());
-        lenient().when(entityIdService.lookupEntityId(any(ByteString.class))).thenReturn(Optional.empty());
+        lenient().when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.empty());
         syntheticContractLogService =
                 new SyntheticContractLogServiceImpl(entityListener, entityProperties, entityIdService);
         recordItem = recordItemBuilder.tokenMint(TokenType.FUNGIBLE_COMMON).build();
@@ -169,6 +169,35 @@ final class SyntheticContractLogServiceImplTest {
 
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        verify(entityListener, times(0)).onContractLog(any());
+    }
+
+    @Test
+    @DisplayName("Should not create synthetic contract log when it matches existing parent log with Long.MAX_VALUE")
+    void doNotCreateWhenMatchingParentLogWithLongMaxValue() {
+        // Create a ContractLoginfo that matches the TransferContractLog
+
+        final var senderMaxValue = EntityId.of(Long.MAX_VALUE);
+        final var receiverMaxValue = EntityId.of(Long.MAX_VALUE - 1);
+        var matchingLog =
+                createMatchingFungibleTokenTransferLog(entityTokenId, senderMaxValue, receiverMaxValue, amount);
+
+        var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setContractCallResult(
+                        ContractFunctionResult.newBuilder().addLogInfo(matchingLog)))
+                .build();
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                        .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
+                        .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentRecordItem))
+                .build();
+
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderMaxValue, receiverMaxValue, amount));
         verify(entityListener, times(0)).onContractLog(any());
     }
 
@@ -694,11 +723,15 @@ final class SyntheticContractLogServiceImplTest {
                 DomainUtils.trim(Objects.requireNonNull(Utility.aliasToEvmAddress(UtilityTest.ALIAS_ECDSA_SECP256K1)));
         var topic2FromLog = ByteString.copyFrom(topic2FromAliasEvm);
         var topic2Synthetic = DomainUtils.fromBytes(entityIdToBytes(receiverId));
+        var accountIdFromLogTopic =
+                AccountID.newBuilder().setAlias(topic2FromLog).build();
+        var accountIdSyntheticTopic =
+                AccountID.newBuilder().setAlias(topic2Synthetic).build();
         reset(entityIdService);
         lenient().when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.empty());
-        when(entityIdService.lookupEntityId(any(ByteString.class))).thenAnswer(invocation -> {
-            var bs = invocation.<ByteString>getArgument(0);
-            if (topic2FromLog.equals(bs) || topic2Synthetic.equals(bs)) {
+        when(entityIdService.lookup(any(AccountID.class))).thenAnswer(invocation -> {
+            var accountId = invocation.getArgument(0, AccountID.class);
+            if (accountIdFromLogTopic.equals(accountId) || accountIdSyntheticTopic.equals(accountId)) {
                 return Optional.of(receiverId);
             }
             return Optional.empty();
