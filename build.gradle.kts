@@ -17,8 +17,8 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.30.1")
-    set("consensusNodeVersion", "0.72.0-rc.2")
+    set("blockNodeVersion", "0.30.2")
+    set("consensusNodeVersion", "0.73.0-rc.1")
     set("grpcVersion", "1.80.0")
     set("jooq.version", "3.20.11") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
@@ -56,13 +56,13 @@ dependencies {
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.67.0")
+        api("com.hedera.hashgraph:sdk:2.68.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.21.0")
         api("io.cucumber:cucumber-bom:7.34.3")
         api("io.fabric8:kubernetes-client-bom:7.6.1")
-        api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
+        api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.2")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
@@ -84,7 +84,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.42.18")
+        api("software.amazon.awssdk:bom:2.42.25")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

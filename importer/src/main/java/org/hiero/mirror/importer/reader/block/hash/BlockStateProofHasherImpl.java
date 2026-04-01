@@ -11,10 +11,8 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
-import org.jspecify.annotations.NullMarked;
 
 @Named
-@NullMarked
 final class BlockStateProofHasherImpl implements BlockStateProofHasher {
 
     private static final int DEPTH3_RIGHT_SIBLING_MODULAR_INDEX = 2;

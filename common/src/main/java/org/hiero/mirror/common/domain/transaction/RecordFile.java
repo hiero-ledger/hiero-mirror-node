@@ -121,6 +121,9 @@ public class RecordFile implements StreamFile<RecordItem> {
 
     private int version;
 
+    @ToString.Exclude
+    private byte[] wrappedRecordBlockHash;
+
     @Override
     public RecordFile clear() {
         StreamFile.super.clear();

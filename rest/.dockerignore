@@ -8,6 +8,7 @@ __tests__/
 application.yml
 build/
 coverage/
+dist/
 monitoring/
 node/
 node_modules/
