@@ -17,7 +17,9 @@ import EntityId from './entityId';
 import config from './config';
 import ed25519 from './ed25519';
 import {DbError, InvalidArgumentError, InvalidClauseError} from './errors';
-import {Entity, TransactionResult, TransactionType} from './model';
+import Entity from './model/entity';
+import TransactionResult from './model/transactionResult';
+import TransactionType from './model/transactionType';
 
 const JSONBig = JSONBigFactory({useNativeBigInt: true});
 

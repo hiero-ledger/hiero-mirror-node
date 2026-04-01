@@ -11,7 +11,6 @@ import EntityId from '../entityId';
 import {AuthorizationListItem, TransactionResult} from '../model';
 import * as utils from '../utils';
 import {WEIBARS_TO_TINYBARS} from '../constants';
-import {stripHexPrefix, toHexString} from '../utils';
 
 /**
  * Contract result details view model
@@ -89,12 +88,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     if (!isNil(ethTransaction)) {
       this.access_list = utils.toHexStringNonQuantity(ethTransaction.accessList);
       if (config.response.enableDelegationAddress) {
-        this.authorization_list = ethTransaction.authorizationList?.map((item) => {
-          const row = new AuthorizationListItem(item);
-          row.chain_id = utils.toHexStringQuantity(utils.stripHexPrefix(item.chain_id));
-          row.address = utils.toHexString(utils.stripHexPrefix(item.address), true, 40);
-          return row;
-        });
+        this.authorization_list = ethTransaction.authorizationList?.map((item) => new AuthorizationListItem(item));
       }
       this.chain_id = utils.toHexStringQuantity(ethTransaction.chainId);
 
