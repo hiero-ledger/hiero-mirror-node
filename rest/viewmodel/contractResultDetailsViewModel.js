@@ -6,8 +6,9 @@ import isNil from 'lodash/isNil';
 import ContractLogResultsViewModel from './contractResultLogViewModel';
 import ContractResultStateChangeViewModel from './contractResultStateChangeViewModel';
 import ContractResultViewModel from './contractResultViewModel';
+import config from '../config';
 import EntityId from '../entityId';
-import {TransactionResult} from '../model';
+import {AuthorizationListItem, TransactionResult} from '../model';
 import * as utils from '../utils';
 import {WEIBARS_TO_TINYBARS} from '../constants';
 
@@ -86,6 +87,9 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
 
     if (!isNil(ethTransaction)) {
       this.access_list = utils.toHexStringNonQuantity(ethTransaction.accessList);
+      if (config.response.enableDelegationAddress) {
+        this.authorization_list = ethTransaction.authorizationList?.map((item) => new AuthorizationListItem(item));
+      }
       this.chain_id = utils.toHexStringQuantity(ethTransaction.chainId);
 
       if (!isTransactionSuccessful && isEmpty(contractResult.errorMessage)) {

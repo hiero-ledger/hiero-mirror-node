@@ -6,18 +6,15 @@ import lombok.Getter;
 
 @Getter
 public enum RegisteredNodeType {
-    BLOCK_NODE(0),
-    GENERAL_SERVICE(1),
-    MIRROR_NODE(2),
-    RPC_RELAY(3);
+    UNKNOWN(0),
+    BLOCK_NODE(1),
+    GENERAL_SERVICE(2),
+    MIRROR_NODE(3),
+    RPC_RELAY(4);
 
     private final short id;
 
-    RegisteredNodeType(int id) {
+    RegisteredNodeType(final int id) {
         this.id = (short) id;
-    }
-
-    public short getValue() {
-        return id;
     }
 }
