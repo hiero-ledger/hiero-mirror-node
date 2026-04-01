@@ -100,3 +100,13 @@ updates:
     package-ecosystem: "gomod"
     schedule:
       interval: "weekly"
+
+  - directory: "/rest"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    package-ecosystem: "docker"
+    schedule:
+      interval: "weekly"

@@ -3,6 +3,10 @@
 import {jest} from '@jest/globals';
 import matchers from 'jest-extended';
 import log4js from 'log4js';
+import {recordQuery} from './tableUsage.js';
+import {setRecordQuery} from '../utils.js';
+
+setRecordQuery(recordQuery);
 
 global.logger = log4js.getLogger();
 
@@ -12,9 +16,6 @@ jest.setTimeout(4000);
 if (process.env.CI) {
   jest.retryTimes(3, {logErrorsBeforeRetry: true});
 }
-
-// set test configuration file path
-process.env.CONFIG_PATH = '__tests__';
 
 beforeEach(() => {
   logger.info(expect.getState().currentTestName);
