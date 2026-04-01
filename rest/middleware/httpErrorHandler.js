@@ -2,16 +2,10 @@
 
 import {httpStatusCodes, requestStartTime, StatusCode} from '../constants';
 import {HttpError} from 'http-errors';
+import {DbError, InvalidArgumentError, NotFoundError} from '../errors';
 import RestError from '../errors/restError';
 
 const defaultStatusCode = httpStatusCodes.INTERNAL_ERROR;
-
-const errorMap = {
-  DbError: httpStatusCodes.SERVICE_UNAVAILABLE,
-  InvalidArgumentError: httpStatusCodes.BAD_REQUEST,
-  NotFoundError: httpStatusCodes.NOT_FOUND,
-  RangeError: httpStatusCodes.BAD_REQUEST,
-};
 
 const simpleErrors = /statement timeout/;
 
@@ -20,8 +14,12 @@ const simpleErrors = /statement timeout/;
 const handleError = async (err, req, res, next) => {
   var statusCode = defaultStatusCode;
 
-  if (err.constructor.name in errorMap) {
-    statusCode = errorMap[err.constructor.name];
+  if (err instanceof NotFoundError) {
+    statusCode = httpStatusCodes.NOT_FOUND;
+  } else if (err instanceof InvalidArgumentError || err instanceof RangeError) {
+    statusCode = httpStatusCodes.BAD_REQUEST;
+  } else if (err instanceof DbError) {
+    statusCode = httpStatusCodes.SERVICE_UNAVAILABLE;
   } else if (err instanceof HttpError) {
     statusCode = new StatusCode(err.statusCode, err.msg);
   }
