@@ -6,7 +6,6 @@ import static org.apache.commons.lang3.StringUtils.leftPad;
 
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
-import com.hedera.hapi.block.stream.protoc.RecordFileItem;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -81,7 +80,9 @@ public final class BlockFile implements StreamFile<BlockTransaction> {
 
     private byte[] rawHash;
 
-    private RecordFileItem recordFileItem;
+    private byte[] rawPreviousHash;
+
+    private RecordFile recordFile;
 
     private Long roundEnd;
 
