@@ -4,15 +4,12 @@ package org.hiero.mirror.restjava.service.fee;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.HederaFunctionality;
-import com.hedera.hapi.node.base.PendingAirdropId;
-import com.hedera.hapi.node.state.token.AccountPendingAirdrop;
 import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.node.app.authorization.AuthorizerImpl;
 import com.hedera.node.app.authorization.PrivilegesVerifier;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.consensus.ReadableTopicStore;
-import com.hedera.node.app.service.token.ReadableAirdropStore;
 import com.hedera.node.app.service.token.ReadableTokenStore;
 import com.hedera.node.app.spi.authorization.Authorizer;
 import com.hedera.node.app.spi.fees.FeeCalculatorFactory;
@@ -22,9 +19,11 @@ import com.hedera.node.app.spi.fees.SimpleFeeCalculator;
 import com.hedera.node.app.spi.store.ReadableStoreFactory;
 import com.swirlds.config.api.Configuration;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+@RequiredArgsConstructor
 final class FeeEstimationFeeContext implements FeeContext {
 
     static final Map<String, String> FEE_PROPERTIES = Map.of("fees.simpleFeesEnabled", "true");
@@ -37,15 +36,6 @@ final class FeeEstimationFeeContext implements FeeContext {
     private final FeeTopicStore topicStore;
     private final FeeTokenStore tokenStore;
 
-    FeeEstimationFeeContext(
-            @NonNull final TransactionBody body,
-            @NonNull final FeeTopicStore topicStore,
-            @NonNull final FeeTokenStore tokenStore) {
-        this.body = body;
-        this.topicStore = topicStore;
-        this.tokenStore = tokenStore;
-    }
-
     @Override
     @NonNull
     @SuppressWarnings("unchecked")
@@ -55,25 +45,6 @@ final class FeeEstimationFeeContext implements FeeContext {
         }
         if (storeInterface == ReadableTokenStore.class) {
             return (T) tokenStore;
-        }
-        // ReadableAirdropStore: only sizeOfState() is called by the congestion multiplier for TOKEN_AIRDROP.
-        if (storeInterface == ReadableAirdropStore.class) {
-            return (T) new ReadableAirdropStore() {
-                @Override
-                public AccountPendingAirdrop get(@NonNull final PendingAirdropId airdropId) {
-                    return null;
-                }
-
-                @Override
-                public boolean exists(@NonNull final PendingAirdropId airdropId) {
-                    return false;
-                }
-
-                @Override
-                public long sizeOfState() {
-                    return 0;
-                }
-            };
         }
         throw new UnsupportedOperationException("Store not supported: " + storeInterface.getName());
     }

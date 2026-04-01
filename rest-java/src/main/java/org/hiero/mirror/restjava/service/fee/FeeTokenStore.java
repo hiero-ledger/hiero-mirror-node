@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
 
 @Named
 @RequiredArgsConstructor
-public final class FeeTokenStore implements ReadableTokenStore {
+final class FeeTokenStore implements ReadableTokenStore {
 
     private final TokenRepository tokenRepository;
     private final CustomFeeRepository customFeeRepository;
@@ -60,7 +60,7 @@ public final class FeeTokenStore implements ReadableTokenStore {
     }
 
     // Calculator only checks isEmpty(); CustomFee.DEFAULT is a safe placeholder.
-    private static List<CustomFee> getCustomFees(long tokenId, CustomFeeRepository customFeeRepository) {
+    private static List<CustomFee> getCustomFees(final long tokenId, final CustomFeeRepository customFeeRepository) {
         return customFeeRepository
                 .findById(tokenId)
                 .filter(customFee -> !customFee.isEmptyFee())
@@ -73,7 +73,7 @@ public final class FeeTokenStore implements ReadableTokenStore {
                 .orElseGet(List::of);
     }
 
-    private static int size(@Nullable Collection<?> collection) {
+    private static int size(@Nullable final Collection<?> collection) {
         return collection == null ? 0 : collection.size();
     }
 }

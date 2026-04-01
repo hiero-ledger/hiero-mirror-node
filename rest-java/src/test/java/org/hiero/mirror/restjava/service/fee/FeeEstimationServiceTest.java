@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.restjava.service;
+package org.hiero.mirror.restjava.service.fee;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,10 +28,6 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
-import org.hiero.mirror.restjava.service.fee.FeeEstimationService;
-import org.hiero.mirror.restjava.service.fee.FeeEstimationState;
-import org.hiero.mirror.restjava.service.fee.FeeTokenStore;
-import org.hiero.mirror.restjava.service.fee.FeeTopicStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -103,11 +99,13 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     # contract — ContractCall fees are paid in gas; CN calculator clears all hbar fees
     CONTRACTCALL            , BOTH     , 0
     CONTRACTCREATEINSTANCE  , INTRINSIC, 20000000000
+    CONTRACTCREATEINSTANCE  , STATE    , throws
     CONTRACTDELETEINSTANCE  , BOTH     , 70000000
     CONTRACTUPDATEINSTANCE  , BOTH     , 20260000000
 
     # crypto
     CRYPTOCREATEACCOUNT     , INTRINSIC, 10500000000
+    CRYPTOCREATEACCOUNT     , STATE    , throws
     CRYPTODELETE            , BOTH     , 50000000
     CRYPTOTRANSFER          , BOTH     , 1000000
     CRYPTOUPDATEACCOUNT     , BOTH     , 20002200000
@@ -118,6 +116,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     # file
     FILEAPPEND              , BOTH     , 500000000
     FILECREATE              , INTRINSIC, 500000000
+    FILECREATE              , STATE    , throws
     FILEDELETE              , BOTH     , 70000000
     FILEUPDATE              , BOTH     , 500000000
 
@@ -128,6 +127,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 
     # token
     TOKENASSOCIATE          , INTRINSIC, 500000000
+    TOKENASSOCIATE          , STATE    , throws
     TOKENBURN               , BOTH     , 10000000
     TOKENCREATION           , BOTH     , 20700000000
     TOKENDELETION           , BOTH     , 10000000
@@ -135,6 +135,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     TOKENFREEZE             , BOTH     , 10000000
     TOKENGRANTKYC           , BOTH     , 10000000
     TOKENMINT               , INTRINSIC, 400000000
+    TOKENMINT               , STATE    , throws
     TOKENPAUSE              , BOTH     , 10000000
     TOKENREVOKEKYC          , BOTH     , 10000000
     TOKENUNFREEZE           , BOTH     , 10000000
@@ -145,17 +146,22 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     # util
     UTILPRNG                , BOTH     , 10000000
     """)
-    void estimatesFeeByTransactionType(TransactionType type, TestMode mode, long expected) {
+    void estimatesFeeByTransactionType(TransactionType type, TestMode mode, String expected) {
         final var pbjTransaction =
                 toPbj(recordItemBuilder.lookup(type).get().build().getTransaction());
         final var modes = mode == TestMode.BOTH
                 ? List.of(FeeEstimateMode.INTRINSIC, FeeEstimateMode.STATE)
                 : List.of(mode == TestMode.STATE ? FeeEstimateMode.STATE : FeeEstimateMode.INTRINSIC);
-        for (var m : modes) {
-            final var result = service.estimateFees(pbjTransaction, m);
-            assertThat(result.totalTinycents())
-                    .as("Fee for %s in %s mode", type, m)
-                    .isEqualTo(expected);
+        for (final var m : modes) {
+            if ("throws".equals(expected)) {
+                assertThatThrownBy(() -> service.estimateFees(pbjTransaction, m))
+                        .as("Fee for %s in %s mode", type, m)
+                        .isInstanceOf(UnsupportedOperationException.class);
+            } else {
+                assertThat(service.estimateFees(pbjTransaction, m).totalTinycents())
+                        .as("Fee for %s in %s mode", type, m)
+                        .isEqualTo(Long.parseLong(expected));
+            }
         }
     }
 
@@ -411,29 +417,6 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void stateModeTokenAirdropWithCustomFees() {
-        // Plain token (no custom fees) and custom-fee token.
-        final var plainToken = domainBuilder.token().persist();
-        final var customFeeToken = domainBuilder.token().persist();
-        domainBuilder
-                .customFee()
-                .customize(cf -> cf.entityId(customFeeToken.getTokenId()))
-                .persist();
-
-        final var txnPlain = buildTokenAirdrop(plainToken.getTokenId());
-        final var txnCustom = buildTokenAirdrop(customFeeToken.getTokenId());
-
-        final var statePlain = service.estimateFees(txnPlain, FeeEstimateMode.STATE);
-        final var stateCustom = service.estimateFees(txnCustom, FeeEstimateMode.STATE);
-
-        // STATE reads the DB-backed token store: custom-fee token selects TOKEN_TRANSFER_BASE_CUSTOM_FEES
-        // instead of TOKEN_TRANSFER_BASE. The fee difference is exactly that extra.
-        final long base = extraFee(Extra.TOKEN_TRANSFER_BASE);
-        final long baseCustom = extraFee(Extra.TOKEN_TRANSFER_BASE_CUSTOM_FEES);
-        assertThat(stateCustom.totalTinycents() - statePlain.totalTinycents()).isEqualTo(baseCustom - base);
-    }
-
-    @Test
     void estimatesFeesForAllKnownTransactionTypes() {
         for (final var type : TransactionType.values()) {
             final var supplier = recordItemBuilder.lookup(type);
@@ -614,29 +597,6 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     private Transaction buildFungibleTokenTransfer(long tokenId) {
         return toPbj(recordItemBuilder
                 .cryptoTransfer(RecordItemBuilder.TransferType.TOKEN)
-                .transactionBody(b -> b.clearTokenTransfers()
-                        .addTokenTransfers(com.hederahashgraph.api.proto.java.TokenTransferList.newBuilder()
-                                .setToken(com.hederahashgraph.api.proto.java.TokenID.newBuilder()
-                                        .setTokenNum(tokenId))
-                                .addTransfers(com.hederahashgraph.api.proto.java.AccountAmount.newBuilder()
-                                        .setAccountID(com.hederahashgraph.api.proto.java.AccountID.newBuilder()
-                                                .setAccountNum(1))
-                                        .setAmount(-100))
-                                .addTransfers(com.hederahashgraph.api.proto.java.AccountAmount.newBuilder()
-                                        .setAccountID(com.hederahashgraph.api.proto.java.AccountID.newBuilder()
-                                                .setAccountNum(2))
-                                        .setAmount(100))))
-                .build()
-                .getTransaction());
-    }
-
-    /**
-     * Builds a fungible TokenAirdrop targeting the given token.
-     * Used to exercise the STATE-mode token-store custom-fee lookup via TokenAirdropFeeCalculator.
-     */
-    private Transaction buildTokenAirdrop(long tokenId) {
-        return toPbj(recordItemBuilder
-                .tokenAirdrop()
                 .transactionBody(b -> b.clearTokenTransfers()
                         .addTokenTransfers(com.hederahashgraph.api.proto.java.TokenTransferList.newBuilder()
                                 .setToken(com.hederahashgraph.api.proto.java.TokenID.newBuilder()

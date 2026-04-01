@@ -18,7 +18,7 @@ import org.springframework.util.CollectionUtils;
 
 @Named
 @RequiredArgsConstructor
-public final class FeeTopicStore implements ReadableTopicStore {
+final class FeeTopicStore implements ReadableTopicStore {
 
     private final TopicRepository topicRepository;
     private final CustomFeeRepository customFeeRepository;
@@ -48,7 +48,8 @@ public final class FeeTopicStore implements ReadableTopicStore {
     }
 
     // Calculator only checks isEmpty(); FixedCustomFee.DEFAULT is a safe placeholder.
-    private static List<FixedCustomFee> getCustomFees(long topicId, CustomFeeRepository customFeeRepository) {
+    private static List<FixedCustomFee> getCustomFees(
+            final long topicId, final CustomFeeRepository customFeeRepository) {
         return customFeeRepository
                 .findById(topicId)
                 .filter(customFee -> !CollectionUtils.isEmpty(customFee.getFixedFees()))

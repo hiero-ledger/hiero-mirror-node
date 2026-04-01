@@ -33,11 +33,14 @@ import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 
 @CustomLog
 @Named
-public final class FeeEstimationService {
+public class FeeEstimationService {
 
     private final ExecutorComponent executor;
     private final FeeEstimationState feeEstimationState;
@@ -51,11 +54,11 @@ public final class FeeEstimationService {
     private FeeManager feeManager;
 
     public FeeEstimationService(
-            FeeEstimationState feeEstimationState,
-            FileDataRepository fileDataRepository,
-            SystemEntity systemEntity,
-            FeeTopicStore feeTopicStore,
-            FeeTokenStore feeTokenStore) {
+            final FeeEstimationState feeEstimationState,
+            final FileDataRepository fileDataRepository,
+            final SystemEntity systemEntity,
+            final FeeTopicStore feeTopicStore,
+            final FeeTokenStore feeTokenStore) {
         this.feeEstimationState = feeEstimationState;
         this.fileDataRepository = fileDataRepository;
         this.feeScheduleFileId = systemEntity.simpleFeeScheduleFile().getId();
@@ -63,8 +66,7 @@ public final class FeeEstimationService {
         this.feeTokenStore = feeTokenStore;
         this.lastFeeScheduleTimestamp = new AtomicLong(Long.MIN_VALUE);
 
-        final var config =
-                new FeeEstimationFeeContext(TransactionBody.DEFAULT, feeTopicStore, feeTokenStore).configuration();
+        final var config = newFeeContext(TransactionBody.DEFAULT).configuration();
         this.executor = TRANSACTION_EXECUTORS.newExecutorComponent(
                 feeEstimationState,
                 FeeEstimationFeeContext.FEE_PROPERTIES,
@@ -80,6 +82,12 @@ public final class FeeEstimationService {
         this.feeManager = executor.feeManager();
     }
 
+    @Async
+    @EventListener(ApplicationReadyEvent.class)
+    public void initFeeSchedule() {
+        refreshStateCalculator();
+    }
+
     @Scheduled(fixedDelayString = "${hiero.mirror.rest-java.fee.refresh-interval:PT10M}")
     public void refreshStateCalculator() {
         final var latestTimestamp =
@@ -91,25 +99,17 @@ public final class FeeEstimationService {
             lastFeeScheduleTimestamp.set(latestTimestamp);
             fileDataRepository
                     .getFileAtTimestamp(feeScheduleFileId, 0L, Long.MAX_VALUE)
-                    .ifPresent(fileData -> {
-                        synchronized (feeManager) {
-                            feeManager.updateSimpleFees(Bytes.wrap(fileData.getFileData()));
-                        }
-                    });
+                    .ifPresent(fileData -> feeManager.updateSimpleFees(Bytes.wrap(fileData.getFileData())));
         }
     }
 
-    public FeeResult estimateFees(Transaction transaction, FeeEstimateMode mode) {
+    public FeeResult estimateFees(@NonNull final Transaction transaction, @NonNull final FeeEstimateMode mode) {
         try {
             final var txContext = new TransactionFeeContext(transaction);
             final var context = mode == FeeEstimateMode.STATE
-                    ? txContext.withFeeContext(
-                            new FeeEstimationFeeContext(txContext.body(), feeTopicStore, feeTokenStore))
+                    ? txContext.withFeeContext(newFeeContext(txContext.body()))
                     : txContext;
-            final SimpleFeeCalculator calculator;
-            synchronized (feeManager) {
-                calculator = Objects.requireNonNull(feeManager.getSimpleFeeCalculator());
-            }
+            final SimpleFeeCalculator calculator = Objects.requireNonNull(feeManager.getSimpleFeeCalculator());
             return calculator.calculateTxFee(context.body(), context);
         } catch (ParseException e) {
             throw new IllegalArgumentException("Unable to parse transaction", e);
@@ -118,21 +118,26 @@ public final class FeeEstimationService {
         }
     }
 
+    private FeeEstimationFeeContext newFeeContext(final TransactionBody body) {
+        return new FeeEstimationFeeContext(body, feeTopicStore, feeTokenStore);
+    }
+
     @SuppressWarnings("NullAway")
     private static final class TransactionFeeContext implements SimpleFeeContext {
 
-        private final int numTxnSignatures;
-        private final TransactionBody body;
         private final Transaction transaction;
+        private final TransactionBody body;
+        private final int numTxnSignatures;
 
         @Nullable
         private final FeeContext feeContext;
 
-        TransactionFeeContext(Transaction transaction) throws ParseException {
+        TransactionFeeContext(final Transaction transaction) throws ParseException {
             this(transaction, null);
         }
 
-        TransactionFeeContext(Transaction transaction, @Nullable FeeContext feeContext) throws ParseException {
+        TransactionFeeContext(final Transaction transaction, @Nullable final FeeContext feeContext)
+                throws ParseException {
             this.transaction = transaction;
             this.feeContext = feeContext;
             if (transaction.signedTransactionBytes().length() > 0) {
@@ -152,14 +157,17 @@ public final class FeeEstimationService {
         }
 
         private TransactionFeeContext(
-                Transaction transaction, int numTxnSignatures, TransactionBody body, @Nullable FeeContext feeContext) {
+                final Transaction transaction,
+                final int numTxnSignatures,
+                final TransactionBody body,
+                @Nullable final FeeContext feeContext) {
             this.transaction = transaction;
             this.numTxnSignatures = numTxnSignatures;
             this.body = body;
             this.feeContext = feeContext;
         }
 
-        TransactionFeeContext withFeeContext(@Nullable FeeContext feeContext) {
+        TransactionFeeContext withFeeContext(@Nullable final FeeContext feeContext) {
             return new TransactionFeeContext(transaction, numTxnSignatures, body, feeContext);
         }
 
