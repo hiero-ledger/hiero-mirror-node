@@ -4,11 +4,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.google.common.collect.Range;
 import jakarta.inject.Named;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.TreeSet;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
-import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
@@ -34,34 +30,24 @@ final class RegisteredNodeUpdateTransactionHandler extends AbstractRegisteredNod
         }
 
         final var nodeUpdate = recordItem.getTransactionBody().getRegisteredNodeUpdate();
-        final long consensusTimestamp = recordItem.getConsensusTimestamp();
-        final var node = new RegisteredNode();
+        final var builder = RegisteredNode.builder();
 
         if (nodeUpdate.hasAdminKey()) {
-            node.setAdminKey(nodeUpdate.getAdminKey().toByteArray());
+            builder.adminKey(nodeUpdate.getAdminKey().toByteArray());
         }
 
         if (nodeUpdate.hasDescription()) {
-            node.setDescription(nodeUpdate.getDescription().getValue());
+            builder.description(nodeUpdate.getDescription().getValue());
         }
 
-        if (!nodeUpdate.getServiceEndpointList().isEmpty()) {
-            final var endpointList = nodeUpdate.getServiceEndpointList();
-            final int size = endpointList.size();
-            final List<RegisteredServiceEndpoint> serviceEndpoints = new ArrayList<>(size);
-            final var types = new TreeSet<Short>();
-            for (int i = 0; i < size; i++) {
-                final var endpoint = toRegisteredServiceEndpoint(endpointList.get(i));
-                serviceEndpoints.add(endpoint);
-                types.add(endpoint.getType().getValue());
-            }
-            node.setServiceEndpoints(serviceEndpoints);
-            node.setType(List.copyOf(types));
+        final var protoServiceEndpoints = nodeUpdate.getServiceEndpointList();
+        if (!protoServiceEndpoints.isEmpty()) {
+            parseServiceEndpoints(builder, protoServiceEndpoints);
         }
 
-        node.setDeleted(false);
-        node.setRegisteredNodeId(nodeUpdate.getRegisteredNodeId());
-        node.setTimestampRange(Range.atLeast(consensusTimestamp));
-        return node;
+        return builder.deleted(false)
+                .registeredNodeId(nodeUpdate.getRegisteredNodeId())
+                .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
+                .build();
     }
 }

@@ -895,10 +895,6 @@ public final class RecordItemBuilder {
         });
     }
 
-    public Builder<UtilPrngTransactionBody.Builder> utilPrng() {
-        return prng(0);
-    }
-
     public Builder<RegisteredNodeCreateTransactionBody.Builder> registeredNodeCreate() {
         final var builder = RegisteredNodeCreateTransactionBody.newBuilder()
                 .setAdminKey(key())
@@ -914,6 +910,11 @@ public final class RecordItemBuilder {
                         .setPort(port())
                         .setBlockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.newBuilder()
                                 .setEndpointApi(SUBSCRIBE_STREAM)))
+                .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
+                        .setDomainName(text(8))
+                        .setPort(port())
+                        .setGeneralService(RegisteredServiceEndpoint.GeneralServiceEndpoint.newBuilder()
+                                .setDescription(text(12))))
                 .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
                         .setIpAddress(bytes(4))
                         .setPort(port())
@@ -932,7 +933,12 @@ public final class RecordItemBuilder {
                         .setPort(port())
                         .setRequiresTls(true)
                         .setBlockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.newBuilder()
-                                .setEndpointApi(STATUS)));
+                                .setEndpointApi(STATUS)))
+                .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
+                        .setDomainName(text(8))
+                        .setPort(port())
+                        .setGeneralService(RegisteredServiceEndpoint.GeneralServiceEndpoint.newBuilder()
+                                .setDescription(text(12))));
         return new Builder<>(TransactionType.REGISTEREDNODEUPDATE, builder);
     }
 
