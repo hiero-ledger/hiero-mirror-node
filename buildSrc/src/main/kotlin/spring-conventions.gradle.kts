@@ -6,9 +6,14 @@ plugins {
     id("com.gorylenko.gradle-git-properties")
     id("docker-conventions")
     id("java-conventions")
-    id("org.graalvm.buildtools.native")
     id("org.cyclonedx.bom")
     id("org.springframework.boot")
+}
+
+if (project.name != "graphql") {
+    apply(plugin = "org.graalvm.buildtools.native")
+    // This slows down tests too much to keep enabled
+    tasks.named("processTestAot") { enabled = false }
 }
 
 gitProperties { dotGitDirectory = rootDir.resolve(".git") }
@@ -21,9 +26,6 @@ springBoot {
 tasks.named("dockerBuild") { dependsOn(tasks.bootJar) }
 
 tasks.register("run") { dependsOn(tasks.bootRun) }
-
-// This slows down tests too much to keep enabled
-tasks.named("processTestAot") { enabled = false }
 
 val imagePlatform: String by project
 val platform = imagePlatform.ifBlank { null }
