@@ -5,6 +5,7 @@ import AddressBook from './addressBook';
 import AddressBookEntry from './addressBookEntry';
 import AddressBookServiceEndpoint from './addressBookServiceEndpoint';
 import AssessedCustomFee from './assessedCustomFee';
+import AuthorizationListItem from './authorizationListItem.js';
 import CachedApiResponse from './cachedApiResponse';
 import CachedToken from './cachedToken';
 import Contract from './contract';
@@ -56,6 +57,7 @@ export {
   AddressBookEntry,
   AddressBookServiceEndpoint,
   AssessedCustomFee,
+  AuthorizationListItem,
   CachedApiResponse,
   CachedToken,
   Contract,

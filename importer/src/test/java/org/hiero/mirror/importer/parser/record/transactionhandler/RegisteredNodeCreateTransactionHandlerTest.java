@@ -4,18 +4,23 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.node.RegisteredNodeType.BLOCK_NODE;
+import static org.hiero.mirror.common.domain.node.RegisteredNodeType.GENERAL_SERVICE;
 import static org.hiero.mirror.common.domain.node.RegisteredNodeType.MIRROR_NODE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.RegisteredNodeCreateTransactionBody.Builder;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import java.util.List;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.parser.record.RegisteredNodeChangedEvent;
 import org.junit.jupiter.api.Test;
@@ -68,19 +73,21 @@ final class RegisteredNodeCreateTransactionHandlerTest extends AbstractTransacti
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onRegisteredNode(assertArg(registeredNode -> {
-            assertThat(registeredNode)
-                    .isNotNull()
-                    .returns(receipt.getRegisteredNodeId(), RegisteredNode::getRegisteredNodeId)
-                    .returns(consensusTimestamp, RegisteredNode::getCreatedTimestamp)
-                    .returns(false, RegisteredNode::isDeleted);
-
-            assertThat(registeredNode.getAdminKey())
-                    .isEqualTo(nodeCreate.getAdminKey().toByteArray());
-            assertThat(registeredNode.getDescription()).isEqualTo(nodeCreate.getDescription());
-            assertThat(registeredNode.getServiceEndpoints()).hasSize(3).allMatch(e -> e.getPort() > 0);
-            assertThat(registeredNode.getType()).containsExactlyInAnyOrder(BLOCK_NODE.getId(), MIRROR_NODE.getId());
-        }));
+        verify(entityListener, times(1)).onRegisteredNode(assertArg(registeredNode -> assertThat(registeredNode)
+                .returns(nodeCreate.getAdminKey().toByteArray(), RegisteredNode::getAdminKey)
+                .returns(false, RegisteredNode::isDeleted)
+                .returns(nodeCreate.getDescription(), RegisteredNode::getDescription)
+                .returns(receipt.getRegisteredNodeId(), RegisteredNode::getRegisteredNodeId)
+                .returns(consensusTimestamp, RegisteredNode::getCreatedTimestamp)
+                .returns(Range.atLeast(consensusTimestamp), RegisteredNode::getTimestampRange)
+                .returns(
+                        List.of(BLOCK_NODE.getId(), GENERAL_SERVICE.getId(), MIRROR_NODE.getId()),
+                        RegisteredNode::getType)
+                .extracting(
+                        RegisteredNode::getServiceEndpoints,
+                        InstanceOfAssertFactories.list(RegisteredServiceEndpoint.class))
+                .hasSize(4)
+                .allMatch(e -> e.getPort() > 0)));
         verify(applicationEventPublisher, times(1)).publishEvent(any(RegisteredNodeChangedEvent.class));
 
         assertThat(recordItem.getEntityTransactions())

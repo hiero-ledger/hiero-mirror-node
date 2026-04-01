@@ -198,18 +198,13 @@ In order to do this the existing DB queries need to be enhanced.
 
 - `GET /api/v1/contracts/{contractIdOrAddress}/results/{timestamp}`
 - `GET /api/v1/contracts/results/{transactionIdOrHash}`
+- `GET /api/v1/contracts/results`
 
 The returned response will contain the new `authorization_list` json field that comes from the `ethereum_transaction` table.
 Only the select part of the existing queries against the `ethereum_transaction` table need to be changed to include the
 new column.
 
 - `GET /api/v1/contracts/{contractIdOrAddress}/results`
-- `GET /api/v1/contracts/results`
-
-The existing query that is used by both endpoints needs to be left joined with the `ethereum_transaction` table on:
-`ContractResult.consensus_timestamp = EthereumTransaction.consensus_timestamp`
-and select the `authorization_list` json field as well.
-
 - `GET /api/v1/contracts/{contractIdOrAddress}/results/logs`
 - `GET /api/v1/contracts/{contractIdOrAddress}/state`
 - `GET /api/v1/contracts/results/{transactionIdOrHash}/actions`

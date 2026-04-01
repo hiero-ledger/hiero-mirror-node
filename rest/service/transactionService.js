@@ -28,6 +28,7 @@ class TransactionService extends BaseService {
   static ethereumTransactionDetailsQuery = `
   select
     ${EthereumTransaction.getFullName(EthereumTransaction.ACCESS_LIST)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.AUTHORIZATION_LIST)},
     ${EthereumTransaction.getFullName(EthereumTransaction.CALL_DATA)},
     ${EthereumTransaction.getFullName(EthereumTransaction.CALL_DATA_ID)},
     ${EthereumTransaction.getFullName(EthereumTransaction.CHAIN_ID)},

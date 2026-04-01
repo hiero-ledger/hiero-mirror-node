@@ -34,7 +34,7 @@ final class BlockNodeDiscoveryServiceTest {
 
     @Test
     void discoverReturnsEmptyWhenNoNodes() {
-        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of());
         final var blockProperties = new BlockProperties(new ImporterProperties());
         blockProperties.setAutoDiscoveryEnabled(true);
@@ -68,7 +68,7 @@ final class BlockNodeDiscoveryServiceTest {
                         .port(40843)
                         .build());
 
-        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
 
         final var blockProperties = new BlockProperties(new ImporterProperties());
@@ -115,7 +115,7 @@ final class BlockNodeDiscoveryServiceTest {
                         .port(40843)
                         .build());
 
-        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
 
         final var blockProperties = new BlockProperties(new ImporterProperties());
@@ -140,7 +140,7 @@ final class BlockNodeDiscoveryServiceTest {
                 .port(40841)
                 .build());
 
-        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
 
         final var blockProperties = new BlockProperties(new ImporterProperties());
@@ -162,7 +162,7 @@ final class BlockNodeDiscoveryServiceTest {
                 .port(40840)
                 .build());
 
-        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
 
         final var blockProperties = new BlockProperties(new ImporterProperties());
@@ -276,7 +276,7 @@ final class BlockNodeDiscoveryServiceTest {
                         .port(40843)
                         .build());
 
-        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
 
         final var blockProperties = new BlockProperties(new ImporterProperties());
@@ -294,7 +294,7 @@ final class BlockNodeDiscoveryServiceTest {
         assertThat(result)
                 .extracting(BlockNodeProperties::getStreamingEndpoint)
                 .containsExactlyInAnyOrder("config.example.com:40842", "192.168.1.10:40841");
-        verify(registeredNodeRepository).findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
+        verify(registeredNodeRepository).findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId());
     }
 
     @Test
@@ -325,7 +325,7 @@ final class BlockNodeDiscoveryServiceTest {
                         .port(40843)
                         .build());
 
-        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
 
         final var blockProperties = new BlockProperties(new ImporterProperties());
@@ -379,7 +379,7 @@ final class BlockNodeDiscoveryServiceTest {
                         .port(40843)
                         .build());
 
-        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
 
         final var blockProperties = new BlockProperties(new ImporterProperties());
@@ -408,7 +408,7 @@ final class BlockNodeDiscoveryServiceTest {
 
     @Test
     void onRegisteredNodeChangedInvalidatesCache() {
-        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of());
         final var blockProperties = new BlockProperties(new ImporterProperties());
         blockProperties.setAutoDiscoveryEnabled(true);
@@ -417,11 +417,11 @@ final class BlockNodeDiscoveryServiceTest {
 
         service.getBlockNodes();
         service.getBlockNodes();
-        verify(registeredNodeRepository).findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
+        verify(registeredNodeRepository).findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId());
 
         service.onRegisteredNodeChanged();
         service.getBlockNodes();
         verify(registeredNodeRepository, times(2))
-                .findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
+                .findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId());
     }
 }
