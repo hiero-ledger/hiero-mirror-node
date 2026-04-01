@@ -56,13 +56,13 @@ dependencies {
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.67.0")
+        api("com.hedera.hashgraph:sdk:2.68.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.21.0")
         api("io.cucumber:cucumber-bom:7.34.3")
         api("io.fabric8:kubernetes-client-bom:7.6.1")
-        api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
+        api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.2")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
@@ -84,7 +84,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.42.18")
+        api("software.amazon.awssdk:bom:2.42.25")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
@@ -161,6 +161,8 @@ spotless {
         target("rest/**/*.js", "tools/**/*.js")
         targetExclude(
             "**/build/**",
+            "**/buildDist/**",
+            "**/dist/**",
             "**/node_modules/**",
             "**/__tests__/integration/*.spec.test.js",
             "tools/mirror-report/index.js",

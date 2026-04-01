@@ -9,8 +9,9 @@
     "node": ">= 24"
   },
   "scripts": {
+    "build": "node esbuild.config.js",
     "dev": "cross-env HIERO_MIRROR_REST_LOG_LEVEL=trace nodemon --import=extensionless/register server.js",
-    "start": "node --import=extensionless/register server.js",
+    "start": "npm run build && node buildDist/server.js",
     "pretest": "node --import=extensionless/register __tests__/integration/generator.js",
     "test": "cross-env NODE_NO_WARNINGS=1 node --import=extensionless/register --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
@@ -30,7 +31,6 @@
     "express-http-context": "2.0.1",
     "express-openapi-validator": "5.6.2",
     "extend": "3.0.2",
-    "extensionless": "2.0.6",
     "ioredis": "5.10.1",
     "js-yaml": "4.1.1",
     "json-bigint": "1.0.0",
@@ -51,6 +51,8 @@
   "devDependencies": {
     "@testcontainers/postgresql": "11.13.0",
     "cross-env": "10.1.0",
+    "esbuild": "^0.27.0",
+    "extensionless": "2.0.6",
     "crypto-random-string": "5.0.0",
     "jest": "30.3.0",
     "jest-extended": "7.0.0",

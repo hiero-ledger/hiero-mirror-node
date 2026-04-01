@@ -8,10 +8,6 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
-import static org.hiero.mirror.web3.service.utils.KeyValueType.CONTRACT_ID;
-import static org.hiero.mirror.web3.service.utils.KeyValueType.DELEGATABLE_CONTRACT_ID;
-import static org.hiero.mirror.web3.service.utils.KeyValueType.ECDSA_SECPK256K1;
-import static org.hiero.mirror.web3.service.utils.KeyValueType.ED25519;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ECDSA_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ED25519_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.KEY_WITH_ECDSA_TYPE;
@@ -222,7 +218,24 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         // When
         final var functionCall =
                 contract.call_isTokenAddress(toAddress(token.getTokenId()).toHexString());
+        // Then
+        assertThat(functionCall.send()).isTrue();
 
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+    }
+
+    @Test
+    void isTokenAddressWithSenderSmartContract() throws Exception {
+        // Given
+        final var token = fungibleTokenPersist();
+        final var tokenId = token.getTokenId();
+
+        final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
+
+        // When
+        final var functionCall =
+                contract.call_isTokenAddress(toAddress(token.getTokenId()).toHexString());
+        testWeb3jService.setSender(contract.getContractAddress());
         // Then
         assertThat(functionCall.send()).isTrue();
 
