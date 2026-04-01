@@ -163,9 +163,6 @@ jobs:
               HIERO_MIRROR_MONITOR_HEALTH_RELEASE_FAILWHENINACTIVE: "true"
             test:
               enabled: true
-          rest:
-            image:
-              tag: 0.151.0
           test:
             env:
               HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
