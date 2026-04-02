@@ -847,7 +847,7 @@ function pauseClustersIfNeeded() {
   if [[ "${PAUSE_CLUSTER}" == "true" ]]; then
     for namespace in "${CITUS_NAMESPACES[@]}"; do
       unrouteTraffic "${namespace}"
-      pauseCitus "${namespace}"
+      pauseCitus "${namespace}" "true"
     done
   fi
 }
@@ -856,7 +856,7 @@ function resumeClustersIfNeeded() {
   if [[ "${PAUSE_CLUSTER}" == "true" ]]; then
     for namespace in "${CITUS_NAMESPACES[@]}"; do
       log "Resuming Citus in namespace ${namespace}"
-      unpauseCitus "${namespace}" true
+      unpauseCitus "${namespace}" false
       routeTraffic "${namespace}"
     done
   fi
