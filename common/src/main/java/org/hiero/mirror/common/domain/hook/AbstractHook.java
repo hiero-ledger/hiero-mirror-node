@@ -4,6 +4,7 @@ package org.hiero.mirror.common.domain.hook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
+import jakarta.persistence.Convert;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.IdClass;
@@ -17,6 +18,7 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
@@ -43,6 +45,8 @@ public abstract class AbstractHook implements History {
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_COALESCE)
     private byte[] adminKey;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_COALESCE)
     private EntityId contractId;
 

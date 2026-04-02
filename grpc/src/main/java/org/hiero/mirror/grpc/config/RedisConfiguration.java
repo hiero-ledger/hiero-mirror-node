@@ -26,7 +26,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @AutoConfigureBefore(DataRedisAutoConfiguration.class)
 @AutoConfigureAfter({MetricsAutoConfiguration.class, CompositeMeterRegistryAutoConfiguration.class})
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @SuppressWarnings("removal")
 class RedisConfiguration {
 

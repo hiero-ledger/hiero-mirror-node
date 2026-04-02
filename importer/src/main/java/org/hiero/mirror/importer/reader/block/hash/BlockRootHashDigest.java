@@ -9,7 +9,9 @@ import com.hederahashgraph.api.proto.java.Timestamp;
 import java.security.MessageDigest;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullUnmarked;
 
+@NullUnmarked
 public final class BlockRootHashDigest {
 
     private final IncrementalStreamingHasher consensusHeaderHasher = new IncrementalStreamingHasher();
@@ -44,7 +46,7 @@ public final class BlockRootHashDigest {
                         yield null;
                     }
                     case EVENT_HEADER, ROUND_HEADER -> consensusHeaderHasher;
-                    case TRANSACTION_OUTPUT, TRANSACTION_RESULT -> outputHasher;
+                    case RECORD_FILE, TRANSACTION_OUTPUT, TRANSACTION_RESULT -> outputHasher;
                     case SIGNED_TRANSACTION -> inputHasher;
                     case STATE_CHANGES -> stateChangesHasher;
                     case TRACE_DATA -> traceDataHasher;

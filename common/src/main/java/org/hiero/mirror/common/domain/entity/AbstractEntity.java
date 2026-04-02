@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
@@ -18,6 +19,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
@@ -89,10 +91,14 @@ public abstract class AbstractEntity implements History {
     @Column(updatable = false)
     private Long num;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId obtainerId;
 
     private Boolean permanentRemoval;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId proxyAccountId;
 
     @ToString.Exclude

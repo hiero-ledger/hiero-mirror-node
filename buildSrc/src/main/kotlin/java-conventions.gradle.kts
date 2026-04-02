@@ -71,6 +71,16 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.compileJava { options.compilerArgs.add("-Xlint:-serial") }
 
+tasks
+    .withType<JavaCompile>()
+    .matching { it.name == "compileAotJava" || it.name == "compileAotTestJava" }
+    .configureEach {
+        options.compilerArgs.remove("-Werror")
+        options.compilerArgs.replaceAll { arg ->
+            if (arg == "-Xlint:all") "-Xlint:all,-cast" else arg
+        }
+    }
+
 tasks.javadoc { options.encoding = "UTF-8" }
 
 tasks.withType<Test>().configureEach {

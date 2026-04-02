@@ -6,7 +6,6 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import java.util.Set;
 import org.hiero.mirror.grpc.GrpcProperties;
 import org.hiero.mirror.grpc.service.AddressBookProperties;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
@@ -14,8 +13,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
-@Configuration
-@ConditionalOnProperty(prefix = "spring.cache", name = "enabled", havingValue = "true", matchIfMissing = true)
+@Configuration(proxyBeanMethods = false)
 @EnableCaching
 public class CacheConfiguration {
 

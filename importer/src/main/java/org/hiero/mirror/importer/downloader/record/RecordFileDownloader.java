@@ -24,6 +24,7 @@ import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.Downloader;
 import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
+import org.hiero.mirror.importer.downloader.block.BlockDownloaderProperties;
 import org.hiero.mirror.importer.downloader.block.CutoverService;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
 import org.hiero.mirror.importer.exception.HashMismatchException;
@@ -33,15 +34,10 @@ import org.hiero.mirror.importer.reader.record.RecordFileReader;
 import org.hiero.mirror.importer.reader.record.sidecar.SidecarFileReader;
 import org.hiero.mirror.importer.reader.signature.SignatureFileReader;
 import org.hiero.mirror.importer.util.Utility;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-@ConditionalOnProperty(
-        name = "hiero.mirror.importer.downloader.block.enabled",
-        havingValue = "false",
-        matchIfMissing = true)
 @Named
 public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
 
@@ -50,6 +46,7 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
     private final CutoverService cutoverService;
     private final SidecarFileReader sidecarFileReader;
     private final SidecarProperties sidecarProperties;
+    private final BlockDownloaderProperties blockDownloaderProperties;
 
     @SuppressWarnings("java:S107")
     public RecordFileDownloader(
@@ -65,7 +62,8 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
             SignatureFileReader signatureFileReader,
             StreamFileNotifier streamFileNotifier,
             StreamFileProvider streamFileProvider,
-            RecordFileReader streamFileReader) {
+            RecordFileReader streamFileReader,
+            BlockDownloaderProperties blockDownloaderProperties) {
         super(
                 consensusNodeService,
                 downloaderProperties,
@@ -80,12 +78,15 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
         this.cutoverService = cutoverService;
         this.sidecarFileReader = sidecarFileReader;
         this.sidecarProperties = sidecarProperties;
+        this.blockDownloaderProperties = blockDownloaderProperties;
     }
 
     @Override
     @Scheduled(fixedDelayString = "#{@recordDownloaderProperties.getFrequency().toMillis()}")
     public void download() {
-        downloadNextBatch();
+        if (!blockDownloaderProperties.isEnabled()) {
+            downloadNextBatch();
+        }
     }
 
     @Override

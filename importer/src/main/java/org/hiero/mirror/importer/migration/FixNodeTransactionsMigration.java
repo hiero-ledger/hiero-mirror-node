@@ -15,7 +15,6 @@ import lombok.SneakyThrows;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
-import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
@@ -37,7 +36,7 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
             truncate node_history;
             """;
     private static final String NODE_TRANSACTIONS_SQL = """
-            select consensus_timestamp, transaction_bytes, transaction_record_bytes
+            select transaction_bytes, transaction_record_bytes
             from transaction
             where consensus_timestamp >= ? and type in (54, 55, 56)
             order by consensus_timestamp asc;
@@ -127,10 +126,9 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
     }
 
     @SneakyThrows
-    private RecordItem toRecordItem(Transaction transaction) {
-        var protoTransaction =
-                com.hederahashgraph.api.proto.java.Transaction.parseFrom(transaction.getTransactionBytes());
-        var protoRecord = TransactionRecord.parseFrom(transaction.getTransactionRecordBytes());
+    private RecordItem toRecordItem(NodeTransaction transaction) {
+        var protoTransaction = com.hederahashgraph.api.proto.java.Transaction.parseFrom(transaction.transactionBytes());
+        var protoRecord = TransactionRecord.parseFrom(transaction.transactionRecordBytes());
         return RecordItem.builder()
                 .transaction(protoTransaction)
                 .transactionRecord(protoRecord)
@@ -150,7 +148,7 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
     private List<RecordItem> getRecordItems() {
         return jdbcOperationsProvider
                 .getObject()
-                .query(NODE_TRANSACTIONS_SQL, new DataClassRowMapper<>(Transaction.class), LOWER_TIMESTAMP)
+                .query(NODE_TRANSACTIONS_SQL, new DataClassRowMapper<>(NodeTransaction.class), LOWER_TIMESTAMP)
                 .stream()
                 .map(this::toRecordItem)
                 .toList();
@@ -168,4 +166,6 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
 
         return current;
     }
+
+    private record NodeTransaction(byte[] transactionBytes, byte[] transactionRecordBytes) {}
 }

@@ -71,7 +71,6 @@ import java.math.BigInteger;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -87,7 +86,6 @@ import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 import org.springframework.web.client.HttpClientErrorException;
 
-@CustomLog
 @RequiredArgsConstructor
 public class EstimateFeature extends AbstractEstimateFeature {
 

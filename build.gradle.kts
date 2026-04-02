@@ -17,10 +17,10 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.30.1")
-    set("consensusNodeVersion", "0.72.0-rc.2")
+    set("blockNodeVersion", "0.30.2")
+    set("consensusNodeVersion", "0.72.0")
     set("grpcVersion", "1.80.0")
-    set("jooq.version", "3.20.11") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.21.1") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
     set("protobufVersion", "4.34.1")
@@ -52,10 +52,10 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.7.7")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.7.10")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.73.0-rc.1")
         api("com.hedera.hashgraph:sdk:2.68.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")

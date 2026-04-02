@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain.token;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.MappedSuperclass;
 import java.io.Serial;
@@ -14,6 +15,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
@@ -30,6 +32,8 @@ public abstract class AbstractNft implements History {
     // sentinel value to indicate delegating spender / spender should keep its previous value
     public static final long RETAIN_SPENDER = 0L;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     @UpsertColumn(coalesce = "case when deleted = true then null else coalesce({0}, e_{0}, {1}) end")
     private EntityId accountId;
 

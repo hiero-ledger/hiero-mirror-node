@@ -35,7 +35,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.Builder;
-import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
@@ -73,7 +72,6 @@ import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.CollectionUtils;
 
-@CustomLog
 @RequiredArgsConstructor
 public class TokenFeature extends AbstractFeature {
 

@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain.node;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.Range;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
 import java.util.List;
@@ -14,6 +15,7 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.History;
@@ -28,6 +30,8 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 @Upsertable(history = true)
 public abstract class AbstractNode implements History {
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId accountId;
 
     @ToString.Exclude

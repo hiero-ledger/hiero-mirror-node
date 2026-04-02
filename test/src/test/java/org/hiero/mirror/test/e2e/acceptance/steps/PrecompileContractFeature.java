@@ -51,7 +51,6 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.math.BigInteger;
 import java.util.List;
-import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.AccountInfo;
@@ -67,7 +66,6 @@ import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.hiero.mirror.test.e2e.acceptance.util.ContractCallResponseWrapper;
 
-@CustomLog
 @RequiredArgsConstructor
 public class PrecompileContractFeature extends AbstractFeature {
     private static final long FIRST_NFT_SERIAL_NUMBER = 1;

@@ -31,7 +31,6 @@ import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.rest.model.FixedCustomFee;
@@ -50,7 +49,6 @@ import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
 
-@CustomLog
 @RequiredArgsConstructor
 public class TopicFeature extends AbstractFeature {
 

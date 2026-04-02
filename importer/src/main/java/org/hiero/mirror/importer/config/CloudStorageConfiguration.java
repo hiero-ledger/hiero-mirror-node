@@ -33,7 +33,7 @@ import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @CustomLog
 @RequiredArgsConstructor
 class CloudStorageConfiguration {
