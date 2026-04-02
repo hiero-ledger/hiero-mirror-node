@@ -72,6 +72,23 @@ const bigIntMax = (a, b) => (a > b ? a : b);
 const bigIntMin = (a, b) => (a < b ? a : b);
 
 /**
+ * Parses a value to bigint for protobuf int64 / uint64 fields (e.g. @bufbuild/protobuf create()).
+ * null and undefined become 0n; numbers and numeric strings use BigInt(String(value)).
+ *
+ * @param {bigint|number|string|null|undefined} value
+ * @returns {bigint}
+ */
+const parseToBigInt = (value) => {
+  if (value == null) {
+    return 0n;
+  }
+  if (typeof value === 'bigint') {
+    return value;
+  }
+  return BigInt(String(value));
+};
+
+/**
  * Check if the given number is numeric
  * @param {String} n Number to test
  * @return {Boolean} true if n is numeric, false otherwise
@@ -1062,7 +1079,7 @@ const toUint256 = (val) => {
 const hexStrPattern = /^([0-9a-fA-F]{2})+$/;
 
 /**
- * Converts a value into hex string, the value can be a number, a bigint, a hex string, an array of numbers, or a Buffer
+ * Converts a value into hex string, the value can be a number, a bigint, a hex string, an array of numbers, a Buffer, or a Uint8Array
  * Logic conforms with ETH hex value encoding, therefore nill and empty return '0x'
  * @param {Object} value Value to be converted to hex string
  * @param {boolean} addPrefix Whether to add the '0x' prefix to the hex string
@@ -1081,6 +1098,8 @@ const toHexString = (value, addPrefix = false, padLength = undefined) => {
     encoded = Buffer.from(value).toString('hex');
   } else if (Buffer.isBuffer(value)) {
     encoded = value.toString('hex');
+  } else if (value instanceof Uint8Array) {
+    encoded = Buffer.from(value).toString('hex');
   } else {
     return constants.HEX_PREFIX;
   }
@@ -1802,6 +1821,7 @@ export {
   asNullIfDefault,
   bigIntMax,
   bigIntMin,
+  parseToBigInt,
   buildAndValidateFilters,
   buildComparatorFilter,
   buildFilters,

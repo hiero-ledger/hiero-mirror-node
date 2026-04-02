@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: Apache-2.0
+
+version: v2
+lint:
+  use:
+    - MINIMAL
+breaking:
+  use:
+    - FILE
