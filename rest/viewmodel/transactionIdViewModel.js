@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {proto} from '@hiero-ledger/proto';
-
 import EntityId from '../entityId';
 import {nsToSecNs} from '../utils';
 
@@ -15,15 +13,20 @@ class TransactionIdViewModel {
    * @param {TransactionId|TransactionID} transactionId
    */
   constructor(transactionId) {
-    if (transactionId instanceof proto.TransactionID) {
-      // handle proto format
+    if (transactionId?.$typeName === 'proto.TransactionID') {
       const {accountID, transactionValidStart, nonce, scheduled} = transactionId;
-      this.account_id = EntityId.of(accountID.shardNum, accountID.realmNum, accountID.accountNum).toString();
+      const acc = accountID?.account;
+      this.account_id = EntityId.of(
+        accountID.shardNum,
+        accountID.realmNum,
+        acc?.case === 'accountNum' ? acc.value : 0
+      ).toString();
       this.nonce = nonce;
       this.scheduled = scheduled;
-      this.transaction_valid_start = `${transactionValidStart.seconds}.${transactionValidStart.nanos
-        .toString()
-        .padStart(9, '0')}`;
+      this.transaction_valid_start = `${transactionValidStart.seconds}.${String(transactionValidStart.nanos).padStart(
+        9,
+        '0'
+      )}`;
     } else {
       // handle db format. Handle nil case for nonce and scheduled
       this.account_id = EntityId.parse(transactionId.payerAccountId).toString();

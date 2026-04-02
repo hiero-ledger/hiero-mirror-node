@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import isEmpty from 'lodash/isEmpty';
+import isNil from 'lodash/isNil';
 import toArray from 'lodash/toArray';
 import config from '../config';
 import EntityId from '../entityId';
+import {fromBinary} from '@bufbuild/protobuf';
+import {ContractFunctionResultSchema} from '../gen/services/contract_types_pb.js';
 import {nsToSecNs, toHexString} from '../utils';
-import {proto} from '@hiero-ledger/proto';
 
 /**
  * Contract results view model
@@ -50,10 +52,11 @@ class ContractResultViewModel {
   }
 
   #extractSenderFromFunctionResult(contractResult) {
-    if (!contractResult.sender_id && contractResult.functionResult) {
+    if (isNil(contractResult.senderId) && contractResult.functionResult) {
       try {
-        const functionResult = proto.ContractFunctionResult.decode(contractResult.functionResult);
-        return functionResult?.senderId?.alias?.length ? toHexString(functionResult.senderId.alias, true) : null;
+        const functionResult = fromBinary(ContractFunctionResultSchema, new Uint8Array(contractResult.functionResult));
+        const senderAlias = functionResult.senderId?.account;
+        return senderAlias?.case === 'alias' && senderAlias.value?.length ? toHexString(senderAlias.value, true) : null;
       } catch (error) {
         logger.warn('Error decoding function result', error);
       }

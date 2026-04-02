@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import isNil from 'lodash/isNil';
-import {proto} from '@hiero-ledger/proto';
+import {fromBinary} from '@bufbuild/protobuf';
+import {TransactionIDSchema} from '../gen/services/basic_types_pb.js';
 
 import EntityId from '../entityId';
 import {TransactionId} from '../model/index';
@@ -37,7 +38,7 @@ class ChunkInfoViewModel {
   constructor(topicMessage) {
     let initialTransactionId;
     if (!isNil(topicMessage.initialTransactionId)) {
-      initialTransactionId = proto.TransactionID.decode(topicMessage.initialTransactionId);
+      initialTransactionId = fromBinary(TransactionIDSchema, new Uint8Array(topicMessage.initialTransactionId));
     } else {
       initialTransactionId = new TransactionId(
         topicMessage.payerAccountId,

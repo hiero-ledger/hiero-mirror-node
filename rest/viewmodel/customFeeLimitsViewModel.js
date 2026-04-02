@@ -21,11 +21,21 @@ class CustomFeeLimitsViewModel {
       return null;
     }
 
-    return `${accountId.shardNum}.${accountId.realmNum}.${accountId.accountNum}`;
+    const acc = accountId.account;
+    if (acc?.case === 'accountNum') {
+      return `${accountId.shardNum}.${accountId.realmNum}.${acc.value}`;
+    }
+
+    return null;
   }
 
   _formatTokenId(tokenId) {
-    if (!tokenId || tokenId.tokenNum.isZero()) {
+    if (!tokenId) {
+      return null;
+    }
+
+    const num = tokenId.tokenNum;
+    if (num === 0n || num === 0) {
       return null;
     }
 
