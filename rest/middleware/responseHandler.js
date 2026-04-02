@@ -13,6 +13,7 @@ import {NotFoundError} from '../errors';
 import {JSONStringify} from '../utils';
 
 const {
+  log: {sampleRate},
   response: {headers},
 } = config;
 
@@ -51,7 +52,10 @@ const responseHandler = async (req, res, next) => {
 
   const startTime = res.locals[requestStartTime];
   const elapsed = startTime ? Date.now() - startTime : 0;
-  logger.info(`${req.ip} ${req.method} ${req.originalUrl} in ${elapsed} ms: ${code}`);
+
+  if (code >= 400 || Math.random() <= sampleRate) {
+    logger.info(`${req.ip} ${req.method} ${req.originalUrl} in ${elapsed} ms: ${code}`);
+  }
 
   next();
 };
