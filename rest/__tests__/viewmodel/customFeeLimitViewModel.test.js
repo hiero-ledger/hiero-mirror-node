@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {proto} from '@hiero-ledger/proto';
+import {create, toBinary} from '@bufbuild/protobuf';
+import {AccountIDSchema, TokenIDSchema} from '../../gen/services/basic_types_pb.js';
+import {CustomFeeLimitSchema, FixedFeeSchema} from '../../gen/services/custom_fees_pb.js';
 import {CustomFeeLimitsViewModel} from '../../viewmodel';
 import {CustomFeeLimits} from '../../model';
 
@@ -8,17 +10,42 @@ describe('CustomFeeLimitViewModel', () => {
   test('formats max_custom_fees correctly', () => {
     // given
     const testInput = [
-      proto.CustomFeeLimit.encode({
-        accountId: {accountNum: 8},
-        fees: [
-          {amount: 1000, denominatingTokenId: {tokenNum: 3001}},
-          {amount: 2000, denominatingTokenId: {}},
-        ],
-      }).finish(),
-      proto.CustomFeeLimit.encode({
-        accountId: {accountNum: 9},
-        fees: [{amount: 500}],
-      }).finish(),
+      Buffer.from(
+        toBinary(
+          CustomFeeLimitSchema,
+          create(CustomFeeLimitSchema, {
+            accountId: create(AccountIDSchema, {
+              shardNum: 0n,
+              realmNum: 0n,
+              account: {case: 'accountNum', value: 8n},
+            }),
+            fees: [
+              create(FixedFeeSchema, {
+                amount: 1000n,
+                denominatingTokenId: create(TokenIDSchema, {
+                  shardNum: 0n,
+                  realmNum: 0n,
+                  tokenNum: 3001n,
+                }),
+              }),
+              create(FixedFeeSchema, {amount: 2000n}),
+            ],
+          })
+        )
+      ),
+      Buffer.from(
+        toBinary(
+          CustomFeeLimitSchema,
+          create(CustomFeeLimitSchema, {
+            accountId: create(AccountIDSchema, {
+              shardNum: 0n,
+              realmNum: 0n,
+              account: {case: 'accountNum', value: 9n},
+            }),
+            fees: [create(FixedFeeSchema, {amount: 500n})],
+          })
+        )
+      ),
     ];
     const expected = [
       {
