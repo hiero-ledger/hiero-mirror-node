@@ -71,13 +71,6 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     private static final int INVALID_TX_SIZE = 100;
     private static final int LONG_MESSAGE_BYTES = 2_000;
 
-    /** Test-only mode enum that adds BOTH to run a single parameterized row for both fee modes. */
-    private enum TestMode {
-        INTRINSIC,
-        STATE,
-        BOTH
-    }
-
     @BeforeEach
     void setup() {
         final var feeBytes = FeeSchedule.PROTOBUF.toBytes(FEE_SCHEDULE).toByteArray();
@@ -88,68 +81,65 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         service.refreshStateCalculator();
     }
 
-    @ParameterizedTest(name = "{0} [{1}]")
+    @ParameterizedTest(name = "{0}")
     @CsvSource(textBlock = """
     # consensus
-    CONSENSUSCREATETOPIC    , BOTH     , 20300000000
-    CONSENSUSDELETETOPIC    , BOTH     , 50000000
-    CONSENSUSSUBMITMESSAGE  , BOTH     , 8000000
-    CONSENSUSUPDATETOPIC    , BOTH     , 402200000
+    CONSENSUSCREATETOPIC    , 20300000000
+    CONSENSUSDELETETOPIC    , 50000000
+    CONSENSUSSUBMITMESSAGE  , 8000000
+    CONSENSUSUPDATETOPIC    , 402200000
 
     # contract — ContractCall fees are paid in gas; CN calculator clears all hbar fees
-    CONTRACTCALL            , BOTH     , 0
-    CONTRACTCREATEINSTANCE  , BOTH     , 20000000000
-    CONTRACTDELETEINSTANCE  , BOTH     , 70000000
-    CONTRACTUPDATEINSTANCE  , BOTH     , 20260000000
+    CONTRACTCALL            , 0
+    CONTRACTCREATEINSTANCE  , 20000000000
+    CONTRACTDELETEINSTANCE  , 70000000
+    CONTRACTUPDATEINSTANCE  , 20260000000
 
     # crypto
-    CRYPTOCREATEACCOUNT     , BOTH     , 10500000000
-    CRYPTODELETE            , BOTH     , 50000000
-    CRYPTOTRANSFER          , BOTH     , 1000000
-    CRYPTOUPDATEACCOUNT     , BOTH     , 20002200000
+    CRYPTOCREATEACCOUNT     , 10500000000
+    CRYPTODELETE            , 50000000
+    CRYPTOTRANSFER          , 1000000
+    CRYPTOUPDATEACCOUNT     , 20002200000
 
     # ethereum
-    ETHEREUMTRANSACTION     , BOTH     , 1000000
+    ETHEREUMTRANSACTION     , 1000000
 
     # file
-    FILEAPPEND              , BOTH     , 500000000
-    FILECREATE              , BOTH     , 500000000
-    FILEDELETE              , BOTH     , 70000000
-    FILEUPDATE              , BOTH     , 500000000
+    FILEAPPEND              , 500000000
+    FILECREATE              , 500000000
+    FILEDELETE              , 70000000
+    FILEUPDATE              , 500000000
 
     # schedule
-    SCHEDULECREATE          , BOTH     , 100000000
-    SCHEDULEDELETE          , BOTH     , 10000000
-    SCHEDULESIGN            , BOTH     , 10000000
+    SCHEDULECREATE          , 100000000
+    SCHEDULEDELETE          , 10000000
+    SCHEDULESIGN            , 10000000
 
     # token
-    TOKENASSOCIATE          , BOTH     , 500000000
-    TOKENBURN               , BOTH     , 10000000
-    TOKENCREATION           , BOTH     , 20700000000
-    TOKENDELETION           , BOTH     , 10000000
-    TOKENDISSOCIATE         , BOTH     , 500000000
-    TOKENFREEZE             , BOTH     , 10000000
-    TOKENGRANTKYC           , BOTH     , 10000000
-    TOKENMINT               , BOTH     , 400000000
-    TOKENPAUSE              , BOTH     , 10000000
-    TOKENREVOKEKYC          , BOTH     , 10000000
-    TOKENUNFREEZE           , BOTH     , 10000000
-    TOKENUNPAUSE            , BOTH     , 10000000
-    TOKENUPDATE             , BOTH     , 710000000
-    TOKENWIPE               , BOTH     , 10000000
+    TOKENASSOCIATE          , 500000000
+    TOKENBURN               , 10000000
+    TOKENCREATION           , 20700000000
+    TOKENDELETION           , 10000000
+    TOKENDISSOCIATE         , 500000000
+    TOKENFREEZE             , 10000000
+    TOKENGRANTKYC           , 10000000
+    TOKENMINT               , 400000000
+    TOKENPAUSE              , 10000000
+    TOKENREVOKEKYC          , 10000000
+    TOKENUNFREEZE           , 10000000
+    TOKENUNPAUSE            , 10000000
+    TOKENUPDATE             , 710000000
+    TOKENWIPE               , 10000000
 
     # util
-    UTILPRNG                , BOTH     , 10000000
+    UTILPRNG                , 10000000
     """)
-    void estimatesFeeByTransactionType(TransactionType type, TestMode mode, long expected) {
+    void estimatesFeeByTransactionType(TransactionType type, long expected) {
         final var pbjTransaction =
                 toPbj(recordItemBuilder.lookup(type).get().build().getTransaction());
-        final var modes = mode == TestMode.BOTH
-                ? List.of(FeeEstimateMode.INTRINSIC, FeeEstimateMode.STATE)
-                : List.of(mode == TestMode.STATE ? FeeEstimateMode.STATE : FeeEstimateMode.INTRINSIC);
-        for (final var m : modes) {
-            assertThat(service.estimateFees(pbjTransaction, m).totalTinycents())
-                    .as("Fee for %s in %s mode", type, m)
+        for (final var mode : FeeEstimateMode.values()) {
+            assertThat(service.estimateFees(pbjTransaction, mode).totalTinycents())
+                    .as("Fee for %s in %s mode", type, mode)
                     .isEqualTo(expected);
         }
     }
