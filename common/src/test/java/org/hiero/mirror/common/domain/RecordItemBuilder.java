@@ -899,6 +899,8 @@ public final class RecordItemBuilder {
         return prng(0);
     }
 
+    // Remove the annotation when bumping both hedera app and hedera-protobuf-java-api to the same 0.73.x version
+    @ExcludeFromBuilders
     public Builder<RegisteredNodeCreateTransactionBody.Builder> registeredNodeCreate() {
         final var builder = RegisteredNodeCreateTransactionBody.newBuilder()
                 .setAdminKey(key())
@@ -927,6 +929,8 @@ public final class RecordItemBuilder {
         return new Builder<>(TransactionType.REGISTEREDNODECREATE, builder).receipt(r -> r.setRegisteredNodeId(id()));
     }
 
+    // Remove the annotation when bumping both hedera app and hedera-protobuf-java-api to the same 0.73.x version
+    @ExcludeFromBuilders
     public Builder<RegisteredNodeUpdateTransactionBody.Builder> registeredNodeUpdate() {
         final var builder = RegisteredNodeUpdateTransactionBody.newBuilder()
                 .setRegisteredNodeId(id())
