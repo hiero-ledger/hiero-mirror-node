@@ -17,6 +17,7 @@ hiero:
 logging:
   level:
     root: warn
+    org.hiero.mirror.common: info
     org.hiero.mirror.web3: info
     org.hibernate.orm.deprecation: error # Suppress hibernate.dialect warnings
   pattern:

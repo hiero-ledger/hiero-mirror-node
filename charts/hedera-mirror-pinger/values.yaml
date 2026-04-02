@@ -16,7 +16,7 @@ env:
   GOGC: "25"
   GOMEMLIMIT: 10MiB
   HIERO_MIRROR_PINGER_NETWORK: "other"
-  HIERO_MIRROR_PINGER_REST: "http://{{ .Release.Name }}-rest:80"
+  HIERO_MIRROR_PINGER_REST: "http://{{ .Release.Name }}-restjava:80"
 
 fullnameOverride: ""
 
@@ -38,7 +38,7 @@ labels: {}
 livenessProbe:
   exec:
     command: ["/healthcheck", "live"]
-  initialDelaySeconds: 30
+  initialDelaySeconds: 5
   periodSeconds: 10
   timeoutSeconds: 2
   failureThreshold: 5
@@ -61,7 +61,7 @@ readinessProbe:
   exec:
     command: ["/healthcheck", "ready"]
   initialDelaySeconds: 5
-  periodSeconds: 5
+  periodSeconds: 10
   timeoutSeconds: 2
   failureThreshold: 5
 

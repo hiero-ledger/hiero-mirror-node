@@ -43,6 +43,7 @@ hiero:
 logging:
   level:
     root: warn
+    org.hiero.mirror.common: info
     org.hiero.mirror.importer: info
     org.flywaydb.core.internal.command.DbMigrate: info
     #org.hibernate.type.descriptor.sql.BasicBinder: trace
