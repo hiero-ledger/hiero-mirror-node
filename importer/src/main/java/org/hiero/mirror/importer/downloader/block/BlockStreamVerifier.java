@@ -12,6 +12,7 @@ import jakarta.inject.Named;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.commons.io.FilenameUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.StreamType;
@@ -26,6 +27,7 @@ import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
 import org.jspecify.annotations.NullMarked;
 
+@CustomLog
 @Named
 @NullMarked
 final class BlockStreamVerifier {
@@ -40,6 +42,8 @@ final class BlockStreamVerifier {
     private final MeterProvider<Timer> streamVerificationMeterProvider;
     private final MeterProvider<Timer> streamLatencyMeterProvider;
     private final Timer streamCloseMetric;
+
+    private boolean logTssSignatureSize = true;
 
     public BlockStreamVerifier(
             final BlockFileTransformer blockFileTransformer,
@@ -169,6 +173,16 @@ final class BlockStreamVerifier {
                 ? blockProof.getSignedBlockProof()
                 : blockProof.getBlockStateProof().getSignedBlockProof();
         final byte[] signature = toBytes(tssSignedBlockProof.getBlockSignature());
+
+        if (logTssSignatureSize) {
+            log.info(
+                    "{} TSS signature size for block {} is {}",
+                    blockProof.hasSignedBlockProof() ? "BlockProof" : "StateProof",
+                    blockFile.getIndex(),
+                    signature.length);
+            logTssSignatureSize = false;
+        }
+
         tssVerifier.verify(blockFile.getIndex(), hash, signature);
     }
 
