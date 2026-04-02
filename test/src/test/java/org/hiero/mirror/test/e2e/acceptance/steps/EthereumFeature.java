@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Objects;
-import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.rest.model.ContractResult;
@@ -39,7 +38,6 @@ import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.http.HttpStatus;
 import org.web3j.crypto.transaction.type.TransactionType;
 
-@CustomLog
 @RequiredArgsConstructor
 public class EthereumFeature extends AbstractEstimateFeature {
 

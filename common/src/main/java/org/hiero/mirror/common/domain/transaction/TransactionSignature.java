@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.IdClass;
 import java.io.Serializable;
@@ -12,6 +13,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 
@@ -26,6 +28,8 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
     @jakarta.persistence.Id
     private long consensusTimestamp;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId entityId;
 
     @jakarta.persistence.Id

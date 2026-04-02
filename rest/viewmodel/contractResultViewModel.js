@@ -2,6 +2,7 @@
 
 import isEmpty from 'lodash/isEmpty';
 import toArray from 'lodash/toArray';
+import config from '../config';
 import EntityId from '../entityId';
 import {nsToSecNs, toHexString} from '../utils';
 import {proto} from '@hiero-ledger/proto';
@@ -24,6 +25,9 @@ class ContractResultViewModel {
       ? toHexString(contractResult.evmAddress, true)
       : contractId.toEvmAddress();
     this.amount = contractResult.amount;
+    if (config.response.enableDelegationAddress && !isEmpty(contractResult.authorizationList)) {
+      this.authorization_list = contractResult.authorizationList || [];
+    }
     this.bloom = this.#encodeBloom(contractResult.bloom);
     this.call_result = toHexString(contractResult.callResult, true);
     this.contract_id = contractId.toString();

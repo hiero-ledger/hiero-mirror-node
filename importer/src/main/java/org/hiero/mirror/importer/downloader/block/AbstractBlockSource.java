@@ -42,7 +42,13 @@ abstract class AbstractBlockSource implements BlockSource {
         var blockFile = blockStreamReader.read(blockStream);
         if (!properties.isPersistBytes()) {
             blockFile.setBytes(null);
+
+            final var recordFile = blockFile.getRecordFile();
+            if (recordFile != null) {
+                recordFile.setBytes(null);
+            }
         }
+
         blockFile.setNode(blockNodeEndpoint);
         blockStreamVerifier.verify(blockFile);
         return blockFile;

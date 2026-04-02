@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
@@ -39,7 +38,6 @@ import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 
-@CustomLog
 @RequiredArgsConstructor
 public class ERCContractFeature extends AbstractFeature {
 

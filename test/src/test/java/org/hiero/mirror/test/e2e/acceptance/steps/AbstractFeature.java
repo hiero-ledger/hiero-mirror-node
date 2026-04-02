@@ -18,7 +18,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ContractCallRequest;
@@ -35,15 +34,20 @@ import org.hiero.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.hiero.mirror.test.e2e.acceptance.util.ContractCallResponseWrapper;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.http.HttpStatus;
 
-@CustomLog
 public abstract class AbstractFeature extends EncoderDecoderFacade {
+
     private static final Map<ContractResource, DeployedContract> contractIdMap = new ConcurrentHashMap<>();
-    protected NetworkTransactionResponse networkTransactionResponse;
+
+    protected final Logger log = LoggerFactory.getLogger(getClass());
+
     protected ContractId contractId;
+    protected NetworkTransactionResponse networkTransactionResponse;
 
     @Autowired
     protected ContractClient contractClient;

@@ -4,6 +4,8 @@ package org.hiero.mirror.importer.reader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.EXPECTED_RECORD_FILES;
+import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.readWrappedRecordBlocks;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.input.protoc.EventHeader;
@@ -16,7 +18,6 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.Block;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
-import com.hedera.hapi.block.stream.protoc.RecordFileItem;
 import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
 import com.hedera.hapi.platform.event.legacy.StateSignatureTransaction;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
@@ -27,9 +28,11 @@ import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.assertj.core.util.Lists;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
@@ -37,10 +40,13 @@ import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.hiero.mirror.importer.reader.block.record.CompositeRecordFileItemReader;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -64,6 +70,9 @@ public final class BlockStreamReaderTest {
                     .rawHash(
                             Hex.decode(
                                     "8b98440b3fa8b13d9d7f82e92ceb246c9707cf6c11ba38997385e7ea1097f06d752736753fe40b9ff06096211a11066a"))
+                    .rawPreviousHash(
+                            Hex.decode(
+                                    "e11e44567f5ca4ae23b75467b75d83c8880d0888f5c4154f08b8f221bf269b2e4f3f1686e8dcb9694beaaf287313b0fb"))
                     .roundStart(179L)
                     .roundEnd(213L)
                     .version(BlockStreamReader.VERSION)
@@ -82,6 +91,9 @@ public final class BlockStreamReaderTest {
                     .rawHash(
                             Hex.decode(
                                     "78ef36dc7c7cb57cfb212966b768a0fbc9b0f5045574c6b3bfa0cccdcef9401b7edda1cf05ada60dedd7e0b435e0d81d"))
+                    .rawPreviousHash(
+                            Hex.decode(
+                                    "8b98440b3fa8b13d9d7f82e92ceb246c9707cf6c11ba38997385e7ea1097f06d752736753fe40b9ff06096211a11066a"))
                     .roundStart(214L)
                     .roundEnd(248L)
                     .version(BlockStreamReader.VERSION)
@@ -100,12 +112,21 @@ public final class BlockStreamReaderTest {
                     .rawHash(
                             Hex.decode(
                                     "c61a2439f0754008932fe10155ce2c61b32457d6ec30e632a71eafeeef44b1df64b1cfd966c6325c0c5766431f5441f9"))
+                    .rawPreviousHash(
+                            Hex.decode(
+                                    "449c52f8efe0e284aac3a0961efb2403a7337a0fc519c1b5231a07ce6d3eae9e9b9d8809782202a5fd40048ddd533098"))
                     .roundStart(493L)
                     .roundEnd(527L)
                     .version(BlockStreamReader.VERSION)
                     .build());
 
-    private final BlockStreamReader reader = new BlockStreamReaderImpl();
+    private static final RecursiveComparisonConfiguration RECORD_FILE_COMPARISON_CONFIG =
+            RecursiveComparisonConfiguration.builder()
+                    .withIgnoredFields(
+                            "bytes", "loadStart", "items", "previousWrappedRecordBlockHash", "wrappedRecordBlockHash")
+                    .build();
+
+    private final BlockStreamReader reader = new BlockStreamReaderImpl(new CompositeRecordFileItemReader());
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
 
     @ParameterizedTest(name = "{0}")
@@ -130,29 +151,31 @@ public final class BlockStreamReaderTest {
                 .containsExactlyElementsOf(expectedPreviousItems);
     }
 
-    @Test
-    void readRecordFileItem() {
+    @ParameterizedTest(name = "{1}")
+    @MethodSource("readWrappedRecordBlocksArgumentsProvider")
+    void readWrappedRecordBlock(final Block block, final long blockNumber, final RecordFile expectedRecordFile) {
         // given
-        var block = Block.newBuilder()
-                .addItems(BlockItem.newBuilder()
-                        .setRecordFile(RecordFileItem.getDefaultInstance())
-                        .build())
-                .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
-        var expected = BlockFile.builder()
-                .bytes(blockStream.bytes())
-                .loadStart(blockStream.loadStart())
-                .name(blockStream.filename())
-                .recordFileItem(RecordFileItem.getDefaultInstance())
-                .size(blockStream.bytes().length)
-                .version(BlockStreamReader.VERSION)
-                .build();
+        final var blockStream = createBlockStream(block, null, BlockFile.getFilename(blockNumber, true));
+        final byte[] bytes = Objects.requireNonNull(blockStream.bytes());
+        final long loadStart = blockStream.loadStart();
 
         // when
-        var actual = reader.read(blockStream);
+        final var blockFile = reader.read(blockStream);
 
         // then
-        assertThat(actual).isEqualTo(expected);
+        assertThat(blockFile)
+                .returns(bytes, BlockFile::getBytes)
+                .returns(loadStart, BlockFile::getLoadStart)
+                .returns(bytes.length, BlockFile::getSize)
+                .returns(BlockStreamReader.VERSION, BlockFile::getVersion)
+                .satisfies(b -> assertThat(b.getHash()).isNotNull(), b -> assertThat(b.getPreviousHash())
+                        .isNotNull())
+                .extracting(BlockFile::getRecordFile)
+                .returns(loadStart, RecordFile::getLoadStart)
+                .returns(blockFile.getRawPreviousHash(), RecordFile::getPreviousWrappedRecordBlockHash)
+                .returns(blockFile.getRawHash(), RecordFile::getWrappedRecordBlockHash)
+                .usingRecursiveComparison(RECORD_FILE_COMPARISON_CONFIG)
+                .isEqualTo(expectedRecordFile);
     }
 
     @Test
@@ -790,7 +813,7 @@ public final class BlockStreamReaderTest {
         return BlockItem.newBuilder().setTransactionResult(transactionResult).build();
     }
 
-    private static BlockStream createBlockStream(Block block, byte[] bytes, String filename) {
+    private static BlockStream createBlockStream(Block block, byte @Nullable [] bytes, String filename) {
         if (bytes == null) {
             bytes = TestUtils.zstd(block.toByteArray());
         }
@@ -801,7 +824,7 @@ public final class BlockStreamReaderTest {
     @SneakyThrows
     private static Block getBlock(StreamFileData blockFileData) {
         try (var is = blockFileData.getInputStream()) {
-            return Block.parseFrom(is.readAllBytes());
+            return Block.parseFrom(is);
         }
     }
 
@@ -817,6 +840,13 @@ public final class BlockStreamReaderTest {
             blockFile.setLoadStart(blockStream.loadStart());
             blockFile.setSize(bytes.length);
             return Arguments.of(blockStream, blockFile);
+        });
+    }
+
+    private static Stream<Arguments> readWrappedRecordBlocksArgumentsProvider() {
+        return readWrappedRecordBlocks().stream().map(block -> {
+            final long blockNumber = block.getItems(0).getBlockHeader().getNumber();
+            return Arguments.of(block, blockNumber, EXPECTED_RECORD_FILES.get(blockNumber));
         });
     }
 }

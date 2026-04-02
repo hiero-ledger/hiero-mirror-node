@@ -72,6 +72,8 @@ management:
 server:
   shutdown: graceful
 spring:
+  aot:
+    enabled: true
   application:
     name: importer
   datasource:

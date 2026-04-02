@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 class JdbcTemplateConfiguration {
 
     @Bean

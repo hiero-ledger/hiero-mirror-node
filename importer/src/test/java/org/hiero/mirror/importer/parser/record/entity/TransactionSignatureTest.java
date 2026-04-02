@@ -40,6 +40,7 @@ import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.CommonParserProperties;
 import org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogService;
 import org.hiero.mirror.importer.parser.contractresult.SyntheticContractResultService;
+import org.hiero.mirror.importer.parser.record.RecordParserProperties;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
 import org.hiero.mirror.importer.repository.FileDataRepository;
@@ -103,9 +104,10 @@ class TransactionSignatureTest {
 
     @BeforeEach
     void setup() {
-        CommonParserProperties commonParserProperties = new CommonParserProperties();
-        EntityProperties entityProperties = new EntityProperties(new SystemEntity(commonProperties));
-        TransferEventsGenerator transferEventsGenerator = new TransferEventsGenerator(syntheticContractLogService);
+        final var commonParserProperties = new CommonParserProperties();
+        final var entityProperties = new EntityProperties(new SystemEntity(commonProperties));
+        final var transferEventsGenerator = new TransferEventsGenerator(syntheticContractLogService);
+        final var recordParserProperties = new RecordParserProperties();
         entityRecordItemListener = new EntityRecordItemListener(
                 commonParserProperties,
                 contractResultService,
@@ -115,7 +117,8 @@ class TransactionSignatureTest {
                 transactionHandlerFactory,
                 syntheticContractLogService,
                 syntheticContractResultService,
-                transferEventsGenerator);
+                transferEventsGenerator,
+                recordParserProperties);
         defaultSignatureMap = getDefaultSignatureMap();
         defaultTransactionSignatures = defaultSignatureMap.getSigPairList().stream()
                 .map(pair -> {

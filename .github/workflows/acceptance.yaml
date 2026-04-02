@@ -39,22 +39,22 @@ jobs:
       matrix:
         stream-type:
           - RECORD
-          - BLOCK
+    #          - BLOCK # Enable when TSS issue gets resolved with CN 0.73.x and / or solo
     timeout-minutes: 50
     env:
-      BLOCK_NODE_CHART_VERSION: v0.28.0
-      CONSENSUS_VERSION: v0.72.0-rc.1
+      BLOCK_NODE_CHART_VERSION: v0.31.0-rc1
+      CONSENSUS_VERSION: v0.73.0-rc.1
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      SOLO_VERSION: v0.59.1
+      SOLO_VERSION: v0.65.0
     permissions:
       pull-requests: read
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
         with:
           egress-policy: audit
 
@@ -143,6 +143,12 @@ jobs:
       - name: Setup Gradle
         if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs.changes != '[]'
         uses: gradle/actions/setup-gradle@39e147cb9de83bb9910b8ef8bd7fff0ee20fcd6f # v4
+
+      - name: Login to Docker Hub
+        uses: step-security/docker-login-action@6aa05fe688caf2c58e784663f01b3415ced503e8 # v3.7.0
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build images
         if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs.changes != '[]'

@@ -55,13 +55,13 @@ import org.hiero.mirror.importer.parser.contractlog.TransferIndexedContractLog;
 import org.hiero.mirror.importer.parser.contractresult.SyntheticContractResultService;
 import org.hiero.mirror.importer.parser.contractresult.TransferContractResult;
 import org.hiero.mirror.importer.parser.record.RecordItemListener;
+import org.hiero.mirror.importer.parser.record.RecordParserProperties;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
 import org.hiero.mirror.importer.util.Utility;
 
 @CustomLog
 @Named
-@ConditionOnEntityRecordParser
 @RequiredArgsConstructor
 public class EntityRecordItemListener implements RecordItemListener {
 
@@ -74,9 +74,14 @@ public class EntityRecordItemListener implements RecordItemListener {
     private final SyntheticContractLogService syntheticContractLogService;
     private final SyntheticContractResultService syntheticContractResultService;
     private final TransferEventsGenerator transferEventsGenerator;
+    private final RecordParserProperties parserProperties;
 
     @Override
     public void onItem(final RecordItem recordItem) throws ImporterException {
+        if (!parserProperties.isEnabled()) {
+            return;
+        }
+
         final var persistProperties = entityProperties.getPersist();
         recordItem.setEntityTransactionPredicate(persistProperties::shouldPersistEntityTransaction);
         recordItem.setEntityNftTransactionPredicate(persistProperties::shouldPersistEntityNftTransaction);

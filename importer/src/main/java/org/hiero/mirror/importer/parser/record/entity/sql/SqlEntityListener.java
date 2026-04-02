@@ -60,8 +60,8 @@ import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.exception.ImporterException;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.batch.BatchPersister;
+import org.hiero.mirror.importer.parser.record.RecordParserProperties;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
-import org.hiero.mirror.importer.parser.record.entity.ConditionOnEntityRecordParser;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
@@ -74,7 +74,6 @@ import org.springframework.util.CollectionUtils;
 @CustomLog
 @Named
 @Order(3)
-@ConditionOnEntityRecordParser
 @RequiredArgsConstructor
 public class SqlEntityListener implements EntityListener, RecordStreamFileListener {
 
@@ -87,15 +86,18 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     private final NftRepository nftRepository;
     private final TokenAccountRepository tokenAccountRepository;
     private final SqlProperties sqlProperties;
+    private final RecordParserProperties parserProperties;
 
     @Override
     public boolean isEnabled() {
-        return sqlProperties.isEnabled();
+        return sqlProperties.isEnabled() && parserProperties.isEnabled();
     }
 
     @Override
     public void onEnd(RecordFile recordFile) {
-        flush();
+        if (isEnabled()) {
+            flush();
+        }
     }
 
     @Override

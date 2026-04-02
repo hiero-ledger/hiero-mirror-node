@@ -4,9 +4,7 @@ package org.hiero.mirror.importer.reader.block.hash;
 
 import java.security.MessageDigest;
 import lombok.experimental.UtilityClass;
-import org.jspecify.annotations.NullMarked;
 
-@NullMarked
 @UtilityClass
 final class HashUtils {
 

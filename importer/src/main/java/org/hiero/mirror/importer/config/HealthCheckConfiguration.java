@@ -14,7 +14,7 @@ import org.springframework.boot.health.contributor.CompositeHealthContributor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @RequiredArgsConstructor
 class HealthCheckConfiguration {
     private final ImporterProperties importerProperties;
