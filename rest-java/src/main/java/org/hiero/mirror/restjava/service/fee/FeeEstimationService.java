@@ -21,7 +21,6 @@ import com.hedera.node.app.workflows.standalone.ExecutorComponent;
 import com.hedera.node.config.types.StreamMode;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import java.util.Objects;
 import java.util.Set;
@@ -49,9 +48,7 @@ public class FeeEstimationService {
     private final FeeTopicStore feeTopicStore;
     private final FeeTokenStore feeTokenStore;
     private final AtomicLong lastFeeScheduleTimestamp;
-
-    @SuppressWarnings("NullAway")
-    private FeeManager feeManager;
+    private final FeeManager feeManager;
 
     public FeeEstimationService(
             final FeeEstimationState feeEstimationState,
@@ -74,12 +71,8 @@ public class FeeEstimationService {
                 Set.of(),
                 new AppEntityIdFactory(config));
         executor.stateNetworkInfo().initFrom(feeEstimationState);
-    }
-
-    @PostConstruct
-    public void init() {
         executor.initializer().initialize(feeEstimationState, StreamMode.BOTH);
-        this.feeManager = executor.feeManager();
+        this.feeManager = Objects.requireNonNull(executor.feeManager());
     }
 
     @Async

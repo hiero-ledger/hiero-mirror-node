@@ -98,14 +98,12 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 
     # contract — ContractCall fees are paid in gas; CN calculator clears all hbar fees
     CONTRACTCALL            , BOTH     , 0
-    CONTRACTCREATEINSTANCE  , INTRINSIC, 20000000000
-    CONTRACTCREATEINSTANCE  , STATE    , throws
+    CONTRACTCREATEINSTANCE  , BOTH     , 20000000000
     CONTRACTDELETEINSTANCE  , BOTH     , 70000000
     CONTRACTUPDATEINSTANCE  , BOTH     , 20260000000
 
     # crypto
-    CRYPTOCREATEACCOUNT     , INTRINSIC, 10500000000
-    CRYPTOCREATEACCOUNT     , STATE    , throws
+    CRYPTOCREATEACCOUNT     , BOTH     , 10500000000
     CRYPTODELETE            , BOTH     , 50000000
     CRYPTOTRANSFER          , BOTH     , 1000000
     CRYPTOUPDATEACCOUNT     , BOTH     , 20002200000
@@ -115,8 +113,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 
     # file
     FILEAPPEND              , BOTH     , 500000000
-    FILECREATE              , INTRINSIC, 500000000
-    FILECREATE              , STATE    , throws
+    FILECREATE              , BOTH     , 500000000
     FILEDELETE              , BOTH     , 70000000
     FILEUPDATE              , BOTH     , 500000000
 
@@ -126,16 +123,14 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     SCHEDULESIGN            , BOTH     , 10000000
 
     # token
-    TOKENASSOCIATE          , INTRINSIC, 500000000
-    TOKENASSOCIATE          , STATE    , throws
+    TOKENASSOCIATE          , BOTH     , 500000000
     TOKENBURN               , BOTH     , 10000000
     TOKENCREATION           , BOTH     , 20700000000
     TOKENDELETION           , BOTH     , 10000000
     TOKENDISSOCIATE         , BOTH     , 500000000
     TOKENFREEZE             , BOTH     , 10000000
     TOKENGRANTKYC           , BOTH     , 10000000
-    TOKENMINT               , INTRINSIC, 400000000
-    TOKENMINT               , STATE    , throws
+    TOKENMINT               , BOTH     , 400000000
     TOKENPAUSE              , BOTH     , 10000000
     TOKENREVOKEKYC          , BOTH     , 10000000
     TOKENUNFREEZE           , BOTH     , 10000000
@@ -146,22 +141,16 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     # util
     UTILPRNG                , BOTH     , 10000000
     """)
-    void estimatesFeeByTransactionType(TransactionType type, TestMode mode, String expected) {
+    void estimatesFeeByTransactionType(TransactionType type, TestMode mode, long expected) {
         final var pbjTransaction =
                 toPbj(recordItemBuilder.lookup(type).get().build().getTransaction());
         final var modes = mode == TestMode.BOTH
                 ? List.of(FeeEstimateMode.INTRINSIC, FeeEstimateMode.STATE)
                 : List.of(mode == TestMode.STATE ? FeeEstimateMode.STATE : FeeEstimateMode.INTRINSIC);
         for (final var m : modes) {
-            if ("throws".equals(expected)) {
-                assertThatThrownBy(() -> service.estimateFees(pbjTransaction, m))
-                        .as("Fee for %s in %s mode", type, m)
-                        .isInstanceOf(UnsupportedOperationException.class);
-            } else {
-                assertThat(service.estimateFees(pbjTransaction, m).totalTinycents())
-                        .as("Fee for %s in %s mode", type, m)
-                        .isEqualTo(Long.parseLong(expected));
-            }
+            assertThat(service.estimateFees(pbjTransaction, m).totalTinycents())
+                    .as("Fee for %s in %s mode", type, m)
+                    .isEqualTo(expected);
         }
     }
 
@@ -245,10 +234,10 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 
     @Test
     void loadsSimpleFeeScheduleFromDatabase() {
-        // given — construct a fresh service so that it loads from the DB (seeded in @BeforeEach)
+        // given — construct a fresh service and load the fee schedule seeded in @BeforeEach
         final var freshService = new FeeEstimationService(
                 feeEstimationState, fileDataRepository, systemEntity, feeTopicStore, feeTokenStore);
-        freshService.init();
+        freshService.refreshStateCalculator();
 
         // when
         final var result = freshService.estimateFees(cryptoTransfer(0), FeeEstimateMode.INTRINSIC);
@@ -424,17 +413,27 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                 continue;
             }
             final var txn = toPbj(supplier.get().build().getTransaction());
-            for (final var mode : FeeEstimateMode.values()) {
-                try {
-                    assertThat(service.estimateFees(txn, mode).totalTinycents())
-                            .as("%s fee for %s", mode, type)
-                            .isGreaterThanOrEqualTo(0);
-                } catch (IllegalArgumentException e) {
-                    // not-yet-supported transaction types.
-                    assertThat(e).hasMessageContaining("Unknown transaction type");
-                } catch (UnsupportedOperationException e) {
-                    // STATE mode may request a store not implemented in FeeEstimationFeeContext — acceptable.
-                }
+
+            // INTRINSIC mode produces a valid fee for all fully-supported transaction types.
+            try {
+                assertThat(service.estimateFees(txn, FeeEstimateMode.INTRINSIC).totalTinycents())
+                        .as("INTRINSIC fee for %s", type)
+                        .isGreaterThanOrEqualTo(0);
+            } catch (IllegalArgumentException e) {
+                assertThat(e).hasMessageContaining("Unknown transaction type");
+            }
+
+            // STATE mode may additionally throw for types whose congestion multiplier reads stores
+            // not backed by mirror state (accounts, contracts, files, NFTs, token relations).
+            // Pending upstream fix in CN's UtilizationScaledThrottleMultiplier to null-check stores.
+            try {
+                assertThat(service.estimateFees(txn, FeeEstimateMode.STATE).totalTinycents())
+                        .as("STATE fee for %s", type)
+                        .isGreaterThanOrEqualTo(0);
+            } catch (UnsupportedOperationException e) {
+                assertThat(e).hasMessageContaining("Store not supported:");
+            } catch (IllegalArgumentException e) {
+                assertThat(e).hasMessageContaining("Unknown transaction type");
             }
         }
     }
