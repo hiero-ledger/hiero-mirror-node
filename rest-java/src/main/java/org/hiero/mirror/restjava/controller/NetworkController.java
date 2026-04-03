@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.hiero.hapi.fees.FeeResult;
+import org.hiero.hapi.fees.HighVolumePricingCalculator;
 import org.hiero.mirror.rest.model.FeeEstimate;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.rest.model.FeeEstimateNetwork;
@@ -165,7 +166,9 @@ final class NetworkController {
                 .service(new FeeEstimate()
                         .base(feeResult.getServiceBaseFeeTinycents())
                         .extras(toExtras(feeResult.getServiceExtraDetails())))
-                .total(feeResult.totalTinycents());
+                .total(feeResult.totalTinycents())
+                .highVolumeMultiplier(
+                        feeResult.getHighVolumeMultiplier() / HighVolumePricingCalculator.HIGH_VOLUME_MULTIPLIER_SCALE);
     }
 
     private static List<FeeExtra> toExtras(List<FeeResult.FeeDetail> details) {
