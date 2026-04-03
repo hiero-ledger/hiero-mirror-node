@@ -20,8 +20,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
+import org.hiero.hapi.fees.HighVolumePricingCalculator;
 import org.hiero.hapi.support.fees.Extra;
 import org.hiero.hapi.support.fees.FeeSchedule;
+import org.hiero.hapi.support.fees.VariableRateDefinition;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -157,6 +159,10 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         assertThat(result.getNetworkMultiplier()).isEqualTo(NETWORK_MULTIPLIER);
         assertThat(result.getServiceBaseFeeTinycents()).isZero(); // CryptoTransfer has no service fee
         assertThat(result.totalTinycents()).isEqualTo(NODE_PORTION);
+        assertThat(result.getHighVolumeMultiplier())
+                .isEqualTo(
+                        HighVolumePricingCalculator
+                                .DEFAULT_HIGH_VOLUME_MULTIPLIER); // no high-volume rates configured for CryptoTransfer
     }
 
     @Test
@@ -496,6 +502,29 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
+    void highVolumeMultiplierReturnedFromConfiguredFeeSchedule() {
+        // given
+        final int customMaxRaw = 100_000;
+        domainBuilder
+                .fileData()
+                .customize(f -> f.entityId(systemEntity.simpleFeeScheduleFile())
+                        .fileData(buildFeeScheduleWithHighVolumeRates(
+                                HederaFunctionality.CONSENSUS_SUBMIT_MESSAGE, customMaxRaw))
+                        .transactionType(TransactionType.FILECREATE.getProtoId()))
+                .persist();
+        service.refreshStateCalculator();
+
+        // when
+        final var txn = toPbj(recordItemBuilder.consensusSubmitMessage().build().getTransaction());
+
+        // then
+        assertThat(service.estimateFees(txn, FeeEstimateMode.INTRINSIC).getHighVolumeMultiplier())
+                .isEqualTo(customMaxRaw);
+        assertThat(service.estimateFees(txn, FeeEstimateMode.STATE).getHighVolumeMultiplier())
+                .isEqualTo(customMaxRaw);
+    }
+
+    @Test
     void consensusSubmitMessage() {
         // given
         final var result = service.estimateFees(
@@ -545,6 +574,26 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                                         .map(def -> def.name() == func
                                                 ? def.copyBuilder()
                                                         .baseFee(baseFee)
+                                                        .build()
+                                                : def)
+                                        .toList())
+                                .build())
+                        .toList())
+                .build();
+        return FeeSchedule.PROTOBUF.toBytes(modified).toByteArray();
+    }
+
+    private static byte[] buildFeeScheduleWithHighVolumeRates(HederaFunctionality func, int maxMultiplier) {
+        final var modified = FEE_SCHEDULE
+                .copyBuilder()
+                .services(FEE_SCHEDULE.services().stream()
+                        .map(svc -> svc.copyBuilder()
+                                .schedule(svc.schedule().stream()
+                                        .map(def -> def.name() == func
+                                                ? def.copyBuilder()
+                                                        .highVolumeRates(VariableRateDefinition.newBuilder()
+                                                                .maxMultiplier(maxMultiplier)
+                                                                .build())
                                                         .build()
                                                 : def)
                                         .toList())

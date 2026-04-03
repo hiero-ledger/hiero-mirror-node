@@ -3448,6 +3448,12 @@ components:
     FeeEstimateResponse:
       description: The response containing the estimated transaction fees.
       properties:
+        high_volume_multiplier:
+          description: The maximum multiplier that may be applied to fees for high-volume transactions per HIP-1313. Multiply the fee total by this value to estimate the worst-case fee under high-volume pricing. A value of 1 indicates the transaction type is not subject to high-volume pricing.
+          example: 100
+          format: int64
+          minimum: 1
+          type: integer
         network:
           $ref: "#/components/schemas/FeeEstimateNetwork"
         node:
@@ -3465,6 +3471,7 @@ components:
           minimum: 0
           type: integer
       required:
+        - high_volume_multiplier
         - network
         - node
         - service
