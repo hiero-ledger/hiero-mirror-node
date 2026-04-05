@@ -2,7 +2,7 @@ module pinger
 
 go 1.26
 
-require github.com/hiero-ledger/hiero-sdk-go/v2 v2.76.0
+require github.com/hiero-ledger/hiero-sdk-go/v2 v2.77.0
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.6 // indirect
@@ -14,7 +14,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/rs/zerolog v1.34.0 // indirect
+	github.com/rs/zerolog v1.35.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	golang.org/x/crypto v0.49.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
