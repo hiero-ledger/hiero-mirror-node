@@ -10,9 +10,9 @@ require (
 	github.com/go-playground/validator/v10 v10.30.2
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/hellofresh/health-go/v4 v4.7.0
-	github.com/hiero-ledger/hiero-sdk-go/v2 v2.76.0
+	github.com/hiero-ledger/hiero-sdk-go/v2 v2.77.0
 	github.com/jackc/pgtype v1.14.4
-	github.com/lib/pq v1.12.1
+	github.com/lib/pq v1.12.3
 	github.com/onrik/gorm-logrus v0.5.0
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/pkg/errors v0.9.1
@@ -99,7 +99,7 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
-	github.com/rs/zerolog v1.34.0 // indirect
+	github.com/rs/zerolog v1.35.0 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
