@@ -16,11 +16,7 @@ class TransactionIdViewModel {
     if (transactionId?.$typeName === 'proto.TransactionID') {
       const {accountID, transactionValidStart, nonce, scheduled} = transactionId;
       const acc = accountID?.account;
-      this.account_id = EntityId.of(
-        accountID.shardNum,
-        accountID.realmNum,
-        acc?.case === 'accountNum' ? acc.value : 0
-      ).toString();
+      this.account_id = EntityId.of(accountID.shardNum, accountID.realmNum, acc.value).toString();
       this.nonce = nonce;
       this.scheduled = scheduled;
       this.transaction_valid_start = `${transactionValidStart.seconds}.${String(transactionValidStart.nanos).padStart(

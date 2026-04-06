@@ -12,7 +12,7 @@ import {getMirrorConfig} from '../config';
 import * as constants from '../constants';
 import EntityId from '../entityId';
 import {valueToBuffer} from './testutils';
-import {parseToBigInt, JSONStringify} from '../utils';
+import {parseInteger, JSONStringify} from '../utils';
 import {encodedIdFromSpecValue} from './integrationUtils';
 
 const config = getMirrorConfig();
@@ -27,9 +27,9 @@ const DEFAULT_SENDER_ID = 101;
 const encodeCustomFeeLimitPayload = (fee) => {
   const acc = fee.accountId;
   const accountId = create(AccountIDSchema, {
-    shardNum: parseToBigInt(acc.shardNum),
-    realmNum: parseToBigInt(acc.realmNum),
-    account: {case: 'accountNum', value: parseToBigInt(acc.accountNum)},
+    shardNum: parseInteger(acc.shardNum),
+    realmNum: parseInteger(acc.realmNum),
+    account: {case: 'accountNum', value: parseInteger(acc.accountNum)},
   });
   const fees = (fee.fees ?? []).map((f) => {
     const tid = f.denominatingTokenId;
@@ -39,12 +39,12 @@ const encodeCustomFeeLimitPayload = (fee) => {
       Object.keys(tid).length > 0 &&
       (tid.tokenNum != null || tid.shardNum != null || tid.realmNum != null);
     return create(FixedFeeSchema, {
-      amount: parseToBigInt(f.amount),
+      amount: parseInteger(f.amount),
       denominatingTokenId: hasToken
         ? create(TokenIDSchema, {
-            shardNum: parseToBigInt(tid.shardNum),
-            realmNum: parseToBigInt(tid.realmNum),
-            tokenNum: parseToBigInt(tid.tokenNum ?? 0),
+            shardNum: parseInteger(tid.shardNum),
+            realmNum: parseInteger(tid.realmNum),
+            tokenNum: parseInteger(tid.tokenNum ?? 0),
           })
         : undefined,
     });
@@ -1425,12 +1425,12 @@ const addTopicMessage = async (message) => {
   message.initial_transaction_id = valueToBuffer(message.initial_transaction_id);
   if (message.initial_transaction_id) {
     const initialBuf = valueToBuffer(message.initial_transaction_id);
-    const initialTransactionIdProto = fromBinary(TransactionIDSchema, new Uint8Array(initialBuf));
+    const initialTransactionIdProto = fromBinary(TransactionIDSchema, initialBuf);
     const prevAccount = initialTransactionIdProto.accountID;
     const accountNum = prevAccount?.account?.case === 'accountNum' ? prevAccount.account.value : 0n;
     initialTransactionIdProto.accountID = create(AccountIDSchema, {
-      shardNum: parseToBigInt(config.common.shard),
-      realmNum: parseToBigInt(config.common.realm),
+      shardNum: parseInteger(config.common.shard),
+      realmNum: parseInteger(config.common.realm),
       account: {case: 'accountNum', value: accountNum},
     });
     message.initial_transaction_id = Buffer.from(toBinary(TransactionIDSchema, initialTransactionIdProto));

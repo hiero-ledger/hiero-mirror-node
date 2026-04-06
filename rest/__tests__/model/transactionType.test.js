@@ -5,7 +5,7 @@ import {TransactionType} from '../../model';
 import {InvalidArgumentError} from '../../errors';
 
 /** Bump when new HederaFunctionality values are added in generated protos. */
-const expectedHederaFunctionalityNumericCount = 99;
+const expectedHederaFunctionalityNumericCount = 98;
 const cryptoCreateAccountProtoId = 11;
 const unknownProtoId = 9999999;
 

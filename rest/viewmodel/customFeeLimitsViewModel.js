@@ -35,7 +35,7 @@ class CustomFeeLimitsViewModel {
     }
 
     const num = tokenId.tokenNum;
-    if (num === 0n || num === 0) {
+    if (num === 0) {
       return null;
     }
 

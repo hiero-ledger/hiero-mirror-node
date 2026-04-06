@@ -13,7 +13,7 @@ class ExchangeRate {
     let exchangeRateSet;
 
     try {
-      exchangeRateSet = fromBinary(ExchangeRateSetSchema, new Uint8Array(exchangeRate.file_data));
+      exchangeRateSet = fromBinary(ExchangeRateSetSchema, exchangeRate.file_data);
     } catch (error) {
       throw new FileDecodeError(error.message);
     }

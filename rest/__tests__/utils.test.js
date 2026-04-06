@@ -16,11 +16,11 @@ import EntityId from '../entityId';
 
 const ecdsaKey = '02b5ffadf88d625cd9074fa01e5280b773a60ed2de55b0d6f94460c0b5a001a258';
 const ecdsaProtoKey = create(KeySchema, {
-  key: {case: 'ECDSASecp256k1', value: new Uint8Array(Buffer.from(ecdsaKey, 'hex'))},
+  key: {case: 'ECDSASecp256k1', value: Buffer.from(ecdsaKey, 'hex')},
 });
 const ed25519Key = '7a3c5477bdf4a63742647d7cfc4544acc1899d07141caf4cd9fea2f75b28a5cc';
 const ed25519ProtoKey = create(KeySchema, {
-  key: {case: 'ed25519', value: new Uint8Array(Buffer.from(ed25519Key, 'hex'))},
+  key: {case: 'ed25519', value: Buffer.from(ed25519Key, 'hex')},
 });
 const ed25519Der = `302a300506032b6570032100${ed25519Key}`;
 const responseLimit = config.response.limit;

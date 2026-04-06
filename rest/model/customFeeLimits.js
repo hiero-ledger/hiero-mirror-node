@@ -14,7 +14,7 @@ class CustomFeeLimits {
       return;
     }
 
-    this.fees = customFeeLimits.map((feeBytes) => fromBinary(CustomFeeLimitSchema, new Uint8Array(feeBytes)));
+    this.fees = customFeeLimits.map((feeBytes) => fromBinary(CustomFeeLimitSchema, feeBytes));
   }
 }
 

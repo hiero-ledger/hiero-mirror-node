@@ -38,7 +38,7 @@ class ChunkInfoViewModel {
   constructor(topicMessage) {
     let initialTransactionId;
     if (!isNil(topicMessage.initialTransactionId)) {
-      initialTransactionId = fromBinary(TransactionIDSchema, new Uint8Array(topicMessage.initialTransactionId));
+      initialTransactionId = fromBinary(TransactionIDSchema, topicMessage.initialTransactionId);
     } else {
       initialTransactionId = new TransactionId(
         topicMessage.payerAccountId,

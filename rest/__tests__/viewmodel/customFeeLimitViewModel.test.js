@@ -15,16 +15,12 @@ describe('CustomFeeLimitViewModel', () => {
           CustomFeeLimitSchema,
           create(CustomFeeLimitSchema, {
             accountId: create(AccountIDSchema, {
-              shardNum: 0n,
-              realmNum: 0n,
               account: {case: 'accountNum', value: 8n},
             }),
             fees: [
               create(FixedFeeSchema, {
                 amount: 1000n,
                 denominatingTokenId: create(TokenIDSchema, {
-                  shardNum: 0n,
-                  realmNum: 0n,
                   tokenNum: 3001n,
                 }),
               }),
@@ -38,8 +34,6 @@ describe('CustomFeeLimitViewModel', () => {
           CustomFeeLimitSchema,
           create(CustomFeeLimitSchema, {
             accountId: create(AccountIDSchema, {
-              shardNum: 0n,
-              realmNum: 0n,
               account: {case: 'accountNum', value: 9n},
             }),
             fees: [create(FixedFeeSchema, {amount: 500n})],

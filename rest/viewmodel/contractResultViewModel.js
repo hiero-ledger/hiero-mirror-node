@@ -54,7 +54,7 @@ class ContractResultViewModel {
   #extractSenderFromFunctionResult(contractResult) {
     if (isNil(contractResult.senderId) && contractResult.functionResult) {
       try {
-        const functionResult = fromBinary(ContractFunctionResultSchema, new Uint8Array(contractResult.functionResult));
+        const functionResult = fromBinary(ContractFunctionResultSchema, contractResult.functionResult);
         const senderAlias = functionResult.senderId?.account;
         return senderAlias?.case === 'alias' && senderAlias.value?.length ? toHexString(senderAlias.value, true) : null;
       } catch (error) {

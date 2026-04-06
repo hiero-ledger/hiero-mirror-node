@@ -72,23 +72,6 @@ const bigIntMax = (a, b) => (a > b ? a : b);
 const bigIntMin = (a, b) => (a < b ? a : b);
 
 /**
- * Parses a value to bigint for protobuf int64 / uint64 fields (e.g. @bufbuild/protobuf create()).
- * null and undefined become 0n; numbers and numeric strings use BigInt(String(value)).
- *
- * @param {bigint|number|string|null|undefined} value
- * @returns {bigint}
- */
-const parseToBigInt = (value) => {
-  if (value == null) {
-    return 0n;
-  }
-  if (typeof value === 'bigint') {
-    return value;
-  }
-  return BigInt(String(value));
-};
-
-/**
  * Check if the given number is numeric
  * @param {String} n Number to test
  * @return {Boolean} true if n is numeric, false otherwise
@@ -1821,7 +1804,6 @@ export {
   asNullIfDefault,
   bigIntMax,
   bigIntMin,
-  parseToBigInt,
   buildAndValidateFilters,
   buildComparatorFilter,
   buildFilters,
