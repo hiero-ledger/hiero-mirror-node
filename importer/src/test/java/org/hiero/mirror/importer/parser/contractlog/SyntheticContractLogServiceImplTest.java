@@ -34,7 +34,6 @@ import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
@@ -253,7 +252,7 @@ final class SyntheticContractLogServiceImplTest {
         verify(entityListener).onContractLog(contractLogCaptor.capture());
         final var capturedLog = contractLogCaptor.getValue();
 
-        assertThat(capturedLog.getBloom()).isNotNull().hasSize(LogsBloomFilter.BYTE_SIZE);
+        assertThat(capturedLog.getBloom()).isEqualTo(SyntheticContractLogServiceImpl.CONTRACT_LOG_MARKER);
     }
 
     @Test

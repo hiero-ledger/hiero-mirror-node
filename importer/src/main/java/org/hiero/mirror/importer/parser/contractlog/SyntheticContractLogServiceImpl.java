@@ -13,7 +13,6 @@ import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
@@ -26,6 +25,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
     private final EntityProperties entityProperties;
     private final EntityIdService entityIdService;
     private final byte[] empty = Bytes.of(0).toArray();
+    protected static final byte[] CONTRACT_LOG_MARKER = Bytes.of(1).toArray();
 
     @Override
     public void create(SyntheticContractLog log) {
@@ -41,29 +41,60 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
             return;
         }
 
-        long consensusTimestamp = contractRelatedParentRecordItem != null
-                ? contractRelatedParentRecordItem.getConsensusTimestamp()
-                : recordItem.getConsensusTimestamp();
-        int logIndex = recordItem.getAndIncrementLogIndex();
+        long consensusTimestamp;
+        int logIndex;
+        int transactionIndex;
+        EntityId contractId;
+        EntityId rootContractId;
+        byte[] transactionHash;
+        if (contractRelatedParentRecordItem != null) {
+            consensusTimestamp = contractRelatedParentRecordItem.getConsensusTimestamp();
+            logIndex = contractRelatedParentRecordItem.getAndIncrementLogIndex();
+            transactionIndex = contractRelatedParentRecordItem.getTransactionIndex();
+            transactionHash = contractRelatedParentRecordItem.getTransactionHash();
+
+            final var parentTransactionRecord = contractRelatedParentRecordItem.getTransactionRecord();
+            if (parentTransactionRecord.hasContractCallResult()) {
+                contractId = EntityId.of(
+                        parentTransactionRecord.getContractCallResult().getContractID());
+            } else {
+                contractId = EntityId.of(
+                        parentTransactionRecord.getContractCreateResult().getContractID());
+            }
+
+            final var parentTransactionBody = contractRelatedParentRecordItem.getTransactionBody();
+            if (parentTransactionBody.hasContractCall()) {
+                final var contractIdReceipt =
+                        parentTransactionRecord.getReceipt().getContractID();
+
+                rootContractId = EntityId.of(contractIdReceipt);
+            } else {
+                rootContractId =
+                        EntityId.of(parentTransactionRecord.getReceipt().getContractID());
+            }
+        } else {
+            consensusTimestamp = recordItem.getConsensusTimestamp();
+            logIndex = recordItem.getAndIncrementLogIndex();
+            transactionIndex = recordItem.getTransactionIndex();
+            transactionHash = recordItem.getTransactionHash();
+            contractId = log.getEntityId();
+            rootContractId = log.getEntityId();
+        }
 
         ContractLog contractLog = new ContractLog();
 
-        contractLog.setBloom(isContract(recordItem) ? createBloom(log) : empty);
+        contractLog.setBloom(isContract(recordItem) ? CONTRACT_LOG_MARKER : empty);
         contractLog.setConsensusTimestamp(consensusTimestamp);
-        contractLog.setContractId(log.getEntityId());
+        contractLog.setContractId(contractId);
         contractLog.setData(log.getData() != null ? log.getData() : empty);
         contractLog.setIndex(logIndex);
-        contractLog.setRootContractId(log.getEntityId());
+        contractLog.setRootContractId(rootContractId);
         contractLog.setPayerAccountId(recordItem.getPayerAccountId());
         contractLog.setTopic0(log.getTopic0());
         contractLog.setTopic1(log.getTopic1());
         contractLog.setTopic2(log.getTopic2());
         contractLog.setTopic3(log.getTopic3());
-        contractLog.setTransactionIndex(recordItem.getTransactionIndex());
-
-        byte[] transactionHash = contractRelatedParentRecordItem != null
-                ? contractRelatedParentRecordItem.getTransactionHash()
-                : recordItem.getTransactionHash();
+        contractLog.setTransactionIndex(transactionIndex);
         contractLog.setTransactionHash(transactionHash);
         contractLog.setSyntheticTransfer(log instanceof TransferContractLog);
 
@@ -126,22 +157,5 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
                     .setAlias(ByteString.copyFrom(accountAddress))
                     .build());
         }
-    }
-
-    /**
-     * Creates a bloom filter for a synthetic contract log using the log's address, topics, and data.
-     *
-     * @param log the synthetic contract log
-     * @return the bloom filter as a byte array
-     */
-    private byte[] createBloom(SyntheticContractLog log) {
-        final var evmAddress = DomainUtils.toEvmAddress(log.getEntityId());
-        final var logsBloomFilter = new LogsBloomFilter();
-        logsBloomFilter.insertAddress(evmAddress);
-        logsBloomFilter.insertTopic(log.getTopic0());
-        logsBloomFilter.insertTopic(log.getTopic1());
-        logsBloomFilter.insertTopic(log.getTopic2());
-        logsBloomFilter.insertTopic(log.getTopic3());
-        return logsBloomFilter.toArrayUnsafe();
     }
 }

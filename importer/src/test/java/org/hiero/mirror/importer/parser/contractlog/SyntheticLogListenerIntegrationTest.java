@@ -9,8 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import com.google.common.primitives.Longs;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
@@ -72,6 +77,67 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         assertArrayEquals(trim(sender1.getEvmAddress()), contractLog.getTopic1());
         assertArrayEquals(trim(receiver1.getEvmAddress()), contractLog.getTopic2());
+        assertThat(contractLogRepository.count()).isEqualTo(1);
+        assertThat(contractLogRepository.findAll()).containsExactly(contractLog);
+    }
+
+    @Test
+    void syntheticTransferWithAliasEvmAddressesReplacesMarkerBloomAndResolvesTopics() {
+        byte[] senderEvm = Bytes.fromHexString("0xd838319b64e38ca2ed8b08c9324ebe4d37facecf")
+                .toArrayUnsafe();
+        byte[] receiverEvm = Bytes.fromHexString("0x2818870d1daa81b75e38cec44ceae51b4b684696")
+                .toArrayUnsafe();
+
+        var sender = domainBuilder
+                .entity()
+                .customize(e -> e.evmAddress(senderEvm).alias(senderEvm))
+                .persist();
+        var receiver =
+                domainBuilder.entity().customize(e -> e.alias(receiverEvm)).persist();
+
+        var contractEntity = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT))
+                .persist();
+
+        var senderEntityId = EntityId.of(sender.getId());
+        var receiverEntityId = EntityId.of(receiver.getId());
+        byte[] topic1Before = AbstractSyntheticContractLog.entityIdToBytes(senderEntityId);
+        byte[] topic2Before = AbstractSyntheticContractLog.entityIdToBytes(receiverEntityId);
+
+        byte[] markerBloom = new byte[] {1};
+        var contractLog = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.syntheticTransfer(true)
+                        .bloom(markerBloom)
+                        .contractId(EntityId.of(contractEntity.getId()))
+                        .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
+                        .topic1(topic1Before)
+                        .topic2(topic2Before)
+                        .topic3(null)
+                        .data(new byte[] {0}))
+                .get();
+
+        entityListener.onContractLog(contractLog);
+
+        assertArrayEquals(markerBloom, contractLog.getBloom());
+        assertArrayEquals(topic1Before, contractLog.getTopic1());
+        assertArrayEquals(topic2Before, contractLog.getTopic2());
+
+        completeFileAndCommit();
+
+        assertArrayEquals(trim(senderEvm), contractLog.getTopic1());
+        assertArrayEquals(trim(receiverEvm), contractLog.getTopic2());
+
+        var expectedBloom = new LogsBloomFilter();
+        expectedBloom.insertAddress(DomainUtils.toEvmAddress(contractLog.getContractId()));
+        expectedBloom.insertTopic(AbstractSyntheticContractLog.TRANSFER_SIGNATURE);
+        expectedBloom.insertTopic(contractLog.getTopic1());
+        expectedBloom.insertTopic(contractLog.getTopic2());
+        expectedBloom.insertTopic(contractLog.getTopic3());
+        assertThat(contractLog.getBloom()).hasSize(LogsBloomFilter.BYTE_SIZE);
+        assertArrayEquals(expectedBloom.toArrayUnsafe(), contractLog.getBloom());
+
         assertThat(contractLogRepository.count()).isEqualTo(1);
         assertThat(contractLogRepository.findAll()).containsExactly(contractLog);
     }

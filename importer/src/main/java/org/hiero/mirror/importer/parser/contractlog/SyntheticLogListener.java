@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.hiero.mirror.common.util.DomainUtils.fromTrimmedEvmAddress;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogServiceImpl.CONTRACT_LOG_MARKER;
 
 import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -12,6 +13,7 @@ import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.collect.Iterators;
 import io.micrometer.core.annotation.Timed;
 import jakarta.inject.Named;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -132,7 +134,6 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         private final EntityId sender;
         private final EntityId receiver;
         private final ContractLog contractLog;
-        private static final byte[] MARKER = new byte[] {1};
 
         public void populateSearchIds() {
             if (!EntityId.isEmpty(receiver)) {
@@ -148,7 +149,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             updateTopicField(sender, entityEvmAddresses, contractLog::setTopic1, contractLog.getTopic1());
             updateTopicField(receiver, entityEvmAddresses, contractLog::setTopic2, contractLog.getTopic2());
 
-            if (MARKER == contractLog.getBloom()) {
+            if (Arrays.equals(CONTRACT_LOG_MARKER, contractLog.getBloom())) {
                 contractLog.setBloom(createBloom());
             }
         }
