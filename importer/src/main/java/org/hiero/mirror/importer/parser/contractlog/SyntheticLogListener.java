@@ -26,6 +26,8 @@ import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
 import org.hiero.mirror.importer.domain.EvmAddressMapping;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
@@ -130,6 +132,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         private final EntityId sender;
         private final EntityId receiver;
         private final ContractLog contractLog;
+        private static final byte[] MARKER = new byte[] {1};
 
         public void populateSearchIds() {
             if (!EntityId.isEmpty(receiver)) {
@@ -144,6 +147,26 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         public void updateContractLog(Map<Long, byte[]> entityEvmAddresses) {
             updateTopicField(sender, entityEvmAddresses, contractLog::setTopic1, contractLog.getTopic1());
             updateTopicField(receiver, entityEvmAddresses, contractLog::setTopic2, contractLog.getTopic2());
+
+            if (MARKER == contractLog.getBloom()) {
+                contractLog.setBloom(createBloom());
+            }
+        }
+
+        /**
+         * Creates a bloom filter for a synthetic contract log using the log's address, topics, and data.
+         *
+         * @return the bloom filter as a byte array
+         */
+        private byte[] createBloom() {
+            final var evmAddress = DomainUtils.toEvmAddress(contractLog.getContractId());
+            final var logsBloomFilter = new LogsBloomFilter();
+            logsBloomFilter.insertAddress(evmAddress);
+            logsBloomFilter.insertTopic(contractLog.getTopic0());
+            logsBloomFilter.insertTopic(contractLog.getTopic1());
+            logsBloomFilter.insertTopic(contractLog.getTopic2());
+            logsBloomFilter.insertTopic(contractLog.getTopic3());
+            return logsBloomFilter.toArrayUnsafe();
         }
 
         public void updateTopicField(
