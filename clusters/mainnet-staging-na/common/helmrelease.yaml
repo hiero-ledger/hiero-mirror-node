@@ -26,7 +26,7 @@ spec:
   install:
     crds: CreateReplace
   interval: 1m
-  timeout: 15m
+  timeout: 30m
   upgrade:
     cleanupOnFail: true
   valuesFrom:
