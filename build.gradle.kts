@@ -52,7 +52,7 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.7.10")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.7.11")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:0.73.0-rc.1")
@@ -84,7 +84,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.42.25")
+        api("software.amazon.awssdk:bom:2.42.28")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
