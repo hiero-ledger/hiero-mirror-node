@@ -38,7 +38,7 @@ labels: {}
 livenessProbe:
   exec:
     command: ["/healthcheck", "live"]
-  initialDelaySeconds: 5
+  initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 2
   failureThreshold: 5
@@ -60,7 +60,7 @@ priorityClassName: ""
 readinessProbe:
   exec:
     command: ["/healthcheck", "ready"]
-  initialDelaySeconds: 5
+  initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 2
   failureThreshold: 5
@@ -82,6 +82,14 @@ securityContext:
   capabilities:
     drop: [ALL]
   readOnlyRootFilesystem: true
+
+startupProbe:
+  failureThreshold: 120
+  exec:
+    command: ["/healthcheck", "live"]
+  initialDelaySeconds: 0
+  periodSeconds: 1
+  timeoutSeconds: 2
 
 terminationGracePeriodSeconds: 60
 
