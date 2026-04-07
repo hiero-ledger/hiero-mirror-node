@@ -90,34 +90,5 @@
     "path-to-regexp": "8.4.0",
     "test-exclude": "8.0.0"
   },
-  "bundleDependencies": [
-    "@bufbuild/protobuf",
-    "@godaddy/terminus",
-    "@opentelemetry/api",
-    "@opentelemetry/exporter-prometheus",
-    "@opentelemetry/sdk-metrics",
-    "asn1js",
-    "basic-auth",
-    "compression",
-    "cors",
-    "express",
-    "express-http-context",
-    "express-openapi-validator",
-    "extend",
-    "ioredis",
-    "js-yaml",
-    "json-bigint",
-    "lodash",
-    "log4js",
-    "negotiator",
-    "parse-duration",
-    "pg",
-    "pg-range",
-    "qs",
-    "quick-lru",
-    "rfc4648",
-    "sql-formatter",
-    "swagger-ui-express",
-    "tsscmp"
-  ]
+  "bundleDependencies": true
 }
