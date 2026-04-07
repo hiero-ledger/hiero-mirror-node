@@ -516,12 +516,13 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 
         // when
         final var txn = toPbj(recordItemBuilder.consensusSubmitMessage().build().getTransaction());
+        final var intrinsic = service.estimateFees(txn, FeeEstimateMode.INTRINSIC);
+        final var state = service.estimateFees(txn, FeeEstimateMode.STATE);
 
-        // then
-        assertThat(service.estimateFees(txn, FeeEstimateMode.INTRINSIC).getHighVolumeMultiplier())
-                .isEqualTo(customMaxRaw);
-        assertThat(service.estimateFees(txn, FeeEstimateMode.STATE).getHighVolumeMultiplier())
-                .isEqualTo(customMaxRaw);
+        assertThat(intrinsic.getHighVolumeMultiplier()).isEqualTo(customMaxRaw);
+        assertThat(state.getHighVolumeMultiplier()).isEqualTo(customMaxRaw);
+        assertThat(intrinsic.totalTinycents()).isEqualTo(NODE_PORTION + CONSENSUS_SUBMIT_MESSAGE_FEE);
+        assertThat(state.totalTinycents()).isEqualTo(NODE_PORTION + CONSENSUS_SUBMIT_MESSAGE_FEE);
     }
 
     @Test
