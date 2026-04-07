@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import fs from 'fs';
-import log4js from 'log4js';
 
 import {TABLE_USAGE_OUTPUT_DIR} from './testutils.js';
 import {EOL} from 'os';
@@ -97,5 +96,4 @@ export default async () => {
     await dbContainer.stop();
   }
   globalThis.__DB_CONTAINER_SERVER__.close();
-  log4js.shutdown();
 };
