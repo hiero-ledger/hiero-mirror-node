@@ -1205,6 +1205,26 @@ paths:
           $ref: "#/components/responses/NotFoundError"
       tags:
         - topics
+  /api/v1/files/{fileId}:
+    get:
+      summary: Get file metadata
+      description: Returns metadata for a file entity.
+      operationId: getFileById
+      parameters:
+        - $ref: "#/components/parameters/fileIdPathParam"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileResponse"
+        400:
+          $ref: "#/components/responses/InvalidParameterError"
+        404:
+          $ref: "#/components/responses/NotFoundError"
+      tags:
+        - files
   /api/v1/tokens:
     get:
       summary: List tokens
@@ -2718,6 +2738,26 @@ components:
       pattern: '^\d{1,10}\.\d{1,10}\.\d{1,10}$'
       example: "0.0.2"
       nullable: true
+    FileResponse:
+      type: object
+      properties:
+        file_id:
+          $ref: "#/components/schemas/EntityId"
+        size_bytes:
+          type: integer
+          format: int64
+        consensus_timestamp:
+          $ref: "#/components/schemas/TimestampNullable"
+        memo:
+          type: string
+        deleted:
+          type: boolean
+        expiry_timestamp:
+          $ref: "#/components/schemas/TimestampNullable"
+        key:
+          type: string
+        created_timestamp:
+          $ref: "#/components/schemas/Timestamp"
     EntityIdQuery:
       type: string
       pattern: ^((gte?|lte?|eq|ne)\:)?(\d{1,10}\.\d{1,10}\.)?\d{1,10}$
@@ -4466,6 +4506,18 @@ components:
               messages:
                 - message: Require at least 1/3 signature files to prove consensus, got 1 out of 4 for file 2019-10-11T13_33_25.526889Z.rcd_sig
   parameters:
+    fileIdPathParam:
+      name: fileId
+      in: path
+      description: File id in the format of `shard.realm.num`
+      required: true
+      schema:
+        $ref: "#/components/schemas/EntityId"
+      examples:
+        fileNum:
+          value: "0.0.123"
+        shardRealm:
+          value: "1.2.123"
     accountIdOrAliasOrEvmAddressPathParam:
       name: idOrAliasOrEvmAddress
       in: path

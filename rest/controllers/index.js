@@ -7,6 +7,7 @@ import NetworkController from './networkController';
 import TokenController from './tokenController';
 import TokenAllowanceController from './tokenAllowanceController';
 import BlockController from './blockController';
+import FileController from './fileController';
 
 export {
   AccountController,
@@ -16,4 +17,5 @@ export {
   TokenController,
   TokenAllowanceController,
   BlockController,
+  FileController,
 };

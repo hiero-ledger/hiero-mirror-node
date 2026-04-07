@@ -4,6 +4,7 @@ import ContractService from './contractService';
 import CryptoAllowanceService from './cryptoAllowanceService';
 import EntityService from './entityService';
 import FileDataService from './fileDataService';
+import FileService from './fileService';
 import NetworkNodeService from './networkNodeService';
 import NftService from './nftService';
 import RecordFileService from './recordFileService';
@@ -17,6 +18,7 @@ export {
   CryptoAllowanceService,
   EntityService,
   FileDataService,
+  FileService,
   NetworkNodeService,
   NftService,
   RecordFileService,

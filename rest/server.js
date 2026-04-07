@@ -33,6 +33,8 @@ import {
   serveSwaggerDocs,
 } from './middleware';
 
+import {FileController} from './controllers';
+
 // routes
 import {AccountRoutes, BlockRoutes, ContractRoutes, NetworkRoutes} from './routes';
 import {handleRejection, handleUncaughtException} from './middleware/httpErrorHandler';
@@ -130,6 +132,9 @@ app.getExt(`${apiPrefix}/tokens/:tokenId/nfts/:serialNumber/transactions`, token
 app.getExt(`${apiPrefix}/topics/:topicId/messages`, topicmessage.getTopicMessages);
 app.getExt(`${apiPrefix}/topics/:topicId/messages/:sequenceNumber`, topicmessage.getMessageByTopicAndSequenceRequest);
 app.getExt(`${apiPrefix}/topics/messages/:consensusTimestamp`, topicmessage.getMessageByConsensusTimestamp);
+
+// files routes
+app.getExt(`${apiPrefix}/files/:fileId`, FileController.getFileById);
 
 // transactions routes
 app.getExt(`${apiPrefix}/transactions`, transactions.getTransactions);
