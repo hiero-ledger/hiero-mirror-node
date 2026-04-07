@@ -20,6 +20,8 @@ extra.apply {
     set("blockNodeVersion", "0.30.2")
     set("consensusNodeVersion", "0.72.0")
     set("grpcVersion", "1.80.0")
+    set("jackson-2-bom.version", "2.21.2") // Temporary until next Spring Boot
+    set("jackson-bom.version", "3.1.1") // Temporary until next Spring Boot
     set("jooq.version", "3.21.1") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
@@ -56,7 +58,7 @@ dependencies {
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:0.73.0-rc.1")
-        api("com.hedera.hashgraph:sdk:2.68.0")
+        api("com.hedera.hashgraph:sdk:2.69.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.21.0")
