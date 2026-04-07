@@ -50,6 +50,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
@@ -95,12 +96,9 @@ final class CompositeRecordFileItemReaderTest {
         final var recordFile = reader.read(recordFileItem, 6);
 
         // then
-        assertRecordFileWithSidecars(
-                recordFile,
-                items -> assertThat(items)
-                        .extracting(recordItem -> recordItem.getSidecarRecords().size())
-                        .containsExactly(3, 0),
-                _ -> {});
+        assertRecordFileWithSidecars(recordFile, items -> assertThat(items)
+                .extracting(recordItem -> recordItem.getSidecarRecords().size())
+                .containsExactly(3, 0));
     }
 
     @ParameterizedTest
@@ -116,12 +114,9 @@ final class CompositeRecordFileItemReaderTest {
         final var recordFile = reader.read(recordFileItem, 6);
 
         // then
-        assertRecordFileWithSidecars(
-                recordFile,
-                items -> assertThat(items)
-                        .extracting(recordItem -> recordItem.getSidecarRecords().size())
-                        .containsExactly(1, 0),
-                _ -> {});
+        assertRecordFileWithSidecars(recordFile, items -> assertThat(items)
+                .extracting(recordItem -> recordItem.getSidecarRecords().size())
+                .containsExactly(1, 0));
     }
 
     @Test
@@ -153,12 +148,9 @@ final class CompositeRecordFileItemReaderTest {
         final var recordFile = reader.read(recordFileItem, 6);
 
         // then
-        assertRecordFileWithSidecars(
-                recordFile,
-                items -> assertThat(items)
-                        .extracting(recordItem -> recordItem.getSidecarRecords().size())
-                        .containsOnly(0),
-                _ -> {});
+        assertRecordFileWithSidecars(recordFile, items -> assertThat(items)
+                .extracting(recordItem -> recordItem.getSidecarRecords().size())
+                .containsOnly(0));
     }
 
     @Test
@@ -183,13 +175,16 @@ final class CompositeRecordFileItemReaderTest {
                 .hasMessageStartingWith("Sidecar hash mismatch for file");
     }
 
-    @Test
-    void readWithSidecarAndExtraMetadata(final CapturedOutput output) {
+    @ParameterizedTest
+    @ValueSource(ints = {0, 3})
+    void readWithSidecarAndMetadataIdOutOfBound(final int metadataIndex, final CapturedOutput output) {
         // given
         final var original = createRecordFileItemWithSidecar();
         final var recordFileItem = original.toBuilder()
                 .setRecordFileContents(original.getRecordFileContents().toBuilder()
-                        .addSidecars(SidecarMetadata.newBuilder().setId(3).build())
+                        .addSidecars(SidecarMetadata.newBuilder()
+                                .setId(metadataIndex)
+                                .build())
                         .build())
                 .build();
 
@@ -197,15 +192,19 @@ final class CompositeRecordFileItemReaderTest {
         final var recordFile = reader.read(recordFileItem, 6);
 
         // then
-        assertRecordFileWithSidecars(
-                recordFile,
-                items -> assertThat(items)
-                        .extracting(recordItem -> recordItem.getSidecarRecords().size())
-                        .containsExactly(3, 0),
-                _ -> {});
+        assertRecordFileWithSidecars(recordFile, items -> assertThat(items)
+                .extracting(recordItem -> recordItem.getSidecarRecords().size())
+                .containsExactly(3, 0));
         assertThat(output.getAll())
                 .contains(
-                        "Recoverable error. Missing sidecar file content for id 3 of wrapped record file 2025-08-02T02_55_14.210243Z.rcd");
+                        "Recoverable error. Missing sidecar file content for id %d of wrapped record file 2025-08-02T02_55_14.210243Z.rcd"
+                                .formatted(metadataIndex));
+    }
+
+    private static void assertRecordFileWithSidecars(
+            final RecordFile recordFile, final ThrowingConsumer<List<? extends RecordItem>> recordItemAssertion) {
+        assertRecordFileWithSidecars(recordFile, recordItemAssertion, sidecars -> assertThat(sidecars)
+                .allSatisfy(sidecar -> assertThat(sidecar.getBytes()).isNull()));
     }
 
     private static void assertRecordFileWithSidecars(
