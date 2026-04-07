@@ -20,6 +20,8 @@ extra.apply {
     set("blockNodeVersion", "0.30.2")
     set("consensusNodeVersion", "0.72.0")
     set("grpcVersion", "1.80.0")
+    set("jackson-2-bom.version", "2.21.2") // Temporary until next Spring Boot
+    set("jackson-bom.version", "3.1.1") // Temporary until next Spring Boot
     set("jooq.version", "3.21.1") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
@@ -52,11 +54,11 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.7.7")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.7.11")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:0.73.0-rc.1")
-        api("com.hedera.hashgraph:sdk:2.68.0")
+        api("com.hedera.hashgraph:sdk:2.69.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.21.0")
@@ -84,7 +86,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.42.25")
+        api("software.amazon.awssdk:bom:2.42.28")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

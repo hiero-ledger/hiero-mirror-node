@@ -49,6 +49,7 @@ import org.hiero.mirror.restjava.mapper.NetworkStakeMapper;
 import org.hiero.mirror.restjava.parameter.EntityIdParameter;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
+import org.hiero.mirror.restjava.service.fee.FeeEstimationService;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -68,6 +69,7 @@ final class NetworkControllerTest extends ControllerTest {
 
     private final CommonMapper commonMapper;
     private final ExchangeRateMapper exchangeRateMapper;
+    private final FeeEstimationService feeEstimationService;
     private final FeeScheduleMapper feeScheduleMapper;
     private final NetworkStakeMapper networkStakeMapper;
     private final NetworkProperties networkProperties;
@@ -583,19 +585,28 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void stateMode() {
             // given
+            seedFeeSchedule();
             final var transaction = transaction();
 
-            // when / then
-            validateError(
-                    () -> restClient
-                            .post()
-                            .uri("?mode=STATE")
-                            .body(transaction)
-                            .contentType(MediaType.APPLICATION_PROTOBUF)
-                            .retrieve()
-                            .body(FeeEstimateResponse.class),
-                    HttpClientErrorException.BadRequest.class,
-                    "State-based fee estimation is not supported");
+            // when
+            final var actual = restClient
+                    .post()
+                    .uri("?mode=STATE")
+                    .body(transaction)
+                    .contentType(MediaType.APPLICATION_PROTOBUF)
+                    .retrieve()
+                    .body(FeeEstimateResponse.class);
+
+            // then — a plain CryptoTransfer has no custom fees, so STATE == INTRINSIC structurally
+            final var nodeBase = actual.getNode().getBase();
+            final var networkMultiplier = actual.getNetwork().getMultiplier();
+            assertThat(nodeBase).isPositive();
+            assertThat(actual.getNode().getExtras()).isEqualTo(List.of());
+            assertThat(networkMultiplier).isPositive();
+            assertThat(actual.getNetwork().getSubtotal()).isEqualTo(nodeBase * networkMultiplier);
+            assertThat(actual.getService().getBase()).isZero();
+            assertThat(actual.getService().getExtras()).isEqualTo(List.of());
+            assertThat(actual.getTotal()).isEqualTo(nodeBase + nodeBase * networkMultiplier);
         }
 
         @Test
@@ -701,6 +712,7 @@ final class NetworkControllerTest extends ControllerTest {
                         .customize(f ->
                                 f.entityId(systemEntity.simpleFeeScheduleFile()).fileData(feeBytes))
                         .persist();
+                feeEstimationService.refreshStateCalculator();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

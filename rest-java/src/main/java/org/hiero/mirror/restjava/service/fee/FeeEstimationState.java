@@ -25,6 +25,7 @@ import com.swirlds.state.spi.ReadableSingletonStateBase;
 import com.swirlds.state.spi.ReadableStates;
 import com.swirlds.state.spi.WritableStates;
 import jakarta.inject.Named;
+import jakarta.persistence.EntityNotFoundException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -134,9 +135,7 @@ public final class FeeEstimationState implements State {
             for (var entry : serviceStates.entrySet()) {
                 final var stateId = entry.getKey();
                 final var state = entry.getValue();
-                if (state instanceof Map map) {
-                    wrapped.put(stateId, new InMemoryReadableKVState<>(stateId, map));
-                } else if (state instanceof AtomicReference ref) {
+                if (state instanceof AtomicReference ref) {
                     wrapped.put(stateId, new InMemoryReadableSingletonState<>(stateId, ref));
                 }
             }
@@ -268,11 +267,15 @@ public final class FeeEstimationState implements State {
         @Override
         protected @Nullable File readFromDataSource(FileID fileId) {
             if (simpleFeeFileId.equals(fileId)) {
-                final var schedule =
-                        fileService.getSimpleFeeSchedule(Bound.EMPTY).data();
-                return File.newBuilder()
-                        .contents(FeeSchedule.PROTOBUF.toBytes(schedule))
-                        .build();
+                try {
+                    final var schedule =
+                            fileService.getSimpleFeeSchedule(Bound.EMPTY).data();
+                    return File.newBuilder()
+                            .contents(FeeSchedule.PROTOBUF.toBytes(schedule))
+                            .build();
+                } catch (EntityNotFoundException e) {
+                    return null;
+                }
             }
             return staticFiles.get(fileId);
         }
