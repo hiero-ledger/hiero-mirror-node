@@ -92,8 +92,10 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                 .entity()
                 .customize(e -> e.evmAddress(senderEvm).alias(senderEvm))
                 .persist();
-        var receiver =
-                domainBuilder.entity().customize(e -> e.alias(receiverEvm)).persist();
+        var receiver = domainBuilder
+                .entity()
+                .customize(e -> e.evmAddress(receiverEvm).alias(receiverEvm))
+                .persist();
 
         var contractEntity = domainBuilder
                 .entity()
