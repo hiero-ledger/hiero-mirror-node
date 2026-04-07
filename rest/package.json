@@ -46,8 +46,7 @@
     "rfc4648": "1.5.4",
     "sql-formatter": "15.7.2",
     "swagger-ui-express": "5.0.1",
-    "tsscmp": "1.0.6",
-    "word-wrap": "npm:@aashutoshrathi/word-wrap@1.2.6"
+    "tsscmp": "1.0.6"
   },
   "devDependencies": {
     "@bufbuild/buf": "1.64.0",
@@ -67,14 +66,58 @@
     "supertest": "7.2.2",
     "tar": "7.5.12"
   },
+  "peerDependencies": {
+    "ansi-regex": "6.2.2",
+    "ansi-styles": "6.2.3",
+    "chalk": "5.6.2",
+    "debug": "4.4.1",
+    "is-arrayish": "0.3.4",
+    "strip-ansi": "7.1.2",
+    "wrap-ansi": "9.0.2"
+  },
   "jest-junit": {
     "outputDirectory": "build/test-results/test",
     "outputName": "TEST-jest.xml"
   },
   "baseUrlPath": "/api/v1",
   "overrides": {
+    "flatted": "3.4.2",
     "glob": "13.0.6",
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "3.14.2"
+    },
+    "multer": "2.1.1",
+    "path-to-regexp": "8.4.0",
     "test-exclude": "8.0.0"
   },
-  "bundleDependencies": true
+  "bundleDependencies": [
+    "@bufbuild/protobuf",
+    "@godaddy/terminus",
+    "@opentelemetry/api",
+    "@opentelemetry/exporter-prometheus",
+    "@opentelemetry/sdk-metrics",
+    "asn1js",
+    "basic-auth",
+    "compression",
+    "cors",
+    "express",
+    "express-http-context",
+    "express-openapi-validator",
+    "extend",
+    "ioredis",
+    "js-yaml",
+    "json-bigint",
+    "lodash",
+    "log4js",
+    "negotiator",
+    "parse-duration",
+    "pg",
+    "pg-range",
+    "qs",
+    "quick-lru",
+    "rfc4648",
+    "sql-formatter",
+    "swagger-ui-express",
+    "tsscmp"
+  ]
 }
