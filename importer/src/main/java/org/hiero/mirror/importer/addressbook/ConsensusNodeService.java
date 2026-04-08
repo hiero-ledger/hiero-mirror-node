@@ -12,6 +12,7 @@ public interface ConsensusNodeService {
     /**
      * Gets a consensus node by its node id.
      *
+     * @param nodeId - The consensus node id
      * @return The matching consensus node, {@code null} if not found
      */
     ConsensusNode getNode(long nodeId);
