@@ -281,6 +281,15 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
+            final Bytes bytesHex,
+            final Address receiver,
+            final Address payerAddress,
+            final long value,
+            final CallType callType) {
+        return getContractExecutionParameters(String.valueOf(bytesHex), receiver, payerAddress, value, callType);
+    }
+
+    protected ContractExecutionParameters getContractExecutionParameters(
             final String dataHex, final Address receiver, final Address payerAddress, final long value) {
         return getContractExecutionParameters(dataHex, receiver, payerAddress, value, ETH_CALL);
     }
