@@ -45,10 +45,7 @@ func buildNetworkFromMirrorNodes(ctx context.Context, cfg config) (map[string]hi
 
 	httpClient := &http.Client{Timeout: cfg.mirrorNodeClientTimeout}
 
-	attempts := cfg.mirrorNodeClientMaxRetries + 1
-	if attempts < 1 {
-		attempts = 1
-	}
+	attempts := max(cfg.mirrorNodeClientMaxRetries + 1, 1)
 
 	var lastErr error
 
