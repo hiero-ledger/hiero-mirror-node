@@ -11,16 +11,19 @@ import org.hiero.mirror.common.converter.CustomJsonFormatMapper;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.util.DatabaseWaiter;
 import org.hiero.mirror.common.util.SpelHelper;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
+import org.springframework.boot.jdbc.autoconfigure.JdbcConnectionDetails;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
+import org.springframework.context.annotation.Lazy;
 
 @Configuration(proxyBeanMethods = false)
 @ConfigurationPropertiesScan("org.hiero.mirror")
@@ -62,12 +65,23 @@ public final class CommonConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(DataSource.class)
+    @Lazy
     DataSource dataSource(
-            DataSourceProperties dataSourceProperties, HikariConfig hikariConfig, DatabaseWaiter databaseWaiter) {
+            DataSourceProperties dataSourceProperties,
+            HikariConfig hikariConfig,
+            DatabaseWaiter databaseWaiter,
+            ObjectProvider<JdbcConnectionDetails> detailsProvider) {
 
-        final var jdbcUrl = dataSourceProperties.determineUrl();
-        final var username = dataSourceProperties.determineUsername();
-        final var password = dataSourceProperties.determinePassword();
+        var jdbcUrl = dataSourceProperties.determineUrl();
+        var username = dataSourceProperties.determineUsername();
+        var password = dataSourceProperties.determinePassword();
+
+        final var connectionDetails = detailsProvider.getIfAvailable();
+        if (connectionDetails != null) {
+            jdbcUrl = connectionDetails.getJdbcUrl();
+            username = connectionDetails.getUsername();
+            password = connectionDetails.getPassword();
+        }
 
         databaseWaiter.waitForDatabase(jdbcUrl, username, password);
 

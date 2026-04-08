@@ -13,12 +13,14 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration;
 import org.springframework.boot.flyway.autoconfigure.FlywayConfigurationCustomizer;
 import org.springframework.boot.flyway.autoconfigure.FlywayDataSource;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
+import org.springframework.boot.jdbc.autoconfigure.JdbcConnectionDetails;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -43,10 +45,19 @@ class ImporterConfiguration {
     @Bean(defaultCandidate = false)
     @FlywayDataSource
     DataSource flywayDataSource(
-            DBProperties dbProperties, DataSourceProperties dataSourceProperties, HikariConfig hikariConfig) {
-        final var jdbcUrl = dataSourceProperties.determineUrl();
+            DBProperties dbProperties,
+            DataSourceProperties dataSourceProperties,
+            HikariConfig hikariConfig,
+            ObjectProvider<JdbcConnectionDetails> detailsObjectProvider) {
+        final var connectionDetails = detailsObjectProvider.getIfAvailable();
         final var flywayHikariConfig = new HikariConfig();
         hikariConfig.copyStateTo(flywayHikariConfig);
+
+        var jdbcUrl = dataSourceProperties.determineUrl();
+
+        if (connectionDetails != null) {
+            jdbcUrl = connectionDetails.getJdbcUrl();
+        }
 
         flywayHikariConfig.setJdbcUrl(jdbcUrl);
         flywayHikariConfig.setIdleTimeout(60000);
