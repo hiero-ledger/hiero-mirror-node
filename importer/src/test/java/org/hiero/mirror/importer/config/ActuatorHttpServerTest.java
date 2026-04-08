@@ -11,21 +11,20 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.function.Function;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
-import org.springframework.boot.health.actuate.endpoint.TestHealthDescriptors;
 import org.springframework.boot.health.contributor.Status;
 
 @ExtendWith(MockitoExtension.class)
 final class ActuatorHttpServerTest {
 
     @Mock
-    private HealthEndpoint healthEndpoint;
+    private Function<String, Status> healthResolver;
 
     @Mock
     private PrometheusMeterRegistry prometheusMeterRegistry;
@@ -36,7 +35,7 @@ final class ActuatorHttpServerTest {
 
     @BeforeEach
     void setup() throws Exception {
-        actuatorHttpServer = new ActuatorHttpServer(healthEndpoint, prometheusMeterRegistry, new ObjectMapper());
+        actuatorHttpServer = new ActuatorHttpServer(healthResolver, prometheusMeterRegistry, new ObjectMapper());
         // port 0 lets the OS pick a free port
         actuatorHttpServer.setPort(0);
         actuatorHttpServer.afterPropertiesSet();
@@ -51,7 +50,7 @@ final class ActuatorHttpServerTest {
 
     @Test
     void livenessReturns200WhenUp() throws Exception {
-        when(healthEndpoint.healthForPath("liveness")).thenReturn(TestHealthDescriptors.of(Status.UP));
+        when(healthResolver.apply("liveness")).thenReturn(Status.UP);
 
         final var response = get("/actuator/health/liveness");
 
@@ -61,7 +60,7 @@ final class ActuatorHttpServerTest {
 
     @Test
     void readinessReturns503WhenDown() throws Exception {
-        when(healthEndpoint.healthForPath("readiness")).thenReturn(TestHealthDescriptors.of(Status.DOWN));
+        when(healthResolver.apply("readiness")).thenReturn(Status.DOWN);
 
         final var response = get("/actuator/health/readiness");
 
@@ -71,7 +70,7 @@ final class ActuatorHttpServerTest {
 
     @Test
     void startupReturns503WhenDown() throws Exception {
-        when(healthEndpoint.healthForPath("startup")).thenReturn(TestHealthDescriptors.of(Status.DOWN));
+        when(healthResolver.apply("startup")).thenReturn(Status.DOWN);
 
         final var response = get("/actuator/health/startup");
 
@@ -80,8 +79,8 @@ final class ActuatorHttpServerTest {
     }
 
     @Test
-    void livenessReturns503WhenDescriptorIsNull() throws Exception {
-        when(healthEndpoint.healthForPath("liveness")).thenReturn(null);
+    void livenessReturns503WhenResolverReturnsNull() throws Exception {
+        when(healthResolver.apply("liveness")).thenReturn(null);
 
         final var response = get("/actuator/health/liveness");
 
