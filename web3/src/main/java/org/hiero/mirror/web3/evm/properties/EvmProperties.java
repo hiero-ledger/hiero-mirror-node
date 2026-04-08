@@ -219,6 +219,7 @@ public class EvmProperties {
             evmVersionsMap.put(85011472L, EVM_VERSION_0_65);
             evmVersionsMap.put(85659065L, EVM_VERSION_0_66);
             evmVersionsMap.put(87129575L, EVM_VERSION_0_67);
+            evmVersionsMap.put(91375145L, EVM_VERSION_0_70);
             return Collections.unmodifiableNavigableMap(evmVersionsMap);
         }
     }
