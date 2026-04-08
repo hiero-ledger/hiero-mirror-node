@@ -51,7 +51,7 @@ public class ConsensusValidatorImpl implements ConsensusValidator {
             }
         }
 
-        if (BigDecimal.ZERO.equals(commonDownloaderProperties.getConsensusRatio()) && signatureHashMap.size() > 0) {
+        if (BigDecimal.ZERO.equals(commonDownloaderProperties.getConsensusRatio()) && !signatureHashMap.isEmpty()) {
             log.debug("Signature file {} does not require consensus, skipping consensus check", filename);
             return;
         }

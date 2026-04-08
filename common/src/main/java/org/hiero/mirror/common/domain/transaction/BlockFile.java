@@ -128,6 +128,10 @@ public final class BlockFile implements StreamFile<BlockTransaction> {
         return StreamType.BLOCK;
     }
 
+    public boolean hasRecordFile() {
+        return recordFile != null;
+    }
+
     public static class BlockFileBuilder {
 
         public BlockFileBuilder onNewRound(final long roundNumber) {

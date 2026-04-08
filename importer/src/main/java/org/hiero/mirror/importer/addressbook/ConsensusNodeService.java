@@ -10,6 +10,13 @@ import java.util.Collection;
 public interface ConsensusNodeService {
 
     /**
+     * Gets a consensus node by its node id.
+     *
+     * @return The matching consensus node
+     */
+    ConsensusNode getNode(long nodeId);
+
+    /**
      * Retrieves a list of consensus nodes. The data may be cached and not always reflect the current state of the
      * database.
      *
