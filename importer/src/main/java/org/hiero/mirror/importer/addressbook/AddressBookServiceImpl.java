@@ -120,7 +120,7 @@ public class AddressBookServiceImpl implements AddressBookService {
         return addressBookRepository.findLatest(consensusTimestamp, fileId).orElseGet(this::migrate);
     }
 
-    @Cacheable(unless = "false")
+    @Cacheable
     @Override
     public ConsensusNode getNode(final long nodeId) {
         final var nodes = getNodes();

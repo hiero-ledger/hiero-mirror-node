@@ -92,6 +92,24 @@ public final class BlockFile implements StreamFile<BlockTransaction> {
 
     private int version;
 
+    @Override
+    public Long getConsensusEnd() {
+        if (hasRecordFile()) {
+            return recordFile.getConsensusEnd();
+        }
+
+        return consensusEnd;
+    }
+
+    @Override
+    public Long getConsensusStart() {
+        if (hasRecordFile()) {
+            return recordFile.getConsensusStart();
+        }
+
+        return consensusStart;
+    }
+
     public static String getFilename(final long blockNumber, final boolean compressed) {
         if (blockNumber < 0) {
             throw new IllegalArgumentException("Block number must be non-negative");

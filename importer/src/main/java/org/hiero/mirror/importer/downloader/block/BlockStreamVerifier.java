@@ -167,46 +167,47 @@ final class BlockStreamVerifier {
     }
 
     private void verifyHashChain(final BlockFile blockFile) {
-        cutoverService.getLastRecordFile().ifPresent(lastRecordFile -> {
-            final boolean isLastRecordFile = lastRecordFile.getVersion() < BlockStreamReader.VERSION;
-            final var previousHash = lastRecordFile.getHash();
+        final var last = cutoverService.getLastRecordFile().orElse(null);
+        if (last == null) {
+            return;
+        }
 
-            if (!isLastRecordFile) {
-                if (!blockFile.getPreviousHash().contentEquals(previousHash)) {
-                    throw new HashMismatchException(
-                            blockFile.getName(), previousHash, blockFile.getPreviousHash(), "Previous");
-                }
-
-                return;
+        final boolean isLastRecordFile = last.getVersion() < BlockStreamReader.VERSION;
+        final var previousHash = last.getHash();
+        if (!isLastRecordFile) {
+            if (!blockFile.getPreviousHash().contentEquals(previousHash)) {
+                throw new HashMismatchException(
+                        blockFile.getName(), previousHash, blockFile.getPreviousHash(), "Previous");
             }
 
-            // The last verified file is a record file
-            if (blockFile.hasRecordFile()) {
-                // This is a wrapped record block, verify both
-                // - record file hash chain
-                // - conditionally wrapped record block hash chain if the last one is also a wrapped record block
-                final var recordFile = blockFile.getRecordFile();
-                if (!recordFile.getPreviousHash().contentEquals(previousHash)) {
-                    throw new HashMismatchException(
-                            recordFile.getName(), previousHash, recordFile.getPreviousHash(), "Previous");
-                }
+            return;
+        }
 
-                final byte[] previousWrappedRecordBlockHash = lastRecordFile.getWrappedRecordBlockHash();
-                if (previousWrappedRecordBlockHash != null
-                        && Arrays.equals(
-                                recordFile.getPreviousWrappedRecordBlockHash(), previousWrappedRecordBlockHash)) {
-                    throw new HashMismatchException(
-                            recordFile.getName(),
-                            previousWrappedRecordBlockHash,
-                            recordFile.getPreviousWrappedRecordBlockHash(),
-                            "Previous Wrapped Record Block");
-                }
-            } else {
-                // First block after cutover
-                blockFile.setPreviousWrappedRecordBlockHash(Hex.decode(blockFile.getPreviousHash()));
-                blockFile.setPreviousHash(previousHash);
+        // The last verified file is a record file
+        if (blockFile.hasRecordFile()) {
+            // This is a wrapped record block, verify both
+            // - record file hash chain
+            // - conditionally wrapped record block hash chain if the last one is also a wrapped record block
+            final var recordFile = blockFile.getRecordFile();
+            if (!recordFile.getPreviousHash().contentEquals(previousHash)) {
+                throw new HashMismatchException(
+                        recordFile.getName(), previousHash, recordFile.getPreviousHash(), "Previous");
             }
-        });
+
+            final byte[] previousWrappedRecordBlockHash = last.getWrappedRecordBlockHash();
+            if (previousWrappedRecordBlockHash != null
+                    && !Arrays.equals(recordFile.getPreviousWrappedRecordBlockHash(), previousWrappedRecordBlockHash)) {
+                throw new HashMismatchException(
+                        recordFile.getName(),
+                        previousWrappedRecordBlockHash,
+                        recordFile.getPreviousWrappedRecordBlockHash(),
+                        "Previous wrapped record block");
+            }
+        } else {
+            // First block after cutover
+            blockFile.setPreviousWrappedRecordBlockHash(Hex.decode(blockFile.getPreviousHash()));
+            blockFile.setPreviousHash(previousHash);
+        }
     }
 
     private void verifySignature(final BlockFile blockFile) {
