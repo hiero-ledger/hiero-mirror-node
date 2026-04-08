@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Downloads HAPI protos into rest/proto/services/ from hiero-consensus-node at the tag
- * v{consensusNodeVersion} from root build.gradle.kts, writes that git tag to rest/proto/version.txt,
- * then runs `buf generate` (output in rest/gen/**). If rest/proto/version.txt already contains that
- * same tag, download and buf generate are skipped.
+ * Downloads HAPI protos into rest/proto/services/ from hiero-consensus-node at a git tag derived from:
+ * - root build.gradle.kts `consensusNodeVersion` when that file is accessible, or
+ * - rest/proto/version.txt when not in build context (e.g. Docker build).
  *
- * Google well-known protos (e.g. google/protobuf/wrappers.proto) are expected to exist in the repo
- * under rest/proto/google/ (not downloaded here).
+ * Updates rest/proto/version.txt when protos are downloaded, then runs buf generate (rest/gen/**).
+ * Skips download and buf when the stored tag matches the expected tag and gen output is present.
+ *
+ * Google well-known protos (e.g. google/protobuf/wrappers.proto) are expected under rest/proto/google/.
  *
  * Run with `npm run generate-proto-js`
  */
@@ -17,7 +18,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-/** Same set as rest/proto/services (mirror REST vendored HAPI protos). */
 const PROTO_SERVICES_FILES = [
   'basic_types.proto',
   'contract_types.proto',
@@ -33,28 +33,58 @@ const UPSTREAM_SERVICES_PREFIX = 'hapi/hedera-protobuf-java-api/src/main/proto/s
 const restDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(restDir, '..');
 const protoVersionFile = path.join(restDir, 'proto', 'version.txt');
+const protoGeneratedFile = path.join(restDir, 'gen', 'services', 'basic_types_pb.js');
 
-function parseConsensusNodeVersion() {
+function normalizeConsensusTag(versionOrTag) {
+  if (versionOrTag == null || versionOrTag === '') {
+    return null;
+  }
+  const line = String(versionOrTag).trim().split(/\r?\n/, 1)[0]?.trim() || '';
+  if (!line) {
+    return null;
+  }
+  return line.startsWith('v') ? line : `v${line}`;
+}
+
+function consensusGitTagFromGradle() {
   const gradlePath = path.join(repoRoot, 'build.gradle.kts');
   const text = fs.readFileSync(gradlePath, 'utf8');
   const m = text.match(/set\("consensusNodeVersion",\s*"([^"]+)"\)/);
   if (!m) {
     throw new Error(`Could not find consensusNodeVersion in ${gradlePath}`);
   }
-  return m[1];
-}
-
-function consensusGitTag() {
-  const version = parseConsensusNodeVersion();
-  return version.startsWith('v') ? version : `v${version}`;
+  return normalizeConsensusTag(m[1]);
 }
 
 function readStoredConsensusTag() {
   if (!fs.existsSync(protoVersionFile)) {
     return null;
   }
-  const line = fs.readFileSync(protoVersionFile, 'utf8').trim().split(/\r?\n/)[0];
-  return line?.trim() || null;
+  const line = fs.readFileSync(protoVersionFile, 'utf8').split(/\r?\n/, 1)[0]?.trim();
+  return line || null;
+}
+
+function resolveExpectedConsensusTag() {
+  const gradlePath = path.join(repoRoot, 'build.gradle.kts');
+  if (fs.existsSync(gradlePath)) {
+    return consensusGitTagFromGradle();
+  }
+  const fromFile = readStoredConsensusTag();
+  if (!fromFile) {
+    throw new Error(
+      `Cannot determine consensus node proto version: ${gradlePath} not found and ${protoVersionFile} is missing or empty.`,
+    );
+  }
+
+  const normalizedConsensusTag = normalizeConsensusTag(fromFile);
+  console.log(
+    `${gradlePath} not found; using tag from rest/proto/version.txt (${normalizedConsensusTag}).`,
+  );
+  return normalizedConsensusTag;
+}
+
+function isProtoCodegenPresent() {
+  return fs.existsSync(protoGeneratedFile);
 }
 
 function normalizeProtoText(s) {
@@ -74,15 +104,10 @@ function consensusServicesRawUrl(tag, filename) {
 }
 
 async function downloadProtosFromConsensus(consensusTag) {
-  const protoDir = path.join(restDir, 'proto');
-  const servicesDir = path.join(protoDir, 'services');
-
+  const servicesDir = path.join(restDir, 'proto', 'services');
   fs.mkdirSync(servicesDir, {recursive: true});
-
-  fs.writeFileSync(protoVersionFile, `${consensusTag}\n`, 'utf8');
-
   console.log(
-    `Downloading services/*.proto from ${CONSENSUS_NODE_REPO} @ ${consensusTag}`,
+    `Downloading services/*.proto from ${CONSENSUS_NODE_REPO} for tag ${consensusTag}`,
   );
 
   for (const file of PROTO_SERVICES_FILES) {
@@ -91,6 +116,8 @@ async function downloadProtosFromConsensus(consensusTag) {
     fs.writeFileSync(path.join(servicesDir, file), text, 'utf8');
     console.log(`Downloaded proto/services/${file}`);
   }
+
+  fs.writeFileSync(protoVersionFile, `${consensusTag}`, 'utf8');
 }
 
 function runBufGenerate() {
@@ -100,12 +127,7 @@ function runBufGenerate() {
     '.bin',
     process.platform === 'win32' ? 'buf.cmd' : 'buf',
   );
-
-  const result = spawnSync(bufBin, ['generate'], {
-    cwd: restDir,
-    stdio: 'inherit',
-  });
-
+  const result = spawnSync(bufBin, ['generate'], {cwd: restDir, stdio: 'inherit'});
   if (result.error) {
     console.error(result.error);
     return 1;
@@ -113,10 +135,10 @@ function runBufGenerate() {
   return result.status === null ? 1 : result.status;
 }
 
-const expectedTag = consensusGitTag();
-const storedTag = readStoredConsensusTag();
+const expectedTag = resolveExpectedConsensusTag();
+const storedNormalized = normalizeConsensusTag(readStoredConsensusTag());
 
-if (storedTag === expectedTag) {
+if (storedNormalized === expectedTag && isProtoCodegenPresent()) {
   console.log(
     `Proto sources and codegen are up to date for ${expectedTag} (rest/proto/version.txt). Skipping download and buf generate.`,
   );

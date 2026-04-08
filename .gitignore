@@ -129,7 +129,6 @@ rest/buildDist/
 
 # REST vendored protos (regenerate with npm run generate-proto-js after adding sources)
 rest/proto/services/
-rest/proto/version.txt
 rest/gen/
 
 # Rosetta
