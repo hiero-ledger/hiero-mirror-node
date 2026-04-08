@@ -1894,8 +1894,8 @@ components:
     RegisteredNodesResponse:
       type: object
       required:
-        - registered_nodes
         - links
+        - registered_nodes
       properties:
         registered_nodes:
           $ref: "#/components/schemas/RegisteredNodes"
@@ -3599,6 +3599,7 @@ components:
         - registered_node_id
         - service_endpoints
         - timestamp
+        - type
       properties:
         admin_key:
           $ref: "#/components/schemas/Key"
@@ -3616,6 +3617,10 @@ components:
           $ref: "#/components/schemas/RegisteredServiceEndpoints"
         timestamp:
           $ref: "#/components/schemas/TimestampRange"
+        type:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegisteredNodeType"
       example:
         admin_key:
           _type: "ProtobufEncoded"
@@ -3635,8 +3640,8 @@ components:
         $ref: "#/components/schemas/RegisteredNode"
     RegisteredNodeType:
       description: Registered node type.
-      example: BLOCK_NODE
       enum: [UNKNOWN, BLOCK_NODE, GENERAL_SERVICE, MIRROR_NODE, RPC_RELAY]
+      example: BLOCK_NODE
       type: string
     RegisteredServiceEndpoint:
       type: object
@@ -3644,27 +3649,34 @@ components:
         - port
         - requires_tls
         - type
-      # This block ensures at least one of these two fields must be present
-      anyOf:
-        - required: [domain_name]
-        - required: [ip_address]
+      allOf:
+        # Ensures at least one of these two fields is present
+        - anyOf:
+            - required: [domain_name]
+            - required: [ip_address]
+        # Ensures at least one service-specific endpoint is present
+        - anyOf:
+            - required: [block_node]
+            - required: [general_service]
+            - required: [mirror_node]
+            - required: [rpc_relay]
       properties:
         block_node:
           $ref: "#/components/schemas/BlockNodeEndpoint"
           nullable: true
         domain_name:
-          type: string
           description: The DNS domain name of the service
           example: "block1.alpha.com"
           nullable: true
+          type: string
         general_service:
           $ref: "#/components/schemas/GeneralServiceEndpoint"
           nullable: true
         ip_address:
-          type: string
           description: The IP address of the service
           example: "191.91.239.79"
           nullable: true
+          type: string
         mirror_node:
           $ref: "#/components/schemas/MirrorNodeEndpoint"
           nullable: true
@@ -3682,9 +3694,16 @@ components:
         type:
           $ref: "#/components/schemas/RegisteredNodeType"
       example:
-        domain_name: www.example.com
-        ip_address_v4: 127.0.0.1
-        port: 50211
+        block_node:
+          endpoint_api: STATUS
+        domain_name: block1.alpha.com
+        general_service: null
+        ip_address: null
+        mirror_node: null
+        port: 40840
+        requires_tls: false
+        rpc_relay: null
+        type: BLOCK_NODE
     RegisteredServiceEndpoints:
       type: array
       items:

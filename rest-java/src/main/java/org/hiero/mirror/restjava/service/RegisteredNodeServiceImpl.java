@@ -13,7 +13,7 @@ import org.springframework.data.domain.Sort;
 
 @Named
 @RequiredArgsConstructor
-public class RegisteredNodeServiceImpl implements RegisteredNodeService {
+final class RegisteredNodeServiceImpl implements RegisteredNodeService {
 
     private static final String REGISTERED_NODE_ID = "registered_node_id";
     private final RegisteredNodeRepository registeredNodeRepository;

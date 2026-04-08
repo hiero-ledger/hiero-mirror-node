@@ -21,7 +21,6 @@ import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.hiero.hapi.fees.FeeResult;
@@ -177,7 +176,7 @@ final class NetworkController {
     @GetMapping("/registered-nodes")
     RegisteredNodesResponse getRegisteredNodes(
             @RequestParam(required = false, defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
-            @RequestParam(required = false, defaultValue = "ASC") Sort.Direction order,
+            @RequestParam(required = false, defaultValue = "asc") Sort.Direction order,
             @RequestParam(required = false, defaultValue = "", name = REGISTERED_NODE_ID) @Size(max = 2)
                     NumberRangeParameter[] registeredNodeId,
             @RequestParam(required = false) RegisteredNodeType type) {
@@ -198,13 +197,11 @@ final class NetworkController {
 
     private RegisteredNodesRequest registeredNodesRequest(
             NumberRangeParameter[] registeredNodeIdRanges, int limit, Sort.Direction order, RegisteredNodeType type) {
-        final var nodeIds = new TreeSet<Long>();
         long lowerBound = 0L;
         long upperBound = MAX_VALUE;
 
         for (final var range : registeredNodeIdRanges) {
             if (range.operator() == RangeOperator.EQ) {
-                nodeIds.add(range.value());
                 lowerBound = upperBound = range.value(); // The eq operator must not be mixed with other operators
             } else if (range.hasLowerBound()) {
                 lowerBound = Math.max(lowerBound, range.getInclusiveValue());
@@ -214,7 +211,6 @@ final class NetworkController {
         }
 
         return RegisteredNodesRequest.builder()
-                .nodeIds(nodeIds)
                 .lowerBound(lowerBound)
                 .limit(limit)
                 .order(order)
