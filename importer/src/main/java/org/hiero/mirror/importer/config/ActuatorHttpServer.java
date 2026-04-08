@@ -18,6 +18,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
 import org.springframework.boot.health.actuate.endpoint.HttpCodeStatusMapper;
 import org.springframework.boot.health.contributor.Status;
 
@@ -25,13 +26,13 @@ import org.springframework.boot.health.contributor.Status;
 @Named
 @RequiredArgsConstructor
 @ConditionalOnMissingClass({"reactor.netty.http.server.HttpServer", "org.apache.catalina.startup.Tomcat"})
-class ActuatorHttpServer implements InitializingBean, DisposableBean {
+final class ActuatorHttpServer implements InitializingBean, DisposableBean {
 
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String APPLICATION_JSON = "application/json";
     private static final String TEXT_PLAIN_PROMETHEUS = "text/plain; version=0.0.4; charset=utf-8";
 
-    private final HealthStatusResolver healthStatusResolver;
+    private final HealthEndpoint healthEndpoint;
     private final PrometheusMeterRegistry prometheusMeterRegistry;
     private final ObjectMapper objectMapper;
 
@@ -75,7 +76,8 @@ class ActuatorHttpServer implements InitializingBean, DisposableBean {
                 exchange.sendResponseHeaders(405, -1);
                 return;
             }
-            Status status = healthStatusResolver.resolve(group);
+            final var descriptor = healthEndpoint.healthForPath(group);
+            final var status = descriptor != null ? descriptor.getStatus() : Status.DOWN;
             final int httpStatus = HttpCodeStatusMapper.DEFAULT.getStatusCode(status);
             final var body = objectMapper.writeValueAsBytes(Map.of("status", status.getCode()));
             exchange.getResponseHeaders().set(CONTENT_TYPE, APPLICATION_JSON);
