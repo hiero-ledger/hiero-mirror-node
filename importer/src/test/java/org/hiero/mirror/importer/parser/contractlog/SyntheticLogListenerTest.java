@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.hiero.mirror.common.util.DomainUtils.trim;
 import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogServiceImpl.CONTRACT_LOG_MARKER;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.mockito.Mockito.*;
 
@@ -16,6 +17,8 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
 import org.hiero.mirror.importer.domain.EvmAddressMapping;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
@@ -36,6 +39,7 @@ class SyntheticLogListenerTest {
     private static final EntityId ENTITY_1 = domainBuilder.entityId();
     private static final EntityId ENTITY_2 = domainBuilder.entityId();
     private static final EntityId ENTITY_3 = domainBuilder.entityId();
+    private static final EntityId CONTRACT_ENTITY = domainBuilder.entityId();
 
     private static final byte[] LONG_ZERO_1 = trim(Longs.toByteArray(ENTITY_1.getNum()));
     private static final byte[] LONG_ZERO_2 = trim(Longs.toByteArray(ENTITY_2.getNum()));
@@ -44,6 +48,7 @@ class SyntheticLogListenerTest {
     private static final byte[] EVM_1 = domainBuilder.evmAddress();
     private static final byte[] EVM_2 = domainBuilder.evmAddress();
     private static final byte[] EVM_3 = domainBuilder.evmAddress();
+    private static final byte[] CONTRACT_EVM = domainBuilder.evmAddress();
 
     @Mock
     private EntityRepository entityRepository;
@@ -62,8 +67,9 @@ class SyntheticLogListenerTest {
     @Test
     void cachesDbResults() {
         final var contractLog = syntheticTransferLog(LONG_ZERO_1, LONG_ZERO_2);
-        final var lookupIds = Set.of(ENTITY_1.getId(), ENTITY_2.getId());
-        final var mappings = List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2));
+        final var lookupIds = Set.of(ENTITY_1.getId(), ENTITY_2.getId(), CONTRACT_ENTITY.getId());
+        final var mappings =
+                List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2), evmMap(CONTRACT_EVM, CONTRACT_ENTITY));
         mockFind(lookupIds, mappings);
 
         listener.onContractLog(contractLog);
@@ -89,7 +95,7 @@ class SyntheticLogListenerTest {
     @Test
     void cachesNoDbResults() {
         final var contractLog = syntheticTransferLog(LONG_ZERO_1, LONG_ZERO_2);
-        final var lookupIds = Set.of(ENTITY_1.getId(), ENTITY_2.getId());
+        final var lookupIds = Set.of(ENTITY_1.getId(), ENTITY_2.getId(), CONTRACT_ENTITY.getId());
         mockFind(lookupIds, List.of());
 
         listener.onContractLog(contractLog);
@@ -116,8 +122,8 @@ class SyntheticLogListenerTest {
     @Test
     void cachesWithSomeDbResults() {
         final var contractLog = syntheticTransferLog(LONG_ZERO_1, LONG_ZERO_2);
-        final var lookupIds = Set.of(ENTITY_1.getId(), ENTITY_2.getId());
-        final var mappings = List.of(evmMap(EVM_1, ENTITY_1));
+        final var lookupIds = Set.of(ENTITY_1.getId(), ENTITY_2.getId(), CONTRACT_ENTITY.getId());
+        final var mappings = List.of(evmMap(EVM_1, ENTITY_1), evmMap(CONTRACT_EVM, CONTRACT_ENTITY));
         mockFind(lookupIds, mappings);
 
         listener.onContractLog(contractLog);
@@ -144,8 +150,9 @@ class SyntheticLogListenerTest {
     @Test
     void queryNonCachedEntries() {
         final var contractLog = syntheticTransferLog(LONG_ZERO_1, LONG_ZERO_2);
-        final var lookupIds = Set.of(ENTITY_1.getId(), ENTITY_2.getId());
-        final var mappings = List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2));
+        final var lookupIds = Set.of(ENTITY_1.getId(), ENTITY_2.getId(), CONTRACT_ENTITY.getId());
+        final var mappings =
+                List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2), evmMap(CONTRACT_EVM, CONTRACT_ENTITY));
         mockFind(lookupIds, mappings);
 
         listener.onContractLog(contractLog);
@@ -177,6 +184,7 @@ class SyntheticLogListenerTest {
                 .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
                         .topic1(LONG_ZERO_1)
                         .topic2(LONG_ZERO_3)
+                        .contractId(CONTRACT_ENTITY)
                         .syntheticTransfer(false))
                 .get();
 
@@ -186,8 +194,9 @@ class SyntheticLogListenerTest {
         assertLogHasTopics(contractLog, LONG_ZERO_1, LONG_ZERO_2);
         assertLogHasTopics(contractLog2, LONG_ZERO_1, LONG_ZERO_3);
 
-        final var ids = Set.of(ENTITY_1.getId(), ENTITY_2.getId());
-        final var mappings = List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2));
+        final var ids = Set.of(ENTITY_1.getId(), ENTITY_2.getId(), CONTRACT_ENTITY.getId());
+        final var mappings =
+                List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2), evmMap(CONTRACT_EVM, CONTRACT_ENTITY));
         mockFind(ids, mappings);
 
         submitAndClear();
@@ -215,12 +224,14 @@ class SyntheticLogListenerTest {
         assertLogHasTopics(contractLog, LONG_ZERO_1, LONG_ZERO_2);
         assertLogHasTopics(contractLog2, Longs.toByteArray(entity.getNum()), LONG_ZERO_3);
 
-        final var ids = Set.of(ENTITY_1.getId(), ENTITY_2.getId(), ENTITY_3.getId(), entity.getId());
+        final var ids =
+                Set.of(ENTITY_1.getId(), ENTITY_2.getId(), ENTITY_3.getId(), entity.getId(), CONTRACT_ENTITY.getId());
         final var mappings = List.of(
                 evmMap(EVM_1, ENTITY_1),
                 evmMap(EVM_2, ENTITY_2),
                 evmMap(EVM_3, ENTITY_3),
-                evmMap(newEvm, entity.toEntityId()));
+                evmMap(newEvm, entity.toEntityId()),
+                evmMap(CONTRACT_EVM, CONTRACT_ENTITY));
 
         parserContext.merge(entity.getId(), entity, NO_OP_MERGE);
         mockFind(ids, mappings);
@@ -244,8 +255,9 @@ class SyntheticLogListenerTest {
         listener.onContractLog(contractLog2);
         listener.onContractLog(contractLog3);
 
-        final var ids = Set.of(ENTITY_1.getId(), ENTITY_2.getId());
-        mockFind(ids, Collections.emptyList());
+        final var ids = Set.of(ENTITY_1.getId(), ENTITY_2.getId(), CONTRACT_ENTITY.getId());
+        final var mappings = List.of(evmMap(CONTRACT_EVM, CONTRACT_ENTITY));
+        mockFind(ids, mappings);
 
         submitAndClear();
 
@@ -257,14 +269,110 @@ class SyntheticLogListenerTest {
         assertLogHasTopics(contractLog3, null, null);
     }
 
+    @Test
+    void bloomUsesContractEvmAddressFromCache() {
+        final var contractEvmAddress = domainBuilder.evmAddress();
+        final var contractEntityId = domainBuilder.entityId();
+        final var contractLog = syntheticTransferLogWithContract(LONG_ZERO_1, LONG_ZERO_2, contractEntityId);
+        contractLog.setBloom(CONTRACT_LOG_MARKER);
+
+        final var mappings =
+                List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2), evmMap(contractEvmAddress, contractEntityId));
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(mappings);
+
+        listener.onContractLog(contractLog);
+        submitAndClear();
+
+        var expectedBloom = createExpectedBloom(trim(contractEvmAddress), contractLog);
+        assertArrayEquals(expectedBloom, contractLog.getBloom());
+    }
+
+    @Test
+    void bloomUsesContractEvmAddressFromParserContext() {
+        final var contractEvmAddress = domainBuilder.evmAddress();
+        final var contractEntity = domainBuilder
+                .entity()
+                .customize(e -> e.evmAddress(contractEvmAddress).timestampRange(null))
+                .get();
+        final var contractEntityId = contractEntity.toEntityId();
+        final var contractLog = syntheticTransferLogWithContract(LONG_ZERO_1, LONG_ZERO_2, contractEntityId);
+        contractLog.setBloom(CONTRACT_LOG_MARKER);
+
+        final var mappings = List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2));
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(mappings);
+
+        parserContext.merge(contractEntity.getId(), contractEntity, NO_OP_MERGE);
+
+        listener.onContractLog(contractLog);
+        submitAndClear();
+
+        var expectedBloom = createExpectedBloom(trim(contractEvmAddress), contractLog);
+        assertArrayEquals(expectedBloom, contractLog.getBloom());
+    }
+
+    @Test
+    void bloomUsesLongZeroAddressWhenNoEvmAddress() {
+        final var contractEntityId = domainBuilder.entityId();
+        final var contractLog = syntheticTransferLogWithContract(LONG_ZERO_1, LONG_ZERO_2, contractEntityId);
+        contractLog.setBloom(CONTRACT_LOG_MARKER);
+
+        final var mappings = List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2));
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(mappings);
+
+        listener.onContractLog(contractLog);
+        submitAndClear();
+
+        var longZeroAddress = DomainUtils.toEvmAddress(contractEntityId);
+        var expectedBloom = createExpectedBloom(longZeroAddress, contractLog);
+        assertArrayEquals(expectedBloom, contractLog.getBloom());
+    }
+
+    @Test
+    void bloomNotUpdatedWhenNotMarker() {
+        final var contractEntityId = domainBuilder.entityId();
+        final var originalBloom = domainBuilder.bytes(LogsBloomFilter.BYTE_SIZE);
+        final var contractLog = syntheticTransferLogWithContract(LONG_ZERO_1, LONG_ZERO_2, contractEntityId);
+        contractLog.setBloom(originalBloom);
+
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(Collections.emptyList());
+
+        listener.onContractLog(contractLog);
+        submitAndClear();
+
+        assertArrayEquals(originalBloom, contractLog.getBloom());
+    }
+
     private ContractLog syntheticTransferLog(final byte[] topic1, final byte[] topic2) {
         return domainBuilder
                 .contractLog()
                 .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
                         .topic1(topic1)
                         .topic2(topic2)
+                        .contractId(CONTRACT_ENTITY)
                         .syntheticTransfer(true))
                 .get();
+    }
+
+    private ContractLog syntheticTransferLogWithContract(
+            final byte[] topic1, final byte[] topic2, final EntityId contractId) {
+        return domainBuilder
+                .contractLog()
+                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
+                        .topic1(topic1)
+                        .topic2(topic2)
+                        .contractId(contractId)
+                        .syntheticTransfer(true))
+                .get();
+    }
+
+    private byte[] createExpectedBloom(final byte[] contractAddress, final ContractLog contractLog) {
+        var logsBloomFilter = new LogsBloomFilter();
+        logsBloomFilter.insertAddress(contractAddress);
+        logsBloomFilter.insertTopic(contractLog.getTopic0());
+        logsBloomFilter.insertTopic(contractLog.getTopic1());
+        logsBloomFilter.insertTopic(contractLog.getTopic2());
+        logsBloomFilter.insertTopic(contractLog.getTopic3());
+        return logsBloomFilter.toArrayUnsafe();
     }
 
     private EvmAddressMapping evmMap(final byte[] evmAddress, final EntityId entityId) {
