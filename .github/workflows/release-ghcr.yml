@@ -1,0 +1,134 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Release GHCR
+
+on:
+  push:
+    tags:
+      - "v*"
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  LC_ALL: C.UTF-8
+
+jobs:
+  image:
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - grpc
+          - importer
+          - monitor
+          - rest-java
+          - web3
+        architecture:
+          - amd64
+          - arm64
+        exclude:
+          - architecture: arm64
+            project: web3 # Temporarily disable it since web3j-solidity-gradle-plugin doesn't support linux/arm64 yet
+        include:
+          - architecture: amd64
+            runner: ubuntu-latest
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      IMAGE: ghcr.io/hiero-ledger/hiero-mirror-node/${{ matrix.project }}
+    permissions:
+      contents: "read"
+      packages: "write"
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Get version
+        run: echo "VERSION=$(grep -oP 'version=\K.+' gradle.properties)" >> $GITHUB_ENV
+
+      - name: Install JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v4
+
+      - name: Install Skopeo
+        run: sudo apt-get update && sudo apt-get install -y skopeo
+
+      - name: Skopeo Login
+        run: skopeo login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        run: ./gradlew :${{matrix.project}}:bootBuildImage -PimagePlatform=linux/${{matrix.architecture}}
+
+      - name: Convert to OCI
+        run: skopeo copy docker-daemon:${{env.IMAGE}}:${{env.VERSION}} docker://${{env.IMAGE}}:${{env.VERSION}}-${{matrix.architecture}} --format oci
+
+  manifest:
+    needs: image
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - grpc
+          - importer
+          - monitor
+          - rest-java
+          - web3
+    env:
+      IMAGE: ghcr.io/hiero-ledger/hiero-mirror-node/${{ matrix.project }}
+    permissions:
+      contents: "read"
+      id-token: "write"
+      packages: "write"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install envsubst Dependency for Cosign
+        run: sudo apt-get update && sudo apt-get install -y gettext-base
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+
+      - name: Get Version
+        run: echo "VERSION=$(grep -oP 'version=\K.+' gradle.properties)" >> $GITHUB_ENV
+
+      - name: Login to GHCR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+
+      - name: Optional arm64 tag
+        if: matrix.project != 'web3'
+        run: echo "ARM64_TAG=${{env.IMAGE}}:${{env.VERSION}}-arm64" >> $GITHUB_ENV
+
+      - name: Create Manifest
+        run: |
+          docker buildx imagetools create --tag ${{env.IMAGE}}:${{env.VERSION}} ${{env.IMAGE}}:${{env.VERSION}}-amd64 ${{env.ARM64_TAG}} --metadata-file ./manifest.json
+          echo "DIGEST=$(jq '."containerimage.descriptor".digest' -r ./manifest.json)" >> $GITHUB_ENV
+
+      - name: Sign Image
+        run: COSIGN_EXPERIMENTAL=1 cosign sign --registry-referrers-mode=oci-1-1 --new-bundle-format=true --yes ${{env.IMAGE}}@${{env.DIGEST}}
+
+      - name: Verify Image
+        run: cosign verify ${{env.IMAGE}}@${{env.DIGEST}} --certificate-oidc-issuer https://token.actions.githubusercontent.com --certificate-identity-regexp="https://github.com/${GITHUB_REPOSITORY}" -o text

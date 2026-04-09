@@ -55,6 +55,7 @@ tasks.register<Go>("generate") {
 }
 
 tasks.register<Exec>("run") {
+    group = "application"
     commandLine(layout.buildDirectory.asFile.get().resolve(layout.projectDirectory.asFile.name))
     dependsOn(goBuild)
 }
