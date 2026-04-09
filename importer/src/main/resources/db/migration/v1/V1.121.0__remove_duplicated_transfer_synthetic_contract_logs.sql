@@ -11,5 +11,6 @@ where cl_dup.consensus_timestamp > 177231600000000000
       and cl_orig.topic2 is not distinct from cl_dup.topic2
       and cl_orig.topic3 is not distinct from cl_dup.topic3
       and cl_orig.transaction_hash != cl_dup.transaction_hash
+      and cl_orig.transaction_index != cl_dup.transaction_index
       and cl_orig.index < cl_dup.index
   );
