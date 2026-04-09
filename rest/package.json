@@ -33,7 +33,6 @@
     "express-http-context": "2.0.1",
     "express-openapi-validator": "5.6.2",
     "extend": "3.0.2",
-    "http-errors": "2.0.1",
     "ioredis": "5.10.1",
     "js-yaml": "4.1.1",
     "json-bigint": "1.0.0",
@@ -52,17 +51,10 @@
   "devDependencies": {
     "@bufbuild/buf": "1.64.0",
     "@bufbuild/protoc-gen-es": "2.11.0",
-    "@jest/globals": "30.3.0",
     "@testcontainers/postgresql": "11.13.0",
     "cross-env": "10.1.0",
     "crypto-random-string": "5.0.0",
     "esbuild": "^0.27.0",
-    "eslint": "^8.57.1",
-    "eslint-config-airbnb-base": "15.0.0",
-    "eslint-plugin-import": "2.31.0",
-    "eslint-plugin-jest": "28.8.0",
-    "eslint-plugin-node": "11.1.0",
-    "eslint-plugin-security": "3.0.1",
     "extensionless": "2.0.6",
     "jest": "30.3.0",
     "jest-extended": "7.0.0",
@@ -72,8 +64,7 @@
     "pgsql-parser": "17.9.14",
     "sinon": "21.0.3",
     "supertest": "7.2.2",
-    "tar": "7.5.12",
-    "testcontainers": "11.13.0"
+    "tar": "7.5.12"
   },
   "peerDependencies": {
     "ansi-regex": "6.2.2",
@@ -90,7 +81,6 @@
   },
   "baseUrlPath": "/api/v1",
   "overrides": {
-    "flatted": "3.4.2",
     "glob": "13.0.6",
     "@istanbuljs/load-nyc-config": {
       "js-yaml": "3.14.2"
