@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.protobuf.ByteString;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
@@ -14,6 +15,8 @@ import com.hederahashgraph.api.proto.java.FeeComponents;
 import com.hederahashgraph.api.proto.java.FeeData;
 import com.hederahashgraph.api.proto.java.FeeSchedule;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
+import com.hederahashgraph.api.proto.java.SignatureMap;
+import com.hederahashgraph.api.proto.java.SignaturePair;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import com.hederahashgraph.api.proto.java.Transaction;
@@ -34,6 +37,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.FeeEstimateResponse;
+import org.hiero.mirror.rest.model.FeeExtra;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
@@ -610,6 +614,40 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         @Test
+        void withExtras() {
+            // given — 2 signatures: 1 included for free, 1 charged as a signature extra
+            seedFeeSchedule();
+            final var transaction = transactionWithSignatures(2);
+
+            // when
+            final var actual = restClient
+                    .post()
+                    .uri("")
+                    .body(transaction)
+                    .contentType(MediaType.APPLICATION_PROTOBUF)
+                    .retrieve()
+                    .body(FeeEstimateResponse.class);
+
+            // then — signature extras must be present
+            assertThat(actual.getNode().getExtras()).isNotEmpty();
+            // verify FeeExtra.subtotal == feePerUnit × charged for every extra (controller math)
+            actual.getNode().getExtras().forEach(extra -> assertThat(extra.getSubtotal())
+                    .as("subtotal for extra '%s'", extra.getName())
+                    .isEqualTo(extra.getFeePerUnit() * extra.getCharged()));
+            // verify the full-response math with extras
+            final var nodeBase = actual.getNode().getBase();
+            final var nodeExtrasTotal = actual.getNode().getExtras().stream()
+                    .mapToLong(FeeExtra::getSubtotal)
+                    .sum();
+            final var nodeFee = nodeBase + nodeExtrasTotal;
+            final var networkMultiplier = actual.getNetwork().getMultiplier();
+            assertThat(actual.getNetwork().getSubtotal()).isEqualTo(nodeFee * networkMultiplier);
+            assertThat(actual.getService().getBase()).isZero();
+            assertThat(actual.getService().getExtras()).isEqualTo(List.of());
+            assertThat(actual.getTotal()).isEqualTo(nodeFee + nodeFee * networkMultiplier);
+        }
+
+        @Test
         void nullBody() {
             // when / then
             validateError(
@@ -728,6 +766,32 @@ final class NetworkControllerTest extends ControllerTest {
                     .toByteString();
             final var signedTransaction = SignedTransaction.newBuilder()
                     .setBodyBytes(transactionBody)
+                    .build()
+                    .toByteString();
+            return Transaction.newBuilder()
+                    .setSignedTransactionBytes(signedTransaction)
+                    .build()
+                    .toByteArray();
+        }
+
+        private byte[] transactionWithSignatures(int signatureCount) {
+            final var cryptoTransfer =
+                    CryptoTransferTransactionBody.newBuilder().build();
+            final var transactionBody = TransactionBody.newBuilder()
+                    .setMemo("test")
+                    .setCryptoTransfer(cryptoTransfer)
+                    .build()
+                    .toByteString();
+            final var sigMapBuilder = SignatureMap.newBuilder();
+            for (int i = 0; i < signatureCount; i++) {
+                sigMapBuilder.addSigPair(SignaturePair.newBuilder()
+                        .setPubKeyPrefix(ByteString.copyFrom(new byte[] {(byte) i}))
+                        .setEd25519(ByteString.copyFrom(new byte[64]))
+                        .build());
+            }
+            final var signedTransaction = SignedTransaction.newBuilder()
+                    .setBodyBytes(transactionBody)
+                    .setSigMap(sigMapBuilder.build())
                     .build()
                     .toByteString();
             return Transaction.newBuilder()

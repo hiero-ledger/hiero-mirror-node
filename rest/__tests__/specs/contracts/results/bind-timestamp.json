@@ -80,7 +80,8 @@
         "name": "CONTRACTCALL",
         "type": "7",
         "entity_id": "0.0.501",
-        "high_volume": false
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       },
       {
         "payerAccountId": "0.0.5000",
@@ -89,7 +90,8 @@
         "name": "CRYPTOTRANSFER",
         "type": "7",
         "entity_id": "0.0.401",
-        "high_volume": false
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       }
     ]
   },

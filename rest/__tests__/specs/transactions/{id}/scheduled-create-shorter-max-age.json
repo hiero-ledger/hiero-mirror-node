@@ -40,7 +40,8 @@
           }
         ],
         "entity_id": "0.0.1000",
-        "high_volume": false
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       }
     ]
   },
@@ -57,6 +58,7 @@
         "consensus_timestamp": "1234567890.000000002",
         "entity_id": "0.0.1000",
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "charged_tx_fee": 7,
         "max_custom_fees": [],
         "max_fee": "33",

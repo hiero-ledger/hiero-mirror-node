@@ -11,6 +11,7 @@ describe('Transaction', () => {
         consensus_timestamp: '1234567890000000001',
         entity_id: 1001,
         high_volume: true,
+        high_volume_pricing_multiplier: 10,
         initial_balance: 5000,
         inner_transactions: null,
         max_custom_fees: null,
@@ -34,6 +35,7 @@ describe('Transaction', () => {
       const transaction = new Transaction(input);
 
       expect(transaction.highVolume).toBe(true);
+      expect(transaction.highVolumePricingMultiplier).toBe(10);
       expect(transaction.batchKey).toBe('batchKey123');
       expect(transaction.chargedTxFee).toBe(100);
       expect(transaction.consensusTimestamp).toBe('1234567890000000001');
@@ -67,6 +69,10 @@ describe('Transaction', () => {
   describe('static constants', () => {
     test('HIGH_VOLUME constant is defined', () => {
       expect(Transaction.HIGH_VOLUME).toBe('high_volume');
+    });
+
+    test('HIGH_VOLUME_PRICING_MULTIPLIER constant is defined', () => {
+      expect(Transaction.HIGH_VOLUME_PRICING_MULTIPLIER).toBe('high_volume_pricing_multiplier');
     });
   });
 });

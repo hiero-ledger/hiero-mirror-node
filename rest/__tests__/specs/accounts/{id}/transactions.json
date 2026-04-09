@@ -77,7 +77,8 @@
         "type": 22,
         "valid_start_timestamp": "1234567890000000004",
         "entity_id": "0.0.200",
-        "high_volume": false
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       }
     ],
     "cryptotransfers": [
@@ -242,6 +243,7 @@
             "consensus_timestamp": "1234567890.000000016",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": null,
             "max_custom_fees": [],
             "max_fee": "33",
             "memo_base64": null,
@@ -288,6 +290,7 @@
             "consensus_timestamp": "1234567890.000000001",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": null,
             "max_custom_fees": [],
             "max_fee": "33",
             "memo_base64": null,

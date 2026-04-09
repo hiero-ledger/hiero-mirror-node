@@ -31,7 +31,8 @@
         "name": "CRYPTOUPDATEACCOUNT",
         "type": "15",
         "entity_id": "0.0.8",
-        "high_volume": false
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       }
     ],
     "cryptotransfers": [
@@ -81,6 +82,7 @@
         "consensus_timestamp": "1565779333.711927001",
         "entity_id": null,
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "valid_start_timestamp": "1565779333.711927000",
         "charged_tx_fee": 7,
         "memo_base64": null,
@@ -122,6 +124,7 @@
         "consensus_timestamp": "1565779209.711927001",
         "entity_id": null,
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "valid_start_timestamp": "1565779209.711927000",
         "charged_tx_fee": 7,
         "max_custom_fees": [],
@@ -163,6 +166,7 @@
         "consensus_timestamp": "1565779111.711927001",
         "entity_id": null,
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "valid_start_timestamp": "1565779111.711927000",
         "charged_tx_fee": 7,
         "max_custom_fees": [],

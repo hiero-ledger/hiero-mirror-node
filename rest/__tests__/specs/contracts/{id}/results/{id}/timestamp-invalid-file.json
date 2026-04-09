@@ -110,6 +110,7 @@
         "consensus_timestamp": "167654000120456",
         "entity_id": 120,
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "transaction_type": 17
       }
     ],

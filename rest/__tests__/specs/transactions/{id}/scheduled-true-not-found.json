@@ -36,7 +36,8 @@
           }
         ],
         "entity_id": "0.0.1000",
-        "high_volume": false
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       },
       {
         "charged_tx_fee": 7,

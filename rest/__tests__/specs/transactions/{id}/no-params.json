@@ -71,6 +71,7 @@
         "type": 27,
         "entity_id": "0.0.100",
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "transaction_bytes": null,
         "transfers": [
           {
@@ -218,6 +219,7 @@
             "charged_tx_fee": 7,
             "entity_id": "0.0.100",
             "high_volume": false,
+            "high_volume_pricing_multiplier": null,
             "max_custom_fees": [
               {
                 "account_id": "0.0.9",
@@ -270,6 +272,7 @@
             "consensus_timestamp": "1234567890.000000003",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": null,
             "max_custom_fees": [],
             "max_fee": "33",
             "memo_base64": null,
@@ -314,6 +317,7 @@
             "consensus_timestamp": "1234567890.000000040",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": null,
             "max_custom_fees": [],
             "max_fee": "33",
             "memo_base64": null,
@@ -365,6 +369,7 @@
             "charged_tx_fee": 7,
             "entity_id": "0.0.100",
             "high_volume": false,
+            "high_volume_pricing_multiplier": null,
             "max_custom_fees": [
               {
                 "account_id": "0.0.9",
@@ -425,6 +430,7 @@
             "consensus_timestamp": "1234567899.000000999",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": null,
             "max_custom_fees": [],
             "max_fee": "33",
             "memo_base64": null,

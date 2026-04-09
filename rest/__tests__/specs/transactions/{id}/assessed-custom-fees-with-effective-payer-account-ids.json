@@ -84,6 +84,7 @@
         "consensus_timestamp": "1565779555.711927001",
         "entity_id": null,
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "max_custom_fees": [],
         "max_fee": "33",
         "memo_base64": null,

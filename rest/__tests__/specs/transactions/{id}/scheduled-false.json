@@ -37,7 +37,8 @@
           }
         ],
         "entity_id": "0.0.1000",
-        "high_volume": false
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       },
       {
         "charged_tx_fee": 7,
@@ -88,6 +89,7 @@
         "consensus_timestamp": "1234567890.000000002",
         "entity_id": "0.0.1000",
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "charged_tx_fee": 7,
         "max_custom_fees": [],
         "max_fee": "33",
@@ -125,6 +127,7 @@
         "consensus_timestamp": "1234567890.000000040",
         "entity_id": null,
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "max_fee": "33",
         "max_custom_fees": [],
         "memo_base64": null,

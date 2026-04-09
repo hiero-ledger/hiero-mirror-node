@@ -73,7 +73,8 @@
           }
         ],
         "entity_id": "0.0.1500",
-        "high_volume": false
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       },
       {
         "name": "CRYPTOAPPROVEALLOWANCE",
@@ -157,7 +158,8 @@
           }
         ],
         "entity_id": "0.0.1500",
-        "high_volume": false
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       },
       {
         "name": "TOKENDELETION",
@@ -168,7 +170,8 @@
         "nodeAccountId": "0.0.3",
         "treasuryAccountId": "0.0.98",
         "entity_id": "0.0.1500",
-        "high_volume": false
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       }
     ],
     "nfts": [

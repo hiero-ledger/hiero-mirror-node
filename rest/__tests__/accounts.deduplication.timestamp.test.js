@@ -154,6 +154,7 @@ describe('Accounts deduplicate timestamp tests', () => {
         type: '29',
         entity_id: entityId90000.num,
         high_volume: false,
+        high_volume_pricing_multiplier: null,
       },
       {
         payerAccountId: entityId9.num,
@@ -163,6 +164,7 @@ describe('Accounts deduplicate timestamp tests', () => {
         type: '12',
         entity_id: entityId7.num,
         high_volume: false,
+        high_volume_pricing_multiplier: null,
       },
       {
         charged_tx_fee: 0,
@@ -173,6 +175,7 @@ describe('Accounts deduplicate timestamp tests', () => {
         type: '15',
         entity_id: entityId8.num,
         high_volume: false,
+        high_volume_pricing_multiplier: null,
       },
     ]);
 
@@ -239,6 +242,7 @@ describe('Accounts deduplicate timestamp tests', () => {
             consensus_timestamp: `${utils.nsToSecNs(balanceTimestamp1)}`,
             entity_id: null,
             high_volume: false,
+            high_volume_pricing_multiplier: null,
             max_custom_fees: [],
             max_fee: '33',
             memo_base64: null,
@@ -293,6 +297,7 @@ describe('Accounts deduplicate timestamp tests', () => {
             consensus_timestamp: `${utils.nsToSecNs(createdTimestamp1)}`,
             entity_id: null,
             high_volume: false,
+            high_volume_pricing_multiplier: null,
             max_custom_fees: [],
             max_fee: '33',
             memo_base64: null,

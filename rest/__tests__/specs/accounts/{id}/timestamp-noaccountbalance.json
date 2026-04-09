@@ -92,7 +92,8 @@
         "name": "TOKENCREATION",
         "type": "29",
         "entity_id": "0.0.90000",
-        "high_volume": false
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       },
       {
         "payerAccountId": "0.0.9",
@@ -101,7 +102,8 @@
         "name": "CRYPTODELETE",
         "type": "12",
         "entity_id": "0.0.7",
-        "high_volume": false
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       },
       {
         "charged_tx_fee": 0,
@@ -111,7 +113,8 @@
         "name": "CRYPTOUPDATEACCOUNT",
         "type": "15",
         "entity_id": "0.0.8",
-        "high_volume": false
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       }
     ],
     "cryptotransfers": [
@@ -171,6 +174,7 @@
         "consensus_timestamp": "1234567880.000000006",
         "entity_id": null,
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "max_custom_fees": [],
         "max_fee": "33",
         "memo_base64": null,
@@ -225,6 +229,7 @@
         "consensus_timestamp": "1234567870.000000006",
         "entity_id": null,
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "max_custom_fees": [],
         "max_fee": "33",
         "memo_base64": null,
