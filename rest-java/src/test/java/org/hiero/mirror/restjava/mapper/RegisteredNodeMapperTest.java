@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
+import java.util.Collections;
 import java.util.List;
 import org.apache.commons.codec.DecoderException;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
@@ -66,9 +67,7 @@ final class RegisteredNodeMapperTest {
         assertThat(mappedEndpoint.getIpAddress()).isEqualTo("127.0.0.1");
         assertThat(mappedEndpoint.getPort()).isEqualTo(443);
         assertThat(mappedEndpoint.getRequiresTls()).isTrue();
-        assertThat(mappedEndpoint.getBlockNode()).isNotNull();
-        assertThat(mappedEndpoint.getBlockNode().getEndpointApi())
-                .isEqualTo(org.hiero.mirror.rest.model.BlockNodeEndpoint.EndpointApiEnum.STATUS);
+        assertThat(mappedEndpoint.getBlockNode()).isEqualTo(Collections.emptyMap());
         assertThat(mappedEndpoint.getType()).isEqualTo(RegisteredNodeType.BLOCK_NODE);
 
         assertThat(result.getType())

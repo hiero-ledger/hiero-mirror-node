@@ -16,6 +16,7 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.Key;
 import org.hiero.mirror.rest.model.Key.TypeEnum;
@@ -192,5 +193,14 @@ public interface CommonMapper {
             case 4 -> RegisteredNodeType.RPC_RELAY;
             default -> RegisteredNodeType.UNKNOWN;
         };
+    }
+
+    /**
+     * Omits block node API details to avoid making braking changes when
+     * BlockNodeEndpoint data field is changed from single value to list in the
+     * next release of consensus node.
+     */
+    default Object blockNodeForRest(BlockNodeEndpoint blockNode) {
+        return blockNode == null ? null : Collections.emptyMap();
     }
 }

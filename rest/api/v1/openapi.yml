@@ -3420,20 +3420,12 @@ components:
         timestamp:
           from: "1651560386.060890949"
           to: "1651560386.661997287"
-    BlockNodeEndpoint:
-      type: object
-      properties:
-        endpoint_api:
-          type: string
-          enum:
-            [
-              OTHER,
-              STATUS,
-              PUBLISH,
-              SUBSCRIBE_STREAM,
-              STATE_PROOF,
-              UNRECOGNIZED,
-            ]
+    #    BlockNodeEndpoint:
+    #      description: >
+    #        Block Node API details are not exposed in this API
+    #        version to avoid breaking existing clients when the BlockNodeEndpoint
+    #        data field becomes a list.
+    #      type: object
     Blocks:
       type: array
       items:
@@ -3662,7 +3654,8 @@ components:
             - required: [rpc_relay]
       properties:
         block_node:
-          $ref: "#/components/schemas/BlockNodeEndpoint"
+          type: object
+          #          $ref: "#/components/schemas/BlockNodeEndpoint"
           nullable: true
         domain_name:
           description: The DNS domain name of the service
@@ -3694,8 +3687,7 @@ components:
         type:
           $ref: "#/components/schemas/RegisteredNodeType"
       example:
-        block_node:
-          endpoint_api: STATUS
+        block_node: {}
         domain_name: block1.alpha.com
         general_service: null
         ip_address: null
