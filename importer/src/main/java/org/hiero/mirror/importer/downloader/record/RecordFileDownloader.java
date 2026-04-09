@@ -10,7 +10,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.util.Arrays;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -116,9 +115,7 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
             return;
         }
 
-        var acceptedTypes =
-                sidecarProperties.getTypes().stream().map(Enum::ordinal).collect(Collectors.toSet());
-
+        var acceptedTypes = sidecarProperties.getTypeOrdinals();
         var records = Flux.fromIterable(recordFile.getSidecars())
                 .filter(sidecar ->
                         acceptedTypes.isEmpty() || sidecar.getTypes().stream().anyMatch(acceptedTypes::contains))

@@ -9,9 +9,9 @@ import {fileURLToPath} from 'url';
 
 import {NANOSECONDS_PER_MILLISECOND} from './constants';
 import {InvalidConfigError} from './errors';
-import configureLogger from './logger';
+import Logger from './logger';
 
-configureLogger();
+global.logger = new Logger();
 
 const config = {};
 const defaultConfigName = 'application';
@@ -228,7 +228,7 @@ if (!loaded) {
   parseUsersConfig();
   parseCommon();
   loaded = true;
-  configureLogger(getConfig().log.level);
+  logger.setLevel(getConfig().log.level);
 }
 
 export default getConfig();
