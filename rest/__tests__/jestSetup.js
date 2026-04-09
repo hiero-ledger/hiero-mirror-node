@@ -2,13 +2,12 @@
 
 import {jest} from '@jest/globals';
 import matchers from 'jest-extended';
-import log4js from 'log4js';
+import Logger from '../logger';
 import {recordQuery} from './tableUsage.js';
 import {setRecordQuery} from '../utils.js';
 
+global.logger = new Logger();
 setRecordQuery(recordQuery);
-
-global.logger = log4js.getLogger();
 
 expect.extend(matchers); // add matchers from jest-extended
 jest.setTimeout(4000);

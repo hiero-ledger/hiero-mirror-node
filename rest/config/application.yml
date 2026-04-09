@@ -35,6 +35,7 @@ hiero:
         username: mirror_api
       log:
         level: info
+        sampleRate: 0.1
       metrics:
         enabled: true
         config:
