@@ -919,6 +919,7 @@ paths:
       operationId: estimateFees
       parameters:
         - $ref: "#/components/parameters/estimateModeQueryParam"
+        - $ref: "#/components/parameters/highVolumeThrottleQueryParam"
       requestBody:
         content:
           application/protobuf:
@@ -3449,7 +3450,7 @@ components:
       description: The response containing the estimated transaction fees.
       properties:
         high_volume_multiplier:
-          description: The maximum multiplier that may be applied to fees for high-volume transactions per HIP-1313. Multiply the fee total by this value to estimate the worst-case fee under high-volume pricing. A value of 1 indicates the transaction type is not subject to high-volume pricing.
+          description: The multiplier applied to fees at the requested throttle utilization level per HIP-1313. A value greater than 1 is only returned when the transaction has highVolume=true and mode=STATE. A value of 1 indicates no high-volume pricing applies at the requested throttle level.
           example: 100
           format: int64
           minimum: 1
@@ -5376,6 +5377,16 @@ components:
       example: INTRINSIC
       schema:
         $ref: "#/components/schemas/FeeEstimateMode"
+    highVolumeThrottleQueryParam:
+      description: The high-volume throttle utilization in basis points where 10000 equals 100%.
+      in: query
+      name: high_volume_throttle
+      example: 10000
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 10000
+        default: 0
     stack:
       name: stack
       description: If provided and set to false, stack information will not be included in the response

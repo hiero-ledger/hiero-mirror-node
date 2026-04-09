@@ -25,12 +25,8 @@ import jakarta.inject.Named;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import org.hiero.hapi.fees.FeeResult;
-import org.hiero.hapi.fees.FeeScheduleUtils;
-import org.hiero.hapi.fees.HighVolumePricingCalculator;
-import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
@@ -52,7 +48,6 @@ public class FeeEstimationService {
     private final FeeTopicStore feeTopicStore;
     private final FeeTokenStore feeTokenStore;
     private final AtomicLong lastFeeScheduleTimestamp;
-    private final AtomicReference<FeeSchedule> currentFeeSchedule;
     private final FeeManager feeManager;
 
     public FeeEstimationService(
@@ -66,10 +61,9 @@ public class FeeEstimationService {
         this.feeScheduleFileId = systemEntity.simpleFeeScheduleFile().getId();
         this.feeTopicStore = feeTopicStore;
         this.feeTokenStore = feeTokenStore;
-        this.currentFeeSchedule = new AtomicReference<>(FeeSchedule.DEFAULT);
         this.lastFeeScheduleTimestamp = new AtomicLong(Long.MIN_VALUE);
 
-        final var config = newFeeContext(TransactionBody.DEFAULT).configuration();
+        final var config = newFeeContext(TransactionBody.DEFAULT, 0).configuration();
         this.executor = TRANSACTION_EXECUTORS.newExecutorComponent(
                 feeEstimationState,
                 FeeEstimationFeeContext.FEE_PROPERTIES,
@@ -98,28 +92,21 @@ public class FeeEstimationService {
             lastFeeScheduleTimestamp.set(latestTimestamp);
             fileDataRepository
                     .getFileAtTimestamp(feeScheduleFileId, 0L, Long.MAX_VALUE)
-                    .ifPresent(fileData -> {
-                        feeManager.updateSimpleFees(Bytes.wrap(fileData.getFileData()));
-                        try {
-                            currentFeeSchedule.set(
-                                    FeeSchedule.PROTOBUF.parseStrict(Bytes.wrap(fileData.getFileData())));
-                        } catch (ParseException e) {
-                            log.warn("Failed to parse fee schedule for high volume multiplier lookup", e);
-                        }
-                    });
+                    .ifPresent(fileData -> feeManager.updateSimpleFees(Bytes.wrap(fileData.getFileData())));
         }
     }
 
-    public FeeResult estimateFees(@NonNull final Transaction transaction, @NonNull final FeeEstimateMode mode) {
+    public FeeResult estimateFees(
+            @NonNull final Transaction transaction,
+            @NonNull final FeeEstimateMode mode,
+            final int throttleUtilization) {
         try {
             final var txContext = new TransactionFeeContext(transaction);
             final var context = mode == FeeEstimateMode.STATE
-                    ? txContext.withFeeContext(newFeeContext(txContext.body()))
+                    ? txContext.withFeeContext(newFeeContext(txContext.body(), throttleUtilization))
                     : txContext;
             final SimpleFeeCalculator calculator = Objects.requireNonNull(feeManager.getSimpleFeeCalculator());
-            final var result = calculator.calculateTxFee(context.body(), context);
-            result.setHighVolumeMultiplier(lookupMaxMultiplier(context.functionality()));
-            return result;
+            return calculator.calculateTxFee(context.body(), context);
         } catch (ParseException e) {
             throw new IllegalArgumentException("Unable to parse transaction", e);
         } catch (NullPointerException e) {
@@ -127,19 +114,8 @@ public class FeeEstimationService {
         }
     }
 
-    private FeeEstimationFeeContext newFeeContext(final TransactionBody body) {
-        return new FeeEstimationFeeContext(body, feeTopicStore, feeTokenStore);
-    }
-
-    private long lookupMaxMultiplier(final HederaFunctionality functionality) {
-        final var def = FeeScheduleUtils.lookupServiceFee(currentFeeSchedule.get(), functionality);
-        if (def != null && def.highVolumeRates() != null) {
-            final int maxRaw = def.highVolumeRates().maxMultiplier();
-            if (maxRaw > HighVolumePricingCalculator.HIGH_VOLUME_MULTIPLIER_SCALE) {
-                return maxRaw;
-            }
-        }
-        return HighVolumePricingCalculator.DEFAULT_HIGH_VOLUME_MULTIPLIER;
+    private FeeEstimationFeeContext newFeeContext(final TransactionBody body, final int throttleUtilization) {
+        return new FeeEstimationFeeContext(body, feeTopicStore, feeTokenStore, throttleUtilization);
     }
 
     @SuppressWarnings("NullAway")
