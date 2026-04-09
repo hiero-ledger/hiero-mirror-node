@@ -3,7 +3,6 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import static lombok.AccessLevel.PRIVATE;
-import static org.hiero.mirror.common.util.DomainUtils.contractLogTopicsAndDataMatches;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -143,24 +142,20 @@ public class RecordItem implements StreamItem {
     }
 
     /**
-     * Attempts to consume a matching contract log by comparing raw topic and data bytes. If a
-     * matching log is found, a synthetic log is not created.
-     *
-     * <p>This method is used to handle duplicate contract logs in the record. When the same log
-     * appears multiple times, a synthetic TransferContractLog can match one occurrence and should
-     * be skipped.
-     *
-     * @param topic0 first topic
-     * @param topic1 second topic
-     * @param topic2 third topic
-     * @param topic3 fourth topic
-     * @param data   log data
-     * @return true if a matching log was found and consumed, false otherwise
+     * @param accountResolver when non-null, {@code topic1}/{@code topic2} on stored logs may be resolved as account
+     *                        aliases or EVM addresses and compared to the synthetic topics by account number only.
      */
-    public boolean consumeMatchingContractLog(byte[] topic0, byte[] topic1, byte[] topic2, byte[] topic3, byte[] data) {
+    public boolean consumeMatchingContractLog(
+            byte[] topic0,
+            byte[] topic1,
+            byte[] topic2,
+            byte[] topic3,
+            byte[] data,
+            ContractAccountResolver accountResolver) {
         if (contractLogs != null && !contractLogs.isEmpty()) {
             for (int i = 0; i < contractLogs.size(); i++) {
-                if (contractLogTopicsAndDataMatches(contractLogs.get(i), topic0, topic1, topic2, topic3, data)) {
+                if (DomainUtils.contractLogTopicsAndDataMatches(
+                        contractLogs.get(i), topic0, topic1, topic2, topic3, data, accountResolver)) {
                     contractLogs.remove(i);
                     return true;
                 }
@@ -176,7 +171,8 @@ public class RecordItem implements StreamItem {
             }
 
             for (int i = 0; i < parentContractLogs.size(); i++) {
-                if (contractLogTopicsAndDataMatches(parentContractLogs.get(i), topic0, topic1, topic2, topic3, data)) {
+                if (DomainUtils.contractLogTopicsAndDataMatches(
+                        parentContractLogs.get(i), topic0, topic1, topic2, topic3, data, accountResolver)) {
                     parentContractLogs.remove(i);
                     parentContractRelatedItem.setContractLogs(parentContractLogs);
                     return true;

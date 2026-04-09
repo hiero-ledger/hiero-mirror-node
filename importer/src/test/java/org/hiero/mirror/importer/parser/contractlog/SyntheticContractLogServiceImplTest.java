@@ -5,8 +5,11 @@ package org.hiero.mirror.importer.parser.contractlog;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.AccountAmount;
@@ -19,17 +22,23 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TokenType;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
+import org.hiero.mirror.common.domain.RecordItemBuilder.TransferType;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.common.util.LogsBloomFilter;
+import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.util.Utility;
+import org.hiero.mirror.importer.util.UtilityTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,11 +64,13 @@ final class SyntheticContractLogServiceImplTest {
     @Mock
     private EntityListener entityListener;
 
+    @Mock
+    private EntityIdService entityIdService;
+
     @Captor
     private ArgumentCaptor<ContractLog> contractLogCaptor;
 
     private SyntheticContractLogService syntheticContractLogService;
-
     private RecordItem recordItem;
     private EntityId entityTokenId;
     private EntityId senderId;
@@ -68,7 +79,10 @@ final class SyntheticContractLogServiceImplTest {
 
     @BeforeEach
     void beforeEach() {
-        syntheticContractLogService = new SyntheticContractLogServiceImpl(entityListener, entityProperties);
+        lenient().when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.empty());
+        lenient().when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.empty());
+        syntheticContractLogService =
+                new SyntheticContractLogServiceImpl(entityListener, entityProperties, entityIdService);
         recordItem = recordItemBuilder.tokenMint(TokenType.FUNGIBLE_COMMON).build();
 
         TokenID tokenId = recordItem.getTransactionBody().getTokenMint().getToken();
@@ -158,6 +172,35 @@ final class SyntheticContractLogServiceImplTest {
     }
 
     @Test
+    @DisplayName("Should not create synthetic contract log when it matches existing parent log with Long.MAX_VALUE")
+    void doNotCreateWhenMatchingParentLogWithLongMaxValue() {
+        // Create a ContractLoginfo that matches the TransferContractLog
+
+        final var senderMaxValue = EntityId.of(Long.MAX_VALUE);
+        final var receiverMaxValue = EntityId.of(Long.MAX_VALUE - 1);
+        var matchingLog =
+                createMatchingFungibleTokenTransferLog(entityTokenId, senderMaxValue, receiverMaxValue, amount);
+
+        var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setContractCallResult(
+                        ContractFunctionResult.newBuilder().addLogInfo(matchingLog)))
+                .build();
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                        .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
+                        .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentRecordItem))
+                .build();
+
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderMaxValue, receiverMaxValue, amount));
+        verify(entityListener, times(0)).onContractLog(any());
+    }
+
+    @Test
     @DisplayName("Should create synthetic contract log when contract parent is null")
     void createWhenContractParentIsNull() {
         // Create a contract call without a previous item that has contract results
@@ -209,7 +252,7 @@ final class SyntheticContractLogServiceImplTest {
         verify(entityListener).onContractLog(contractLogCaptor.capture());
         final var capturedLog = contractLogCaptor.getValue();
 
-        assertThat(capturedLog.getBloom()).isNotNull().hasSize(LogsBloomFilter.BYTE_SIZE);
+        assertThat(capturedLog.getBloom()).isEqualTo(SyntheticContractLogServiceImpl.CONTRACT_LOG_MARKER);
     }
 
     @Test
@@ -267,6 +310,124 @@ final class SyntheticContractLogServiceImplTest {
 
         // The log should use the child's own consensus timestamp since there's no parent with contract result
         assertThat(capturedLog.getConsensusTimestamp()).isEqualTo(childTimestamp);
+    }
+
+    @Test
+    @DisplayName("Should use parent's transaction hash when record has contract related parent")
+    void useParentTransactionHashWhenContractRelatedParent() {
+        byte[] parentHash = new byte[32];
+        byte[] childHash = new byte[32];
+        Arrays.fill(parentHash, (byte) 0x3a);
+        Arrays.fill(childHash, (byte) 0x7b);
+
+        var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setTransactionHash(ByteString.copyFrom(parentHash)))
+                .build();
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(b -> b.setTransactionHash(ByteString.copyFrom(childHash))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
+                                .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentRecordItem))
+                .build();
+
+        assertThat(recordItem.getContractRelatedParent()).isNotNull();
+        assertThat(recordItem.getTransactionHash()).isEqualTo(childHash);
+        assertThat(recordItem.getContractRelatedParent().getTransactionHash()).isEqualTo(parentHash);
+
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(parentHash);
+    }
+
+    @Test
+    @DisplayName("Should use record item's own transaction hash when no contract related parent")
+    void useOwnTransactionHashWhenNoContractRelatedParent() {
+        byte[] recordHash = new byte[32];
+        Arrays.fill(recordHash, (byte) 0x55);
+
+        recordItem = recordItemBuilder
+                .tokenMint(TokenType.FUNGIBLE_COMMON)
+                .record(r -> r.setTransactionHash(ByteString.copyFrom(recordHash)))
+                .build();
+
+        var tokenId = recordItem.getTransactionBody().getTokenMint().getToken();
+        entityTokenId = EntityId.of(tokenId);
+        receiverId =
+                EntityId.of(recordItem.getTransactionBody().getTransactionID().getAccountID());
+        amount = recordItem.getTransactionBody().getTokenMint().getAmount();
+
+        assertThat(recordItem.getContractRelatedParent()).isNull();
+
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordHash);
+    }
+
+    @Test
+    @DisplayName(
+            "CryptoTransfer child with zero-padded token transfer aliases: skip synthetic log when ContractCall parent already has matching Transfer log with padded indexed topics")
+    void skipSyntheticLogWhenParentHasPaddedTopicsAndChildTokenTransfersUseZeroPaddedEvmAliases() {
+        TokenID token = recordItemBuilder.tokenId();
+        var sender = EntityId.of(0, 0, 6001);
+        var receiver = EntityId.of(0, 0, 6002);
+        long transferAmount = 888L;
+        entityTokenId = EntityId.of(token);
+
+        var matchingLogWithPaddedTopics = createMatchingFungibleTokenTransferLogWithPaddedAddressTopics(
+                entityTokenId, sender, receiver, transferAmount);
+        assertThat(matchingLogWithPaddedTopics.getTopic(1).size()).isEqualTo(32);
+        assertThat(matchingLogWithPaddedTopics.getTopic(1).byteAt(0)).isZero();
+
+        var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setContractCallResult(ContractFunctionResult.newBuilder()
+                        .addLogInfo(matchingLogWithPaddedTopics)
+                        .build()))
+                .build();
+
+        long parentTs = parentRecordItem.getConsensusTimestamp();
+        var parentTsProto = Timestamp.newBuilder()
+                .setSeconds(parentTs / 1_000_000_000L)
+                .setNanos((int) (parentTs % 1_000_000_000L));
+
+        var transferList = fungibleTokenTransferList(
+                token,
+                tokenTransferWithZeroPaddedEvmAlias(sender, -transferAmount),
+                tokenTransferWithZeroPaddedEvmAlias(receiver, transferAmount));
+
+        recordItem = recordItemBuilder
+                .cryptoTransfer(TransferType.TOKEN)
+                .transactionBody(tb -> tb.clearTokenTransfers().addTokenTransfers(transferList))
+                .record(r -> r.clearTokenTransferLists().addTokenTransferLists(transferList))
+                .record(r -> r.setContractCallResult(ContractFunctionResult.newBuilder()
+                        .setContractID(HTS_PRECOMPILE_CONTRACT_ADDRESS)
+                        .build()))
+                .record(r -> r.setParentConsensusTimestamp(parentTsProto))
+                .recordItem(r -> r.previous(parentRecordItem))
+                .build();
+
+        assertThat(recordItem.getContractRelatedParent()).isSameAs(parentRecordItem);
+
+        var childTransfers =
+                recordItem.getTransactionRecord().getTokenTransferLists(0).getTransfersList();
+        assertThat(childTransfers).hasSize(2);
+        assertThat(childTransfers.get(0).getAccountID().getAlias().size()).isEqualTo(32);
+        assertThat(childTransfers.get(0).getAccountID().getAlias().byteAt(0)).isZero();
+        assertThat(childTransfers.get(1).getAccountID().getAlias().size()).isEqualTo(32);
+        assertThat(childTransfers.get(1).getAccountID().getAlias().byteAt(0)).isZero();
+
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, sender, receiver, transferAmount));
+
+        verify(entityListener, times(0)).onContractLog(any());
     }
 
     @ParameterizedTest
@@ -554,6 +715,44 @@ final class SyntheticContractLogServiceImplTest {
     }
 
     @Test
+    @DisplayName(
+            "Should skip creation of a log that is already present within the same RecordItem being imported where receiver has an alias")
+    void skipAlreadyPresentContractLogWhereReceiverHasAnAlias() {
+        byte[] topic2FromAliasEvm =
+                DomainUtils.trim(Objects.requireNonNull(Utility.aliasToEvmAddress(UtilityTest.ALIAS_ECDSA_SECP256K1)));
+        var topic2FromLog = ByteString.copyFrom(topic2FromAliasEvm);
+        var topic2Synthetic = DomainUtils.fromBytes(entityIdToBytes(receiverId));
+        var accountIdFromLogTopic =
+                AccountID.newBuilder().setAlias(topic2FromLog).build();
+        var accountIdSyntheticTopic =
+                AccountID.newBuilder().setAlias(topic2Synthetic).build();
+        reset(entityIdService);
+        lenient().when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.empty());
+        when(entityIdService.lookup(any(AccountID.class))).thenAnswer(invocation -> {
+            var accountId = invocation.getArgument(0, AccountID.class);
+            if (accountIdFromLogTopic.equals(accountId) || accountIdSyntheticTopic.equals(accountId)) {
+                return Optional.of(receiverId);
+            }
+            return Optional.empty();
+        });
+
+        var existingLogOnRecordWithAliasTopics = erc20TransferContractLogWithTopics(
+                entityTokenId, entityIdToBytes(senderId), topic2FromAliasEvm, amount);
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setContractCallResult(
+                        ContractFunctionResult.newBuilder().addLogInfo(existingLogOnRecordWithAliasTopics)))
+                .build();
+
+        var transferLog = new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount);
+
+        syntheticContractLogService.create(transferLog);
+
+        verify(entityListener, times(0)).onContractLog(any());
+    }
+
+    @Test
     @DisplayName("Should create one of three identical synthetic logs when parent has two matching occurrences")
     void createOneOfThreeIdenticalLogsWhenTwoOccurrencesInParent() {
         // Create a parent with two identical matching contract logs
@@ -774,6 +973,20 @@ final class SyntheticContractLogServiceImplTest {
         verify(entityListener, times(0)).onContractLog(any());
     }
 
+    /**
+     * AccountAmount whose {@link AccountID} carries the mirror EVM address for {@code accountId} as a 32-byte
+     * ABI-style word (leading zero padding), as used in some record payloads.
+     */
+    private static AccountAmount tokenTransferWithZeroPaddedEvmAlias(EntityId accountId, long amount) {
+        byte[] evmAddress = DomainUtils.trim(DomainUtils.toEvmAddress(accountId));
+        byte[] padded = new byte[32];
+        System.arraycopy(evmAddress, 0, padded, 32 - evmAddress.length, evmAddress.length);
+        return AccountAmount.newBuilder()
+                .setAccountID(AccountID.newBuilder().setAlias(ByteString.copyFrom(padded)))
+                .setAmount(amount)
+                .build();
+    }
+
     private AccountAmount tokenTransfer(long shard, long realm, long num, long amount) {
         return AccountAmount.newBuilder()
                 .setAccountID(AccountID.newBuilder()
@@ -818,6 +1031,52 @@ final class SyntheticContractLogServiceImplTest {
                 .addTopic(topic0)
                 .addTopic(topic1)
                 .addTopic(topic2)
+                .setData(data)
+                .build();
+    }
+
+    /**
+     * Same transfer event as {@link #createMatchingFungibleTokenTransferLog}, but topic1/topic2 are 32-byte
+     * ABI-style indexed address words (left-padded with zeros) so trim-aware matching still aligns with synthetic
+     * logs that use trimmed mirror EVM bytes.
+     */
+    private ContractLoginfo createMatchingFungibleTokenTransferLogWithPaddedAddressTopics(
+            EntityId tokenId, EntityId sender, EntityId receiver, long transferAmount) {
+        var topic0 = ByteString.copyFrom(TRANSFER_SIGNATURE);
+        var topic1 = leftPadMirrorEvmTopic32(entityIdToBytes(sender));
+        var topic2 = leftPadMirrorEvmTopic32(entityIdToBytes(receiver));
+        var data = ByteString.copyFrom(
+                DomainUtils.trim(Bytes.ofUnsignedLong(transferAmount).toArrayUnsafe()));
+        return ContractLoginfo.newBuilder()
+                .setContractID(tokenId.toContractID())
+                .addTopic(topic0)
+                .addTopic(topic1)
+                .addTopic(topic2)
+                .setData(data)
+                .build();
+    }
+
+    private static ByteString leftPadMirrorEvmTopic32(byte[] trimmedEvm) {
+        byte[] padded = new byte[32];
+        if (trimmedEvm != null && trimmedEvm.length > 0) {
+            System.arraycopy(trimmedEvm, 0, padded, 32 - trimmedEvm.length, trimmedEvm.length);
+        }
+        return ByteString.copyFrom(padded);
+    }
+
+    /** ERC-20 Transfer log with explicit topic1/topic2 bytes (e.g. alias-derived EVM addresses on the record). */
+    private ContractLoginfo erc20TransferContractLogWithTopics(
+            EntityId tokenId, byte[] topic1, byte[] topic2, long transferAmount) {
+        var topic0 = ByteString.copyFrom(TRANSFER_SIGNATURE);
+        var topic1Bs = ByteString.copyFrom(topic1);
+        var topic2Bs = ByteString.copyFrom(topic2);
+        var data = ByteString.copyFrom(
+                DomainUtils.trim(Bytes.ofUnsignedLong(transferAmount).toArrayUnsafe()));
+        return ContractLoginfo.newBuilder()
+                .setContractID(tokenId.toContractID())
+                .addTopic(topic0)
+                .addTopic(topic1Bs)
+                .addTopic(topic2Bs)
                 .setData(data)
                 .build();
     }

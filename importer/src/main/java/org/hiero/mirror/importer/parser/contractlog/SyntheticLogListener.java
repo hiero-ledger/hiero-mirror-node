@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.hiero.mirror.common.util.DomainUtils.fromTrimmedEvmAddress;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogServiceImpl.CONTRACT_LOG_MARKER;
 
 import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -12,6 +13,7 @@ import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.collect.Iterators;
 import io.micrometer.core.annotation.Timed;
 import jakarta.inject.Named;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +28,8 @@ import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
 import org.hiero.mirror.importer.domain.EvmAddressMapping;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
@@ -144,6 +148,26 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         public void updateContractLog(Map<Long, byte[]> entityEvmAddresses) {
             updateTopicField(sender, entityEvmAddresses, contractLog::setTopic1, contractLog.getTopic1());
             updateTopicField(receiver, entityEvmAddresses, contractLog::setTopic2, contractLog.getTopic2());
+
+            if (Arrays.equals(CONTRACT_LOG_MARKER, contractLog.getBloom())) {
+                contractLog.setBloom(createBloom());
+            }
+        }
+
+        /**
+         * Creates a bloom filter for a synthetic contract log using the log's address, topics, and data.
+         *
+         * @return the bloom filter as a byte array
+         */
+        private byte[] createBloom() {
+            final var evmAddress = DomainUtils.toEvmAddress(contractLog.getContractId());
+            final var logsBloomFilter = new LogsBloomFilter();
+            logsBloomFilter.insertAddress(evmAddress);
+            logsBloomFilter.insertTopic(contractLog.getTopic0());
+            logsBloomFilter.insertTopic(contractLog.getTopic1());
+            logsBloomFilter.insertTopic(contractLog.getTopic2());
+            logsBloomFilter.insertTopic(contractLog.getTopic3());
+            return logsBloomFilter.toArrayUnsafe();
         }
 
         public void updateTopicField(
