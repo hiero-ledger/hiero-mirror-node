@@ -39,17 +39,17 @@ jobs:
       matrix:
         stream-type:
           - RECORD
-    #          - BLOCK # Enable when TSS issue gets resolved with CN 0.73.x and / or solo
+          - BLOCK
     timeout-minutes: 50
     env:
-      BLOCK_NODE_CHART_VERSION: v0.31.0-rc1
-      CONSENSUS_VERSION: v0.73.0-rc.1
+      BLOCK_NODE_CHART_VERSION: v0.31.0-rc4
+      CONSENSUS_VERSION: v0.73.0-rc.3
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      SOLO_VERSION: v0.65.0
+      SOLO_VERSION: v0.68.0
     permissions:
       pull-requests: read
     steps:
