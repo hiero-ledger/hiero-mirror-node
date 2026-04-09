@@ -43,7 +43,9 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
 
         ContractLog contractLog = new ContractLog();
 
-        contractLog.setBloom(isContract(recordItem) ? createBloom(log) : empty);
+        byte[] logBloom = createBloom(log);
+        contractLog.setBloom(isContract(recordItem) ? logBloom : empty);
+        recordItem.mergeSyntheticContractLogBloom(logBloom);
         contractLog.setConsensusTimestamp(consensusTimestamp);
         contractLog.setContractId(log.getEntityId());
         contractLog.setData(log.getData() != null ? log.getData() : empty);
