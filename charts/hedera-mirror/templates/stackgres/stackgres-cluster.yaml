@@ -48,6 +48,9 @@ spec:
             value: "true"
             effect: NoSchedule
         {{- end }}
+    replication:
+      initialization:
+        mode: {{ .Values.stackgres.replication.initialization.mode }}
     sgInstanceProfile: {{ include "hedera-mirror.stackgres" . }}-coordinator
   database: {{ .Values.db.name }}
   nonProductionOptions:
