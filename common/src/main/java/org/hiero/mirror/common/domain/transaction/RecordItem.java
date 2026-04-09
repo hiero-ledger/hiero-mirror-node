@@ -142,10 +142,13 @@ public class RecordItem implements StreamItem {
     }
 
     /**
+     * @param entityId the contract entity ID to match against the log's contract ID
      * @param accountResolver when non-null, {@code topic1}/{@code topic2} on stored logs may be resolved as account
      *                        aliases or EVM addresses and compared to the synthetic topics by account number only.
+     *                        Also used to resolve the contract ID if it's an EVM address.
      */
     public boolean consumeMatchingContractLog(
+            EntityId entityId,
             byte[] topic0,
             byte[] topic1,
             byte[] topic2,
@@ -154,8 +157,8 @@ public class RecordItem implements StreamItem {
             ContractAccountResolver accountResolver) {
         if (contractLogs != null && !contractLogs.isEmpty()) {
             for (int i = 0; i < contractLogs.size(); i++) {
-                if (DomainUtils.contractLogTopicsAndDataMatches(
-                        contractLogs.get(i), topic0, topic1, topic2, topic3, data, accountResolver)) {
+                if (DomainUtils.contractLogMatches(
+                        contractLogs.get(i), entityId, topic0, topic1, topic2, topic3, data, accountResolver)) {
                     contractLogs.remove(i);
                     return true;
                 }
@@ -171,8 +174,8 @@ public class RecordItem implements StreamItem {
             }
 
             for (int i = 0; i < parentContractLogs.size(); i++) {
-                if (DomainUtils.contractLogTopicsAndDataMatches(
-                        parentContractLogs.get(i), topic0, topic1, topic2, topic3, data, accountResolver)) {
+                if (DomainUtils.contractLogMatches(
+                        parentContractLogs.get(i), entityId, topic0, topic1, topic2, topic3, data, accountResolver)) {
                     parentContractLogs.remove(i);
                     parentContractRelatedItem.setContractLogs(parentContractLogs);
                     return true;

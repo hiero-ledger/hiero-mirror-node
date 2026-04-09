@@ -135,6 +135,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         return transferLog
                 .getRecordItem()
                 .consumeMatchingContractLog(
+                        transferLog.getEntityId(),
                         transferLog.getTopic0(),
                         transferLog.getTopic1(),
                         transferLog.getTopic2(),

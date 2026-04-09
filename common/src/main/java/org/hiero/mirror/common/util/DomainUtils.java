@@ -371,10 +371,11 @@ public class DomainUtils {
     /**
      * Matches when the log topic and synthetic topic resolve to the same account number ({@link EntityId#getNum()}).
      * Both sides are resolved through {@link ContractAccountResolver}, so that address values are always resolved
-     * to account number before comparing.
+     * to account number before comparing. Also compares the contract ID from the log with the provided entityId.
      */
-    public static boolean contractLogTopicsAndDataMatches(
+    public static boolean contractLogMatches(
             ContractLoginfo log,
+            EntityId entityId,
             byte[] topic0,
             byte[] topic1,
             byte[] topic2,
@@ -383,11 +384,33 @@ public class DomainUtils {
             @NonNull ContractAccountResolver accountResolver) {
         var topicList = log.getTopicList();
         int topicCount = topicList.size();
-        return trimmedByteStringEquals(topicCount > 0 ? topicList.get(0) : null, topic0)
+        return contractIdMatches(log, entityId, accountResolver)
+                && trimmedByteStringEquals(topicCount > 0 ? topicList.get(0) : null, topic0)
                 && transferIndexedAddressTopicMatches(topicCount > 1 ? topicList.get(1) : null, topic1, accountResolver)
                 && transferIndexedAddressTopicMatches(topicCount > 2 ? topicList.get(2) : null, topic2, accountResolver)
                 && trimmedByteStringEquals(topicCount > 3 ? topicList.get(3) : null, topic3)
                 && trimmedByteStringEquals(log.getData(), data);
+    }
+
+    private static boolean contractIdMatches(
+            ContractLoginfo log, EntityId entityId, @NonNull ContractAccountResolver accountResolver) {
+        if (EntityId.isEmpty(entityId)) {
+            return true;
+        }
+
+        var logContractId = log.getContractID();
+        if (logContractId.hasContractNum()) {
+            return logContractId.getContractNum() == entityId.getNum();
+        }
+
+        if (logContractId.hasEvmAddress()) {
+            var resolvedEntityId = accountResolver.lookup(toBytes(logContractId.getEvmAddress()));
+            return resolvedEntityId
+                    .map(resolved -> resolved.getNum() == entityId.getNum())
+                    .orElse(true);
+        }
+
+        return true;
     }
 
     private static boolean transferIndexedAddressTopicMatches(
