@@ -18,7 +18,7 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.30.2")
-    set("consensusNodeVersion", "0.72.0")
+    set("consensusNodeVersion", "0.72.1")
     set("grpcVersion", "1.80.0")
     set("jackson-2-bom.version", "2.21.2") // Temporary until next Spring Boot
     set("jackson-bom.version", "3.1.1") // Temporary until next Spring Boot
