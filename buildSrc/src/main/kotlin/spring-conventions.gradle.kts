@@ -72,7 +72,6 @@ tasks.bootBuildImage {
 
     environment =
         mapOf(
-            "BP_BINARY_COMPRESSION_METHOD" to "upx",
             "BP_JVM_JLINK_ENABLED" to "true",
             "BP_NATIVE_IMAGE_BUILD_ARGUMENTS" to nativeImageBuildArgs,
             "BP_OCI_AUTHORS" to "mirrornode@hedera.com",

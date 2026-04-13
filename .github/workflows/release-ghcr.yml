@@ -4,6 +4,8 @@ name: Release GHCR
 
 on:
   push:
+    branches:
+      - "12790-ghcr-images"
     tags:
       - "v*"
 
