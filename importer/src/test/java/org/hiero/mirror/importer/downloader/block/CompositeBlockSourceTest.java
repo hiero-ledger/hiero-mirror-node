@@ -2,9 +2,11 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -18,6 +20,7 @@ import java.util.Map;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,13 +63,21 @@ final class CompositeBlockSourceTest {
                 blockNodeSubscriber,
                 BlockSourceType.FILE,
                 blockFileSource);
-        doReturn(true).when(cutoverService).isActive(StreamType.BLOCK);
+        doAnswer(answer -> {
+                    if (answer.getArgument(1) instanceof Runnable task) {
+                        task.run();
+                    }
+
+                    return null;
+                })
+                .when(cutoverService)
+                .get(eq(StreamType.BLOCK), any(Runnable.class));
     }
 
     @Test
     void disabled() {
         // given
-        doReturn(false).when(cutoverService).isActive(StreamType.BLOCK);
+        doNothing().when(cutoverService).get(eq(StreamType.BLOCK), any(Runnable.class));
 
         // when
         source.get();
