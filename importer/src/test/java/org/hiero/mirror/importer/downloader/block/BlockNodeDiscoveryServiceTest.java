@@ -14,7 +14,7 @@ import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
-import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoints;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.repository.RegisteredNodeRepository;
 import org.junit.jupiter.api.Test;
@@ -47,22 +47,22 @@ final class BlockNodeDiscoveryServiceTest {
     void discoverConvertsRegisteredNodeToBlockNodeProperties() {
         final var endpoints = List.of(
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.STATUS)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.STATUS))
                                 .build())
                         .domainName("status.example.com")
                         .port(40840)
                         .build(),
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.SUBSCRIBE_STREAM))
                                 .build())
                         .ipAddress("192.168.1.10")
                         .port(40841)
                         .build(),
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.PUBLISH)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.PUBLISH))
                                 .build())
                         .domainName("publish.example.com")
                         .port(40843)
@@ -92,24 +92,24 @@ final class BlockNodeDiscoveryServiceTest {
     void discoverSetsRequireTlsFromStatusAndStreamingEndpoints() {
         final var endpoints = List.of(
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.STATUS)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.STATUS))
                                 .build())
                         .domainName("status.example.com")
                         .port(40840)
                         .requiresTls(true)
                         .build(),
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.SUBSCRIBE_STREAM))
                                 .build())
                         .ipAddress("192.168.1.10")
                         .port(40841)
                         .requiresTls(true)
                         .build(),
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.PUBLISH)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.PUBLISH))
                                 .build())
                         .domainName("publish.example.com")
                         .port(40843)
@@ -133,8 +133,8 @@ final class BlockNodeDiscoveryServiceTest {
     @Test
     void discoverExcludesNodeWithoutStatusApi() {
         final var endpoints = List.of(RegisteredServiceEndpoint.builder()
-                .blockNode(BlockNodeEndpoint.builder()
-                        .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
+                .blockNode(BlockNodeEndpoints.builder()
+                        .endpointApisList(List.of(BlockNodeApi.SUBSCRIBE_STREAM))
                         .build())
                 .ipAddress("192.168.1.10")
                 .port(40841)
@@ -155,8 +155,8 @@ final class BlockNodeDiscoveryServiceTest {
     @Test
     void discoverExcludesNodeWithoutStreamApi() {
         final var endpoints = List.of(RegisteredServiceEndpoint.builder()
-                .blockNode(BlockNodeEndpoint.builder()
-                        .endpointApi(BlockNodeApi.STATUS)
+                .blockNode(BlockNodeEndpoints.builder()
+                        .endpointApisList(List.of(BlockNodeApi.STATUS))
                         .build())
                 .domainName("status.example.com")
                 .port(40840)
@@ -255,22 +255,22 @@ final class BlockNodeDiscoveryServiceTest {
     void getBlockNodesPropertiesListMergesConfigWithDiscoveredWhenAutoDiscoveryEnabled() {
         final var endpoints = List.of(
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.STATUS)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.STATUS))
                                 .build())
                         .domainName("discovered.example.com")
                         .port(40840)
                         .build(),
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.SUBSCRIBE_STREAM))
                                 .build())
                         .ipAddress("192.168.1.10")
                         .port(40841)
                         .build(),
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.PUBLISH)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.PUBLISH))
                                 .build())
                         .domainName("publish.example.com")
                         .port(40843)
@@ -302,24 +302,24 @@ final class BlockNodeDiscoveryServiceTest {
         // given
         final var endpoints = List.of(
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.STATUS)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.STATUS))
                                 .build())
                         .domainName("blocknode.example.com")
                         .port(40840)
                         .requiresTls(false)
                         .build(),
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.SUBSCRIBE_STREAM))
                                 .build())
                         .domainName("blocknode.example.com")
                         .port(40841)
                         .requiresTls(false)
                         .build(),
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.PUBLISH)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.PUBLISH))
                                 .build())
                         .domainName("blocknode.example.com")
                         .port(40843)
@@ -356,24 +356,24 @@ final class BlockNodeDiscoveryServiceTest {
         // given
         final var endpoints = List.of(
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.STATUS)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.STATUS))
                                 .build())
                         .domainName("blocknode.example.com")
                         .port(40840)
                         .requiresTls(true)
                         .build(),
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.SUBSCRIBE_STREAM))
                                 .build())
                         .domainName("blocknode.example.com")
                         .port(40841)
                         .requiresTls(true)
                         .build(),
                 RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.PUBLISH)
+                        .blockNode(BlockNodeEndpoints.builder()
+                                .endpointApisList(List.of(BlockNodeApi.PUBLISH))
                                 .build())
                         .domainName("blocknode.example.com")
                         .port(40843)

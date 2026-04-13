@@ -127,11 +127,12 @@ public final class BlockNodeDiscoveryService {
                 continue;
             }
 
-            // Always pick the first of each required endpoint type
-            switch (endpoint.getBlockNode().getEndpointApi()) {
-                case PUBLISH -> hasPublishEndpoint = true;
-                case STATUS -> statusEndpoint = statusEndpoint == null ? endpoint : statusEndpoint;
-                case SUBSCRIBE_STREAM -> streamEndpoint = streamEndpoint == null ? endpoint : streamEndpoint;
+            for (final var api : endpoint.getBlockNode().getEndpointApisList()) {
+                switch (api) {
+                    case PUBLISH -> hasPublishEndpoint = true;
+                    case STATUS -> statusEndpoint = statusEndpoint == null ? endpoint : statusEndpoint;
+                    case SUBSCRIBE_STREAM -> streamEndpoint = streamEndpoint == null ? endpoint : streamEndpoint;
+                }
             }
 
             if (hasPublishEndpoint && statusEndpoint != null && streamEndpoint != null) {

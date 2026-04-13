@@ -7,13 +7,14 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
-import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoints;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.GeneralServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.MirrorNodeEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.RpcRelayEndpoint;
@@ -82,8 +83,10 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
 
         switch (proto.getEndpointTypeCase()) {
             case BLOCK_NODE ->
-                builder.blockNode(BlockNodeEndpoint.builder()
-                        .endpointApi(toBlockNodeApi(proto.getBlockNode().getEndpointApi()))
+                builder.blockNode(BlockNodeEndpoints.builder()
+                        .endpointApisList(proto.getBlockNode().getEndpointApiList().stream()
+                                .map(AbstractRegisteredNodeTransactionHandler::toBlockNodeApi)
+                                .collect(Collectors.toList()))
                         .build());
             case GENERAL_SERVICE ->
                 builder.generalService(GeneralServiceEndpoint.builder()
