@@ -57,7 +57,6 @@ import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
 import org.hiero.mirror.restjava.service.FileService;
 import org.hiero.mirror.restjava.service.NetworkService;
-import org.hiero.mirror.restjava.service.RegisteredNodeService;
 import org.hiero.mirror.restjava.service.fee.FeeEstimationService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -91,7 +90,6 @@ final class NetworkController {
     private final NetworkStakeMapper networkStakeMapper;
     private final NetworkSupplyMapper networkSupplyMapper;
     private final NetworkNodeMapper networkNodeMapper;
-    private final RegisteredNodeService registeredNodeService;
     private final RegisteredNodeMapper registeredNodeMapper;
 
     @GetMapping("/exchangerate")
@@ -181,7 +179,7 @@ final class NetworkController {
                     NumberRangeParameter[] registeredNodeId,
             @RequestParam(required = false) RegisteredNodeType type) {
         final var request = registeredNodesRequest(registeredNodeId, limit, order, type);
-        final var nodesQueryResult = registeredNodeService.getRegisteredNodes(request);
+        final var nodesQueryResult = networkService.getRegisteredNodes(request);
         final var nodes = registeredNodeMapper.map(nodesQueryResult);
 
         final var sort = Sort.by(order, REGISTERED_NODE_ID);
@@ -202,12 +200,19 @@ final class NetworkController {
 
         for (final var range : registeredNodeIdRanges) {
             if (range.operator() == RangeOperator.EQ) {
-                lowerBound = upperBound = range.value(); // The eq operator must not be mixed with other operators
+                if (registeredNodeIdRanges.length > 1) {
+                    throw new IllegalArgumentException("The 'eq' operator cannot be combined with other operators");
+                }
+                lowerBound = upperBound = range.value();
             } else if (range.hasLowerBound()) {
                 lowerBound = Math.max(lowerBound, range.getInclusiveValue());
             } else if (range.hasUpperBound()) {
                 upperBound = Math.min(upperBound, range.getInclusiveValue());
             }
+        }
+
+        if (lowerBound > upperBound) {
+            throw new IllegalArgumentException("Invalid range: lower bound exceeds upper bound");
         }
 
         return RegisteredNodesRequest.builder()

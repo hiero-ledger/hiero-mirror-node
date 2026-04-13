@@ -3598,7 +3598,7 @@ components:
         created_timestamp:
           $ref: "#/components/schemas/TimestampNullable"
         description:
-          description: registered node description
+          description: A short description of the node
           nullable: true
           type: string
         registered_node_id:

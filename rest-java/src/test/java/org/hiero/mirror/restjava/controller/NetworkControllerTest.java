@@ -21,7 +21,6 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.io.IOException;
 import java.text.MessageFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -1663,55 +1662,6 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         @Test
-        void filteredById() {
-            // given
-            setupRegisteredNodeData();
-
-            // when
-            final var actual =
-                    restClient.get().uri("?registerednode.id=2").retrieve().body(RegisteredNodesResponse.class);
-
-            // then
-            assertThat(actual).isNotNull();
-            assertThat(actual.getRegisteredNodes()).isNotNull().hasSize(1);
-            assertThat(actual.getRegisteredNodes().get(0).getRegisteredNodeId()).isEqualTo(2L);
-        }
-
-        @Test
-        void filteredByIdEqOperator() {
-            // given
-            setupRegisteredNodeData();
-
-            // when
-            final var actual =
-                    restClient.get().uri("?registerednode.id=eq:2").retrieve().body(RegisteredNodesResponse.class);
-
-            // then
-            assertThat(actual).isNotNull();
-            assertThat(actual.getRegisteredNodes()).isNotNull().hasSize(1);
-            assertThat(actual.getRegisteredNodes().get(0).getRegisteredNodeId()).isEqualTo(2L);
-        }
-
-        @Test
-        void filteredByIdRange() {
-            // given
-            setupRegisteredNodeData();
-
-            // when
-            final var actual = restClient
-                    .get()
-                    .uri("?registerednode.id=gte:2&registerednode.id=lte:3")
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.RegisteredNodesResponse.class);
-
-            // then
-            assertThat(actual).isNotNull();
-            assertThat(actual.getRegisteredNodes()).isNotNull().hasSize(2);
-            assertThat(actual.getRegisteredNodes())
-                    .allSatisfy(node -> assertThat(node.getRegisteredNodeId()).isBetween(2L, 3L));
-        }
-
-        @Test
         void filteredByType() {
             // given
             setupRegisteredNodeData();
@@ -1727,6 +1677,61 @@ final class NetworkControllerTest extends ControllerTest {
             assertThat(actual).isNotNull();
             assertThat(actual.getRegisteredNodes()).isNotNull().hasSize(1);
             assertThat(actual.getRegisteredNodes().get(0).getRegisteredNodeId()).isEqualTo(1L);
+        }
+
+        @ParameterizedTest
+        @ValueSource(
+                strings = {
+                    "BLOCK_NODE",
+                    "block_node",
+                    "Block_Node",
+                    "bLoCk_NoDe",
+                    "general_service",
+                    "MIRROR_NODE",
+                    "mirror_node",
+                    "RPC_RELAY",
+                    "rpc_relay"
+                })
+        void typeQueryParameterIsCaseInsensitive(String typeParameter) {
+            // given
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(1L).type(List.of(RegisteredNodeType.BLOCK_NODE.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(2L).type(List.of(RegisteredNodeType.GENERAL_SERVICE.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(3L).type(List.of(RegisteredNodeType.MIRROR_NODE.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(4L).type(List.of(RegisteredNodeType.RPC_RELAY.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(5L).type(List.of(RegisteredNodeType.UNKNOWN.getId())))
+                    .persist();
+
+            final var expectedType = RegisteredNodeType.valueOf(typeParameter.toUpperCase());
+            final var expectedId = registeredNodeIdForType(expectedType);
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?type=%s".formatted(typeParameter))
+                    .retrieve()
+                    .body(RegisteredNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getRegisteredNodes()).isNotNull().hasSize(1);
+            assertThat(actual.getRegisteredNodes().getFirst().getRegisteredNodeId())
+                    .isEqualTo(expectedId);
+            assertThat(actual.getRegisteredNodes().getFirst().getType())
+                    .containsExactly(org.hiero.mirror.rest.model.RegisteredNodeType.valueOf(expectedType.name()));
         }
 
         @Test
@@ -1765,11 +1770,30 @@ final class NetworkControllerTest extends ControllerTest {
             assertThat(actual).isNotNull();
             assertThat(actual.getRegisteredNodes()).isNotNull().hasSize(1);
             assertThat(actual.getLinks()).isNotNull();
-            assertThat(actual.getLinks().getNext()).isNotNull().contains("registerednode.id");
+            assertThat(actual.getLinks().getNext())
+                    .isEqualTo(
+                            "/api/v1/network/registered-nodes?limit=1&%s=gt:1".formatted(Constants.REGISTERED_NODE_ID));
         }
 
-        @Test
-        void invalidIdParam() {
+        @ParameterizedTest
+        @ValueSource(
+                strings = {
+                    "invalid",
+                    "-1",
+                    "eq:-1",
+                    "lt:-1",
+                    "lte:-1",
+                    "gt:-1",
+                    "gte:-1",
+                    "lt:invalid",
+                    "gt:abc",
+                    "eq:abc",
+                    ".1",
+                    "9223372036854775808",
+                    "a:1",
+                    "eq:1:2",
+                })
+        void invalidIdParam(String registeredNodeIdParam) {
             // given
             setupRegisteredNodeData();
 
@@ -1777,7 +1801,7 @@ final class NetworkControllerTest extends ControllerTest {
             validateError(
                     () -> restClient
                             .get()
-                            .uri("?registerednode.id=invalid")
+                            .uri("?registerednode.id=%s".formatted(registeredNodeIdParam))
                             .retrieve()
                             .toEntity(String.class),
                     HttpClientErrorException.BadRequest.class,
@@ -1828,16 +1852,29 @@ final class NetworkControllerTest extends ControllerTest {
                     "'?registerednode.id=gt:{1}&registerednode.id=gt:{0}' | 3,2",
                     "'?registerednode.id=gte:{1}&registerednode.id=gt:{1}' | 3,2",
                     "'?registerednode.id=gt:{0}&registerednode.id=lt:{3}' | 2,1",
-                    "'?registerednode.id=gte:{1}&registerednode.id=lte:{2}' | 2,1",
-                    "'?registerednode.id=gt:{3}&registerednode.id=lt:{0}' | NULL",
-                    "'?registerednode.id=gt:{2}&registerednode.id=lt:{2}' | NULL",
-                    // multiple eq/no-op (current controller behavior effectively uses the last eq for bounds)
-                    "'?registerednode.id=eq:{1}&registerednode.id=eq:{2}' | 2",
-                    "'?registerednode.id={2}&registerednode.id={1}' | 1",
+                    "'?registerednode.id=gte:{1}&registerednode.id=lte:{2}' | 2,1"
                 })
         void registeredNodeIdBounds(String parameters, String expectedIndices) {
             // given
-            final var nodes = setupRegisteredNodeDataForBounds();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(10L).type(List.of(RegisteredNodeType.BLOCK_NODE.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(20L).type(List.of(RegisteredNodeType.MIRROR_NODE.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(30L).type(List.of(RegisteredNodeType.RPC_RELAY.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(40L).type(List.of(RegisteredNodeType.GENERAL_SERVICE.getId())))
+                    .persist();
+
+            final var response = restClient.get().uri("?limit=100").retrieve().body(RegisteredNodesResponse.class);
+            final var nodes = response.getRegisteredNodes();
 
             final List<Long> expectedIds;
             if (expectedIndices == null) {
@@ -1868,6 +1905,41 @@ final class NetworkControllerTest extends ControllerTest {
                     .containsExactlyElementsOf(expectedIds);
         }
 
+        @ParameterizedTest
+        @ValueSource(
+                strings = {
+                    "?registerednode.id=eq:1&registerednode.id=2",
+                    "?registerednode.id=1&registerednode.id=lt:3",
+                    "?registerednode.id=gte:1&registerednode.id=eq:2"
+                })
+        void invalidRegisteredNodeIdEqParamCombinations(String queryParams) {
+            // given
+            setupRegisteredNodeData();
+
+            // when/then
+            validateError(
+                    () -> restClient.get().uri(queryParams).retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "The 'eq' operator cannot be combined with other operators");
+        }
+
+        @ParameterizedTest
+        @ValueSource(
+                strings = {
+                    "?registerednode.id=gt:10&registerednode.id=lt:5",
+                    "?registerednode.id=gt:10&registerednode.id=lt:10"
+                })
+        void invalidRange(String queryParams) {
+            // given
+            setupRegisteredNodeData();
+
+            // when/then
+            validateError(
+                    () -> restClient.get().uri(queryParams).retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Invalid range: lower bound exceeds upper bound");
+        }
+
         private void setupRegisteredNodeData() {
             domainBuilder
                     .registeredNode()
@@ -1883,27 +1955,14 @@ final class NetworkControllerTest extends ControllerTest {
                     .persist();
         }
 
-        private List<org.hiero.mirror.rest.model.RegisteredNode> setupRegisteredNodeDataForBounds() {
-            domainBuilder
-                    .registeredNode()
-                    .customize(r -> r.registeredNodeId(10L).type(List.of(RegisteredNodeType.BLOCK_NODE.getId())))
-                    .persist();
-            domainBuilder
-                    .registeredNode()
-                    .customize(r -> r.registeredNodeId(20L).type(List.of(RegisteredNodeType.MIRROR_NODE.getId())))
-                    .persist();
-            domainBuilder
-                    .registeredNode()
-                    .customize(r -> r.registeredNodeId(30L).type(List.of(RegisteredNodeType.RPC_RELAY.getId())))
-                    .persist();
-            domainBuilder
-                    .registeredNode()
-                    .customize(r -> r.registeredNodeId(40L).type(List.of(RegisteredNodeType.GENERAL_SERVICE.getId())))
-                    .persist();
-
-            final var response = restClient.get().uri("?limit=100").retrieve().body(RegisteredNodesResponse.class);
-            assertThat(response).isNotNull();
-            return new ArrayList<>(response.getRegisteredNodes());
+        private static long registeredNodeIdForType(RegisteredNodeType type) {
+            return switch (type) {
+                case BLOCK_NODE -> 1L;
+                case GENERAL_SERVICE -> 2L;
+                case MIRROR_NODE -> 3L;
+                case RPC_RELAY -> 4L;
+                case UNKNOWN -> 5L;
+            };
         }
     }
 }

@@ -3,6 +3,7 @@
 package org.hiero.mirror.restjava.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.restjava.jooq.domain.tables.RegisteredNode.REGISTERED_NODE;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,6 @@ import org.springframework.data.domain.Sort.Direction;
 final class RegisteredNodeRepositoryTest extends RestJavaIntegrationTest {
 
     private static final int LIMIT = 2;
-    private static final String SORT_FIELD = "registered_node_id";
 
     private final RegisteredNodeRepository repository;
 
@@ -32,7 +32,7 @@ final class RegisteredNodeRepositoryTest extends RestJavaIntegrationTest {
         final var node3 = persistRegisteredNode(3L, false, RegisteredNodeType.MIRROR_NODE);
         persistRegisteredNode(4L, false, RegisteredNodeType.RPC_RELAY); // out of range
 
-        final var sort = Sort.by(order, SORT_FIELD);
+        final var sort = Sort.by(order, REGISTERED_NODE.REGISTERED_NODE_ID.getName());
         final var pageable = PageRequest.of(0, 10, sort);
 
         final var expected = order.isAscending() ? List.of(node1, node3) : List.of(node3, node1);
@@ -46,7 +46,7 @@ final class RegisteredNodeRepositoryTest extends RestJavaIntegrationTest {
 
     @ParameterizedTest
     @EnumSource(Direction.class)
-    void findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIn(Direction order) {
+    void findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(Direction order) {
         // given
         persistRegisteredNode(1L, false, RegisteredNodeType.BLOCK_NODE);
         final var mirror2 = persistRegisteredNode(2L, false, RegisteredNodeType.MIRROR_NODE);
@@ -54,13 +54,13 @@ final class RegisteredNodeRepositoryTest extends RestJavaIntegrationTest {
         final var mirror4 = persistRegisteredNode(4L, false, RegisteredNodeType.MIRROR_NODE);
         persistRegisteredNode(5L, false, RegisteredNodeType.RPC_RELAY);
 
-        final var sort = Sort.by(order, SORT_FIELD);
+        final var sort = Sort.by(order, REGISTERED_NODE.REGISTERED_NODE_ID.getName());
         final var pageable = PageRequest.of(0, 10, sort);
 
         final var expected = order.isAscending() ? List.of(mirror2, mirror4) : List.of(mirror4, mirror2);
 
         // when
-        final var actual = repository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIn(
+        final var actual = repository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
                 0L, Long.MAX_VALUE, RegisteredNodeType.MIRROR_NODE.getId(), pageable);
 
         // then
@@ -76,7 +76,7 @@ final class RegisteredNodeRepositoryTest extends RestJavaIntegrationTest {
         final var node3 = persistRegisteredNode(3L, false, RegisteredNodeType.BLOCK_NODE);
         final var node4 = persistRegisteredNode(4L, false, RegisteredNodeType.BLOCK_NODE);
 
-        final var sort = Sort.by(order, SORT_FIELD);
+        final var sort = Sort.by(order, REGISTERED_NODE.REGISTERED_NODE_ID.getName());
         final var all = order.isAscending() ? List.of(node1, node2, node3, node4) : List.of(node4, node3, node2, node1);
 
         final var expectedPage0 = all.subList(0, LIMIT);

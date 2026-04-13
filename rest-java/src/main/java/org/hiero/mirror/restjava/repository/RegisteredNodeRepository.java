@@ -24,8 +24,8 @@ public interface RegisteredNodeRepository extends PagingAndSortingRepository<Reg
             where registered_node_id >= :lowerBound
             and registered_node_id <= :upperBound
             and deleted is false
-            and :type = any(type)
+            and (:type is null or type @> array[:type]::smallint[])
             """, nativeQuery = true)
-    List<RegisteredNode> findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIn(
+    List<RegisteredNode> findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
             long lowerBound, long upperBound, short type, Pageable pageable);
 }

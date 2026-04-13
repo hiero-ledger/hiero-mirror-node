@@ -196,7 +196,7 @@ public interface CommonMapper {
     }
 
     /**
-     * Omits block node API details to avoid making braking changes when
+     * Omits block node API details to avoid making breaking changes when
      * BlockNodeEndpoint data field is changed from single value to list in the
      * next release of consensus node.
      */

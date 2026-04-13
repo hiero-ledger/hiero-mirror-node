@@ -4,22 +4,47 @@ package org.hiero.mirror.restjava.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.hiero.mirror.restjava.jooq.domain.tables.RegisteredNode.REGISTERED_NODE;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyShort;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.assertj.core.api.Assertions;
+import org.hiero.mirror.common.domain.node.RegisteredNode;
+import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
+import org.hiero.mirror.restjava.dto.RegisteredNodesRequest;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
+import org.hiero.mirror.restjava.repository.RegisteredNodeRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.data.domain.Sort;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @RequiredArgsConstructor
 final class NetworkServiceTest extends RestJavaIntegrationTest {
 
     private final NetworkService networkService;
+
+    @MockitoBean
+    private RegisteredNodeRepository repository;
+
+    @BeforeEach
+    void resetRegisteredNodeRepositoryMock() {
+        Mockito.reset(repository);
+    }
 
     @Test
     void returnsLatestStake() {
@@ -340,5 +365,72 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // then - should return empty list because no equality IDs fall within the range
         assertThat(result).isNotNull();
         assertThat(result.size()).isEqualTo(0);
+    }
+
+    @Test
+    void getRegisteredNodesWithoutTypeCallsFindBetween() {
+        // given
+        final var node = new RegisteredNode();
+        final var request = RegisteredNodesRequest.builder()
+                .lowerBound(1L)
+                .upperBound(10L)
+                .limit(25)
+                .order(Sort.Direction.DESC)
+                .type(null)
+                .build();
+
+        when(repository.findByRegisteredNodeIdBetweenAndDeletedIsFalse(eq(1L), eq(10L), any()))
+                .thenReturn(List.of(node));
+
+        // when
+        final var result = networkService.getRegisteredNodes(request);
+
+        // then
+        Assertions.assertThat(result).containsExactly(node);
+        verify(repository)
+                .findByRegisteredNodeIdBetweenAndDeletedIsFalse(
+                        eq(1L),
+                        eq(10L),
+                        argThat(pageable -> pageable.getPageNumber() == 0
+                                && pageable.getPageSize() == 25
+                                && pageable.getSort()
+                                        .equals(Sort.by(
+                                                Sort.Direction.DESC, REGISTERED_NODE.REGISTERED_NODE_ID.getName()))));
+        verify(repository, never())
+                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(anyLong(), anyLong(), anyShort(), any());
+    }
+
+    @Test
+    void getRegisteredNodesWithTypeCallsFindBetweenAndTypeIn() {
+        // given
+        final var node = new RegisteredNode();
+        final var request = RegisteredNodesRequest.builder()
+                .lowerBound(0L)
+                .upperBound(Long.MAX_VALUE)
+                .limit(10)
+                .order(Sort.Direction.ASC)
+                .type(RegisteredNodeType.MIRROR_NODE)
+                .build();
+
+        when(repository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
+                        eq(0L), eq(Long.MAX_VALUE), eq(RegisteredNodeType.MIRROR_NODE.getId()), any()))
+                .thenReturn(List.of(node));
+
+        // when
+        final var result = networkService.getRegisteredNodes(request);
+
+        // then
+        Assertions.assertThat(result).containsExactly(node);
+        verify(repository)
+                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
+                        eq(0L),
+                        eq(Long.MAX_VALUE),
+                        eq(RegisteredNodeType.MIRROR_NODE.getId()),
+                        argThat(pageable -> pageable.getPageNumber() == 0
+                                && pageable.getPageSize() == 10
+                                && pageable.getSort()
+                                        .equals(Sort.by(
+                                                Sort.Direction.ASC, REGISTERED_NODE.REGISTERED_NODE_ID.getName()))));
+        verify(repository, never()).findByRegisteredNodeIdBetweenAndDeletedIsFalse(anyLong(), anyLong(), any());
     }
 }

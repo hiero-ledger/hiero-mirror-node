@@ -5,24 +5,23 @@ package org.hiero.mirror.restjava.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
-import java.util.Collections;
 import java.util.List;
 import org.apache.commons.codec.DecoderException;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.rest.model.Key;
-import org.hiero.mirror.rest.model.RegisteredNodeType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 final class RegisteredNodeMapperTest {
 
+    private CommonMapper commonMapper;
     private RegisteredNodeMapper mapper;
 
     @BeforeEach
     void setup() {
-        mapper = new RegisteredNodeMapperImpl(new CommonMapperImpl());
+        commonMapper = new CommonMapperImpl();
+        mapper = new RegisteredNodeMapperImpl(commonMapper);
     }
 
     @Test
@@ -54,30 +53,33 @@ final class RegisteredNodeMapperTest {
 
         // then
         assertThat(result).isNotNull();
-        assertThat(result.getRegisteredNodeId()).isEqualTo(1L);
-        assertThat(result.getDescription()).isEqualTo("node-1");
-        assertThat(result.getCreatedTimestamp()).isEqualTo(DomainUtils.toTimestamp(123456789012345678L));
+        assertThat(result.getRegisteredNodeId()).isEqualTo(registeredNode.getRegisteredNodeId());
+        assertThat(result.getDescription()).isEqualTo(registeredNode.getDescription());
+        assertThat(result.getCreatedTimestamp())
+                .isEqualTo(DomainUtils.toTimestamp(registeredNode.getCreatedTimestamp()));
 
         assertThat(result.getTimestamp()).isNotNull();
-        assertThat(result.getTimestamp().getFrom()).isEqualTo(DomainUtils.toTimestamp(1L));
-        assertThat(result.getTimestamp().getTo()).isEqualTo(DomainUtils.toTimestamp(100L));
+        assertThat(result.getTimestamp().getFrom())
+                .isEqualTo(DomainUtils.toTimestamp(
+                        registeredNode.getTimestampRange().lowerEndpoint()));
+        assertThat(result.getTimestamp().getTo())
+                .isEqualTo(DomainUtils.toTimestamp(
+                        registeredNode.getTimestampRange().upperEndpoint()));
 
-        assertThat(result.getServiceEndpoints()).isNotNull().hasSize(1);
-        final var mappedEndpoint = result.getServiceEndpoints().getFirst();
-        assertThat(mappedEndpoint.getIpAddress()).isEqualTo("127.0.0.1");
-        assertThat(mappedEndpoint.getPort()).isEqualTo(443);
-        assertThat(mappedEndpoint.getRequiresTls()).isTrue();
-        assertThat(mappedEndpoint.getBlockNode()).isEqualTo(Collections.emptyMap());
-        assertThat(mappedEndpoint.getType()).isEqualTo(RegisteredNodeType.BLOCK_NODE);
+        assertThat(result.getServiceEndpoints())
+                .isNotNull()
+                .hasSize(registeredNode.getServiceEndpoints().size());
+        assertThat(result.getServiceEndpoints().getFirst())
+                .isEqualTo(mapper.toRegisteredServiceEndpoint(
+                        registeredNode.getServiceEndpoints().getFirst()));
 
         assertThat(result.getType())
                 .as("registered node aggregated types")
-                .containsExactly(RegisteredNodeType.BLOCK_NODE);
+                .containsExactlyElementsOf(registeredNode.getType().stream()
+                        .map(commonMapper::mapRegisteredNodeType)
+                        .toList());
 
-        assertThat(result.getAdminKey().getType()).isEqualTo(Key.TypeEnum.ED25519);
-        assertThat(result.getAdminKey().getKey()).hasSize(64);
-        assertThat(result.getAdminKey().getKey())
-                .isEqualTo("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        assertThat(result.getAdminKey()).isEqualTo(commonMapper.mapKey(registeredNode.getAdminKey()));
     }
 
     @Test
@@ -99,8 +101,64 @@ final class RegisteredNodeMapperTest {
                 .as("registeredNodeId should be null")
                 .isNull();
         assertThat(result.getServiceEndpoints())
-                .as("serviceEndpoints should be null")
-                .isNull();
+                .as("serviceEndpoints should be empty list")
+                .isEmpty();
+        assertThat(result.getType()).as("type should be empty list").isEmpty();
         assertThat(result.getTimestamp()).as("timestamp should be null").isNull();
+    }
+
+    @Test
+    void mapServiceEndpoints() {
+        assertThat(mapper.mapServiceEndpoints(null)).isEmpty();
+
+        final var domainEndpoint = RegisteredServiceEndpoint.builder()
+                .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
+                        .endpointApi(RegisteredServiceEndpoint.BlockNodeApi.STATUS)
+                        .build())
+                .ipAddress("10.0.0.1")
+                .port(8080)
+                .requiresTls(false)
+                .build();
+
+        final var actual = mapper.mapServiceEndpoints(List.of(domainEndpoint));
+
+        assertThat(actual).containsExactly(mapper.toRegisteredServiceEndpoint(domainEndpoint));
+    }
+
+    @Test
+    void mapRegisteredNodeTypes() {
+        assertThat(mapper.mapRegisteredNodeTypes(null, commonMapper)).isEmpty();
+
+        final var typeIds = List.of((short) 0, (short) 1, (short) 2, (short) 3, (short) 4, (short) 99);
+        final var expected =
+                typeIds.stream().map(commonMapper::mapRegisteredNodeType).toList();
+
+        final var actual = mapper.mapRegisteredNodeTypes(typeIds, commonMapper);
+
+        assertThat(actual).containsExactlyElementsOf(expected);
+    }
+
+    @Test
+    void toRegisteredServiceEndpoint() {
+        assertThat(mapper.toRegisteredServiceEndpoint(null)).isNull();
+
+        final var domainEndpoint = RegisteredServiceEndpoint.builder()
+                .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
+                        .endpointApi(RegisteredServiceEndpoint.BlockNodeApi.STATUS)
+                        .build())
+                .ipAddress("192.168.0.1")
+                .port(443)
+                .requiresTls(true)
+                .build();
+
+        final var actual = mapper.toRegisteredServiceEndpoint(domainEndpoint);
+
+        assertThat(actual.getIpAddress()).isEqualTo(domainEndpoint.getIpAddress());
+        assertThat(actual.getPort()).isEqualTo(domainEndpoint.getPort());
+        assertThat(actual.getRequiresTls()).isEqualTo(domainEndpoint.isRequiresTls());
+        assertThat(actual.getBlockNode()).isEqualTo(commonMapper.blockNodeForRest(domainEndpoint.getBlockNode()));
+        assertThat(actual.getType())
+                .isEqualTo(commonMapper.mapRegisteredNodeType(
+                        domainEndpoint.getType().getId()));
     }
 }

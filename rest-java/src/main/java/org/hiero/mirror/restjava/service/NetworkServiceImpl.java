@@ -2,27 +2,35 @@
 
 package org.hiero.mirror.restjava.service;
 
+import static org.hiero.mirror.restjava.jooq.domain.tables.RegisteredNode.REGISTERED_NODE;
+
 import com.google.common.collect.Range;
 import jakarta.inject.Named;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
+import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.config.NetworkProperties;
 import org.hiero.mirror.restjava.dto.NetworkNodeDto;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
+import org.hiero.mirror.restjava.dto.RegisteredNodesRequest;
 import org.hiero.mirror.restjava.repository.AccountBalanceRepository;
 import org.hiero.mirror.restjava.repository.EntityRepository;
 import org.hiero.mirror.restjava.repository.NetworkNodeRepository;
 import org.hiero.mirror.restjava.repository.NetworkStakeRepository;
+import org.hiero.mirror.restjava.repository.RegisteredNodeRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @Named
 @RequiredArgsConstructor
@@ -35,6 +43,7 @@ final class NetworkServiceImpl implements NetworkService {
     private final NetworkStakeRepository networkStakeRepository;
     private final NetworkProperties networkProperties;
     private final NetworkNodeRepository networkNodeRepository;
+    private final RegisteredNodeRepository registeredNodeRepository;
     private final SystemEntity systemEntity;
 
     @Override
@@ -123,6 +132,24 @@ final class NetworkServiceImpl implements NetworkService {
 
         return networkNodeRepository.findNetworkNodes(
                 fileId, nodeIdArray, lowerBound, upperBound, orderDirection, limit);
+    }
+
+    @Override
+    public Collection<RegisteredNode> getRegisteredNodes(RegisteredNodesRequest request) {
+        final var sort = Sort.by(request.getOrder(), REGISTERED_NODE.REGISTERED_NODE_ID.getName());
+        final var page = PageRequest.of(0, request.getLimit(), sort);
+
+        final var nodeType = request.getType();
+        final long lowerBound = request.getLowerBound();
+        final long upperBound = request.getUpperBound();
+
+        if (nodeType == null) {
+            return registeredNodeRepository.findByRegisteredNodeIdBetweenAndDeletedIsFalse(
+                    lowerBound, upperBound, page);
+        } else {
+            return registeredNodeRepository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
+                    lowerBound, upperBound, nodeType.getId(), page);
+        }
     }
 
     private long getAddressBookFileId(final NetworkNodeRequest request) {
