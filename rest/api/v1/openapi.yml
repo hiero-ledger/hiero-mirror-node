@@ -3667,7 +3667,6 @@ components:
           type: string
         general_service:
           $ref: "#/components/schemas/RegisteredGeneralServiceEndpoint"
-          nullable: true
         ip_address:
           description: The IP address of the service
           example: "191.91.239.79"
@@ -3675,7 +3674,6 @@ components:
           type: string
         mirror_node:
           $ref: "#/components/schemas/RegisteredMirrorNodeEndpoint"
-          nullable: true
         port:
           format: int32
           type: integer
@@ -3686,11 +3684,9 @@ components:
           type: boolean
         rpc_relay:
           $ref: "#/components/schemas/RegisteredRpcRelayEndpoint"
-          nullable: true
         type:
           $ref: "#/components/schemas/RegisteredNodeType"
       example:
-        block_node: {}
         domain_name: block1.alpha.com
         general_service: null
         ip_address: null
