@@ -9,6 +9,8 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Data;
+import org.hibernate.validator.constraints.time.DurationMax;
+import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -52,6 +54,7 @@ public class CommonProperties {
     }
 
     @Data
+    @Validated
     public static class DatabaseStartupProperties {
 
         /**
@@ -60,33 +63,36 @@ public class CommonProperties {
         private boolean enabled = true;
 
         /**
-         * Maximum total time to wait for the database.
-         */
-        @NotNull
-        private Duration timeout = Duration.ofMinutes(5);
-
-        /**
          * Delay between retry attempts.
          */
         @NotNull
+        @DurationMin(millis = 500)
         private Duration interval = Duration.ofSeconds(2);
+
+        /**
+         * Maximum total time to wait for the database.
+         */
+        @NotNull
+        @DurationMin(seconds = 10)
+        private Duration timeout = Duration.ofMinutes(5);
 
         /**
          * JDBC validation timeout in seconds for Connection.isValid().
          */
-        @Min(1)
-        private int validationTimeoutSeconds = 2;
+        @DurationMin(seconds = 1)
+        @DurationMax(seconds = Integer.MAX_VALUE)
+        private Duration validationTimeout = Duration.ofSeconds(2);
 
         /**
          * Driver connect timeout in seconds, passed as a JDBC property when supported.
          */
-        @Min(1)
-        private int connectTimeoutSeconds = 2;
+        @DurationMin(seconds = 1)
+        private Duration connectTimeout = Duration.ofSeconds(2);
 
         /**
          * Driver socket timeout in seconds, passed as a JDBC property when supported.
          */
-        @Min(1)
-        private int socketTimeoutSeconds = 2;
+        @DurationMin(seconds = 1)
+        private Duration socketTimeout = Duration.ofSeconds(2);
     }
 }

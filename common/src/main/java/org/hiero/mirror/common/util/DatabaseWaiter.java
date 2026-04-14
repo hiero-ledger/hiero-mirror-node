@@ -33,13 +33,16 @@ public class DatabaseWaiter {
             jdbcProperties.setProperty("password", password);
         }
 
-        jdbcProperties.setProperty("connectTimeout", String.valueOf(properties.getConnectTimeoutSeconds()));
-        jdbcProperties.setProperty("socketTimeout", String.valueOf(properties.getSocketTimeoutSeconds()));
+        jdbcProperties.setProperty(
+                "connectTimeout", String.valueOf(properties.getConnectTimeout().toSeconds()));
+        jdbcProperties.setProperty(
+                "socketTimeout", String.valueOf(properties.getSocketTimeout().toSeconds()));
 
         Exception lastException = null;
         while (System.nanoTime() < deadline) {
             try (final var connection = DriverManager.getConnection(jdbcUrl, jdbcProperties)) {
-                if (connection.isValid(properties.getValidationTimeoutSeconds())) {
+                if (connection.isValid(
+                        Math.toIntExact(properties.getValidationTimeout().toSeconds()))) {
                     log.info("Successfully connected to database");
                     return;
                 }
