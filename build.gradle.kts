@@ -18,7 +18,7 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.30.2")
-    set("consensusNodeVersion", "0.72.1")
+    set("consensusNodeVersion", "0.73.0-rc.1")
     set("grpcVersion", "1.80.0")
     set("jackson-2-bom.version", "2.21.2") // Temporary until next Spring Boot
     set("jackson-bom.version", "3.1.1") // Temporary until next Spring Boot
@@ -27,6 +27,7 @@ extra.apply {
     set("nodeJsVersion", "24.13.0")
     set("protobufVersion", "4.34.1")
     set("springGrpcVersion", "1.0.1")
+    set("tomcat.version", "11.0.21") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
 
