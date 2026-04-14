@@ -135,7 +135,7 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
       private RpcRelayEndpoint rpcRelay;
 
       public static class BlockNodeEndpoint {
-          private BlockNodeApi endpointApi;
+          private List<BlockNodeApi> endpointApis;
       }
 
       public enum BlockNodeApi {
@@ -201,7 +201,7 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
         "service_endpoints": [
           {
             "block_node": {
-              "endpoint_api": "STATUS"
+              "endpoint_apis": ["STATUS", "PUBLISH", "SUBSCRIBE_STREAM"]
             },
             "domain_name": "block1.alpha.com",
             "general_service": null,
@@ -209,19 +209,6 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
             "mirror_node": null,
             "port": 40840,
             "requires_tls": false,
-            "rpc_relay": null,
-            "type": "BLOCK_NODE"
-          },
-          {
-            "block_node": {
-              "endpoint_api": "SUBSCRIBE_STREAM"
-            },
-            "domain_name": null,
-            "general_service": null,
-            "ip_address": "191.91.239.79",
-            "mirror_node": null,
-            "port": 40842,
-            "requires_tls": true,
             "rpc_relay": null,
             "type": "BLOCK_NODE"
           },
