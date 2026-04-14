@@ -4,8 +4,6 @@ name: Release GHCR
 
 on:
   push:
-    branches:
-      - "12790-ghcr-images"
     tags:
       - "v*"
 
@@ -52,8 +50,6 @@ jobs:
 
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: v0.152.0
 
       - name: Get version
         run: echo "VERSION=$(grep -oP 'version=\K.+' gradle.properties)" >> $GITHUB_ENV
@@ -105,8 +101,6 @@ jobs:
 
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: v0.152.0
 
       - name: Install envsubst Dependency for Cosign
         run: sudo apt-get update && sudo apt-get install -y gettext-base
