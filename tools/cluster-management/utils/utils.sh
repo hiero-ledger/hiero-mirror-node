@@ -844,19 +844,23 @@ EOF
 }
 
 function pauseClustersIfNeeded() {
+  local skipCleanShutdown="${1:-false}"
   if [[ "${PAUSE_CLUSTER}" == "true" ]]; then
     for namespace in "${CITUS_NAMESPACES[@]}"; do
       unrouteTraffic "${namespace}"
-      pauseCitus "${namespace}"
+      pauseCitus "${namespace}" "${skipCleanShutdown}"
     done
   fi
+
 }
 
 function resumeClustersIfNeeded() {
+  local reinitializeCitus="${1:-false}"
+
   if [[ "${PAUSE_CLUSTER}" == "true" ]]; then
     for namespace in "${CITUS_NAMESPACES[@]}"; do
       log "Resuming Citus in namespace ${namespace}"
-      unpauseCitus "${namespace}" true
+      unpauseCitus "${namespace}" "${reinitializeCitus}"
       routeTraffic "${namespace}"
     done
   fi

@@ -4,7 +4,8 @@ import _ from 'lodash';
 import crypto from 'crypto';
 import httpContext from 'express-http-context';
 import {jest} from '@jest/globals';
-import {proto} from '@hiero-ledger/proto';
+import {create, toBinary} from '@bufbuild/protobuf';
+import {KeySchema, KeyListSchema, ThresholdKeySchema} from '../gen/services/basic_types_pb.js';
 import * as utils from '../utils';
 import config from '../config';
 import * as constants from '../constants';
@@ -14,9 +15,13 @@ import {Range} from 'pg-range';
 import EntityId from '../entityId';
 
 const ecdsaKey = '02b5ffadf88d625cd9074fa01e5280b773a60ed2de55b0d6f94460c0b5a001a258';
-const ecdsaProtoKey = {ECDSASecp256k1: Buffer.from(ecdsaKey, 'hex')};
+const ecdsaProtoKey = create(KeySchema, {
+  key: {case: 'ECDSASecp256k1', value: Buffer.from(ecdsaKey, 'hex')},
+});
 const ed25519Key = '7a3c5477bdf4a63742647d7cfc4544acc1899d07141caf4cd9fea2f75b28a5cc';
-const ed25519ProtoKey = {ed25519: Buffer.from(ed25519Key, 'hex')};
+const ed25519ProtoKey = create(KeySchema, {
+  key: {case: 'ed25519', value: Buffer.from(ed25519Key, 'hex')},
+});
 const ed25519Der = `302a300506032b6570032100${ed25519Key}`;
 const responseLimit = config.response.limit;
 
@@ -180,17 +185,27 @@ describe('Utils createTransactionId tests', () => {
 });
 
 describe('Utils encodeKey', () => {
-  const getPrimitiveKeyBytes = (protoKey) => {
-    return proto.Key.encode(protoKey).finish();
+  const getPrimitiveKeyBytes = (keyMessage) => {
+    return Buffer.from(toBinary(KeySchema, keyMessage));
   };
 
-  const getKeyListBytes = (protoKey) => {
-    const key = {keyList: proto.KeyList.create({keys: [protoKey]})};
+  const getKeyListBytes = (innerKey) => {
+    const key = create(KeySchema, {
+      key: {case: 'keyList', value: create(KeyListSchema, {keys: [innerKey]})},
+    });
     return getPrimitiveKeyBytes(key);
   };
 
-  const getThresholdKeyBytes = (protoKey) => {
-    const key = {thresholdKey: proto.ThresholdKey.create({keys: {keys: [protoKey]}, threshold: 1})};
+  const getThresholdKeyBytes = (innerKey) => {
+    const key = create(KeySchema, {
+      key: {
+        case: 'thresholdKey',
+        value: create(ThresholdKeySchema, {
+          threshold: 1,
+          keys: create(KeyListSchema, {keys: [innerKey]}),
+        }),
+      },
+    });
     return getPrimitiveKeyBytes(key);
   };
 

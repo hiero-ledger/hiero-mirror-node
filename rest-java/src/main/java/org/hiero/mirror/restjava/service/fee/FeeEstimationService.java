@@ -107,6 +107,11 @@ public class FeeEstimationService {
             throw new IllegalArgumentException("Unable to parse transaction", e);
         } catch (NullPointerException e) {
             throw new IllegalArgumentException("Unknown transaction type", e);
+        } catch (IllegalStateException e) {
+            if (e.getCause() instanceof UnknownHederaFunctionality) {
+                throw new IllegalArgumentException("Unknown transaction type", e);
+            }
+            throw e;
         }
     }
 
