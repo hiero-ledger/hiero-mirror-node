@@ -73,23 +73,29 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
                 .persist();
 
         var consensusTimestamp = recordFile.getConsensusStart() + 100;
+        var contractId = domainBuilder.entityId();
         var topic0 = Hex.decodeHex("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
         var topic1 = domainBuilder.bytes(32);
         var topic2 = domainBuilder.bytes(32);
         byte[] topic3 = null;
-        var data = domainBuilder.bytes(64);
+        var originalData = Hex.decodeHex("0000000000000000000000000000000000000000000000000000000000000064");
+        var duplicateData = Hex.decodeHex("64");
+        var bloomOriginal = domainBuilder.bytes(256);
+        var bloomDuplicate = domainBuilder.bytes(256);
         var transactionHashOriginal = domainBuilder.bytes(32);
         var transactionHashDuplicate = domainBuilder.bytes(32);
 
         var originalLog = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(0)
                         .topic0(topic0)
                         .topic1(topic1)
                         .topic2(topic2)
                         .topic3(topic3)
-                        .data(data)
+                        .data(originalData)
+                        .bloom(bloomOriginal)
                         .transactionHash(transactionHashOriginal)
                         .transactionIndex(0))
                 .persist();
@@ -97,12 +103,14 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
         domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(1)
                         .topic0(topic0)
                         .topic1(topic1)
                         .topic2(topic2)
                         .topic3(topic3)
-                        .data(data)
+                        .data(duplicateData)
+                        .bloom(bloomDuplicate)
                         .transactionHash(transactionHashDuplicate)
                         .transactionIndex(1))
                 .persist();
@@ -123,20 +131,26 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
                 .persist();
 
         var consensusTimestamp = recordFile.getConsensusStart() + 100;
+        var contractId = domainBuilder.entityId();
         var topic0 = Hex.decodeHex("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
-        var data = domainBuilder.bytes(64);
+        var originalData = Hex.decodeHex("00000000000000000000000000000000000000000000000000000000000000c8");
+        var duplicateData = Hex.decodeHex("c8");
+        var bloomOriginal = domainBuilder.bytes(256);
+        var bloomDuplicate = domainBuilder.bytes(256);
         var transactionHashOriginal = domainBuilder.bytes(32);
         var transactionHashDuplicate = domainBuilder.bytes(32);
 
         var originalLog = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(0)
                         .topic0(topic0)
                         .topic1(null)
                         .topic2(null)
                         .topic3(null)
-                        .data(data)
+                        .data(originalData)
+                        .bloom(bloomOriginal)
                         .transactionHash(transactionHashOriginal)
                         .transactionIndex(0))
                 .persist();
@@ -144,12 +158,14 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
         domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(1)
                         .topic0(topic0)
                         .topic1(null)
                         .topic2(null)
                         .topic3(null)
-                        .data(data)
+                        .data(duplicateData)
+                        .bloom(bloomDuplicate)
                         .transactionHash(transactionHashDuplicate)
                         .transactionIndex(1))
                 .persist();
@@ -170,20 +186,26 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
                 .persist();
 
         var consensusTimestamp = recordFile.getConsensusStart() + 100;
+        var contractId = domainBuilder.entityId();
         var topic0 = Hex.decodeHex("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
         var topic2 = domainBuilder.bytes(32);
         byte[] topic3 = null;
-        var data = domainBuilder.bytes(64);
+        var originalData = Hex.decodeHex("000000000000000000000000000000000000000000000000000000000000012c");
+        var duplicateData = Hex.decodeHex("012c");
+        var bloomOriginal = domainBuilder.bytes(256);
+        var bloomDuplicate = domainBuilder.bytes(256);
 
         var log1 = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(0)
                         .topic0(topic0)
                         .topic1(domainBuilder.bytes(32))
                         .topic2(topic2)
                         .topic3(topic3)
-                        .data(data)
+                        .data(originalData)
+                        .bloom(bloomOriginal)
                         .transactionHash(domainBuilder.bytes(32))
                         .transactionIndex(0))
                 .persist();
@@ -191,12 +213,14 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
         var log2 = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(1)
                         .topic0(topic0)
                         .topic1(domainBuilder.bytes(32))
                         .topic2(topic2)
                         .topic3(topic3)
-                        .data(data)
+                        .data(duplicateData)
+                        .bloom(bloomDuplicate)
                         .transactionHash(domainBuilder.bytes(32))
                         .transactionIndex(1))
                 .persist();
@@ -217,20 +241,29 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
                 .persist();
 
         var consensusTimestamp = recordFile.getConsensusStart() + 100;
+        var contractId = domainBuilder.entityId();
         var topic0 = Hex.decodeHex("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
         var topic1 = domainBuilder.bytes(32);
         var topic2 = domainBuilder.bytes(32);
         byte[] topic3 = null;
+        // Different data values - original: 400 (0x190), duplicate: 500 (0x1f4)
+        // These should NOT match after LTRIM
+        var originalData = Hex.decodeHex("0000000000000000000000000000000000000000000000000000000000000190");
+        var duplicateData = Hex.decodeHex("00000000000000000000000000000000000001f4");
+        var bloomOriginal = domainBuilder.bytes(256);
+        var bloomDuplicate = domainBuilder.bytes(256);
 
         var log1 = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(0)
                         .topic0(topic0)
                         .topic1(topic1)
                         .topic2(topic2)
                         .topic3(topic3)
-                        .data(domainBuilder.bytes(64))
+                        .data(originalData)
+                        .bloom(bloomOriginal)
                         .transactionHash(domainBuilder.bytes(32))
                         .transactionIndex(0))
                 .persist();
@@ -238,12 +271,14 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
         var log2 = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(1)
                         .topic0(topic0)
                         .topic1(topic1)
                         .topic2(topic2)
                         .topic3(topic3)
-                        .data(domainBuilder.bytes(64))
+                        .data(duplicateData)
+                        .bloom(bloomDuplicate)
                         .transactionHash(domainBuilder.bytes(32))
                         .transactionIndex(1))
                 .persist();
@@ -264,22 +299,28 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
                 .persist();
 
         var consensusTimestamp = recordFile.getConsensusStart() + 100;
+        var contractId = domainBuilder.entityId();
         var topic0 = Hex.decodeHex("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
         var topic1 = domainBuilder.bytes(32);
         var topic2 = domainBuilder.bytes(32);
         byte[] topic3 = null;
-        var data = domainBuilder.bytes(64);
+        var originalData = Hex.decodeHex("0000000000000000000000000000000000000000000000000000000000000258");
+        var duplicateData = Hex.decodeHex("0258");
+        var bloomOriginal = domainBuilder.bytes(256);
+        var bloomDuplicate = domainBuilder.bytes(256);
         var transactionHash = domainBuilder.bytes(32);
 
         var log1 = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(0)
                         .topic0(topic0)
                         .topic1(topic1)
                         .topic2(topic2)
                         .topic3(topic3)
-                        .data(data)
+                        .data(originalData)
+                        .bloom(bloomOriginal)
                         .transactionHash(transactionHash)
                         .transactionIndex(0))
                 .persist();
@@ -287,12 +328,14 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
         var log2 = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(1)
                         .topic0(topic0)
                         .topic1(topic1)
                         .topic2(topic2)
                         .topic3(topic3)
-                        .data(data)
+                        .data(duplicateData)
+                        .bloom(bloomDuplicate)
                         .transactionHash(transactionHash)
                         .transactionIndex(1))
                 .persist();
@@ -303,7 +346,7 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
     }
 
     @Test
-    void skipWhenTimestampBelowThreshold() {
+    void skipWhenTimestampBelowThreshold() throws DecoderException {
         var recordFile = domainBuilder
                 .recordFile()
                 .customize(rf -> rf.hapiVersionMajor(0)
@@ -313,19 +356,26 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
                 .persist();
 
         var consensusTimestamp = recordFile.getConsensusStart() + 100;
+        var contractId = domainBuilder.entityId();
         var topic0 = domainBuilder.bytes(32);
         var topic1 = domainBuilder.bytes(32);
         var topic2 = domainBuilder.bytes(32);
-        var data = domainBuilder.bytes(64);
+        var originalData = Hex.decodeHex("00000000000000000000000000000000000000000000000000000000000002bc");
+        // Duplicate data: 20 bytes, same value = 700 (0x2bc)
+        var duplicateData = Hex.decodeHex("02bc");
+        var bloomOriginal = domainBuilder.bytes(256);
+        var bloomDuplicate = domainBuilder.bytes(256);
 
         var log1 = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(0)
                         .topic0(topic0)
                         .topic1(topic1)
                         .topic2(topic2)
-                        .data(data)
+                        .data(originalData)
+                        .bloom(bloomOriginal)
                         .transactionHash(domainBuilder.bytes(32))
                         .transactionIndex(0))
                 .persist();
@@ -333,11 +383,13 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
         var log2 = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(1)
                         .topic0(topic0)
                         .topic1(topic1)
                         .topic2(topic2)
-                        .data(data)
+                        .data(duplicateData)
+                        .bloom(bloomDuplicate)
                         .transactionHash(domainBuilder.bytes(32))
                         .transactionIndex(1))
                 .persist();
@@ -358,22 +410,27 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
                 .persist();
 
         var consensusTimestamp = recordFile.getConsensusStart() + 100;
+        var contractId = domainBuilder.entityId();
         var topic0 = Hex.decodeHex("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
         var topic1 = domainBuilder.bytes(32);
         var topic2 = domainBuilder.bytes(32);
         byte[] topic3 = null;
-        var data = domainBuilder.bytes(64);
+        var originalData = Hex.decodeHex("0000000000000000000000000000000000000000000000000000000000000320");
+        var duplicateData = Hex.decodeHex("0320");
+        var bloomOriginal = domainBuilder.bytes(256);
         var transactionHashOriginal = domainBuilder.bytes(32);
 
         var originalLog = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(0)
                         .topic0(topic0)
                         .topic1(topic1)
                         .topic2(topic2)
                         .topic3(topic3)
-                        .data(data)
+                        .data(originalData)
+                        .bloom(bloomOriginal)
                         .transactionHash(transactionHashOriginal)
                         .transactionIndex(0))
                 .persist();
@@ -381,12 +438,14 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
         domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(1)
                         .topic0(topic0)
                         .topic1(topic1)
                         .topic2(topic2)
                         .topic3(topic3)
-                        .data(data)
+                        .data(duplicateData)
+                        .bloom(domainBuilder.bytes(256))
                         .transactionHash(domainBuilder.bytes(32))
                         .transactionIndex(1))
                 .persist();
@@ -394,12 +453,14 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
         domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
                         .index(2)
                         .topic0(topic0)
                         .topic1(topic1)
                         .topic2(topic2)
                         .topic3(topic3)
-                        .data(data)
+                        .data(duplicateData)
+                        .bloom(domainBuilder.bytes(256))
                         .transactionHash(domainBuilder.bytes(32))
                         .transactionIndex(2))
                 .persist();
