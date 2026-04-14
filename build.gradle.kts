@@ -18,7 +18,7 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.30.2")
-    set("consensusNodeVersion", "0.72.0")
+    set("consensusNodeVersion", "0.72.1")
     set("grpcVersion", "1.80.0")
     set("jackson-2-bom.version", "2.21.2") // Temporary until next Spring Boot
     set("jackson-bom.version", "3.1.1") // Temporary until next Spring Boot
@@ -75,7 +75,7 @@ dependencies {
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
-        api("org.gaul:s3proxy:3.0.0")
+        api("org.gaul:s3proxy:3.1.0")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
@@ -86,7 +86,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.42.28")
+        api("software.amazon.awssdk:bom:2.42.33")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
