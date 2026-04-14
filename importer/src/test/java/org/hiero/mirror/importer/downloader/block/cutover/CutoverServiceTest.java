@@ -278,7 +278,7 @@ final class CutoverServiceTest {
         // then
         verify(blockStreamTask, times(expectedBlockStreamTaskCount)).run();
         verify(recordStreamTask, times(expectedRecordStreamTaskCount)).run();
-        verifyNoInteractions(recordFileRepository);
+        verify(recordFileRepository).findLatest();
     }
 
     @ParameterizedTest
@@ -350,28 +350,42 @@ final class CutoverServiceTest {
 
         final var blockNumber = new AtomicLong(100);
         final var last = recordFile(blockNumber.get(), false);
+        final var consensusStart = new AtomicLong(last.getConsensusStart());
         last.setHapiVersionMajor(0);
         last.setHapiVersionMinor(75);
         last.setHapiVersionPatch(0);
         doReturn(Optional.of(last)).when(recordFileRepository).findLatest();
+        final var recordFileBuilder = last.toBuilder();
 
         // when
         cutoverService.get(StreamType.BLOCK, blockStreamTask);
+        ;
         cutoverService.get(StreamType.RECORD, recordStreamTask);
 
-        // then
+        // then, first blockstream, then recordstream due to fast fallback
         verify(blockStreamTask).run();
-        verifyNoInteractions(recordStreamTask);
+        verify(recordStreamTask).run();
 
         // when streaming WRBs exceeds latency
         reset(blockStreamTask);
+        reset(recordStreamTask);
         final var latencyCheckVerificationTimeout =
                 firstStage.getLatencyCheckThreshold().plus(Duration.ofMillis(500));
         await().atMost(latencyCheckVerificationTimeout)
                 .pollInterval(Duration.ofMillis(100))
                 .untilAsserted(() -> {
-                    cutoverService.get(StreamType.BLOCK, blockStreamTask);
+                    cutoverService.get(StreamType.BLOCK, () -> {
+                        blockStreamTask.run();
+
+                        final var verifiedRecordFile = nextRecordFile(
+                                recordFileBuilder,
+                                consensusStart,
+                                blockNumber,
+                                Duration.ofMillis(50).toNanos());
+                        cutoverService.verified(verifiedRecordFile);
+                    });
                     cutoverService.get(StreamType.RECORD, recordStreamTask);
+
                     verify(blockStreamTask, atLeast(1)).run();
                     verify(recordStreamTask).run();
                 });
@@ -379,21 +393,18 @@ final class CutoverServiceTest {
         // when streaming WRBs again with low latency
         reset(blockStreamTask);
         reset(recordStreamTask);
-        final long step = Duration.ofMillis(150).toNanos();
-        final var nextConsensusStart = new AtomicLong(last.getConsensusStart() + step);
         await().during(latencyCheckVerificationTimeout)
                 .pollInterval(Duration.ofMillis(100))
                 .untilAsserted(() -> {
                     cutoverService.get(StreamType.BLOCK, () -> {
                         blockStreamTask.run();
 
-                        final long consensusStart = nextConsensusStart.getAndAdd(step);
-                        final var next = last.toBuilder()
-                                .consensusStart(consensusStart)
-                                .consensusEnd(consensusStart + 1L)
-                                .index(blockNumber.getAndIncrement())
-                                .build();
-                        cutoverService.verified(next);
+                        final var verifiedRecordFile = nextRecordFile(
+                                recordFileBuilder,
+                                consensusStart,
+                                blockNumber,
+                                Duration.ofMillis(150).toNanos());
+                        cutoverService.verified(verifiedRecordFile);
                     });
                     cutoverService.get(StreamType.RECORD, recordStreamTask);
 
@@ -453,6 +464,18 @@ final class CutoverServiceTest {
         verify(blockStreamTask).run();
         verifyNoInteractions(recordStreamTask);
         assertThat(blockProperties.isEnabled()).isTrue();
+    }
+
+    private static RecordFile nextRecordFile(
+            final RecordFile.RecordFileBuilder builder,
+            final AtomicLong consensusStart,
+            final AtomicLong index,
+            final long timestampStep) {
+        final long consensusTimestamp = consensusStart.addAndGet(timestampStep);
+        return builder.consensusStart(consensusTimestamp)
+                .consensusEnd(consensusTimestamp + 1L)
+                .index(index.incrementAndGet())
+                .build();
     }
 
     private static RecordFile recordFile(long index, boolean isBlockStream) {
