@@ -205,10 +205,10 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
             },
             "domain_name": "block1.alpha.com",
             "general_service": null,
-            "ip_address": null,
+            "ip_address": "191.91.239.79",
             "mirror_node": null,
             "port": 40840,
-            "requires_tls": false,
+            "requires_tls": true,
             "rpc_relay": null,
             "type": "BLOCK_NODE"
           },
