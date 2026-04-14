@@ -40,6 +40,8 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 final class BlockStreamVerifier {
 
+    private static final String WRAPPED_TAG = "wrapped";
+
     private final BlockFileTransformer blockFileTransformer;
     private final BlockStateProofHasher blockStateProofHasher;
     private final ConsensusNodeService consensusNodeService;
@@ -49,9 +51,9 @@ final class BlockStreamVerifier {
     private final StreamFileNotifier streamFileNotifier;
     private final TssVerifier tssVerifier;
 
-    private final MeterProvider<Timer> streamVerificationMeterProvider;
+    private final MeterProvider<Timer> streamCloseMetricProvider;
     private final MeterProvider<Timer> streamLatencyMeterProvider;
-    private final Timer streamCloseMetric;
+    private final MeterProvider<Timer> streamVerificationMeterProvider;
 
     private boolean logTssSignatureSize = true;
 
@@ -75,25 +77,25 @@ final class BlockStreamVerifier {
         this.tssVerifier = tssVerifier;
 
         // Metrics
-        this.streamVerificationMeterProvider = Timer.builder("hiero.mirror.importer.stream.verification")
-                .description("The duration in seconds it took to verify consensus and hash chain of a stream file")
+        streamCloseMetricProvider = Timer.builder("hiero.mirror.importer.stream.close.latency")
+                .description("The difference between the consensus start of the current and the last stream file")
                 .tag("type", StreamType.BLOCK.toString())
                 .withRegistry(meterRegistry);
-
-        this.streamLatencyMeterProvider = Timer.builder("hiero.mirror.importer.stream.latency")
+        streamLatencyMeterProvider = Timer.builder("hiero.mirror.importer.stream.latency")
                 .description("The difference in time between the consensus time of the last transaction in the block "
                         + "and the time at which the block was verified")
                 .tag("type", StreamType.BLOCK.toString())
                 .withRegistry(meterRegistry);
-
-        streamCloseMetric = Timer.builder("hiero.mirror.importer.stream.close.latency")
-                .description("The difference between the consensus start of the current and the last stream file")
+        streamVerificationMeterProvider = Timer.builder("hiero.mirror.importer.stream.verification")
+                .description("The duration in seconds it took to verify consensus and hash chain of a stream file")
                 .tag("type", StreamType.BLOCK.toString())
-                .register(meterRegistry);
+                .withRegistry(meterRegistry);
     }
 
-    public void verify(BlockFile blockFile) {
+    public void verify(final BlockFile blockFile) {
         final var startTime = Instant.now();
+        final boolean wrapped = blockFile.hasRecordFile();
+
         boolean success = true;
         try {
             verifyBlockNumber(blockFile);
@@ -102,7 +104,7 @@ final class BlockStreamVerifier {
 
             final var consensusEnd = Instant.ofEpochSecond(0, blockFile.getConsensusEnd());
             streamLatencyMeterProvider
-                    .withTag("block_node", blockFile.getNode())
+                    .withTags("block_node", blockFile.getNode(), WRAPPED_TAG, String.valueOf(wrapped))
                     .record(Duration.between(consensusEnd, Instant.now()));
 
             final var lastRecordFile = cutoverService.getLastRecordFile();
@@ -111,14 +113,22 @@ final class BlockStreamVerifier {
 
             lastRecordFile.map(RecordFile::getConsensusStart).ifPresent(lastConsensusStart -> {
                 final long latency = blockFile.getConsensusStart() - lastConsensusStart;
-                streamCloseMetric.record(latency, TimeUnit.NANOSECONDS);
+                streamCloseMetricProvider
+                        .withTag(WRAPPED_TAG, String.valueOf(wrapped))
+                        .record(latency, TimeUnit.NANOSECONDS);
             });
         } catch (Exception e) {
             success = false;
             throw e;
         } finally {
             streamVerificationMeterProvider
-                    .withTags("success", String.valueOf(success), "block_node", blockFile.getNode())
+                    .withTags(
+                            "success",
+                            String.valueOf(success),
+                            "block_node",
+                            blockFile.getNode(),
+                            WRAPPED_TAG,
+                            String.valueOf(wrapped))
                     .record(Duration.between(startTime, Instant.now()));
         }
     }
