@@ -40,6 +40,8 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 final class BlockStreamVerifier {
 
+    private static final String BLOCK_NODE_TAG = "block_node";
+    private static final String HASH_TYPE_PREVIOUS = "Previous";
     private static final String WRAPPED_TAG = "wrapped";
 
     private final BlockFileTransformer blockFileTransformer;
@@ -104,7 +106,7 @@ final class BlockStreamVerifier {
 
             final var consensusEnd = Instant.ofEpochSecond(0, blockFile.getConsensusEnd());
             streamLatencyMeterProvider
-                    .withTags("block_node", blockFile.getNode(), WRAPPED_TAG, String.valueOf(wrapped))
+                    .withTags(BLOCK_NODE_TAG, blockFile.getNode(), WRAPPED_TAG, String.valueOf(wrapped))
                     .record(Duration.between(consensusEnd, Instant.now()));
 
             final var lastRecordFile = cutoverService.getLastRecordFile();
@@ -125,7 +127,7 @@ final class BlockStreamVerifier {
                     .withTags(
                             "success",
                             String.valueOf(success),
-                            "block_node",
+                            BLOCK_NODE_TAG,
                             blockFile.getNode(),
                             WRAPPED_TAG,
                             String.valueOf(wrapped))
@@ -187,7 +189,7 @@ final class BlockStreamVerifier {
         if (!isLastRecordFile) {
             if (!blockFile.getPreviousHash().contentEquals(previousHash)) {
                 throw new HashMismatchException(
-                        blockFile.getName(), previousHash, blockFile.getPreviousHash(), "Previous");
+                        blockFile.getName(), previousHash, blockFile.getPreviousHash(), HASH_TYPE_PREVIOUS);
             }
 
             return;
@@ -201,7 +203,7 @@ final class BlockStreamVerifier {
             final var recordFile = blockFile.getRecordFile();
             if (!recordFile.getPreviousHash().contentEquals(previousHash)) {
                 throw new HashMismatchException(
-                        recordFile.getName(), previousHash, recordFile.getPreviousHash(), "Previous");
+                        recordFile.getName(), previousHash, recordFile.getPreviousHash(), HASH_TYPE_PREVIOUS);
             }
 
             final byte[] previousWrappedRecordBlockHash = last.getWrappedRecordBlockHash();
