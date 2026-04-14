@@ -2,12 +2,19 @@
 
 package org.hiero.mirror.importer.parser.record.entity;
 
+import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
+import static org.hiero.mirror.common.util.DomainUtils.toBytes;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.common.util.DomainUtils.trim;
+
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountID;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogService;
@@ -79,8 +86,8 @@ final class TransferEventsGenerator {
             syntheticContractLogService.create(new TransferContractLog(
                     recordItem,
                     tokenId,
-                    EntityId.of(sender.getAccountID()),
-                    EntityId.of(receiver.getAccountID()),
+                    accountIdToEvmAddress(sender.getAccountID()),
+                    accountIdToEvmAddress(receiver.getAccountID()),
                     amountForSyntheticContractLog));
             senderRemainingAmount -= amountForSyntheticContractLog;
             receiverRemainingAmount -= amountForSyntheticContractLog;
@@ -95,5 +102,19 @@ final class TransferEventsGenerator {
                 receiver = null;
             }
         }
+    }
+
+    private static byte[] accountIdToEvmAddress(AccountID accountId) {
+        if (accountId.hasAlias()) {
+            var alias = toBytes(accountId.getAlias());
+            if (alias.length == EVM_ADDRESS_LENGTH) {
+                return trim(alias);
+            }
+        }
+        var entityId = EntityId.of(accountId);
+        if (EntityId.isEmpty(entityId)) {
+            return ArrayUtils.EMPTY_BYTE_ARRAY;
+        }
+        return trim(toEvmAddress(entityId));
     }
 }

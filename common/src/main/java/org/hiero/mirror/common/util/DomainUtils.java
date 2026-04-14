@@ -423,20 +423,19 @@ public class DomainUtils {
 
         var contractResultLogTrimmed = trimmedLogTopicBytes(contractResultTopic);
         var contractResultLogEntity = resolveTransferIndexedAccount(contractResultLogTrimmed, accountResolver);
-        if (contractResultLogEntity.isEmpty()) {
-            // Deliberately return true, since we were not able to successfully resolve the alias/evm_address to account
-            // num
-            // and we can't properly compare the existing and synthetically created topics. It's safer to return true
-            // and skip the synthetic log creation.
-            return true;
-        }
 
         var syntheticLogEntity = convertAccountNumBytesToEntity(syntheticTopic);
 
-        if (syntheticLogEntity.isEmpty()) {
-            return false;
+        // Compare with priority resolved address to EntityId
+        if (contractResultLogEntity.isPresent()
+                && syntheticLogEntity.isPresent()
+                && accountNumsEqual(contractResultLogEntity.get(), syntheticLogEntity.get())) {
+            return true;
+        } else {
+            // Handle cases where we have transfers to hollow accounts
+            return Arrays.equals(
+                    contractResultLogTrimmed, syntheticTopic != null ? syntheticTopic : ArrayUtils.EMPTY_BYTE_ARRAY);
         }
-        return accountNumsEqual(contractResultLogEntity.get(), syntheticLogEntity.get());
     }
 
     public static Optional<EntityId> convertAccountNumBytesToEntity(byte[] accountAddress) {
