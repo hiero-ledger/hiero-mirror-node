@@ -10,6 +10,7 @@ import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.ValueMapping;
 
 @Mapper(config = MapperConfiguration.class)
 public interface RegisteredNodeMapper
@@ -18,7 +19,6 @@ public interface RegisteredNodeMapper
     @Mapping(source = "createdTimestamp", target = "createdTimestamp", qualifiedByName = QUALIFIER_TIMESTAMP)
     @Mapping(target = "serviceEndpoints", expression = "java(mapServiceEndpoints(node.getServiceEndpoints()))")
     @Mapping(source = "timestampRange", target = "timestamp")
-    @Mapping(target = "type", expression = "java(mapRegisteredNodeTypes(node.getType(), commonMapper))")
     org.hiero.mirror.rest.model.RegisteredNode map(RegisteredNode node);
 
     default List<org.hiero.mirror.rest.model.RegisteredServiceEndpoint> mapServiceEndpoints(
@@ -32,11 +32,7 @@ public interface RegisteredNodeMapper
     org.hiero.mirror.rest.model.RegisteredServiceEndpoint toRegisteredServiceEndpoint(
             RegisteredServiceEndpoint endpoint);
 
-    default List<org.hiero.mirror.rest.model.RegisteredNodeType> mapRegisteredNodeTypes(
-            List<Short> list, CommonMapper commonMapper) {
-        if (list == null) {
-            return Collections.emptyList();
-        }
-        return list.stream().map(commonMapper::mapRegisteredNodeType).toList();
-    }
+    @ValueMapping(source = "UNKNOWN", target = "GENERAL_SERVICE")
+    org.hiero.mirror.rest.model.RegisteredNodeType mapDomainRegisteredNodeType(
+            org.hiero.mirror.common.domain.node.RegisteredNodeType source);
 }

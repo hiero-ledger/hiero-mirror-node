@@ -72,13 +72,6 @@ final class RegisteredNodeMapperTest {
         assertThat(result.getServiceEndpoints().getFirst())
                 .isEqualTo(mapper.toRegisteredServiceEndpoint(
                         registeredNode.getServiceEndpoints().getFirst()));
-
-        assertThat(result.getType())
-                .as("registered node aggregated types")
-                .containsExactlyElementsOf(registeredNode.getType().stream()
-                        .map(commonMapper::mapRegisteredNodeType)
-                        .toList());
-
         assertThat(result.getAdminKey()).isEqualTo(commonMapper.mapKey(registeredNode.getAdminKey()));
     }
 
@@ -103,7 +96,6 @@ final class RegisteredNodeMapperTest {
         assertThat(result.getServiceEndpoints())
                 .as("serviceEndpoints should be empty list")
                 .isEmpty();
-        assertThat(result.getType()).as("type should be empty list").isEmpty();
         assertThat(result.getTimestamp()).as("timestamp should be null").isNull();
     }
 
@@ -126,19 +118,6 @@ final class RegisteredNodeMapperTest {
     }
 
     @Test
-    void mapRegisteredNodeTypes() {
-        assertThat(mapper.mapRegisteredNodeTypes(null, commonMapper)).isEmpty();
-
-        final var typeIds = List.of((short) 0, (short) 1, (short) 2, (short) 3, (short) 4, (short) 99);
-        final var expected =
-                typeIds.stream().map(commonMapper::mapRegisteredNodeType).toList();
-
-        final var actual = mapper.mapRegisteredNodeTypes(typeIds, commonMapper);
-
-        assertThat(actual).containsExactlyElementsOf(expected);
-    }
-
-    @Test
     void toRegisteredServiceEndpoint() {
         assertThat(mapper.toRegisteredServiceEndpoint(null)).isNull();
 
@@ -156,7 +135,6 @@ final class RegisteredNodeMapperTest {
         assertThat(actual.getIpAddress()).isEqualTo(domainEndpoint.getIpAddress());
         assertThat(actual.getPort()).isEqualTo(domainEndpoint.getPort());
         assertThat(actual.getRequiresTls()).isEqualTo(domainEndpoint.isRequiresTls());
-        assertThat(actual.getBlockNode()).isEqualTo(commonMapper.blockNodeForRest(domainEndpoint.getBlockNode()));
         assertThat(actual.getType())
                 .isEqualTo(commonMapper.mapRegisteredNodeType(
                         domainEndpoint.getType().getId()));

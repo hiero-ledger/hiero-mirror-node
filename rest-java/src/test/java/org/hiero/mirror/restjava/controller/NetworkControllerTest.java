@@ -1730,8 +1730,6 @@ final class NetworkControllerTest extends ControllerTest {
             assertThat(actual.getRegisteredNodes()).isNotNull().hasSize(1);
             assertThat(actual.getRegisteredNodes().getFirst().getRegisteredNodeId())
                     .isEqualTo(expectedId);
-            assertThat(actual.getRegisteredNodes().getFirst().getType())
-                    .containsExactly(org.hiero.mirror.rest.model.RegisteredNodeType.valueOf(expectedType.name()));
         }
 
         @Test

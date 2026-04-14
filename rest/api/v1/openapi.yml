@@ -974,7 +974,7 @@ paths:
         - $ref: "#/components/parameters/limitQueryParam"
         - $ref: "#/components/parameters/orderQueryParam"
         - $ref: "#/components/parameters/registeredNodeIdQueryParam"
-        - $ref: "#/components/parameters/registeredNodeTypeQueryParam"
+        - $ref: "#/components/parameters/type"
       responses:
         200:
           description: OK
@@ -3420,12 +3420,6 @@ components:
         timestamp:
           from: "1651560386.060890949"
           to: "1651560386.661997287"
-    #    BlockNodeEndpoint:
-    #      description: >
-    #        Block Node API details are not exposed in this API
-    #        version to avoid breaking existing clients when the BlockNodeEndpoint
-    #        data field becomes a list.
-    #      type: object
     Blocks:
       type: array
       items:
@@ -3440,11 +3434,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FixedCustomFee"
-    GeneralServiceEndpoint:
-      type: object
-      properties:
-        description:
-          type: string
     FeeEstimate:
       description: The fee estimate for the network component. Includes the base fee and any extras associated with it.
       properties:
@@ -3568,8 +3557,6 @@ components:
           $ref: "#/components/schemas/EntityId"
         denominating_token_id:
           $ref: "#/components/schemas/EntityId"
-    MirrorNodeEndpoint:
-      type: object
     NftTransactionHistory:
       type: object
       properties:
@@ -3582,6 +3569,24 @@ components:
       required:
         - transactions
         - links
+    RegisteredBlockNodeApi:
+      type: string
+      enum:
+        [OTHER, STATUS, PUBLISH, SUBSCRIBE_STREAM, STATE_PROOF, UNRECOGNIZED]
+    RegisteredBlockNodeEndpoint:
+      type: object
+      properties:
+        endpoint_api:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegisteredBlockNodeApi"
+    RegisteredGeneralServiceEndpoint:
+      type: object
+      properties:
+        description:
+          type: string
+    RegisteredMirrorNodeEndpoint:
+      type: object
     RegisteredNode:
       type: object
       required:
@@ -3591,7 +3596,6 @@ components:
         - registered_node_id
         - service_endpoints
         - timestamp
-        - type
       properties:
         admin_key:
           $ref: "#/components/schemas/Key"
@@ -3609,10 +3613,6 @@ components:
           $ref: "#/components/schemas/RegisteredServiceEndpoints"
         timestamp:
           $ref: "#/components/schemas/TimestampRange"
-        type:
-          type: array
-          items:
-            $ref: "#/components/schemas/RegisteredNodeType"
       example:
         admin_key:
           _type: "ProtobufEncoded"
@@ -3632,9 +3632,11 @@ components:
         $ref: "#/components/schemas/RegisteredNode"
     RegisteredNodeType:
       description: Registered node type.
-      enum: [UNKNOWN, BLOCK_NODE, GENERAL_SERVICE, MIRROR_NODE, RPC_RELAY]
+      enum: [BLOCK_NODE, GENERAL_SERVICE, MIRROR_NODE, RPC_RELAY]
       example: BLOCK_NODE
       type: string
+    RegisteredRpcRelayEndpoint:
+      type: object
     RegisteredServiceEndpoint:
       type: object
       required:
@@ -3648,22 +3650,23 @@ components:
             - required: [ip_address]
         # Ensures at least one service-specific endpoint is present
         - anyOf:
-            - required: [block_node]
+            # - required: [block_node]
             - required: [general_service]
             - required: [mirror_node]
             - required: [rpc_relay]
       properties:
-        block_node:
-          type: object
-          #          $ref: "#/components/schemas/BlockNodeEndpoint"
-          nullable: true
+        # Comment out until RegisteredBlockNodeEndpoint.endpoint_api is made repeated
+        # in the registered_service_endpoint.proto file
+        # block_node:
+        # type: object
+        # $ref: "#/components/schemas/RegisteredBlockNodeEndpoint"
         domain_name:
           description: The DNS domain name of the service
           example: "block1.alpha.com"
           nullable: true
           type: string
         general_service:
-          $ref: "#/components/schemas/GeneralServiceEndpoint"
+          $ref: "#/components/schemas/RegisteredGeneralServiceEndpoint"
           nullable: true
         ip_address:
           description: The IP address of the service
@@ -3671,7 +3674,7 @@ components:
           nullable: true
           type: string
         mirror_node:
-          $ref: "#/components/schemas/MirrorNodeEndpoint"
+          $ref: "#/components/schemas/RegisteredMirrorNodeEndpoint"
           nullable: true
         port:
           format: int32
@@ -3682,7 +3685,7 @@ components:
           description: Whether the registered service endpoint requires TLS or not.
           type: boolean
         rpc_relay:
-          $ref: "#/components/schemas/RpcRelayEndpoint"
+          $ref: "#/components/schemas/RegisteredRpcRelayEndpoint"
           nullable: true
         type:
           $ref: "#/components/schemas/RegisteredNodeType"
@@ -3700,8 +3703,6 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/RegisteredServiceEndpoint"
-    RpcRelayEndpoint:
-      type: object
     Schedule:
       type: object
       properties:
@@ -5562,10 +5563,10 @@ components:
       example: INTRINSIC
       schema:
         $ref: "#/components/schemas/FeeEstimateMode"
-    registeredNodeTypeQueryParam:
+    type:
       example: BLOCK_NODE
       in: query
-      name: registeredNodeType
+      name: type
       schema:
         $ref: "#/components/schemas/RegisteredNodeType"
     stack:

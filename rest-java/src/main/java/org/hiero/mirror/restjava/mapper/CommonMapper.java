@@ -186,12 +186,11 @@ public interface CommonMapper {
         }
 
         return switch (source) {
-            case 0 -> RegisteredNodeType.UNKNOWN;
             case 1 -> RegisteredNodeType.BLOCK_NODE;
             case 2 -> RegisteredNodeType.GENERAL_SERVICE;
             case 3 -> RegisteredNodeType.MIRROR_NODE;
             case 4 -> RegisteredNodeType.RPC_RELAY;
-            default -> RegisteredNodeType.UNKNOWN;
+            default -> RegisteredNodeType.GENERAL_SERVICE;
         };
     }
 
