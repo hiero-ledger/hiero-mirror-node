@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.restjava.repository;
 
+import jakarta.annotation.Nullable;
 import java.util.List;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.springframework.data.domain.Pageable;
@@ -15,17 +16,8 @@ public interface RegisteredNodeRepository extends PagingAndSortingRepository<Reg
             where registered_node_id >= :lowerBound
             and registered_node_id <= :upperBound
             and deleted is false
-            """, nativeQuery = true)
-    List<RegisteredNode> findByRegisteredNodeIdBetweenAndDeletedIsFalse(
-            long lowerBound, long upperBound, Pageable pageable);
-
-    @Query(value = """
-            select * from registered_node
-            where registered_node_id >= :lowerBound
-            and registered_node_id <= :upperBound
-            and deleted is false
             and (:type is null or type @> array[:type]::smallint[])
             """, nativeQuery = true)
     List<RegisteredNode> findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
-            long lowerBound, long upperBound, short type, Pageable pageable);
+            long lowerBound, long upperBound, @Nullable Short type, Pageable pageable);
 }

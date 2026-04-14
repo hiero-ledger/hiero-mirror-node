@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyShort;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -379,7 +380,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
                 .type(null)
                 .build();
 
-        when(repository.findByRegisteredNodeIdBetweenAndDeletedIsFalse(eq(1L), eq(10L), any()))
+        when(repository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(eq(1L), eq(10L), isNull(), any()))
                 .thenReturn(List.of(node));
 
         // when
@@ -388,9 +389,10 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // then
         Assertions.assertThat(result).containsExactly(node);
         verify(repository)
-                .findByRegisteredNodeIdBetweenAndDeletedIsFalse(
+                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
                         eq(1L),
                         eq(10L),
+                        isNull(),
                         argThat(pageable -> pageable.getPageNumber() == 0
                                 && pageable.getPageSize() == 25
                                 && pageable.getSort()
@@ -431,6 +433,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
                                 && pageable.getSort()
                                         .equals(Sort.by(
                                                 Sort.Direction.ASC, REGISTERED_NODE.REGISTERED_NODE_ID.getName()))));
-        verify(repository, never()).findByRegisteredNodeIdBetweenAndDeletedIsFalse(anyLong(), anyLong(), any());
+        verify(repository, never())
+                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(anyLong(), anyLong(), isNull(), any());
     }
 }

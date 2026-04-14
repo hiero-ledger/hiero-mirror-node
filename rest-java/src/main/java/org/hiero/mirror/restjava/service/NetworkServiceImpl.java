@@ -144,8 +144,8 @@ final class NetworkServiceImpl implements NetworkService {
         final long upperBound = request.getUpperBound();
 
         if (nodeType == null) {
-            return registeredNodeRepository.findByRegisteredNodeIdBetweenAndDeletedIsFalse(
-                    lowerBound, upperBound, page);
+            return registeredNodeRepository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
+                    lowerBound, upperBound, null, page);
         } else {
             return registeredNodeRepository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
                     lowerBound, upperBound, nodeType.getId(), page);

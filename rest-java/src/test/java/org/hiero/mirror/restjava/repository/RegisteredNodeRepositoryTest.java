@@ -25,7 +25,7 @@ final class RegisteredNodeRepositoryTest extends RestJavaIntegrationTest {
 
     @ParameterizedTest
     @EnumSource(Direction.class)
-    void findByRegisteredNodeIdBetweenAndDeletedIsFalse(Direction order) {
+    void findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIsNull(Direction order) {
         // given
         final var node1 = persistRegisteredNode(1L, false, RegisteredNodeType.BLOCK_NODE);
         persistRegisteredNode(2L, true, RegisteredNodeType.MIRROR_NODE); // deleted
@@ -38,7 +38,7 @@ final class RegisteredNodeRepositoryTest extends RestJavaIntegrationTest {
         final var expected = order.isAscending() ? List.of(node1, node3) : List.of(node3, node1);
 
         // when
-        final var actual = repository.findByRegisteredNodeIdBetweenAndDeletedIsFalse(1L, 3L, pageable);
+        final var actual = repository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(1L, 3L, null, pageable);
 
         // then
         assertThat(actual).containsExactlyElementsOf(expected);
@@ -83,10 +83,10 @@ final class RegisteredNodeRepositoryTest extends RestJavaIntegrationTest {
         final var expectedPage1 = all.subList(LIMIT, all.size());
 
         // when
-        final var page0 = repository.findByRegisteredNodeIdBetweenAndDeletedIsFalse(
-                0L, Long.MAX_VALUE, PageRequest.of(0, LIMIT, sort));
-        final var page1 = repository.findByRegisteredNodeIdBetweenAndDeletedIsFalse(
-                0L, Long.MAX_VALUE, PageRequest.of(1, LIMIT, sort));
+        final var page0 = repository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
+                0L, Long.MAX_VALUE, null, PageRequest.of(0, LIMIT, sort));
+        final var page1 = repository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
+                0L, Long.MAX_VALUE, null, PageRequest.of(1, LIMIT, sort));
 
         // then
         assertThat(page0).hasSize(expectedPage0.size()).containsExactlyElementsOf(expectedPage0);
