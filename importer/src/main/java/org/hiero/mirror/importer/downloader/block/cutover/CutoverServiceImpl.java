@@ -65,7 +65,7 @@ public final class CutoverServiceImpl implements CutoverService {
             task.run();
         } finally {
             if (streamType == BLOCK) {
-                // Trace if blocks have been advanced when last run is blockstream, used to fast fallback to
+                // Track if blocks have been advanced when last run is blockstream, used to fast fallback to
                 // recordstream in first-stage
                 final long currentBlockNumber =
                         getLastRecordFile().map(RecordFile::getIndex).orElse(-1L);

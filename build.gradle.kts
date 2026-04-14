@@ -18,7 +18,7 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.30.2")
-    set("consensusNodeVersion", "0.72.1")
+    set("consensusNodeVersion", "0.73.0-rc.1")
     set("grpcVersion", "1.80.0")
     set("jackson-2-bom.version", "2.21.2") // Temporary until next Spring Boot
     set("jackson-bom.version", "3.1.1") // Temporary until next Spring Boot
@@ -58,7 +58,7 @@ dependencies {
         api("com.hedera.cryptography:hedera-cryptography-wraps:3.7.11")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.73.0-rc.1")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
         api("com.hedera.hashgraph:sdk:2.69.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")

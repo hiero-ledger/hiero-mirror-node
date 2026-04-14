@@ -44,9 +44,8 @@ abstract class AbstractBlockSource implements BlockSource {
         if (!properties.isPersistBytes()) {
             blockFile.setBytes(null);
 
-            final var recordFile = blockFile.getRecordFile();
-            if (recordFile != null) {
-                recordFile.setBytes(null);
+            if (blockFile.hasRecordFile()) {
+                blockFile.getRecordFile().setBytes(null);
             }
         }
 

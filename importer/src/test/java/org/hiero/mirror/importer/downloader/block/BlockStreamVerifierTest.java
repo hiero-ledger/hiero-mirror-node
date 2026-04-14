@@ -42,6 +42,8 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
+import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverProperties;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverServiceImpl;
@@ -71,7 +73,13 @@ final class BlockStreamVerifierTest {
     private BlockStateProofHasher blockStateProofHasher;
 
     @Mock
+    private ConsensusNodeService consensusNodeService;
+
+    @Mock
     private LedgerIdPublicationTransactionParser ledgerIdPublicationTransactionParser;
+
+    @Mock
+    private NodeSignatureVerifier nodeSignatureVerifier;
 
     @Mock
     private RecordFileRepository recordFileRepository;
@@ -92,9 +100,11 @@ final class BlockStreamVerifierTest {
         verifier = new BlockStreamVerifier(
                 blockFileTransformer,
                 blockStateProofHasher,
+                consensusNodeService,
                 cutoverService,
                 ledgerIdPublicationTransactionParser,
                 new SimpleMeterRegistry(),
+                nodeSignatureVerifier,
                 cutoverService,
                 tssVerifier);
         when(blockFileTransformer.transform(any(BlockFile.class))).thenAnswer(invocation -> {
