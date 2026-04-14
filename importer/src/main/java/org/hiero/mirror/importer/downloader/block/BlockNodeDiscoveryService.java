@@ -127,7 +127,7 @@ public final class BlockNodeDiscoveryService {
                 continue;
             }
 
-            for (final var api : endpoint.getBlockNode().getEndpointApisList()) {
+            for (final var api : endpoint.getBlockNode().getEndpointApis()) {
                 switch (api) {
                     case PUBLISH -> hasPublishEndpoint = true;
                     case STATUS -> statusEndpoint = statusEndpoint == null ? endpoint : statusEndpoint;

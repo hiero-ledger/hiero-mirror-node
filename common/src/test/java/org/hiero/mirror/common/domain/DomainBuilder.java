@@ -810,7 +810,7 @@ public class DomainBuilder {
                 .registeredNodeId(nodeId)
                 .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
                         .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoints.builder()
-                                .endpointApisList(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
+                                .endpointApis(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
                                 .build())
                         .ipAddress("127.0.0.1")
                         .port(443)

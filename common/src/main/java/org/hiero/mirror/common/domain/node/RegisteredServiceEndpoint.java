@@ -26,12 +26,6 @@ public class RegisteredServiceEndpoint {
     private boolean requiresTls;
     private RpcRelayEndpoint rpcRelay;
 
-    @Data
-    @Builder
-    public static class BlockNodeEndpoint {
-        private BlockNodeApi endpointApi;
-    }
-
     public enum BlockNodeApi {
         OTHER,
         STATUS,
@@ -44,7 +38,7 @@ public class RegisteredServiceEndpoint {
     @Data
     @Builder
     public static class BlockNodeEndpoints {
-        private List<BlockNodeApi> endpointApisList;
+        private List<BlockNodeApi> endpointApis;
     }
 
     @Data

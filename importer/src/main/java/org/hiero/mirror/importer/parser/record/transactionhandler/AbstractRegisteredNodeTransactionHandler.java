@@ -84,7 +84,7 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
         switch (proto.getEndpointTypeCase()) {
             case BLOCK_NODE ->
                 builder.blockNode(BlockNodeEndpoints.builder()
-                        .endpointApisList(proto.getBlockNode().getEndpointApiList().stream()
+                        .endpointApis(proto.getBlockNode().getEndpointApiList().stream()
                                 .map(AbstractRegisteredNodeTransactionHandler::toBlockNodeApi)
                                 .collect(Collectors.toList()))
                         .build());

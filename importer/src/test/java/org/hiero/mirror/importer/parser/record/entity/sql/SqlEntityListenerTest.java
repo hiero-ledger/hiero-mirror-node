@@ -2143,7 +2143,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .description("updated")
                 .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
                         .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoints.builder()
-                                .endpointApisList(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
+                                .endpointApis(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
                                 .build())
                         .ipAddress("192.168.1.1")
                         .port(8080)
