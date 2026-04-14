@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.restjava.service;
 
+import static java.lang.Long.MAX_VALUE;
 import static org.hiero.mirror.restjava.jooq.domain.tables.RegisteredNode.REGISTERED_NODE;
 
 import com.google.common.collect.Range;
@@ -24,6 +25,7 @@ import org.hiero.mirror.restjava.dto.NetworkNodeDto;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 import org.hiero.mirror.restjava.dto.RegisteredNodesRequest;
+import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
 import org.hiero.mirror.restjava.repository.AccountBalanceRepository;
 import org.hiero.mirror.restjava.repository.EntityRepository;
 import org.hiero.mirror.restjava.repository.NetworkNodeRepository;
@@ -140,8 +142,9 @@ final class NetworkServiceImpl implements NetworkService {
         final var page = PageRequest.of(0, request.getLimit(), sort);
 
         final var nodeType = request.getType();
-        final long lowerBound = request.getLowerBound();
-        final long upperBound = request.getUpperBound();
+        final var bounds = resolveRegisteredNodeIdBounds(request.getRegisteredNodeIds());
+        final long lowerBound = bounds.lowerBound();
+        final long upperBound = bounds.upperBound();
 
         if (nodeType == null) {
             return registeredNodeRepository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
@@ -151,6 +154,33 @@ final class NetworkServiceImpl implements NetworkService {
                     lowerBound, upperBound, nodeType.getId(), page);
         }
     }
+
+    private static RegisteredNodeIdBounds resolveRegisteredNodeIdBounds(
+            List<NumberRangeParameter> registeredNodeIdRanges) {
+        long lowerBound = 0L;
+        long upperBound = MAX_VALUE;
+
+        for (final var range : registeredNodeIdRanges) {
+            if (range.operator() == RangeOperator.EQ) {
+                if (registeredNodeIdRanges.size() > 1) {
+                    throw new IllegalArgumentException("The 'eq' operator cannot be combined with other operators");
+                }
+                lowerBound = upperBound = range.value();
+            } else if (range.hasLowerBound()) {
+                lowerBound = Math.max(lowerBound, range.getInclusiveValue());
+            } else if (range.hasUpperBound()) {
+                upperBound = Math.min(upperBound, range.getInclusiveValue());
+            }
+        }
+
+        if (lowerBound > upperBound) {
+            throw new IllegalArgumentException("Invalid range: lower bound exceeds upper bound");
+        }
+
+        return new RegisteredNodeIdBounds(lowerBound, upperBound);
+    }
+
+    private record RegisteredNodeIdBounds(long lowerBound, long upperBound) {}
 
     private long getAddressBookFileId(final NetworkNodeRequest request) {
         return request.getFileId() != null

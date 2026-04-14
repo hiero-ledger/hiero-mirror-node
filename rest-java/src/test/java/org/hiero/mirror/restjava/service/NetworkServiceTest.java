@@ -373,8 +373,9 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // given
         final var node = new RegisteredNode();
         final var request = RegisteredNodesRequest.builder()
-                .lowerBound(1L)
-                .upperBound(10L)
+                .registeredNodeIds(List.of(
+                        new NumberRangeParameter(RangeOperator.GTE, 1L),
+                        new NumberRangeParameter(RangeOperator.LTE, 10L)))
                 .limit(25)
                 .order(Sort.Direction.DESC)
                 .type(null)
@@ -407,8 +408,6 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // given
         final var node = new RegisteredNode();
         final var request = RegisteredNodesRequest.builder()
-                .lowerBound(0L)
-                .upperBound(Long.MAX_VALUE)
                 .limit(10)
                 .order(Sort.Direction.ASC)
                 .type(RegisteredNodeType.MIRROR_NODE)

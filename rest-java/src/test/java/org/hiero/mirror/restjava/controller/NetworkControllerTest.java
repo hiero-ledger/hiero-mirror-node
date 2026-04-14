@@ -1803,7 +1803,7 @@ final class NetworkControllerTest extends ControllerTest {
                             .retrieve()
                             .toEntity(String.class),
                     HttpClientErrorException.BadRequest.class,
-                    "Failed to convert 'registerednode.id'");
+                    "Invalid parameter: registerednode.id");
         }
 
         @Test
@@ -1819,7 +1819,7 @@ final class NetworkControllerTest extends ControllerTest {
                             .retrieve()
                             .toEntity(String.class),
                     HttpClientErrorException.BadRequest.class,
-                    "registeredNodeId size must be between 0 and 2");
+                    "Invalid parameter: registerednode.id");
         }
 
         @Test
@@ -1831,7 +1831,7 @@ final class NetworkControllerTest extends ControllerTest {
             validateError(
                     () -> restClient.get().uri("?type=invalid").retrieve().toEntity(String.class),
                     HttpClientErrorException.BadRequest.class,
-                    "Failed to convert 'type'");
+                    "Invalid parameter: type");
         }
 
         @ParameterizedTest

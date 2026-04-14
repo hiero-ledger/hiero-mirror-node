@@ -2,11 +2,8 @@
 
 package org.hiero.mirror.restjava.controller;
 
-import static java.lang.Long.MAX_VALUE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hiero.mirror.restjava.common.Constants.APPLICATION_JSON;
-import static org.hiero.mirror.restjava.common.Constants.DEFAULT_LIMIT;
-import static org.hiero.mirror.restjava.common.Constants.MAX_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.REGISTERED_NODE_ID;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
@@ -14,9 +11,7 @@ import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.Transaction;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +19,6 @@ import java.util.Map;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.hiero.hapi.fees.FeeResult;
-import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.rest.model.FeeEstimate;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.rest.model.FeeEstimateNetwork;
@@ -51,7 +45,6 @@ import org.hiero.mirror.restjava.mapper.NetworkNodeMapper;
 import org.hiero.mirror.restjava.mapper.NetworkStakeMapper;
 import org.hiero.mirror.restjava.mapper.NetworkSupplyMapper;
 import org.hiero.mirror.restjava.mapper.RegisteredNodeMapper;
-import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
 import org.hiero.mirror.restjava.parameter.RequestParameter;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
@@ -172,56 +165,19 @@ final class NetworkController {
     }
 
     @GetMapping("/registered-nodes")
-    RegisteredNodesResponse getRegisteredNodes(
-            @RequestParam(required = false, defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
-            @RequestParam(required = false, defaultValue = "asc") Sort.Direction order,
-            @RequestParam(required = false, defaultValue = "", name = REGISTERED_NODE_ID) @Size(max = 2)
-                    NumberRangeParameter[] registeredNodeId,
-            @RequestParam(required = false) RegisteredNodeType type) {
-        final var request = registeredNodesRequest(registeredNodeId, limit, order, type);
-        final var nodesQueryResult = networkService.getRegisteredNodes(request);
-        final var nodes = registeredNodeMapper.map(nodesQueryResult);
+    RegisteredNodesResponse getRegisteredNodes(@RequestParameter RegisteredNodesRequest request) {
+        final var registeredNodes = networkService.getRegisteredNodes(request);
+        final var registeredNodeDtos = registeredNodeMapper.map(registeredNodes);
 
-        final var sort = Sort.by(order, REGISTERED_NODE_ID);
-        final var pageable = PageRequest.of(0, limit, sort);
-        final var links = linkFactory.create(nodes, pageable, REGISTERED_NODE_EXTRACTOR);
+        final var sort = Sort.by(request.getOrder(), REGISTERED_NODE_ID);
+        final var pageable = PageRequest.of(0, request.getLimit(), sort);
+        final var links = linkFactory.create(registeredNodeDtos, pageable, REGISTERED_NODE_EXTRACTOR);
 
         final var response = new RegisteredNodesResponse();
-        response.setRegisteredNodes(nodes);
+        response.setRegisteredNodes(registeredNodeDtos);
         response.setLinks(links);
 
         return response;
-    }
-
-    private RegisteredNodesRequest registeredNodesRequest(
-            NumberRangeParameter[] registeredNodeIdRanges, int limit, Sort.Direction order, RegisteredNodeType type) {
-        long lowerBound = 0L;
-        long upperBound = MAX_VALUE;
-
-        for (final var range : registeredNodeIdRanges) {
-            if (range.operator() == RangeOperator.EQ) {
-                if (registeredNodeIdRanges.length > 1) {
-                    throw new IllegalArgumentException("The 'eq' operator cannot be combined with other operators");
-                }
-                lowerBound = upperBound = range.value();
-            } else if (range.hasLowerBound()) {
-                lowerBound = Math.max(lowerBound, range.getInclusiveValue());
-            } else if (range.hasUpperBound()) {
-                upperBound = Math.min(upperBound, range.getInclusiveValue());
-            }
-        }
-
-        if (lowerBound > upperBound) {
-            throw new IllegalArgumentException("Invalid range: lower bound exceeds upper bound");
-        }
-
-        return RegisteredNodesRequest.builder()
-                .lowerBound(lowerBound)
-                .limit(limit)
-                .order(order)
-                .type(type)
-                .upperBound(upperBound)
-                .build();
     }
 
     private static FeeEstimateResponse toResponse(FeeResult feeResult) {
