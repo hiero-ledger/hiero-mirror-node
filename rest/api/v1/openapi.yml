@@ -3450,7 +3450,7 @@ components:
       description: The response containing the estimated transaction fees.
       properties:
         high_volume_multiplier:
-          description: The multiplier applied to fees at the requested throttle utilization level per HIP-1313. A value greater than 1 is only returned when the transaction has highVolume=true and mode=STATE. A value of 1 indicates no high-volume pricing applies at the requested throttle level.
+          description: The high-volume pricing multiplier per HIP-1313. A value of 1 indicates no high-volume pricing. A value greater than 1 applies when the transaction's highVolume flag is true and throttle utilization is non-zero.
           example: 100
           format: int64
           minimum: 1
@@ -5378,7 +5378,7 @@ components:
       schema:
         $ref: "#/components/schemas/FeeEstimateMode"
     highVolumeThrottleQueryParam:
-      description: The high-volume throttle utilization in basis points where 10000 equals 100%.
+      description: The high-volume throttle utilization in basis points where 10000 equals 100%. A value of 0, the default, indicates no high-volume pricing.
       in: query
       name: high_volume_throttle
       example: 10000

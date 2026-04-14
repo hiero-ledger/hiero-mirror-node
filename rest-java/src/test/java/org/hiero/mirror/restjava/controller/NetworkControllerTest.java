@@ -582,7 +582,7 @@ final class NetworkControllerTest extends ControllerTest {
             assertThat(actual.getService().getExtras()).isEqualTo(List.of());
             // total = node.base + network.subtotal (no service fee)
             assertThat(actual.getTotal()).isEqualTo(nodeBase + nodeBase * networkMultiplier);
-            // high_volume_multiplier: CryptoTransfer has no high-volume rates → default raw 1000 ÷ scale 1000 = 1
+            // high_volume_multiplier: CryptoTransfer has no high-volume rates → 1 (no scaling)
             assertThat(actual.getHighVolumeMultiplier()).isEqualTo(1L);
         }
 

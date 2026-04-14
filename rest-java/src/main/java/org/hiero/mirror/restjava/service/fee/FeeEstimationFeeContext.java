@@ -48,10 +48,8 @@ import org.jspecify.annotations.Nullable;
 @RequiredArgsConstructor
 final class FeeEstimationFeeContext implements FeeContext {
 
-    static final Map<String, String> FEE_PROPERTIES =
-            Map.of("fees.simpleFeesEnabled", "true", "networkAdmin.highVolumeThrottlesEnabled", "true");
-    private static final ConfigProviderImpl CONFIG_PROVIDER = new ConfigProviderImpl(false, null, FEE_PROPERTIES);
-    private static final Configuration CONFIGURATION = CONFIG_PROVIDER.getConfiguration();
+    private static final ConfigProviderImpl CONFIG_PROVIDER = new ConfigProviderImpl(false, null, Map.of());
+    static final Configuration CONFIGURATION = CONFIG_PROVIDER.getConfiguration();
     private static final Authorizer FEE_AUTHORIZER =
             new AuthorizerImpl(CONFIG_PROVIDER, new PrivilegesVerifier(CONFIG_PROVIDER));
 
