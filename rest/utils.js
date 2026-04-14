@@ -1062,7 +1062,7 @@ const toUint256 = (val) => {
 const hexStrPattern = /^([0-9a-fA-F]{2})+$/;
 
 /**
- * Converts a value into hex string, the value can be a number, a bigint, a hex string, an array of numbers, or a Buffer
+ * Converts a value into hex string, the value can be a number, a bigint, a hex string, an array of numbers, a Buffer, or a Uint8Array
  * Logic conforms with ETH hex value encoding, therefore nill and empty return '0x'
  * @param {Object} value Value to be converted to hex string
  * @param {boolean} addPrefix Whether to add the '0x' prefix to the hex string
@@ -1081,6 +1081,8 @@ const toHexString = (value, addPrefix = false, padLength = undefined) => {
     encoded = Buffer.from(value).toString('hex');
   } else if (Buffer.isBuffer(value)) {
     encoded = value.toString('hex');
+  } else if (value instanceof Uint8Array) {
+    encoded = Buffer.from(value).toString('hex');
   } else {
     return constants.HEX_PREFIX;
   }
