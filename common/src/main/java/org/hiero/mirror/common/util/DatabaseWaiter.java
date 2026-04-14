@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.common.util;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.sql.DriverManager;
-import java.time.Duration;
 import java.util.Properties;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -47,30 +47,19 @@ public class DatabaseWaiter {
                     return;
                 }
 
-                log.info(
-                        "Database connection not yet valid, retrying in {} ms",
-                        properties.getInterval().toMillis());
+                log.info("Database connection not valid yet. Retrying in {}", properties.getInterval());
             } catch (Exception e) {
                 lastException = e;
                 log.info(
-                        "Database not ready yet, retrying in {} ms: {}",
-                        properties.getInterval().toMillis(),
+                        "Database connection not ready yet. Retrying in {}: {}",
+                        properties.getInterval(),
                         e.getMessage());
             }
 
-            sleep(properties.getInterval());
+            Uninterruptibles.sleepUninterruptibly(properties.getInterval());
         }
 
         throw new IllegalStateException(
                 "Database did not become available within " + properties.getTimeout(), lastException);
-    }
-
-    private void sleep(Duration duration) {
-        try {
-            Thread.sleep(duration.toMillis());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while waiting for database", e);
-        }
     }
 }
