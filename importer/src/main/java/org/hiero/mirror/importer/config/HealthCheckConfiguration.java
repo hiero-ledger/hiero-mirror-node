@@ -6,11 +6,14 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import java.util.Collection;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.parser.ParserProperties;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
 import org.springframework.boot.health.contributor.CompositeHealthContributor;
+import org.springframework.boot.health.contributor.Status;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -19,6 +22,14 @@ import org.springframework.context.annotation.Configuration;
 class HealthCheckConfiguration {
     private final ImporterProperties importerProperties;
     private final Collection<ParserProperties> parserProperties;
+
+    @Bean
+    Function<String, Status> healthResolver(HealthEndpoint healthEndpoint) {
+        return group -> {
+            final var descriptor = healthEndpoint.healthForPath(group);
+            return descriptor != null ? descriptor.getStatus() : Status.DOWN;
+        };
+    }
 
     @Bean
     CompositeHealthContributor streamFileActivity(MeterRegistry meterRegistry) {

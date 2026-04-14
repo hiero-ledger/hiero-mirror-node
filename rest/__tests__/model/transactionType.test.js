@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {proto} from '@hiero-ledger/proto';
+import {HederaFunctionality} from '../../gen/services/basic_types_pb.js';
 import {TransactionType} from '../../model';
 import {InvalidArgumentError} from '../../errors';
 
-const hederaFunctionalityLength = 93;
+/** Bump when new HederaFunctionality values are added in generated protos. */
+const expectedHederaFunctionalityNumericCount = 98;
 const cryptoCreateAccountProtoId = 11;
 const unknownProtoId = 9999999;
 
@@ -89,6 +90,8 @@ describe('transactionType constants are up to date', () => {
   // There isn't a dedicated enum for TransactionBody values, so just check that no new HederaFunctionality exists. If
   // this test fails, ensure that new transaction types are added and update this test with the new HederaFunctionality.
   test('transactionType have new values been added', () => {
-    expect(Object.keys(proto.HederaFunctionality).length).toEqual(hederaFunctionalityLength);
+    expect(Object.values(HederaFunctionality).filter((v) => typeof v === 'number').length).toEqual(
+      expectedHederaFunctionalityNumericCount
+    );
   });
 });
