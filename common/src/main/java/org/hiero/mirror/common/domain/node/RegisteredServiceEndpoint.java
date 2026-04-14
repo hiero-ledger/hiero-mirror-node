@@ -17,7 +17,7 @@ import lombok.Data;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class RegisteredServiceEndpoint {
 
-    private BlockNodeEndpoints blockNode;
+    private BlockNodeEndpoint blockNode;
     private String domainName;
     private GeneralServiceEndpoint generalService;
     private String ipAddress;
@@ -37,7 +37,7 @@ public class RegisteredServiceEndpoint {
 
     @Data
     @Builder
-    public static class BlockNodeEndpoints {
+    public static class BlockNodeEndpoint {
         private List<BlockNodeApi> endpointApis;
     }
 

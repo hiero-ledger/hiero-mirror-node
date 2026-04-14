@@ -14,7 +14,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
-import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoints;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.GeneralServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.MirrorNodeEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.RpcRelayEndpoint;
@@ -83,7 +83,7 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
 
         switch (proto.getEndpointTypeCase()) {
             case BLOCK_NODE ->
-                builder.blockNode(BlockNodeEndpoints.builder()
+                builder.blockNode(BlockNodeEndpoint.builder()
                         .endpointApis(proto.getBlockNode().getEndpointApiList().stream()
                                 .map(AbstractRegisteredNodeTransactionHandler::toBlockNodeApi)
                                 .collect(Collectors.toList()))

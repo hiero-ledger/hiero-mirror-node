@@ -10,6 +10,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +22,7 @@ final class RegisteredNodeRepositoryTest extends ImporterIntegrationTest {
     @Test
     void findRegisteredNodesByBlockNodeType() {
         final var blockNodeEndpoint = RegisteredServiceEndpoint.builder()
-                .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoints.builder()
+                .blockNode(BlockNodeEndpoint.builder()
                         .endpointApis(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
                         .build())
                 .ipAddress("192.168.1.1")

@@ -87,6 +87,7 @@ import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.NodeHistory;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -809,7 +810,7 @@ public class DomainBuilder {
                 .description("node-" + nodeId)
                 .registeredNodeId(nodeId)
                 .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
-                        .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoints.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
                                 .endpointApis(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
                                 .build())
                         .ipAddress("127.0.0.1")
