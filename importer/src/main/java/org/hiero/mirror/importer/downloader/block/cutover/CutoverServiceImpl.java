@@ -139,8 +139,7 @@ public final class CutoverServiceImpl implements CutoverService {
     }
 
     private boolean isCutoverComplete() {
-        final var lastRecordFile = getLastRecordFile();
-        final boolean isLastBlockStream = isBlockStream(lastRecordFile);
+        final boolean isLastBlockStream = isBlockStream(getLastRecordFile());
         if (isLastBlockStream) {
             final boolean complete = isRecordStream(getFirstRecordFile());
             if (!blockProperties.isEnabled() && complete) {
@@ -172,40 +171,7 @@ public final class CutoverServiceImpl implements CutoverService {
         // When blockstream is disabled, recordstream is enabled, and the network expects a cutover
         var nextType = currentType;
         if (shouldTryFirstStage()) {
-            if (currentType == RECORD && lastRunType != null && lastRunType != RECORD) {
-                // In case of fallback, ensure recordstream is tried exactly once
-                return;
-            }
-
-            final long lastConsensusEnd =
-                    getLastRecordFile().map(RecordFile::getConsensusEnd).orElse(-1L);
-            if (lastRunType == BLOCK && !blockStreamAdvanced) {
-                // Fast fallback to recordstream if the last run was blockstream and it didn't advance
-                nextType = RECORD;
-            } else if (startWrappedRecordBlockConsensusTimestamp == null || lastConsensusEnd == -1L) {
-                // Force BLOCK to stream WRBs
-                nextType = BLOCK;
-            } else {
-                final var elapsed = wrappedRecordBlockStopwatch.elapsed();
-                final var firstStage = cutoverProperties.getFirstStage();
-                final long processed = lastConsensusEnd - startWrappedRecordBlockConsensusTimestamp;
-                if (elapsed.compareTo(firstStage.getLatencyCheckThreshold()) < 0) {
-                    // Haven't been streaming WRBs long enough to evaluate latency
-                    nextType = BLOCK;
-                } else {
-                    // Fallback to recordstream when streaming WRBs exceeds the allowed max latency
-                    nextType = elapsed.toNanos() > firstStage.getMaxLatency().toNanos() + processed ? RECORD : BLOCK;
-                }
-            }
-
-            if (nextType == BLOCK) {
-                if (startWrappedRecordBlockConsensusTimestamp == null) {
-                    startWrappedRecordBlockConsensusTimestamp = lastConsensusEnd + 1L;
-                    wrappedRecordBlockStopwatch.reset().start();
-                }
-            } else {
-                startWrappedRecordBlockConsensusTimestamp = null;
-            }
+            nextType = getNextFirstStageActiveStreamType();
         } else {
             // Single stage cutover
             final long elapsed = System.currentTimeMillis() - lastSwitchedOrVerified.get();
@@ -219,6 +185,46 @@ public final class CutoverServiceImpl implements CutoverService {
             log.info("Switching from {} to {}", currentType, nextType);
             currentType = nextType;
         }
+    }
+
+    private StreamType getNextFirstStageActiveStreamType() {
+        if (currentType == RECORD && lastRunType != null && lastRunType != RECORD) {
+            // In case of fallback, ensure recordstream is tried exactly once
+            return RECORD;
+        }
+
+        final long lastConsensusEnd =
+                getLastRecordFile().map(RecordFile::getConsensusEnd).orElse(-1L);
+        final StreamType nextType;
+        if (lastRunType == BLOCK && !blockStreamAdvanced) {
+            // Fast fallback to recordstream if the last run was blockstream and it didn't advance
+            nextType = RECORD;
+        } else if (startWrappedRecordBlockConsensusTimestamp == null || lastConsensusEnd == -1L) {
+            // Force BLOCK to stream WRBs
+            nextType = BLOCK;
+        } else {
+            final var elapsed = wrappedRecordBlockStopwatch.elapsed();
+            final var firstStage = cutoverProperties.getFirstStage();
+            final long processed = lastConsensusEnd - startWrappedRecordBlockConsensusTimestamp;
+            if (elapsed.compareTo(firstStage.getLatencyCheckThreshold()) < 0) {
+                // Haven't been streaming WRBs long enough to evaluate latency
+                nextType = BLOCK;
+            } else {
+                // Fallback to recordstream when streaming WRBs exceeds the allowed max latency
+                nextType = elapsed.toNanos() > firstStage.getMaxLatency().toNanos() + processed ? RECORD : BLOCK;
+            }
+        }
+
+        if (nextType == BLOCK) {
+            if (startWrappedRecordBlockConsensusTimestamp == null) {
+                startWrappedRecordBlockConsensusTimestamp = lastConsensusEnd + 1L;
+                wrappedRecordBlockStopwatch.reset().start();
+            }
+        } else {
+            startWrappedRecordBlockConsensusTimestamp = null;
+        }
+
+        return nextType;
     }
 
     private boolean shouldTryFirstStage() {
