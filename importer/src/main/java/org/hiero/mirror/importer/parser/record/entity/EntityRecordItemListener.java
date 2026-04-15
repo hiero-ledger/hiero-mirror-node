@@ -24,7 +24,6 @@ import java.util.Set;
 import java.util.function.Predicate;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.entity.CryptoAllowance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
@@ -465,18 +464,11 @@ public class EntityRecordItemListener implements RecordItemListener {
             EntityId accountId,
             long amount) {
         if (isMint || isWipeOrBurn) {
-            var senderId = amount < 0 ? entityIdToEvmAddress(accountId) : ArrayUtils.EMPTY_BYTE_ARRAY;
-            var receiverId = amount > 0 ? entityIdToEvmAddress(accountId) : ArrayUtils.EMPTY_BYTE_ARRAY;
+            EntityId senderId = amount < 0 ? accountId : EntityId.EMPTY;
+            EntityId receiverId = amount > 0 ? accountId : EntityId.EMPTY;
             syntheticContractLogService.create(
                     new TransferContractLog(recordItem, tokenId, senderId, receiverId, Math.abs(amount)));
         }
-    }
-
-    private static byte[] entityIdToEvmAddress(EntityId entityId) {
-        if (EntityId.isEmpty(entityId)) {
-            return ArrayUtils.EMPTY_BYTE_ARRAY;
-        }
-        return DomainUtils.trim(DomainUtils.toEvmAddress(entityId));
     }
 
     private void handleNegativeAccountAmounts(

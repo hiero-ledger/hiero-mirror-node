@@ -7,7 +7,14 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 
 public class TransferContractLog extends AbstractSyntheticContractLog {
     public TransferContractLog(
-            RecordItem recordItem, EntityId tokenId, byte[] senderId, byte[] receiverId, long amount) {
-        super(recordItem, tokenId, TRANSFER_SIGNATURE, senderId, receiverId, null, longToBytes(amount));
+            RecordItem recordItem, EntityId tokenId, EntityId senderId, EntityId receiverId, long amount) {
+        super(
+                recordItem,
+                tokenId,
+                TRANSFER_SIGNATURE,
+                entityIdToBytes(senderId),
+                entityIdToBytes(receiverId),
+                null,
+                longToBytes(amount));
     }
 }

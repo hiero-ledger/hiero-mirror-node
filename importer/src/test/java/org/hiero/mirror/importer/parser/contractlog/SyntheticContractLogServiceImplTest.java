@@ -60,8 +60,8 @@ final class SyntheticContractLogServiceImplTest {
     private SyntheticContractLogService syntheticContractLogService;
     private RecordItem recordItem;
     private EntityId entityTokenId;
-    private byte[] senderId;
-    private byte[] receiverId;
+    private EntityId senderId;
+    private EntityId receiverId;
     private long amount;
 
     @BeforeEach
@@ -71,9 +71,9 @@ final class SyntheticContractLogServiceImplTest {
 
         TokenID tokenId = recordItem.getTransactionBody().getTokenMint().getToken();
         entityTokenId = EntityId.of(tokenId);
-        senderId = new byte[0];
-        receiverId = entityIdToBytes(
-                EntityId.of(recordItem.getTransactionBody().getTransactionID().getAccountID()));
+        senderId = EntityId.EMPTY;
+        receiverId =
+                EntityId.of(recordItem.getTransactionBody().getTransactionID().getAccountID());
         amount = recordItem.getTransactionBody().getTokenMint().getAmount();
     }
 
@@ -113,15 +113,15 @@ final class SyntheticContractLogServiceImplTest {
                 .build();
 
         syntheticContractLogService.create(
-                new TransferContractLog(recordItem, entityTokenId, null, receiverId, amount));
+                new TransferContractLog(recordItem, entityTokenId, EntityId.EMPTY, receiverId, amount));
         verify(entityListener, times(0)).onContractLog(any());
     }
 
     @Test
     @DisplayName("Should skip synthetic contract log for HAPI version >= 0.71.0 with empty receiver")
     void skipSyntheticLogForNewHapiVersionWithEmptyReceiver() {
-        var validSender = entityIdToBytes(
-                EntityId.of(recordItem.getTransactionBody().getTransactionID().getAccountID()));
+        var validSender =
+                EntityId.of(recordItem.getTransactionBody().getTransactionID().getAccountID());
 
         var parentRecordItem = recordItemBuilder
                 .contractCall()
@@ -137,7 +137,7 @@ final class SyntheticContractLogServiceImplTest {
                 .build();
 
         syntheticContractLogService.create(
-                new TransferContractLog(recordItem, entityTokenId, validSender, null, amount));
+                new TransferContractLog(recordItem, entityTokenId, validSender, EntityId.EMPTY, amount));
         verify(entityListener, times(0)).onContractLog(any());
     }
 
@@ -178,8 +178,8 @@ final class SyntheticContractLogServiceImplTest {
     @Test
     @DisplayName("Should skip synthetic contract log for new HAPI version even with Long.MAX_VALUE IDs")
     void skipSyntheticLogForNewHapiVersionWithLongMaxValue() {
-        final var senderMaxValue = entityIdToBytes(EntityId.of(Long.MAX_VALUE));
-        final var receiverMaxValue = entityIdToBytes(EntityId.of(Long.MAX_VALUE - 1));
+        final var senderMaxValue = EntityId.of(Long.MAX_VALUE);
+        final var receiverMaxValue = EntityId.of(Long.MAX_VALUE - 1);
 
         var parentRecordItem = recordItemBuilder
                 .contractCall()
@@ -361,8 +361,8 @@ final class SyntheticContractLogServiceImplTest {
 
         var tokenId = recordItem.getTransactionBody().getTokenMint().getToken();
         entityTokenId = EntityId.of(tokenId);
-        receiverId = entityIdToBytes(
-                EntityId.of(recordItem.getTransactionBody().getTransactionID().getAccountID()));
+        receiverId =
+                EntityId.of(recordItem.getTransactionBody().getTransactionID().getAccountID());
         amount = recordItem.getTransactionBody().getTokenMint().getAmount();
 
         assertThat(recordItem.getContractRelatedParent()).isNull();
@@ -381,8 +381,8 @@ final class SyntheticContractLogServiceImplTest {
         TokenID token = recordItemBuilder.tokenId();
         var senderEntityId = EntityId.of(0, 0, 6001);
         var receiverEntityId = EntityId.of(0, 0, 6002);
-        var sender = entityIdToBytes(senderEntityId);
-        var receiver = entityIdToBytes(receiverEntityId);
+        var senderBytes = entityIdToBytes(senderEntityId);
+        var receiverBytes = entityIdToBytes(receiverEntityId);
         long transferAmount = 888L;
         entityTokenId = EntityId.of(token);
 
@@ -398,8 +398,8 @@ final class SyntheticContractLogServiceImplTest {
 
         var transferList = fungibleTokenTransferList(
                 token,
-                tokenTransferWithZeroPaddedEvmAlias(sender, -transferAmount),
-                tokenTransferWithZeroPaddedEvmAlias(receiver, transferAmount));
+                tokenTransferWithZeroPaddedEvmAlias(senderBytes, -transferAmount),
+                tokenTransferWithZeroPaddedEvmAlias(receiverBytes, transferAmount));
 
         recordItem = recordItemBuilder
                 .cryptoTransfer(TransferType.TOKEN)
@@ -423,7 +423,7 @@ final class SyntheticContractLogServiceImplTest {
         assertThat(childTransfers.get(1).getAccountID().getAlias().byteAt(0)).isZero();
 
         syntheticContractLogService.create(
-                new TransferContractLog(recordItem, entityTokenId, sender, receiver, transferAmount));
+                new TransferContractLog(recordItem, entityTokenId, senderEntityId, receiverEntityId, transferAmount));
 
         verify(entityListener, times(0)).onContractLog(any());
     }
@@ -755,7 +755,7 @@ final class SyntheticContractLogServiceImplTest {
     @Test
     @DisplayName("Should skip all synthetic logs for new HAPI version even with different log contents")
     void skipAllDifferentSyntheticLogsForNewHapiVersion() {
-        var secondReceiverId = entityIdToBytes(EntityId.of(0, 0, 999));
+        var secondReceiverId = EntityId.of(0, 0, 999);
         var secondAmount = 500L;
 
         var parentRecordItem = recordItemBuilder
@@ -782,7 +782,7 @@ final class SyntheticContractLogServiceImplTest {
     @Test
     @DisplayName("Should create all different synthetic logs for old HAPI version")
     void createAllDifferentSyntheticLogsForOldHapiVersion() {
-        var secondReceiverId = entityIdToBytes(EntityId.of(0, 0, 999));
+        var secondReceiverId = EntityId.of(0, 0, 999);
         var secondAmount = 500L;
 
         var parentRecordItem = recordItemBuilder
