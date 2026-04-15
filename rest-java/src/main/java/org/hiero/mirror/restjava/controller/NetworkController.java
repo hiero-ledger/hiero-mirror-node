@@ -4,12 +4,15 @@ package org.hiero.mirror.restjava.controller;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hiero.mirror.restjava.common.Constants.APPLICATION_JSON;
+import static org.hiero.mirror.restjava.common.Constants.HIGH_VOLUME_THROTTLE;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.Transaction;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
@@ -18,6 +21,7 @@ import java.util.Map;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.hiero.hapi.fees.FeeResult;
+import org.hiero.hapi.fees.HighVolumePricingCalculator;
 import org.hiero.mirror.rest.model.FeeEstimate;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.rest.model.FeeEstimateNetwork;
@@ -98,10 +102,12 @@ final class NetworkController {
             value = "/fees")
     FeeEstimateResponse estimateFees(
             @RequestBody @NotNull byte[] body,
-            @RequestParam(defaultValue = "INTRINSIC", required = false) FeeEstimateMode mode) {
+            @RequestParam(defaultValue = "INTRINSIC", required = false) FeeEstimateMode mode,
+            @RequestParam(name = HIGH_VOLUME_THROTTLE, defaultValue = "0", required = false) @Min(0) @Max(10000)
+                    int highVolumeThrottle) {
         try {
             final var transaction = Transaction.PROTOBUF.parse(Bytes.wrap(body));
-            return toResponse(feeEstimationService.estimateFees(transaction, mode));
+            return toResponse(feeEstimationService.estimateFees(transaction, mode, highVolumeThrottle));
         } catch (ParseException e) {
             throw new IllegalArgumentException("Unable to parse transaction", e);
         }
@@ -165,7 +171,9 @@ final class NetworkController {
                 .service(new FeeEstimate()
                         .base(feeResult.getServiceBaseFeeTinycents())
                         .extras(toExtras(feeResult.getServiceExtraDetails())))
-                .total(feeResult.totalTinycents());
+                .total(feeResult.totalTinycents())
+                .highVolumeMultiplier(
+                        feeResult.getHighVolumeMultiplier() / HighVolumePricingCalculator.HIGH_VOLUME_MULTIPLIER_SCALE);
     }
 
     private static List<FeeExtra> toExtras(List<FeeResult.FeeDetail> details) {
