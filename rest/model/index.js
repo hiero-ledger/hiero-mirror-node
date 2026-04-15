@@ -25,7 +25,6 @@ import ExchangeRate from './exchangeRate';
 import FileData from './fileData';
 import FixedFee from './fixedFee';
 import Node from './node';
-import NetworkNode from './networkNode';
 import Nft from './nft';
 import NftHistory from './nftHistory';
 import NftTransfer from './nftTransfer';
@@ -77,7 +76,6 @@ export {
   FileData,
   FixedFee,
   Node,
-  NetworkNode,
   Nft,
   NftHistory,
   NftTransfer,
