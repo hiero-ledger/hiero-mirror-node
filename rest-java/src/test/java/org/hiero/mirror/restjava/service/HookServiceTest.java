@@ -15,9 +15,9 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorage;
@@ -32,18 +32,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.web3j.utils.Numeric;
 
 @RequiredArgsConstructor
 final class HookServiceTest extends RestJavaIntegrationTest {
 
+    public static final int DEFAULT_LIMIT = 25;
     private static final String KEY_MIN = "0000000000000000000000000000000000000000000000000000000000000000";
     private static final String KEY_MAX = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
-
-    private static final byte[] KEY_MIN_BYTES = Numeric.hexStringToByteArray(KEY_MIN);
-    private static final byte[] KEY_MAX_BYTES = Numeric.hexStringToByteArray(KEY_MAX);
-
-    public static final int DEFAULT_LIMIT = 25;
+    private static final byte[] KEY_MIN_BYTES = HexFormat.of().parseHex(KEY_MIN);
+    private static final byte[] KEY_MAX_BYTES = HexFormat.of().parseHex(KEY_MAX);
     private static final long OWNER_ID = 1001L;
 
     private HookRepository hookRepository;
@@ -228,7 +225,9 @@ final class HookServiceTest extends RestJavaIntegrationTest {
                         eq(OWNER_ID),
                         eq(1L),
                         argThat(actual -> {
-                            if (actual.size() != 2) return false;
+                            if (actual.size() != 2) {
+                                return false;
+                            }
                             return Arrays.equals(actual.get(0), KEY_MIN_BYTES)
                                     && Arrays.equals(actual.get(1), KEY_MAX_BYTES);
                         }),
@@ -248,10 +247,11 @@ final class HookServiceTest extends RestJavaIntegrationTest {
         final var request = HookStorageRequest.builder()
                 .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
                 .hookId(1L)
-                .keys(List.of(Hex.decode(outOfRangeKey1), Hex.decode(outOfRangeKey2)))
-                .keyLowerBound(Numeric.hexStringToByteArray(KEY_MIN))
-                .keyUpperBound(Numeric.hexStringToByteArray(
-                        "00000000000000000000000000000000000000000000000000000000000000FF"))
+                .keys(List.of(
+                        HexFormat.of().parseHex(outOfRangeKey1), HexFormat.of().parseHex(outOfRangeKey2)))
+                .keyLowerBound(KEY_MIN_BYTES)
+                .keyUpperBound(
+                        HexFormat.of().parseHex("00000000000000000000000000000000000000000000000000000000000000FF"))
                 .limit(DEFAULT_LIMIT)
                 .order(Sort.Direction.ASC)
                 .build();

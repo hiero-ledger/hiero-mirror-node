@@ -13,14 +13,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -48,7 +47,6 @@ import org.springframework.test.annotation.DirtiesContext.ClassMode;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient.RequestHeadersSpec;
 import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
-import org.web3j.utils.Numeric;
 
 @RequiredArgsConstructor
 final class HooksControllerTest extends ControllerTest {
@@ -374,13 +372,7 @@ final class HooksControllerTest extends ControllerTest {
         private void persistAccount(EntityId accountId, String alias, String evmAddress) {
             final var aliasBytes = BaseEncoding.base32().omitPadding().decode(alias);
 
-            final byte[] evmBytes;
-            try {
-                evmBytes = Hex.decodeHex(evmAddress);
-            } catch (DecoderException e) {
-                throw new RuntimeException(e);
-            }
-
+            final byte[] evmBytes = HexFormat.of().parseHex(evmAddress);
             domainBuilder
                     .entity()
                     .customize(e -> e.id(accountId.getId())
@@ -525,7 +517,7 @@ final class HooksControllerTest extends ControllerTest {
             final var links = new Links();
             final var nextLink = String.format(
                     "/api/v1/accounts/%d/hooks/%d/storage?limit=%d&order=%s&key=%s:0x%s",
-                    OWNER_ID, HOOK_ID, limit, order, operator, Hex.encodeHexString(lastHookStorage.getKey()));
+                    OWNER_ID, HOOK_ID, limit, order, operator, HexFormat.of().formatHex(lastHookStorage.getKey()));
             links.setNext(nextLink);
             expectedResponse.setLinks(links);
 
@@ -595,8 +587,8 @@ final class HooksControllerTest extends ControllerTest {
                     })
                     .toList();
 
-            final Comparator<HookStorageChange> byKey =
-                    Comparator.comparing(hs -> StringUtils.leftPad(Hex.encodeHexString(hs.getKey()), 64, '0'));
+            final Comparator<HookStorageChange> byKey = Comparator.comparing(
+                    hs -> StringUtils.leftPad(HexFormat.of().formatHex(hs.getKey()), 64, '0'));
 
             final var ordered = order.equals("asc")
                     ? filtered.stream().sorted(byKey).toList()
@@ -624,7 +616,7 @@ final class HooksControllerTest extends ControllerTest {
                         order,
                         timestampFilter,
                         nextOperator,
-                        Hex.encodeHexString(last.getKey()));
+                        HexFormat.of().formatHex(last.getKey()));
                 links.setNext(next);
                 expectedResponse.setLinks(links);
             }
@@ -693,7 +685,7 @@ final class HooksControllerTest extends ControllerTest {
                 expectedHookStorageList = expectedIndices.stream()
                         .map(hookStorage::get)
                         .sorted(Comparator.comparing(
-                                hs -> StringUtils.leftPad(Hex.encodeHexString(hs.getKey()), 64, '0')))
+                                hs -> StringUtils.leftPad(HexFormat.of().formatHex(hs.getKey()), 64, '0')))
                         .toList();
             }
 
@@ -836,7 +828,7 @@ final class HooksControllerTest extends ControllerTest {
                 expectedHookStorageList = expectedIndices.stream()
                         .map(hookStorageChange::get)
                         .sorted(Comparator.comparing(
-                                hs -> StringUtils.leftPad(Hex.encodeHexString(hs.getKey()), 64, '0')))
+                                hs -> StringUtils.leftPad(HexFormat.of().formatHex(hs.getKey()), 64, '0')))
                         .toList();
             }
 
@@ -983,13 +975,7 @@ final class HooksControllerTest extends ControllerTest {
 
         private void persistAccount(EntityId accountId, String alias, String evmAddress) {
             final var aliasBytes = BaseEncoding.base32().omitPadding().decode(alias);
-
-            final byte[] evmBytes;
-            try {
-                evmBytes = Hex.decodeHex(evmAddress);
-            } catch (DecoderException e) {
-                throw new RuntimeException(e);
-            }
+            final byte[] evmBytes = HexFormat.of().parseHex(evmAddress);
 
             domainBuilder
                     .entity()
@@ -1010,8 +996,9 @@ final class HooksControllerTest extends ControllerTest {
         private HookStorage persistHookStorage(EntityId ownerId, long hookId, String key) {
             return domainBuilder
                     .hookStorage()
-                    .customize(
-                            hook -> hook.ownerId(ownerId.getId()).hookId(hookId).key(Numeric.hexStringToByteArray(key)))
+                    .customize(hook -> hook.ownerId(ownerId.getId())
+                            .hookId(hookId)
+                            .key(HexFormat.of().parseHex(key)))
                     .persist();
         }
 
@@ -1021,7 +1008,7 @@ final class HooksControllerTest extends ControllerTest {
                     .customize(hook -> hook.ownerId(ownerId.getId())
                             .consensusTimestamp(timestamp)
                             .hookId(hookId)
-                            .key(Numeric.hexStringToByteArray(key))
+                            .key(HexFormat.of().parseHex(key))
                             .ownerId(ownerId.getId())
                             .valueRead(new byte[] {0x01, 0x02})
                             .valueWritten(new byte[] {0x03, 0x04}))

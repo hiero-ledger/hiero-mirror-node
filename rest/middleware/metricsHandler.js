@@ -150,7 +150,7 @@ const metricsHandler = () => {
   const metricsPath = `${config.metrics.config.uriPath}/metrics/`;
 
   return function metricsMiddleware(req, res, next) {
-    const {pathname} = url.parse(req.url, false);
+    const {pathname} = new URL(req.url, 'http://localhost');
     const normalizedPath = pathname.endsWith('/') ? pathname : `${pathname}/`;
 
     if (normalizedPath === metricsPath) {
