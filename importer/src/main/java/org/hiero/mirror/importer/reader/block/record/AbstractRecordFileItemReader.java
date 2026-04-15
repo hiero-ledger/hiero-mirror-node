@@ -114,7 +114,7 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
         }
 
         int amendmentIndex = 0;
-        for (final var recordStreamItem : recordFileItem.getRecordFileContents().getRecordStreamItemsList()) {
+        for (final var recordStreamItem : recordStreamItems) {
             final long recordTimestamp = getConsensusTimestamp(recordStreamItem);
 
             // Insert any amendments with earlier timestamps (additions)
