@@ -998,7 +998,7 @@ final class HooksControllerTest extends ControllerTest {
                     .hookStorage()
                     .customize(hook -> hook.ownerId(ownerId.getId())
                             .hookId(hookId)
-                            .key(HexFormat.of().parseHex(key)))
+                            .key(HexFormat.of().parseHex(key.replace("0x", ""))))
                     .persist();
         }
 
@@ -1008,7 +1008,7 @@ final class HooksControllerTest extends ControllerTest {
                     .customize(hook -> hook.ownerId(ownerId.getId())
                             .consensusTimestamp(timestamp)
                             .hookId(hookId)
-                            .key(HexFormat.of().parseHex(key))
+                            .key(HexFormat.of().parseHex(key.replace("0x", "")))
                             .ownerId(ownerId.getId())
                             .valueRead(new byte[] {0x01, 0x02})
                             .valueWritten(new byte[] {0x03, 0x04}))
