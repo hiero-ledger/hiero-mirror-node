@@ -35,8 +35,7 @@ public interface RegisteredNodeMapper
             RegisteredServiceEndpoint endpoint);
 
     @ValueMapping(source = "UNKNOWN", target = "GENERAL_SERVICE")
-    org.hiero.mirror.rest.model.RegisteredNodeType mapDomainRegisteredNodeType(
-            org.hiero.mirror.common.domain.node.RegisteredNodeType source);
+    RegisteredNodeType mapDomainRegisteredNodeType(org.hiero.mirror.common.domain.node.RegisteredNodeType source);
 
     default RegisteredNodeType mapRegisteredNodeType(Short source) {
         if (source == null) {
