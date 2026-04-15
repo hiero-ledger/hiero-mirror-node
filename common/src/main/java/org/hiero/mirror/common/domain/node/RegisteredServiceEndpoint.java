@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.node;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import lombok.Builder;
@@ -47,10 +48,14 @@ public class RegisteredServiceEndpoint {
         private String description;
     }
 
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class MirrorNodeEndpoint {
         public static final MirrorNodeEndpoint INSTANCE = new MirrorNodeEndpoint();
     }
 
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class RpcRelayEndpoint {
         public static final RpcRelayEndpoint INSTANCE = new RpcRelayEndpoint();
     }

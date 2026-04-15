@@ -966,6 +966,27 @@ paths:
           $ref: "#/components/responses/InvalidParameterError"
       tags:
         - network
+  /api/v1/network/registered-nodes:
+    get:
+      summary: Get registered nodes
+      description: Returns the list of registered nodes
+      operationId: getRegisteredNodes
+      parameters:
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParam"
+        - $ref: "#/components/parameters/registeredNodeIdQueryParam"
+        - $ref: "#/components/parameters/registeredNodeTypeQueryParam"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisteredNodesResponse"
+        400:
+          $ref: "#/components/responses/InvalidParameterError"
+      tags:
+        - network
   /api/v1/network/stake:
     get:
       summary: Get network stake information
@@ -1871,6 +1892,16 @@ components:
             type: string
             format: binary
           nullable: true
+    RegisteredNodesResponse:
+      type: object
+      required:
+        - links
+        - registered_nodes
+      properties:
+        registered_nodes:
+          $ref: "#/components/schemas/RegisteredNodes"
+        links:
+          $ref: "#/components/schemas/Links"
     SchedulesResponse:
       type: object
       properties:
@@ -3546,6 +3577,136 @@ components:
       required:
         - transactions
         - links
+    RegisteredBlockNodeApi:
+      type: string
+      enum:
+        [OTHER, STATUS, PUBLISH, SUBSCRIBE_STREAM, STATE_PROOF, UNRECOGNIZED]
+    RegisteredBlockNodeEndpoint:
+      type: object
+      properties:
+        endpoint_api:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegisteredBlockNodeApi"
+    RegisteredGeneralServiceEndpoint:
+      type: object
+      properties:
+        description:
+          type: string
+    RegisteredMirrorNodeEndpoint:
+      type: object
+    RegisteredNode:
+      type: object
+      required:
+        - admin_key
+        - created_timestamp
+        - description
+        - registered_node_id
+        - service_endpoints
+        - timestamp
+      properties:
+        admin_key:
+          $ref: "#/components/schemas/Key"
+        created_timestamp:
+          $ref: "#/components/schemas/TimestampNullable"
+        description:
+          description: A short description of the node
+          nullable: true
+          type: string
+        registered_node_id:
+          description: An identifier for the registered node
+          format: int64
+          type: integer
+        service_endpoints:
+          $ref: "#/components/schemas/RegisteredServiceEndpoints"
+        timestamp:
+          $ref: "#/components/schemas/TimestampRange"
+      example:
+        admin_key:
+          _type: "ProtobufEncoded"
+          key: "421050820e1485acdd59726088e0e4a2130ebbbb70009f640ad95c78dd5a7b38"
+        created_timestamp: "1586567700.453054001"
+        description: "alpha"
+        registered_node_id: 1
+        service_endpoints:
+          - ip_address_v4: 128.0.0.6
+            port: 50216
+        timestamp:
+          from: "187654.000123457"
+          to: null
+    RegisteredNodes:
+      type: array
+      items:
+        $ref: "#/components/schemas/RegisteredNode"
+    RegisteredNodeType:
+      description: Registered node type.
+      enum: [BLOCK_NODE, GENERAL_SERVICE, MIRROR_NODE, RPC_RELAY]
+      example: BLOCK_NODE
+      type: string
+    RegisteredRpcRelayEndpoint:
+      type: object
+    RegisteredServiceEndpoint:
+      type: object
+      required:
+        - port
+        - requires_tls
+        - type
+      allOf:
+        # Ensures at least one of these two fields is present
+        - anyOf:
+            - required: [domain_name]
+            - required: [ip_address]
+        # Ensures at least one service-specific endpoint is present
+        - anyOf:
+            # - required: [block_node]
+            - required: [general_service]
+            - required: [mirror_node]
+            - required: [rpc_relay]
+      properties:
+        # Comment out until RegisteredBlockNodeEndpoint.endpoint_api is made repeated
+        # in the registered_service_endpoint.proto file
+        # block_node:
+        # type: object
+        # $ref: "#/components/schemas/RegisteredBlockNodeEndpoint"
+        domain_name:
+          description: The DNS domain name of the service
+          example: "block1.alpha.com"
+          nullable: true
+          type: string
+        general_service:
+          $ref: "#/components/schemas/RegisteredGeneralServiceEndpoint"
+        ip_address:
+          description: The IP address of the service
+          example: "191.91.239.79"
+          nullable: true
+          type: string
+        mirror_node:
+          $ref: "#/components/schemas/RegisteredMirrorNodeEndpoint"
+        port:
+          format: int32
+          type: integer
+          minimum: 0
+          maximum: 65535
+        requires_tls:
+          description: Whether the registered service endpoint requires TLS or not.
+          type: boolean
+        rpc_relay:
+          $ref: "#/components/schemas/RegisteredRpcRelayEndpoint"
+        type:
+          $ref: "#/components/schemas/RegisteredNodeType"
+      example:
+        domain_name: block1.alpha.com
+        general_service: null
+        ip_address: null
+        mirror_node: null
+        port: 40840
+        requires_tls: false
+        rpc_relay: null
+        type: BLOCK_NODE
+    RegisteredServiceEndpoints:
+      type: array
+      items:
+        $ref: "#/components/schemas/RegisteredServiceEndpoint"
     Schedule:
       type: object
       properties:
@@ -5014,6 +5175,35 @@ components:
           value: lte:0.0.200
       schema:
         $ref: "#/components/schemas/EntityIdQuery"
+    registeredNodeIdQueryParam:
+      name: registerednode.id
+      description: The ID of the registered node
+      in: query
+      examples:
+        noValue:
+          summary: --
+          value: ""
+        serialNumNoOperator:
+          summary: Example of registeredNodeId equals with no operator
+          value: 1
+        serialNumEqOperator:
+          summary: Example of registeredNodeId equals operator
+          value: eq:2
+        serialNumGtOperator:
+          summary: Example of registeredNodeId greater than operator
+          value: gt:3
+        serialNumGteOperator:
+          summary: Example of registeredNodeId greater than or equals operator
+          value: gte:4
+        serialNumLtOperator:
+          summary: Example of registeredNodeId less than operator
+          value: lt:5
+        serialNumLteOperator:
+          summary: Example of registeredNodeId less than or equals operator
+          value: lte:6
+      schema:
+        type: string
+        pattern: ^((eq|gt|gte|lt|lte):)?\d{1,19}$
     scheduledQueryParam:
       name: scheduled
       in: query
@@ -5395,6 +5585,12 @@ components:
         minimum: 0
         maximum: 10000
         default: 0
+    registeredNodeTypeQueryParam:
+      example: BLOCK_NODE
+      in: query
+      name: type
+      schema:
+        $ref: "#/components/schemas/RegisteredNodeType"
     stack:
       name: stack
       description: If provided and set to false, stack information will not be included in the response

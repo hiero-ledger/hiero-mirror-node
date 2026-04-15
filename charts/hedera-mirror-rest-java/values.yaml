@@ -91,6 +91,9 @@ gateway:
         {{- end }}
         - path:
             type: RegularExpression
+            value: '/api/v1/network/registered-nodes$'
+        - path:
+            type: RegularExpression
             value: '/api/v1/network/stake$'
         - path:
             type: RegularExpression
@@ -148,6 +151,7 @@ ingress:
         - path: '/api/v1/network/fees$'
         - path: '/api/v1/network/nodes$'
           condition: '{{ .Values.routes.network.nodes }}'
+        - path: '/api/v1/network/registered-nodes$'
         - path: '/api/v1/network/stake$'
         - path: '/api/v1/network/supply$'
         - path: '/api/v1/topics/(\d+\.){0,2}\d+$'
