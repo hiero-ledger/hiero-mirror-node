@@ -919,6 +919,7 @@ paths:
       operationId: estimateFees
       parameters:
         - $ref: "#/components/parameters/estimateModeQueryParam"
+        - $ref: "#/components/parameters/highVolumeThrottleQueryParam"
       requestBody:
         content:
           application/protobuf:
@@ -3448,6 +3449,12 @@ components:
     FeeEstimateResponse:
       description: The response containing the estimated transaction fees.
       properties:
+        high_volume_multiplier:
+          description: The high-volume pricing multiplier per HIP-1313. A value of 1 indicates no high-volume pricing. A value greater than 1 applies when the transaction's highVolume flag is true and throttle utilization is non-zero.
+          example: 100
+          format: int64
+          minimum: 1
+          type: integer
         network:
           $ref: "#/components/schemas/FeeEstimateNetwork"
         node:
@@ -3465,6 +3472,7 @@ components:
           minimum: 0
           type: integer
       required:
+        - high_volume_multiplier
         - network
         - node
         - service
@@ -4139,6 +4147,12 @@ components:
         high_volume:
           description: Whether the transaction used high-volume entity creation throttles and pricing per HIP-1313
           type: boolean
+        high_volume_pricing_multiplier:
+          description: The multiplier applied to the transaction fee when high-volume pricing was in effect per HIP-1313, scaled by 1000 (e.g. 1000 = 1x, 4000 = 4x). A value of 0 means high-volume pricing was not applied. Null for pre-HIP-1313 transactions.
+          format: int64
+          minimum: 0
+          nullable: true
+          type: integer
         max_custom_fees:
           type: array
           items:
@@ -4238,6 +4252,7 @@ components:
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
         high_volume: false
+        high_volume_pricing_multiplier: 1
         max_custom_fees:
           - account_id: 0.0.8
             amount: 1000
@@ -4320,6 +4335,7 @@ components:
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
         high_volume: false
+        high_volume_pricing_multiplier: 1
         max_fee: 33
         memo_base64: null
         name: CRYPTOTRANSFER
@@ -5369,6 +5385,16 @@ components:
       example: INTRINSIC
       schema:
         $ref: "#/components/schemas/FeeEstimateMode"
+    highVolumeThrottleQueryParam:
+      description: The high-volume throttle utilization in basis points where 10000 equals 100%. A value of 0, the default, indicates no high-volume pricing.
+      in: query
+      name: high_volume_throttle
+      example: 10000
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 10000
+        default: 0
     stack:
       name: stack
       description: If provided and set to false, stack information will not be included in the response
