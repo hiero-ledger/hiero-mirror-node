@@ -2,28 +2,24 @@
 
 package org.hiero.mirror.importer.parser.contractlog;
 
-import com.google.protobuf.ByteString;
-import com.hederahashgraph.api.proto.java.AccountID;
 import jakarta.inject.Named;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
-import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.springframework.data.util.Version;
 
 @Named
 @RequiredArgsConstructor
 public class SyntheticContractLogServiceImpl implements SyntheticContractLogService {
 
+    protected static final Version HAPI_SYNTHETIC_LOG_VERSION = new Version(0, 71, 0);
+
     private final EntityListener entityListener;
     private final EntityProperties entityProperties;
-    private final EntityIdService entityIdService;
     private final byte[] empty = Bytes.of(0).toArray();
     protected static final byte[] CONTRACT_LOG_MARKER = Bytes.of(1).toArray();
 
@@ -107,56 +103,21 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
     }
 
     private boolean shouldSkipLogCreationForContractTransfer(SyntheticContractLog syntheticLog) {
-        if (!(syntheticLog instanceof TransferContractLog transferLog)) {
+        if (!(syntheticLog instanceof TransferContractLog)) {
             // Only TransferContractLog synthetic event creation is supported for an operation with contract origin
             return true;
         }
 
-        int tokenTransfersCount =
-                syntheticLog.getRecordItem().getTransactionRecord().getTokenTransferListsCount();
+        var recordItem = syntheticLog.getRecordItem();
+
+        int tokenTransfersCount = recordItem.getTransactionRecord().getTokenTransferListsCount();
         if (tokenTransfersCount > 2 && !entityProperties.getPersist().isSyntheticContractLogsMulti()) {
             // We have a multi-party fungible transfer scenario and synthetic event creation for
             // such transfers is disabled
             return true;
         }
 
-        return logAlreadyImported(transferLog);
-    }
-
-    /**
-     * Checks if the given TransferContractLog matches an existing contract log in the record itself or in the parent
-     * record item and consumes one occurrence of the matching log. This handles the case where the same contract log
-     * appears multiple times in the child records as being part of different operations.
-     *
-     * @param transferLog the TransferContractLog to check
-     * @return true if a matching log is found and it is already persisted, false otherwise
-     */
-    private boolean logAlreadyImported(TransferContractLog transferLog) {
-        return transferLog
-                .getRecordItem()
-                .consumeMatchingContractLog(
-                        transferLog.getEntityId(),
-                        transferLog.getTopic0(),
-                        transferLog.getTopic1(),
-                        transferLog.getTopic2(),
-                        transferLog.getTopic3(),
-                        transferLog.getData(),
-                        this::resolveContractLogTopicAccount);
-    }
-
-    private Optional<EntityId> resolveContractLogTopicAccount(byte[] accountAddress) {
-        if (ArrayUtils.isEmpty(accountAddress)) {
-            return Optional.of(EntityId.EMPTY);
-        }
-
-        final var entityFromNum = DomainUtils.convertAccountNumBytesToEntity(accountAddress);
-
-        if (entityFromNum.isPresent()) {
-            return entityFromNum;
-        } else {
-            return entityIdService.lookup(AccountID.newBuilder()
-                    .setAlias(ByteString.copyFrom(accountAddress))
-                    .build());
-        }
+        // Skip synthetic log creation for HAPI versions >= 0.71.0 as the logs are already imported by consensus nodes
+        return recordItem.getHapiVersion().isGreaterThanOrEqualTo(HAPI_SYNTHETIC_LOG_VERSION);
     }
 }
