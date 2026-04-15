@@ -202,7 +202,7 @@ const formatTransactionRows = async (rows) => {
       consensus_timestamp: utils.nsToSecNs(row.consensus_timestamp),
       entity_id: EntityId.parse(row.entity_id, {isNullable: true}).toString(),
       high_volume: row.high_volume ?? false,
-      high_volume_pricing_multiplier: row.high_volume_pricing_multiplier ?? null,
+      high_volume_pricing_multiplier: row.high_volume_pricing_multiplier,
       max_fee: utils.getNullableNumber(row.max_fee),
       max_custom_fees: createMaxCustomFeesList(row.max_custom_fees),
       memo_base64: utils.encodeBase64(row.memo),

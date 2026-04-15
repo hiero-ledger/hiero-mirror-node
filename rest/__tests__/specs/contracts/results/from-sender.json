@@ -93,8 +93,7 @@
         "name": "CONTRACTCALL",
         "type": "7",
         "entity_id": "0.0.9",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null
+        "high_volume": false
       },
       {
         "payerAccountId": "0.0.5000",
@@ -103,8 +102,7 @@
         "name": "CONTRACTCALL",
         "type": "7",
         "entity_id": "0.0.9",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null
+        "high_volume": false
       },
       {
         "payerAccountId": "0.0.5000",
@@ -113,8 +111,7 @@
         "name": "CONTRACTCALL",
         "type": "7",
         "entity_id": "0.0.9",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null
+        "high_volume": false
       }
     ]
   },

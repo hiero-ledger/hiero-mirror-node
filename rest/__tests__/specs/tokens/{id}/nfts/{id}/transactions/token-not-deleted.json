@@ -63,8 +63,7 @@
           }
         ],
         "entity_id": "0.0.1500",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null
+        "high_volume": false
       },
       {
         "name": "CRYPTOAPPROVEALLOWANCE",
@@ -148,8 +147,7 @@
           }
         ],
         "entity_id": "0.0.1500",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null
+        "high_volume": false
       }
     ],
     "nfts": [

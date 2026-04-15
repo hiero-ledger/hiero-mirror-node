@@ -4140,7 +4140,7 @@ components:
           description: Whether the transaction used high-volume entity creation throttles and pricing per HIP-1313
           type: boolean
         high_volume_pricing_multiplier:
-          description: The multiplier applied to the transaction fee when high-volume pricing was in effect per HIP-1313
+          description: The multiplier applied to the transaction fee when high-volume pricing was in effect per HIP-1313. Values are >= 1 when set.
           format: int64
           nullable: true
           type: integer
@@ -4243,7 +4243,7 @@ components:
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
         high_volume: false
-        high_volume_pricing_multiplier: null
+        high_volume_pricing_multiplier: 1
         max_custom_fees:
           - account_id: 0.0.8
             amount: 1000
@@ -4326,7 +4326,7 @@ components:
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
         high_volume: false
-        high_volume_pricing_multiplier: null
+        high_volume_pricing_multiplier: 1
         max_fee: 33
         memo_base64: null
         name: CRYPTOTRANSFER

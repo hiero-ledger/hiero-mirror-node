@@ -29,7 +29,6 @@
         "consensus_timestamp": 167654000123456,
         "entity_id": 5001,
         "high_volume": false,
-        "high_volume_pricing_multiplier": null,
         "payerAccountId": "8001",
         "result": 33,
         "transaction_hash": "519a008fabde4d",

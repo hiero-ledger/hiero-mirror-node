@@ -307,6 +307,8 @@ describe('formatTransactionRows', () => {
         transaction_bytes: 'bytes',
         node_account_id: 2,
         payer_account_id: 3,
+        high_volume: false,
+        high_volume_pricing_multiplier: null,
         crypto_transfer_list: [{amount: 100, entity_id: 100, is_approval: true}],
         nft_transfer: [],
       },

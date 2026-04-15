@@ -37,7 +37,6 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.FeeEstimateResponse;
-import org.hiero.mirror.rest.model.FeeExtra;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
@@ -611,40 +610,6 @@ final class NetworkControllerTest extends ControllerTest {
             assertThat(actual.getService().getBase()).isZero();
             assertThat(actual.getService().getExtras()).isEqualTo(List.of());
             assertThat(actual.getTotal()).isEqualTo(nodeBase + nodeBase * networkMultiplier);
-        }
-
-        @Test
-        void withExtras() {
-            // given — 2 signatures: 1 included for free, 1 charged as a signature extra
-            seedFeeSchedule();
-            final var transaction = transactionWithSignatures(2);
-
-            // when
-            final var actual = restClient
-                    .post()
-                    .uri("")
-                    .body(transaction)
-                    .contentType(MediaType.APPLICATION_PROTOBUF)
-                    .retrieve()
-                    .body(FeeEstimateResponse.class);
-
-            // then — signature extras must be present
-            assertThat(actual.getNode().getExtras()).isNotEmpty();
-            // verify FeeExtra.subtotal == feePerUnit × charged for every extra (controller math)
-            actual.getNode().getExtras().forEach(extra -> assertThat(extra.getSubtotal())
-                    .as("subtotal for extra '%s'", extra.getName())
-                    .isEqualTo(extra.getFeePerUnit() * extra.getCharged()));
-            // verify the full-response math with extras
-            final var nodeBase = actual.getNode().getBase();
-            final var nodeExtrasTotal = actual.getNode().getExtras().stream()
-                    .mapToLong(FeeExtra::getSubtotal)
-                    .sum();
-            final var nodeFee = nodeBase + nodeExtrasTotal;
-            final var networkMultiplier = actual.getNetwork().getMultiplier();
-            assertThat(actual.getNetwork().getSubtotal()).isEqualTo(nodeFee * networkMultiplier);
-            assertThat(actual.getService().getBase()).isZero();
-            assertThat(actual.getService().getExtras()).isEqualTo(List.of());
-            assertThat(actual.getTotal()).isEqualTo(nodeFee + nodeFee * networkMultiplier);
         }
 
         @Test

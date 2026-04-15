@@ -32,8 +32,7 @@
         "name": "CONSENSUSSUBMITMESSAGE",
         "type": 27,
         "entity_id": "0.0.7",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null
+        "high_volume": false
       },
       {
         "payerAccountId": "0.0.3",
@@ -42,8 +41,7 @@
         "name": "CONSENSUSSUBMITMESSAGE",
         "type": 27,
         "entity_id": "0.0.7",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null
+        "high_volume": false
       },
       {
         "payerAccountId": "0.0.3",
@@ -52,8 +50,7 @@
         "name": "CONSENSUSSUBMITMESSAGE",
         "type": 27,
         "entity_id": "0.0.7",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null
+        "high_volume": false
       }
     ]
   },
