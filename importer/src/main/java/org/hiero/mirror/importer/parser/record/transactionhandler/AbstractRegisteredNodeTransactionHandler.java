@@ -7,6 +7,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
@@ -83,7 +84,9 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
         switch (proto.getEndpointTypeCase()) {
             case BLOCK_NODE ->
                 builder.blockNode(BlockNodeEndpoint.builder()
-                        .endpointApi(toBlockNodeApi(proto.getBlockNode().getEndpointApi()))
+                        .endpointApis(proto.getBlockNode().getEndpointApiList().stream()
+                                .map(AbstractRegisteredNodeTransactionHandler::toBlockNodeApi)
+                                .collect(Collectors.toList()))
                         .build());
             case GENERAL_SERVICE ->
                 builder.generalService(GeneralServiceEndpoint.builder()

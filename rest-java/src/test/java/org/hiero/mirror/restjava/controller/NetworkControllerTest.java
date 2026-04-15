@@ -22,9 +22,11 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.io.IOException;
 import java.text.MessageFormat;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.hapi.support.fees.VariableRateDefinition;
@@ -34,12 +36,14 @@ import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.FeeEstimateResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.rest.model.NetworkSupplyResponse;
+import org.hiero.mirror.rest.model.RegisteredNodesResponse;
 import org.hiero.mirror.restjava.common.Constants;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.config.NetworkProperties;
@@ -1755,6 +1759,343 @@ final class NetworkControllerTest extends ControllerTest {
             domainBuilder.node().customize(n -> n.nodeId(3L)).persist();
 
             return List.of(entry1, entry2, entry3);
+        }
+    }
+
+    @DisplayName("GET /api/v1/network/registered-nodes")
+    @Nested
+    final class RegisteredNodesEndpointTest extends EndpointTest {
+
+        @Override
+        protected String getUrl() {
+            return "network/registered-nodes";
+        }
+
+        @Override
+        protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
+            setupRegisteredNodeData();
+            return uriSpec.uri("");
+        }
+
+        @Test
+        void success() {
+            // given
+            setupRegisteredNodeData();
+
+            // when
+            final var actual = restClient.get().uri("").retrieve().body(RegisteredNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getRegisteredNodes()).isNotNull().hasSize(3);
+            // Verify default order is ascending by registered node id
+            assertThat(actual.getRegisteredNodes().get(0).getRegisteredNodeId()).isEqualTo(1L);
+            assertThat(actual.getRegisteredNodes().get(1).getRegisteredNodeId()).isEqualTo(2L);
+            assertThat(actual.getRegisteredNodes().get(2).getRegisteredNodeId()).isEqualTo(3L);
+            assertThat(actual.getLinks()).isNotNull();
+            assertThat(actual.getLinks().getNext()).isNull(); // All results fit in one page
+        }
+
+        @Test
+        void filteredByType() {
+            // given
+            setupRegisteredNodeData();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?type=BLOCK_NODE")
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.RegisteredNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getRegisteredNodes()).isNotNull().hasSize(1);
+            assertThat(actual.getRegisteredNodes().get(0).getRegisteredNodeId()).isEqualTo(1L);
+        }
+
+        @ParameterizedTest
+        @ValueSource(
+                strings = {
+                    "BLOCK_NODE",
+                    "block_node",
+                    "Block_Node",
+                    "bLoCk_NoDe",
+                    "general_service",
+                    "MIRROR_NODE",
+                    "mirror_node",
+                    "RPC_RELAY",
+                    "rpc_relay"
+                })
+        void typeQueryParameterIsCaseInsensitive(String typeParameter) {
+            // given
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(1L).type(List.of(RegisteredNodeType.BLOCK_NODE.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(2L).type(List.of(RegisteredNodeType.GENERAL_SERVICE.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(3L).type(List.of(RegisteredNodeType.MIRROR_NODE.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(4L).type(List.of(RegisteredNodeType.RPC_RELAY.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(5L).type(List.of(RegisteredNodeType.UNKNOWN.getId())))
+                    .persist();
+
+            final var expectedType = RegisteredNodeType.valueOf(typeParameter.toUpperCase());
+            final var expectedId = registeredNodeIdForType(expectedType);
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?type=%s".formatted(typeParameter))
+                    .retrieve()
+                    .body(RegisteredNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getRegisteredNodes()).isNotNull().hasSize(1);
+            assertThat(actual.getRegisteredNodes().getFirst().getRegisteredNodeId())
+                    .isEqualTo(expectedId);
+        }
+
+        @Test
+        void orderedDesc() {
+            // given
+            setupRegisteredNodeData();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?order=desc")
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.RegisteredNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getRegisteredNodes()).isNotNull().hasSize(3);
+            assertThat(actual.getRegisteredNodes().get(0).getRegisteredNodeId()).isEqualTo(3L);
+            assertThat(actual.getRegisteredNodes().get(1).getRegisteredNodeId()).isEqualTo(2L);
+            assertThat(actual.getRegisteredNodes().get(2).getRegisteredNodeId()).isEqualTo(1L);
+        }
+
+        @Test
+        void nextLinkIsPresent() {
+            // given
+            setupRegisteredNodeData();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?limit=1")
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.RegisteredNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getRegisteredNodes()).isNotNull().hasSize(1);
+            assertThat(actual.getLinks()).isNotNull();
+            assertThat(actual.getLinks().getNext())
+                    .isEqualTo(
+                            "/api/v1/network/registered-nodes?limit=1&%s=gt:1".formatted(Constants.REGISTERED_NODE_ID));
+        }
+
+        @ParameterizedTest
+        @ValueSource(
+                strings = {
+                    "invalid",
+                    "-1",
+                    "eq:-1",
+                    "lt:-1",
+                    "lte:-1",
+                    "gt:-1",
+                    "gte:-1",
+                    "lt:invalid",
+                    "gt:abc",
+                    "eq:abc",
+                    ".1",
+                    "9223372036854775808",
+                    "a:1",
+                    "eq:1:2",
+                })
+        void invalidIdParam(String registeredNodeIdParam) {
+            // given
+            setupRegisteredNodeData();
+
+            // when/then
+            validateError(
+                    () -> restClient
+                            .get()
+                            .uri("?registerednode.id=%s".formatted(registeredNodeIdParam))
+                            .retrieve()
+                            .toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Invalid parameter: registerednode.id");
+        }
+
+        @Test
+        void invalidRegisteredNodeIdTooManyParameters() {
+            // given
+            setupRegisteredNodeData();
+
+            // when/then
+            validateError(
+                    () -> restClient
+                            .get()
+                            .uri("?registerednode.id=1&registerednode.id=2&registerednode.id=3")
+                            .retrieve()
+                            .toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Invalid parameter: registerednode.id");
+        }
+
+        @Test
+        void invalidTypeParam() {
+            // given
+            setupRegisteredNodeData();
+
+            // when/then
+            validateError(
+                    () -> restClient.get().uri("?type=invalid").retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Invalid parameter: type");
+        }
+
+        @ParameterizedTest
+        @CsvSource(
+                delimiter = '|',
+                nullValues = {"NULL"},
+                value = {
+                    "'?registerednode.id={1}' | 1",
+                    "'?registerednode.id=eq:{2}' | 2",
+                    "'?registerednode.id=lt:{2}' | 1,0",
+                    "'?registerednode.id=lte:{2}' | 2,1,0",
+                    "'?registerednode.id=gt:{1}' | 3,2",
+                    "'?registerednode.id=gte:{1}' | 3,2,1",
+                    "'?registerednode.id=lt:{2}&registerednode.id=lt:{3}' | 1,0",
+                    "'?registerednode.id=lte:{2}&registerednode.id=lt:{2}' | 1,0",
+                    "'?registerednode.id=gt:{1}&registerednode.id=gt:{0}' | 3,2",
+                    "'?registerednode.id=gte:{1}&registerednode.id=gt:{1}' | 3,2",
+                    "'?registerednode.id=gt:{0}&registerednode.id=lt:{3}' | 2,1",
+                    "'?registerednode.id=gte:{1}&registerednode.id=lte:{2}' | 2,1"
+                })
+        void registeredNodeIdBounds(String parameters, String expectedIndices) {
+            // given
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(10L).type(List.of(RegisteredNodeType.BLOCK_NODE.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(20L).type(List.of(RegisteredNodeType.MIRROR_NODE.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(30L).type(List.of(RegisteredNodeType.RPC_RELAY.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(40L).type(List.of(RegisteredNodeType.GENERAL_SERVICE.getId())))
+                    .persist();
+
+            final var response = restClient.get().uri("?limit=100").retrieve().body(RegisteredNodesResponse.class);
+            final var nodes = response.getRegisteredNodes();
+
+            final List<Long> expectedIds;
+            if (expectedIndices == null) {
+                expectedIds = List.of();
+            } else {
+                expectedIds = Arrays.stream(expectedIndices.split(","))
+                        .map(String::trim)
+                        .mapToInt(Integer::parseInt)
+                        .mapToObj(i -> nodes.get(i).getRegisteredNodeId())
+                        .sorted()
+                        .collect(Collectors.toList());
+            }
+
+            final var formattedParams = MessageFormat.format(
+                    parameters,
+                    nodes.get(0).getRegisteredNodeId(),
+                    nodes.get(1).getRegisteredNodeId(),
+                    nodes.get(2).getRegisteredNodeId(),
+                    nodes.get(3).getRegisteredNodeId());
+
+            // when
+            final var actual = restClient.get().uri(formattedParams).retrieve().body(RegisteredNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getRegisteredNodes())
+                    .extracting(org.hiero.mirror.rest.model.RegisteredNode::getRegisteredNodeId)
+                    .containsExactlyElementsOf(expectedIds);
+        }
+
+        @ParameterizedTest
+        @ValueSource(
+                strings = {
+                    "?registerednode.id=eq:1&registerednode.id=2",
+                    "?registerednode.id=1&registerednode.id=lt:3",
+                    "?registerednode.id=gte:1&registerednode.id=eq:2"
+                })
+        void invalidRegisteredNodeIdEqParamCombinations(String queryParams) {
+            // given
+            setupRegisteredNodeData();
+
+            // when/then
+            validateError(
+                    () -> restClient.get().uri(queryParams).retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "The 'eq' operator cannot be combined with other operators");
+        }
+
+        @ParameterizedTest
+        @ValueSource(
+                strings = {
+                    "?registerednode.id=gt:10&registerednode.id=lt:5",
+                    "?registerednode.id=gt:10&registerednode.id=lt:10"
+                })
+        void invalidRange(String queryParams) {
+            // given
+            setupRegisteredNodeData();
+
+            // when/then
+            validateError(
+                    () -> restClient.get().uri(queryParams).retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Invalid range: lower bound exceeds upper bound");
+        }
+
+        private void setupRegisteredNodeData() {
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(1L).type(List.of(RegisteredNodeType.BLOCK_NODE.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(2L).type(List.of(RegisteredNodeType.MIRROR_NODE.getId())))
+                    .persist();
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(3L).type(List.of(RegisteredNodeType.RPC_RELAY.getId())))
+                    .persist();
+        }
+
+        private static long registeredNodeIdForType(RegisteredNodeType type) {
+            return switch (type) {
+                case BLOCK_NODE -> 1L;
+                case GENERAL_SERVICE -> 2L;
+                case MIRROR_NODE -> 3L;
+                case RPC_RELAY -> 4L;
+                case UNKNOWN -> 5L;
+            };
         }
     }
 }
