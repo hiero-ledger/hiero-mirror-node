@@ -52,6 +52,7 @@ Deployed automatically on every tag.
   - Uncheck `Restore the target cluster from the source`
   - Uncheck `Run k6 test`
   - Check `Tear down target cluster`
+- [ ] Create new static snapshot if necessary (long migration) and update github env var
 
 ## Generally Available
 

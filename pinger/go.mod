@@ -2,7 +2,7 @@ module pinger
 
 go 1.26
 
-require github.com/hiero-ledger/hiero-sdk-go/v2 v2.77.0
+require github.com/hiero-ledger/hiero-sdk-go/v2 v2.77.1
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.6 // indirect

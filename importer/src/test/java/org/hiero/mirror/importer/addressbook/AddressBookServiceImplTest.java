@@ -8,7 +8,6 @@ import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.protobuf.ByteString;
@@ -24,6 +23,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -56,6 +56,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.platform.commons.util.StringUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.interceptor.SimpleKey;
 import org.springframework.transaction.annotation.Transactional;
@@ -1001,6 +1002,28 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void getNode() {
+        // given, when
+        final var nodes = List.of(
+                addressBookService.getNode(0L),
+                addressBookService.getNode(1L),
+                addressBookService.getNode(2L),
+                addressBookService.getNode(3L));
+
+        // then
+        assertThat(nodes)
+                .allMatch(c -> c.getStake() == 1L)
+                .allMatch(c -> c.getTotalStake() == 4L)
+                .allMatch(c -> c.getNodeAccountId().getNum() - 3 == c.getNodeId())
+                .allSatisfy(c -> assertThat(c.getPublicKey()).isNotNull())
+                .extracting(ConsensusNode::getNodeId)
+                .containsExactly(0L, 1L, 2L, 3L);
+
+        // when, then
+        assertThat(addressBookService.getNode(4L)).isNull();
+    }
+
+    @Test
     void getNodesEmptyNodeStake() {
         assertThat(addressBookService.getNodes())
                 .hasSize(TEST_INITIAL_ADDRESS_BOOK_NODE_COUNT)
@@ -1097,20 +1120,44 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .persist();
 
         // Verify cache is empty to start
-        assertNull(cacheManager.getCache(CACHE_NAME).get(SimpleKey.EMPTY));
+        final var cache = cacheManager.getCache(CACHE_NAME);
+        assertThat(cache.get(SimpleKey.EMPTY)).isNull();
+
+        // getNode
+        final var nodeIds = List.of(0L, 1L, 2L, 3L);
+        assertThat(nodeIds.stream().map(cache::get)).containsOnlyNulls();
 
         // Verify getCurrent() adds an entry to the cache
         var nodes = addressBookService.getNodes();
-        var nodesCache = cacheManager.getCache(CACHE_NAME).get(SimpleKey.EMPTY).get();
+        var nodesCache = cache.get(SimpleKey.EMPTY).get();
         assertThat(nodes)
                 .isNotNull()
                 .isEqualTo(nodesCache)
                 .allMatch(node -> node.getStake() > 1)
                 .allMatch(node -> node.getTotalStake() > 1)
-                .allMatch(node -> node.getNodeAccountId() != null);
+                .allMatch(node -> node.getNodeAccountId() != null)
+                .extracting(ConsensusNode::getNodeId)
+                .containsExactlyElementsOf(nodeIds);
+
+        // getNode
+        final var nodeByIds = nodeIds.stream().map(addressBookService::getNode).toList();
+        final var nodeByIdsCache = nodeIds.stream()
+                .map(cache::get)
+                .filter(Objects::nonNull)
+                .map(Cache.ValueWrapper::get)
+                .toList();
+        assertThat(nodeByIds)
+                .isNotNull()
+                .isEqualTo(nodeByIdsCache)
+                .allMatch(node -> node.getStake() > 1)
+                .allMatch(node -> node.getTotalStake() > 1)
+                .allMatch(node -> node.getNodeAccountId() != null)
+                .extracting(ConsensusNode::getNodeId)
+                .containsExactlyElementsOf(nodeIds);
 
         addressBookService.refresh();
-        assertNull(cacheManager.getCache(CACHE_NAME).get(SimpleKey.EMPTY));
+        assertThat(cache.get(SimpleKey.EMPTY)).isNull();
+        assertThat(nodeIds.stream().map(cache::get)).containsOnlyNulls();
     }
 
     @Test
