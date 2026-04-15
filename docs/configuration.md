@@ -21,7 +21,7 @@ support automatic generation of random [passwords](/charts/README.md#passwords).
 Some variables are common to more than one module.
 
 | Name                                                    | Default | Description                                                         |
-|---------------------------------------------------------| ------- | ------------------------------------------------------------------- |
+| ------------------------------------------------------- | ------- | ------------------------------------------------------------------- |
 | `hiero.mirror.common.databaseStartup.enabled`           | true    | Controls if app waits for database connection on app start          |
 | `hiero.mirror.common.databaseStartup.interval`          | 2s      | Interval between checking if database is connectable                |
 | `hiero.mirror.common.databaseStartup.timeout`           | 5m      | Total time to wait for database to become available before erroring |
