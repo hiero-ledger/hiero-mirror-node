@@ -19,7 +19,7 @@ public class FeatureProperties {
 
     private boolean contractCallLocalEstimate = true;
 
-    private int hapiMinorVersionWithHooks = 72;
+    private int hapiMinorVersionWithHooks = 74;
 
     private int hapiMinorVersionWithoutGasRefund = 69;
 

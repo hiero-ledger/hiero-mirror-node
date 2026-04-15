@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
+import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
@@ -28,6 +29,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.hiero.hapi.support.fees.VariableRateDefinition;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
@@ -584,6 +586,8 @@ final class NetworkControllerTest extends ControllerTest {
             assertThat(actual.getService().getExtras()).isEqualTo(List.of());
             // total = node.base + network.subtotal (no service fee)
             assertThat(actual.getTotal()).isEqualTo(nodeBase + nodeBase * networkMultiplier);
+            // high_volume_multiplier: CryptoTransfer has no high-volume rates → 1 (no scaling)
+            assertThat(actual.getHighVolumeMultiplier()).isEqualTo(1L);
         }
 
         @Test
@@ -703,6 +707,83 @@ final class NetworkControllerTest extends ControllerTest {
                     "Content-Type 'application/json' is not supported");
         }
 
+        @Test
+        void invalidHighVolumeThrottleTooLow() {
+            // given
+            final var transaction = transaction();
+
+            // when / then
+            validateError(
+                    () -> restClient
+                            .post()
+                            .uri("?high_volume_throttle=-1")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "highVolumeThrottle must be greater than or equal to 0");
+        }
+
+        @Test
+        void invalidHighVolumeThrottleTooHigh() {
+            // given
+            final var transaction = transaction();
+
+            // when / then
+            validateError(
+                    () -> restClient
+                            .post()
+                            .uri("?high_volume_throttle=10001")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "highVolumeThrottle must be less than or equal to 10000");
+        }
+
+        @Test
+        void successHighVolumeThrottle() {
+            // given
+            final int customMaxRaw = 50_000;
+            seedFeeScheduleWithHighVolumeRates(
+                    com.hedera.hapi.node.base.HederaFunctionality.CONSENSUS_CREATE_TOPIC, customMaxRaw);
+            final var transaction = highVolumeConsensusCreateTopicTransaction();
+
+            // when
+            final var actual = restClient
+                    .post()
+                    .uri("?mode=STATE&high_volume_throttle=10000")
+                    .body(transaction)
+                    .contentType(MediaType.APPLICATION_PROTOBUF)
+                    .retrieve()
+                    .body(FeeEstimateResponse.class);
+
+            // then
+            assertThat(actual.getHighVolumeMultiplier()).isGreaterThan(1L);
+            assertThat(actual.getTotal()).isPositive();
+        }
+
+        @Test
+        void highVolumeThrottleIgnoredWithoutHighVolumeFlag() {
+            // given
+            seedFeeSchedule();
+            final var transaction = transaction();
+
+            // when — txBody.highVolume not set, so throttle param has no effect
+            final var actual = restClient
+                    .post()
+                    .uri("?mode=STATE&high_volume_throttle=10000")
+                    .body(transaction)
+                    .contentType(MediaType.APPLICATION_PROTOBUF)
+                    .retrieve()
+                    .body(FeeEstimateResponse.class);
+
+            // then
+            assertThat(actual.getHighVolumeMultiplier()).isEqualTo(1L);
+        }
+
         private void seedFeeSchedule() {
             try (final var in = new ClassPathResource(
                             "genesis/simpleFeesSchedules.json", V0490FileSchema.class.getClassLoader())
@@ -722,12 +803,66 @@ final class NetworkControllerTest extends ControllerTest {
             }
         }
 
+        private void seedFeeScheduleWithHighVolumeRates(
+                com.hedera.hapi.node.base.HederaFunctionality func, int maxMultiplier) {
+            try (final var in = new ClassPathResource(
+                            "genesis/simpleFeesSchedules.json", V0490FileSchema.class.getClassLoader())
+                    .getInputStream()) {
+                final var base = V0490FileSchema.parseSimpleFeesSchedules(in.readAllBytes());
+                final var modified = base.copyBuilder()
+                        .services(base.services().stream()
+                                .map(svc -> svc.copyBuilder()
+                                        .schedule(svc.schedule().stream()
+                                                .map(def -> def.name() == func
+                                                        ? def.copyBuilder()
+                                                                .highVolumeRates(VariableRateDefinition.newBuilder()
+                                                                        .maxMultiplier(maxMultiplier)
+                                                                        .build())
+                                                                .build()
+                                                        : def)
+                                                .toList())
+                                        .build())
+                                .toList())
+                        .build();
+                final var feeBytes = org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF
+                        .toBytes(modified)
+                        .toByteArray();
+                domainBuilder
+                        .fileData()
+                        .customize(f ->
+                                f.entityId(systemEntity.simpleFeeScheduleFile()).fileData(feeBytes))
+                        .persist();
+                feeEstimationService.refreshStateCalculator();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         private byte[] transaction() {
             final var cryptoTransfer =
                     CryptoTransferTransactionBody.newBuilder().build();
             final var transactionBody = TransactionBody.newBuilder()
                     .setMemo("test")
                     .setCryptoTransfer(cryptoTransfer)
+                    .build()
+                    .toByteString();
+            final var signedTransaction = SignedTransaction.newBuilder()
+                    .setBodyBytes(transactionBody)
+                    .build()
+                    .toByteString();
+            return Transaction.newBuilder()
+                    .setSignedTransactionBytes(signedTransaction)
+                    .build()
+                    .toByteArray();
+        }
+
+        private byte[] highVolumeConsensusCreateTopicTransaction() {
+            final var consensusCreateTopic =
+                    ConsensusCreateTopicTransactionBody.newBuilder().build();
+            final var transactionBody = TransactionBody.newBuilder()
+                    .setMemo("test")
+                    .setConsensusCreateTopic(consensusCreateTopic)
+                    .setHighVolume(true)
                     .build()
                     .toByteString();
             final var signedTransaction = SignedTransaction.newBuilder()

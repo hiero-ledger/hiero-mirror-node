@@ -18,10 +18,10 @@ import com.hedera.node.app.spi.fees.SimpleFeeCalculator;
 import com.hedera.node.app.spi.fees.SimpleFeeContext;
 import com.hedera.node.app.spi.workflows.QueryContext;
 import com.hedera.node.app.workflows.standalone.ExecutorComponent;
-import com.hedera.node.config.types.StreamMode;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -42,7 +42,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 public class FeeEstimationService {
 
     private final ExecutorComponent executor;
-    private final FeeEstimationState feeEstimationState;
     private final FileDataRepository fileDataRepository;
     private final long feeScheduleFileId;
     private final FeeTopicStore feeTopicStore;
@@ -56,22 +55,19 @@ public class FeeEstimationService {
             final SystemEntity systemEntity,
             final FeeTopicStore feeTopicStore,
             final FeeTokenStore feeTokenStore) {
-        this.feeEstimationState = feeEstimationState;
         this.fileDataRepository = fileDataRepository;
         this.feeScheduleFileId = systemEntity.simpleFeeScheduleFile().getId();
         this.feeTopicStore = feeTopicStore;
         this.feeTokenStore = feeTokenStore;
         this.lastFeeScheduleTimestamp = new AtomicLong(Long.MIN_VALUE);
 
-        final var config = newFeeContext(TransactionBody.DEFAULT).configuration();
         this.executor = TRANSACTION_EXECUTORS.newExecutorComponent(
                 feeEstimationState,
-                FeeEstimationFeeContext.FEE_PROPERTIES,
+                Map.of(),
                 null,
                 Set.of(),
-                new AppEntityIdFactory(config));
+                new AppEntityIdFactory(FeeEstimationFeeContext.CONFIGURATION));
         executor.stateNetworkInfo().initFrom(feeEstimationState);
-        executor.initializer().initialize(feeEstimationState, StreamMode.BOTH);
         this.feeManager = Objects.requireNonNull(executor.feeManager());
     }
 
@@ -96,11 +92,14 @@ public class FeeEstimationService {
         }
     }
 
-    public FeeResult estimateFees(@NonNull final Transaction transaction, @NonNull final FeeEstimateMode mode) {
+    public FeeResult estimateFees(
+            @NonNull final Transaction transaction,
+            @NonNull final FeeEstimateMode mode,
+            final int throttleUtilization) {
         try {
             final var txContext = new TransactionFeeContext(transaction);
             final var context = mode == FeeEstimateMode.STATE
-                    ? txContext.withFeeContext(newFeeContext(txContext.body()))
+                    ? txContext.withFeeContext(newFeeContext(txContext.body(), throttleUtilization))
                     : txContext;
             final SimpleFeeCalculator calculator = Objects.requireNonNull(feeManager.getSimpleFeeCalculator());
             return calculator.calculateTxFee(context.body(), context);
@@ -108,11 +107,16 @@ public class FeeEstimationService {
             throw new IllegalArgumentException("Unable to parse transaction", e);
         } catch (NullPointerException e) {
             throw new IllegalArgumentException("Unknown transaction type", e);
+        } catch (IllegalStateException e) {
+            if (e.getCause() instanceof UnknownHederaFunctionality) {
+                throw new IllegalArgumentException("Unknown transaction type", e);
+            }
+            throw e;
         }
     }
 
-    private FeeEstimationFeeContext newFeeContext(final TransactionBody body) {
-        return new FeeEstimationFeeContext(body, feeTopicStore, feeTokenStore);
+    private FeeEstimationFeeContext newFeeContext(final TransactionBody body, final int throttleUtilization) {
+        return new FeeEstimationFeeContext(body, feeTopicStore, feeTokenStore, throttleUtilization);
     }
 
     @SuppressWarnings("NullAway")
