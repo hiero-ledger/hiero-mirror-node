@@ -974,7 +974,7 @@ paths:
         - $ref: "#/components/parameters/limitQueryParam"
         - $ref: "#/components/parameters/orderQueryParam"
         - $ref: "#/components/parameters/registeredNodeIdQueryParam"
-        - $ref: "#/components/parameters/type"
+        - $ref: "#/components/parameters/registeredNodeTypeQueryParam"
       responses:
         200:
           description: OK
@@ -5559,7 +5559,7 @@ components:
       example: INTRINSIC
       schema:
         $ref: "#/components/schemas/FeeEstimateMode"
-    type:
+    registeredNodeTypeQueryParam:
       example: BLOCK_NODE
       in: query
       name: type

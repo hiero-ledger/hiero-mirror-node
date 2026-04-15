@@ -8,6 +8,8 @@ import java.util.Collections;
 import java.util.List;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
+import org.hiero.mirror.rest.model.RegisteredNodeType;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ValueMapping;
@@ -35,4 +37,27 @@ public interface RegisteredNodeMapper
     @ValueMapping(source = "UNKNOWN", target = "GENERAL_SERVICE")
     org.hiero.mirror.rest.model.RegisteredNodeType mapDomainRegisteredNodeType(
             org.hiero.mirror.common.domain.node.RegisteredNodeType source);
+
+    default RegisteredNodeType mapRegisteredNodeType(Short source) {
+        if (source == null) {
+            return null;
+        }
+
+        return switch (source) {
+            case 1 -> RegisteredNodeType.BLOCK_NODE;
+            case 2 -> RegisteredNodeType.GENERAL_SERVICE;
+            case 3 -> RegisteredNodeType.MIRROR_NODE;
+            case 4 -> RegisteredNodeType.RPC_RELAY;
+            default -> RegisteredNodeType.GENERAL_SERVICE;
+        };
+    }
+
+    /**
+     * Omits block node API details to avoid making breaking changes when
+     * BlockNodeEndpoint data field is changed from single value to list in the
+     * next release of consensus node.
+     */
+    default Object blockNodeForRest(BlockNodeEndpoint blockNode) {
+        return blockNode == null ? null : Collections.emptyMap();
+    }
 }

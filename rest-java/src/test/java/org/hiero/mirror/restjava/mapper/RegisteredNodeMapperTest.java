@@ -136,7 +136,6 @@ final class RegisteredNodeMapperTest {
         assertThat(actual.getPort()).isEqualTo(domainEndpoint.getPort());
         assertThat(actual.getRequiresTls()).isEqualTo(domainEndpoint.isRequiresTls());
         assertThat(actual.getType())
-                .isEqualTo(commonMapper.mapRegisteredNodeType(
-                        domainEndpoint.getType().getId()));
+                .isEqualTo(mapper.mapRegisteredNodeType(domainEndpoint.getType().getId()));
     }
 }

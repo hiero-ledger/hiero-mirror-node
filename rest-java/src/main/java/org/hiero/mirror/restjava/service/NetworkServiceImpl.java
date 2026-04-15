@@ -143,20 +143,15 @@ final class NetworkServiceImpl implements NetworkService {
 
         final var nodeType = request.getType();
         final var bounds = resolveRegisteredNodeIdBounds(request.getRegisteredNodeIds());
-        final long lowerBound = bounds.lowerBound();
-        final long upperBound = bounds.upperBound();
+        final long lowerBound = bounds.lowerEndpoint();
+        final long upperBound = bounds.upperEndpoint();
 
-        if (nodeType == null) {
-            return registeredNodeRepository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
-                    lowerBound, upperBound, null, page);
-        } else {
-            return registeredNodeRepository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
-                    lowerBound, upperBound, nodeType.getId(), page);
-        }
+        final var nodeTypeId = nodeType != null ? nodeType.getId() : null;
+        return registeredNodeRepository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
+                lowerBound, upperBound, nodeTypeId, page);
     }
 
-    private static RegisteredNodeIdBounds resolveRegisteredNodeIdBounds(
-            List<NumberRangeParameter> registeredNodeIdRanges) {
+    private static Range<Long> resolveRegisteredNodeIdBounds(List<NumberRangeParameter> registeredNodeIdRanges) {
         long lowerBound = 0L;
         long upperBound = MAX_VALUE;
 
@@ -165,7 +160,7 @@ final class NetworkServiceImpl implements NetworkService {
                 if (registeredNodeIdRanges.size() > 1) {
                     throw new IllegalArgumentException("The 'eq' operator cannot be combined with other operators");
                 }
-                lowerBound = upperBound = range.value();
+                return Range.closed(range.value(), range.value());
             } else if (range.hasLowerBound()) {
                 lowerBound = Math.max(lowerBound, range.getInclusiveValue());
             } else if (range.hasUpperBound()) {
@@ -177,10 +172,8 @@ final class NetworkServiceImpl implements NetworkService {
             throw new IllegalArgumentException("Invalid range: lower bound exceeds upper bound");
         }
 
-        return new RegisteredNodeIdBounds(lowerBound, upperBound);
+        return Range.closed(lowerBound, upperBound);
     }
-
-    private record RegisteredNodeIdBounds(long lowerBound, long upperBound) {}
 
     private long getAddressBookFileId(final NetworkNodeRequest request) {
         return request.getFileId() != null

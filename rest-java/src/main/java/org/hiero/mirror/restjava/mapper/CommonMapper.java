@@ -16,11 +16,9 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.Key;
 import org.hiero.mirror.rest.model.Key.TypeEnum;
-import org.hiero.mirror.rest.model.RegisteredNodeType;
 import org.hiero.mirror.rest.model.TimestampRange;
 import org.hiero.mirror.rest.model.TimestampRangeNullable;
 import org.hiero.mirror.restjava.exception.InvalidMappingException;
@@ -178,28 +176,5 @@ public interface CommonMapper {
         return BigDecimal.valueOf(numerator)
                 .divide(BigDecimal.valueOf(denominator), FRACTION_SCALE, RoundingMode.HALF_UP)
                 .floatValue();
-    }
-
-    default RegisteredNodeType mapRegisteredNodeType(Short source) {
-        if (source == null) {
-            return null;
-        }
-
-        return switch (source) {
-            case 1 -> RegisteredNodeType.BLOCK_NODE;
-            case 2 -> RegisteredNodeType.GENERAL_SERVICE;
-            case 3 -> RegisteredNodeType.MIRROR_NODE;
-            case 4 -> RegisteredNodeType.RPC_RELAY;
-            default -> RegisteredNodeType.GENERAL_SERVICE;
-        };
-    }
-
-    /**
-     * Omits block node API details to avoid making breaking changes when
-     * BlockNodeEndpoint data field is changed from single value to list in the
-     * next release of consensus node.
-     */
-    default Object blockNodeForRest(BlockNodeEndpoint blockNode) {
-        return blockNode == null ? null : Collections.emptyMap();
     }
 }
