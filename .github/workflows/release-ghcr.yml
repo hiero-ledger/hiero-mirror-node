@@ -14,6 +14,9 @@ defaults:
 env:
   LC_ALL: C.UTF-8
 
+permissions:
+  contents: read
+
 jobs:
   image:
     strategy:
