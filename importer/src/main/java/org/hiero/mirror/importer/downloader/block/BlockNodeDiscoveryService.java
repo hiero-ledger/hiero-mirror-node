@@ -9,7 +9,6 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
@@ -82,7 +81,7 @@ public final class BlockNodeDiscoveryService {
 
             final List<BlockNodeProperties> propertiesList = new ArrayList<>(nodes.size());
             for (final var node : nodes) {
-                toBlockNodeProperties(node.getServiceEndpoints()).ifPresent(propertiesList::add);
+                toBlockNodeProperties(propertiesList, node.getServiceEndpoints());
             }
 
             return propertiesList;
@@ -117,10 +116,10 @@ public final class BlockNodeDiscoveryService {
      * Returns the properties of tier 1 block nodes. A tier 1 block node is one that has a single
      * endpoint advertising all three required APIs: STATUS, PUBLISH, and SUBSCRIBE_STREAM.
      */
-    private static Optional<BlockNodeProperties> toBlockNodeProperties(
-            final List<RegisteredServiceEndpoint> endpoints) {
+    private static void toBlockNodeProperties(
+            List<BlockNodeProperties> propertiesList, final List<RegisteredServiceEndpoint> endpoints) {
         if (CollectionUtil.isEmpty(endpoints)) {
-            return Optional.empty();
+            return;
         }
 
         for (final var endpoint : endpoints) {
@@ -141,9 +140,7 @@ public final class BlockNodeDiscoveryService {
             properties.setHost(host);
             properties.setPort(endpoint.getPort());
             properties.setRequiresTls(endpoint.isRequiresTls());
-            return Optional.of(properties);
+            propertiesList.add(properties);
         }
-
-        return Optional.empty();
     }
 }
