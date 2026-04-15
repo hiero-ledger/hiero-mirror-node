@@ -39,6 +39,7 @@
           {
             "entity_id": "0.0.1135",
             "high_volume": false,
+            "high_volume_pricing_multiplier": null,
             "timestamp_range": "[1234567890000000002,)"
           }
         ],

@@ -73,7 +73,7 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         var blockProperties = new BlockProperties(importerProperties);
         blockProperties.setEnabled(true);
         blockProperties.setNodes(nodes);
-        final boolean isInProcess = nodes.getFirst().getStatusPort() == -1;
+        final boolean isInProcess = nodes.getFirst().getPort() == -1;
         final var cutoverService = new CutoverServiceImpl(
                 blockProperties, new CutoverProperties(), recordDownloaderProperties, recordFileRepository);
         streamFileNotifier = new PassThroughStreamFileNotifier(cutoverService);
