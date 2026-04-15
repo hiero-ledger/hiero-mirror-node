@@ -76,7 +76,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
 
     @Override
     public void onContractLog(ContractLog contractLog) {
-        if (contractLog.isSyntheticTransfer()) {
+        if (contractLog.isSynthetic()) {
             var contractId = contractLog.getContractId();
             var senderId = fromTrimmedEvmAddress(contractLog.getTopic1());
             var receiverId = fromTrimmedEvmAddress(contractLog.getTopic2());

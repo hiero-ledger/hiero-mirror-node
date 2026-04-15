@@ -64,7 +64,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                 .contractLog()
                 .customize(cl -> cl.topic1(Longs.toByteArray(sender1.getNum()))
                         .topic2(Longs.toByteArray(receiver1.getNum()))
-                        .syntheticTransfer(true))
+                        .synthetic(true))
                 .get();
 
         entityListener.onContractLog(contractLog);
@@ -115,7 +115,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         var syntheticContractLog = domainBuilder
                 .contractLog()
-                .customize(cl -> cl.syntheticTransfer(true)
+                .customize(cl -> cl.synthetic(true)
                         .bloom(markerBloom)
                         .contractId(EntityId.of(contractEntity.getId()))
                         .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)

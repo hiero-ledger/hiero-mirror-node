@@ -92,7 +92,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         contractLog.setTopic3(log.getTopic3());
         contractLog.setTransactionIndex(transactionIndex);
         contractLog.setTransactionHash(transactionHash);
-        contractLog.setSyntheticTransfer(log instanceof TransferContractLog);
+        contractLog.setSynthetic(log instanceof TransferContractLog);
 
         entityListener.onContractLog(contractLog);
     }

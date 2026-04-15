@@ -298,7 +298,8 @@ public class DomainBuilder {
                 .topic2(bytes(64))
                 .topic3(bytes(64))
                 .transactionHash(bytes(48))
-                .transactionIndex(transactionIndex());
+                .transactionIndex(transactionIndex())
+                .synthetic(false);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 

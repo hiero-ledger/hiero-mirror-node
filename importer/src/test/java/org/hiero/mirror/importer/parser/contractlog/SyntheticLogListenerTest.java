@@ -185,7 +185,7 @@ class SyntheticLogListenerTest {
                         .topic1(LONG_ZERO_1)
                         .topic2(LONG_ZERO_3)
                         .contractId(CONTRACT_ENTITY)
-                        .syntheticTransfer(false))
+                        .synthetic(false))
                 .get();
 
         listener.onContractLog(contractLog);
@@ -349,7 +349,7 @@ class SyntheticLogListenerTest {
                         .topic1(topic1)
                         .topic2(topic2)
                         .contractId(CONTRACT_ENTITY)
-                        .syntheticTransfer(true))
+                        .synthetic(true))
                 .get();
     }
 
@@ -361,7 +361,7 @@ class SyntheticLogListenerTest {
                         .topic1(topic1)
                         .topic2(topic2)
                         .contractId(contractId)
-                        .syntheticTransfer(true))
+                        .synthetic(true))
                 .get();
     }
 
