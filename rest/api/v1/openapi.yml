@@ -4140,8 +4140,9 @@ components:
           description: Whether the transaction used high-volume entity creation throttles and pricing per HIP-1313
           type: boolean
         high_volume_pricing_multiplier:
-          description: The multiplier applied to the transaction fee when high-volume pricing was in effect per HIP-1313. Values are >= 1 when set.
+          description: The multiplier applied to the transaction fee when high-volume pricing was in effect per HIP-1313, scaled by 1000 (e.g. 1000 = 1x, 4000 = 4x). A value of 0 means high-volume pricing was not applied. Null for pre-HIP-1313 transactions.
           format: int64
+          minimum: 0
           nullable: true
           type: integer
         max_custom_fees:
