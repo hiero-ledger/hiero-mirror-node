@@ -17,7 +17,9 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
@@ -76,9 +78,11 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         final var blockStreamVerifier = new BlockStreamVerifier(
                 blockFileTransformer,
                 mock(BlockStateProofHasher.class),
+                mock(ConsensusNodeService.class),
                 cutoverService,
                 mock(LedgerIdPublicationTransactionParser.class),
                 meterRegistry,
+                mock(NodeSignatureVerifier.class),
                 streamFileNotifier,
                 mock(TssVerifier.class));
         final var channelBuilderProvider =

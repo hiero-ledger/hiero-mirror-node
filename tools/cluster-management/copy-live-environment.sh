@@ -16,11 +16,13 @@ K6_TEST_SUITE_NAME="${K6_TEST_SUITE_NAME:-test-suite-rest-mainnet-citus}"
 K8S_SOURCE_CLUSTER_CONTEXT=${K8S_SOURCE_CLUSTER_CONTEXT:-}
 K8S_TARGET_CLUSTER_CONTEXT=${K8S_TARGET_CLUSTER_CONTEXT:-}
 RESTORE="${RESTORE:-true}"
-RUN_ACCEPTANCE_TEST="${RUN_ACCEPTANCE_TEST:-true}"
+RUN_ACCEPTANCE_TEST="${RUN_ACCEPTANCE_TEST:-false}"
 RUN_K6_TEST="${RUN_K6_TEST:-true}"
 TEARDOWN_TARGET="${TEARDOWN_TARGET:-false}"
 TEST_KUBE_NAMESPACE="${TEST_KUBE_NAMESPACE:-testkube}"
 TEST_KUBE_TARGET_NAMESPACE="${TEST_KUBE_TARGET_NAMESPACE:-mainnet-citus}"
+SNAPSHOT_ID="${SNAPSHOT_ID:-}"
+USE_STATIC_SNAPSHOT="${USE_STATIC_SNAPSHOT:-true}"
 
 function deleteBackupsFromSource() {
   local lines
@@ -266,6 +268,10 @@ function snapshotSource() {
 }
 
 function patchBackupPaths() {
+  if [[ "${USE_STATIC_SNAPSHOT}" == "true" ]]; then
+    return 0
+  fi
+
   local lines
   lines="$(
     jq -r '
@@ -332,11 +338,6 @@ function scaleupResources() {
 }
 
 function restoreTarget() {
-  if [[ -z "${SNAPSHOT_ID}" ]]; then
-    log "SNAPSHOT_ID is not set"
-    exit 1
-  fi
-
   PAUSE_CLUSTER="true"
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
   configureAndValidateSnapshotRestore
@@ -519,14 +520,14 @@ function getHpaMaxReplicas() {
   kubectl get hpa "${hpaName}" -n "${namespace}" -o jsonpath='{.spec.maxReplicas}' 2>/dev/null || true
 }
 
-function restoreEnvironment() {
+function copyLiveEnvironment() {
   if [[ "${RESTORE}" != "true" ]]; then
     return 0
   fi
 
   ensureContext K8S_SOURCE_CLUSTER_CONTEXT
-
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
+
   if [[ $(kubectl get nodes -o json | jq '.items | length') != 0 ]]; then
     log "There are GKE nodes in the target cluster, please teardown the environment before any restore attempt."
     exit 1
@@ -699,8 +700,16 @@ function waitForHelmReleaseReady() {
   done
 }
 
-ensureContext K8S_TARGET_CLUSTER_CONTEXT
-restoreEnvironment
+function createEnvironment() {
+  if [[ "${USE_STATIC_SNAPSHOT}" == "true" ]]; then
+    export KILL_IMPORTER_AFTER_READY="true"
+    restoreTarget
+  else
+    copyLiveEnvironment
+  fi
+}
+
+createEnvironment
 runAcceptanceTest
 runK6Test
 teardownResources
