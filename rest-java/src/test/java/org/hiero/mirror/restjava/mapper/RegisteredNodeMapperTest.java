@@ -29,7 +29,7 @@ final class RegisteredNodeMapperTest {
         // given
         final var serviceEndpoint = RegisteredServiceEndpoint.builder()
                 .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
-                        .endpointApi(RegisteredServiceEndpoint.BlockNodeApi.STATUS)
+                        .endpointApis(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
                         .build())
                 .ipAddress("127.0.0.1")
                 .port(443)
@@ -105,7 +105,7 @@ final class RegisteredNodeMapperTest {
 
         final var domainEndpoint = RegisteredServiceEndpoint.builder()
                 .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
-                        .endpointApi(RegisteredServiceEndpoint.BlockNodeApi.STATUS)
+                        .endpointApis(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
                         .build())
                 .ipAddress("10.0.0.1")
                 .port(8080)
@@ -123,7 +123,7 @@ final class RegisteredNodeMapperTest {
 
         final var domainEndpoint = RegisteredServiceEndpoint.builder()
                 .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
-                        .endpointApi(RegisteredServiceEndpoint.BlockNodeApi.STATUS)
+                        .endpointApis(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
                         .build())
                 .ipAddress("192.168.0.1")
                 .port(443)
