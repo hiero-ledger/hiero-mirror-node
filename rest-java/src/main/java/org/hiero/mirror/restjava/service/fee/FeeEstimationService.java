@@ -11,6 +11,7 @@ import com.hedera.hapi.node.base.Transaction;
 import com.hedera.hapi.node.transaction.SignedTransaction;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.util.UnknownHederaFunctionality;
+import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.fees.FeeManager;
 import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
 import com.hedera.node.app.spi.fees.FeeContext;
@@ -61,12 +62,22 @@ public class FeeEstimationService {
         this.feeTokenStore = feeTokenStore;
         this.lastFeeScheduleTimestamp = new AtomicLong(Long.MIN_VALUE);
 
+        final var executorConfig = new ConfigProviderImpl(
+                        false,
+                        null,
+                        Map.of(
+                                "fees.simpleFeesEnabled", "true",
+                                "hedera.shard",
+                                        String.valueOf(systemEntity
+                                                .addressBookFile102()
+                                                .getShard()),
+                                "hedera.realm",
+                                        String.valueOf(systemEntity
+                                                .addressBookFile102()
+                                                .getRealm())))
+                .getConfiguration();
         this.executor = TRANSACTION_EXECUTORS.newExecutorComponent(
-                feeEstimationState,
-                Map.of(),
-                null,
-                Set.of(),
-                new AppEntityIdFactory(FeeEstimationFeeContext.CONFIGURATION));
+                feeEstimationState, Map.of(), null, Set.of(), new AppEntityIdFactory(executorConfig));
         executor.stateNetworkInfo().initFrom(feeEstimationState);
         this.feeManager = Objects.requireNonNull(executor.feeManager());
     }
