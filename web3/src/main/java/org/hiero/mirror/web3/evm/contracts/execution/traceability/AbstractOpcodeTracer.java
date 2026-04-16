@@ -99,7 +99,8 @@ public abstract class AbstractOpcodeTracer {
                 context.getOpcodeContext().setRootProxyWorldUpdater(rootProxyWorldUpdater);
             }
 
-            final var rootProxyWorldUpdater = context.getOpcodeContext().getRootProxyWorldUpdater();
+            final var opcodeCtx = context.getOpcodeContext();
+            final var rootProxyWorldUpdater = opcodeCtx.getRootProxyWorldUpdater();
             final var updates = rootProxyWorldUpdater
                     .getEvmFrameState()
                     .getTxStorageUsage(true)
@@ -108,6 +109,19 @@ public abstract class AbstractOpcodeTracer {
             if (updates.isEmpty()) {
                 return Collections.emptyMap();
             }
+
+            // Count total accesses across all contracts to detect whether storage has changed
+            // since the last snapshot. This O(n_contracts) loop is far cheaper than rebuilding
+            // the TreeMap (O(n_accesses × log n)) on every opcode.
+            int totalAccesses = 0;
+            for (final var storageAccesses : updates) {
+                totalAccesses += storageAccesses.accesses().size();
+            }
+
+            if (totalAccesses == opcodeCtx.getLastStorageAccessCount()) {
+                return opcodeCtx.getCachedStorageSnapshot();
+            }
+            opcodeCtx.setLastStorageAccessCount(totalAccesses);
 
             final var result = new TreeMap<String, String>();
             for (final var storageAccesses : updates) {
@@ -121,6 +135,7 @@ public abstract class AbstractOpcodeTracer {
                     }
                 }
             }
+            opcodeCtx.setCachedStorageSnapshot(result);
             return result;
 
         } catch (final ModificationNotAllowedException e) {
