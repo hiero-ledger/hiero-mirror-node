@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import AddressBookServiceEndpointViewModel from './addressBookServiceEndpointViewModel';
 import AssessedCustomFeeViewModel from './assessedCustomFeeViewModel';
 import CustomFeeViewModel from './customFeeViewModel';
 import CustomFeeLimitsViewModel from './customFeeLimitsViewModel';
@@ -24,7 +23,6 @@ import BlockViewModel from './blockViewModel';
 import ContractStateViewModel from './contractStateViewModel';
 
 export {
-  AddressBookServiceEndpointViewModel,
   AssessedCustomFeeViewModel,
   CustomFeeViewModel,
   CustomFeeLimitsViewModel,
