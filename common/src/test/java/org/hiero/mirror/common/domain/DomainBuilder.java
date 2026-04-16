@@ -26,7 +26,10 @@ import com.hederahashgraph.api.proto.java.TransactionID;
 import jakarta.persistence.EntityManager;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.security.KeyPairGenerator;
 import java.security.SecureRandom;
+import java.security.Security;
+import java.security.spec.ECGenParameterSpec;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -45,6 +48,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
@@ -139,8 +144,6 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionOperations;
-import org.web3j.crypto.Keys;
-import org.web3j.utils.Numeric;
 
 @Component
 @CustomLog
@@ -152,6 +155,10 @@ public class DomainBuilder {
     public static final int KEY_LENGTH_ED25519 = 32;
 
     private static final long LAST_RESERVED_ID = 1000;
+
+    static {
+        Security.addProvider(new BouncyCastleProvider());
+    }
 
     private final CommonProperties commonProperties;
     private final EntityManager entityManager;
@@ -1424,11 +1431,13 @@ public class DomainBuilder {
 
     @SneakyThrows
     private ByteString generateSecp256k1Key() {
-        var keyPair = Keys.createEcKeyPair();
-        var publicKey = keyPair.getPublicKey();
+        final var keyPairGenerator = KeyPairGenerator.getInstance("EC", "BC");
+        keyPairGenerator.initialize(new ECGenParameterSpec("secp256k1"));
+        final var keyPair = keyPairGenerator.generateKeyPair();
 
-        // Convert BigInteger public key to a full 65-byte uncompressed key
-        var fullPublicKey = Numeric.hexStringToByteArray(Numeric.toHexStringWithPrefixZeroPadded(publicKey, 130));
+        // Extract the public key bytes (BouncyCastle gives us the 65-byte uncompressed key)
+        final var bcPublicKey = (BCECPublicKey) keyPair.getPublic();
+        final var fullPublicKey = bcPublicKey.getQ().getEncoded(false); // false = uncompressed (65 bytes)
 
         // Convert to compressed format (33 bytes)
         var prefix = (byte) (fullPublicKey[64] % 2 == 0 ? 0x02 : 0x03); // 0x02 for even Y, 0x03 for odd Y

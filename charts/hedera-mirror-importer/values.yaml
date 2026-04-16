@@ -146,7 +146,7 @@ livenessProbe:
   httpGet:
     path: /actuator/health/liveness
     port: http
-  initialDelaySeconds: 60
+  initialDelaySeconds: 0
   periodSeconds: 30
   timeoutSeconds: 2
 
@@ -442,7 +442,7 @@ readinessProbe:
   httpGet:
     path: /actuator/health/readiness
     port: http
-  initialDelaySeconds: 60
+  initialDelaySeconds: 0
   timeoutSeconds: 2
 
 replicas: 1
