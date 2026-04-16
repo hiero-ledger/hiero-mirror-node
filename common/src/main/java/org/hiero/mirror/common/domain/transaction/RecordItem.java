@@ -143,6 +143,15 @@ public class RecordItem implements StreamItem {
         }
         if (syntheticContractLogsBloom == null) {
             syntheticContractLogsBloom = new LogsBloomFilter();
+            if (transactionRecord.hasContractCreateResult()
+                    && !transactionRecord.getContractCreateResult().getBloom().isEmpty()) {
+                syntheticContractLogsBloom.or(
+                        transactionRecord.getContractCreateResult().getBloom().toByteArray());
+            } else if (transactionRecord.hasContractCallResult()
+                    && !transactionRecord.getContractCallResult().getBloom().isEmpty()) {
+                syntheticContractLogsBloom.or(
+                        transactionRecord.getContractCallResult().getBloom().toByteArray());
+            }
         }
         syntheticContractLogsBloom.or(bloom);
     }
