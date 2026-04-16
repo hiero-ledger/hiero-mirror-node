@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.jspecify.annotations.NullMarked;
@@ -43,9 +44,8 @@ abstract class AbstractBlockSource implements BlockSource {
         if (!properties.isPersistBytes()) {
             blockFile.setBytes(null);
 
-            final var recordFile = blockFile.getRecordFile();
-            if (recordFile != null) {
-                recordFile.setBytes(null);
+            if (blockFile.hasRecordFile()) {
+                blockFile.getRecordFile().setBytes(null);
             }
         }
 

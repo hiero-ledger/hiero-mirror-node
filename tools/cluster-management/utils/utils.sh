@@ -332,12 +332,20 @@ function resumeCommonChart() {
 
 function resumeKustomization() {
   log "Resuming kustomization ${KUSTOMIZATION_NAME} in namespace ${KUSTOMIZATION_NAMESPACE}"
-  flux resume kustomization "${KUSTOMIZATION_NAME}" -n "${KUSTOMIZATION_NAMESPACE}"
+  if kubectl get kustomizations -n "${KUSTOMIZATION_NAMESPACE}" "${KUSTOMIZATION_NAME}" >/dev/null; then
+    flux resume kustomization "${KUSTOMIZATION_NAME}" -n "${KUSTOMIZATION_NAMESPACE}"
+  else
+    log "No kustomization ${KUSTOMIZATION_NAME} in ${KUSTOMIZATION_NAMESPACE} skipping resume"
+  fi
 }
 
 function suspendKustomization() {
   log "Suspending kustomization ${KUSTOMIZATION_NAME} in namespace ${KUSTOMIZATION_NAMESPACE}"
-  flux suspend kustomization "${KUSTOMIZATION_NAME}" -n "${KUSTOMIZATION_NAMESPACE}"
+  if kubectl get kustomizations -n "${KUSTOMIZATION_NAMESPACE}" "${KUSTOMIZATION_NAME}" >/dev/null; then
+    flux suspend kustomization "${KUSTOMIZATION_NAME}" -n "${KUSTOMIZATION_NAMESPACE}"
+  else
+    log "No kustomization ${KUSTOMIZATION_NAME} in ${KUSTOMIZATION_NAMESPACE} skipping suspend"
+  fi
 }
 
 function unrouteTraffic() {
@@ -396,7 +404,12 @@ function routeTraffic() {
   checkCitusMetadataSyncStatus "${namespace}"
   runTestQueries "${namespace}"
   scaleDeployment "${namespace}" 1 "app.kubernetes.io/component=importer"
-  waitForRecordStreamSync "${namespace}"
+
+  if [[ "${KILL_IMPORTER_AFTER_READY}" == "true" ]]; then
+    scaleDeployment "${namespace}" 0 "app.kubernetes.io/component=importer"
+  else
+    waitForRecordStreamSync "${namespace}"
+  fi
 
   if [[ "${AUTO_UNROUTE}" == "true" ]]; then
     if kubectl get helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" >/dev/null; then
@@ -844,19 +857,23 @@ EOF
 }
 
 function pauseClustersIfNeeded() {
+  local skipCleanShutdown="${1:-false}"
   if [[ "${PAUSE_CLUSTER}" == "true" ]]; then
     for namespace in "${CITUS_NAMESPACES[@]}"; do
       unrouteTraffic "${namespace}"
-      pauseCitus "${namespace}"
+      pauseCitus "${namespace}" "${skipCleanShutdown}"
     done
   fi
+
 }
 
 function resumeClustersIfNeeded() {
+  local reinitializeCitus="${1:-false}"
+
   if [[ "${PAUSE_CLUSTER}" == "true" ]]; then
     for namespace in "${CITUS_NAMESPACES[@]}"; do
       log "Resuming Citus in namespace ${namespace}"
-      unpauseCitus "${namespace}" true
+      unpauseCitus "${namespace}" "${reinitializeCitus}"
       routeTraffic "${namespace}"
     done
   fi
@@ -901,5 +918,6 @@ PATRONI_MASTER_ROLE="${PATRONI_MASTER_ROLE:-Leader}"
 PAUSE_CLUSTER="${PAUSE_CLUSTER:-true}"
 STACKGRES_MASTER_LABELS="${STACKGRES_MASTER_LABELS:-app=StackGresCluster,role=master}"
 ZFS_POOL_NAME="${ZFS_POOL_NAME:-zfspv-pool}"
+KILL_IMPORTER_AFTER_READY="${KILL_IMPORTER_AFTER_READY:-false}"
 
 alias kubectl_common="kubectl -n ${COMMON_NAMESPACE}"

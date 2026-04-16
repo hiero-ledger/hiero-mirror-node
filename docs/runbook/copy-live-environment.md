@@ -16,14 +16,16 @@ Need to copy live environment with zero downtime on source
 - If you have multiple Citus clusters in the `target cluster`, you will need to restore all of them
 - All bash commands assume your working directory is `tools/cluster-management`
 - Only a single citus cluster is installed per namespace
+- If `USE_STATIC_SNAPSHOT` is true(default), the `SNAPSHOT_ID` must reference a snapshot created by running the [`volume-snapshot.sh`](../../tools/cluster-management/volume-snapshot.sh) script
 
 ## Steps
 
 1. Configure kubernetes context for source and target by setting `K8S_SOURCE_CLUSTER_CONTEXT` and `K8S_TARGET_CLUSTER_CONTEXT`
-2. By default, the script will copy the environment, run k6 tests, and leave the environment. Set the following
+2. By default, the script deploys a static snapshot specified using `SNAPSHOT_ID`, run k6 tests, and leave the environment. Set the following
    environment variables to a non-default value if needed
    - `DEFAULT_POOL_NAME`
    - `TEST_KUBE_TARGET_NAMESPACE`
+   - `USE_STATIC_SNAPSHOT` (will copy from live environment if set to false)
 3. Run script and follow along with all prompts. To auto confirm destructive operations, set `AUTO_CONFIRM=true`
 4. You can skip any prompts or inputs by setting the following variables. If they are not set you will be prompted for
    their values
@@ -31,6 +33,7 @@ Need to copy live environment with zero downtime on source
    - `GCP_TARGET_PROJECT`
    - `GCP_K8S_TARGET_CLUSTER_REGION`
    - `GCP_K8S_TARGET_CLUSTER_NAME`
+   - `SNAPSHOT_ID` (if `USE_STATIC_SNAPSHOT=true` - default is true)
 5. Use different combinations of `RESTORE` (default `true`), `RUN_K6_TEST` (default `true`), and `TEARDOWN_TARGET`
    (default `false`) for different tasks. Examples:
    - `TEARDOWN_TARGET=true`: Copy the environment, run k6 tests, and tear down the target cluster

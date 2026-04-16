@@ -29,6 +29,7 @@
         "consensus_timestamp": "987654000123012",
         "entity_id": "5001",
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "transaction_type": 17
       }
     ]

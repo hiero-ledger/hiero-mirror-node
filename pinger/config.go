@@ -12,8 +12,8 @@ import (
 )
 
 type config struct {
-	network      string
-	mirrorRest   string // only used when network=other
+	network    string
+	mirrorRest string // only used when network=other
 
 	operatorID  string
 	operatorKey string
@@ -24,6 +24,10 @@ type config struct {
 
 	maxRetries  int
 	baseBackoff time.Duration
+
+	mirrorNodeClientMaxRetries  int
+	mirrorNodeClientBaseBackoff time.Duration
+	mirrorNodeClientTimeout     time.Duration
 }
 
 func loadConfig() (config, error) {
@@ -65,6 +69,31 @@ func loadConfig() (config, error) {
 	backoffStr := envOr("HIERO_MIRROR_PINGER_BASE_BACKOFF", "2s")
 	flag.DurationVar(&cfg.baseBackoff, "base-backoff", toDuration(backoffStr), "base backoff for retries (e.g. 1s, 500ms)")
 
+	mirrorNodeClientMaxRetriesStr := envOr("HIERO_MIRROR_PINGER_MIRROR_NODE_CLIENT_MAX_RETRIES", "10")
+	flag.Func("mirror-node-client-max-retries", "max retries for mirror node client requests", func(s string) error {
+		v, err := strconv.Atoi(s)
+		if err != nil {
+			return err
+		}
+		cfg.mirrorNodeClientMaxRetries = v
+		return nil
+	})
+	_ = flag.CommandLine.Set("mirror-node-client-max-retries", mirrorNodeClientMaxRetriesStr)
+
+	mirrorNodeClientBaseBackoffStr := envOr("HIERO_MIRROR_PINGER_MIRROR_NODE_CLIENT_BASE_BACKOFF", "500ms")
+	flag.DurationVar(
+		&cfg.mirrorNodeClientBaseBackoff,
+		"mirror-node-client-base-backoff",
+		toDuration(mirrorNodeClientBaseBackoffStr),
+		"base backoff for mirror node client retries (e.g. 500ms, 1s)")
+
+	mirrorNodeClientTimeoutStr := envOr("HIERO_MIRROR_PINGER_MIRROR_NODE_CLIENT_TIMEOUT", "10s")
+	flag.DurationVar(
+		&cfg.mirrorNodeClientTimeout,
+		"mirror-node-client-retry-timeout",
+		toDuration(mirrorNodeClientTimeoutStr),
+		"HTTP timeout for mirror node client requests (e.g. 2s, 10s)")
+
 	flag.Parse()
 
 	// validate
@@ -90,6 +119,15 @@ func loadConfig() (config, error) {
 	}
 	if cfg.baseBackoff <= 0 {
 		cfg.baseBackoff = 1 * time.Second
+	}
+	if cfg.mirrorNodeClientMaxRetries < 0 {
+		cfg.mirrorNodeClientMaxRetries = 0
+	}
+	if cfg.mirrorNodeClientBaseBackoff <= 0 {
+		cfg.mirrorNodeClientBaseBackoff = 500 * time.Millisecond
+	}
+	if cfg.mirrorNodeClientTimeout <= 0 {
+		cfg.mirrorNodeClientTimeout = 10 * time.Second
 	}
 
 	if cfg.network == "other" && strings.TrimSpace(cfg.mirrorRest) == "" {
