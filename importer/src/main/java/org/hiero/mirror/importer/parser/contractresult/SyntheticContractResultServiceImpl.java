@@ -44,6 +44,11 @@ public class SyntheticContractResultServiceImpl implements SyntheticContractResu
         contractResult.setTransactionNonce(transactionBody.getTransactionID().getNonce());
         contractResult.setTransactionResult(transactionRecord.getReceipt().getStatusValue());
 
+        var mergedSyntheticBloom = recordItem.getMergedSyntheticContractLogsBloom();
+        if (mergedSyntheticBloom != null) {
+            contractResult.setBloom(mergedSyntheticBloom);
+        }
+
         entityListener.onContractResult(contractResult);
     }
 

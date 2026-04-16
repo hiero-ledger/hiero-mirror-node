@@ -45,6 +45,7 @@ import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.data.util.Version;
 
 @Builder(buildMethodName = "buildInternal")
@@ -123,6 +124,34 @@ public class RecordItem implements StreamItem {
     @NonFinal
     @Setter
     private ArrayDeque<AbstractHook.Id> hookExecutionQueue;
+
+    /**
+     * Bitwise OR of all synthetic contract log blooms for this record item (Ethereum receipt semantics).
+     */
+    @NonFinal
+    private LogsBloomFilter syntheticContractLogsBloom;
+
+    /**
+     * Merges a synthetic contract log bloom into the aggregate for this record item (bitwise OR).
+     *
+     * @param bloom bloom bytes; must be {@link LogsBloomFilter#BYTE_SIZE} bytes to be merged
+     */
+    public void mergeSyntheticContractLogBloom(byte[] bloom) {
+        if (bloom == null || bloom.length != LogsBloomFilter.BYTE_SIZE) {
+            return;
+        }
+        if (syntheticContractLogsBloom == null) {
+            syntheticContractLogsBloom = new LogsBloomFilter();
+        }
+        syntheticContractLogsBloom.or(bloom);
+    }
+
+    /**
+     * @return the merged synthetic contract log blooms, or {@code null} if none were recorded
+     */
+    public byte[] getMergedSyntheticContractLogsBloom() {
+        return syntheticContractLogsBloom != null ? syntheticContractLogsBloom.toArrayUnsafe() : null;
+    }
 
     /**
      * Gets the next hook context from the execution queue. Returns null if no more contexts are available.

@@ -29,6 +29,7 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.migration.SidecarContractMigration;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
@@ -245,7 +246,8 @@ final class ContractResultServiceImpl implements ContractResultService {
         }
 
         if (isContractFunctionResultSet(functionResult)) {
-            contractResult.setBloom(DomainUtils.toBytes(functionResult.getBloom()));
+            contractResult.setBloom(mergeReceiptBloom(
+                    DomainUtils.toBytes(functionResult.getBloom()), recordItem.getMergedSyntheticContractLogsBloom()));
             contractResult.setCallResult(DomainUtils.toBytes(functionResult.getContractCallResult()));
             contractResult.setCreatedContractIds(contractIds);
             contractResult.setErrorMessage(functionResult.getErrorMessage());
@@ -278,6 +280,22 @@ final class ContractResultServiceImpl implements ContractResultService {
                 entityListener.onEntity(entity);
             });
         }
+    }
+
+    /**
+     * Combines the receipt bloom from the function result with the bitwise OR of all synthetic contract log blooms
+     * for this transaction (Ethereum log bloom aggregation).
+     */
+    private byte[] mergeReceiptBloom(byte[] functionResultBloom, byte[] mergedSyntheticBloom) {
+        if (mergedSyntheticBloom == null) {
+            return functionResultBloom;
+        }
+        var filter = new LogsBloomFilter();
+        if (functionResultBloom != null && functionResultBloom.length > 0) {
+            filter.or(functionResultBloom);
+        }
+        filter.or(mergedSyntheticBloom);
+        return filter.toArrayUnsafe();
     }
 
     private void processContractLogs(
