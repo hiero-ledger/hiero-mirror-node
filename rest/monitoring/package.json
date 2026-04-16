@@ -28,6 +28,9 @@
   "devDependencies": {
     "nodemon": "3.1.14"
   },
+  "overrides": {
+    "brace-expansion": "5.0.5"
+  },
   "peerDependencies": {
     "debug": "4.4.3"
   }
