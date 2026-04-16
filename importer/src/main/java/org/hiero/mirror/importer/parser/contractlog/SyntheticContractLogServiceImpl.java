@@ -32,8 +32,10 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         var recordItem = log.getRecordItem();
         var contractRelatedParentRecordItem = recordItem.getContractRelatedParent();
 
-        // We will backfill any EVM-related fungible token transfers that don't have synthetic events produced by CN
-        if (isContract(recordItem) && shouldSkipLogCreationForContractTransfer(log)) {
+        // We will either backfill any EVM-related fungible token transfers that don't have synthetic events produced by
+        // CN
+        // or create synthetic logs for HAPI-related transfer events
+        if (shouldSkipLogCreation(log)) {
             return;
         }
 
@@ -50,12 +52,11 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
             transactionHash = contractRelatedParentRecordItem.getTransactionHash();
 
             final var parentTransactionRecord = contractRelatedParentRecordItem.getTransactionRecord();
-            if (parentTransactionRecord.hasContractCallResult()) {
+            if (parentTransactionRecord.hasContractCallResult() || parentTransactionRecord.hasContractCreateResult()) {
                 contractId = EntityId.of(
                         parentTransactionRecord.getContractCallResult().getContractID());
             } else {
-                contractId = EntityId.of(
-                        parentTransactionRecord.getContractCreateResult().getContractID());
+                contractId = EntityId.EMPTY;
             }
 
             final var parentTransactionBody = contractRelatedParentRecordItem.getTransactionBody();
@@ -102,22 +103,25 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
                 || recordItem.getTransactionRecord().hasContractCreateResult();
     }
 
-    private boolean shouldSkipLogCreationForContractTransfer(SyntheticContractLog syntheticLog) {
-        if (!(syntheticLog instanceof TransferContractLog)) {
-            // Only TransferContractLog synthetic event creation is supported for an operation with contract origin
+    private boolean shouldSkipLogCreation(SyntheticContractLog syntheticLog) {
+        final var contractOrigin = isContract(syntheticLog.getRecordItem());
+        if (contractOrigin && !(syntheticLog instanceof TransferContractLog)) {
+            // Only TransferContractLog synthetic log creation is supported for an operation with contract origin
             return true;
         }
 
-        var recordItem = syntheticLog.getRecordItem();
+        final var recordItem = syntheticLog.getRecordItem();
 
-        int tokenTransfersCount = recordItem.getTransactionRecord().getTokenTransferListsCount();
+        final var tokenTransfersCount = recordItem.getTransactionRecord().getTokenTransferListsCount();
         if (tokenTransfersCount > 2 && !entityProperties.getPersist().isSyntheticContractLogsMulti()) {
             // We have a multi-party fungible transfer scenario and synthetic event creation for
-            // such transfers is disabled
+            // such transfers is disabled. We should skip this case no matter if the log is from HAPI or contract
+            // origin.
             return true;
         }
 
-        // Skip synthetic log creation for HAPI versions >= 0.71.0 as the logs are already imported by consensus nodes
-        return recordItem.getHapiVersion().isGreaterThanOrEqualTo(HAPI_SYNTHETIC_LOG_VERSION);
+        // Skip synthetic log creation for events with contract origin with HAPI versions >= 0.71.0 as the logs are
+        // already imported by consensus nodes. We should create logs for events with HAPI origin for any HAPI version.
+        return contractOrigin && recordItem.getHapiVersion().isGreaterThanOrEqualTo(HAPI_SYNTHETIC_LOG_VERSION);
     }
 }
