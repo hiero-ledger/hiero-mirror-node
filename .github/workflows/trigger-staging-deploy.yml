@@ -16,6 +16,7 @@ jobs:
   run-reusable-copy:
     uses: hiero-ledger/hiero-mirror-node/.github/workflows/copy-stackgres-cluster.yml@main
     with:
+      run_acceptance_test: false
       source_cluster_location: "us-central1"
       source_cluster_name: "mainnet-na"
       source_project: "prod"
