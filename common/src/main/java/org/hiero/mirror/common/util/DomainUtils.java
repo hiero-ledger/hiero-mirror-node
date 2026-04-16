@@ -13,20 +13,17 @@ import com.google.protobuf.UnsafeByteOperations;
 import com.hedera.services.stream.proto.HashObject;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
-import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.binary.Hex;
@@ -36,11 +33,9 @@ import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.transaction.ContractAccountResolver;
 import org.hiero.mirror.common.domain.transaction.ContractSlotKey;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.exception.ProtobufException;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 @CustomLog
@@ -366,145 +361,6 @@ public class DomainUtils {
         final var trimmed = trim(value);
 
         return trimmed == value ? data : BytesValue.of(trimmed);
-    }
-
-    /**
-     * Matches when the log topic and synthetic topic resolve to the same account number ({@link EntityId#getNum()}).
-     * Both sides are resolved through {@link ContractAccountResolver}, so that address values are always resolved
-     * to account number before comparing.
-     */
-    public static boolean contractLogTopicsAndDataMatches(
-            ContractLoginfo log,
-            byte[] topic0,
-            byte[] topic1,
-            byte[] topic2,
-            byte[] topic3,
-            byte[] data,
-            @NonNull ContractAccountResolver accountResolver) {
-        var topicList = log.getTopicList();
-        int topicCount = topicList.size();
-        return trimmedByteStringEquals(topicCount > 0 ? topicList.get(0) : null, topic0)
-                && transferIndexedAddressTopicMatches(topicCount > 1 ? topicList.get(1) : null, topic1, accountResolver)
-                && transferIndexedAddressTopicMatches(topicCount > 2 ? topicList.get(2) : null, topic2, accountResolver)
-                && trimmedByteStringEquals(topicCount > 3 ? topicList.get(3) : null, topic3)
-                && trimmedByteStringEquals(log.getData(), data);
-    }
-
-    private static boolean transferIndexedAddressTopicMatches(
-            @Nullable ByteString contractResultTopic,
-            byte[] syntheticTopic,
-            @NonNull ContractAccountResolver accountResolver) {
-        if (trimmedByteStringEquals(contractResultTopic, syntheticTopic)) {
-            return true;
-        }
-
-        var contractResultLogTrimmed = trimmedLogTopicBytes(contractResultTopic);
-        var contractResultLogEntity = resolveTransferIndexedAccount(contractResultLogTrimmed, accountResolver);
-        if (contractResultLogEntity.isEmpty()) {
-            // Deliberately return true, since we were not able to successfully resolve the alias/evm_address to account
-            // num
-            // and we can't properly compare the existing and synthetically created topics. It's safer to return true
-            // and skip the synthetic log creation.
-            return true;
-        }
-
-        var syntheticLogEntity = convertAccountNumBytesToEntity(syntheticTopic);
-
-        if (syntheticLogEntity.isEmpty()) {
-            return false;
-        }
-        return accountNumsEqual(contractResultLogEntity.get(), syntheticLogEntity.get());
-    }
-
-    public static Optional<EntityId> convertAccountNumBytesToEntity(byte[] accountAddress) {
-        if (accountAddress == null) {
-            return Optional.empty();
-        }
-
-        if (accountAddress.length <= 16) {
-            if (accountAddress.length == 0 || accountAddress.length > Long.BYTES) {
-                return Optional.empty();
-            }
-
-            final var paddedAddress = new byte[Long.BYTES];
-
-            // zero-pad on the left
-            System.arraycopy(
-                    accountAddress, 0, paddedAddress, Long.BYTES - accountAddress.length, accountAddress.length);
-
-            final var accountNum =
-                    ByteBuffer.wrap(paddedAddress).order(ByteOrder.BIG_ENDIAN).getLong();
-
-            final var common = CommonProperties.getInstance();
-            try {
-                return Optional.of(EntityId.of(common.getShard(), common.getRealm(), accountNum));
-            } catch (InvalidEntityException e) {
-                return Optional.empty();
-            }
-        }
-
-        return Optional.empty();
-    }
-
-    private static byte[] trimmedLogTopicBytes(@Nullable ByteString logTopic) {
-        if (logTopic == null || logTopic.isEmpty()) {
-            return ArrayUtils.EMPTY_BYTE_ARRAY;
-        }
-        return trim(toBytes(logTopic));
-    }
-
-    /**
-     * Resolves an account part of a topic into an entity, including account num
-     */
-    private static Optional<EntityId> resolveTransferIndexedAccount(
-            byte[] trimmedTopic, ContractAccountResolver accountResolver) {
-        if (trimmedTopic.length == 0) {
-            return Optional.of(EntityId.EMPTY);
-        }
-        return accountResolver.lookup(trimmedTopic);
-    }
-
-    private static boolean accountNumsEqual(EntityId firstEntity, EntityId secondEntity) {
-        if (EntityId.isEmpty(firstEntity) && EntityId.isEmpty(secondEntity)) {
-            return true;
-        }
-        if (EntityId.isEmpty(firstEntity) || EntityId.isEmpty(secondEntity)) {
-            return false;
-        }
-        return firstEntity.getNum() == secondEntity.getNum();
-    }
-
-    /**
-     * Compares ByteString to byte[] trim-aware (leading zeros in ByteString skipped), without allocating.
-     */
-    private static boolean trimmedByteStringEquals(ByteString bs, byte[] arr) {
-        if (bs == null && arr == null) {
-            return true;
-        } else if (bs == null || arr == null) {
-            return false;
-        }
-
-        if (bs.isEmpty()) {
-            return arr.length == 0;
-        }
-        int start = 0;
-        int n = bs.size();
-        while (start < n && bs.byteAt(start) == 0) {
-            start++;
-        }
-        int trimmedLen = n - start;
-        if (trimmedLen == 0) {
-            return arr.length == 0;
-        }
-        if (trimmedLen != arr.length) {
-            return false;
-        }
-        for (int i = 0; i < arr.length; i++) {
-            if (bs.byteAt(start + i) != arr[i]) {
-                return false;
-            }
-        }
-        return true;
     }
 
     public static byte[] toEvmAddress(ContractID contractId) {

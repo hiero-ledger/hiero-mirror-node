@@ -8,7 +8,6 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
-import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -85,10 +84,6 @@ public class RecordItem implements StreamItem {
     private final int transactionType;
 
     @Setter
-    @NonFinal
-    private List<ContractLoginfo> contractLogs;
-
-    @Setter
     @EqualsAndHashCode.Exclude
     @NonFinal
     private AtomicInteger logIndex;
@@ -139,47 +134,6 @@ public class RecordItem implements StreamItem {
             return parent != null ? parent.nextHookContext() : null;
         }
         return hookExecutionQueue.poll();
-    }
-
-    /**
-     * @param accountResolver when non-null, {@code topic1}/{@code topic2} on stored logs may be resolved as account
-     *                        aliases or EVM addresses and compared to the synthetic topics by account number only.
-     */
-    public boolean consumeMatchingContractLog(
-            byte[] topic0,
-            byte[] topic1,
-            byte[] topic2,
-            byte[] topic3,
-            byte[] data,
-            ContractAccountResolver accountResolver) {
-        if (contractLogs != null && !contractLogs.isEmpty()) {
-            for (int i = 0; i < contractLogs.size(); i++) {
-                if (DomainUtils.contractLogTopicsAndDataMatches(
-                        contractLogs.get(i), topic0, topic1, topic2, topic3, data, accountResolver)) {
-                    contractLogs.remove(i);
-                    return true;
-                }
-            }
-        }
-
-        final var parentContractRelatedItem = getContractRelatedParent();
-        if (parentContractRelatedItem != null) {
-            final var parentContractLogs = parentContractRelatedItem.getContractLogs();
-
-            if (parentContractLogs == null || parentContractLogs.isEmpty()) {
-                return false;
-            }
-
-            for (int i = 0; i < parentContractLogs.size(); i++) {
-                if (DomainUtils.contractLogTopicsAndDataMatches(
-                        parentContractLogs.get(i), topic0, topic1, topic2, topic3, data, accountResolver)) {
-                    parentContractLogs.remove(i);
-                    parentContractRelatedItem.setContractLogs(parentContractLogs);
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     public void addContractTransaction(EntityId entityId) {
@@ -347,8 +301,6 @@ public class RecordItem implements StreamItem {
                 transactionRecord = transactionRecordBuilder.build();
             }
 
-            this.contractLogs = parseContractLogs();
-
             parseTransaction();
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
             this.parent = parseParent();
@@ -357,17 +309,6 @@ public class RecordItem implements StreamItem {
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
             return buildInternal();
-        }
-
-        private List<ContractLoginfo> parseContractLogs() {
-            if (transactionRecord.hasContractCallResult()) {
-                return new ArrayList<>(transactionRecord.getContractCallResult().getLogInfoList());
-            } else if (transactionRecord.hasContractCreateResult()) {
-                return new ArrayList<>(
-                        transactionRecord.getContractCreateResult().getLogInfoList());
-            }
-
-            return Collections.emptyList();
         }
 
         public RecordItemBuilder transactionRecord(TransactionRecord transactionRecord) {
