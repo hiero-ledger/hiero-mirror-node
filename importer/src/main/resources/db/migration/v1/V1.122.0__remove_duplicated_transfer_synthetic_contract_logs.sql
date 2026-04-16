@@ -6,6 +6,7 @@ AND LENGTH(cl_dup.data) != 32
     SELECT 1
     FROM contract_log cl_orig
     WHERE cl_orig.consensus_timestamp = cl_dup.consensus_timestamp
+      AND cl_orig.consensus_timestamp > 1772316000000000000
       AND cl_orig.topic0 = '\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
       AND cl_orig.topic1 IS NOT DISTINCT FROM cl_dup.topic1
       AND cl_orig.topic2 IS NOT DISTINCT FROM cl_dup.topic2
