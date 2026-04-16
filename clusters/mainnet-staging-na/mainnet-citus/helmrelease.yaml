@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.152.0-rc1'
+      version: '0.153.0-rc1'
   dependsOn:
     - name: mirror
       namespace: common
@@ -46,6 +46,7 @@ spec:
   values:
     importer:
       env:
+        HIERO_MIRROR_IMPORTER_DB_PARTITION_ENABLED: "false"
         HIERO_MIRROR_IMPORTER_MIGRATION_BACKFILLTRANSACTIONHASHMIGRATION_PARAMS_STARTTIMESTAMP: "0"
         HIERO_MIRROR_IMPORTER_NETWORK: "MAINNET"
         HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_ENTITYNFTTRANSACTIONS: "true"
@@ -65,6 +66,7 @@ spec:
     rest:
       env:
         HIERO_MIRROR_REST_CACHE_RESPONSE_ENABLED: "false"
+        HIERO_MIRROR_REST_QUERY_BINDTIMESTAMPRANGE: "false"
       hpa:
         metrics:
           - type: Resource
