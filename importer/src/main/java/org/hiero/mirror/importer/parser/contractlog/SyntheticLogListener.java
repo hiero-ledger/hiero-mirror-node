@@ -16,10 +16,12 @@ import jakarta.inject.Named;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
@@ -69,9 +72,50 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         final var keys = parserContext.getEvmAddressLookupIds();
         final var entityMap = getEvmCache().getAll(keys);
 
-        for (var updater : logUpdaters) {
+        final var recordItemsWithSyntheticBloom = new HashSet<RecordItem>();
+        for (final var updater : logUpdaters) {
             updater.updateContractLog(entityMap);
+
+            // Merge ContractLog bloom into RecordItem
+            final var item = updater.getRecordItem();
+            final var contractLog = updater.getContractLog();
+            if (item != null && contractLog != null && contractLog.getBloom() != null) {
+                item.mergeSyntheticContractLogBloom(contractLog.getBloom());
+                recordItemsWithSyntheticBloom.add(item);
+            }
         }
+
+        aggregateBloomsIntoRecordFile(recordItemsWithSyntheticBloom);
+    }
+
+    private void aggregateBloomsIntoRecordFile(Set<RecordItem> recordItemsWithSyntheticBloom) {
+        if (recordItemsWithSyntheticBloom.isEmpty()) {
+            return;
+        }
+
+        final var recordFiles = parserContext.get(RecordFile.class);
+        if (recordFiles.isEmpty()) {
+            return;
+        }
+
+        final var recordFile = recordFiles.iterator().next();
+        final var aggregatedBloom = new LogsBloomFilter();
+
+        final var existingBloom = recordFile.getLogsBloom();
+        if (existingBloom != null
+                && existingBloom.length == LogsBloomFilter.BYTE_SIZE
+                && !existingBloom.equals(ArrayUtils.EMPTY_BYTE_ARRAY)) {
+            aggregatedBloom.or(existingBloom);
+        }
+
+        for (final var item : recordItemsWithSyntheticBloom) {
+            final var syntheticBloom = item.getMergedSyntheticContractLogsBloom();
+            if (syntheticBloom != null && syntheticBloom.length == LogsBloomFilter.BYTE_SIZE) {
+                aggregatedBloom.or(syntheticBloom);
+            }
+        }
+
+        recordFile.setLogsBloom(aggregatedBloom.toArrayUnsafe());
     }
 
     @Override
@@ -81,7 +125,14 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             var senderId = fromTrimmedEvmAddress(contractLog.getTopic1());
             var receiverId = fromTrimmedEvmAddress(contractLog.getTopic2());
             if (!(EntityId.isEmpty(contractId) && EntityId.isEmpty(senderId) && EntityId.isEmpty(receiverId))) {
-                final var updater = new SyntheticLogUpdater(contractId, senderId, receiverId, contractLog);
+                final var updater = new SyntheticLogUpdater(
+                        contractId,
+                        senderId,
+                        receiverId,
+                        contractLog,
+                        contractLog.getRecordItem(),
+                        parserContext,
+                        getEvmCache());
                 updater.populateSearchIds();
                 parserContext.addTransient(updater);
             }
@@ -130,12 +181,16 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         }
     }
 
+    @Getter(AccessLevel.PACKAGE)
     @RequiredArgsConstructor
-    class SyntheticLogUpdater {
+    static class SyntheticLogUpdater {
         private final EntityId contractId;
         private final EntityId sender;
         private final EntityId receiver;
         private final ContractLog contractLog;
+        private final RecordItem recordItem;
+        private final ParserContext parserContext;
+        private final LoadingCache<Long, byte[]> evmCache;
 
         public void populateSearchIds() {
             if (!EntityId.isEmpty(contractId)) {
@@ -157,7 +212,8 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
 
             var contractAddress = getContractAddress(contractId, entityEvmAddresses);
             if (Arrays.equals(CONTRACT_LOG_MARKER, contractLog.getBloom())) {
-                contractLog.setBloom(createBloom(contractAddress));
+                var bloom = createBloom(contractAddress);
+                contractLog.setBloom(bloom);
             }
         }
 
@@ -182,12 +238,12 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             var contextEntity = parserContext.get(Entity.class, contractEntityId.getId());
             if (contextEntity != null && !ArrayUtils.isEmpty(contextEntity.getEvmAddress())) {
                 var trimmedEvmAddress = trim(contextEntity.getEvmAddress());
-                getEvmCache().put(contractEntityId.getId(), trimmedEvmAddress);
+                evmCache.put(contractEntityId.getId(), trimmedEvmAddress);
                 return trimmedEvmAddress;
             }
 
             var longZeroAddress = DomainUtils.toEvmAddress(contractEntityId);
-            getEvmCache().put(contractEntityId.getId(), longZeroAddress);
+            evmCache.put(contractEntityId.getId(), longZeroAddress);
             return longZeroAddress;
         }
 
@@ -220,7 +276,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
                     var contextEntity = parserContext.get(Entity.class, key.getId());
                     if (contextEntity != null && !ArrayUtils.isEmpty(contextEntity.getEvmAddress())) {
                         var trimmedEvmAddress = trim(contextEntity.getEvmAddress());
-                        getEvmCache().put(key.getId(), trimmedEvmAddress);
+                        evmCache.put(key.getId(), trimmedEvmAddress);
                         setter.accept(trimmedEvmAddress);
                     } else {
                         /* The entity repository only returns rows that have a non-empty evm address
@@ -228,7 +284,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
                         entity does not have an evm address. In addition, we know the default value here
                         will be non-null as the key is derived from this value and is checked to be non-empty
                         */
-                        getEvmCache().put(key.getId(), defaultValue);
+                        evmCache.put(key.getId(), defaultValue);
                     }
                 }
             }

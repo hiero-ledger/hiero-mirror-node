@@ -287,7 +287,7 @@ final class ContractResultServiceImpl implements ContractResultService {
      * for this transaction (Ethereum log bloom aggregation).
      */
     private byte[] mergeReceiptBloom(byte[] functionResultBloom, byte[] mergedSyntheticBloom) {
-        if (mergedSyntheticBloom == null) {
+        if (mergedSyntheticBloom == null || mergedSyntheticBloom.length == 0) {
             return functionResultBloom;
         }
         var filter = new LogsBloomFilter();

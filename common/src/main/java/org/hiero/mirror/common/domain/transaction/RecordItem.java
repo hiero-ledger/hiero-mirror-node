@@ -37,6 +37,7 @@ import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.domain.contract.ContractTransaction;
@@ -150,7 +151,9 @@ public class RecordItem implements StreamItem {
      * @return the merged synthetic contract log blooms, or {@code null} if none were recorded
      */
     public byte[] getMergedSyntheticContractLogsBloom() {
-        return syntheticContractLogsBloom != null ? syntheticContractLogsBloom.toArrayUnsafe() : null;
+        return syntheticContractLogsBloom != null
+                ? syntheticContractLogsBloom.toArrayUnsafe()
+                : ArrayUtils.EMPTY_BYTE_ARRAY;
     }
 
     /**
