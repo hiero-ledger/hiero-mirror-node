@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
-import org.hiero.mirror.importer.EnabledIfV1;
+import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.junit.jupiter.api.Tag;
@@ -18,14 +18,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.util.StreamUtils;
 
-@EnabledIfV1
+@DisablePartitionMaintenance
+@DisableRepeatableSqlMigration
 @RequiredArgsConstructor
 @Tag("migration")
 class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends ImporterIntegrationTest {
 
-    private static final long MIGRATION_TIMESTAMP_THRESHOLD = 177231600000000000L;
+    private static final long MIGRATION_TIMESTAMP_THRESHOLD = 1772316000000000000L;
 
-    @Value("classpath:db/migration/v1/V1.121.0__remove_duplicated_transfer_synthetic_contract_logs.sql")
+    @Value("classpath:db/migration/v1/V1.122.0__remove_duplicated_transfer_synthetic_contract_logs.sql")
     private final Resource migrationSql;
 
     private final ContractLogRepository contractLogRepository;
