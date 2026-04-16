@@ -12,7 +12,7 @@ on:
         default: true
         type: boolean
       run_acceptance_test:
-        default: true
+        default: false
         type: boolean
       run_k6_test:
         default: true
@@ -29,6 +29,10 @@ on:
         type: string
         default: "prod"
         required: true
+      staging_snapshot_id:
+        description: "Snapshot ID override; defaults to vars.STAGING_SNAPSHOT_ID when empty"
+        required: false
+        type: string
       target_cluster_location:
         type: string
         default: "us-central1"
@@ -49,6 +53,9 @@ on:
         type: boolean
         default: false
         required: true
+      use_static_snapshot:
+        default: true
+        type: boolean
     secrets:
       GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID:
         required: true
@@ -86,6 +93,10 @@ on:
         options: [prod, nonprod]
         required: true
         type: choice
+      staging_snapshot_id:
+        description: "Snapshot ID override; defaults to vars.STAGING_SNAPSHOT_ID when empty"
+        required: false
+        type: string
       target_cluster_location:
         default: "us-central1"
         description: "Target: GKE location (zone or region)"
@@ -107,6 +118,11 @@ on:
       teardown_target:
         default: false
         description: "Tear down target cluster"
+        required: true
+        type: boolean
+      use_static_snapshot:
+        default: true
+        description: "Use a static snapshot (false will copy live environment)"
         required: true
         type: boolean
 
@@ -245,6 +261,8 @@ jobs:
         env:
           AUTO_CONFIRM: "true"
           DEFAULT_POOL_NAME: ${{ inputs.target_default_pool }}
+          SNAPSHOT_ID: ${{ inputs.use_static_snapshot && (inputs.staging_snapshot_id || vars.STAGING_SNAPSHOT_ID) || '' }}
+          USE_STATIC_SNAPSHOT: ${{ inputs.use_static_snapshot }}
         run: |
           set -Eeuo pipefail
           export PATH="${CLOUDSDK_BIN_DIR}:${PATH}"

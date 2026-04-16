@@ -91,6 +91,9 @@ gateway:
         {{- end }}
         - path:
             type: RegularExpression
+            value: '/api/v1/network/registered-nodes$'
+        - path:
+            type: RegularExpression
             value: '/api/v1/network/stake$'
         - path:
             type: RegularExpression
@@ -148,6 +151,7 @@ ingress:
         - path: '/api/v1/network/fees$'
         - path: '/api/v1/network/nodes$'
           condition: '{{ .Values.routes.network.nodes }}'
+        - path: '/api/v1/network/registered-nodes$'
         - path: '/api/v1/network/stake$'
         - path: '/api/v1/network/supply$'
         - path: '/api/v1/topics/(\d+\.){0,2}\d+$'
@@ -161,7 +165,7 @@ livenessProbe:
   httpGet:
     path: /actuator/health/liveness
     port: http
-  initialDelaySeconds: 50
+  initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 2
 
@@ -314,7 +318,7 @@ readinessProbe:
   httpGet:
     path: /actuator/health/readiness
     port: http
-  initialDelaySeconds: 40
+  initialDelaySeconds: 0
   timeoutSeconds: 2
 
 # Only set if HPA is disabled
@@ -353,6 +357,15 @@ serviceAccount:
 serviceMonitor:
   enabled: false
   interval: 30s
+
+startupProbe:
+  failureThreshold: 120
+  httpGet:
+    path: /actuator/health/liveness
+    port: http
+  initialDelaySeconds: 0
+  periodSeconds: 1
+  timeoutSeconds: 2
 
 terminationGracePeriodSeconds: 60
 

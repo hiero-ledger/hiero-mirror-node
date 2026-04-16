@@ -43,8 +43,9 @@ hiero:
 logging:
   level:
     root: warn
-    org.hiero.mirror.importer: info
+    org.hiero.mirror: info
     org.flywaydb.core.internal.command.DbMigrate: info
+    org.flywaydb.core.internal.scanner.classpath.ClassPathScanner: error
     #org.hibernate.type.descriptor.sql.BasicBinder: trace
   pattern:
     console: "%clr(%date{${LOG_DATEFORMAT_PATTERN:yyyy-MM-dd'T'HH:mm:ss.SSS}, UTC}Z){faint} %clr(${LOG_LEVEL_PATTERN:%5level}) %clr(%thread){magenta} %clr(%logger{20}){cyan} %m %exception%n"

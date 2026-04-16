@@ -13,7 +13,6 @@ import java.util.Collection;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.experimental.UtilityClass;
-import org.hiero.mirror.common.domain.ExcludeFromBuilders;
 
 @UtilityClass
 public class TestUtils {
@@ -29,9 +28,7 @@ public class TestUtils {
 
         for (var m : objectClass.getDeclaredMethods()) {
             try {
-                if (Modifier.isStatic(m.getModifiers())
-                        || !Modifier.isPublic(m.getModifiers())
-                        || m.isAnnotationPresent(ExcludeFromBuilders.class)) {
+                if (Modifier.isStatic(m.getModifiers()) || !Modifier.isPublic(m.getModifiers())) {
                     continue;
                 }
                 final var type = MethodType.methodType(returnType, objectClass);

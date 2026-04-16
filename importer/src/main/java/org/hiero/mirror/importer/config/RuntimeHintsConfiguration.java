@@ -55,7 +55,15 @@ final class RuntimeHintsConfiguration {
 
             registerVelocityHints(hints, loader);
 
-            registerResourcePatterns(hints, "db/migration/common/**", "db/migration/v1/**", "db/migration/v2/**");
+            registerResourcePatterns(
+                    hints,
+                    "addressbook/**",
+                    "accountInfo.txt.gz",
+                    "accountInfoContracts.txt",
+                    "db/migration/common/**",
+                    "db/migration/v1/**",
+                    "db/migration/v2/**",
+                    "errata/**");
         }
 
         private void registerVelocityHints(RuntimeHints hints, ClassLoader loader) {
