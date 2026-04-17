@@ -3022,6 +3022,7 @@ components:
       type: object
       required:
         - admin_key
+        - associated_registered_nodes
         - decline_reward
         - description
         - file_id
@@ -3043,6 +3044,12 @@ components:
       properties:
         admin_key:
           $ref: "#/components/schemas/Key"
+        associated_registered_nodes:
+          type: array
+          items:
+            format: int64
+            minimum: 0
+            type: integer
         decline_reward:
           description: Whether the node wants to receive staking rewards or not.
           nullable: true
@@ -3120,6 +3127,7 @@ components:
         admin_key:
           _type: "ED25519"
           key: "15706b229b3ba33d4a5a41ff54ce1cfe0a3d308672a33ff382f81583e02bd743"
+        associated_registered_nodes: [1, 10]
         decline_reward: false
         description: "address book 1"
         file_id: "0.0.102"
