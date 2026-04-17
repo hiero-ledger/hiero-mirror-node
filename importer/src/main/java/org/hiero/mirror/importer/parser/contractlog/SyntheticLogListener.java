@@ -212,8 +212,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
 
             var contractAddress = getContractAddress(contractId, entityEvmAddresses);
             if (Arrays.equals(CONTRACT_LOG_MARKER, contractLog.getBloom())) {
-                var bloom = createBloom(contractAddress);
-                contractLog.setBloom(bloom);
+                contractLog.setBloom(createBloom(contractAddress));
             }
         }
 
@@ -238,12 +237,12 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             var contextEntity = parserContext.get(Entity.class, contractEntityId.getId());
             if (contextEntity != null && !ArrayUtils.isEmpty(contextEntity.getEvmAddress())) {
                 var trimmedEvmAddress = trim(contextEntity.getEvmAddress());
-                evmCache.put(contractEntityId.getId(), trimmedEvmAddress);
+                getEvmCache().put(contractEntityId.getId(), trimmedEvmAddress);
                 return trimmedEvmAddress;
             }
 
             var longZeroAddress = DomainUtils.toEvmAddress(contractEntityId);
-            evmCache.put(contractEntityId.getId(), longZeroAddress);
+            getEvmCache().put(contractEntityId.getId(), longZeroAddress);
             return longZeroAddress;
         }
 

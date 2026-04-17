@@ -25,6 +25,7 @@ import org.hiero.mirror.common.domain.RecordItemBuilder.TransferType;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
@@ -82,7 +83,8 @@ final class SyntheticContractLogServiceImplTest {
     void createValid() {
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
-        verify(entityListener, times(1)).onContractLog(any());
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
     }
 
     @Test
@@ -93,7 +95,29 @@ final class SyntheticContractLogServiceImplTest {
                 EntityId.of(recordItem.getTransactionBody().getTransactionID().getAccountID());
         syntheticContractLogService.create(
                 new TransferIndexedContractLog(recordItem, entityTokenId, senderEntityId, receiverEntityId, amount));
-        verify(entityListener, times(1)).onContractLog(any());
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
+    }
+
+    @Test
+    @DisplayName("Should create synthetic contract log when parent has logs that don't match")
+    void createWhenParentLogsDoNotMatch() {
+        // Create a parent with contract logs that don't match the synthetic log
+        var parentRecordItem = recordItemBuilder.contractCall().build();
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                        .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
+                        .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentRecordItem))
+                .build();
+
+        // The parent has random logs that don't match the synthetic transfer log
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(parentRecordItem.getTransactionHash());
     }
 
     @Test
@@ -159,7 +183,8 @@ final class SyntheticContractLogServiceImplTest {
 
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
-        verify(entityListener, times(1)).onContractLog(any());
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(parentRecordItem.getTransactionHash());
     }
 
     @Test
@@ -209,7 +234,8 @@ final class SyntheticContractLogServiceImplTest {
 
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
-        verify(entityListener, times(1)).onContractLog(any());
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
     }
 
     @Test
@@ -231,7 +257,8 @@ final class SyntheticContractLogServiceImplTest {
 
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
-        verify(entityListener, times(1)).onContractLog(any());
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
     }
 
     @Test
@@ -469,7 +496,9 @@ final class SyntheticContractLogServiceImplTest {
 
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
-        verify(entityListener, times(1)).onContractLog(any());
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().getTransactionHash())
+                .isEqualTo(parentContractCallRecordItem.getTransactionHash());
     }
 
     @Test
@@ -635,9 +664,18 @@ final class SyntheticContractLogServiceImplTest {
                 .recordItem(r -> r.previous(firstChildContractCallRecordItem).hapiVersion(OLD_HAPI_VERSION))
                 .build();
 
+        syntheticContractLogService.create(
+                new TransferContractLog(firstChildContractCallRecordItem, entityTokenId, senderId, receiverId, amount));
         syntheticContractLogService.create(new TransferContractLog(
                 secondChildContractCallRecordItem, entityTokenId, senderId, receiverId, amount));
-        verify(entityListener, times(1)).onContractLog(any());
+
+        verify(entityListener, times(2)).onContractLog(contractLogCaptor.capture());
+        var capturedLogs = contractLogCaptor.getAllValues();
+
+        assertThat(capturedLogs.get(0).getTransactionHash())
+                .isEqualTo(firstChildContractCallRecordItem.getTransactionHash());
+        assertThat(capturedLogs.get(1).getTransactionHash())
+                .isEqualTo(secondChildContractCallRecordItem.getTransactionHash());
     }
 
     @Test
@@ -869,7 +907,8 @@ final class SyntheticContractLogServiceImplTest {
 
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
-        verify(entityListener, times(1)).onContractLog(any());
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(parentRecordItem.getTransactionHash());
     }
 
     @Test
@@ -900,7 +939,8 @@ final class SyntheticContractLogServiceImplTest {
 
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
-        verify(entityListener, times(1)).onContractLog(any());
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(parentRecordItem.getTransactionHash());
     }
 
     @Test
@@ -926,6 +966,69 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(0)).onContractLog(any());
+    }
+
+    @Test
+    @DisplayName(
+            "Should use EthereumTransaction hash for synthetic log when parent is EthereumTransaction with ContractCall and CryptoTransfer children")
+    void useEthereumTransactionHashForSyntheticLogWithContractCallAndCryptoTransferChildren() {
+        var hapiVersion069 = new Version(0, 69, 0);
+        byte[] ethereumHash = new byte[32];
+        Arrays.fill(ethereumHash, (byte) 0xAB);
+
+        var ethereumTransaction = EthereumTransaction.builder()
+                .consensusTimestamp(System.nanoTime())
+                .hash(ethereumHash)
+                .payerAccountId(EntityId.of(0, 0, 1000))
+                .build();
+
+        var parentEthereumTxRecordItem = recordItemBuilder
+                .ethereumTransaction()
+                .record(r -> r.setEthereumHash(ByteString.copyFrom(ethereumHash)))
+                .recordItem(r -> r.hapiVersion(hapiVersion069))
+                .build();
+        parentEthereumTxRecordItem.setEthereumTransaction(ethereumTransaction);
+
+        var parentTimestamp = parentEthereumTxRecordItem.getConsensusTimestamp();
+
+        var childContractCallTimestamp = parentTimestamp + 1;
+        var childContractCallRecordItem = recordItemBuilder
+                .contractCall(HTS_PRECOMPILE_CONTRACT_ADDRESS)
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(1))
+                        .setContractCallResult(
+                                ContractFunctionResult.newBuilder().setContractID(HTS_PRECOMPILE_CONTRACT_ADDRESS))
+                        .setConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(childContractCallTimestamp / 1_000_000_000)
+                                .setNanos((int) (childContractCallTimestamp % 1_000_000_000)))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(parentTimestamp / 1_000_000_000)
+                                .setNanos((int) (parentTimestamp % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentEthereumTxRecordItem).hapiVersion(hapiVersion069))
+                .build();
+
+        var childCryptoTransferTimestamp = childContractCallTimestamp + 1;
+        recordItem = recordItemBuilder
+                .cryptoTransfer(TransferType.TOKEN)
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(2))
+                        .setContractCallResult(
+                                ContractFunctionResult.newBuilder().setContractID(HTS_PRECOMPILE_CONTRACT_ADDRESS))
+                        .setConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(childCryptoTransferTimestamp / 1_000_000_000)
+                                .setNanos((int) (childCryptoTransferTimestamp % 1_000_000_000)))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(parentTimestamp / 1_000_000_000)
+                                .setNanos((int) (parentTimestamp % 1_000_000_000))))
+                .recordItem(r -> r.previous(childContractCallRecordItem).hapiVersion(hapiVersion069))
+                .build();
+
+        assertThat(recordItem.getContractRelatedParent()).isSameAs(parentEthereumTxRecordItem);
+        assertThat(parentEthereumTxRecordItem.getTransactionHash()).isEqualTo(ethereumHash);
+
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(ethereumHash);
     }
 
     private static AccountAmount tokenTransferWithZeroPaddedEvmAlias(byte[] evmAddress, long amount) {
