@@ -133,7 +133,8 @@ public class RecordItem implements StreamItem {
     private LogsBloomFilter syntheticContractLogsBloom;
 
     /**
-     * Merges a synthetic contract log bloom into the aggregate for this record item (bitwise OR).
+     * First initialize bloom with existing bloom from ContractResult, then merges a synthetic contract log bloom into
+     * the aggregate for this record item (bitwise OR).
      *
      * @param bloom bloom bytes; must be {@link LogsBloomFilter#BYTE_SIZE} bytes to be merged
      */

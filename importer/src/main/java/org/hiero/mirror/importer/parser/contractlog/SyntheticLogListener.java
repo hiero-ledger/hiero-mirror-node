@@ -104,7 +104,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         final var existingBloom = recordFile.getLogsBloom();
         if (existingBloom != null
                 && existingBloom.length == LogsBloomFilter.BYTE_SIZE
-                && !existingBloom.equals(ArrayUtils.EMPTY_BYTE_ARRAY)) {
+                && !Arrays.equals(existingBloom, ArrayUtils.EMPTY_BYTE_ARRAY)) {
             aggregatedBloom.or(existingBloom);
         }
 
