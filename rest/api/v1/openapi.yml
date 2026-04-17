@@ -3584,7 +3584,7 @@ components:
     RegisteredBlockNodeEndpoint:
       type: object
       properties:
-        endpoint_api:
+        endpoint_apis:
           type: array
           items:
             $ref: "#/components/schemas/RegisteredBlockNodeApi"
@@ -3648,7 +3648,11 @@ components:
     RegisteredServiceEndpoint:
       type: object
       required:
+        - block_node
+        - general_service
+        - mirror_node
         - port
+        - rpc_relay
         - requires_tls
         - type
       allOf:
@@ -3656,18 +3660,9 @@ components:
         - anyOf:
             - required: [domain_name]
             - required: [ip_address]
-        # Ensures at least one service-specific endpoint is present
-        - anyOf:
-            # - required: [block_node]
-            - required: [general_service]
-            - required: [mirror_node]
-            - required: [rpc_relay]
       properties:
-        # Comment out until RegisteredBlockNodeEndpoint.endpoint_api is made repeated
-        # in the registered_service_endpoint.proto file
-        # block_node:
-        # type: object
-        # $ref: "#/components/schemas/RegisteredBlockNodeEndpoint"
+        block_node:
+          $ref: "#/components/schemas/RegisteredBlockNodeEndpoint"
         domain_name:
           description: The DNS domain name of the service
           example: "block1.alpha.com"

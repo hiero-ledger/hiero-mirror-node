@@ -37,6 +37,7 @@ import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.node.RegisteredNodeType;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.FeeEstimateResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
@@ -1814,6 +1815,58 @@ final class NetworkControllerTest extends ControllerTest {
             assertThat(actual.getRegisteredNodes().get(0).getRegisteredNodeId()).isEqualTo(1L);
         }
 
+        @Test
+        void blockNodeWithMultipleEndpointApis() {
+            // given
+            final var expectedIp = "192.168.1.10";
+            final var expectedPort = 50211;
+            final var expectedRequiresTls = true;
+            final var expectedApis = List.of(
+                    RegisteredServiceEndpoint.BlockNodeApi.STATUS, RegisteredServiceEndpoint.BlockNodeApi.PUBLISH);
+
+            final var blockNodeEndpoint = RegisteredServiceEndpoint.builder()
+                    .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
+                            .endpointApis(expectedApis)
+                            .build())
+                    .ipAddress(expectedIp)
+                    .port(expectedPort)
+                    .requiresTls(expectedRequiresTls)
+                    .build();
+
+            domainBuilder
+                    .registeredNode()
+                    .customize(r -> r.registeredNodeId(100L)
+                            .type(List.of(RegisteredNodeType.BLOCK_NODE.getId()))
+                            .serviceEndpoints(List.of(blockNodeEndpoint)))
+                    .persist();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?type=BLOCK_NODE&registerednode.id=100")
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.RegisteredNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getRegisteredNodes()).isNotNull().hasSize(1);
+
+            final var blockNode = actual.getRegisteredNodes().get(0);
+            assertThat(blockNode.getServiceEndpoints()).isNotEmpty();
+
+            final var endpoint = blockNode.getServiceEndpoints().get(0);
+            assertThat(endpoint.getIpAddress()).isEqualTo(expectedIp);
+            assertThat(endpoint.getPort()).isEqualTo(expectedPort);
+            assertThat(endpoint.getRequiresTls()).isEqualTo(expectedRequiresTls);
+            assertThat(endpoint.getType()).isEqualTo(org.hiero.mirror.rest.model.RegisteredNodeType.BLOCK_NODE);
+
+            assertThat(endpoint.getBlockNode()).isNotNull();
+            assertThat(endpoint.getBlockNode().getEndpointApis())
+                    .containsExactly(
+                            org.hiero.mirror.rest.model.RegisteredBlockNodeApi.STATUS,
+                            org.hiero.mirror.rest.model.RegisteredBlockNodeApi.PUBLISH);
+        }
+
         @ParameterizedTest
         @ValueSource(
                 strings = {
@@ -2074,9 +2127,25 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private void setupRegisteredNodeData() {
+            final var ip = "192.168.1.10";
+            final var port = 50211;
+            final var requiresTls = true;
+            final var blockNodeEndpoint = RegisteredServiceEndpoint.builder()
+                    .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
+                            .endpointApis(List.of(
+                                    RegisteredServiceEndpoint.BlockNodeApi.STATUS,
+                                    RegisteredServiceEndpoint.BlockNodeApi.PUBLISH))
+                            .build())
+                    .ipAddress(ip)
+                    .port(port)
+                    .requiresTls(requiresTls)
+                    .build();
+
             domainBuilder
                     .registeredNode()
-                    .customize(r -> r.registeredNodeId(1L).type(List.of(RegisteredNodeType.BLOCK_NODE.getId())))
+                    .customize(r -> r.registeredNodeId(1L)
+                            .type(List.of(RegisteredNodeType.BLOCK_NODE.getId()))
+                            .serviceEndpoints(List.of(blockNodeEndpoint)))
                     .persist();
             domainBuilder
                     .registeredNode()
