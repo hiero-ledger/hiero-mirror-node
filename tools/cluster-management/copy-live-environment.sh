@@ -521,10 +521,6 @@ function getHpaMaxReplicas() {
 }
 
 function copyLiveEnvironment() {
-  if [[ "${RESTORE}" != "true" ]]; then
-    return 0
-  fi
-
   ensureContext K8S_SOURCE_CLUSTER_CONTEXT
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
 
@@ -552,6 +548,10 @@ function runK6Test() {
 
     log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${TEST_KUBE_TARGET_NAMESPACE}"
     flux suspend helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}"
+  fi
+
+  if [[ "${USE_STATIC_SNAPSHOT}" == "true" ]]; then
+    scaleDeployment "${TEST_KUBE_TARGET_NAMESPACE}" 0 "app.kubernetes.io/component=importer"
   fi
 
   testkube run testsuite "${K6_TEST_SUITE_NAME}"
@@ -701,8 +701,12 @@ function waitForHelmReleaseReady() {
 }
 
 function createEnvironment() {
+  if [[ "${RESTORE}" != "true" ]]; then
+    return 0
+  fi
+
   if [[ "${USE_STATIC_SNAPSHOT}" == "true" ]]; then
-    export KILL_IMPORTER_AFTER_READY="true"
+    export WAIT_FOR_STREAM_SYNC="false"
     restoreTarget
   else
     copyLiveEnvironment

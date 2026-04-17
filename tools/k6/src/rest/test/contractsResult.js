@@ -7,7 +7,8 @@ import {resultListName} from '../libex/constants.js';
 
 const urlTag = '/contracts/results';
 
-const getUrl = (testParameters) => `${urlTag}?limit=${testParameters['DEFAULT_LIMIT']}`;
+const getUrl = (testParameters) =>
+  `${urlTag}?timestamp=lte:${testParameters['DEFAULT_MAX_BLOCK_TIMESTAMP']}&limit=${testParameters['DEFAULT_LIMIT']}`;
 
 const {options, run, setup} = new RestTestScenarioBuilder()
   .name('contractsResults') // use unique scenario name among all tests
@@ -16,6 +17,7 @@ const {options, run, setup} = new RestTestScenarioBuilder()
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;
     return http.get(url);
   })
+  .requiredParameters('DEFAULT_MAX_BLOCK_TIMESTAMP')
   .check('Contracts results OK', (r) => isValidListResponse(r, resultListName))
   .build();
 

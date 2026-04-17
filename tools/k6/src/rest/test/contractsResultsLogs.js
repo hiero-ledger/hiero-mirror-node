@@ -7,7 +7,8 @@ import {logListName} from '../libex/constants.js';
 
 const urlTag = '/contracts/results/logs';
 
-const getUrl = (testParameters) => `/contracts/results/logs?limit=${testParameters['DEFAULT_LIMIT']}`;
+const getUrl = (testParameters) =>
+  `/contracts/results/logs?timestamp=lte:${testParameters['DEFAULT_MAX_BLOCK_TIMESTAMP']}&limit=${testParameters['DEFAULT_LIMIT']}`;
 
 const {options, run, setup} = new RestTestScenarioBuilder()
   .name('contractsResultsLogs') // use unique scenario name among all tests
@@ -16,6 +17,7 @@ const {options, run, setup} = new RestTestScenarioBuilder()
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;
     return http.get(url);
   })
+  .requiredParameters('DEFAULT_MAX_BLOCK_TIMESTAMP')
   .check('Contracts Results Logs OK', (r) => isValidListResponse(r, logListName))
   .build();
 

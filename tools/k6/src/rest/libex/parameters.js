@@ -288,18 +288,22 @@ const computeAccountWithTokenParameters = wrapComputeParametersFunc(['DEFAULT_AC
   throw new Error('It was not possible to find an account with significant number of tokens.');
 });
 
-const computeBlockParameters = wrapComputeParametersFunc(['DEFAULT_BLOCK_NUMBER', 'DEFAULT_BLOCK_HASH'], () => {
-  const extractProperties = (block) => {
-    return {
-      DEFAULT_BLOCK_NUMBER: block.number,
-      DEFAULT_BLOCK_HASH: block.hash,
+const computeBlockParameters = wrapComputeParametersFunc(
+  ['DEFAULT_BLOCK_NUMBER', 'DEFAULT_BLOCK_HASH', 'DEFAULT_MAX_BLOCK_TIMESTAMP'],
+  () => {
+    const extractProperties = (block) => {
+      return {
+        DEFAULT_MAX_BLOCK_TIMESTAMP: block.timestamp.to,
+        DEFAULT_BLOCK_NUMBER: block.number,
+        DEFAULT_BLOCK_HASH: block.hash,
+      };
     };
-  };
-  return getPropertiesForEntity(extractProperties, {
-    entitiesKey: blockListName,
-    queryParamMap: {limit: 1},
-  });
-});
+    return getPropertiesForEntity(extractProperties, {
+      entitiesKey: blockListName,
+      queryParamMap: {limit: 1},
+    });
+  }
+);
 
 const computeContractParameters = wrapComputeParametersFunc(
   ['DEFAULT_CONTRACT_ID', 'DEFAULT_CONTRACT_TIMESTAMP', 'DEFAULT_CONTRACT_RESULT_HASH'],
