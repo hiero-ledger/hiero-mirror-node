@@ -92,7 +92,7 @@ const writeTableUsage = async (group) => {
       }
 
       callerTables[caller] = new Set(tables);
-      possibleTables = possibleTables.union(callerTables[caller]);
+      possibleTables = new Set([...possibleTables, ...callerTables[caller]]);
     }
 
     usage[endpoint] = callerTables;

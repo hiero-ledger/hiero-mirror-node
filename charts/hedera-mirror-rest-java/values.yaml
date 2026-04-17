@@ -79,25 +79,8 @@ gateway:
             type: RegularExpression  # GKE does not yet support RegularExpression type
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/hooks/(0|[1-9]\d*)/storage'
         - path:
-            type: RegularExpression
-            value: '/api/v1/network/exchangerate'
-        - path:
-            type: RegularExpression
-            value: '/api/v1/network/fees$'
-        {{- if .Values.routes.network.nodes }}
-        - path:
-            type: RegularExpression
-            value: '/api/v1/network/nodes$'
-        {{- end }}
-        - path:
-            type: RegularExpression
-            value: '/api/v1/network/registered-nodes$'
-        - path:
-            type: RegularExpression
-            value: '/api/v1/network/stake$'
-        - path:
-            type: RegularExpression
-            value: '/api/v1/network/supply$'
+            type: PathPrefix
+            value: '/api/v1/network/'
         - path:
             type: RegularExpression
             value: '/api/v1/topics/(\d+\.){0,2}\d+$'
@@ -147,13 +130,8 @@ ingress:
         # the rest of /api/v1/* is still handled by the Node.js based REST API logic, except for these paths
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/(allowances/nfts|airdrops|hooks)'
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/hooks/(0|[1-9]\d*)/storage'
-        - path: '/api/v1/network/exchangerate'
-        - path: '/api/v1/network/fees$'
-        - path: '/api/v1/network/nodes$'
-          condition: '{{ .Values.routes.network.nodes }}'
-        - path: '/api/v1/network/registered-nodes$'
-        - path: '/api/v1/network/stake$'
-        - path: '/api/v1/network/supply$'
+        - path: '/api/v1/network/'
+          type: Prefix
         - path: '/api/v1/topics/(\d+\.){0,2}\d+$'
   tls:
     enabled: false
@@ -334,9 +312,6 @@ resources:
 
 revisionHistoryLimit: 3
 
-routes:
-  network:
-    nodes: true
 
 securityContext:
   allowPrivilegeEscalation: false
