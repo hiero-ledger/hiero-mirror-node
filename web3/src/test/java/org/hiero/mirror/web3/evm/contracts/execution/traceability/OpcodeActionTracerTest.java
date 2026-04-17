@@ -389,6 +389,78 @@ class OpcodeActionTracerTest {
     }
 
     @Test
+    @DisplayName(
+            "should reflect updated slot value when the same key is overwritten between opcodes with the same total access count")
+    void shouldReturnUpdatedSlotValueWhenCountIsUnchangedBetweenOpcodes() {
+        // Given
+        opcodeContext = opcodeContext.toBuilder().storage(true).build();
+        frame = setupInitialFrame(opcodeContext);
+        when(contractCallContext.getOpcodeContext()).thenReturn(opcodeContext);
+
+        final var key = UInt256.ONE;
+        final var v1 = UInt256.valueOf(100);
+        final var v2 = UInt256.valueOf(200);
+
+        // Opcode X: slot key=1, written to v1 (1 access total)
+        final var access1 = StorageAccess.newWrite(key, UInt256.ZERO, v1);
+        final var tx1 =
+                new TxStorageUsage(List.of(new StorageAccesses(ContractID.DEFAULT, List.of(access1))), Set.of());
+
+        // Opcode X+1: same slot key=1 overwritten to v2 — StorageAccessTracker replaces in-place,
+        // so total access count is still 1; only the writtenValue changes.
+        final var access2 = StorageAccess.newWrite(key, v1, v2);
+        final var tx2 =
+                new TxStorageUsage(List.of(new StorageAccesses(ContractID.DEFAULT, List.of(access2))), Set.of());
+
+        when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
+        when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(tx1, tx2);
+
+        // When - first opcode sees v1
+        final Opcode opcode1 = executeOperation(frame);
+        assertThat(opcode1.getStorage()).containsEntry(key.toHexString(), v1.toHexString());
+
+        // When - second opcode: same access count (1) but value changed to v2
+        final Opcode opcode2 = executeOperation(frame);
+
+        // Then - must report v2, not the stale cached v1
+        assertThat(opcode2.getStorage()).containsEntry(key.toHexString(), v2.toHexString());
+    }
+
+    @Test
+    @DisplayName("should correctly track storage through multiple sequential overwrites of the same slot")
+    void shouldTrackStorageThroughMultipleSequentialOverwritesOfSameSlot() {
+        // Given
+        opcodeContext = opcodeContext.toBuilder().storage(true).build();
+        frame = setupInitialFrame(opcodeContext);
+        when(contractCallContext.getOpcodeContext()).thenReturn(opcodeContext);
+
+        final var key = UInt256.ONE;
+        final var v1 = UInt256.valueOf(10);
+        final var v2 = UInt256.valueOf(20);
+        final var v3 = UInt256.valueOf(30);
+
+        // Three successive writes to the same key: access count remains 1 throughout.
+        final var tx1 = new TxStorageUsage(
+                List.of(new StorageAccesses(
+                        ContractID.DEFAULT, List.of(StorageAccess.newWrite(key, UInt256.ZERO, v1)))),
+                Set.of());
+        final var tx2 = new TxStorageUsage(
+                List.of(new StorageAccesses(ContractID.DEFAULT, List.of(StorageAccess.newWrite(key, v1, v2)))),
+                Set.of());
+        final var tx3 = new TxStorageUsage(
+                List.of(new StorageAccesses(ContractID.DEFAULT, List.of(StorageAccess.newWrite(key, v2, v3)))),
+                Set.of());
+
+        when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
+        when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(tx1, tx2, tx3);
+
+        // When / Then
+        assertThat(executeOperation(frame).getStorage()).containsEntry(key.toHexString(), v1.toHexString());
+        assertThat(executeOperation(frame).getStorage()).containsEntry(key.toHexString(), v2.toHexString());
+        assertThat(executeOperation(frame).getStorage()).containsEntry(key.toHexString(), v3.toHexString());
+    }
+
+    @Test
     @DisplayName("given storage is disabled in tracer options, should not record storage")
     void shouldNotRecordStorageWhenDisabled() {
         // Given

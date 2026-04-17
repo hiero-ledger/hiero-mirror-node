@@ -4,9 +4,7 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -50,20 +48,11 @@ public final class OpcodeContext {
      */
     private final boolean storage;
 
-    // Cached storage snapshot to avoid rebuilding TreeMap on every opcode in captureStorage().
-    // lastStorageAccessCount tracks the total number of storage accesses seen when the snapshot
-    // was last built; if the count hasn't changed there is no need to rebuild.
-    @Builder.Default
-    private int lastStorageAccessCount = -1;
-
-    private Map<String, String> cachedStorageSnapshot;
-
     public OpcodeContext(final OpcodeRequest opcodeRequest, final int opcodesSize) {
         this.stack = opcodeRequest.isStack();
         this.memory = opcodeRequest.isMemory();
         this.storage = opcodeRequest.isStorage();
         this.opcodes = new ArrayList<>(Math.min(opcodesSize, MAX_INITIAL_OPCODE_CAPACITY));
-        this.cachedStorageSnapshot = Collections.emptyMap();
     }
 
     public void addOpcodes(Opcode opcode) {
