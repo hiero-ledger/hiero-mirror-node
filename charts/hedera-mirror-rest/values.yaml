@@ -128,7 +128,7 @@ livenessProbe:
   httpGet:
     path: /health/liveness
     port: http
-  initialDelaySeconds: 25
+  initialDelaySeconds: 0
   timeoutSeconds: 2
 
 middleware:
@@ -261,7 +261,7 @@ readinessProbe:
   httpGet:
     path: /health/readiness
     port: http
-  initialDelaySeconds: 30
+  initialDelaySeconds: 0
   timeoutSeconds: 2
 
 # Only set if HPA is disabled
@@ -296,6 +296,15 @@ serviceAccount:
 serviceMonitor:
   enabled: false
   interval: 30s
+
+startupProbe:
+  failureThreshold: 120
+  httpGet:
+    path: /health/liveness
+    port: http
+  initialDelaySeconds: 0
+  periodSeconds: 1
+  timeoutSeconds: 2
 
 terminationGracePeriodSeconds: 60
 

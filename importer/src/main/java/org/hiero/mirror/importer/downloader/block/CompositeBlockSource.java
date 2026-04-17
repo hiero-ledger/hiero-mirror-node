@@ -10,6 +10,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.annotation.Scheduled;
 
@@ -42,18 +43,16 @@ final class CompositeBlockSource implements BlockSource {
     @Override
     @Scheduled(fixedDelayString = "#{@blockProperties.getFrequency().toMillis()}")
     public void get() {
-        if (!cutoverService.isActive(StreamType.BLOCK)) {
-            return;
-        }
-
-        var sourceHealth = getSourceHealth();
-        try {
-            sourceHealth.getSource().get();
-            sourceHealth.reset();
-        } catch (Throwable t) {
-            log.error("Failed to get block from {} source", sourceHealth.getType(), t);
-            sourceHealth.onError();
-        }
+        cutoverService.get(StreamType.BLOCK, () -> {
+            final var sourceHealth = getSourceHealth();
+            try {
+                sourceHealth.getSource().get();
+                sourceHealth.reset();
+            } catch (Throwable t) {
+                log.error("Failed to get block from {} source", sourceHealth.getType(), t);
+                sourceHealth.onError();
+            }
+        });
     }
 
     private SourceHealth getSourceHealth() {

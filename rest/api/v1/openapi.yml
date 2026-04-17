@@ -966,6 +966,27 @@ paths:
           $ref: "#/components/responses/InvalidParameterError"
       tags:
         - network
+  /api/v1/network/registered-nodes:
+    get:
+      summary: Get registered nodes
+      description: Returns the list of registered nodes
+      operationId: getRegisteredNodes
+      parameters:
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParam"
+        - $ref: "#/components/parameters/registeredNodeIdQueryParam"
+        - $ref: "#/components/parameters/registeredNodeTypeQueryParam"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisteredNodesResponse"
+        400:
+          $ref: "#/components/responses/InvalidParameterError"
+      tags:
+        - network
   /api/v1/network/stake:
     get:
       summary: Get network stake information
@@ -1479,7 +1500,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Mirror Node REST API
-  version: 0.153.0-SNAPSHOT
+  version: 0.154.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -1871,6 +1892,16 @@ components:
             type: string
             format: binary
           nullable: true
+    RegisteredNodesResponse:
+      type: object
+      required:
+        - links
+        - registered_nodes
+      properties:
+        registered_nodes:
+          $ref: "#/components/schemas/RegisteredNodes"
+        links:
+          $ref: "#/components/schemas/Links"
     SchedulesResponse:
       type: object
       properties:
@@ -2991,6 +3022,7 @@ components:
       type: object
       required:
         - admin_key
+        - associated_registered_nodes
         - decline_reward
         - description
         - file_id
@@ -3012,6 +3044,12 @@ components:
       properties:
         admin_key:
           $ref: "#/components/schemas/Key"
+        associated_registered_nodes:
+          type: array
+          items:
+            format: int64
+            minimum: 0
+            type: integer
         decline_reward:
           description: Whether the node wants to receive staking rewards or not.
           nullable: true
@@ -3089,6 +3127,7 @@ components:
         admin_key:
           _type: "ED25519"
           key: "15706b229b3ba33d4a5a41ff54ce1cfe0a3d308672a33ff382f81583e02bd743"
+        associated_registered_nodes: [1, 10]
         decline_reward: false
         description: "address book 1"
         file_id: "0.0.102"
@@ -3546,6 +3585,131 @@ components:
       required:
         - transactions
         - links
+    RegisteredBlockNodeApi:
+      type: string
+      enum:
+        [OTHER, STATUS, PUBLISH, SUBSCRIBE_STREAM, STATE_PROOF, UNRECOGNIZED]
+    RegisteredBlockNodeEndpoint:
+      type: object
+      properties:
+        endpoint_apis:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegisteredBlockNodeApi"
+    RegisteredGeneralServiceEndpoint:
+      type: object
+      properties:
+        description:
+          type: string
+    RegisteredMirrorNodeEndpoint:
+      type: object
+    RegisteredNode:
+      type: object
+      required:
+        - admin_key
+        - created_timestamp
+        - description
+        - registered_node_id
+        - service_endpoints
+        - timestamp
+      properties:
+        admin_key:
+          $ref: "#/components/schemas/Key"
+        created_timestamp:
+          $ref: "#/components/schemas/TimestampNullable"
+        description:
+          description: A short description of the node
+          nullable: true
+          type: string
+        registered_node_id:
+          description: An identifier for the registered node
+          format: int64
+          type: integer
+        service_endpoints:
+          $ref: "#/components/schemas/RegisteredServiceEndpoints"
+        timestamp:
+          $ref: "#/components/schemas/TimestampRange"
+      example:
+        admin_key:
+          _type: "ProtobufEncoded"
+          key: "421050820e1485acdd59726088e0e4a2130ebbbb70009f640ad95c78dd5a7b38"
+        created_timestamp: "1586567700.453054001"
+        description: "alpha"
+        registered_node_id: 1
+        service_endpoints:
+          - ip_address_v4: 128.0.0.6
+            port: 50216
+        timestamp:
+          from: "187654.000123457"
+          to: null
+    RegisteredNodes:
+      type: array
+      items:
+        $ref: "#/components/schemas/RegisteredNode"
+    RegisteredNodeType:
+      description: Registered node type.
+      enum: [BLOCK_NODE, GENERAL_SERVICE, MIRROR_NODE, RPC_RELAY]
+      example: BLOCK_NODE
+      type: string
+    RegisteredRpcRelayEndpoint:
+      type: object
+    RegisteredServiceEndpoint:
+      type: object
+      required:
+        - block_node
+        - general_service
+        - mirror_node
+        - port
+        - rpc_relay
+        - requires_tls
+        - type
+      allOf:
+        # Ensures at least one of these two fields is present
+        - anyOf:
+            - required: [domain_name]
+            - required: [ip_address]
+      properties:
+        block_node:
+          $ref: "#/components/schemas/RegisteredBlockNodeEndpoint"
+        domain_name:
+          description: The DNS domain name of the service
+          example: "block1.alpha.com"
+          nullable: true
+          type: string
+        general_service:
+          $ref: "#/components/schemas/RegisteredGeneralServiceEndpoint"
+        ip_address:
+          description: The IP address of the service
+          example: "191.91.239.79"
+          nullable: true
+          type: string
+        mirror_node:
+          $ref: "#/components/schemas/RegisteredMirrorNodeEndpoint"
+        port:
+          format: int32
+          type: integer
+          minimum: 0
+          maximum: 65535
+        requires_tls:
+          description: Whether the registered service endpoint requires TLS or not.
+          type: boolean
+        rpc_relay:
+          $ref: "#/components/schemas/RegisteredRpcRelayEndpoint"
+        type:
+          $ref: "#/components/schemas/RegisteredNodeType"
+      example:
+        domain_name: block1.alpha.com
+        general_service: null
+        ip_address: null
+        mirror_node: null
+        port: 40840
+        requires_tls: false
+        rpc_relay: null
+        type: BLOCK_NODE
+    RegisteredServiceEndpoints:
+      type: array
+      items:
+        $ref: "#/components/schemas/RegisteredServiceEndpoint"
     Schedule:
       type: object
       properties:
@@ -4147,6 +4311,12 @@ components:
         high_volume:
           description: Whether the transaction used high-volume entity creation throttles and pricing per HIP-1313
           type: boolean
+        high_volume_pricing_multiplier:
+          description: The multiplier applied to the transaction fee when high-volume pricing was in effect per HIP-1313, scaled by 1000 (e.g. 1000 = 1x, 4000 = 4x). A value of 0 means high-volume pricing was not applied. Null for pre-HIP-1313 transactions.
+          format: int64
+          minimum: 0
+          nullable: true
+          type: integer
         max_custom_fees:
           type: array
           items:
@@ -4246,6 +4416,7 @@ components:
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
         high_volume: false
+        high_volume_pricing_multiplier: 1
         max_custom_fees:
           - account_id: 0.0.8
             amount: 1000
@@ -4328,6 +4499,7 @@ components:
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
         high_volume: false
+        high_volume_pricing_multiplier: 1
         max_fee: 33
         memo_base64: null
         name: CRYPTOTRANSFER
@@ -5006,6 +5178,35 @@ components:
           value: lte:0.0.200
       schema:
         $ref: "#/components/schemas/EntityIdQuery"
+    registeredNodeIdQueryParam:
+      name: registerednode.id
+      description: The ID of the registered node
+      in: query
+      examples:
+        noValue:
+          summary: --
+          value: ""
+        serialNumNoOperator:
+          summary: Example of registeredNodeId equals with no operator
+          value: 1
+        serialNumEqOperator:
+          summary: Example of registeredNodeId equals operator
+          value: eq:2
+        serialNumGtOperator:
+          summary: Example of registeredNodeId greater than operator
+          value: gt:3
+        serialNumGteOperator:
+          summary: Example of registeredNodeId greater than or equals operator
+          value: gte:4
+        serialNumLtOperator:
+          summary: Example of registeredNodeId less than operator
+          value: lt:5
+        serialNumLteOperator:
+          summary: Example of registeredNodeId less than or equals operator
+          value: lte:6
+      schema:
+        type: string
+        pattern: ^((eq|gt|gte|lt|lte):)?\d{1,19}$
     scheduledQueryParam:
       name: scheduled
       in: query
@@ -5387,6 +5588,12 @@ components:
         minimum: 0
         maximum: 10000
         default: 0
+    registeredNodeTypeQueryParam:
+      example: BLOCK_NODE
+      in: query
+      name: type
+      schema:
+        $ref: "#/components/schemas/RegisteredNodeType"
     stack:
       name: stack
       description: If provided and set to false, stack information will not be included in the response

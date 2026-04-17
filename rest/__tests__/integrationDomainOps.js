@@ -929,6 +929,7 @@ const defaultTransaction = {
   consensus_timestamp: null,
   entity_id: null,
   high_volume: false,
+  high_volume_pricing_multiplier: 1,
   inner_transactions: null,
   max_custom_fees: [],
   max_fee: 33,

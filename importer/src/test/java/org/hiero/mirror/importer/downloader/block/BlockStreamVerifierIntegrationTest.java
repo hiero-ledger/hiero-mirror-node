@@ -19,6 +19,8 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverServiceImpl;
 import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
@@ -40,6 +42,7 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
     private final BlockProperties blockProperties;
     private final BlockStateProofHasher blockStateProofHasher;
     private final ConsensusNodeService consensusNodeService;
+    private final CutoverProperties cutoverProperties;
     private final LedgerIdPublicationTransactionParser ledgerIdPublicationTransactionParser;
     private final NodeSignatureVerifier nodeSignatureVerifier;
     private final RecordDownloaderProperties recordDownloaderProperties;
@@ -50,8 +53,8 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
 
     @BeforeEach
     void setup() {
-        final var cutoverService =
-                new CutoverServiceImpl(blockProperties, recordDownloaderProperties, recordFileRepository);
+        final var cutoverService = new CutoverServiceImpl(
+                blockProperties, cutoverProperties, recordDownloaderProperties, recordFileRepository);
         verifier = new BlockStreamVerifier(
                 blockFileTransformer,
                 blockStateProofHasher,

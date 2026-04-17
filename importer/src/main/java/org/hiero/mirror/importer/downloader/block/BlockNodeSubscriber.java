@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.jspecify.annotations.NullMarked;
@@ -65,7 +66,7 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
         node.streamBlocks(
                 nextBlockNumber.get(),
                 commonDownloaderProperties,
-                (stream) -> onBlockStream(stream, node.getProperties().getStatusEndpoint()));
+                (stream) -> onBlockStream(stream, node.getProperties().getEndpoint()));
     }
 
     private void drainGrpcBuffer(final BlockingClientCall<?, ?> grpcCall) {

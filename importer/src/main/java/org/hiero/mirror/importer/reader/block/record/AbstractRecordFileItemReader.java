@@ -86,6 +86,10 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
         }
     }
 
+    private static long getConsensusTimestamp(final RecordStreamItem recordStreamItem) {
+        return DomainUtils.timestampInNanosMax(recordStreamItem.getRecord().getConsensusTimestamp());
+    }
+
     protected void finalize(final RecordFile recordFile) {
         final long consensusEnd = recordFile.getConsensusEnd();
         for (final var sidecar : recordFile.getSidecars()) {
@@ -96,9 +100,40 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
     protected void onBody(final Context context) throws IOException {
         readSidecars(context);
 
-        final var recordStreamFile = context.recordFileItem().getRecordFileContents();
-        for (final var recordStreamItem : recordStreamFile.getRecordStreamItemsList()) {
-            onRecordStreamItem(context, recordStreamItem);
+        final var recordFileItem = context.recordFileItem();
+        final var amendments = recordFileItem.getAmendmentsList();
+        final var recordStreamItems = recordFileItem.getRecordFileContents().getRecordStreamItemsList();
+
+        if (amendments.isEmpty()) {
+            // Most WRBs don't have amendments, shortcut for performance gain
+            for (final var recordStreamItem : recordStreamItems) {
+                onRecordStreamItem(context, recordStreamItem);
+            }
+
+            return;
+        }
+
+        int amendmentIndex = 0;
+        for (final var recordStreamItem : recordStreamItems) {
+            final long recordTimestamp = getConsensusTimestamp(recordStreamItem);
+
+            // Insert any amendments with earlier timestamps (additions)
+            while (amendmentIndex < amendments.size()
+                    && getConsensusTimestamp(amendments.get(amendmentIndex)) < recordTimestamp) {
+                onRecordStreamItem(context, amendments.get(amendmentIndex++));
+            }
+
+            if (amendmentIndex < amendments.size()
+                    && getConsensusTimestamp(amendments.get(amendmentIndex)) == recordTimestamp) {
+                // Replace if the consensus timestamps are the same
+                onRecordStreamItem(context, amendments.get(amendmentIndex++));
+            } else {
+                onRecordStreamItem(context, recordStreamItem);
+            }
+        }
+
+        for (; amendmentIndex < amendments.size(); amendmentIndex++) {
+            onRecordStreamItem(context, amendments.get(amendmentIndex));
         }
     }
 

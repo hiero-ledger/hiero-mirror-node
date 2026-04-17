@@ -33,7 +33,7 @@ val goClean =
 val gitDiff =
     tasks.register<Exec>("gitDiff") {
         // Fail the build if go fix actually modified tracked files
-        commandLine("git", "diff", "--exit-code")
+        commandLine("git", "diff", "--exit-code", layout.projectDirectory)
     }
 
 tasks.register<Go>("fix") {

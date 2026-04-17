@@ -30,6 +30,7 @@
         "public_key_prefix": [1, 1, 1],
         "entity_id": "0.0.2000",
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "signature": [2, 2, 2],
         "type": 3
       },
@@ -38,6 +39,7 @@
         "public_key_prefix": [3, 3, 3],
         "entity_id": "0.0.2000",
         "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "signature": [4, 4, 4],
         "type": 3
       }
