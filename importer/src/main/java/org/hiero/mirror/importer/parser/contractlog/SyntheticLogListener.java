@@ -27,6 +27,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.contract.ContractLog;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -73,6 +74,8 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         final var entityMap = getEvmCache().getAll(keys);
 
         final var recordItemsWithSyntheticBloom = new HashSet<RecordItem>();
+        final var syntheticBloomsByRecordItem = new HashMap<RecordItem, LogsBloomFilter>();
+
         for (final var updater : logUpdaters) {
             updater.updateContractLog(entityMap);
 
@@ -82,10 +85,39 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             if (item != null && contractLog != null && contractLog.getBloom() != null) {
                 item.mergeSyntheticContractLogBloom(contractLog.getBloom());
                 recordItemsWithSyntheticBloom.add(item);
+
+                // Collect synthetic blooms by RecordItem for ContractResult update
+                syntheticBloomsByRecordItem
+                        .computeIfAbsent(item, k -> new LogsBloomFilter())
+                        .or(contractLog.getBloom());
             }
         }
 
+        updateContractResultBlooms(syntheticBloomsByRecordItem);
         aggregateBloomsIntoRecordFile(recordItemsWithSyntheticBloom);
+    }
+
+    private void updateContractResultBlooms(Map<RecordItem, LogsBloomFilter> syntheticBloomsByRecordItem) {
+        for (final var entry : syntheticBloomsByRecordItem.entrySet()) {
+            final var recordItem = entry.getKey();
+            final var syntheticBloom = entry.getValue();
+
+            final var contractResult = parserContext.get(ContractResult.class, recordItem.getConsensusTimestamp());
+            if (contractResult != null) {
+                final var existingBloom = contractResult.getBloom();
+                final var mergedBloom = new LogsBloomFilter();
+
+                if (existingBloom != null && existingBloom.length == LogsBloomFilter.BYTE_SIZE) {
+                    mergedBloom.or(existingBloom);
+                }
+                mergedBloom.or(syntheticBloom.toArrayUnsafe());
+
+                final var updatedBloom = mergedBloom.toArrayUnsafe();
+                if (updatedBloom.length > 0) {
+                    contractResult.setBloom(updatedBloom);
+                }
+            }
+        }
     }
 
     private void aggregateBloomsIntoRecordFile(Set<RecordItem> recordItemsWithSyntheticBloom) {

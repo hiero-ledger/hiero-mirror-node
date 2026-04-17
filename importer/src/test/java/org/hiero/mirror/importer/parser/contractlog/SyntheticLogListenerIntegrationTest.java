@@ -13,6 +13,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -27,7 +28,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @RequiredArgsConstructor
 public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest {
-    private final SyntheticLogListener syntheticLogListener;
     private final RecordStreamFileListener recordFileStreamListener;
     private final DomainBuilder domainBuilder;
     private final TransactionTemplate transactionTemplate;
@@ -385,5 +385,173 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         byte[] resultBloom = recordFile.getLogsBloom();
         assertArrayEquals(expectedBloom.toArrayUnsafe(), resultBloom);
+    }
+
+    @Test
+    void contractResultBloomMergesSyntheticBloom() {
+        var sender = domainBuilder.entity().persist();
+        var receiver = domainBuilder.entity().persist();
+        var contractEntity = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT))
+                .persist();
+
+        byte[] existingAddress = domainBuilder.evmAddress();
+        var existingBloomFilter = new LogsBloomFilter();
+        existingBloomFilter.insertAddress(existingAddress);
+        byte[] existingBloom = existingBloomFilter.toArrayUnsafe();
+
+        long consensusTimestamp = domainBuilder.timestamp();
+
+        ContractResult contractResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractEntity.getId())
+                        .payerAccountId(EntityId.of(domainBuilder.id()))
+                        .bloom(existingBloom))
+                .get();
+
+        parserContext.add(contractResult, contractResult.getConsensusTimestamp());
+
+        RecordFile recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.sidecars(List.of()).logsBloom(null))
+                .get();
+
+        parserContext.add(recordFile);
+
+        RecordItem recordItem = mock(RecordItem.class);
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+
+        byte[] markerBloom = new byte[] {1};
+        var syntheticContractLog = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.synthetic(true)
+                        .bloom(markerBloom)
+                        .consensusTimestamp(consensusTimestamp)
+                        .contractId(EntityId.of(contractEntity.getId()))
+                        .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
+                        .topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender.getId())))
+                        .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver.getId())))
+                        .topic3(null)
+                        .data(new byte[] {0})
+                        .recordItem(recordItem))
+                .get();
+
+        entityListener.onContractLog(syntheticContractLog);
+
+        var expectedBloom = new LogsBloomFilter();
+        expectedBloom.insertAddress(existingAddress);
+        expectedBloom.insertAddress(trim(contractEntity.getEvmAddress()));
+        expectedBloom.insertTopic(AbstractSyntheticContractLog.TRANSFER_SIGNATURE);
+        expectedBloom.insertTopic(trim(sender.getEvmAddress()));
+        expectedBloom.insertTopic(trim(receiver.getEvmAddress()));
+
+        transactionTemplate.executeWithoutResult(status -> {
+            recordFileStreamListener.onEnd(recordFile);
+        });
+
+        assertThat(contractResult.getBloom()).hasSize(LogsBloomFilter.BYTE_SIZE);
+        assertArrayEquals(expectedBloom.toArrayUnsafe(), contractResult.getBloom());
+    }
+
+    @Test
+    void contractResultBloomSetWhenNoExistingBloom() {
+        var sender = domainBuilder.entity().persist();
+        var receiver = domainBuilder.entity().persist();
+        var contractEntity = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT))
+                .persist();
+
+        long consensusTimestamp = domainBuilder.timestamp();
+
+        ContractResult contractResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractEntity.getId())
+                        .payerAccountId(EntityId.of(domainBuilder.id()))
+                        .bloom(null))
+                .get();
+
+        parserContext.add(contractResult, contractResult.getConsensusTimestamp());
+
+        RecordFile recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.sidecars(List.of()).logsBloom(null))
+                .get();
+
+        parserContext.add(recordFile);
+
+        RecordItem recordItem = mock(RecordItem.class);
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+
+        byte[] markerBloom = new byte[] {1};
+        var syntheticContractLog = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.synthetic(true)
+                        .bloom(markerBloom)
+                        .consensusTimestamp(consensusTimestamp)
+                        .contractId(EntityId.of(contractEntity.getId()))
+                        .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
+                        .topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender.getId())))
+                        .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver.getId())))
+                        .topic3(null)
+                        .data(new byte[] {0})
+                        .recordItem(recordItem))
+                .get();
+
+        entityListener.onContractLog(syntheticContractLog);
+
+        var expectedBloom = new LogsBloomFilter();
+        expectedBloom.insertAddress(trim(contractEntity.getEvmAddress()));
+        expectedBloom.insertTopic(AbstractSyntheticContractLog.TRANSFER_SIGNATURE);
+        expectedBloom.insertTopic(trim(sender.getEvmAddress()));
+        expectedBloom.insertTopic(trim(receiver.getEvmAddress()));
+
+        transactionTemplate.executeWithoutResult(status -> {
+            recordFileStreamListener.onEnd(recordFile);
+        });
+
+        assertThat(contractResult.getBloom()).hasSize(LogsBloomFilter.BYTE_SIZE);
+        assertArrayEquals(expectedBloom.toArrayUnsafe(), contractResult.getBloom());
+    }
+
+    @Test
+    void contractResultBloomUnchangedWhenNoMatchingSyntheticLogs() {
+        var contractEntity = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT))
+                .persist();
+
+        byte[] existingAddress = domainBuilder.evmAddress();
+        var existingBloomFilter = new LogsBloomFilter();
+        existingBloomFilter.insertAddress(existingAddress);
+        byte[] existingBloom = existingBloomFilter.toArrayUnsafe();
+
+        long consensusTimestamp = domainBuilder.timestamp();
+
+        ContractResult contractResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractEntity.getId())
+                        .payerAccountId(EntityId.of(domainBuilder.id()))
+                        .bloom(existingBloom))
+                .get();
+
+        parserContext.add(contractResult, contractResult.getConsensusTimestamp());
+
+        RecordFile recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.sidecars(List.of()).logsBloom(null))
+                .get();
+
+        parserContext.add(recordFile);
+
+        transactionTemplate.executeWithoutResult(status -> {
+            recordFileStreamListener.onEnd(recordFile);
+        });
+
+        assertArrayEquals(existingBloom, contractResult.getBloom());
     }
 }
