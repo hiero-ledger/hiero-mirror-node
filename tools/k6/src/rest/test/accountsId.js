@@ -7,7 +7,7 @@ import {isSuccess, RestTestScenarioBuilder} from '../libex/common.js';
 const urlTag = '/accounts/{accountId}';
 
 const getUrl = (testParameters) =>
-  `/accounts/${testParameters['DEFAULT_ACCOUNT_ID']}?timestamp=lte:${testParameters['DEFAULT_MAX_BLOCK_TIMESTAMP']}&limit=${testParameters['DEFAULT_LIMIT']}`;
+  `/accounts/${testParameters['DEFAULT_ACCOUNT_ID']}?timestamp=lte:${testParameters['DEFAULT_BLOCK_MAX_TIMESTAMP']}&limit=${testParameters['DEFAULT_LIMIT']}`;
 
 const {options, run, setup} = new RestTestScenarioBuilder()
   .name('accountsId') // use unique scenario name among all tests
@@ -16,7 +16,7 @@ const {options, run, setup} = new RestTestScenarioBuilder()
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;
     return http.get(url);
   })
-  .requiredParameters('DEFAULT_ACCOUNT_ID', 'DEFAULT_MAX_BLOCK_TIMESTAMP')
+  .requiredParameters('DEFAULT_ACCOUNT_ID', 'DEFAULT_BLOCK_MAX_TIMESTAMP')
   .check('Accounts Id OK', isSuccess)
   .build();
 

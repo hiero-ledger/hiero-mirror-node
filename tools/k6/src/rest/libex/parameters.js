@@ -289,13 +289,13 @@ const computeAccountWithTokenParameters = wrapComputeParametersFunc(['DEFAULT_AC
 });
 
 const computeBlockParameters = wrapComputeParametersFunc(
-  ['DEFAULT_BLOCK_NUMBER', 'DEFAULT_BLOCK_HASH', 'DEFAULT_MAX_BLOCK_TIMESTAMP'],
+  ['DEFAULT_BLOCK_NUMBER', 'DEFAULT_BLOCK_HASH', 'DEFAULT_BLOCK_MAX_TIMESTAMP'],
   () => {
     const extractProperties = (block) => {
       return {
-        DEFAULT_MAX_BLOCK_TIMESTAMP: block.timestamp.to,
         DEFAULT_BLOCK_NUMBER: block.number,
         DEFAULT_BLOCK_HASH: block.hash,
+        DEFAULT_BLOCK_MAX_TIMESTAMP: block.timestamp.to,
       };
     };
     return getPropertiesForEntity(extractProperties, {

@@ -69,7 +69,7 @@ The following parameters can be used to configure a REST test:
 | DEFAULT_CONTRACT_ID                |                                     |                                                                         |
 | DEFAULT_CONTRACT_TIMESTAMP         |                                     |                                                                         |
 | DEFAULT_CONTRACT_RESULT_HASH       |                                     |                                                                         |
-| DEFAULT_MAX_BLOCK_TIMESTAMP        | max(consensus_end) from record_file | used to bind timestamp range for apis that limit search range to x days |
+| DEFAULT_BLOCK_MAX_TIMESTAMP        | max(consensus_end) from record_file | used to bind timestamp range for apis that limit search range to x days |
 | DEFAULT_NFT_ID                     |                                     |                                                                         |
 | DEFAULT_NFT_SERIAL                 |                                     |                                                                         |
 | DEFAULT_PUBLIC_KEY                 |                                     |                                                                         |
