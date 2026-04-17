@@ -34,7 +34,6 @@ import * as contractsResults from './contractsResult.js';
 import * as contractsResultsId from './contractsResultsId.js';
 import * as contractsResultsIdActions from './contractsResultsIdActions.js';
 import * as contractsResultsLogs from './contractsResultsLogs.js';
-import * as networkNodes from './networkNodes.js';
 import * as rampUp from './rampUp.js';
 import * as schedules from './schedules.js';
 import * as schedulesAccount from './schedulesAccount.js';
@@ -94,7 +93,6 @@ const tests = {
   contractsResultsId,
   contractsResultsIdActions,
   contractsResultsLogs,
-  networkNodes,
   rampUp,
   schedules,
   schedulesAccount,

@@ -5,7 +5,6 @@ import {apiPrefix, requestPathLabel} from '../constants';
 import AccountRoutes from './accountRoute';
 import BlockRoutes from './blockRoute';
 import ContractRoutes from './contractRoute';
-import NetworkRoutes from './networkRoute';
 
 /**
  * Router middleware to record the complete registered request path as res.locals[requestPathLabel]
@@ -21,6 +20,6 @@ const recordRequestPath = async (req, res) => {
   }
 };
 
-[AccountRoutes, BlockRoutes, ContractRoutes, NetworkRoutes].forEach(({router}) => router.useExt(recordRequestPath));
+[AccountRoutes, BlockRoutes, ContractRoutes].forEach(({router}) => router.useExt(recordRequestPath));
 
-export {AccountRoutes, BlockRoutes, ContractRoutes, NetworkRoutes};
+export {AccountRoutes, BlockRoutes, ContractRoutes};

@@ -1,6 +1,6 @@
 {
   "name": "@hiero-ledger/mirror-monitor",
-  "version": "0.153.0-SNAPSHOT",
+  "version": "0.154.0-SNAPSHOT",
   "description": "Mirror Node Monitor",
   "type": "module",
   "main": "server.js",
@@ -27,6 +27,9 @@
   },
   "devDependencies": {
     "nodemon": "3.1.14"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.5"
   },
   "peerDependencies": {
     "debug": "4.4.3"
