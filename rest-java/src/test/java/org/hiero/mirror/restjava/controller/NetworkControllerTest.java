@@ -4,6 +4,7 @@ package org.hiero.mirror.restjava.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.InstanceOfAssertFactories.list;
 
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
@@ -23,6 +24,7 @@ import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -39,8 +41,11 @@ import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.FeeEstimateResponse;
+import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
+import org.hiero.mirror.rest.model.NetworkNode;
+import org.hiero.mirror.rest.model.NetworkNodesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.rest.model.NetworkSupplyResponse;
 import org.hiero.mirror.rest.model.RegisteredNodesResponse;
@@ -1244,17 +1249,32 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void success() {
             // given
-            var nodes = setupNetworkNodeData();
+            setupNetworkNodeData();
 
             // when
-            final var actual =
-                    restClient.get().uri("").retrieve().body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual = restClient.get().uri("").retrieve().body(NetworkNodesResponse.class);
 
             // then
-            assertThat(actual).isNotNull();
-            assertThat(actual.getNodes()).isNotNull().hasSize(3);
-            assertThat(actual.getLinks()).isNotNull();
-            assertThat(actual.getLinks().getNext()).isNull(); // All results fit in one page
+            assertThat(actual)
+                    .extracting(NetworkNodesResponse::getNodes, list(NetworkNode.class))
+                    .hasSize(3)
+                    .satisfies(
+                            nodes -> assertThat(nodes)
+                                    .first()
+                                    .extracting(NetworkNode::getAssociatedRegisteredNodes, list(Long.class))
+                                    .isEmpty(),
+                            nodes -> assertThat(nodes.get(1))
+                                    .extracting(NetworkNode::getAssociatedRegisteredNodes, list(Long.class))
+                                    .isEmpty(),
+                            nodes -> assertThat(nodes)
+                                    .last()
+                                    .extracting(NetworkNode::getAssociatedRegisteredNodes, list(Long.class))
+                                    .hasSize(2));
+            // All results fit in one page
+            assertThat(actual)
+                    .extracting(NetworkNodesResponse::getLinks)
+                    .extracting(Links::getNext)
+                    .isNull();
         }
 
         @Test
@@ -1285,7 +1305,7 @@ final class NetworkControllerTest extends ControllerTest {
                     .get()
                     .uri("?file.id=" + addressBook.getFileId())
                     .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+                    .body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1299,11 +1319,8 @@ final class NetworkControllerTest extends ControllerTest {
             var nodeId = nodes.get(1).getNodeId();
 
             // when
-            final var actual = restClient
-                    .get()
-                    .uri("?node.id=" + nodeId)
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual =
+                    restClient.get().uri("?node.id=" + nodeId).retrieve().body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1318,11 +1335,8 @@ final class NetworkControllerTest extends ControllerTest {
             var nodeId = nodes.get(0).getNodeId();
 
             // when
-            final var actual = restClient
-                    .get()
-                    .uri("?node.id=eq:" + nodeId)
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual =
+                    restClient.get().uri("?node.id=eq:" + nodeId).retrieve().body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1337,11 +1351,8 @@ final class NetworkControllerTest extends ControllerTest {
             var nodeId = nodes.get(0).getNodeId();
 
             // when
-            final var actual = restClient
-                    .get()
-                    .uri("?node.id=gt:" + nodeId)
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual =
+                    restClient.get().uri("?node.id=gt:" + nodeId).retrieve().body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1357,11 +1368,8 @@ final class NetworkControllerTest extends ControllerTest {
             var nodeId = nodes.get(1).getNodeId();
 
             // when
-            final var actual = restClient
-                    .get()
-                    .uri("?node.id=gte:" + nodeId)
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual =
+                    restClient.get().uri("?node.id=gte:" + nodeId).retrieve().body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1377,11 +1385,8 @@ final class NetworkControllerTest extends ControllerTest {
             var nodeId = nodes.get(2).getNodeId();
 
             // when
-            final var actual = restClient
-                    .get()
-                    .uri("?node.id=lt:" + nodeId)
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual =
+                    restClient.get().uri("?node.id=lt:" + nodeId).retrieve().body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1397,11 +1402,8 @@ final class NetworkControllerTest extends ControllerTest {
             var nodeId = nodes.get(1).getNodeId();
 
             // when
-            final var actual = restClient
-                    .get()
-                    .uri("?node.id=lte:" + nodeId)
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual =
+                    restClient.get().uri("?node.id=lte:" + nodeId).retrieve().body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1422,7 +1424,7 @@ final class NetworkControllerTest extends ControllerTest {
                     .get()
                     .uri("?node.id=gte:" + minNodeId + "&node.id=lte:" + maxNodeId)
                     .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+                    .body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1444,7 +1446,7 @@ final class NetworkControllerTest extends ControllerTest {
                     .get()
                     .uri("?node.id=" + nodeId1 + "&node.id=" + nodeId2)
                     .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+                    .body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1467,7 +1469,7 @@ final class NetworkControllerTest extends ControllerTest {
                     .get()
                     .uri("?node.id=" + nodeId2 + "&node.id=" + nodeId3 + "&node.id=gte:" + nodeId2)
                     .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+                    .body(NetworkNodesResponse.class);
 
             // then - should return nodes matching equality AND range
             assertThat(actual).isNotNull();
@@ -1483,11 +1485,7 @@ final class NetworkControllerTest extends ControllerTest {
             setupNetworkNodeData();
 
             // when
-            final var actual = restClient
-                    .get()
-                    .uri("?limit=2")
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual = restClient.get().uri("?limit=2").retrieve().body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1502,11 +1500,7 @@ final class NetworkControllerTest extends ControllerTest {
             var nodes = setupNetworkNodeData();
 
             // when
-            final var actual = restClient
-                    .get()
-                    .uri("?order=asc")
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual = restClient.get().uri("?order=asc").retrieve().body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1525,11 +1519,7 @@ final class NetworkControllerTest extends ControllerTest {
             var nodes = setupNetworkNodeData();
 
             // when
-            final var actual = restClient
-                    .get()
-                    .uri("?order=desc")
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual = restClient.get().uri("?order=desc").retrieve().body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1548,11 +1538,7 @@ final class NetworkControllerTest extends ControllerTest {
             setupNetworkNodeData();
 
             // when
-            final var actual = restClient
-                    .get()
-                    .uri("?node.id=99999")
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual = restClient.get().uri("?node.id=99999").retrieve().body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1571,7 +1557,7 @@ final class NetworkControllerTest extends ControllerTest {
                     .get()
                     .uri("?node.id=" + nodes.get(0).getNodeId())
                     .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+                    .body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1585,11 +1571,7 @@ final class NetworkControllerTest extends ControllerTest {
             setupNetworkNodeData();
 
             // when
-            final var actual = restClient
-                    .get()
-                    .uri("?limit=3")
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual = restClient.get().uri("?limit=3").retrieve().body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1677,11 +1659,8 @@ final class NetworkControllerTest extends ControllerTest {
             setupNetworkNodeData();
 
             // when
-            final var actual = restClient
-                    .get()
-                    .uri("?file.id=0.0.99999")
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual =
+                    restClient.get().uri("?file.id=0.0.99999").retrieve().body(NetworkNodesResponse.class);
 
             // then - should return empty results
             assertThat(actual).isNotNull();
@@ -1694,11 +1673,7 @@ final class NetworkControllerTest extends ControllerTest {
             var nodes = setupNetworkNodeData();
 
             // when - request with limit smaller than total results
-            final var actual = restClient
-                    .get()
-                    .uri("?limit=1")
-                    .retrieve()
-                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual = restClient.get().uri("?limit=1").retrieve().body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1712,8 +1687,7 @@ final class NetworkControllerTest extends ControllerTest {
             setupNetworkNodeData();
 
             // when
-            final var actual =
-                    restClient.get().uri("").retrieve().body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+            final var actual = restClient.get().uri("").retrieve().body(NetworkNodesResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -1729,7 +1703,7 @@ final class NetworkControllerTest extends ControllerTest {
 
         private List<AddressBookEntry> setupNetworkNodeData() {
             var timestamp = domainBuilder.timestamp();
-            var addressBook = domainBuilder
+            domainBuilder
                     .addressBook()
                     .customize(ab -> ab.startConsensusTimestamp(timestamp))
                     .persist();
@@ -1754,8 +1728,15 @@ final class NetworkControllerTest extends ControllerTest {
             domainBuilder.nodeStake().customize(ns -> ns.nodeId(3L)).persist();
 
             // Add corresponding node data
-            domainBuilder.node().customize(n -> n.nodeId(1L)).persist();
-            domainBuilder.node().customize(n -> n.nodeId(2L)).persist();
+            domainBuilder
+                    .node()
+                    .customize(n -> n.associatedRegisteredNodes(null).nodeId(1L))
+                    .persist();
+            domainBuilder
+                    .node()
+                    .customize(n ->
+                            n.associatedRegisteredNodes(Collections.EMPTY_LIST).nodeId(2L))
+                    .persist();
             domainBuilder.node().customize(n -> n.nodeId(3L)).persist();
 
             return List.of(entry1, entry2, entry3);

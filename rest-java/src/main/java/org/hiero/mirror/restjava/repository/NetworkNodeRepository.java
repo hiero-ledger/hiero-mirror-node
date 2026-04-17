@@ -38,11 +38,12 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
                 where consensus_timestamp = (select max(consensus_timestamp) from node_stake)
             ),
             node_info as (
-                select admin_key, decline_reward, grpc_proxy_endpoint, node_id, account_id
+                select account_id, admin_key, associated_registered_nodes, decline_reward, grpc_proxy_endpoint, node_id
                 from node
             )
             select
                 n.admin_key as adminKey,
+                n.associated_registered_nodes as associatedRegisteredNodes,
                 n.decline_reward as declineReward,
                 abe.description as description,
                 ab.end_consensus_timestamp as endConsensusTimestamp,
