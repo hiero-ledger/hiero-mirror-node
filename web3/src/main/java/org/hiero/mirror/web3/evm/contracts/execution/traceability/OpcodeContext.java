@@ -56,8 +56,7 @@ public final class OpcodeContext {
     @Builder.Default
     private int lastStorageAccessCount = -1;
 
-    @Builder.Default
-    private Map<String, String> cachedStorageSnapshot = Collections.emptyMap();
+    private Map<String, String> cachedStorageSnapshot;
 
     public OpcodeContext(final OpcodeRequest opcodeRequest, final int opcodesSize) {
         this.stack = opcodeRequest.isStack();
