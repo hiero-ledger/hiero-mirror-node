@@ -1701,8 +1701,6 @@ public final class RecordItemBuilder {
             transactionRecord.clearTransactionID().clearConsensusTimestamp();
             transactionBodyWrapper.clearTransactionID();
 
-            var contractLogs = parseContractLogs(transactionRecordInstance);
-
             if (contractTransactionPredicate != null) {
                 recordItemBuilder.contractTransactionPredicate(contractTransactionPredicate);
             }
