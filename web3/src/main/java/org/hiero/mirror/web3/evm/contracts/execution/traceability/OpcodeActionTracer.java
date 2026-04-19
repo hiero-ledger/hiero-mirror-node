@@ -34,8 +34,8 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
 
     @Override
     public void tracePreExecution(@NonNull final MessageFrame frame) {
-        if (frame.getCurrentOperation() != null
-                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
+        final var currentOperation = frame.getCurrentOperation();
+        if (currentOperation != null && BALANCE_OPERATION_NAME.equals(currentOperation.getName())) {
             ContractCallContext.get().setBalanceCall(true);
         }
     }
@@ -44,9 +44,12 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
     public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
         final var context = ContractCallContext.get();
 
+        // Fetch the operation name once and reuse it to avoid repeated getCurrentOperation() calls.
+        final var currentOperation = frame.getCurrentOperation();
+        final var opName = currentOperation != null ? currentOperation.getName() : StringUtils.EMPTY;
+
         // Reset the balance call flag after BALANCE opcode completes
-        if (frame.getCurrentOperation() != null
-                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
+        if (BALANCE_OPERATION_NAME.equals(opName)) {
             context.setBalanceCall(false);
         }
 
@@ -58,7 +61,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
         final var revertReasonBytes = frame.getRevertReason().orElse(null);
         final var reason = revertReasonBytes != null ? revertReasonBytes.toHexString() : null;
         context.getOpcodeContext()
-                .addOpcodes(createOpcode(frame, operationResult.getGasCost(), reason, stack, memory, storage));
+                .addOpcodes(createOpcode(frame, operationResult.getGasCost(), reason, stack, memory, storage, opName));
     }
 
     @Override
@@ -102,6 +105,8 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
                 ? getRevertReasonFromContractActions(context)
                 : (frameRevertReason != null ? frameRevertReason.toHexString() : null);
 
+        final var currentOperation = frame.getCurrentOperation();
+        final var opName = currentOperation != null ? currentOperation.getName() : StringUtils.EMPTY;
         context.getOpcodeContext()
                 .addOpcodes(createOpcode(
                         frame,
@@ -109,7 +114,8 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
                         revertReason,
                         Collections.emptyList(),
                         Collections.emptyList(),
-                        Collections.emptyMap()));
+                        Collections.emptyMap(),
+                        opName));
 
         context.getOpcodeContext().setGasRemaining(frame.getRemainingGas());
     }
@@ -120,13 +126,11 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
             final String revertReason,
             final List<String> stack,
             final List<String> memory,
-            final Map<String, String> storage) {
+            final Map<String, String> storage,
+            final String opName) {
         return new Opcode()
                 .pc(frame.getPC())
-                .op(
-                        frame.getCurrentOperation() != null
-                                ? frame.getCurrentOperation().getName()
-                                : StringUtils.EMPTY)
+                .op(opName)
                 .gas(frame.getRemainingGas())
                 .gasCost(gasCost)
                 .depth(frame.getDepth())
