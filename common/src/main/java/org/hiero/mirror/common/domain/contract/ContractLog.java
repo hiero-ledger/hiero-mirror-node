@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain.contract;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Entity;
 import jakarta.persistence.IdClass;
+import jakarta.persistence.Transient;
 import java.io.Serializable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -13,6 +14,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.springframework.data.domain.Persistable;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
@@ -54,6 +56,15 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     private int transactionIndex;
 
     private boolean synthetic;
+
+    /**
+     * Transient reference to the RecordItem this log belongs to.
+     * Used for updating the bloom filter in the correct RecordItem during synthetic log processing.
+     */
+    @JsonIgnore
+    @Transient
+    @ToString.Exclude
+    private RecordItem recordItem;
 
     @Override
     @JsonIgnore

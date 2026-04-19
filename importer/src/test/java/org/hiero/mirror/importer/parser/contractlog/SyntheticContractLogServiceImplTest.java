@@ -100,6 +100,27 @@ final class SyntheticContractLogServiceImplTest {
     }
 
     @Test
+    @DisplayName("Should create synthetic contract log when parent has logs that don't match")
+    void createWhenParentLogsDoNotMatch() {
+        // Create a parent with contract logs that don't match the synthetic log
+        var parentRecordItem = recordItemBuilder.contractCall().build();
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                        .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
+                        .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentRecordItem))
+                .build();
+
+        // The parent has random logs that don't match the synthetic transfer log
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(parentRecordItem.getTransactionHash());
+    }
+
+    @Test
     @DisplayName("Should skip synthetic contract log for HAPI version >= 0.71.0")
     void skipSyntheticLogForNewHapiVersion() {
         var parentRecordItem = recordItemBuilder
