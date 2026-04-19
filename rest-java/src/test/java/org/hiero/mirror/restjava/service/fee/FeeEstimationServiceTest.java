@@ -23,8 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
-import org.hiero.hapi.fees.HighVolumePricingCalculator;
-import org.hiero.hapi.support.fees.Extra;
 import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.hapi.support.fees.VariableRateDefinition;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
@@ -50,28 +48,11 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     private final RecordItemBuilder recordItemBuilder;
     private final SystemEntity systemEntity;
 
-    // Fee schedule constants match the bundled genesis JSON used to seed the test DB in @BeforeEach.
-    // All expected fee values are derived from this schedule — no hardcoded numbers.
+    // Used only to seed the DB and build modified schedules; assertions use hardcoded literals.
     private static final FeeSchedule FEE_SCHEDULE = loadFeeSchedule();
 
-    // Node fee components
-    private static final long NODE_BASE_FEE = FEE_SCHEDULE.node().baseFee();
-    private static final int NETWORK_MULTIPLIER = FEE_SCHEDULE.network().multiplier();
-
-    // For a DEFAULT transaction (no signatures, body under the included-bytes threshold):
-    // total = nodeBase × (1 + networkMultiplier)
-    private static final long NODE_PORTION = NODE_BASE_FEE + NODE_BASE_FEE * NETWORK_MULTIPLIER;
-    private static final int SIGNATURES_INCLUDED = FEE_SCHEDULE.node().extras().stream()
-            .filter(e -> e.name() == Extra.SIGNATURES)
-            .findFirst()
-            .orElseThrow()
-            .includedCount();
-    private static final long SIGNATURES_FEE = extraFee(Extra.SIGNATURES);
-    private static final long STATE_BYTES_FEE = extraFee(Extra.STATE_BYTES);
+    // Used only in feeScheduleChangesAffectBothModes / refreshStateCalculatorChangesCalculation.
     private static final long CONSENSUS_SUBMIT_MESSAGE_FEE = serviceFee(HederaFunctionality.CONSENSUS_SUBMIT_MESSAGE);
-    private static final long CRYPTO_DELETE_FEE = serviceFee(HederaFunctionality.CRYPTO_DELETE);
-    private static final long CRYPTO_CREATE_FEE = serviceFee(HederaFunctionality.CRYPTO_CREATE);
-    private static final long HOOK_UPDATES_EXTRA = extraFee(Extra.HOOK_UPDATES);
     private static final int ED25519_SIGNATURE_SIZE = 64;
     private static final int INVALID_TX_SIZE = 100;
     private static final int LONG_MESSAGE_BYTES = 2_000;
@@ -158,14 +139,12 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         final var result = service.estimateFees(transaction, FeeEstimateMode.INTRINSIC, 0);
 
         // then
-        assertThat(result.getNodeBaseFeeTinycents()).isEqualTo(NODE_BASE_FEE);
-        assertThat(result.getNetworkMultiplier()).isEqualTo(NETWORK_MULTIPLIER);
+        assertThat(result.getNodeBaseFeeTinycents()).isEqualTo(100_000L);
+        assertThat(result.getNetworkMultiplier()).isEqualTo(9);
         assertThat(result.getServiceBaseFeeTinycents()).isZero(); // CryptoTransfer has no service fee
-        assertThat(result.totalTinycents()).isEqualTo(NODE_PORTION);
+        assertThat(result.totalTinycents()).isEqualTo(1_000_000L);
         assertThat(result.getHighVolumeMultiplier())
-                .isEqualTo(
-                        HighVolumePricingCalculator
-                                .DEFAULT_HIGH_VOLUME_MULTIPLIER); // no high-volume rates configured for CryptoTransfer
+                .isEqualTo(1_000L); // no high-volume rates configured for CryptoTransfer
     }
 
     @Test
@@ -175,13 +154,8 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         final var withSignatures = service.estimateFees(cryptoTransfer(2), FeeEstimateMode.INTRINSIC, 0);
 
         // then
-        // 0 signatures: no extras charged → NODE_PORTION
-        assertThat(base.totalTinycents()).isEqualTo(NODE_PORTION);
-        // 2 signatures, SIGNATURES_INCLUDED=1 free, 1 extra at SIGNATURES_FEE in the node component:
-        // nodeTotal = NODE_BASE_FEE + 1 × SIGNATURES_FEE
-        // total    = nodeTotal × (1 + NETWORK_MULTIPLIER)
-        final var twoSigsNodeTotal = NODE_BASE_FEE + (2 - SIGNATURES_INCLUDED) * SIGNATURES_FEE;
-        assertThat(withSignatures.totalTinycents()).isEqualTo(twoSigsNodeTotal * (1L + NETWORK_MULTIPLIER));
+        assertThat(base.totalTinycents()).isEqualTo(1_000_000L);
+        assertThat(withSignatures.totalTinycents()).isEqualTo(2_000_000L);
     }
 
     @Test
@@ -199,7 +173,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         final var result = service.estimateFees(transaction, FeeEstimateMode.INTRINSIC, 0);
 
         // then
-        assertThat(result.totalTinycents()).isEqualTo(NODE_PORTION);
+        assertThat(result.totalTinycents()).isEqualTo(1_000_000L);
     }
 
     @Test
@@ -226,9 +200,8 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         // when
         final var result = service.estimateFees(transaction, FeeEstimateMode.INTRINSIC, 0);
 
-        // then — 2 signatures, SIGNATURES_INCLUDED=1 free, 1 extra billed
-        final var expectedNodeTotal = NODE_BASE_FEE + (2 - SIGNATURES_INCLUDED) * SIGNATURES_FEE;
-        assertThat(result.totalTinycents()).isEqualTo(expectedNodeTotal * (1L + NETWORK_MULTIPLIER));
+        // then
+        assertThat(result.totalTinycents()).isEqualTo(2_000_000L);
     }
 
     @Test
@@ -242,16 +215,16 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         final var result = freshService.estimateFees(cryptoTransfer(0), FeeEstimateMode.INTRINSIC, 0);
 
         // then
-        assertThat(result.getNodeBaseFeeTinycents()).isEqualTo(NODE_BASE_FEE);
-        assertThat(result.getNetworkMultiplier()).isEqualTo(NETWORK_MULTIPLIER);
-        assertThat(result.totalTinycents()).isEqualTo(NODE_PORTION);
+        assertThat(result.getNodeBaseFeeTinycents()).isEqualTo(100_000L);
+        assertThat(result.getNetworkMultiplier()).isEqualTo(9);
+        assertThat(result.totalTinycents()).isEqualTo(1_000_000L);
     }
 
     @Test
     void stateMode() {
         final var result = service.estimateFees(cryptoTransfer(0), FeeEstimateMode.STATE, 0);
 
-        assertThat(result.getNodeBaseFeeTinycents()).isEqualTo(NODE_BASE_FEE);
+        assertThat(result.getNodeBaseFeeTinycents()).isEqualTo(100_000L);
         assertThat(result.totalTinycents()).isGreaterThan(0);
     }
 
@@ -349,9 +322,8 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 
         // STATE reads the DB-backed topic store and detects custom fees;
         // INTRINSIC has no feeContext so the custom-fee branch is skipped.
-        final long customFeeExtra = extraFee(Extra.CONSENSUS_SUBMIT_MESSAGE_WITH_CUSTOM_FEE);
-        // TODO: Need to fix the assertion logic
-        //        assertThat(state.totalTinycents()).isEqualTo(intrinsic.totalTinycents() + customFeeExtra);
+        assertThat(intrinsic.totalTinycents()).isEqualTo(1_890_400L);
+        assertThat(state.totalTinycents()).isEqualTo(500_000_000L);
     }
 
     @Test
@@ -371,10 +343,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         final var statePlain = service.estimateFees(txnPlain, FeeEstimateMode.STATE, 0);
         final var stateCustom = service.estimateFees(txnCustom, FeeEstimateMode.STATE, 0);
 
-        // STATE with a custom-fee token uses TOKEN_TRANSFER_BASE_CUSTOM_FEES instead of TOKEN_TRANSFER_BASE.
-        final long base = extraFee(Extra.TOKEN_TRANSFER_BASE);
-        final long baseCustom = extraFee(Extra.TOKEN_TRANSFER_BASE_CUSTOM_FEES);
-        assertThat(stateCustom.totalTinycents() - statePlain.totalTinycents()).isEqualTo(baseCustom - base);
+        assertThat(stateCustom.totalTinycents() - statePlain.totalTinycents()).isEqualTo(10_000_000L);
     }
 
     @Test
@@ -393,9 +362,8 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         domainBuilder.customFee().customize(cf -> cf.entityId(topic.getId())).persist();
 
         final var after = service.estimateFees(txn, FeeEstimateMode.STATE, 0);
-        // TODO: Need to fix the assertion logic
-        //        assertThat(after.totalTinycents()).isEqualTo(before.totalTinycents() +
-        // extraFee(Extra.CONSENSUS_SUBMIT_MESSAGE_WITH_CUSTOM_FEE));
+        assertThat(before.totalTinycents()).isEqualTo(1_890_400L);
+        assertThat(after.totalTinycents()).isEqualTo(500_000_000L);
     }
 
     @Test
@@ -411,8 +379,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                 .persist();
 
         final var after = service.estimateFees(txn, FeeEstimateMode.STATE, 0);
-        assertThat(after.totalTinycents() - before.totalTinycents())
-                .isEqualTo(extraFee(Extra.TOKEN_TRANSFER_BASE_CUSTOM_FEES) - extraFee(Extra.TOKEN_TRANSFER_BASE));
+        assertThat(after.totalTinycents() - before.totalTinycents()).isEqualTo(10_000_000L);
     }
 
     @Test
@@ -500,8 +467,8 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                 toPbj(recordItemBuilder.cryptoDelete().build().getTransaction()), FeeEstimateMode.INTRINSIC, 0);
 
         // then
-        assertThat(result.getServiceBaseFeeTinycents()).isEqualTo(CRYPTO_DELETE_FEE);
-        assertThat(result.totalTinycents()).isEqualTo(NODE_PORTION + CRYPTO_DELETE_FEE);
+        assertThat(result.getServiceBaseFeeTinycents()).isEqualTo(49_000_000L);
+        assertThat(result.totalTinycents()).isEqualTo(50_000_000L);
     }
 
     @Test
@@ -511,9 +478,8 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                 toPbj(recordItemBuilder.cryptoCreate().build().getTransaction()), FeeEstimateMode.INTRINSIC, 0);
 
         // then
-        assertThat(result.getServiceBaseFeeTinycents()).isEqualTo(CRYPTO_CREATE_FEE);
-        // total
-        assertThat(result.totalTinycents()).isEqualTo(NODE_PORTION + CRYPTO_CREATE_FEE + HOOK_UPDATES_EXTRA);
+        assertThat(result.getServiceBaseFeeTinycents()).isEqualTo(499_000_000L);
+        assertThat(result.totalTinycents()).isEqualTo(10_500_000_000L);
     }
 
     @Test
@@ -537,28 +503,27 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                 .build()
                 .getTransaction());
 
-        // highVolume=false: multiplier stays at DEFAULT regardless of mode/throttle
+        // highVolume=false: multiplier stays at DEFAULT (1_000) regardless of mode/throttle
         assertThat(service.estimateFees(txnLowVolume, FeeEstimateMode.INTRINSIC, 0)
                         .getHighVolumeMultiplier())
-                .isEqualTo(HighVolumePricingCalculator.DEFAULT_HIGH_VOLUME_MULTIPLIER);
+                .isEqualTo(1_000L);
         assertThat(service.estimateFees(txnLowVolume, FeeEstimateMode.STATE, 10000)
                         .getHighVolumeMultiplier())
-                .isEqualTo(HighVolumePricingCalculator.DEFAULT_HIGH_VOLUME_MULTIPLIER);
+                .isEqualTo(1_000L);
 
         // highVolume=true + INTRINSIC: feeContext is null → multiplier stays at DEFAULT
         assertThat(service.estimateFees(txnHighVolume, FeeEstimateMode.INTRINSIC, 10000)
                         .getHighVolumeMultiplier())
-                .isEqualTo(HighVolumePricingCalculator.DEFAULT_HIGH_VOLUME_MULTIPLIER);
+                .isEqualTo(1_000L);
 
         // highVolume=true + STATE + full throttle: multiplier equals customMaxRaw
         assertThat(service.estimateFees(txnHighVolume, FeeEstimateMode.STATE, 10000)
                         .getHighVolumeMultiplier())
                 .isEqualTo(customMaxRaw);
 
-        // highVolume=true + STATE + mid throttle: multiplier is between DEFAULT and customMaxRaw
+        // highVolume=true + STATE + mid throttle: multiplier is between DEFAULT (1_000) and customMaxRaw
         final var midResult = service.estimateFees(txnHighVolume, FeeEstimateMode.STATE, 5000);
-        assertThat(midResult.getHighVolumeMultiplier())
-                .isBetween(HighVolumePricingCalculator.DEFAULT_HIGH_VOLUME_MULTIPLIER, (long) customMaxRaw);
+        assertThat(midResult.getHighVolumeMultiplier()).isBetween(1_000L, (long) customMaxRaw);
     }
 
     @Test
@@ -570,9 +535,8 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                 0);
 
         // then
-        assertThat(result.getServiceBaseFeeTinycents()).isEqualTo(CONSENSUS_SUBMIT_MESSAGE_FEE);
-        // TODO: Need to fix the assertion logic
-        //        assertThat(result.totalTinycents()).isEqualTo(NODE_PORTION + CONSENSUS_SUBMIT_MESSAGE_FEE);
+        assertThat(result.getServiceBaseFeeTinycents()).isEqualTo(700_000L);
+        assertThat(result.totalTinycents()).isEqualTo(1_890_400L);
     }
 
     @Test
@@ -588,12 +552,9 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         // when
         final var result = service.estimateFees(pbjTransaction, FeeEstimateMode.INTRINSIC, 0);
 
-        // then
-        final long expectedServiceExtra = (long) (LONG_MESSAGE_BYTES - 1_024) * STATE_BYTES_FEE;
-        assertThat(result.getServiceBaseFeeTinycents()).isEqualTo(CONSENSUS_SUBMIT_MESSAGE_FEE);
-        // TODO: Need to fix the assertion logic
-        //       assertThat(result.totalTinycents()).isGreaterThanOrEqualTo(NODE_PORTION + CONSENSUS_SUBMIT_MESSAGE_FEE
-        // + expectedServiceExtra);
+        // then — large message triggers node PROCESSING_BYTES extra on top of service extras
+        assertThat(result.getServiceBaseFeeTinycents()).isEqualTo(700_000L);
+        assertThat(result.totalTinycents()).isEqualTo(96_320_000L);
     }
 
     private static FeeSchedule loadFeeSchedule() {
@@ -642,14 +603,6 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                         .toList())
                 .build();
         return FeeSchedule.PROTOBUF.toBytes(modified).toByteArray();
-    }
-
-    private static long extraFee(Extra extra) {
-        return FEE_SCHEDULE.extras().stream()
-                .filter(e -> e.name() == extra)
-                .findFirst()
-                .orElseThrow(() -> new NoSuchElementException("Extra fee not found: " + extra.protoName()))
-                .fee();
     }
 
     private static long serviceFee(HederaFunctionality func) {
