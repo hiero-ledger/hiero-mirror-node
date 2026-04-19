@@ -16,8 +16,8 @@ class GoPlugin : Plugin<Project> {
         go.arch = detectArchitecture()
         go.cacheDir = project.rootDir.resolve(".gradle")
         go.goRoot = go.cacheDir.resolve("go")
-        go.goBin = go.goRoot.resolve("bin").resolve("go")
         go.os = detectOs()
+        go.goBin = go.goRoot.resolve("bin").resolve(if (go.os == "windows") "go.exe" else "go")
         project.tasks.register<GoSetup>("setup")
     }
 
