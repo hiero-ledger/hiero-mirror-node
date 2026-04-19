@@ -8,7 +8,7 @@ import {transactionListName} from '../libex/constants.js';
 const urlTag = '/transactions?account.id={accountId}';
 
 const getUrl = (testParameters) =>
-  `/transactions?account.id=${testParameters['DEFAULT_ACCOUNT_ID']}&limit=${testParameters['DEFAULT_LIMIT']}`;
+  `/transactions?account.id=${testParameters['DEFAULT_ACCOUNT_ID']}&timestamp=lte:${testParameters['DEFAULT_BLOCK_MAX_TIMESTAMP']}&limit=${testParameters['DEFAULT_LIMIT']}`;
 
 const {options, run, setup} = new RestTestScenarioBuilder()
   .name('transactionsAccountId') // use unique scenario name among all tests
@@ -17,7 +17,7 @@ const {options, run, setup} = new RestTestScenarioBuilder()
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;
     return http.get(url);
   })
-  .requiredParameters('DEFAULT_ACCOUNT_ID')
+  .requiredParameters('DEFAULT_ACCOUNT_ID', 'DEFAULT_BLOCK_MAX_TIMESTAMP')
   .check('Transactions by account id OK', (r) => isValidListResponse(r, transactionListName))
   .build();
 
