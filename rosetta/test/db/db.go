@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -109,7 +108,7 @@ func (d dbParams) toConfig() config.Db {
 
 // CleanupDb cleans the data written to the db during tests
 func CleanupDb(db *sql.DB) {
-	filename := filepath.Clean(path.Join(moduleRoot, dbCleanupScript))
+	filename := filepath.Join(moduleRoot, dbCleanupScript)
 	script, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatalf("Failed to read cleanup.sql: %s", err)
@@ -193,7 +192,7 @@ func createPostgresDb(pool *dockertest.Pool, network *dockertest.Network) (*dock
 		Repository: "gcr.io/mirrornode/postgres",
 		Tag:        "16-alpine",
 		Env:        env,
-		Mounts:     []string{filepath.Clean(path.Join(moduleRoot, initScript)) + ":/docker-entrypoint-initdb.d/init.sh"},
+		Mounts:     []string{toDockerMount(filepath.Join(moduleRoot, initScript), "/docker-entrypoint-initdb.d/init.sh")},
 		Networks:   []*dockertest.Network{network},
 	}
 	resource, err := pool.RunWithOptions(options)
@@ -209,14 +208,14 @@ func createPostgresDb(pool *dockertest.Pool, network *dockertest.Network) (*dock
 }
 
 func runFlywayMigration(pool *dockertest.Pool, network *dockertest.Network, params dbParams) {
-	migrationPath := filepath.Clean(path.Join(moduleRoot, dbMigrationPath))
+	migrationPath := filepath.Join(moduleRoot, dbMigrationPath)
 	// run the container with tty and entrypoint "bin/sh" so it will stay alive in background
 	options := &dockertest.RunOptions{
 		Repository: "flyway/flyway",
 		Tag:        "9",
 		Entrypoint: []string{"/bin/sh"},
 		Networks:   []*dockertest.Network{network},
-		Mounts:     []string{migrationPath + ":/flyway/sql"},
+		Mounts:     []string{toDockerMount(migrationPath, "/flyway/sql")},
 		Tty:        true,
 	}
 
@@ -265,8 +264,21 @@ func getDbHostname(network *docker.Network) string {
 	return network.Name + "_db"
 }
 
+// toDockerMount creates a Docker volume mount string from a host path and a container path.
+// On Windows, Docker Desktop expects POSIX-style paths to avoid ambiguity with the colon
+// in Windows drive letters (e.g. C:\path) conflicting with the host:container separator.
+func toDockerMount(hostPath, containerPath string) string {
+	if runtime.GOOS == "windows" {
+		hostPath = filepath.ToSlash(hostPath)
+		if len(hostPath) >= 2 && hostPath[1] == ':' {
+			hostPath = "/" + strings.ToLower(string(hostPath[0])) + hostPath[2:]
+		}
+	}
+	return hostPath + ":" + containerPath
+}
+
 func init() {
 	// find the module root
 	_, filename, _, _ := runtime.Caller(0)
-	moduleRoot = path.Join(path.Dir(filename), "..", "..")
+	moduleRoot = filepath.Join(filepath.Dir(filename), "..", "..")
 }

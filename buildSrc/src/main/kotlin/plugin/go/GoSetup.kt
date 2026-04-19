@@ -9,6 +9,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.util.zip.GZIPInputStream
+import java.util.zip.ZipInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.Internal
@@ -23,7 +24,10 @@ open class GoSetup : DefaultTask() {
     @TaskAction
     fun prepare() {
         go.goRoot.mkdirs()
-        val url = URI.create("https://go.dev/dl/go${go.version}.${go.os}-${go.arch}.tar.gz").toURL()
+        val isWindows = go.os == "windows"
+        val extension = if (isWindows) "zip" else "tar.gz"
+        val url =
+            URI.create("https://go.dev/dl/go${go.version}.${go.os}-${go.arch}.${extension}").toURL()
         val filename = Paths.get(url.path).fileName
         val targetFile = go.cacheDir.toPath().resolve(filename)
 
@@ -36,7 +40,29 @@ open class GoSetup : DefaultTask() {
         }
 
         if (!go.goBin.exists()) {
-            decompressTgz(targetFile.toFile(), go.cacheDir)
+            if (isWindows) {
+                decompressZip(targetFile.toFile(), go.cacheDir)
+            } else {
+                decompressTgz(targetFile.toFile(), go.cacheDir)
+            }
+        }
+    }
+
+    fun decompressZip(source: File, destDir: File) {
+        ZipInputStream(FileInputStream(source)).use { zip ->
+            destDir.mkdirs()
+            var entry = zip.nextEntry
+            while (entry != null) {
+                val file = destDir.resolve(entry.name)
+                if (entry.isDirectory) {
+                    file.mkdirs()
+                } else {
+                    file.parentFile?.mkdirs()
+                    Files.copy(zip, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
         }
     }
 
