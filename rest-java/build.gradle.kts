@@ -16,6 +16,7 @@ dependencies {
         exclude(group = "io.opentelemetry")
         exclude(group = "io.prometheus")
         exclude(group = "org.assertj")
+        exclude(group = "org.eclipse.collections")
         exclude("org.junit")
     }
     implementation("com.hedera.hashgraph:app-service-entity-id-impl") {

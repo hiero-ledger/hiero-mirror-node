@@ -70,6 +70,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
 
     @Given("I successfully create contract by Legacy ethereum transaction")
     public void createContract() {
+
         deployedParentContract = ethereumContractCreate(PARENT_CONTRACT);
 
         gasConsumedSelector = Objects.requireNonNull(mirrorClient
