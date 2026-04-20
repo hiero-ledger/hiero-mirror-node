@@ -74,6 +74,9 @@ spec:
               target:
                 type: Utilization
                 averageUtilization: 40
+      monitor:
+        test:
+          enabled: false
       resources:
         requests:
           cpu: 1100m # same as limits
