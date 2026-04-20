@@ -94,8 +94,10 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         contractLog.setTransactionIndex(transactionIndex);
         contractLog.setTransactionHash(transactionHash);
         contractLog.setSynthetic(log instanceof TransferContractLog);
-        contractLog.setRecordItem(
-                contractRelatedParentRecordItem != null ? contractRelatedParentRecordItem : recordItem);
+
+        // The current recordItem should always be set, so that we know which RecordItem/ContractResult bloom to update.
+        // This field is set to be only used to calculate bloom aggregation for the RecordItem/ContractResult.
+        contractLog.setRecordItem(recordItem);
 
         entityListener.onContractLog(contractLog);
     }

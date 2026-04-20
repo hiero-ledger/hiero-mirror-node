@@ -415,7 +415,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         RecordFile recordFile = domainBuilder
                 .recordFile()
-                .customize(r -> r.sidecars(List.of()).logsBloom(null))
+                .customize(r -> r.sidecars(List.of()).logsBloom(existingBloom))
                 .get();
 
         parserContext.add(recordFile);

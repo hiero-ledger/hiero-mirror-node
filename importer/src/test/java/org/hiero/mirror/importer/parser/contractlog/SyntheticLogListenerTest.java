@@ -454,7 +454,7 @@ class SyntheticLogListenerTest {
     }
 
     @Test
-    void recordFileBloomSetWhenOnlySyntheticBloomAdded() {
+    void recordFileBloomUpdatedWhenSyntheticBloomAdded() {
         RecordFile recordFile =
                 domainBuilder.recordFile().customize(r -> r.logsBloom(null)).get();
         parserContext.add(recordFile);

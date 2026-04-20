@@ -142,6 +142,7 @@ public class RecordItem implements StreamItem {
         if (bloom == null || bloom.length != LogsBloomFilter.BYTE_SIZE) {
             return;
         }
+
         if (syntheticContractLogsBloom == null) {
             syntheticContractLogsBloom = new LogsBloomFilter();
             if (transactionRecord.hasContractCreateResult()
@@ -154,6 +155,7 @@ public class RecordItem implements StreamItem {
                         transactionRecord.getContractCallResult().getBloom().toByteArray());
             }
         }
+
         syntheticContractLogsBloom.or(bloom);
     }
 

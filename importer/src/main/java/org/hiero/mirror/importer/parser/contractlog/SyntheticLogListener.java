@@ -130,7 +130,15 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             return;
         }
 
-        final var recordFile = recordFiles.iterator().next();
+        final var recordFilesIterator = recordFiles.iterator();
+        final var recordFile = recordFilesIterator.next();
+
+        if (recordFilesIterator.hasNext()) {
+            // Shouldn't happen. We have more than one record files at this stage, so something went wrong and we
+            // shouldn't update any record file bloom for a safety reason.
+            return;
+        }
+
         final var aggregatedBloom = new LogsBloomFilter();
 
         final var existingBloom = recordFile.getLogsBloom();
@@ -158,13 +166,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             var receiverId = fromTrimmedEvmAddress(contractLog.getTopic2());
             if (!(EntityId.isEmpty(contractId) && EntityId.isEmpty(senderId) && EntityId.isEmpty(receiverId))) {
                 final var updater = new SyntheticLogUpdater(
-                        contractId,
-                        senderId,
-                        receiverId,
-                        contractLog,
-                        contractLog.getRecordItem(),
-                        parserContext,
-                        getEvmCache());
+                        contractId, senderId, receiverId, contractLog, contractLog.getRecordItem(), parserContext);
                 updater.populateSearchIds();
                 parserContext.addTransient(updater);
             }
@@ -215,14 +217,13 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
 
     @Getter(AccessLevel.PACKAGE)
     @RequiredArgsConstructor
-    static class SyntheticLogUpdater {
+    class SyntheticLogUpdater {
         private final EntityId contractId;
         private final EntityId sender;
         private final EntityId receiver;
         private final ContractLog contractLog;
         private final RecordItem recordItem;
         private final ParserContext parserContext;
-        private final LoadingCache<Long, byte[]> evmCache;
 
         public void populateSearchIds() {
             if (!EntityId.isEmpty(contractId)) {
@@ -307,7 +308,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
                     var contextEntity = parserContext.get(Entity.class, key.getId());
                     if (contextEntity != null && !ArrayUtils.isEmpty(contextEntity.getEvmAddress())) {
                         var trimmedEvmAddress = trim(contextEntity.getEvmAddress());
-                        evmCache.put(key.getId(), trimmedEvmAddress);
+                        getEvmCache().put(key.getId(), trimmedEvmAddress);
                         setter.accept(trimmedEvmAddress);
                     } else {
                         /* The entity repository only returns rows that have a non-empty evm address
@@ -315,7 +316,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
                         entity does not have an evm address. In addition, we know the default value here
                         will be non-null as the key is derived from this value and is checked to be non-empty
                         */
-                        evmCache.put(key.getId(), defaultValue);
+                        getEvmCache().put(key.getId(), defaultValue);
                     }
                 }
             }
