@@ -44,7 +44,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
           egress-policy: audit
 
@@ -68,7 +68,7 @@ jobs:
         uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v4
 
       - name: Authenticate to Google Cloud
-        uses: step-security/google-github-auth@57c51210cb4d85d8a5d39dc4c576c79bd693f914 # v3.0.1
+        uses: step-security/google-github-auth@775fc4c80760272ef389c9f9f8d98de7db0c170d # v3.0.2
         with:
           service_account: "mirrornode-gh-actions-sa@mirrornode.iam.gserviceaccount.com"
           workload_identity_provider: "projects/521285740332/locations/global/workloadIdentityPools/mirrornode-gh-actions/providers/mirrornode-gh-actions"
@@ -121,7 +121,7 @@ jobs:
       contents: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
           egress-policy: audit
 
@@ -129,7 +129,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Publish helm chart
-        uses: step-security/helm-gh-pages@2826baf4d1d58b2809163c3839154c16dcc7143d # v1.7.7
+        uses: step-security/helm-gh-pages@3a91c620f61e0120377cfd94e19f04292ddd8e67 # v1.7.8
         with:
           target_dir: charts
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -147,7 +147,7 @@ jobs:
       MPDEV: "/home/runner/mpdev"
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
           egress-policy: audit
 
@@ -156,7 +156,7 @@ jobs:
 
       - name: Authenticate to Google Cloud
         id: google-auth
-        uses: step-security/google-github-auth@57c51210cb4d85d8a5d39dc4c576c79bd693f914 # v3.0.1
+        uses: step-security/google-github-auth@775fc4c80760272ef389c9f9f8d98de7db0c170d # v3.0.2
         with:
           workload_identity_provider: "projects/798248771094/locations/global/workloadIdentityPools/default-pool/providers/gh-provider"
           service_account: "container-publisher@mirror-node-public.iam.gserviceaccount.com"

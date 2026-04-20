@@ -12,12 +12,15 @@ import com.hedera.hapi.node.base.Transaction;
 import com.hedera.hapi.node.token.CryptoTransferTransactionBody;
 import com.hedera.hapi.node.transaction.SignedTransaction;
 import com.hedera.hapi.node.transaction.TransactionBody;
+import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
+import com.hedera.node.config.data.HederaConfig;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.hiero.hapi.support.fees.FeeSchedule;
@@ -276,6 +279,15 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         final var second = service.estimateFees(txn, FeeEstimateMode.STATE, 0);
         assertThat(second.getServiceBaseFeeTinycents()).isEqualTo(baseFee20x);
         assertThat(second.totalTinycents()).isGreaterThan(first.totalTinycents());
+    }
+
+    @Test
+    void configurationContainsNetworkShardAndRealm() {
+        final var config = new ConfigProviderImpl(false, null, Map.of("hedera.shard", "5", "hedera.realm", "7"))
+                .getConfiguration()
+                .getConfigData(HederaConfig.class);
+        assertThat(config.shard()).isEqualTo(5L);
+        assertThat(config.realm()).isEqualTo(7L);
     }
 
     @Test

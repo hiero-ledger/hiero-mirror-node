@@ -56,6 +56,7 @@ Deployed automatically on every tag.
 
 ## Generally Available
 
+- [ ] Verify native images run with latest RC tag
 - [ ] Tag release via manual invocation of `Release Automation` workflow with GA tag
 - [ ] Manager writes release notes and publishes GitHub release
 - [ ] Publish marketplace release

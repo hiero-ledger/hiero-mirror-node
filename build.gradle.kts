@@ -50,7 +50,7 @@ dependencies {
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.guava:guava:33.5.0-jre")
+        api("com.google.guava:guava:33.6.0-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
@@ -76,6 +76,8 @@ dependencies {
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
+        api("org.bouncycastle:bcpkix-jdk18on:1.84") // Temporary until next hedera-app
+        api("org.bouncycastle:bcprov-jdk18on:1.84")
         api("org.gaul:s3proxy:3.1.0")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
@@ -87,7 +89,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.42.33")
+        api("software.amazon.awssdk:bom:2.42.36")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

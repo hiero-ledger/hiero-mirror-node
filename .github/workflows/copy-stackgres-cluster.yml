@@ -160,7 +160,7 @@ jobs:
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
           egress-policy: audit
 
@@ -248,7 +248,7 @@ jobs:
 
       - name: Setup Testkube CLI
         if: ${{ inputs.run_k6_test == true }}
-        uses: kubeshop/setup-testkube@e06cc069575f7cd2a67403c7da0a48229371a1db # v1.0.11
+        uses: kubeshop/setup-testkube@3deb6ba0cd26e0d890e278d59f996bd30d58b567 # v1.0.12
         with:
           version: v2.3.0
 
