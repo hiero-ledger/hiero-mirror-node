@@ -16,7 +16,6 @@ import jakarta.inject.Named;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -73,7 +72,6 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         final var keys = parserContext.getEvmAddressLookupIds();
         final var entityMap = getEvmCache().getAll(keys);
 
-        final var recordItemsWithSyntheticBloom = new HashSet<RecordItem>();
         final var syntheticBloomsByRecordItem = new HashMap<RecordItem, LogsBloomFilter>();
 
         for (final var updater : logUpdaters) {
@@ -84,7 +82,6 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             final var contractLog = updater.getContractLog();
             if (item != null && contractLog != null && contractLog.getBloom() != null) {
                 item.mergeSyntheticContractLogBloom(contractLog.getBloom());
-                recordItemsWithSyntheticBloom.add(item);
 
                 // Collect synthetic blooms by RecordItem for ContractResult update
                 syntheticBloomsByRecordItem
@@ -94,7 +91,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         }
 
         updateContractResultBlooms(syntheticBloomsByRecordItem);
-        aggregateBloomsIntoRecordFile(recordItemsWithSyntheticBloom);
+        updateRecordFileBloom(syntheticBloomsByRecordItem.keySet());
     }
 
     private void updateContractResultBlooms(Map<RecordItem, LogsBloomFilter> syntheticBloomsByRecordItem) {
@@ -113,14 +110,14 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
                 mergedBloom.or(syntheticBloom.toArrayUnsafe());
 
                 final var updatedBloom = mergedBloom.toArrayUnsafe();
-                if (updatedBloom.length > 0) {
+                if (updatedBloom.length == LogsBloomFilter.BYTE_SIZE) {
                     contractResult.setBloom(updatedBloom);
                 }
             }
         }
     }
 
-    private void aggregateBloomsIntoRecordFile(Set<RecordItem> recordItemsWithSyntheticBloom) {
+    private void updateRecordFileBloom(Set<RecordItem> recordItemsWithSyntheticBloom) {
         if (recordItemsWithSyntheticBloom.isEmpty()) {
             return;
         }
@@ -134,11 +131,20 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         final var recordFile = recordFilesIterator.next();
 
         if (recordFilesIterator.hasNext()) {
-            // Shouldn't happen. We have more than one record files at this stage, so something went wrong and we
-            // shouldn't update any record file bloom for a safety reason.
+            // Shouldn't happen. We have more than one record files currently in the context, so something went wrong
+            // and we shouldn't update the bloom.
             return;
         }
 
+        final var aggregatedBloom = aggregateRecordFileBloom(recordFile, recordItemsWithSyntheticBloom);
+
+        if (aggregatedBloom.toArrayUnsafe().length == LogsBloomFilter.BYTE_SIZE) {
+            recordFile.setLogsBloom(aggregatedBloom.toArrayUnsafe());
+        }
+    }
+
+    private LogsBloomFilter aggregateRecordFileBloom(
+            final RecordFile recordFile, final Set<RecordItem> recordItemsWithSyntheticBloom) {
         final var aggregatedBloom = new LogsBloomFilter();
 
         final var existingBloom = recordFile.getLogsBloom();
@@ -155,7 +161,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             }
         }
 
-        recordFile.setLogsBloom(aggregatedBloom.toArrayUnsafe());
+        return aggregatedBloom;
     }
 
     @Override

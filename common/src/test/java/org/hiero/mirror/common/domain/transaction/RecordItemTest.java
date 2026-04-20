@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.contract.ContractTransaction;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -879,7 +880,7 @@ class RecordItemTest {
         recordItem.mergeSyntheticContractLogBloom(null);
         recordItem.mergeSyntheticContractLogBloom(new byte[] {1, 2, 3});
 
-        assertThat(recordItem.getMergedSyntheticContractLogsBloom()).isNull();
+        assertThat(recordItem.getMergedSyntheticContractLogsBloom()).isEqualTo(ArrayUtils.EMPTY_BYTE_ARRAY);
     }
 
     @SuppressWarnings("java:S5778")
