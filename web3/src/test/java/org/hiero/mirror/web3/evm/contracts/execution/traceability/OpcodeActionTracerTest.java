@@ -180,7 +180,7 @@ class OpcodeActionTracerTest {
         REMAINING_GAS.set(INITIAL_GAS);
         tracer = new OpcodeActionTracer();
         tracer.setSystemContracts(Map.of(HTS_PRECOMPILE_ADDRESS, mock(HederaSystemContract.class)));
-        opcodeContext = new OpcodeContext(
+        opcodeContext = OpcodeContext.forTracing(
                 new OpcodeRequest(new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), false, false, false), 0);
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
         lenient().when(contractCallContext.getOpcodeContext()).thenReturn(opcodeContext);

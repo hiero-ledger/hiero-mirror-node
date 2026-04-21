@@ -54,6 +54,7 @@ public class ContractDebugService extends ContractCallService {
                 .setActions(contractActionRepository.findFailedSystemActionsByConsensusTimestamp(
                         params.getConsensusTimestamp()));
         final var ethCallTxnResult = callContract(params, ctx);
+        ctx.getOpcodeContext().finalizeTrace(ctx.getHexStringPool());
         return new OpcodesProcessingResult(
                 ethCallTxnResult, params.getReceiver(), ctx.getOpcodeContext().getOpcodes());
     }

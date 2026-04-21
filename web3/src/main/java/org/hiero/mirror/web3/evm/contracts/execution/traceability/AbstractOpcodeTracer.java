@@ -5,15 +5,12 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 import static org.hiero.mirror.web3.convert.BytesDecoder.startsWithErrorSelector;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -27,52 +24,40 @@ import org.springframework.util.CollectionUtils;
 
 public abstract class AbstractOpcodeTracer {
 
-    // Value taken by analyzing a heavy call output
-    private static final int HEX_CACHE_MAX_SIZE = 1600;
-
-    // Common cache that keeps hex string representation of different Bytes keys. We can have the same Bytes occurrence
-    // on multiple opcode data and this cache helps to avoid unnecessary string allocations.
-    private final LoadingCache<Bytes, String> hexCache = Caffeine.newBuilder()
-            .maximumSize(HEX_CACHE_MAX_SIZE)
-            .expireAfterAccess(Duration.ofMinutes(1))
-            .build(Bytes::toHexString);
-
-    protected final List<String> captureMemory(final MessageFrame frame, final OpcodeContext options) {
+    protected final List<Bytes> captureMemory(final MessageFrame frame, final OpcodeContext options) {
         if (!options.isMemory()) {
             return Collections.emptyList();
         }
         var size = frame.memoryWordSize();
-        var hexMemoryEntries = new ArrayList<String>(size);
+        var memoryWords = new ArrayList<Bytes>(size);
 
         final var wordSize = 32;
         final var memory = frame.readMutableMemory(0L, (long) wordSize * size).toArrayUnsafe();
-        final var hex = HexFormat.of();
 
         for (var i = 0; i < size; i++) {
             var startIndex = i * wordSize;
-            final var result = HEX_PREFIX + hex.formatHex(memory, startIndex, startIndex + wordSize);
-            hexMemoryEntries.add(result);
+            memoryWords.add(Bytes.wrap(Arrays.copyOfRange(memory, startIndex, startIndex + wordSize)));
         }
 
-        return hexMemoryEntries;
+        return memoryWords;
     }
 
-    protected final List<String> captureStack(final MessageFrame frame, final OpcodeContext options) {
+    protected final List<Bytes> captureStack(final MessageFrame frame, final OpcodeContext options) {
         if (!options.isStack()) {
             return Collections.emptyList();
         }
 
         var size = frame.stackSize();
-        var stack = new ArrayList<String>(size);
+        var stack = new ArrayList<Bytes>(size);
         for (var i = 0; i < size; ++i) {
             var item = frame.getStackItem(size - 1 - i);
-            stack.add(hexCache.get(item, Bytes::toHexString));
+            stack.add(Bytes.wrap(item.toArrayUnsafe()));
         }
 
         return stack;
     }
 
-    protected Map<String, String> captureStorage(
+    protected Map<Bytes, Bytes> captureStorage(
             final MessageFrame frame, final OpcodeContext options, final ContractCallContext context) {
         if (!options.isStorage()) {
             return Collections.emptyMap();
@@ -109,14 +94,12 @@ public abstract class AbstractOpcodeTracer {
                 return Collections.emptyMap();
             }
 
-            final var result = new TreeMap<String, String>();
+            final var result = new TreeMap<Bytes, Bytes>();
             for (final var storageAccesses : updates) {
                 for (final var access : storageAccesses.accesses()) {
-                    final var key = hexCache.get(access.key(), Bytes::toHexString);
+                    final var key = access.key();
                     if (!result.containsKey(key)) {
-                        final var value = access.writtenValue() != null
-                                ? hexCache.get(access.writtenValue(), Bytes::toHexString)
-                                : hexCache.get(access.value(), Bytes::toHexString);
+                        final var value = access.writtenValue() != null ? access.writtenValue() : access.value();
                         result.put(key, value);
                     }
                 }

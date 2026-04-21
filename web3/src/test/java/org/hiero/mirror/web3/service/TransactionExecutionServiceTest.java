@@ -117,7 +117,7 @@ class TransactionExecutionServiceTest {
     void testExecuteContractCallSuccess(String senderAddressHex) {
         // Given
         ContractCallContext.get()
-                .setOpcodeContext(new OpcodeContext(
+                .setOpcodeContext(OpcodeContext.forTracing(
                         new OpcodeRequest(
                                 new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), true, false, false),
                         0));
@@ -321,7 +321,7 @@ class TransactionExecutionServiceTest {
     void testExecuteContractCreateSuccess(String callDataHex) {
         // Given
         ContractCallContext.get()
-                .setOpcodeContext(new OpcodeContext(
+                .setOpcodeContext(OpcodeContext.forTracing(
                         new OpcodeRequest(
                                 new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), true, false, false),
                         0));

@@ -64,7 +64,7 @@ public class OpcodeServiceImpl implements OpcodeService {
     public OpcodesResponse processOpcodeCall(@NonNull OpcodeRequest opcodeRequest) {
         return ContractCallContext.run(ctx -> {
             final var params = buildCallServiceParameters(opcodeRequest.getTransactionIdOrHashParameter());
-            final var opcodeContext = new OpcodeContext(opcodeRequest, (int) params.getGas() / 3);
+            final var opcodeContext = OpcodeContext.forTracing(opcodeRequest, (int) params.getGas() / 3);
 
             ctx.setOpcodeContext(opcodeContext);
 

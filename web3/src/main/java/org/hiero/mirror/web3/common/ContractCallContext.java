@@ -13,6 +13,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.HexStringPool;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -35,6 +36,10 @@ public class ContractCallContext {
 
     @Setter
     private OpcodeContext opcodeContext = null;
+
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private HexStringPool hexStringPool;
 
     @Setter
     private CallServiceParameters callServiceParameters;
@@ -129,5 +134,15 @@ public class ContractCallContext {
 
     public RecordFile getRecordFile() {
         return blockSupplier.get();
+    }
+
+    /**
+     * Request-scoped hex string deduplication for opcode trace mapping (not used for regular contract calls).
+     */
+    public HexStringPool getHexStringPool() {
+        if (hexStringPool == null) {
+            hexStringPool = new HexStringPool();
+        }
+        return hexStringPool;
     }
 }

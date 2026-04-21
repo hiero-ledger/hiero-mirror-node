@@ -156,14 +156,14 @@ class OpcodesControllerTest {
 
     static Stream<Arguments> transactionsWithDifferentTracerOptions() {
         final List<OpcodeContext> tracerOptions = List.of(
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, true), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, true), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, true), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, false), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, true), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, false), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, false), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, false), 0));
+                OpcodeContext.forTracing(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, true), 0),
+                OpcodeContext.forTracing(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, true), 0),
+                OpcodeContext.forTracing(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, true), 0),
+                OpcodeContext.forTracing(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, false), 0),
+                OpcodeContext.forTracing(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, true), 0),
+                OpcodeContext.forTracing(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, false), 0),
+                OpcodeContext.forTracing(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, false), 0),
+                OpcodeContext.forTracing(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, false), 0));
         return Arrays.stream(TransactionProviderEnum.values())
                 .flatMap(providerEnum -> tracerOptions.stream().map(options -> Arguments.of(providerEnum, options)));
     }
@@ -222,7 +222,7 @@ class OpcodesControllerTest {
     }
 
     private MockHttpServletRequestBuilder opcodesRequest(final TransactionIdOrHashParameter parameter) {
-        return opcodesRequest(parameter, new OpcodeContext(new OpcodeRequest(parameter, true, false, false), 0));
+        return opcodesRequest(parameter, OpcodeContext.forTracing(new OpcodeRequest(parameter, true, false, false), 0));
     }
 
     private MockHttpServletRequestBuilder opcodesRequest(

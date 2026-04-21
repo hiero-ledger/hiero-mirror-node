@@ -19,7 +19,7 @@ public class OpcodeTracerUtil {
             new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH);
 
     public static final OpcodeContext OPTIONS =
-            new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, false), 0);
+            OpcodeContext.forTracing(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, false), 0);
 
     public static String toHumanReadableMessage(final String solidityError) {
         return BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage(solidityError);
