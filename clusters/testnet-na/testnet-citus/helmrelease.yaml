@@ -80,10 +80,6 @@ spec:
         config:
           contract:
             contractId: "0.0.2664875"
-    restjava:
-      routes:
-        network:
-          nodes: true
     stackgres:
       coordinator:
         persistentVolume:
