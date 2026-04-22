@@ -28,10 +28,6 @@ public final class OpcodeTraceMapper {
     }
 
     private static Opcode toApiOpcode(final OpcodeTraceEntry e, final HexStringPool pool) {
-        var apiReason = e.systemContractRevertReason();
-        if (apiReason == null && e.frameRevertReason() != null) {
-            apiReason = pool.hex(e.frameRevertReason());
-        }
         return new Opcode()
                 .pc(e.pc())
                 .op(e.op())
@@ -41,7 +37,7 @@ public final class OpcodeTraceMapper {
                 .stack(toHexList(e.stack(), pool))
                 .memory(toHexList(e.memory(), pool))
                 .storage(toHexStorage(e.storage(), pool))
-                .reason(apiReason);
+                .reason(e.frameRevertReason());
     }
 
     private static List<String> toHexList(final List<Bytes> bytes, final HexStringPool pool) {

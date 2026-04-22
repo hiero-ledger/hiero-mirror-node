@@ -51,7 +51,9 @@ public abstract class AbstractOpcodeTracer {
         var stack = new ArrayList<Bytes>(size);
         for (var i = 0; i < size; ++i) {
             var item = frame.getStackItem(size - 1 - i);
-            stack.add(Bytes.wrap(item.toArrayUnsafe()));
+            // Snapshot contents: Besu stack slots may wrap mutable/reused buffers. Main materialized hex at trace
+            // time; deferring encode to finalizeTrace requires an immutable copy, not wrap(toArrayUnsafe()).
+            stack.add(item.copy());
         }
 
         return stack;
