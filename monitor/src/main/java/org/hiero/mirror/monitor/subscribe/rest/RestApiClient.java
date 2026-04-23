@@ -21,6 +21,7 @@ import reactor.core.publisher.Mono;
 @Named
 public class RestApiClient {
 
+    private static final String NETWORK = "/network/";
     private static final String PREFIX = "/api/v1";
 
     private final WebClient webClientRest;
@@ -43,7 +44,8 @@ public class RestApiClient {
     }
 
     public <T> Mono<T> retrieve(Class<T> responseClass, String uri, Object... parameters) {
-        return webClientRest
+        final var webClient = uri.contains(NETWORK) ? webClientRestJava : webClientRest;
+        return webClient
                 .get()
                 .uri(uri.replace(PREFIX, StringUtils.EMPTY), parameters)
                 .retrieve()

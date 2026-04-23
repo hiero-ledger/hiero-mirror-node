@@ -30,7 +30,7 @@ import org.springframework.web.filter.ForwardedHeaderFilter;
 import org.springframework.web.util.WebUtils;
 
 @ExtendWith(OutputCaptureExtension.class)
-class LoggingFilterTest {
+final class LoggingFilterTest {
 
     private final Web3Properties web3Properties = new Web3Properties();
     private final LoggingFilter loggingFilter = new LoggingFilter(web3Properties);
@@ -160,8 +160,21 @@ class LoggingFilterTest {
 
     @Test
     @SneakyThrows
-    void getFullExceptionMessage(CapturedOutput output) {
+    void errorPayloadNotTruncated(CapturedOutput output) {
         int maxSize = web3Properties.getMaxPayloadLogSize();
+        var content = RandomStringUtils.secure().next(maxSize + 100, "abcdef0123456789");
+        var request = new MockHttpServletRequest("POST", "/");
+        request.setContent(content.getBytes(StandardCharsets.UTF_8));
+        response.setStatus(HttpStatus.BAD_GATEWAY.value());
+
+        loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
+
+        assertThat(output.getOut()).contains(content);
+    }
+
+    @Test
+    @SneakyThrows
+    void getFullExceptionMessage(CapturedOutput output) {
         var content = "abcdef0123456789";
         var request = new MockHttpServletRequest("POST", "/");
         request.setContent(content.getBytes(StandardCharsets.UTF_8));
