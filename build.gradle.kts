@@ -22,7 +22,7 @@ extra.apply {
     set("grpcVersion", "1.80.0")
     set("jackson-2-bom.version", "2.21.2") // Temporary until next Spring Boot
     set("jackson-bom.version", "3.1.1") // Temporary until next Spring Boot
-    set("jooq.version", "3.21.1") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.21.2") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
     set("protobufVersion", "4.34.1")
