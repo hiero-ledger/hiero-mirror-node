@@ -388,6 +388,14 @@ class ContractControllerTest {
                         .string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), errorString))));
     }
 
+    @Test
+    void callValidBlockTypeWithBlockHash() throws Exception {
+        final var request = request();
+        request.setBlock(BlockType.of("0x" + "ef".repeat(48)));
+
+        contractCall(request).andExpect(status().isOk());
+    }
+
     @NullAndEmptySource
     @ParameterizedTest
     @ValueSource(strings = {"earliest", "latest", "0", "0x1a", "pending", "safe", "finalized"})

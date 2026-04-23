@@ -9,7 +9,7 @@ import org.hiero.mirror.web3.viewmodel.BlockType;
 public interface RecordFileService {
 
     /**
-     * @param block the {@link BlockType} with the block number
+     * @param block tag (e.g. latest), block number, or block hash (48-byte)
      * @return the record file associated with the given block
      */
     Optional<RecordFile> findByBlockType(BlockType block);
