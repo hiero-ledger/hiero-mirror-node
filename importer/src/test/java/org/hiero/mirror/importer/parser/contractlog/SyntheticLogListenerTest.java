@@ -17,6 +17,8 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
@@ -391,5 +393,188 @@ class SyntheticLogListenerTest {
     private void submitAndClear() {
         listener.onEnd(domainBuilder.recordFile().get());
         parserContext.clear();
+    }
+
+    @Test
+    void recordFileBloomUnchangedWhenNoSyntheticLogs() {
+        byte[] existingBloom = domainBuilder.bloomFilter();
+        RecordFile recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.logsBloom(existingBloom))
+                .get();
+        parserContext.add(recordFile);
+
+        listener.onEnd(recordFile);
+
+        assertArrayEquals(existingBloom, recordFile.getLogsBloom());
+    }
+
+    @Test
+    void recordFileBloomMergesExistingAndSyntheticBlooms() {
+        byte[] existingAddress = domainBuilder.evmAddress();
+        var existingBloomFilter = new LogsBloomFilter();
+        existingBloomFilter.insertAddress(existingAddress);
+        byte[] existingBloom = existingBloomFilter.toArrayUnsafe();
+
+        RecordFile recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.logsBloom(existingBloom))
+                .get();
+        parserContext.add(recordFile);
+
+        var syntheticLogBloom = new LogsBloomFilter();
+        syntheticLogBloom.insertAddress(CONTRACT_EVM);
+        syntheticLogBloom.insertTopic(TRANSFER_SIGNATURE);
+        syntheticLogBloom.insertTopic(EVM_1);
+        syntheticLogBloom.insertTopic(EVM_2);
+
+        RecordItem recordItem = mock(RecordItem.class);
+        when(recordItem.getMergedSyntheticContractLogsBloom()).thenReturn(syntheticLogBloom.toArrayUnsafe());
+
+        var contractLog = syntheticTransferLogWithRecordItem(LONG_ZERO_1, LONG_ZERO_2, CONTRACT_ENTITY, recordItem);
+        contractLog.setBloom(CONTRACT_LOG_MARKER);
+
+        final var mappings =
+                List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2), evmMap(CONTRACT_EVM, CONTRACT_ENTITY));
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(mappings);
+
+        listener.onContractLog(contractLog);
+
+        var expectedBloom = new LogsBloomFilter();
+        expectedBloom.insertAddress(existingAddress);
+        expectedBloom.insertAddress(CONTRACT_EVM);
+        expectedBloom.insertTopic(TRANSFER_SIGNATURE);
+        expectedBloom.insertTopic(EVM_1);
+        expectedBloom.insertTopic(EVM_2);
+
+        listener.onEnd(recordFile);
+
+        byte[] resultBloom = recordFile.getLogsBloom();
+        assertArrayEquals(expectedBloom.toArrayUnsafe(), resultBloom);
+    }
+
+    @Test
+    void recordFileBloomUpdatedWhenSyntheticBloomAdded() {
+        RecordFile recordFile =
+                domainBuilder.recordFile().customize(r -> r.logsBloom(null)).get();
+        parserContext.add(recordFile);
+
+        var syntheticLogBloom = new LogsBloomFilter();
+        syntheticLogBloom.insertAddress(CONTRACT_EVM);
+        syntheticLogBloom.insertTopic(TRANSFER_SIGNATURE);
+        syntheticLogBloom.insertTopic(EVM_1);
+        syntheticLogBloom.insertTopic(EVM_2);
+
+        RecordItem recordItem = mock(RecordItem.class);
+        when(recordItem.getMergedSyntheticContractLogsBloom()).thenReturn(syntheticLogBloom.toArrayUnsafe());
+
+        var contractLog = syntheticTransferLogWithRecordItem(LONG_ZERO_1, LONG_ZERO_2, CONTRACT_ENTITY, recordItem);
+        contractLog.setBloom(CONTRACT_LOG_MARKER);
+
+        final var mappings =
+                List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2), evmMap(CONTRACT_EVM, CONTRACT_ENTITY));
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(mappings);
+
+        listener.onContractLog(contractLog);
+
+        var expectedBloom = new LogsBloomFilter();
+        expectedBloom.insertAddress(CONTRACT_EVM);
+        expectedBloom.insertTopic(TRANSFER_SIGNATURE);
+        expectedBloom.insertTopic(EVM_1);
+        expectedBloom.insertTopic(EVM_2);
+
+        listener.onEnd(recordFile);
+
+        byte[] resultBloom = recordFile.getLogsBloom();
+        assertArrayEquals(expectedBloom.toArrayUnsafe(), resultBloom);
+    }
+
+    @Test
+    void recordFileBloomAggregatesMultipleSyntheticLogs() {
+        byte[] existingAddress = domainBuilder.evmAddress();
+        var existingBloomFilter = new LogsBloomFilter();
+        existingBloomFilter.insertAddress(existingAddress);
+        byte[] existingBloom = existingBloomFilter.toArrayUnsafe();
+
+        RecordFile recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.logsBloom(existingBloom))
+                .get();
+        parserContext.add(recordFile);
+
+        var combinedSyntheticBloom = new LogsBloomFilter();
+        combinedSyntheticBloom.insertAddress(CONTRACT_EVM);
+        combinedSyntheticBloom.insertTopic(TRANSFER_SIGNATURE);
+        combinedSyntheticBloom.insertTopic(EVM_1);
+        combinedSyntheticBloom.insertTopic(EVM_2);
+        combinedSyntheticBloom.insertTopic(EVM_2);
+        combinedSyntheticBloom.insertTopic(EVM_3);
+
+        RecordItem recordItem = mock(RecordItem.class);
+        when(recordItem.getMergedSyntheticContractLogsBloom()).thenReturn(combinedSyntheticBloom.toArrayUnsafe());
+
+        var contractLog1 = syntheticTransferLogWithRecordItem(LONG_ZERO_1, LONG_ZERO_2, CONTRACT_ENTITY, recordItem);
+        contractLog1.setBloom(CONTRACT_LOG_MARKER);
+
+        var contractLog2 = syntheticTransferLogWithRecordItem(LONG_ZERO_2, LONG_ZERO_3, CONTRACT_ENTITY, recordItem);
+        contractLog2.setBloom(CONTRACT_LOG_MARKER);
+
+        final var mappings = List.of(
+                evmMap(EVM_1, ENTITY_1),
+                evmMap(EVM_2, ENTITY_2),
+                evmMap(EVM_3, ENTITY_3),
+                evmMap(CONTRACT_EVM, CONTRACT_ENTITY));
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(mappings);
+
+        listener.onContractLog(contractLog1);
+        listener.onContractLog(contractLog2);
+
+        var expectedBloom = new LogsBloomFilter();
+        expectedBloom.insertAddress(existingAddress); // existing bloom
+        // First synthetic log
+        expectedBloom.insertAddress(CONTRACT_EVM);
+        expectedBloom.insertTopic(TRANSFER_SIGNATURE);
+        expectedBloom.insertTopic(EVM_1);
+        expectedBloom.insertTopic(EVM_2);
+        expectedBloom.insertTopic(EVM_2);
+        expectedBloom.insertTopic(EVM_3);
+
+        listener.onEnd(recordFile);
+
+        byte[] resultBloom = recordFile.getLogsBloom();
+        assertArrayEquals(expectedBloom.toArrayUnsafe(), resultBloom);
+    }
+
+    @Test
+    void recordFileBloomNotUpdatedWhenNoRecordFileInContext() {
+        RecordItem recordItem = mock(RecordItem.class);
+        var contractLog = syntheticTransferLogWithRecordItem(LONG_ZERO_1, LONG_ZERO_2, CONTRACT_ENTITY, recordItem);
+        contractLog.setBloom(CONTRACT_LOG_MARKER);
+
+        final var mappings =
+                List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2), evmMap(CONTRACT_EVM, CONTRACT_ENTITY));
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(mappings);
+
+        listener.onContractLog(contractLog);
+
+        RecordFile recordFile = domainBuilder.recordFile().get();
+        byte[] originalBloom = recordFile.getLogsBloom().clone();
+
+        listener.onEnd(recordFile);
+
+        assertArrayEquals(originalBloom, recordFile.getLogsBloom());
+    }
+
+    private ContractLog syntheticTransferLogWithRecordItem(
+            final byte[] topic1, final byte[] topic2, final EntityId contractId, final RecordItem recordItem) {
+        return domainBuilder
+                .contractLog()
+                .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
+                        .topic1(topic1)
+                        .topic2(topic2)
+                        .contractId(contractId)
+                        .synthetic(true)
+                        .recordItem(recordItem))
+                .get();
     }
 }

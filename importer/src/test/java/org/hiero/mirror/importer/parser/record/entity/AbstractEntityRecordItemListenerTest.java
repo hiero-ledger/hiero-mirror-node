@@ -486,7 +486,7 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
     @SneakyThrows
     protected void buildContractFunctionResult(ContractFunctionResult.Builder builder) {
         builder.setAmount(10);
-        builder.setBloom(ByteString.copyFromUtf8("bloom"));
+        builder.setBloom(ByteString.copyFrom(domainBuilder.bloomFilter()));
         builder.setContractCallResult(ByteString.copyFromUtf8("call result"));
         builder.setContractID(CONTRACT_ID);
         builder.addCreatedContractIDs(CONTRACT_ID);
@@ -497,7 +497,7 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
         builder.setGas(20);
         builder.setGasUsed(30);
         builder.addLogInfo(ContractLoginfo.newBuilder()
-                .setBloom(ByteString.copyFromUtf8("bloom"))
+                .setBloom(ByteString.copyFrom(domainBuilder.bloomFilter()))
                 .setContractID(CONTRACT_ID)
                 .setData(ByteString.copyFromUtf8("data"))
                 .addTopic(ByteString.copyFromUtf8("Topic0"))
@@ -506,7 +506,7 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
                 .addTopic(ByteString.copyFromUtf8("Topic3"))
                 .build());
         builder.addLogInfo(ContractLoginfo.newBuilder()
-                .setBloom(ByteString.copyFromUtf8("bloom"))
+                .setBloom(ByteString.copyFrom(domainBuilder.bloomFilter()))
                 .setContractID(CREATED_CONTRACT_ID)
                 .setData(ByteString.copyFromUtf8("data"))
                 .addTopic(ByteString.copyFromUtf8("Topic0"))

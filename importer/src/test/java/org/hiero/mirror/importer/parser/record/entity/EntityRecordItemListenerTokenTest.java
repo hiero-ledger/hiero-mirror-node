@@ -86,6 +86,7 @@ import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.NftRepository;
@@ -4546,11 +4547,22 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(EntityId.of(CONTRACT_ID).getId(), ContractResult::getContractId);
 
         contractResult
-                .returns(contractFunctionResult.getBloom().toByteArray(), ContractResult::getBloom)
                 .returns(contractFunctionResult.getContractCallResult().toByteArray(), ContractResult::getCallResult)
                 .returns(timestamp, ContractResult::getConsensusTimestamp)
                 .returns(contractFunctionResult.getErrorMessage(), ContractResult::getErrorMessage)
-                .returns(contractFunctionResult.getGasUsed(), ContractResult::getGasUsed);
+                .returns(contractFunctionResult.getGasUsed(), ContractResult::getGasUsed)
+                .satisfies(cr -> assertBloomContains(
+                        cr.getBloom(), contractFunctionResult.getBloom().toByteArray()));
+    }
+
+    private void assertBloomContains(byte[] actualBloom, byte[] expectedBloom) {
+        assertThat(actualBloom).isNotNull();
+        assertThat(actualBloom.length).isEqualTo(LogsBloomFilter.BYTE_SIZE);
+        for (int i = 0; i < expectedBloom.length && i < actualBloom.length; i++) {
+            assertThat(actualBloom[i] & expectedBloom[i])
+                    .as("Bloom byte at index %d should contain expected bits", i)
+                    .isEqualTo(expectedBloom[i]);
+        }
     }
 
     private void assertTokenAllowanceInRepository(

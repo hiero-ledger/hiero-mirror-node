@@ -27,12 +27,14 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.contract.ContractTransaction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.exception.ProtobufException;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -839,6 +841,46 @@ class RecordItemTest {
         recordItem.addContractTransaction(account);
 
         assertThat(recordItem.populateContractTransactions()).isEmpty();
+    }
+
+    @Test
+    void mergeSyntheticContractLogBloomAggregatesWithBitwiseOr() {
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transactionRecord(TRANSACTION_RECORD)
+                .transaction(DEFAULT_TRANSACTION)
+                .build();
+
+        var bloom1 = new LogsBloomFilter();
+        bloom1.insertTopic(new byte[] {1, 2, 3});
+        byte[] b1 = bloom1.toArrayUnsafe();
+
+        var bloom2 = new LogsBloomFilter();
+        bloom2.insertTopic(new byte[] {4, 5, 6});
+        byte[] b2 = bloom2.toArrayUnsafe();
+
+        recordItem.mergeSyntheticContractLogBloom(b1);
+        recordItem.mergeSyntheticContractLogBloom(b2);
+
+        var expected = new LogsBloomFilter();
+        expected.or(b1);
+        expected.or(b2);
+
+        assertThat(recordItem.getMergedSyntheticContractLogsBloom()).isEqualTo(expected.toArrayUnsafe());
+    }
+
+    @Test
+    void mergeSyntheticContractLogBloomIgnoresInvalidLength() {
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transactionRecord(TRANSACTION_RECORD)
+                .transaction(DEFAULT_TRANSACTION)
+                .build();
+
+        recordItem.mergeSyntheticContractLogBloom(null);
+        recordItem.mergeSyntheticContractLogBloom(new byte[] {1, 2, 3});
+
+        assertThat(recordItem.getMergedSyntheticContractLogsBloom()).isEqualTo(ArrayUtils.EMPTY_BYTE_ARRAY);
     }
 
     @SuppressWarnings("java:S5778")

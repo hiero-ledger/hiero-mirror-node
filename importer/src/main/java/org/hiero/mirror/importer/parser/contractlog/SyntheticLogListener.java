@@ -20,14 +20,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.contract.ContractLog;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
@@ -69,9 +72,96 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         final var keys = parserContext.getEvmAddressLookupIds();
         final var entityMap = getEvmCache().getAll(keys);
 
-        for (var updater : logUpdaters) {
+        final var syntheticBloomsByRecordItem = new HashMap<RecordItem, LogsBloomFilter>();
+
+        for (final var updater : logUpdaters) {
             updater.updateContractLog(entityMap);
+
+            // Merge ContractLog bloom into RecordItem
+            final var item = updater.getRecordItem();
+            final var contractLog = updater.getContractLog();
+            if (item != null && contractLog != null && contractLog.getBloom() != null) {
+                item.mergeSyntheticContractLogBloom(contractLog.getBloom());
+
+                // Collect synthetic blooms by RecordItem for ContractResult update
+                syntheticBloomsByRecordItem
+                        .computeIfAbsent(item, k -> new LogsBloomFilter())
+                        .or(contractLog.getBloom());
+            }
         }
+
+        updateContractResultBlooms(syntheticBloomsByRecordItem);
+        updateRecordFileBloom(syntheticBloomsByRecordItem.keySet());
+    }
+
+    private void updateContractResultBlooms(Map<RecordItem, LogsBloomFilter> syntheticBloomsByRecordItem) {
+        for (final var entry : syntheticBloomsByRecordItem.entrySet()) {
+            final var recordItem = entry.getKey();
+            final var syntheticBloom = entry.getValue();
+
+            final var contractResult = parserContext.get(ContractResult.class, recordItem.getConsensusTimestamp());
+            if (contractResult != null) {
+                final var existingBloom = contractResult.getBloom();
+                final var mergedBloom = new LogsBloomFilter();
+
+                if (existingBloom != null && existingBloom.length == LogsBloomFilter.BYTE_SIZE) {
+                    mergedBloom.or(existingBloom);
+                }
+                mergedBloom.or(syntheticBloom.toArrayUnsafe());
+
+                final var updatedBloom = mergedBloom.toArrayUnsafe();
+                if (updatedBloom.length == LogsBloomFilter.BYTE_SIZE) {
+                    contractResult.setBloom(updatedBloom);
+                }
+            }
+        }
+    }
+
+    private void updateRecordFileBloom(Set<RecordItem> recordItemsWithSyntheticBloom) {
+        if (recordItemsWithSyntheticBloom.isEmpty()) {
+            return;
+        }
+
+        final var recordFiles = parserContext.get(RecordFile.class);
+        if (recordFiles.isEmpty()) {
+            return;
+        }
+
+        final var recordFilesIterator = recordFiles.iterator();
+        final var recordFile = recordFilesIterator.next();
+
+        if (recordFilesIterator.hasNext()) {
+            // Shouldn't happen. We have more than one record files currently in the context, so something went wrong
+            // and we shouldn't update the bloom.
+            return;
+        }
+
+        final var aggregatedBloom = aggregateRecordFileBloom(recordFile, recordItemsWithSyntheticBloom);
+
+        if (aggregatedBloom.toArrayUnsafe().length == LogsBloomFilter.BYTE_SIZE) {
+            recordFile.setLogsBloom(aggregatedBloom.toArrayUnsafe());
+        }
+    }
+
+    private LogsBloomFilter aggregateRecordFileBloom(
+            final RecordFile recordFile, final Set<RecordItem> recordItemsWithSyntheticBloom) {
+        final var aggregatedBloom = new LogsBloomFilter();
+
+        final var existingBloom = recordFile.getLogsBloom();
+        if (existingBloom != null
+                && existingBloom.length == LogsBloomFilter.BYTE_SIZE
+                && !Arrays.equals(existingBloom, ArrayUtils.EMPTY_BYTE_ARRAY)) {
+            aggregatedBloom.or(existingBloom);
+        }
+
+        for (final var item : recordItemsWithSyntheticBloom) {
+            final var syntheticBloom = item.getMergedSyntheticContractLogsBloom();
+            if (syntheticBloom != null && syntheticBloom.length == LogsBloomFilter.BYTE_SIZE) {
+                aggregatedBloom.or(syntheticBloom);
+            }
+        }
+
+        return aggregatedBloom;
     }
 
     @Override
@@ -81,7 +171,8 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             var senderId = fromTrimmedEvmAddress(contractLog.getTopic1());
             var receiverId = fromTrimmedEvmAddress(contractLog.getTopic2());
             if (!(EntityId.isEmpty(contractId) && EntityId.isEmpty(senderId) && EntityId.isEmpty(receiverId))) {
-                final var updater = new SyntheticLogUpdater(contractId, senderId, receiverId, contractLog);
+                final var updater = new SyntheticLogUpdater(
+                        contractId, senderId, receiverId, contractLog, contractLog.getRecordItem(), parserContext);
                 updater.populateSearchIds();
                 parserContext.addTransient(updater);
             }
@@ -130,12 +221,15 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         }
     }
 
+    @Getter(AccessLevel.PACKAGE)
     @RequiredArgsConstructor
     class SyntheticLogUpdater {
         private final EntityId contractId;
         private final EntityId sender;
         private final EntityId receiver;
         private final ContractLog contractLog;
+        private final RecordItem recordItem;
+        private final ParserContext parserContext;
 
         public void populateSearchIds() {
             if (!EntityId.isEmpty(contractId)) {
