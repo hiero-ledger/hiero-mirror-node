@@ -551,18 +551,19 @@ public final class BlockStreamReaderTest {
     @Test
     void noSignedTransactions() {
         // A standalone state changes block item, with consensus timestamp
-        var stateChanges = stateChanges();
-        var block = Block.newBuilder()
-                .addItems(blockHeader())
+        final var stateChanges = stateChanges();
+        final var blockHeader = blockHeader();
+        final var block = Block.newBuilder()
+                .addItems(blockHeader)
                 .addItems(roundHeader())
                 .addItems(eventHeader())
                 .addItems(stateChanges)
                 .addItems(blockFooter())
                 .addItems(blockProof())
                 .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
-        long timestamp =
-                DomainUtils.timestampInNanosMax(stateChanges.getStateChanges().getConsensusTimestamp());
+        final var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
+        final long timestamp =
+                DomainUtils.timestampInNanosMax(blockHeader.getBlockHeader().getBlockTimestamp());
         assertThat(reader.read(blockStream))
                 .returns(timestamp, BlockFile::getConsensusEnd)
                 .returns(timestamp, BlockFile::getConsensusStart)

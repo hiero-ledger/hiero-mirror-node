@@ -14,7 +14,6 @@ import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRACE_DATA;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_OUTPUT;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_RESULT;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
-import static org.hiero.mirror.common.util.DomainUtils.timestampInNanosMax;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -35,13 +34,13 @@ import java.util.List;
 import java.util.Objects;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
 import org.hiero.mirror.importer.reader.block.record.RecordFileItemReader;
@@ -89,8 +88,10 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 blockFile.setConsensusStart(items.getFirst().getConsensusTimestamp());
                 blockFile.setConsensusEnd(items.getLast().getConsensusTimestamp());
             } else {
-                blockFile.setConsensusStart(context.getLastMetaTimestamp());
-                blockFile.setConsensusEnd(context.getLastMetaTimestamp());
+                final long blockTimestamp = DomainUtils.timestampInNanosMax(
+                        blockFile.getBlockHeader().getBlockTimestamp());
+                blockFile.setConsensusStart(blockTimestamp);
+                blockFile.setConsensusEnd(blockTimestamp);
             }
         } else {
             final int recordFileVersion =
@@ -199,7 +200,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                     final var stateChanges = protoBlockItem.getStateChanges();
                     if (!Objects.equals(
                             transactionResult.getConsensusTimestamp(), stateChanges.getConsensusTimestamp())) {
-                        context.setLastMetaTimestamp(timestampInNanosMax(stateChanges.getConsensusTimestamp()));
                         break;
                     }
 
@@ -268,11 +268,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         @Nullable
         private BlockTransaction lastChildTransaction;
 
-        @NonFinal
-        @Nullable
-        @Setter
-        private Long lastMetaTimestamp; // The last consensus timestamp from metadata
-
         ReaderContext(final List<BlockItem> blockItems, final String filename) {
             this.blockFile = BlockFile.builder();
             this.blockItems = blockItems;
@@ -311,8 +306,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                     return blockItem;
                 } else if (shouldSkip(currentItemCase, itemCase)) {
                     consumeBlockItem(blockItem);
-                    lastMetaTimestamp =
-                            timestampInNanosMax(blockItem.getStateChanges().getConsensusTimestamp());
                 } else {
                     return null;
                 }
