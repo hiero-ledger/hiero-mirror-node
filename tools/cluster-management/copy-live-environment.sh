@@ -15,6 +15,7 @@ K6_TEST_REPORT_DIR="${K6_TEST_REPORT_DIR:-/tmp/mirrornode-k6-test-report}"
 K6_TEST_SUITE_NAME="${K6_TEST_SUITE_NAME:-test-suite-rest-mainnet-citus}"
 K8S_SOURCE_CLUSTER_CONTEXT=${K8S_SOURCE_CLUSTER_CONTEXT:-}
 K8S_TARGET_CLUSTER_CONTEXT=${K8S_TARGET_CLUSTER_CONTEXT:-}
+REQUIRE_CLEAN_TARGET=${REQUIRE_CLEAN_TARGET:-true}
 RESTORE="${RESTORE:-true}"
 RUN_ACCEPTANCE_TEST="${RUN_ACCEPTANCE_TEST:-false}"
 RUN_K6_TEST="${RUN_K6_TEST:-true}"
@@ -524,7 +525,10 @@ function copyLiveEnvironment() {
   ensureContext K8S_SOURCE_CLUSTER_CONTEXT
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
 
-  if [[ $(kubectl get nodes -o json | jq '.items | length') != 0 ]]; then
+  local node_count
+  node_count=$(kubectl get nodes -o json | jq '.items | length')
+
+  if [[ "${REQUIRE_CLEAN_TARGET}" == "true" && "${node_count}" -ne 0 ]]; then
     log "There are GKE nodes in the target cluster, please teardown the environment before any restore attempt."
     exit 1
   fi

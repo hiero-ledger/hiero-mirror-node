@@ -9,7 +9,7 @@ Need to copy live environment with zero downtime on source
 - Have `jq`, `yq`, and `base64` installed
 - Have `testkube` kubectl plugin installed
 - The source and target have compatible versions of postgres
-- The `target cluster` has a running Citus cluster deployed with `hedera-mirror` chart
+- The `target cluster` has a Citus cluster deployed with `hedera-mirror` chart
 - The `target cluster` you are restoring to doesn't have any pvcs with a size larger than the size of the pvc in the
   snapshot. You can't decrease the size of a pvc. If needed, you can delete the existing cluster in the `target cluster`
   and redeploy the `hedera-mirror` chart with the default disk sizes.
@@ -17,6 +17,7 @@ Need to copy live environment with zero downtime on source
 - All bash commands assume your working directory is `tools/cluster-management`
 - Only a single citus cluster is installed per namespace
 - If `USE_STATIC_SNAPSHOT` is true(default), the `SNAPSHOT_ID` must reference a snapshot created by running the [`volume-snapshot.sh`](../../tools/cluster-management/volume-snapshot.sh) script
+- If flux is not managing the environment, you must have your desired version of `hedera-mirror` and `hedera-mirror-common` charts deployed and you must set `REQUIRE_CLEAN_TARGET=false`
 
 ## Steps
 
