@@ -10,7 +10,6 @@ configurations.all {
 
 dependencies {
     val testClasses by configurations.registering
-    annotationProcessor("jakarta.persistence:jakarta.persistence-api")
     api("com.fasterxml.jackson.core:jackson-databind")
     api("com.fasterxml.jackson.dataformat:jackson-dataformat-csv")
     api("com.github.ben-manes.caffeine:caffeine")
@@ -25,10 +24,14 @@ dependencies {
     api("org.apache.tuweni:tuweni-units")
     api("org.bouncycastle:bcprov-jdk18on")
     api("org.slf4j:jcl-over-slf4j")
+    api("org.springframework.boot:spring-boot-hibernate")
     api("org.springframework.boot:spring-boot-jackson2")
-    api("org.springframework.boot:spring-boot-starter-data-jpa")
+    api("org.springframework.boot:spring-boot-persistence")
+    api("org.springframework.boot:spring-boot-starter-jdbc")
+    api("org.springframework.data:spring-data-commons")
     api("org.springframework.boot:spring-boot-starter-micrometer-metrics")
     api("org.springframework.boot:spring-boot-starter-validation")
+    testImplementation("org.springframework.boot:spring-boot-starter-data-jpa")
     testImplementation("jakarta.inject:jakarta.inject-api")
     testImplementation("io.micrometer:micrometer-core")
     testImplementation("org.junit.platform:junit-platform-launcher")

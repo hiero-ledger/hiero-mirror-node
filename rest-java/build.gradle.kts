@@ -11,11 +11,13 @@ plugins {
 dependencies {
     annotationProcessor("org.mapstruct:mapstruct-processor")
     implementation(project(":common"))
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("com.hedera.hashgraph:app") {
         exclude(group = "io.netty")
         exclude(group = "io.opentelemetry")
         exclude(group = "io.prometheus")
         exclude(group = "org.assertj")
+        exclude(group = "org.eclipse.collections")
         exclude("org.junit")
     }
     implementation("com.hedera.hashgraph:app-service-entity-id-impl") {

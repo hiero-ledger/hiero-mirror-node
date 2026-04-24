@@ -19,6 +19,7 @@ dependencies {
 
     implementation(platform("software.amazon.awssdk:bom"))
     implementation(project(":common"))
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("com.esaulpaugh:headlong")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv")
     implementation("com.hedera.cryptography:hedera-cryptography-wraps")
