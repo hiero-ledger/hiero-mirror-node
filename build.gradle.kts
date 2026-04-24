@@ -17,12 +17,12 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.30.2")
+    set("blockNodeVersion", "0.31.0")
     set("consensusNodeVersion", "0.73.0-rc.5")
     set("grpcVersion", "1.80.0")
     set("jackson-2-bom.version", "2.21.2") // Temporary until next Spring Boot
     set("jackson-bom.version", "3.1.1") // Temporary until next Spring Boot
-    set("jooq.version", "3.21.1") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.21.2") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
     set("protobufVersion", "4.34.1")
@@ -50,7 +50,7 @@ dependencies {
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.guava:guava:33.5.0-jre")
+        api("com.google.guava:guava:33.6.0-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
@@ -59,7 +59,7 @@ dependencies {
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.69.0")
+        api("com.hedera.hashgraph:sdk:2.70.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.21.0")
@@ -89,7 +89,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.42.33")
+        api("software.amazon.awssdk:bom:2.42.36")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

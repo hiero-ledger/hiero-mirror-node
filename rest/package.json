@@ -23,7 +23,7 @@
     "@bufbuild/protobuf": "2.11.0",
     "@godaddy/terminus": "4.12.1",
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/exporter-prometheus": "^0.214.0",
+    "@opentelemetry/exporter-prometheus": "^0.215.0",
     "@opentelemetry/sdk-metrics": "^2.6.1",
     "asn1js": "3.0.7",
     "basic-auth": "2.0.1",
@@ -49,7 +49,7 @@
     "tsscmp": "1.0.6"
   },
   "devDependencies": {
-    "@bufbuild/buf": "1.67.0",
+    "@bufbuild/buf": "1.68.2",
     "@bufbuild/protoc-gen-es": "2.11.0",
     "@testcontainers/postgresql": "11.14.0",
     "cross-env": "10.1.0",

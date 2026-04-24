@@ -6,7 +6,7 @@ repositories { gradlePluginPortal() }
 
 dependencies {
     val dockerJavaVersion = "3.7.1"
-    val jooqVersion = "3.21.1" // Always make the version in project root build.gradle.kts match
+    val jooqVersion = "3.21.2" // Always make the version in project root build.gradle.kts match
 
     // Add docker-java dependencies before gradle-docker-plugin to avoid the docker-java jars
     // embedded in the plugin being used by testcontainers-postgresql
@@ -25,7 +25,7 @@ dependencies {
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.0")
     implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("org.cyclonedx:cyclonedx-gradle-plugin:3.2.4")
-    implementation("org.flywaydb:flyway-database-postgresql:12.3.0")
+    implementation("org.flywaydb:flyway-database-postgresql:12.4.0")
     implementation("org.graalvm.buildtools:native-gradle-plugin:0.11.5")
     implementation("org.gradle:test-retry-gradle-plugin:1.6.4")
     implementation("org.jooq:jooq-codegen-gradle:$jooqVersion")
