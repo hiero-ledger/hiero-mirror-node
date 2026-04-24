@@ -160,17 +160,20 @@ final class LoggingFilterTest {
     }
 
     @CsvSource(delimiter = '|', textBlock = """
-            {"data":"0x01","block":"latest"}         | {"block":"latest","data":"0x01"}
-            {"gas":0,"data":"0x01","block":"latest"} | {"gas":0,"block":"latest","data":"0x01"}
-            {"block":"latest", "data":"0x01"}        | {"block":"latest","data":"0x01"}
-            {"data":"0x01"}                          | {"data":"0x01"}
-            {,"data":"0x01"}                         | {,"data":"0x01"}
+            {"data":"0x01","block":"latest"}          | {"block":"latest","data":"0x01"}
+            {"gas":0,"data":"0x01","block":"latest"}  | {"gas":0,"block":"latest","data":"0x01"}
+            {"block": "latest","data": "0x01"}        | {"block":"latest","data":"0x01"}
+            {"data":"0x01"}                           | {"data":"0x01"}
+            {,"data":"0x01"}                          | {,"data":"0x01"}
+            {"data":"0x01","block":"latest","foo":{}} | {"block":"latest","foo":{},"data":"0x01"}
             """)
     @ParameterizedTest
     @SneakyThrows
     void dataFieldMoved(String request, String expected, CapturedOutput output) {
+        int maxSize = web3Properties.getMaxPayloadLogSize();
+        var content = request + RandomStringUtils.secure().next(maxSize + 100, "abcdef0123456789");
         final var servletRequest = new MockHttpServletRequest("POST", "/");
-        servletRequest.setContent(request.getBytes(StandardCharsets.UTF_8));
+        servletRequest.setContent(content.getBytes(StandardCharsets.UTF_8));
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(servletRequest, response, (req, res) -> IOUtils.toString(req.getReader()));
@@ -236,7 +239,6 @@ final class LoggingFilterTest {
     @NullAndEmptySource
     @SneakyThrows
     void getFullExceptionMessageChildErrorsEmpty(final LinkedList<String> childErrors, CapturedOutput output) {
-        int maxSize = web3Properties.getMaxPayloadLogSize();
         var content = "abcdef0123456789";
         var request = new MockHttpServletRequest("POST", "/");
         request.setContent(content.getBytes(StandardCharsets.UTF_8));

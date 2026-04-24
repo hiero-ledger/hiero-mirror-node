@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -29,12 +30,9 @@ import org.springframework.web.util.WebUtils;
 class LoggingFilter extends OncePerRequestFilter {
 
     private static final String ACTUATOR_PATH = "/actuator/";
-    private static final String BRACE = "}";
-    private static final String COMMA = ",";
-    private static final String DATA_FIELD = "\"data\"";
+    private static final Pattern DATA_PATTERN = Pattern.compile("(\"data\":.*?),(.+)(}[^}]*)$");
     private static final String LOG_FORMAT = "{} {} {} in {} ms : {} {} - {}";
     private static final String SUCCESS = "Success";
-
     private final Web3Properties web3Properties;
 
     @Override
@@ -88,10 +86,8 @@ class LoggingFilter extends OncePerRequestFilter {
             content = StringUtils.deleteWhitespace(wrapper.getContentAsString());
         }
 
-        content = reorderFields(content);
-
         if (content.length() > maxPayloadLogSize) {
-            final var bos = new ByteArrayOutputStream();
+            final var bos = new ByteArrayOutputStream(content.length() / 4);
             try (final var out = new GZIPOutputStream(bos)) {
                 out.write(content.getBytes(StandardCharsets.UTF_8));
                 out.finish();
@@ -107,6 +103,7 @@ class LoggingFilter extends OncePerRequestFilter {
 
         // Truncate log message size unless it's a 5xx error
         if (content.length() > maxPayloadLogSize && status < HttpStatus.INTERNAL_SERVER_ERROR.value()) {
+            content = reorderFields(content);
             content = StringUtils.substring(content, 0, maxPayloadLogSize);
         }
 
@@ -130,26 +127,6 @@ class LoggingFilter extends OncePerRequestFilter {
 
     // Move data field to the end of the JSON so shorter fields are not truncated.
     private String reorderFields(String json) {
-        final int start = json.indexOf(DATA_FIELD);
-        if (start == -1) {
-            return json;
-        }
-
-        // data field already at the end
-        final int end = json.indexOf(COMMA, start);
-        if (end == -1) {
-            return json;
-        }
-
-        final int brace = json.indexOf(BRACE, end);
-        if (brace == -1) {
-            return json;
-        }
-
-        final var dataField = json.substring(start, end);
-        final var prefix = json.substring(0, start);
-        final var suffix = json.substring(end + 1, brace);
-
-        return prefix + suffix + COMMA + dataField + BRACE;
+        return DATA_PATTERN.matcher(json).replaceFirst("$2,$1$3");
     }
 }
