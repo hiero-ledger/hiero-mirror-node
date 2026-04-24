@@ -19,6 +19,7 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -156,6 +157,25 @@ final class LoggingFilterTest {
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
 
         assertThat(output.getOut()).contains(content.substring(0, maxSize)).doesNotContain(content);
+    }
+
+    @CsvSource(delimiter = '|', textBlock = """
+            {"data":"0x01","block":"latest"}         | {"block":"latest","data":"0x01"}
+            {"gas":0,"data":"0x01","block":"latest"} | {"gas":0,"block":"latest","data":"0x01"}
+            {"block":"latest", "data":"0x01"}        | {"block":"latest","data":"0x01"}
+            {"data":"0x01"}                          | {"data":"0x01"}
+            {,"data":"0x01"}                         | {,"data":"0x01"}
+            """)
+    @ParameterizedTest
+    @SneakyThrows
+    void dataFieldMoved(String request, String expected, CapturedOutput output) {
+        final var servletRequest = new MockHttpServletRequest("POST", "/");
+        servletRequest.setContent(request.getBytes(StandardCharsets.UTF_8));
+        response.setStatus(HttpStatus.OK.value());
+
+        loggingFilter.doFilter(servletRequest, response, (req, res) -> IOUtils.toString(req.getReader()));
+
+        assertThat(output.getOut()).contains(expected);
     }
 
     @Test

@@ -130,17 +130,26 @@ class LoggingFilter extends OncePerRequestFilter {
 
     // Move data field to the end of the JSON so shorter fields are not truncated.
     private String reorderFields(String json) {
-        int start = json.indexOf(DATA_FIELD);
+        final int start = json.indexOf(DATA_FIELD);
         if (start == -1) {
             return json;
         }
 
-        int end = json.indexOf(COMMA, start);
+        // data field already at the end
+        final int end = json.indexOf(COMMA, start);
         if (end == -1) {
             return json;
         }
 
-        String dataField = json.substring(start, end);
-        return json.replace(COMMA + dataField, StringUtils.EMPTY).replace(BRACE, COMMA + dataField + BRACE);
+        final int brace = json.indexOf(BRACE, end);
+        if (brace == -1) {
+            return json;
+        }
+
+        final var dataField = json.substring(start, end);
+        final var prefix = json.substring(0, start);
+        final var suffix = json.substring(end + 1, brace);
+
+        return prefix + suffix + COMMA + dataField + BRACE;
     }
 }
