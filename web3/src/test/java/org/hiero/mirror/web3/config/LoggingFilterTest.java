@@ -19,6 +19,7 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -30,7 +31,7 @@ import org.springframework.web.filter.ForwardedHeaderFilter;
 import org.springframework.web.util.WebUtils;
 
 @ExtendWith(OutputCaptureExtension.class)
-class LoggingFilterTest {
+final class LoggingFilterTest {
 
     private final Web3Properties web3Properties = new Web3Properties();
     private final LoggingFilter loggingFilter = new LoggingFilter(web3Properties);
@@ -158,10 +159,45 @@ class LoggingFilterTest {
         assertThat(output.getOut()).contains(content.substring(0, maxSize)).doesNotContain(content);
     }
 
+    @CsvSource(delimiter = '|', textBlock = """
+            {"data":"0x01","block":"latest"}          | {"block":"latest","data":"0x01"}
+            {"gas":0,"data":"0x01","block":"latest"}  | {"gas":0,"block":"latest","data":"0x01"}
+            {"block": "latest","data": "0x01"}        | {"block":"latest","data":"0x01"}
+            {"data":"0x01"}                           | {"data":"0x01"}
+            {,"data":"0x01"}                          | {,"data":"0x01"}
+            {"data":"0x01","block":"latest","foo":{}} | {"block":"latest","foo":{},"data":"0x01"}
+            """)
+    @ParameterizedTest
+    @SneakyThrows
+    void dataFieldMoved(String request, String expected, CapturedOutput output) {
+        int maxSize = web3Properties.getMaxPayloadLogSize();
+        var content = request + RandomStringUtils.secure().next(maxSize + 100, "abcdef0123456789");
+        final var servletRequest = new MockHttpServletRequest("POST", "/");
+        servletRequest.setContent(content.getBytes(StandardCharsets.UTF_8));
+        response.setStatus(HttpStatus.OK.value());
+
+        loggingFilter.doFilter(servletRequest, response, (req, res) -> IOUtils.toString(req.getReader()));
+
+        assertThat(output.getOut()).contains(expected);
+    }
+
+    @Test
+    @SneakyThrows
+    void errorPayloadNotTruncated(CapturedOutput output) {
+        int maxSize = web3Properties.getMaxPayloadLogSize();
+        var content = RandomStringUtils.secure().next(maxSize + 100, "abcdef0123456789");
+        var request = new MockHttpServletRequest("POST", "/");
+        request.setContent(content.getBytes(StandardCharsets.UTF_8));
+        response.setStatus(HttpStatus.BAD_GATEWAY.value());
+
+        loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
+
+        assertThat(output.getOut()).contains(content);
+    }
+
     @Test
     @SneakyThrows
     void getFullExceptionMessage(CapturedOutput output) {
-        int maxSize = web3Properties.getMaxPayloadLogSize();
         var content = "abcdef0123456789";
         var request = new MockHttpServletRequest("POST", "/");
         request.setContent(content.getBytes(StandardCharsets.UTF_8));
@@ -203,7 +239,6 @@ class LoggingFilterTest {
     @NullAndEmptySource
     @SneakyThrows
     void getFullExceptionMessageChildErrorsEmpty(final LinkedList<String> childErrors, CapturedOutput output) {
-        int maxSize = web3Properties.getMaxPayloadLogSize();
         var content = "abcdef0123456789";
         var request = new MockHttpServletRequest("POST", "/");
         request.setContent(content.getBytes(StandardCharsets.UTF_8));

@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -29,9 +30,9 @@ import org.springframework.web.util.WebUtils;
 class LoggingFilter extends OncePerRequestFilter {
 
     private static final String ACTUATOR_PATH = "/actuator/";
+    private static final Pattern DATA_PATTERN = Pattern.compile("(\"data\":.*?),(.+)(}[^}]*)$");
     private static final String LOG_FORMAT = "{} {} {} in {} ms : {} {} - {}";
     private static final String SUCCESS = "Success";
-
     private final Web3Properties web3Properties;
 
     @Override
@@ -61,9 +62,9 @@ class LoggingFilter extends OncePerRequestFilter {
         }
 
         long elapsed = System.currentTimeMillis() - startTime;
-        var content = getContent(request);
-        var message = getMessage(request, e);
         int status = response.getStatus();
+        var content = getContent(request, status);
+        var message = getMessage(request, e);
         var params =
                 new Object[] {request.getRemoteAddr(), request.getMethod(), uri, elapsed, status, message, content};
 
@@ -76,21 +77,21 @@ class LoggingFilter extends OncePerRequestFilter {
         }
     }
 
-    private String getContent(HttpServletRequest request) {
+    private String getContent(HttpServletRequest request, int status) {
         var content = StringUtils.EMPTY;
-        int maxPayloadLogSize = web3Properties.getMaxPayloadLogSize();
-        var wrapper = WebUtils.getNativeRequest(request, ContentCachingRequestWrapper.class);
+        final int maxPayloadLogSize = web3Properties.getMaxPayloadLogSize();
+        final var wrapper = WebUtils.getNativeRequest(request, ContentCachingRequestWrapper.class);
 
         if (wrapper != null) {
             content = StringUtils.deleteWhitespace(wrapper.getContentAsString());
         }
 
         if (content.length() > maxPayloadLogSize) {
-            var bos = new ByteArrayOutputStream();
-            try (var out = new GZIPOutputStream(bos)) {
+            final var bos = new ByteArrayOutputStream(content.length() / 4);
+            try (final var out = new GZIPOutputStream(bos)) {
                 out.write(content.getBytes(StandardCharsets.UTF_8));
                 out.finish();
-                var compressed = Base64.getEncoder().encodeToString(bos.toByteArray());
+                final var compressed = Base64.getEncoder().encodeToString(bos.toByteArray());
 
                 if (compressed.length() <= maxPayloadLogSize) {
                     content = compressed;
@@ -100,7 +101,9 @@ class LoggingFilter extends OncePerRequestFilter {
             }
         }
 
-        if (content.length() > maxPayloadLogSize) {
+        // Truncate log message size unless it's a 5xx error
+        if (content.length() > maxPayloadLogSize && status < HttpStatus.INTERNAL_SERVER_ERROR.value()) {
+            content = reorderFields(content);
             content = StringUtils.substring(content, 0, maxPayloadLogSize);
         }
 
@@ -120,5 +123,10 @@ class LoggingFilter extends OncePerRequestFilter {
         }
 
         return SUCCESS;
+    }
+
+    // Move data field to the end of the JSON so shorter fields are not truncated.
+    private String reorderFields(String json) {
+        return DATA_PATTERN.matcher(json).replaceFirst("$2,$1$3");
     }
 }
