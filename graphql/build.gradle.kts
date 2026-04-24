@@ -17,6 +17,7 @@ dependencies {
         exclude(group = "org.springframework.security")
     }
     implementation(project(":common"))
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("com.graphql-java:graphql-java-extended-scalars")
     implementation("com.graphql-java:graphql-java-extended-validation")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
