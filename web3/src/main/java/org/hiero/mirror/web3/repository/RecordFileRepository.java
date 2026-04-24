@@ -28,6 +28,9 @@ public interface RecordFileRepository extends PagingAndSortingRepository<RecordF
     @Query("select r from RecordFile r where r.index = ?1")
     Optional<RecordFile> findByIndex(long index);
 
+    @Query("select r from RecordFile r where lower(r.hash) = lower(:hash)")
+    Optional<RecordFile> findByHash(String hash);
+
     @Cacheable(
             cacheNames = CACHE_NAME_RECORD_FILE_LATEST,
             cacheManager = CACHE_MANAGER_RECORD_FILE_LATEST,

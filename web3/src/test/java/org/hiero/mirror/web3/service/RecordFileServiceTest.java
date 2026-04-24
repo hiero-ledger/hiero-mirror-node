@@ -62,4 +62,11 @@ class RecordFileServiceTest extends Web3IntegrationTest {
         final var blockType = BlockType.of(String.valueOf(recordFileLatest.getIndex() + 1L));
         assertThat(recordFileService.findByBlockType(blockType)).isEmpty();
     }
+
+    @Test
+    void testFindByBlockTypeFullRecordFileHash() {
+        var recordFile = domainBuilder.recordFile().persist();
+        var blockType = BlockType.of("0x" + recordFile.getHash());
+        assertThat(recordFileService.findByBlockType(blockType)).contains(recordFile);
+    }
 }
