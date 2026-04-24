@@ -5,7 +5,10 @@ description = "Hiero Mirror Node gRPC API"
 plugins { id("spring-conventions") }
 
 dependencies {
-    implementation(project(":common"))
+    implementation(project(":common")) {
+        exclude(group = "org.springframework.boot", module = "spring-boot-starter-data-jpa")
+        exclude(group = "org.hibernate.orm")
+    }
     implementation(project(":protobuf"))
     implementation("com.fasterxml.jackson.core:jackson-core")
     implementation("com.ongres.scram:client")
@@ -15,11 +18,14 @@ dependencies {
     implementation("io.projectreactor.addons:reactor-extra")
     implementation("io.projectreactor:reactor-core-micrometer")
     implementation("jakarta.inject:jakarta.inject-api")
+    implementation("jakarta.persistence:jakarta.persistence-api")
+    compileOnly("org.hibernate.orm:hibernate-core")
     implementation("org.msgpack:jackson-dataformat-msgpack")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
     implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-starter-cache")
+    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.grpc:spring-grpc-spring-boot-starter")
