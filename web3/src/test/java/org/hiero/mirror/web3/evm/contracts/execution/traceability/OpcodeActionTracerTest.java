@@ -389,8 +389,7 @@ class OpcodeActionTracerTest {
     }
 
     @Test
-    @DisplayName(
-            "should reflect updated slot value when the same key is overwritten between opcodes with the same total access count")
+    @DisplayName("should reflect latest slot value when same key is overwritten with unchanged access count")
     void shouldReturnUpdatedSlotValueWhenCountIsUnchangedBetweenOpcodes() {
         // Given
         opcodeContext = opcodeContext.toBuilder().storage(true).build();
