@@ -113,12 +113,10 @@ public abstract class AbstractOpcodeTracer {
             for (final var storageAccesses : updates) {
                 for (final var access : storageAccesses.accesses()) {
                     final var key = hexCache.get(access.key(), Bytes::toHexString);
-                    if (!result.containsKey(key)) {
-                        final var value = access.writtenValue() != null
-                                ? hexCache.get(access.writtenValue(), Bytes::toHexString)
-                                : hexCache.get(access.value(), Bytes::toHexString);
-                        result.put(key, value);
-                    }
+                    final var value = access.writtenValue() != null
+                            ? hexCache.get(access.writtenValue(), Bytes::toHexString)
+                            : hexCache.get(access.value(), Bytes::toHexString);
+                    result.put(key, value);
                 }
             }
             return result;
