@@ -16,8 +16,11 @@ val go = project.extensions.getByName<GoExtension>("go")
 
 val isWindows = go.os == "windows"
 val binaryName =
-    if (isWindows) "${layout.projectDirectory.asFile.name}.exe"
-    else layout.projectDirectory.asFile.name
+    if (isWindows) {
+        "${layout.projectDirectory.asFile.name}.exe"
+    } else {
+        layout.projectDirectory.asFile.name
+    }
 
 val goBuild =
     tasks.register<Go>("goBuild") {

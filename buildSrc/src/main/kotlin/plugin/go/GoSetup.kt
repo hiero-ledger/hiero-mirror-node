@@ -27,7 +27,7 @@ open class GoSetup : DefaultTask() {
         val isWindows = go.os == "windows"
         val extension = if (isWindows) "zip" else "tar.gz"
         val url =
-            URI.create("https://go.dev/dl/go${go.version}.${go.os}-${go.arch}.${extension}").toURL()
+            URI.create("https://go.dev/dl/go${go.version}.${go.os}-${go.arch}.$extension").toURL()
         val filename = Paths.get(url.path).fileName
         val targetFile = go.cacheDir.toPath().resolve(filename)
 
@@ -48,6 +48,7 @@ open class GoSetup : DefaultTask() {
         }
     }
 
+    /** Extracts a zip archive into the given destination directory. */
     fun decompressZip(source: File, destDir: File) {
         ZipInputStream(FileInputStream(source)).use { zip ->
             destDir.mkdirs()
@@ -69,6 +70,7 @@ open class GoSetup : DefaultTask() {
         }
     }
 
+    /** Extracts a tar.gz archive into the given destination directory. */
     fun decompressTgz(source: File, destDir: File) {
         TarArchiveInputStream(GZIPInputStream(FileInputStream(source)), "UTF-8").use {
             destDir.mkdirs()
