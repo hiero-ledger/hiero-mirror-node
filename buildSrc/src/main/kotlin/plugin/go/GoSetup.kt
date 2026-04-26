@@ -54,6 +54,9 @@ open class GoSetup : DefaultTask() {
             var entry = zip.nextEntry
             while (entry != null) {
                 val file = destDir.resolve(entry.name)
+                require(file.canonicalPath.startsWith(destDir.canonicalPath + File.separator)) {
+                    "Zip entry escapes destination directory: ${entry.name}"
+                }
                 if (entry.isDirectory) {
                     file.mkdirs()
                 } else {
@@ -73,6 +76,9 @@ open class GoSetup : DefaultTask() {
 
             while (entry != null) {
                 val file = destDir.resolve(entry.name)
+                require(file.canonicalPath.startsWith(destDir.canonicalPath + File.separator)) {
+                    "Zip entry escapes destination directory: ${entry.name}"
+                }
                 if (entry.isDirectory) {
                     file.mkdirs()
                 } else {

@@ -14,7 +14,7 @@ apply<GoPlugin>()
 
 val go = project.extensions.getByName<GoExtension>("go")
 
-val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+val isWindows = go.os == "windows"
 val binaryName =
     if (isWindows) "${layout.projectDirectory.asFile.name}.exe"
     else layout.projectDirectory.asFile.name

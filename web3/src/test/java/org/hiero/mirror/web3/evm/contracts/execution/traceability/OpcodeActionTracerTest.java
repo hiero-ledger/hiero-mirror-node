@@ -815,6 +815,13 @@ class OpcodeActionTracerTest {
                 .contextVariables(Map.of(ContractCallContext.CONTEXT_NAME, contractCallContext));
     }
 
+    private TxStorageUsage makeUsage(final UInt256 slotKey, final UInt256 value) {
+        return new TxStorageUsage(
+                List.of(new StorageAccesses(
+                        ContractID.DEFAULT, List.of(new StorageAccess(slotKey, UInt256.ZERO, value)))),
+                Set.of());
+    }
+
     @Test
     @DisplayName("should return updated slot value when access count is unchanged between opcodes")
     void shouldReturnUpdatedSlotValueWhenCountIsUnchangedBetweenOpcodes() {
@@ -827,16 +834,10 @@ class OpcodeActionTracerTest {
         final var valueV2 = UInt256.valueOf(42L);
 
         // Opcode X: slot K1 written to V1 (access count = 1)
-        final var usage1 = new TxStorageUsage(
-                List.of(new StorageAccesses(
-                        ContractID.DEFAULT, List.of(new StorageAccess(slotKey, UInt256.ZERO, valueV1)))),
-                Set.of());
+        final var usage1 = makeUsage(slotKey, valueV1);
 
         // Opcode X+1: slot K1 overwritten in-place to V2 — count stays 1 (StorageAccessTracker.put replaces)
-        final var usage2 = new TxStorageUsage(
-                List.of(new StorageAccesses(
-                        ContractID.DEFAULT, List.of(new StorageAccess(slotKey, UInt256.ZERO, valueV2)))),
-                Set.of());
+        final var usage2 = makeUsage(slotKey, valueV2);
 
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(usage1, usage2);
@@ -866,18 +867,9 @@ class OpcodeActionTracerTest {
         final var valueV2 = UInt256.valueOf(42L);
         final var valueV3 = UInt256.valueOf(100L);
 
-        final var usage1 = new TxStorageUsage(
-                List.of(new StorageAccesses(
-                        ContractID.DEFAULT, List.of(new StorageAccess(slotKey, UInt256.ZERO, valueV1)))),
-                Set.of());
-        final var usage2 = new TxStorageUsage(
-                List.of(new StorageAccesses(
-                        ContractID.DEFAULT, List.of(new StorageAccess(slotKey, UInt256.ZERO, valueV2)))),
-                Set.of());
-        final var usage3 = new TxStorageUsage(
-                List.of(new StorageAccesses(
-                        ContractID.DEFAULT, List.of(new StorageAccess(slotKey, UInt256.ZERO, valueV3)))),
-                Set.of());
+        final var usage1 = makeUsage(slotKey, valueV1);
+        final var usage2 = makeUsage(slotKey, valueV2);
+        final var usage3 = makeUsage(slotKey, valueV3);
 
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(usage1, usage2, usage3);

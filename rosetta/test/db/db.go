@@ -109,7 +109,7 @@ func (d dbParams) toConfig() config.Db {
 // CleanupDb cleans the data written to the db during tests
 func CleanupDb(db *sql.DB) {
 	filename := filepath.Join(moduleRoot, dbCleanupScript)
-	script, err := os.ReadFile(filename)
+	script, err := os.ReadFile(filename) // #nosec G304
 	if err != nil {
 		log.Fatalf("Failed to read cleanup.sql: %s", err)
 	}
