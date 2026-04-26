@@ -26,7 +26,7 @@ extra.apply {
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
     set("protobufVersion", "4.34.1")
-    set("springGrpcVersion", "1.0.1")
+    set("springGrpcVersion", "1.0.3")
     set("tomcat.version", "11.0.21") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
