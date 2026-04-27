@@ -26,7 +26,7 @@ extra.apply {
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
     set("protobufVersion", "4.34.1")
-    set("springGrpcVersion", "1.0.1")
+    set("springGrpcVersion", "1.0.3")
     set("tomcat.version", "11.0.21") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
@@ -62,7 +62,7 @@ dependencies {
         api("com.hedera.hashgraph:sdk:2.70.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
-        api("commons-io:commons-io:2.21.0")
+        api("commons-io:commons-io:2.22.0")
         api("io.cucumber:cucumber-bom:7.34.3")
         api("io.fabric8:kubernetes-client-bom:7.6.1")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
@@ -89,7 +89,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.42.36")
+        api("software.amazon.awssdk:bom:2.42.41")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
