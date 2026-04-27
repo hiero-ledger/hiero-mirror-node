@@ -31,9 +31,7 @@ import org.hiero.mirror.test.e2e.acceptance.client.HookClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.config.FeatureProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
-import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
-import org.identityconnectors.common.Version;
 
 @RequiredArgsConstructor
 public class HooksFeature extends AbstractFeature {
@@ -61,13 +59,7 @@ public class HooksFeature extends AbstractFeature {
             return;
         }
 
-        final var blocksResponse = mirrorClient.getBlocks(Order.DESC, 1);
-        final var blocks = blocksResponse.getBlocks();
-        assumeTrue(!blocks.isEmpty());
-        final var version = Version.parse(blocks.getFirst().getHapiVersion());
-        assumeTrue(
-                version.getMinor() >= featureProperties.getHapiMinorVersionWithHooks(),
-                "The HAPI version indicates hooks is not enabled");
+        assumeTrue(featureProperties.isHooks(), "Hooks is not enabled");
     }
 
     @When("I attach a hook using existing contract to account {string}")
