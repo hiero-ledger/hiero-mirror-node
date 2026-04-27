@@ -64,13 +64,13 @@ public record BlockType(String name, long number) {
         if (hex.length() != RECORD_FILE_HASH_HEX_LENGTH || !isHex(hex)) {
             return null;
         }
-        return new BlockType(HEX_PREFIX + hex, BLOCK_HASH_SENTINEL);
+        return new BlockType(value, BLOCK_HASH_SENTINEL);
     }
 
     private static BlockType parseNumericBlock(String value) {
         final boolean isHex = value.startsWith(HEX_PREFIX);
 
-        final String noPrefixValue = isHex ? value.substring(HEX_PREFIX.length()) : value;
+        final var noPrefixValue = isHex ? value.substring(HEX_PREFIX.length()) : value;
 
         if (noPrefixValue.startsWith(NEGATIVE_NUMBER_PREFIX)) {
             throw new IllegalArgumentException("Invalid block value: " + value);
