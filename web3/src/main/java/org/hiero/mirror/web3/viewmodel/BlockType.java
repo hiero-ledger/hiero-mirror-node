@@ -3,16 +3,24 @@
 package org.hiero.mirror.web3.viewmodel;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.Strings;
 
 /**
  * BlockType represents a way to identify a specific block in the chain. Can be one of:
  *  - block tag ("earliest","latest", "safe", "pending", "finalized")
  *  - block number (decimal or hex string)
- *  - block hash (hex string of length 96, with or without 0x prefix)
+ *  - block hash (hex string of length 64 or 96, with or without 0x prefix)
  */
 public record BlockType(String name, long number) {
+
+    private static final Pattern BLOCK_PATTERN = Pattern.compile(
+            "^(?:" + "(?<tag>earliest|finalized|latest|pending|safe)"
+                    + "|(?<decimal>\\d{1,20})"
+                    + "|(?:0x)?(?<hash>[0-9a-fA-F]{64}|[0-9a-fA-F]{96})"
+                    + "|(?:0x)?(?<hexNum>[0-9a-fA-F]{1,63}|[0-9a-fA-F]{65,95})"
+                    + ")$",
+            Pattern.CASE_INSENSITIVE);
 
     public static final BlockType EARLIEST = new BlockType("earliest", 0L);
     public static final BlockType LATEST = new BlockType("latest", Long.MAX_VALUE);
@@ -23,11 +31,6 @@ public record BlockType(String name, long number) {
      */
     public static final long BLOCK_HASH_SENTINEL = -1L;
 
-    public static final int RECORD_FILE_HASH_HEX_LENGTH = 96;
-
-    private static final String HEX_PREFIX = "0x";
-    private static final String NEGATIVE_NUMBER_PREFIX = "-";
-
     public boolean isHash() {
         return number == BLOCK_HASH_SENTINEL;
     }
@@ -37,60 +40,40 @@ public record BlockType(String name, long number) {
         if (StringUtils.isEmpty(value)) {
             return LATEST;
         }
-        final String blockTypeName = value.toLowerCase();
 
-        return switch (blockTypeName) {
-            case "earliest" -> EARLIEST;
-            case "latest", "safe", "pending", "finalized" -> LATEST;
-            default -> parseNonNamedBlock(value);
-        };
-    }
-
-    private static boolean isHex(String hex) {
-        for (int i = 0; i < hex.length(); i++) {
-            if (!isValidHexChar(hex.charAt(i))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean isValidHexChar(int c) {
-        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
-    }
-
-    private static BlockType parseBlockHash(String value) {
-        final var hex = Strings.CS.removeStart(value.toLowerCase(), HEX_PREFIX);
-        if (hex.length() != RECORD_FILE_HASH_HEX_LENGTH || !isHex(hex)) {
-            return null;
-        }
-        return new BlockType(value, BLOCK_HASH_SENTINEL);
-    }
-
-    private static BlockType parseNumericBlock(String value) {
-        final boolean isHex = value.startsWith(HEX_PREFIX);
-
-        final var noPrefixValue = isHex ? value.substring(HEX_PREFIX.length()) : value;
-
-        if (noPrefixValue.startsWith(NEGATIVE_NUMBER_PREFIX)) {
+        final var m = BLOCK_PATTERN.matcher(value);
+        if (!m.matches()) {
             throw new IllegalArgumentException("Invalid block value: " + value);
         }
 
-        final int radix = isHex ? 16 : 10;
-        try {
-            final long blockNumber = Long.parseLong(noPrefixValue, radix);
-            return new BlockType(value, blockNumber);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid block value: " + value, e);
+        final var tag = m.group("tag");
+        if (tag != null) {
+            return blockTypeForTag(tag.toLowerCase());
         }
+
+        final var decimal = m.group("decimal");
+        if (decimal != null) {
+            return new BlockType(value, Long.parseLong(decimal, 10));
+        }
+
+        final var hash = m.group("hash");
+        if (hash != null) {
+            return new BlockType(hash.toLowerCase(), BLOCK_HASH_SENTINEL);
+        }
+
+        final var hexNum = m.group("hexNum");
+        if (hexNum != null) {
+            return new BlockType(hexNum.toLowerCase(), Long.parseLong(hexNum, 16));
+        }
+        throw new IllegalArgumentException("Invalid block value: " + value);
     }
 
-    private static BlockType parseNonNamedBlock(String value) {
-        final var blockHash = parseBlockHash(value);
-        if (blockHash != null) {
-            return blockHash;
-        }
-        return parseNumericBlock(value);
+    private static BlockType blockTypeForTag(String tag) {
+        return switch (tag) {
+            case "earliest" -> EARLIEST;
+            case "finalized", "latest", "pending", "safe" -> LATEST;
+            default -> throw new IllegalStateException("Unexpected block tag: " + tag);
+        };
     }
 
     public String toString() {

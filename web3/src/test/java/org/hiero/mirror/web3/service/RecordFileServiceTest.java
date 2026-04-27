@@ -15,8 +15,8 @@ class RecordFileServiceTest extends Web3IntegrationTest {
 
     @Test
     void testFindByTimestamp() {
-        var timestamp = domainBuilder.timestamp();
-        var recordFile = domainBuilder
+        final var timestamp = domainBuilder.timestamp();
+        final var recordFile = domainBuilder
                 .recordFile()
                 .customize(e -> e.consensusEnd(timestamp))
                 .persist();
@@ -37,7 +37,7 @@ class RecordFileServiceTest extends Web3IntegrationTest {
         domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         domainBuilder.recordFile().customize(f -> f.index(1L)).persist();
         domainBuilder.recordFile().customize(f -> f.index(2L)).persist();
-        var recordFileLatest =
+        final var recordFileLatest =
                 domainBuilder.recordFile().customize(f -> f.index(3L)).persist();
         assertThat(recordFileService.findByBlockType(BlockType.LATEST)).contains(recordFileLatest);
     }
@@ -46,9 +46,10 @@ class RecordFileServiceTest extends Web3IntegrationTest {
     void testFindByBlockTypeIndex() {
         domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         domainBuilder.recordFile().customize(f -> f.index(1L)).persist();
-        var recordFile = domainBuilder.recordFile().customize(f -> f.index(2L)).persist();
+        final var recordFile =
+                domainBuilder.recordFile().customize(f -> f.index(2L)).persist();
         domainBuilder.recordFile().customize(f -> f.index(3L)).persist();
-        var blockType = BlockType.of(recordFile.getIndex().toString());
+        final var blockType = BlockType.of(recordFile.getIndex().toString());
         assertThat(recordFileService.findByBlockType(blockType)).contains(recordFile);
     }
 
@@ -65,8 +66,16 @@ class RecordFileServiceTest extends Web3IntegrationTest {
 
     @Test
     void testFindByBlockTypeFullRecordFileHash() {
-        var recordFile = domainBuilder.recordFile().persist();
-        var blockType = BlockType.of("0x" + recordFile.getHash());
+        final var recordFile = domainBuilder.recordFile().persist();
+        final var blockType = BlockType.of(recordFile.getHash());
         assertThat(recordFileService.findByBlockType(blockType)).contains(recordFile);
+    }
+
+    @Test
+    void testFindByBlockTypeByRecordFileHashNotFound() {
+        domainBuilder.recordFile().persist();
+        final var differentHash = "0x" + "a".repeat(96);
+        final var blockType = BlockType.of(differentHash);
+        assertThat(recordFileService.findByBlockType(blockType)).isEmpty();
     }
 }
