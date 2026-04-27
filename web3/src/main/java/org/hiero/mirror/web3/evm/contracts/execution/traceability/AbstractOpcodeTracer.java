@@ -9,12 +9,12 @@ import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.MutableBytes;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
@@ -24,22 +24,14 @@ import org.springframework.util.CollectionUtils;
 
 public abstract class AbstractOpcodeTracer {
 
-    protected final List<Bytes> captureMemory(final MessageFrame frame, final OpcodeContext options) {
+    public static final int WORD_SIZE = 32;
+
+    protected final MutableBytes captureMemory(final MessageFrame frame, final OpcodeContext options) {
         if (!options.isMemory()) {
-            return Collections.emptyList();
+            return MutableBytes.EMPTY;
         }
-        var size = frame.memoryWordSize();
-        var memoryWords = new ArrayList<Bytes>(size);
-
-        final var wordSize = 32;
-        final var memory = frame.readMutableMemory(0L, (long) wordSize * size).toArrayUnsafe();
-
-        for (var i = 0; i < size; i++) {
-            var startIndex = i * wordSize;
-            memoryWords.add(Bytes.wrap(Arrays.copyOfRange(memory, startIndex, startIndex + wordSize)));
-        }
-
-        return memoryWords;
+        final var size = frame.memoryWordSize();
+        return frame.readMutableMemory(0L, (long) WORD_SIZE * size);
     }
 
     protected final List<Bytes> captureStack(final MessageFrame frame, final OpcodeContext options) {
@@ -50,10 +42,7 @@ public abstract class AbstractOpcodeTracer {
         var size = frame.stackSize();
         var stack = new ArrayList<Bytes>(size);
         for (var i = 0; i < size; ++i) {
-            var item = frame.getStackItem(size - 1 - i);
-            // Snapshot contents: Besu stack slots may wrap mutable/reused buffers. Main materialized hex at trace
-            // time; deferring encode to finalizeTrace requires an immutable copy, not wrap(toArrayUnsafe()).
-            stack.add(item.copy());
+            stack.add(frame.getStackItem(size - 1 - i));
         }
 
         return stack;

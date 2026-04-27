@@ -3,10 +3,12 @@
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.MutableBytes;
 import org.hiero.mirror.rest.model.Opcode;
 
 /**
@@ -38,6 +40,23 @@ public final class OpcodeTraceMapper {
                 .memory(toHexList(e.memory(), pool))
                 .storage(toHexStorage(e.storage(), pool))
                 .reason(e.frameRevertReason());
+    }
+
+    private static List<String> toHexList(final MutableBytes memory, final HexStringPool pool) {
+        if (memory.isEmpty()) {
+            return List.of();
+        }
+
+        var list = new ArrayList<String>(memory.size());
+
+        final var memorySize = memory.size() / 32;
+        final var memoryBytes = memory.toArray();
+        for (var i = 0; i < memorySize; i++) {
+            final var startIndex = i * 32;
+            list.add(pool.hex(Bytes.wrap(Arrays.copyOfRange(memoryBytes, startIndex, startIndex + 32))));
+        }
+
+        return list;
     }
 
     private static List<String> toHexList(final List<Bytes> bytes, final HexStringPool pool) {

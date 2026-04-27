@@ -17,6 +17,7 @@ import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.MutableBytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.frame.MessageFrame;
@@ -109,7 +110,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
                         gasCost,
                         revertReason,
                         Collections.emptyList(),
-                        Collections.emptyList(),
+                        MutableBytes.EMPTY,
                         Collections.emptyMap()));
 
         context.getOpcodeContext().setGasRemaining(frame.getRemainingGas());
@@ -120,7 +121,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
             final long gasCost,
             final String frameRevertReason,
             final List<Bytes> stack,
-            final List<Bytes> memory,
+            final MutableBytes memory,
             final Map<Bytes, Bytes> storage) {
         return new OpcodeTraceEntry(
                 frame.getPC(),
