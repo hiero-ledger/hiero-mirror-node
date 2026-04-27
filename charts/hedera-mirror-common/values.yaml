@@ -605,6 +605,10 @@ testkube:
       repository: grafana/k6
       tag: 0.58.0
   namespace: testkube
+  prometheusRw:
+    enabled: false
+    nativeHistogram: true
+    secretName: ""  # K8s Secret with K6_PROMETHEUS_RW_SERVER_URL, K6_PROMETHEUS_RW_USERNAME, K6_PROMETHEUS_RW_PASSWORD
   test:
     config:
       rest: {}

@@ -60,27 +60,39 @@ runs:
       env:
         DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_OWNER: "0.0.1003"
         DEFAULT_ACCOUNT_ID_AIRDROP_SENDER: "0.0.1003"
+        K6_PROMETHEUS_RW_PASSWORD: ${{ secrets.K6_PROMETHEUS_RW_PASSWORD }}
+        K6_PROMETHEUS_RW_SERVER_URL: ${{ vars.K6_PROMETHEUS_RW_SERVER_URL }}
+        K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
+        K6_PROMETHEUS_RW_USERNAME: ${{ secrets.K6_PROMETHEUS_RW_USERNAME }}
       with:
         path: |
           ./tools/k6/src/rest-java/apis.js
         debug: false
-        flags: --quiet
+        flags: --quiet${{ vars.K6_PROMETHEUS_RW_SERVER_URL != '' && ' --out experimental-prometheus-rw' || '' }}
 
     - name: Run rest tests
       uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
       env:
+        K6_PROMETHEUS_RW_PASSWORD: ${{ secrets.K6_PROMETHEUS_RW_PASSWORD }}
+        K6_PROMETHEUS_RW_SERVER_URL: ${{ vars.K6_PROMETHEUS_RW_SERVER_URL }}
+        K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
+        K6_PROMETHEUS_RW_USERNAME: ${{ secrets.K6_PROMETHEUS_RW_USERNAME }}
         REST_TEST_EXCLUDE: ".*balances.*Timestamp.*"
       with:
         path: |
           ./tools/k6/src/rest/apis.js
         debug: false
-        flags: --quiet
+        flags: --quiet${{ vars.K6_PROMETHEUS_RW_SERVER_URL != '' && ' --out experimental-prometheus-rw' || '' }}
 
     - name: Run k6 web3 tests
       uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
       env:
         AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
         KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
+        K6_PROMETHEUS_RW_PASSWORD: ${{ secrets.K6_PROMETHEUS_RW_PASSWORD }}
+        K6_PROMETHEUS_RW_SERVER_URL: ${{ vars.K6_PROMETHEUS_RW_SERVER_URL }}
+        K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
+        K6_PROMETHEUS_RW_USERNAME: ${{ secrets.K6_PROMETHEUS_RW_USERNAME }}
         RUN_COMPLEX_TESTS: "false"
         RUN_ESTIMATE_TESTS: "false"
         RUN_MODIFICATION_TESTS: "false"
@@ -93,4 +105,4 @@ runs:
         path: |
           ./tools/k6/src/web3/apis.js
         debug: false
-        flags: --quiet
+        flags: --quiet${{ vars.K6_PROMETHEUS_RW_SERVER_URL != '' && ' --out experimental-prometheus-rw' || '' }}

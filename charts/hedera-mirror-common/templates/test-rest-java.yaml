@@ -20,6 +20,10 @@ spec:
   executionRequest:
     args:
       - /data/repo/tools/k6/src/rest-java/apis.js
+      {{- if $.Values.testkube.prometheusRw.enabled }}
+      - --out
+      - experimental-prometheus-rw
+      {{- end }}
     artifactRequest:
       storageClassName: standard
       volumeMountPath: /share
@@ -28,11 +32,24 @@ spec:
         mount: false
         reference:
           name: {{ include "hedera-mirror-common.fullname" $ }}-test-rest-java
+    {{- if $.Values.testkube.prometheusRw.enabled }}
+    envSecrets:
+      - mapToVariables: true
+        mount: false
+        reference:
+          name: {{ $.Values.testkube.prometheusRw.secretName }}
+    {{- end }}
     variables:
       BASE_URL:
         name: BASE_URL
         type: basic
         value: http://{{ $target.release }}-restjava.{{ $target.namespace }}.svc.cluster.local
+      {{- if $.Values.testkube.prometheusRw.enabled }}
+      K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM:
+        name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
+        type: basic
+        value: {{ $.Values.testkube.prometheusRw.nativeHistogram | quote }}
+      {{- end }}
       TEST_REPORTS_DIR:
         name: TEST_REPORTS_DIR
         type: basic
