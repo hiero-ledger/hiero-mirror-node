@@ -9,7 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 
 /**
  * BlockType represents a way to identify a specific block in the chain. Can be one of:
- *  - block tag ("earliest","latest", "safe", "pending", "finalized")
+ *  - block tag ("earliest", "latest", "safe", "pending", "finalized")
  *  - block number (decimal or hex string)
  *  - block hash (hex string of length 64 or 96, with or without 0x prefix)
  */
@@ -46,17 +46,17 @@ public record BlockType(String name, long number) {
         }
 
         final var blockTypeValue = value.toLowerCase(Locale.ROOT);
-        final var m = BLOCK_PATTERN.matcher(blockTypeValue);
-        if (!m.matches()) {
+        final var matcher = BLOCK_PATTERN.matcher(blockTypeValue);
+        if (!matcher.matches()) {
             throw new IllegalArgumentException("Invalid block value: " + value);
         }
 
-        final var tag = m.group(GROUP_TAG);
+        final var tag = matcher.group(GROUP_TAG);
         if (tag != null) {
             return blockTypeForTag(tag);
         }
 
-        final var decimal = m.group(GROUP_DECIMAL);
+        final var decimal = matcher.group(GROUP_DECIMAL);
         if (decimal != null) {
             try {
                 return new BlockType(value, Long.parseLong(decimal, 10));
@@ -65,12 +65,12 @@ public record BlockType(String name, long number) {
             }
         }
 
-        var hash = m.group(GROUP_HASH);
+        var hash = matcher.group(GROUP_HASH);
         if (hash != null) {
             return new BlockType(hash, BLOCK_HASH_SENTINEL);
         }
 
-        final var hexNum = m.group(GROUP_HEX_NUM);
+        final var hexNum = matcher.group(GROUP_HEX_NUM);
         if (hexNum != null) {
             try {
                 return new BlockType(hexNum, Long.parseLong(hexNum, 16));

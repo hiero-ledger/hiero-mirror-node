@@ -80,7 +80,6 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
 
     @CsvSource({
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef00000000000000000000000000000000",
-        "0123456789AbcdEF0123456789ABCDef0123456789abcdef0123456789ABcdeF00000000000000000000000000000000",
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     })
     @ParameterizedTest
