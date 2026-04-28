@@ -9,9 +9,14 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 @RequiredArgsConstructor
 class RecordFileRepositoryTest extends Web3IntegrationTest {
+
+    private static final String HASH =
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
     @Resource
     private RecordFileRepository recordFileRepository;
@@ -71,5 +76,19 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
                 })
                 .persist();
         assertThat(recordFileRepository.findByTimestamp(timestamp)).contains(recordFile);
+    }
+
+    @CsvSource({
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "0123456789AbcdEF0123456789ABCDef0123456789abcdef0123456789abcdef0123456789abcdef0123456789ABcdeF"
+    })
+    @ParameterizedTest
+    void findByHash(final String value) {
+        final var recordFile =
+                domainBuilder.recordFile().customize(r -> r.hash(HASH)).persist();
+
+        final var result = recordFileRepository.findByHash(value);
+        assertThat(result.isPresent()).isTrue();
+        assertThat(result).contains(recordFile);
     }
 }

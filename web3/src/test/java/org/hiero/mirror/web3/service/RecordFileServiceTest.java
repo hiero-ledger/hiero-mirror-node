@@ -6,6 +6,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.validation.HexValidator;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.junit.jupiter.api.Test;
 
@@ -67,14 +68,14 @@ class RecordFileServiceTest extends Web3IntegrationTest {
     @Test
     void testFindByBlockTypeFullRecordFileHash() {
         final var recordFile = domainBuilder.recordFile().persist();
-        final var blockType = BlockType.of(recordFile.getHash());
+        final var blockType = BlockType.of(HexValidator.HEX_PREFIX + recordFile.getHash());
         assertThat(recordFileService.findByBlockType(blockType)).contains(recordFile);
     }
 
     @Test
     void testFindByBlockTypeByRecordFileHashNotFound() {
         domainBuilder.recordFile().persist();
-        final var differentHash = "0x" + "a".repeat(96);
+        final var differentHash = HexValidator.HEX_PREFIX + "a".repeat(96);
         final var blockType = BlockType.of(differentHash);
         assertThat(recordFileService.findByBlockType(blockType)).isEmpty();
     }

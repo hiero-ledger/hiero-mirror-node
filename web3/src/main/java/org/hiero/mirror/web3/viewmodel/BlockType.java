@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.viewmodel;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.Locale;
 import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 
@@ -14,13 +15,16 @@ import org.apache.commons.lang3.StringUtils;
  */
 public record BlockType(String name, long number) {
 
-    private static final Pattern BLOCK_PATTERN = Pattern.compile(
-            "^(?:" + "(?<tag>earliest|finalized|latest|pending|safe)"
-                    + "|(?<decimal>\\d{1,20})"
-                    + "|(?:0x)?(?<hash>[0-9a-fA-F]{64}|[0-9a-fA-F]{96})"
-                    + "|(?:0x)?(?<hexNum>[0-9a-fA-F]{1,63}|[0-9a-fA-F]{65,95})"
-                    + ")$",
-            Pattern.CASE_INSENSITIVE);
+    private static final Pattern BLOCK_PATTERN = Pattern.compile("^(?:" + "(earliest|finalized|latest|pending|safe)"
+            + "|(\\d{1,20})"
+            + "|0x([0-9a-f]{64}|[0-9a-f]{96})"
+            + "|0x([0-9a-f]{1,16})"
+            + ")$");
+
+    private static final int GROUP_TAG = 1;
+    private static final int GROUP_DECIMAL = 2;
+    private static final int GROUP_HASH = 3;
+    private static final int GROUP_HEX_NUM = 4;
 
     public static final BlockType EARLIEST = new BlockType("earliest", 0L);
     public static final BlockType LATEST = new BlockType("latest", Long.MAX_VALUE);
@@ -41,29 +45,41 @@ public record BlockType(String name, long number) {
             return LATEST;
         }
 
-        final var m = BLOCK_PATTERN.matcher(value);
+        final var blockTypeValue = value.toLowerCase(Locale.ROOT);
+        final var m = BLOCK_PATTERN.matcher(blockTypeValue);
         if (!m.matches()) {
             throw new IllegalArgumentException("Invalid block value: " + value);
         }
 
-        final var tag = m.group("tag");
+        final var tag = m.group(GROUP_TAG);
         if (tag != null) {
-            return blockTypeForTag(tag.toLowerCase());
+            return blockTypeForTag(tag);
         }
 
-        final var decimal = m.group("decimal");
+        final var decimal = m.group(GROUP_DECIMAL);
         if (decimal != null) {
-            return new BlockType(value, Long.parseLong(decimal, 10));
+            try {
+                return new BlockType(value, Long.parseLong(decimal, 10));
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Decimal value out of range for block: " + value, e);
+            }
         }
 
-        final var hash = m.group("hash");
+        var hash = m.group(GROUP_HASH);
         if (hash != null) {
-            return new BlockType(hash.toLowerCase(), BLOCK_HASH_SENTINEL);
+            if (hash.length() == 64) {
+                hash = StringUtils.leftPad(hash, 96, '0');
+            }
+            return new BlockType(hash, BLOCK_HASH_SENTINEL);
         }
 
-        final var hexNum = m.group("hexNum");
+        final var hexNum = m.group(GROUP_HEX_NUM);
         if (hexNum != null) {
-            return new BlockType(hexNum.toLowerCase(), Long.parseLong(hexNum, 16));
+            try {
+                return new BlockType(hexNum, Long.parseLong(hexNum, 16));
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Hex value out of range for block: " + value, e);
+            }
         }
         throw new IllegalArgumentException("Invalid block value: " + value);
     }
