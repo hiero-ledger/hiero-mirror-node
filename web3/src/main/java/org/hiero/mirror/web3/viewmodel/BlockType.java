@@ -67,9 +67,6 @@ public record BlockType(String name, long number) {
 
         var hash = m.group(GROUP_HASH);
         if (hash != null) {
-            if (hash.length() == 64) {
-                hash = StringUtils.leftPad(hash, 96, '0');
-            }
             return new BlockType(hash, BLOCK_HASH_SENTINEL);
         }
 

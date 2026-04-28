@@ -15,8 +15,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 @RequiredArgsConstructor
 class RecordFileRepositoryTest extends Web3IntegrationTest {
 
-    private static final String HASH =
-            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    private static final String HASH_64 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    private static final String HASH = HASH_64 + "0".repeat(32);
 
     @Resource
     private RecordFileRepository recordFileRepository;
@@ -79,8 +79,9 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
     }
 
     @CsvSource({
-        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        "0123456789AbcdEF0123456789ABCDef0123456789abcdef0123456789abcdef0123456789abcdef0123456789ABcdeF"
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef00000000000000000000000000000000",
+        "0123456789AbcdEF0123456789ABCDef0123456789abcdef0123456789ABcdeF00000000000000000000000000000000",
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     })
     @ParameterizedTest
     void findByHash(final String value) {

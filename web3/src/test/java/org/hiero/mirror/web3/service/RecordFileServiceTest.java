@@ -73,6 +73,14 @@ class RecordFileServiceTest extends Web3IntegrationTest {
     }
 
     @Test
+    void testFindByBlockTypeShortRecordFileHash() {
+        final var recordFile = domainBuilder.recordFile().persist();
+        final var shortHash = recordFile.getHash().substring(0, 64);
+        final var blockType = BlockType.of(HexValidator.HEX_PREFIX + shortHash);
+        assertThat(recordFileService.findByBlockType(blockType)).contains(recordFile);
+    }
+
+    @Test
     void testFindByBlockTypeByRecordFileHashNotFound() {
         domainBuilder.recordFile().persist();
         final var differentHash = HexValidator.HEX_PREFIX + "a".repeat(96);

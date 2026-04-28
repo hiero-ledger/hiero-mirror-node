@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.viewmodel.BlockType.BLOCK_HASH_SENTINEL;
 
+import java.util.Locale;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
@@ -44,7 +45,7 @@ class BlockTypeTest {
     void valid(String value, long number) {
         final var blockType = BlockType.of(value);
         final var expectedName =
-                StringUtils.isNotEmpty(value) ? value.toLowerCase().replace("0x", "") : "latest";
+                StringUtils.isNotEmpty(value) ? value.toLowerCase(Locale.ROOT).replace(HEX_PREFIX, "") : "latest";
         assertThat(blockType).isNotNull().returns(expectedName, BlockType::name).returns(number, BlockType::number);
     }
 
@@ -59,8 +60,8 @@ class BlockTypeTest {
         final var h64 = "ab".repeat(32);
         final var h96 = "ab".repeat(48);
         return Stream.of(
-                Arguments.of(HEX_PREFIX + h64, StringUtils.leftPad(h64, 96, '0')),
-                Arguments.of(HEX_PREFIX + h64.toUpperCase(), StringUtils.leftPad(h64, 96, '0')),
+                Arguments.of(HEX_PREFIX + h64, h64),
+                Arguments.of(HEX_PREFIX + h64.toUpperCase(), h64),
                 Arguments.of(HEX_PREFIX + h96, h96));
     }
 
@@ -86,14 +87,14 @@ class BlockTypeTest {
     static Stream<String> invalid() {
         return Stream.of(
                 "lastest",
-                "0x", // no digits
+                HEX_PREFIX, // no digits
                 "0x-1", // sign inside
                 "0xgg", // not hex
                 "7f", // no 0x prefix for hex
-                "0x" + "a".repeat(97), // length 97, no pattern branch
+                HEX_PREFIX + "a".repeat(97), // length 97, no pattern branch
                 MAX_VALUE + "1", // 20+ digit string does not use decimal branch, fails matching or parse
-                "0x" + "a".repeat(16), // hex number branch, overflow on parse
-                "0x" + "a".repeat(63)); // hex number branch, overflow on parse
+                HEX_PREFIX + "a".repeat(16), // hex number branch, overflow on parse
+                HEX_PREFIX + "a".repeat(63)); // hex number branch, overflow on parse
     }
 
     @MethodSource("invalid")
