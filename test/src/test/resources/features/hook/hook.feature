@@ -1,4 +1,4 @@
-@hooks @fullsuite
+@hooks
 Feature: Hooks Transaction Coverage Feature
 
   Scenario Outline: Complete hooks transaction lifecycle

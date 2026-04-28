@@ -8,6 +8,9 @@ concurrency:
 on:
   workflow_call:
     inputs:
+      require_clean_target:
+        default: true
+        type: boolean
       restore:
         default: true
         type: boolean
@@ -67,6 +70,11 @@ on:
         required: true
   workflow_dispatch:
     inputs:
+      require_clean_target:
+        default: true
+        description: "Require target to be in torn down state"
+        type: boolean
+        required: false
       restore:
         default: true
         description: "Restore the target cluster from the source"
@@ -261,6 +269,7 @@ jobs:
         env:
           AUTO_CONFIRM: "true"
           DEFAULT_POOL_NAME: ${{ inputs.target_default_pool }}
+          REQUIRE_CLEAN_TARGET: ${{ inputs.require_clean_target }}
           SNAPSHOT_ID: ${{ inputs.use_static_snapshot && (inputs.staging_snapshot_id || vars.STAGING_SNAPSHOT_ID) || '' }}
           USE_STATIC_SNAPSHOT: ${{ inputs.use_static_snapshot }}
         run: |

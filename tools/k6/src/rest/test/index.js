@@ -23,6 +23,7 @@ import * as balancesAccountTimestamp from './balancesAccountTimestamp.js';
 import * as balancesPublicKeyTimestamp from './balancesPublicKeyTimestamp.js';
 import * as balancesTimestamp from './balancesTimestamp.js';
 import * as blocks from './blocks.js';
+import * as blocksHash from './blocksHash.js';
 import * as blocksNumber from './blocksNumber.js';
 import * as contracts from './contracts.js';
 import * as contractsId from './contractsId.js';
@@ -82,6 +83,7 @@ const tests = {
   balancesPublicKeyTimestamp,
   balancesTimestamp,
   blocks,
+  blocksHash,
   blocksNumber,
   contracts,
   contractsId,

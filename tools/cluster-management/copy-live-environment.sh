@@ -15,6 +15,7 @@ K6_TEST_REPORT_DIR="${K6_TEST_REPORT_DIR:-/tmp/mirrornode-k6-test-report}"
 K6_TEST_SUITE_NAME="${K6_TEST_SUITE_NAME:-test-suite-rest-mainnet-citus}"
 K8S_SOURCE_CLUSTER_CONTEXT=${K8S_SOURCE_CLUSTER_CONTEXT:-}
 K8S_TARGET_CLUSTER_CONTEXT=${K8S_TARGET_CLUSTER_CONTEXT:-}
+REQUIRE_CLEAN_TARGET=${REQUIRE_CLEAN_TARGET:-true}
 RESTORE="${RESTORE:-true}"
 RUN_ACCEPTANCE_TEST="${RUN_ACCEPTANCE_TEST:-false}"
 RUN_K6_TEST="${RUN_K6_TEST:-true}"
@@ -521,14 +522,13 @@ function getHpaMaxReplicas() {
 }
 
 function copyLiveEnvironment() {
-  if [[ "${RESTORE}" != "true" ]]; then
-    return 0
-  fi
-
   ensureContext K8S_SOURCE_CLUSTER_CONTEXT
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
 
-  if [[ $(kubectl get nodes -o json | jq '.items | length') != 0 ]]; then
+  local node_count
+  node_count=$(kubectl get nodes -o json | jq '.items | length')
+
+  if [[ "${REQUIRE_CLEAN_TARGET}" == "true" && "${node_count}" -ne 0 ]]; then
     log "There are GKE nodes in the target cluster, please teardown the environment before any restore attempt."
     exit 1
   fi
@@ -552,6 +552,10 @@ function runK6Test() {
 
     log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${TEST_KUBE_TARGET_NAMESPACE}"
     flux suspend helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}"
+  fi
+
+  if [[ "${USE_STATIC_SNAPSHOT}" == "true" ]]; then
+    scaleDeployment "${TEST_KUBE_TARGET_NAMESPACE}" 0 "app.kubernetes.io/component=importer"
   fi
 
   testkube run testsuite "${K6_TEST_SUITE_NAME}"
@@ -701,8 +705,12 @@ function waitForHelmReleaseReady() {
 }
 
 function createEnvironment() {
+  if [[ "${RESTORE}" != "true" ]]; then
+    return 0
+  fi
+
   if [[ "${USE_STATIC_SNAPSHOT}" == "true" ]]; then
-    export KILL_IMPORTER_AFTER_READY="true"
+    export WAIT_FOR_STREAM_SYNC="false"
     restoreTarget
   else
     copyLiveEnvironment
