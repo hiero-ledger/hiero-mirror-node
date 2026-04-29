@@ -14,9 +14,9 @@ import com.google.common.collect.Iterators;
 import io.micrometer.core.annotation.Timed;
 import jakarta.inject.Named;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -71,7 +71,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         final var logUpdaters = parserContext.getTransient(SyntheticLogUpdater.class);
         final var keys = parserContext.getEvmAddressLookupIds();
         final var entityMap = getEvmCache().getAll(keys);
-        final var updatedContractResults = new HashSet<ContractResult>();
+        final var updatedContractResults = new HashMap<Long, ContractResult>();
 
         for (final var updater : logUpdaters) {
             updater.updateContractLog(entityMap);
@@ -80,14 +80,14 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             final var contractLog = updater.getContractLog();
 
             if (contractResult != null && contractLog != null && contractLog.getBloom() != null) {
-                updatedContractResults.add(contractResult);
+                updatedContractResults.put(contractResult.getConsensusTimestamp(), contractResult);
             }
         }
 
-        updateRecordFileBloom(updatedContractResults);
+        updateRecordFileBloom(updatedContractResults.values());
     }
 
-    private void updateRecordFileBloom(final Set<ContractResult> contractResults) {
+    private void updateRecordFileBloom(final Collection<ContractResult> contractResults) {
         if (contractResults.isEmpty()) {
             return;
         }
@@ -114,7 +114,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
     }
 
     private LogsBloomFilter aggregateRecordFileBloom(
-            final RecordFile recordFile, final Set<ContractResult> contractResults) {
+            final RecordFile recordFile, final Collection<ContractResult> contractResults) {
         final var aggregatedBloom = new LogsBloomFilter();
 
         final var existingBloom = recordFile.getLogsBloom();
