@@ -553,8 +553,13 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         final var result = service.estimateFees(pbjTransaction, FeeEstimateMode.INTRINSIC, 0);
 
         // then — large message triggers node PROCESSING_BYTES extra on top of service extras
-        assertThat(result.getServiceBaseFeeTinycents()).isEqualTo(700_000L);
-        assertThat(result.totalTinycents()).isEqualTo(96_320_000L);
+        assertThat(result.getServiceBaseFeeTinycents()).isEqualTo(CONSENSUS_SUBMIT_MESSAGE_FEE);
+        assertThat(result.getServiceTotalTinycents())
+                .isEqualTo(CONSENSUS_SUBMIT_MESSAGE_FEE + (long) (LONG_MESSAGE_BYTES - 100) * 6_800);
+        assertThat(result.getNodeTotalTinycents()).isGreaterThan(100_000L);
+        // node varies with shard/realm (protobuf ID byte size); total = node × (1 + networkMultiplier) + service
+        assertThat(result.totalTinycents())
+                .isEqualTo(result.getNodeTotalTinycents() * 10L + result.getServiceTotalTinycents());
     }
 
     private static FeeSchedule loadFeeSchedule() {

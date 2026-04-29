@@ -405,9 +405,7 @@ function routeTraffic() {
   runTestQueries "${namespace}"
   scaleDeployment "${namespace}" 1 "app.kubernetes.io/component=importer"
 
-  if [[ "${KILL_IMPORTER_AFTER_READY}" == "true" ]]; then
-    scaleDeployment "${namespace}" 0 "app.kubernetes.io/component=importer"
-  else
+  if [[ "${WAIT_FOR_STREAM_SYNC}" == "true" ]]; then
     waitForRecordStreamSync "${namespace}"
   fi
 
@@ -918,6 +916,6 @@ PATRONI_MASTER_ROLE="${PATRONI_MASTER_ROLE:-Leader}"
 PAUSE_CLUSTER="${PAUSE_CLUSTER:-true}"
 STACKGRES_MASTER_LABELS="${STACKGRES_MASTER_LABELS:-app=StackGresCluster,role=master}"
 ZFS_POOL_NAME="${ZFS_POOL_NAME:-zfspv-pool}"
-KILL_IMPORTER_AFTER_READY="${KILL_IMPORTER_AFTER_READY:-false}"
+WAIT_FOR_STREAM_SYNC="${WAIT_FOR_STREAM_SYNC:-true}"
 
 alias kubectl_common="kubectl -n ${COMMON_NAMESPACE}"

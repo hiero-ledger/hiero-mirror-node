@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.controller;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -388,9 +389,17 @@ class ContractControllerTest {
                         .string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), errorString))));
     }
 
+    @Test
+    void callValidBlockTypeWithBlockHash() throws Exception {
+        final var request = request();
+        request.setBlock(new BlockType(HEX_PREFIX + "ef".repeat(48), BlockType.BLOCK_HASH_SENTINEL));
+
+        contractCall(request).andExpect(status().isOk());
+    }
+
     @NullAndEmptySource
     @ParameterizedTest
-    @ValueSource(strings = {"earliest", "latest", "0", "0x1a", "pending", "safe", "finalized"})
+    @ValueSource(strings = {"earliest", "latest", "0", "pending", "safe", "finalized"})
     void callValidBlockType(String value) throws Exception {
         final var request = request();
         request.setBlock(BlockType.of(value));
