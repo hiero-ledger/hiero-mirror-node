@@ -3,9 +3,6 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serializable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -13,26 +10,24 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Entity
-@IdClass(TransactionSignature.Id.class)
+@Table("transaction_signature")
 @NoArgsConstructor
 public class TransactionSignature implements Persistable<TransactionSignature.Id> {
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private long consensusTimestamp;
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
+    // @Convert removed. Mapping is handled by the global EntityIdConverter bean.
     private EntityId entityId;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     @ToString.Exclude
     private byte[] publicKeyPrefix;
 
@@ -44,19 +39,19 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
     @Override
     @JsonIgnore
     public TransactionSignature.Id getId() {
-        TransactionSignature.Id transactionSignatureId = new TransactionSignature.Id();
-        transactionSignatureId.setConsensusTimestamp(consensusTimestamp);
-        transactionSignatureId.setPublicKeyPrefix(publicKeyPrefix);
-        return transactionSignatureId;
+        return new TransactionSignature.Id(consensusTimestamp, publicKeyPrefix);
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
+        // Keeps behavior consistent: always INSERT, skip the SELECT-before-SAVE.
         return true;
     }
 
     @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class Id implements Serializable {
         private static final long serialVersionUID = -8758644338990079234L;
         private long consensusTimestamp;

@@ -18,7 +18,6 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
-import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;
 import org.hiero.mirror.grpc.repository.AddressBookRepository;
 import org.hiero.mirror.grpc.repository.NodeStakeRepository;
@@ -60,7 +59,7 @@ public class NetworkServiceImpl implements NetworkService {
 
         long addressBookTimestamp = addressBookRepository
                 .findLatestTimestamp(fileId.getId())
-                .orElseThrow(() -> new EntityNotFoundException(fileId));
+                .orElseThrow(() -> new RuntimeException(fileId));
         long nodeStakeTimestamp = nodeStakeRepository.findLatestTimestamp().orElse(NODE_STAKE_EMPTY_TABLE_TIMESTAMP);
         var nodeStakeMap = nodeStakeRepository.findAllStakeByConsensusTimestamp(nodeStakeTimestamp);
         var context = new AddressBookContext(addressBookTimestamp, nodeStakeMap);

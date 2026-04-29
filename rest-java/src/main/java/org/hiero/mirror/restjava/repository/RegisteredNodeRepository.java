@@ -6,7 +6,7 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
 public interface RegisteredNodeRepository extends PagingAndSortingRepository<RegisteredNode, Long> {
@@ -17,7 +17,7 @@ public interface RegisteredNodeRepository extends PagingAndSortingRepository<Reg
             and registered_node_id <= :upperBound
             and deleted is false
             and (:type is null or type @> array[:type]::smallint[])
-            """, nativeQuery = true)
+            """)
     List<RegisteredNode> findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
             long lowerBound, long upperBound, @Nullable Short type, Pageable pageable);
 }

@@ -4,9 +4,6 @@ package org.hiero.mirror.common.domain.contract;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -16,13 +13,14 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.ArrayUtils;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Entity
+@Table("contract_result")
 @NoArgsConstructor
 @SuperBuilder
 public class ContractResult implements Persistable<Long> {
@@ -42,6 +40,7 @@ public class ContractResult implements Persistable<Long> {
 
     private long contractId;
 
+    // JDBC: Requires a custom Reading/Writing converter if stored as a DB array or CSV string
     @Builder.Default
     @JsonSerialize(using = ListToStringSerializer.class)
     private List<Long> createdContractIds = Collections.emptyList();
@@ -54,7 +53,7 @@ public class ContractResult implements Persistable<Long> {
     @ToString.Exclude
     private byte[] functionParameters;
 
-    private byte[] functionResult; // Temporary field until we can confirm the migration captured everything
+    private byte[] functionResult;
 
     private Long gasConsumed;
 
@@ -62,12 +61,10 @@ public class ContractResult implements Persistable<Long> {
 
     private Long gasUsed;
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
+    // Handled by global EntityId converters
     private EntityId payerAccountId;
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
+    // Handled by global EntityId converters
     private EntityId senderId;
 
     private byte[] transactionHash;
@@ -91,7 +88,7 @@ public class ContractResult implements Persistable<Long> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true;
     }
 
     public ContractTransactionHash toContractTransactionHash() {
@@ -99,7 +96,7 @@ public class ContractResult implements Persistable<Long> {
                 .consensusTimestamp(consensusTimestamp)
                 .hash(transactionHash)
                 .entityId(contractId)
-                .payerAccountId(payerAccountId.getId())
+                .payerAccountId(payerAccountId != null ? payerAccountId.getId() : null)
                 .transactionResult(transactionResult)
                 .build();
     }

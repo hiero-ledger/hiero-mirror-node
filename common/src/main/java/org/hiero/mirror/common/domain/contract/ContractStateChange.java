@@ -3,9 +3,6 @@
 package org.hiero.mirror.common.domain.contract;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
@@ -14,31 +11,30 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@Entity
-@IdClass(ContractStateChange.Id.class)
+@Table("contract_state_change")
 @NoArgsConstructor
 public class ContractStateChange implements Persistable<ContractStateChange.Id> {
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private long consensusTimestamp;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private long contractId;
 
     private boolean migration;
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
+    // Converter is now managed globally by your JdbcCustomConversions configuration
     private EntityId payerAccountId;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     @ToString.Exclude
     private byte[] slot;
 
@@ -51,16 +47,13 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
     @Override
     @JsonIgnore
     public Id getId() {
-        Id id = new Id();
-        id.setConsensusTimestamp(consensusTimestamp);
-        id.setContractId(contractId);
-        id.setSlot(slot);
-        return id;
+        return new Id(consensusTimestamp, contractId, slot);
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
+        // Keeps the optimization to skip the "SELECT" check before insert
         return true;
     }
 

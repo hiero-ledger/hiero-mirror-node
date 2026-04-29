@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
-import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -39,6 +38,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
+import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.util.StreamUtils;
 
@@ -393,7 +393,7 @@ class CustomFeesMigrationTest extends ImporterIntegrationTest {
 
     @AllArgsConstructor
     @Data
-    @Entity
+    @Table
     @NoArgsConstructor
     private static class PostMigrationCustomFee implements History {
 

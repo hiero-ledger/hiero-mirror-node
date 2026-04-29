@@ -7,7 +7,6 @@ import static org.hiero.mirror.restjava.jooq.domain.tables.RegisteredNode.REGIST
 
 import com.google.common.collect.Range;
 import jakarta.inject.Named;
-import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Collection;
@@ -52,7 +51,7 @@ final class NetworkServiceImpl implements NetworkService {
     public NetworkStake getLatestNetworkStake() {
         return networkStakeRepository
                 .findLatest()
-                .orElseThrow(() -> new EntityNotFoundException("No network stake data found"));
+                .orElseThrow(() -> new RuntimeException("No network stake data found"));
     }
 
     @Override
@@ -79,10 +78,6 @@ final class NetworkServiceImpl implements NetworkService {
 
             networkSupply =
                     accountBalanceRepository.getSupplyHistory(lowerBounds, upperBounds, minTimestamp, maxTimestamp);
-        }
-
-        if (networkSupply.consensusTimestamp() == 0L) {
-            throw new EntityNotFoundException("Network supply not found");
         }
 
         return networkSupply;

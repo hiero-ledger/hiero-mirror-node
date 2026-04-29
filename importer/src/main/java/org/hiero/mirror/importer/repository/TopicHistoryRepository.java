@@ -3,8 +3,8 @@
 package org.hiero.mirror.importer.repository;
 
 import org.hiero.mirror.common.domain.topic.TopicHistory;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +13,6 @@ public interface TopicHistoryRepository extends CrudRepository<TopicHistory, Lon
 
     @Modifying
     @Override
-    @Query(nativeQuery = true, value = "delete from topic_history where timestamp_range << int8range(?1, null)")
+    @Query(value = "delete from topic_history where timestamp_range << int8range(?1, null)")
     int prune(long consensusTimestamp);
 }

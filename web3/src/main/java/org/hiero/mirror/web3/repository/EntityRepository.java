@@ -12,7 +12,7 @@ import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface EntityRepository extends CrudRepository<Entity, Long> {
@@ -45,7 +45,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             select *
             from entity
             where (evm_address = ?1 or alias = ?1) and deleted is not true
-            """, nativeQuery = true)
+            """)
     Optional<Entity> findByEvmAddressOrAliasAndDeletedIsFalse(byte[] alias);
 
     /**
@@ -81,7 +81,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             )
             order by timestamp_range desc
             limit 1
-            """, nativeQuery = true)
+            """)
     Optional<Entity> findActiveByEvmAddressAndTimestamp(byte[] evmAddress, long blockTimestamp);
 
     /**
@@ -117,7 +117,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             )
             order by timestamp_range desc
             limit 1
-            """, nativeQuery = true)
+            """)
     Optional<Entity> findActiveByEvmAddressOrAliasAndTimestamp(byte[] alias, long blockTimestamp);
 
     /**
@@ -151,7 +151,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     )
                     order by timestamp_range desc
                     limit 1
-                    """, nativeQuery = true)
+                    """)
     Optional<Entity> findActiveByIdAndTimestamp(long id, long blockTimestamp);
 
     @Query(value = """
@@ -159,6 +159,6 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     from entity
                     order by id desc
                     limit 1
-                    """, nativeQuery = true)
+                    """)
     Long findMaxId();
 }

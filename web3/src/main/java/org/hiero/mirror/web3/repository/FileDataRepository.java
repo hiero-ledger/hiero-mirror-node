@@ -4,14 +4,14 @@ package org.hiero.mirror.web3.repository;
 
 import java.util.Optional;
 import org.hiero.mirror.common.domain.file.FileData;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface FileDataRepository extends CrudRepository<FileData, Long> {
 
-    @Query(nativeQuery = true, value = """
+    @Query(value = """
             select
               max(consensus_timestamp) as consensus_timestamp,
               ?1 as entity_id,

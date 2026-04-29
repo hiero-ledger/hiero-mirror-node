@@ -4,7 +4,7 @@ package org.hiero.mirror.web3.repository;
 
 import java.util.List;
 import org.hiero.mirror.common.domain.contract.ContractAction;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface ContractActionRepository extends CrudRepository<ContractAction, Long> {

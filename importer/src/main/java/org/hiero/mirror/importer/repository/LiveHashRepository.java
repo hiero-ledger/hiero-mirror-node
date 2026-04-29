@@ -3,8 +3,8 @@
 package org.hiero.mirror.importer.repository;
 
 import org.hiero.mirror.common.domain.transaction.LiveHash;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface LiveHashRepository extends CrudRepository<LiveHash, Long>, RetentionRepository {

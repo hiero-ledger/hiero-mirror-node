@@ -4,7 +4,7 @@ package org.hiero.mirror.web3.repository;
 
 import java.util.Optional;
 import org.hiero.mirror.common.domain.token.CustomFee;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface CustomFeeRepository extends CrudRepository<CustomFee, Long> {
@@ -37,6 +37,6 @@ public interface CustomFeeRepository extends CrudRepository<CustomFee, Long> {
             )
             order by timestamp_range desc
             limit 1
-            """, nativeQuery = true)
+            """)
     Optional<CustomFee> findByTokenIdAndTimestamp(long entityId, long blockTimestamp);
 }

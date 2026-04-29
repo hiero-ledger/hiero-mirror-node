@@ -2,15 +2,15 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Entity
+@Table
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 public class NetworkFreeze {

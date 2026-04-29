@@ -2,36 +2,32 @@
 
 package org.hiero.mirror.common.domain.contract;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Entity
+@Table("contract")
 @NoArgsConstructor
 @SuperBuilder
 public class Contract {
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
-    @Column(updatable = false)
+    // Removed @Convert. Mapping is handled by your global EntityIdConverter bean.
+    // updatable = false is a JPA concept; Spring Data JDBC maps this via standard @Column.
+    @Column("file_id")
     private EntityId fileId;
 
     @Id
     private Long id;
 
-    @Column(updatable = false)
     @ToString.Exclude
     private byte[] initcode;
 
-    @Column(updatable = false)
     @ToString.Exclude
     private byte[] runtimeBytecode;
 }

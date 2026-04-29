@@ -8,7 +8,7 @@ import static org.hiero.mirror.grpc.config.CacheConfiguration.CACHE_NAME;
 import java.util.List;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface AddressBookEntryRepository extends CrudRepository<AddressBookEntry, AddressBookEntry.Id> {
@@ -32,6 +32,6 @@ public interface AddressBookEntryRepository extends CrudRepository<AddressBookEn
           and abe.node_id >= ?
         order by abe.node_id asc
         limit ?
-        """, nativeQuery = true)
+        """)
     List<AddressBookEntry> findByConsensusTimestampAndNodeId(long consensusTimestamp, long nodeId, int limit);
 }

@@ -3,10 +3,6 @@
 package org.hiero.mirror.common.domain.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
@@ -14,35 +10,34 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityTransaction.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
 @Builder
 @Data
-@Entity
-@IdClass(EntityTransaction.Id.class)
+@Table("entity_transaction")
 @NoArgsConstructor
 public class EntityTransaction implements Persistable<Id> {
 
-    @Column(updatable = false)
-    @jakarta.persistence.Id
+    @org.springframework.data.relational.core.mapping.Column
+    @org.springframework.data.annotation.Id
     private Long consensusTimestamp;
 
-    @Column(updatable = false)
-    @jakarta.persistence.Id
+    @org.springframework.data.relational.core.mapping.Column
+    @org.springframework.data.annotation.Id
     private Long entityId;
 
     // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
-    @Column(updatable = false)
+    //    @Convert(converter = EntityIdConverter.class)
+    @org.springframework.data.relational.core.mapping.Column
     private EntityId payerAccountId;
 
-    @Column(updatable = false)
+    @org.springframework.data.relational.core.mapping.Column
     private Integer result;
 
-    @Column(updatable = false)
+    @org.springframework.data.relational.core.mapping.Column
     private Integer type;
 
     @JsonIgnore

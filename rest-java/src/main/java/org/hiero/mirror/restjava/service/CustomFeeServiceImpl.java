@@ -3,7 +3,6 @@
 package org.hiero.mirror.restjava.service;
 
 import jakarta.inject.Named;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -19,6 +18,6 @@ final class CustomFeeServiceImpl implements CustomFeeService {
     public CustomFee findById(EntityId id) {
         return customFeeRepository
                 .findById(id.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Custom fee for entity not found"));
+                .orElseThrow(() -> new RuntimeException("Custom fee for entity not found"));
     }
 }

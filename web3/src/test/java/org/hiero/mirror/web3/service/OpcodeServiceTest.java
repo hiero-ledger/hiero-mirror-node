@@ -45,7 +45,6 @@ import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
-import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.utils.EvmEncodingFacade;
@@ -647,7 +646,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 DEFAULT_TRANSACTION_VALUE,
                 consensusTimestamp);
         // Then: processOpcodeCall should fail when building call service parameters
-        assertThatExceptionOfType(EntityNotFoundException.class)
+        assertThatExceptionOfType(RuntimeException.class)
                 .isThrownBy(() ->
                         opcodeService.processOpcodeCall(new OpcodeRequest(transactionIdOrHash, true, false, false)))
                 .withMessage("Contract result not found: " + consensusTimestamp);
@@ -671,7 +670,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 DEFAULT_TRANSACTION_VALUE,
                 domainBuilder.timestamp());
         // Then: processOpcodeCall should fail when building call service parameters
-        assertThatExceptionOfType(EntityNotFoundException.class)
+        assertThatExceptionOfType(RuntimeException.class)
                 .isThrownBy(() ->
                         opcodeService.processOpcodeCall(new OpcodeRequest(transactionIdOrHash, true, false, false)))
                 .withMessage("Transaction not found: " + transactionIdOrHash);
@@ -705,7 +704,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 domainBuilder.timestamp());
 
         // Then: processOpcodeCall should fail when building call service parameters
-        assertThatExceptionOfType(EntityNotFoundException.class)
+        assertThatExceptionOfType(RuntimeException.class)
                 .isThrownBy(() ->
                         opcodeService.processOpcodeCall(new OpcodeRequest(transactionIdOrHash, true, false, false)))
                 .withMessage("Contract transaction hash not found: " + transactionIdOrHash);

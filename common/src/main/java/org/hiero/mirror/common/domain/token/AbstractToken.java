@@ -3,62 +3,46 @@
 package org.hiero.mirror.common.domain.token;
 
 import com.google.common.collect.Range;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.annotation.Id;
 
 @Data
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true, skipPartialUpdate = true)
-public class AbstractToken implements History {
+public abstract class AbstractToken implements History {
 
-    @Column(updatable = false)
     private Long createdTimestamp;
 
-    @Column(updatable = false)
     private Integer decimals;
 
     @ToString.Exclude
     private byte[] feeScheduleKey;
 
-    @Column(updatable = false)
     private Boolean freezeDefault;
 
     @ToString.Exclude
     private byte[] freezeKey;
 
-    @Enumerated(EnumType.ORDINAL)
-    @Column(updatable = false)
+    // JDBC: Handled by global ordinal-to-enum converter
     private TokenFreezeStatusEnum freezeStatus;
 
-    @Column(updatable = false)
     private Long initialSupply;
 
     @ToString.Exclude
     private byte[] kycKey;
 
-    @Enumerated(EnumType.ORDINAL)
-    @Column(updatable = false)
+    // JDBC: Handled by global ordinal-to-enum converter
     private TokenKycStatusEnum kycStatus;
 
-    @Column(updatable = false)
     private long maxSupply;
 
     @ToString.Exclude
@@ -72,35 +56,28 @@ public class AbstractToken implements History {
     @ToString.Exclude
     private byte[] pauseKey;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    // JDBC: Handled by global String-to-PGobject (named enum) converter
     private TokenPauseStatusEnum pauseStatus;
 
     @ToString.Exclude
     private byte[] supplyKey;
 
-    @Column(updatable = false)
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private TokenSupplyTypeEnum supplyType;
 
     private String symbol;
 
+    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
     private Range<Long> timestampRange;
 
     @Id
     private Long tokenId;
 
     @UpsertColumn(coalesce = "case when {0} >= 0 then {0} else e_{0} + coalesce({0}, {1}) end")
-    private Long totalSupply; // Increment with initialSupply and mint amounts, decrement with burn amount
+    private Long totalSupply;
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
+    // Handled by global EntityId converters
     private EntityId treasuryAccountId;
 
-    @Column(updatable = false)
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private TokenTypeEnum type;
 
     @ToString.Exclude
@@ -120,7 +97,6 @@ public class AbstractToken implements History {
         }
 
         if (newTotalSupply < 0) {
-            // Negative from a token transfer of a token dissociate of a deleted token, so we aggregate the change.
             totalSupply = totalSupply == null ? newTotalSupply : totalSupply + newTotalSupply;
         } else {
             totalSupply = newTotalSupply;

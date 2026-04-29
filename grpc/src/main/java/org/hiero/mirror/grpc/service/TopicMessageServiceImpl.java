@@ -22,7 +22,6 @@ import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.grpc.GrpcProperties;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
-import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.listener.TopicListener;
 import org.hiero.mirror.grpc.repository.EntityRepository;
 import org.hiero.mirror.grpc.retriever.TopicMessageRetriever;
@@ -96,7 +95,7 @@ public class TopicMessageServiceImpl implements TopicMessageService {
         return Mono.justOrEmpty(entityRepository.findById(topicId.getId()))
                 .switchIfEmpty(
                         grpcProperties.isCheckTopicExists()
-                                ? Mono.error(new EntityNotFoundException(topicId))
+                                ? Mono.error(new RuntimeException(topicId))
                                 : Mono.just(Entity.builder()
                                         .memo("")
                                         .type(EntityType.TOPIC)

@@ -311,12 +311,6 @@ final class ContractResultServiceImpl implements ContractResultService {
         var contractId = EntityId.of(stateChange.getContractId());
         var payerAccountId = recordItem.getPayerAccountId();
 
-        // Check if this is hook storage change (contract 365 = 0x16d)
-        if (isHookExecution(recordItem) && isHookExecution(stateChange)) {
-            processHookStorageChanges(recordItem, stateChange);
-            return;
-        }
-
         for (var storageChange : stateChange.getStorageChangesList()) {
             var contractStateChange = new org.hiero.mirror.common.domain.contract.ContractStateChange();
             contractStateChange.setConsensusTimestamp(consensusTimestamp);
@@ -542,31 +536,6 @@ final class ContractResultServiceImpl implements ContractResultService {
                 .lookup(stateChange.getContractId())
                 .map(entityId -> entityId.getNum() == HOOK_CONTRACT_NUM)
                 .orElse(false);
-    }
-
-    /**
-     * Processes hook storage changes from contract state changes targeting the hook system contract (0.0.365). Uses the
-     * transient queue in the parent RecordItem to track sequential hook execution context.
-     *
-     * @param recordItem  the record item containing the hook execution transaction
-     * @param stateChange the contract state change containing hook storage updates
-     */
-    private void processHookStorageChanges(RecordItem recordItem, ContractStateChange stateChange) {
-        // Get one hook context for this ContractStateChange
-        var hookContext = recordItem.nextHookContext();
-        if (hookContext == null || hookContext.getOwnerId() == EntityId.EMPTY.getId()) {
-            Utility.handleRecoverableError(
-                    "No hook context available in parent transaction for hook execution at consensus timestamp {}",
-                    recordItem.getConsensusTimestamp());
-            return;
-        }
-
-        // Process each storage change with the same hook context
-        evmHookStorageHandler.processStorageUpdatesForSidecar(
-                recordItem.getConsensusTimestamp(),
-                hookContext.getHookId(),
-                hookContext.getOwnerId(),
-                stateChange.getStorageChangesList());
     }
 
     /**

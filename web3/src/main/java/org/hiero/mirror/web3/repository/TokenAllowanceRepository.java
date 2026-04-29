@@ -11,7 +11,7 @@ import org.hiero.mirror.common.domain.entity.AbstractTokenAllowance;
 import org.hiero.mirror.common.domain.entity.AbstractTokenAllowance.Id;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface TokenAllowanceRepository extends CrudRepository<TokenAllowance, AbstractTokenAllowance.Id> {
@@ -123,7 +123,7 @@ public interface TokenAllowanceRepository extends CrudRepository<TokenAllowance,
                     ) result
                     where amount > 0
                     limit 1
-                    """, nativeQuery = true)
+                    """)
     Optional<TokenAllowance> findByOwnerSpenderTokenAndTimestamp(
             long owner, long spender, long tokenId, long blockTimestamp);
 
@@ -192,6 +192,6 @@ public interface TokenAllowanceRepository extends CrudRepository<TokenAllowance,
                     ) result
                     where amount > 0
                     order by spender,token_id
-                    """, nativeQuery = true)
+                    """)
     List<TokenAllowance> findByOwnerAndTimestamp(long owner, long blockTimestamp);
 }

@@ -2,11 +2,9 @@
 
 package org.hiero.mirror.common.domain.token;
 
-import jakarta.persistence.Convert;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
 @Data
@@ -22,10 +20,8 @@ public abstract class AbstractFee {
 
     /**
      * The id of the account collecting the fee.
-     *
-     * Specify converter explicitly so translation works with native image
      */
-    @Convert(converter = EntityIdConverter.class)
+    // Converter removed. Handled by global EntityId Reading/Writing converters.
     private EntityId collectorAccountId;
 
     public abstract boolean isChargedInToken(EntityId tokenId);

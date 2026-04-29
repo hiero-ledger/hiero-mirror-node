@@ -3,9 +3,6 @@
 package org.hiero.mirror.common.domain.addressbook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
@@ -13,51 +10,50 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Builder(toBuilder = true)
 @Data
-@Entity
-@IdClass(AddressBookServiceEndpoint.Id.class)
+@Table("address_book_service_endpoint")
 @NoArgsConstructor
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class AddressBookServiceEndpoint implements Persistable<AddressBookServiceEndpoint.Id> {
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private long consensusTimestamp;
 
-    @jakarta.persistence.Id
-    @Column(name = "ip_address_v4")
+    @org.springframework.data.annotation.Id
+    @Column("ip_address_v4")
     private String ipAddressV4;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private long nodeId;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private Integer port;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private String domainName;
 
     @JsonIgnore
     @Override
     public Id getId() {
-        Id id = new Id();
-        id.setConsensusTimestamp(consensusTimestamp);
-        id.setDomainName(domainName);
-        id.setIpAddressV4(ipAddressV4);
-        id.setNodeId(nodeId);
-        id.setPort(port);
-        return id;
+        return new Id(consensusTimestamp, ipAddressV4, nodeId, port, domainName);
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        // Natural IDs for service endpoints should always trigger an INSERT
+        return true;
     }
 
     @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class Id implements Serializable {
 
         @Serial
@@ -65,7 +61,6 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
 
         private long consensusTimestamp;
 
-        @Column(name = "ip_address_v4")
         private String ipAddressV4;
 
         private long nodeId;

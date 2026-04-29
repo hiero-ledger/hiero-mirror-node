@@ -16,7 +16,6 @@ import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
-import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;
 import org.hiero.mirror.grpc.repository.NodeStakeRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -66,7 +65,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         var filter = AddressBookFilter.builder().fileId(fileId).build();
 
         assertThatThrownBy(() -> networkService.getNodes(filter))
-                .isInstanceOf(EntityNotFoundException.class)
+                .isInstanceOf(RuntimeException.class)
                 .hasMessage("%s does not exist".formatted(fileId));
     }
 

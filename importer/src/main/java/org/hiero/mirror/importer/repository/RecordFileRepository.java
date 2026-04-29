@@ -4,8 +4,8 @@ package org.hiero.mirror.importer.repository;
 
 import java.util.Optional;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +15,7 @@ public interface RecordFileRepository extends StreamFileRepository<RecordFile, L
     Optional<RecordFile> findFirst();
 
     @Override
-    @Query(value = "select * from record_file order by consensus_end desc limit 1", nativeQuery = true)
+    @Query(value = "select * from record_file order by consensus_end desc limit 1")
     Optional<RecordFile> findLatest();
 
     @Query(
@@ -47,7 +47,7 @@ public interface RecordFileRepository extends StreamFileRepository<RecordFile, L
     int prune(long consensusTimestamp);
 
     @Modifying
-    @Query(nativeQuery = true, value = "update record_file set index = index + ?1")
+    @Query(value = "update record_file set index = index + ?1")
     @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 7200)
     int updateIndex(long offset);
 }

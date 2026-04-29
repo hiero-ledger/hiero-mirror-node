@@ -11,11 +11,11 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface NodeStakeRepository extends CrudRepository<NodeStake, NodeStake.Id> {
-    @Query(value = "select max(consensus_timestamp) from node_stake", nativeQuery = true)
+    @Query(value = "select max(consensus_timestamp) from node_stake")
     Optional<Long> findLatestTimestamp();
 
     List<NodeStake> findAllByConsensusTimestamp(long consensusTimestamp);

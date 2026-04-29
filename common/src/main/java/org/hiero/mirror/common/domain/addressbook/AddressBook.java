@@ -2,13 +2,6 @@
 
 package org.hiero.mirror.common.domain.addressbook;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToMany;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
@@ -18,15 +11,18 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.MappedCollection;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Builder(toBuilder = true)
 @Data
-@Entity
+@Table("address_book")
 @NoArgsConstructor
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class AddressBook {
+
     // consensusTimestamp + 1ns of transaction containing final fileAppend operation
     @Id
     private Long startConsensusTimestamp;
@@ -36,18 +32,14 @@ public class AddressBook {
 
     @EqualsAndHashCode.Exclude
     @Builder.Default
-    @OneToMany(
-            cascade = {CascadeType.ALL},
-            orphanRemoval = true,
-            fetch = FetchType.EAGER)
-    @JoinColumn(name = "consensusTimestamp")
+    @ToString.Exclude
+    @MappedCollection(idColumn = "consensus_timestamp")
     private List<AddressBookEntry> entries = new ArrayList<>();
 
     @ToString.Exclude
     private byte[] fileData;
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
+    // Converter removed. Handled by global EntityIdConverter bean.
     private EntityId fileId;
 
     private Integer nodeCount;

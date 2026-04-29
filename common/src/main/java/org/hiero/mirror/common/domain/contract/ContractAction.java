@@ -5,11 +5,6 @@ package org.hiero.mirror.common.domain.contract;
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REVERT_REASON;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.IdClass;
 import java.io.Serializable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -17,61 +12,51 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Entity
-@IdClass(ContractAction.Id.class)
+@Table("contract_action")
 @NoArgsConstructor
 public class ContractAction implements Persistable<ContractAction.Id> {
 
     private int callDepth;
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
+    // Handled by global EntityId Reading/Writing converters
     private EntityId caller;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    // Handled by global EntityType converter (if custom PG type)
     private EntityType callerType;
 
     private int callOperationType;
 
     private Integer callType;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private long consensusTimestamp;
 
     private long gas;
 
     private long gasUsed;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private int index;
 
     @ToString.Exclude
     private byte[] input;
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
     private EntityId recipientAccount;
 
     @ToString.Exclude
     private byte[] recipientAddress;
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
     private EntityId recipientContract;
 
     @ToString.Exclude
@@ -84,16 +69,13 @@ public class ContractAction implements Persistable<ContractAction.Id> {
     @Override
     @JsonIgnore
     public ContractAction.Id getId() {
-        ContractAction.Id id = new ContractAction.Id();
-        id.setConsensusTimestamp(consensusTimestamp);
-        id.setIndex(index);
-        return id;
+        return new Id(consensusTimestamp, index);
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true;
     }
 
     @JsonIgnore

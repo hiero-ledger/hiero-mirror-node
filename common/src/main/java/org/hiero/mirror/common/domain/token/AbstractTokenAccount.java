@@ -4,11 +4,6 @@ package org.hiero.mirror.common.domain.token;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.MappedSuperclass;
-import jakarta.persistence.Transient;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.Data;
@@ -17,16 +12,16 @@ import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 
 @Data
-@IdClass(AbstractTokenAccount.Id.class)
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public class AbstractTokenAccount implements History {
+public abstract class AbstractTokenAccount implements History {
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private long accountId;
 
     private Boolean associated;
@@ -43,13 +38,12 @@ public class AbstractTokenAccount implements History {
     private Long balanceTimestamp;
 
     @JsonIgnore
-    @SuppressWarnings("java:S2065")
-    @Transient
-    private transient boolean claim;
+    @Transient // Switched to Spring Data Transient
+    private boolean claim;
 
     private Long createdTimestamp;
 
-    @Enumerated(EnumType.ORDINAL)
+    // JDBC: Handled by global ordinal-to-enum converters
     @UpsertColumn(coalesce = """
             case when created_timestamp is not null then {0}
                  else coalesce({0}, e_{0})
@@ -57,7 +51,6 @@ public class AbstractTokenAccount implements History {
             """)
     private TokenFreezeStatusEnum freezeStatus;
 
-    @Enumerated(EnumType.ORDINAL)
     @UpsertColumn(coalesce = """
             case when created_timestamp is not null then {0}
                  else coalesce({0}, e_{0})
@@ -65,20 +58,20 @@ public class AbstractTokenAccount implements History {
             """)
     private TokenKycStatusEnum kycStatus;
 
+    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
     private Range<Long> timestampRange;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private long tokenId;
 
     @JsonIgnore
     public AbstractTokenAccount.Id getId() {
-        Id id = new AbstractTokenAccount.Id();
-        id.setAccountId(accountId);
-        id.setTokenId(tokenId);
-        return id;
+        return new Id(accountId, tokenId);
     }
 
     @Data
+    @NoArgsConstructor
+    @lombok.AllArgsConstructor
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = 4078820027811154183L;

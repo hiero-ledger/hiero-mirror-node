@@ -5,7 +5,7 @@ package org.hiero.mirror.restjava.repository;
 import java.util.List;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.restjava.dto.NetworkNodeDto;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, AddressBookEntry.Id> {
@@ -100,7 +100,7 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
               case when :orderDirection = 'ASC' then abe.node_id end asc,
               case when :orderDirection = 'DESC' then abe.node_id end desc
             limit :limit
-            """, nativeQuery = true)
+            """)
     List<NetworkNodeDto> findNetworkNodes(
             Long fileId, Long[] nodeIds, long minNodeId, long maxNodeId, String orderDirection, int limit);
 }

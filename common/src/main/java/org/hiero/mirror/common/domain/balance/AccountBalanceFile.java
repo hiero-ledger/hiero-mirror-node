@@ -2,9 +2,6 @@
 
 package org.hiero.mirror.common.domain.balance;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Transient;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -15,11 +12,14 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.StreamType;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Builder(toBuilder = true)
 @Data
-@Entity
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
+@Table("account_balance_file") // Explicitly named for consistency
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor
 public class AccountBalanceFile implements StreamFile<AccountBalance> {
 
@@ -37,7 +37,7 @@ public class AccountBalanceFile implements StreamFile<AccountBalance> {
     @Builder.Default
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
-    @Transient
+    @Transient // Switched to org.springframework.data.annotation.Transient
     private List<AccountBalance> items = List.of();
 
     private Long loadEnd;

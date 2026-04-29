@@ -4,9 +4,6 @@ package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -14,24 +11,25 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Entity
+@Table("ethereum_transaction")
 @NoArgsConstructor
 public class EthereumTransaction implements Persistable<Long> {
 
     @ToString.Exclude
     private byte[] accessList;
 
+    // JDBC: Handled by global JSON Writing/Reading converters
     @JsonSerialize(using = ObjectToStringSerializer.class)
-    @JdbcTypeCode(SqlTypes.JSON)
     private List<Authorization> authorizationList;
 
     @ToString.Exclude
@@ -48,22 +46,20 @@ public class EthereumTransaction implements Persistable<Long> {
     @ToString.Exclude
     private byte[] data;
 
-    // persisted in tinybar
     private Long gasLimit;
 
-    // persisted in tinybar
+    @ToString.Exclude
     private byte[] gasPrice;
 
     @ToString.Exclude
     private byte[] hash;
 
-    // persisted in tinybar
+    @ToString.Exclude
     private byte[] maxFeePerGas;
 
-    // persisted in tinybar
     private Long maxGasAllowance;
 
-    // persisted in tinybar
+    @ToString.Exclude
     private byte[] maxPriorityFeePerGas;
 
     private Long nonce;
@@ -72,15 +68,15 @@ public class EthereumTransaction implements Persistable<Long> {
 
     private Integer recoveryId;
 
-    @Column(name = "signature_r")
+    @Column("signature_r")
     @ToString.Exclude
     private byte[] signatureR;
 
-    @Column(name = "signature_s")
+    @Column("signature_s")
     @ToString.Exclude
     private byte[] signatureS;
 
-    @Column(name = "signature_v")
+    @Column("signature_v")
     @ToString.Exclude
     private byte[] signatureV;
 
@@ -101,14 +97,14 @@ public class EthereumTransaction implements Persistable<Long> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true;
     }
 
     public TransactionHash toTransactionHash() {
         return TransactionHash.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .hash(hash)
-                .payerAccountId(payerAccountId.getId())
+                .payerAccountId(payerAccountId != null ? payerAccountId.getId() : null)
                 .build();
     }
 }

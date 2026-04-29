@@ -17,7 +17,6 @@ import java.time.Instant;
 import java.util.concurrent.TimeoutException;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
-import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -47,7 +46,7 @@ class ProtoUtilTest {
         assertException(new ConstraintViolationException(message, null), Status.INVALID_ARGUMENT, message);
         assertException(new IllegalArgumentException(message), Status.INVALID_ARGUMENT, message);
         assertException(new InvalidEntityException(message), Status.INVALID_ARGUMENT, message);
-        assertException(new EntityNotFoundException(entityId), Status.NOT_FOUND, "0.0.1 does not exist");
+        assertException(new RuntimeException(entityId), Status.NOT_FOUND, "0.0.1 does not exist");
         assertException(new NonTransientDataAccessResourceException(message), Status.UNAVAILABLE, DB_ERROR);
         assertException(new QueryTimeoutException(message), Status.RESOURCE_EXHAUSTED, DB_ERROR);
         assertException(new TimeoutException(message), Status.RESOURCE_EXHAUSTED, DB_ERROR);

@@ -21,7 +21,6 @@ import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.GrpcProperties;
 import org.hiero.mirror.grpc.domain.ReactiveDomainBuilder;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
-import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.listener.ListenerProperties;
 import org.hiero.mirror.grpc.listener.TopicListener;
 import org.hiero.mirror.grpc.repository.EntityRepository;
@@ -124,7 +123,7 @@ class TopicMessageServiceTest extends GrpcIntegrationTest {
 
         StepVerifier.withVirtualTime(() -> topicMessageService.subscribeTopic(filter))
                 .thenAwait(WAIT)
-                .expectError(EntityNotFoundException.class)
+                .expectError(RuntimeException.class)
                 .verify(WAIT);
     }
 

@@ -520,10 +520,6 @@ public class MirrorNodeClient {
                 "/accounts/{accountId}/airdrops/outstanding", TokenAirdropsResponse.class, accountId.toString());
     }
 
-    public boolean hasPartialState() {
-        return partialStateSupplier.get();
-    }
-
     public AccountsResponse getAccounts(int limit) {
         return callRestEndpoint("/accounts?limit={limit}", AccountsResponse.class, limit);
     }

@@ -4,7 +4,7 @@ package org.hiero.mirror.grpc.repository;
 
 import java.util.List;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface TopicMessageRepository extends CrudRepository<TopicMessage, Long>, TopicMessageRepositoryCustom {
@@ -21,6 +21,6 @@ public interface TopicMessageRepository extends CrudRepository<TopicMessage, Lon
        from topic_message as t
        join related_transaction using (topic_id, consensus_timestamp)
        order by t.consensus_timestamp
-       """, nativeQuery = true)
+       """)
     List<TopicMessage> findLatest(long consensusTimestamp, int limit);
 }

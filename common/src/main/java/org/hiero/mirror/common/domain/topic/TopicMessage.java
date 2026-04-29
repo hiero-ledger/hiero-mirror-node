@@ -5,9 +5,6 @@ package org.hiero.mirror.common.domain.topic;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import java.util.Comparator;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -15,14 +12,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @Builder(toBuilder = true)
 @Data
-@Entity
+@Table("topic_message")
 @JsonTypeInfo(use = com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME)
 @JsonTypeName("TopicMessage")
 @NoArgsConstructor
@@ -44,8 +42,7 @@ public class TopicMessage implements Comparable<TopicMessage>, Persistable<Long>
     @ToString.Exclude
     private byte[] message;
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
+    // JDBC: Handled by global EntityId converters registered in CommonConfiguration
     private EntityId payerAccountId;
 
     @ToString.Exclude
@@ -55,8 +52,6 @@ public class TopicMessage implements Comparable<TopicMessage>, Persistable<Long>
 
     private long sequenceNumber;
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
     private EntityId topicId;
 
     private Long validStartTimestamp;
@@ -70,7 +65,7 @@ public class TopicMessage implements Comparable<TopicMessage>, Persistable<Long>
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true; // Optimizes ingestion performance
     }
 
     @Override

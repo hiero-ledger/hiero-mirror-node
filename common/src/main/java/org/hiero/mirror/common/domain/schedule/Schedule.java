@@ -2,52 +2,42 @@
 
 package org.hiero.mirror.common.domain.schedule;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Entity
+@Table("schedule")
 @NoArgsConstructor
 @Upsertable
 public class Schedule {
 
-    @Column(updatable = false)
     private Long consensusTimestamp;
 
-    // Specify converter explicitly so translation works with native image
-    @Convert(converter = EntityIdConverter.class)
-    @Column(updatable = false)
+    // Converter removed. Handled by global EntityIdConverter bean.
     private EntityId creatorAccountId;
 
     private Long executedTimestamp;
 
-    @Column(updatable = false)
     private Long expirationTime;
 
-    @Column(updatable = false)
     private EntityId payerAccountId;
 
     @Id
     private Long scheduleId;
 
-    @Column(updatable = false)
     @ToString.Exclude
     private byte[] transactionBody;
 
-    @Column(updatable = false)
     private boolean waitForExpiry;
 
     public void setScheduleId(EntityId scheduleId) {

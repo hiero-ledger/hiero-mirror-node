@@ -3,7 +3,7 @@
 package org.hiero.mirror.restjava.service;
 
 import jakarta.inject.Named;
-import jakarta.persistence.EntityNotFoundException;
+
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -23,7 +23,7 @@ final class EntityServiceImpl implements EntityService {
     @Override
     public Entity findById(EntityId id) {
         return entityRepository.findById(id.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Entity not found"));
+                .orElseThrow(() -> new RuntimeException("Entity not found"));
     }
 
     @Override
@@ -34,6 +34,6 @@ final class EntityServiceImpl implements EntityService {
             case EntityIdEvmAddressParameter p -> entityRepository.findByEvmAddress(p.evmAddress()).map(EntityId::of);
         };
 
-        return id.orElseThrow(() -> new EntityNotFoundException("No account found for the given ID"));
+        return id.orElseThrow(() -> new RuntimeException("No account found for the given ID"));
     }
 }

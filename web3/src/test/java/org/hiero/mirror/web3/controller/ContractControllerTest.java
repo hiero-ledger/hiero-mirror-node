@@ -34,7 +34,6 @@ import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
-import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
@@ -219,7 +218,7 @@ class ContractControllerTest {
         final var exceptionMessage = "No such contract or token";
         final var request = request();
 
-        given(service.processCall(any())).willThrow(new EntityNotFoundException(exceptionMessage));
+        given(service.processCall(any())).willThrow(new RuntimeException(exceptionMessage));
 
         contractCall(request)
                 .andExpect(status().isNotFound())

@@ -3,9 +3,6 @@
 package org.hiero.mirror.common.domain.contract;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serializable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -15,27 +12,29 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Entity
+@Table("contract_state")
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
-@IdClass(ContractState.Id.class)
 @NoArgsConstructor
 @Upsertable
 public class ContractState {
 
     private static final int SLOT_BYTE_LENGTH = 32;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private long contractId;
 
-    @Column(updatable = false)
+    // Hibernate's 'updatable = false' is removed;
+    // enforcement now relies on the Upsert logic/SQL generator.
     private long createdTimestamp;
 
     private long modifiedTimestamp;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     @ToString.Exclude
     private byte[] slot;
 
@@ -44,10 +43,7 @@ public class ContractState {
 
     @JsonIgnore
     public ContractState.Id getId() {
-        ContractState.Id id = new ContractState.Id();
-        id.setContractId(contractId);
-        id.setSlot(slot);
-        return id;
+        return new Id(contractId, slot);
     }
 
     public void setSlot(byte[] slot) {

@@ -9,7 +9,7 @@ import java.util.Optional;
 import org.hiero.mirror.common.domain.token.AbstractNft;
 import org.hiero.mirror.common.domain.token.Nft;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
@@ -64,7 +64,7 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
             where (e.deleted is not true or lower(e.timestamp_range) > :blockTimestamp)
             order by n.timestamp_range desc
             limit 1
-            """, nativeQuery = true)
+            """)
     Optional<Nft> findActiveByIdAndTimestamp(long tokenId, long serialNumber, long blockTimestamp);
 
     @Query(
@@ -104,7 +104,7 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
             ) as n
             left join entity e on e.id = n.token_id
             where (e.deleted is not true or lower(e.timestamp_range) > :blockTimestamp)
-            """, nativeQuery = true)
+            """)
     long countByAccountIdAndTimestampNotDeleted(long accountId, long blockTimestamp);
 
     /**
@@ -140,7 +140,7 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
                 ) as n
             join entity e on e.id = n.token_id
             where (e.deleted is not true or lower(e.timestamp_range) > :blockTimestamp)
-            """, nativeQuery = true)
+            """)
     Optional<Long> nftBalanceByAccountIdTokenIdAndTimestamp(long accountId, long tokenId, long blockTimestamp);
 
     /**
@@ -160,6 +160,6 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
               n.created_timestamp <= :blockTimestamp and
               (n.deleted is false or lower(n.timestamp_range) > :blockTimestamp) and
               (e.deleted is not true or lower(e.timestamp_range) > :blockTimestamp)
-            """, nativeQuery = true)
+            """)
     long findNftTotalSupplyByTokenIdAndTimestamp(long tokenId, long blockTimestamp);
 }

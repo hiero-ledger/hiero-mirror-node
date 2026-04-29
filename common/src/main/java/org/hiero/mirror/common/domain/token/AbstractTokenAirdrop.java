@@ -4,59 +4,50 @@ package org.hiero.mirror.common.domain.token;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.MappedSuperclass;
 import java.io.Serial;
 import java.io.Serializable;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.Id;
 
 @Data
-@IdClass(AbstractTokenAirdrop.Id.class)
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public class AbstractTokenAirdrop implements History {
+public abstract class AbstractTokenAirdrop implements History {
 
     private Long amount;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private long receiverAccountId;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private long senderAccountId;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private long serialNumber;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    // Handled by global Reading/Writing converters for Postgres Named Enum
     private TokenAirdropStateEnum state;
 
+    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
     private Range<Long> timestampRange;
 
-    @jakarta.persistence.Id
+    @org.springframework.data.annotation.Id
     private long tokenId;
 
     @JsonIgnore
     public Id getId() {
-        Id id = new Id();
-        id.setReceiverAccountId(receiverAccountId);
-        id.setSenderAccountId(senderAccountId);
-        id.setSerialNumber(serialNumber);
-        id.setTokenId(tokenId);
-        return id;
+        return new Id(receiverAccountId, senderAccountId, serialNumber, tokenId);
     }
 
     @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = -8165098238647325621L;

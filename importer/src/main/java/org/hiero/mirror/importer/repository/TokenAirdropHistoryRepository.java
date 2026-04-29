@@ -4,8 +4,8 @@ package org.hiero.mirror.importer.repository;
 
 import org.hiero.mirror.common.domain.token.AbstractTokenAirdrop;
 import org.hiero.mirror.common.domain.token.TokenAirdropHistory;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface TokenAirdropHistoryRepository
@@ -13,6 +13,6 @@ public interface TokenAirdropHistoryRepository
 
     @Modifying
     @Override
-    @Query(value = "delete from token_airdrop_history where timestamp_range << int8range(?1, null)", nativeQuery = true)
+    @Query(value = "delete from token_airdrop_history where timestamp_range << int8range(?1, null)")
     int prune(long consensusTimestamp);
 }
