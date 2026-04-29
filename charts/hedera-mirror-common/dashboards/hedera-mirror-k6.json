@@ -117,9 +117,9 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",passed=\"true\"}[$__rate_interval]))) / sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval]))) or sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])) * 0)",
+          "expr": "sum by (namespace, scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",passed=\"true\"}[$__rate_interval]))) / sum by (namespace, scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval]))) or sum by (namespace, scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])) * 0)",
           "interval": "1m",
-          "legendFormat": "{{scenario}} {{url}}",
+          "legendFormat": "{{namespace}} {{scenario}} {{url}}",
           "range": true,
           "refId": "A"
         }
@@ -212,9 +212,9 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])))",
+          "expr": "sum by (namespace, scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])))",
           "interval": "1m",
-          "legendFormat": "{{scenario}} {{url}}",
+          "legendFormat": "{{namespace}} {{scenario}} {{url}}",
           "range": true,
           "refId": "A"
         }
@@ -308,9 +308,9 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum by (scenario, url) (histogram_sum(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval]))) / sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])))",
+          "expr": "sum by (namespace, scenario, url) (histogram_sum(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval]))) / sum by (namespace, scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])))",
           "interval": "1m",
-          "legendFormat": "{{scenario}} {{url}}",
+          "legendFormat": "{{namespace}} {{scenario}} {{url}}",
           "range": true,
           "refId": "A"
         }
@@ -404,9 +404,9 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (scenario, url) (rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (namespace, scenario, url) (rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])))",
           "interval": "1m",
-          "legendFormat": "{{scenario}} {{url}}",
+          "legendFormat": "{{namespace}} {{scenario}} {{url}}",
           "range": true,
           "refId": "A"
         }
