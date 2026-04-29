@@ -45,7 +45,6 @@ import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.data.util.Version;
 
 @Builder(buildMethodName = "buildInternal")
@@ -124,12 +123,6 @@ public class RecordItem implements StreamItem {
     @NonFinal
     @Setter
     private ArrayDeque<AbstractHook.Id> hookExecutionQueue;
-
-    /**
-     * Bitwise OR of all synthetic contract log blooms for this record item (Ethereum receipt semantics).
-     */
-    @NonFinal
-    private LogsBloomFilter syntheticContractLogsBloom;
 
     /**
      * Gets the next hook context from the execution queue. Returns null if no more contexts are available.
