@@ -21,6 +21,8 @@ public class RecordFileServiceImpl implements RecordFileService {
             return recordFileRepository.findEarliest();
         } else if (block == BlockType.LATEST) {
             return recordFileRepository.findLatest();
+        } else if (block.isHash()) {
+            return recordFileRepository.findByHash(block.name());
         }
 
         return recordFileRepository.findByIndex(block.number());

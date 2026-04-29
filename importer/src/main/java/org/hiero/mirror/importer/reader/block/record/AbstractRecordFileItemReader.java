@@ -65,12 +65,14 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
 
             // Set other common fields. Note metadata hash calculation is skipped because there is only signature for
             // file hash in SignedRecordFileProof
+            final long creationTimestamp = DomainUtils.timestampInNanosMax(recordFileItem.getCreationTime());
             final var items = context.items();
             final var recordFile = context.recordFile();
             final byte[] bytes = bos.toByteArray();
             recordFile.setBytes(bytes);
-            recordFile.setConsensusEnd(items.getLast().getConsensusTimestamp());
-            recordFile.setConsensusStart(items.getFirst().getConsensusTimestamp());
+            recordFile.setConsensusEnd(!items.isEmpty() ? items.getLast().getConsensusTimestamp() : creationTimestamp);
+            recordFile.setConsensusStart(
+                    !items.isEmpty() ? items.getFirst().getConsensusTimestamp() : creationTimestamp);
             recordFile.setCount((long) items.size());
             recordFile.setDigestAlgorithm(DigestAlgorithm.SHA_384);
             recordFile.setFileHash(Hex.encodeHexString(context.fileDigest().digest()));

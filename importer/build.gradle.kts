@@ -66,10 +66,11 @@ dependencies {
 }
 
 protobuf {
+    val grpcVersion: String by rootProject.extra
     val protobufVersion: String by rootProject.extra
 
     protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" }
-    plugins { id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java" } }
+    plugins { id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:$grpcVersion" } }
     generateProtoTasks {
         ofSourceSet("main").forEach { it.plugins { id("grpc") { option("@generated=omit") } } }
     }
