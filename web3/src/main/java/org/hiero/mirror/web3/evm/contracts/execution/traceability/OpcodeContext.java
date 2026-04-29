@@ -22,7 +22,7 @@ public final class OpcodeContext {
 
     // Prevents over-allocation when gas limit is large (e.g. 15M gas / 3 = 5M entries = ~40MB).
     // Most transactions produce far fewer opcodes; the list will grow as needed.
-    private static final int MAX_INITIAL_OPCODE_CAPACITY = 10_000;
+    private static final int MAX_INITIAL_OPCODE_CAPACITY = 2_000;
 
     @Builder.Default
     private List<ContractAction> actions = List.of();
