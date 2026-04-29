@@ -60,6 +60,8 @@ final class RuntimeHintsConfiguration {
                     "addressbook/**",
                     "accountInfo.txt.gz",
                     "accountInfoContracts.txt",
+                    "com/hedera/nativelib/wraps/**",
+                    "com/hedera/nativelib/hints/**",
                     "db/migration/common/**",
                     "db/migration/v1/**",
                     "db/migration/v2/**",
