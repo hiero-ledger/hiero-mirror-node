@@ -20,7 +20,7 @@ spec:
   executionRequest:
     args:
       - /data/repo/tools/k6/src/rest/apis.js
-      {{- if $.Values.testkube.prometheusRw.enabled }}
+      {{- if $.Values.testkube.prometheus.enabled }}
       - --out
       - experimental-prometheus-rw
       {{- end }}
@@ -32,24 +32,22 @@ spec:
         mount: false
         reference:
           name: {{ include "hedera-mirror-common.fullname" $ }}-test-rest
-    {{- if $.Values.testkube.prometheusRw.enabled }}
+    {{- if $.Values.testkube.prometheus.enabled }}
     envSecrets:
       - mapToVariables: true
         mount: false
         reference:
-          name: {{ $.Values.testkube.prometheusRw.secretName }}
+          name: {{ include "hedera-mirror-common.fullname" $ }}-test-prometheus
     {{- end }}
     variables:
       BASE_URL:
         name: BASE_URL
         type: basic
         value: http://{{ $target.release }}-rest.{{ $target.namespace }}.svc.cluster.local
-      {{- if $.Values.testkube.prometheusRw.enabled }}
-      K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM:
-        name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
+      NAMESPACE:
+        name: NAMESPACE
         type: basic
-        value: {{ $.Values.testkube.prometheusRw.nativeHistogram | quote }}
-      {{- end }}
+        value: {{ $target.namespace }}
       TEST_REPORTS_DIR:
         name: TEST_REPORTS_DIR
         type: basic

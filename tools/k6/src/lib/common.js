@@ -54,7 +54,9 @@ function getOptionsWithScenario(name, scenario, tags = {}) {
   const sourceScenario = scenario ? Object.assign({}, scenario, scenarioCommon) : scenarioDefaults;
   return Object.assign({}, options, {
     scenarios: {
-      [name]: Object.assign({}, sourceScenario, {tags: Object.assign({vus: __ENV.DEFAULT_VUS}, tags)}),
+      [name]: Object.assign({}, sourceScenario, {
+        tags: Object.assign({namespace: __ENV.NAMESPACE, vus: __ENV.DEFAULT_VUS}, tags),
+      }),
     },
   });
 }

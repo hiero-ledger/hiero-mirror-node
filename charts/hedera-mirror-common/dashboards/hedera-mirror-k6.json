@@ -117,7 +117,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{scenario=~\"$scenario\",passed=\"true\"}[$__rate_interval]))) / sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{scenario=~\"$scenario\"}[$__rate_interval]))) or sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{scenario=~\"$scenario\"}[$__rate_interval])) * 0)",
+          "expr": "sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",passed=\"true\"}[$__rate_interval]))) / sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval]))) or sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])) * 0)",
           "interval": "1m",
           "legendFormat": "{{scenario}} {{url}}",
           "range": true,
@@ -212,7 +212,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{scenario=~\"$scenario\"}[$__rate_interval])))",
+          "expr": "sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])))",
           "interval": "1m",
           "legendFormat": "{{scenario}} {{url}}",
           "range": true,
@@ -308,7 +308,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum by (scenario, url) (histogram_sum(rate(k6_requests_seconds{scenario=~\"$scenario\"}[$__rate_interval]))) / sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{scenario=~\"$scenario\"}[$__rate_interval])))",
+          "expr": "sum by (scenario, url) (histogram_sum(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval]))) / sum by (scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])))",
           "interval": "1m",
           "legendFormat": "{{scenario}} {{url}}",
           "range": true,
@@ -404,7 +404,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (scenario, url) (rate(k6_requests_seconds{scenario=~\"$scenario\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (scenario, url) (rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])))",
           "interval": "1m",
           "legendFormat": "{{scenario}} {{url}}",
           "range": true,
@@ -449,7 +449,32 @@
           "type": "prometheus",
           "uid": "${prometheus}"
         },
-        "definition": "label_values(k6_requests_seconds_count, scenario)",
+        "definition": "label_values(k6_requests_seconds, namespace)",
+        "description": "Kubernetes namespace",
+        "includeAll": true,
+        "label": "Namespace",
+        "multi": true,
+        "name": "namespace",
+        "options": [],
+        "query": {
+          "query": "label_values(k6_requests_seconds, namespace)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${prometheus}"
+        },
+        "definition": "label_values(k6_requests_seconds{namespace=~\"$namespace\"}, scenario)",
         "description": "k6 test scenario name",
         "includeAll": true,
         "label": "Scenario",
@@ -457,7 +482,7 @@
         "name": "scenario",
         "options": [],
         "query": {
-          "query": "label_values(k6_requests_seconds, scenario)",
+          "query": "label_values(k6_requests_seconds{namespace=~\"$namespace\"}, scenario)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
