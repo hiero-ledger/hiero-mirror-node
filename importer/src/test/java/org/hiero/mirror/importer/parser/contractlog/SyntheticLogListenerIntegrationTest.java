@@ -4,9 +4,8 @@ package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.aggregateExpectedContractResultBloomForTest;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.google.common.primitives.Longs;
 import java.util.List;
@@ -17,7 +16,6 @@ import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
@@ -66,15 +64,17 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         var contractLog = domainBuilder
                 .contractLog()
-                .customize(cl -> cl.topic1(Longs.toByteArray(sender1.getNum()))
-                        .topic2(Longs.toByteArray(receiver1.getNum()))
+                .customize(cl -> cl.topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender1.getId())))
+                        .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver1.getId())))
                         .synthetic(true))
                 .get();
 
         entityListener.onContractLog(contractLog);
 
-        assertArrayEquals(Longs.toByteArray(sender1.getNum()), contractLog.getTopic1());
-        assertArrayEquals(Longs.toByteArray(receiver1.getNum()), contractLog.getTopic2());
+        assertArrayEquals(
+                AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender1.getId())), contractLog.getTopic1());
+        assertArrayEquals(
+                AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver1.getId())), contractLog.getTopic2());
 
         completeFileAndCommit();
 
@@ -207,45 +207,42 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         parserContext.add(recordFile);
 
-        var syntheticLogBloom = new LogsBloomFilter();
-        syntheticLogBloom.insertAddress(trim(contractEntity.getEvmAddress()));
-        syntheticLogBloom.insertTopic(AbstractSyntheticContractLog.TRANSFER_SIGNATURE);
-        syntheticLogBloom.insertTopic(trim(sender.getEvmAddress()));
-        syntheticLogBloom.insertTopic(trim(receiver.getEvmAddress()));
-
-        RecordItem recordItem = mock(RecordItem.class);
-        when(recordItem.getMergedSyntheticContractLogsBloom()).thenReturn(syntheticLogBloom.toArrayUnsafe());
+        long consensusTimestamp = domainBuilder.timestamp();
+        ContractResult contractResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractEntity.getId())
+                        .payerAccountId(EntityId.of(domainBuilder.id()))
+                        .bloom(existingBloom))
+                .get();
 
         byte[] markerBloom = new byte[] {1};
         var syntheticContractLog = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.synthetic(true)
                         .bloom(markerBloom)
+                        .consensusTimestamp(consensusTimestamp)
                         .contractId(EntityId.of(contractEntity.getId()))
                         .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
                         .topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender.getId())))
                         .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver.getId())))
                         .topic3(null)
                         .data(new byte[] {0})
-                        .recordItem(recordItem))
+                        .contractResult(contractResult))
                 .get();
 
         entityListener.onContractLog(syntheticContractLog);
 
-        var expectedBloom = new LogsBloomFilter();
-        expectedBloom.insertAddress(existingAddress); // existing bloom
-        expectedBloom.insertAddress(trim(contractEntity.getEvmAddress())); // synthetic log's contract address
-        expectedBloom.insertTopic(AbstractSyntheticContractLog.TRANSFER_SIGNATURE);
-        expectedBloom.insertTopic(trim(sender.getEvmAddress())); // topic1 after EVM address lookup
-        expectedBloom.insertTopic(trim(receiver.getEvmAddress())); // topic2 after EVM address lookup
+        byte[] rfBloomBefore =
+                recordFile.getLogsBloom() != null ? recordFile.getLogsBloom().clone() : null;
 
         transactionTemplate.executeWithoutResult(status -> {
             recordFileStreamListener.onEnd(recordFile);
             parserContext.clear();
         });
 
-        byte[] resultBloom = recordFile.getLogsBloom();
-        assertArrayEquals(expectedBloom.toArrayUnsafe(), resultBloom);
+        assertArrayEquals(
+                aggregateExpectedContractResultBloomForTest(rfBloomBefore, contractResult), recordFile.getLogsBloom());
     }
 
     @Test
@@ -264,44 +261,43 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         parserContext.add(recordFile);
 
-        var syntheticLogBloom = new LogsBloomFilter();
-        syntheticLogBloom.insertAddress(trim(contractEntity.getEvmAddress()));
-        syntheticLogBloom.insertTopic(AbstractSyntheticContractLog.TRANSFER_SIGNATURE);
-        syntheticLogBloom.insertTopic(trim(sender.getEvmAddress()));
-        syntheticLogBloom.insertTopic(trim(receiver.getEvmAddress()));
-
-        RecordItem recordItem = mock(RecordItem.class);
-        when(recordItem.getMergedSyntheticContractLogsBloom()).thenReturn(syntheticLogBloom.toArrayUnsafe());
+        byte[] existingBloom = domainBuilder.bloomFilter();
+        long consensusTimestamp = domainBuilder.timestamp();
+        ContractResult contractResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractEntity.getId())
+                        .payerAccountId(EntityId.of(domainBuilder.id()))
+                        .bloom(existingBloom))
+                .get();
 
         byte[] markerBloom = new byte[] {1};
         var syntheticContractLog = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.synthetic(true)
                         .bloom(markerBloom)
+                        .consensusTimestamp(consensusTimestamp)
                         .contractId(EntityId.of(contractEntity.getId()))
                         .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
                         .topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender.getId())))
                         .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver.getId())))
                         .topic3(null)
                         .data(new byte[] {0})
-                        .recordItem(recordItem))
+                        .contractResult(contractResult))
                 .get();
 
         entityListener.onContractLog(syntheticContractLog);
 
-        var expectedBloom = new LogsBloomFilter();
-        expectedBloom.insertAddress(trim(contractEntity.getEvmAddress()));
-        expectedBloom.insertTopic(AbstractSyntheticContractLog.TRANSFER_SIGNATURE);
-        expectedBloom.insertTopic(trim(sender.getEvmAddress()));
-        expectedBloom.insertTopic(trim(receiver.getEvmAddress()));
+        byte[] rfBloomBefore =
+                recordFile.getLogsBloom() != null ? recordFile.getLogsBloom().clone() : null;
 
         transactionTemplate.executeWithoutResult(status -> {
             recordFileStreamListener.onEnd(recordFile);
             parserContext.clear();
         });
 
-        byte[] resultBloom = recordFile.getLogsBloom();
-        assertArrayEquals(expectedBloom.toArrayUnsafe(), resultBloom);
+        assertArrayEquals(
+                aggregateExpectedContractResultBloomForTest(rfBloomBefore, contractResult), recordFile.getLogsBloom());
     }
 
     @Test
@@ -327,16 +323,14 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         parserContext.add(recordFile);
 
-        var combinedSyntheticBloom = new LogsBloomFilter();
-        combinedSyntheticBloom.insertAddress(trim(contractEntity.getEvmAddress()));
-        combinedSyntheticBloom.insertTopic(AbstractSyntheticContractLog.TRANSFER_SIGNATURE);
-        combinedSyntheticBloom.insertTopic(trim(sender1.getEvmAddress()));
-        combinedSyntheticBloom.insertTopic(trim(receiver1.getEvmAddress()));
-        combinedSyntheticBloom.insertTopic(trim(sender2.getEvmAddress()));
-        combinedSyntheticBloom.insertTopic(trim(receiver2.getEvmAddress()));
-
-        RecordItem recordItem = mock(RecordItem.class);
-        when(recordItem.getMergedSyntheticContractLogsBloom()).thenReturn(combinedSyntheticBloom.toArrayUnsafe());
+        long consensusTimestamp = domainBuilder.timestamp();
+        ContractResult contractResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractEntity.getId())
+                        .payerAccountId(EntityId.of(domainBuilder.id()))
+                        .bloom(existingBloom))
+                .get();
 
         byte[] markerBloom = new byte[] {1};
 
@@ -344,47 +338,43 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                 .contractLog()
                 .customize(cl -> cl.synthetic(true)
                         .bloom(markerBloom)
+                        .consensusTimestamp(consensusTimestamp)
                         .contractId(EntityId.of(contractEntity.getId()))
                         .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
                         .topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender1.getId())))
                         .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver1.getId())))
                         .topic3(null)
                         .data(new byte[] {0})
-                        .recordItem(recordItem))
+                        .contractResult(contractResult))
                 .get();
 
         var syntheticContractLog2 = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.synthetic(true)
                         .bloom(markerBloom)
+                        .consensusTimestamp(consensusTimestamp)
                         .contractId(EntityId.of(contractEntity.getId()))
                         .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
                         .topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender2.getId())))
                         .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver2.getId())))
                         .topic3(null)
                         .data(new byte[] {0})
-                        .recordItem(recordItem))
+                        .contractResult(contractResult))
                 .get();
 
         entityListener.onContractLog(syntheticContractLog1);
         entityListener.onContractLog(syntheticContractLog2);
 
-        var expectedBloom = new LogsBloomFilter();
-        expectedBloom.insertAddress(existingAddress); // existing bloom
-        expectedBloom.insertAddress(trim(contractEntity.getEvmAddress()));
-        expectedBloom.insertTopic(AbstractSyntheticContractLog.TRANSFER_SIGNATURE);
-        expectedBloom.insertTopic(trim(sender1.getEvmAddress()));
-        expectedBloom.insertTopic(trim(receiver1.getEvmAddress()));
-        expectedBloom.insertTopic(trim(sender2.getEvmAddress()));
-        expectedBloom.insertTopic(trim(receiver2.getEvmAddress()));
+        byte[] rfBloomBefore =
+                recordFile.getLogsBloom() != null ? recordFile.getLogsBloom().clone() : null;
 
         transactionTemplate.executeWithoutResult(status -> {
             recordFileStreamListener.onEnd(recordFile);
             parserContext.clear();
         });
 
-        byte[] resultBloom = recordFile.getLogsBloom();
-        assertArrayEquals(expectedBloom.toArrayUnsafe(), resultBloom);
+        assertArrayEquals(
+                aggregateExpectedContractResultBloomForTest(rfBloomBefore, contractResult), recordFile.getLogsBloom());
     }
 
     @Test
@@ -420,9 +410,6 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         parserContext.add(recordFile);
 
-        RecordItem recordItem = mock(RecordItem.class);
-        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
-
         byte[] markerBloom = new byte[] {1};
         var syntheticContractLog = domainBuilder
                 .contractLog()
@@ -435,7 +422,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                         .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver.getId())))
                         .topic3(null)
                         .data(new byte[] {0})
-                        .recordItem(recordItem))
+                        .contractResult(contractResult))
                 .get();
 
         entityListener.onContractLog(syntheticContractLog);
@@ -483,9 +470,6 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         parserContext.add(recordFile);
 
-        RecordItem recordItem = mock(RecordItem.class);
-        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
-
         byte[] markerBloom = new byte[] {1};
         var syntheticContractLog = domainBuilder
                 .contractLog()
@@ -498,7 +482,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                         .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver.getId())))
                         .topic3(null)
                         .data(new byte[] {0})
-                        .recordItem(recordItem))
+                        .contractResult(contractResult))
                 .get();
 
         entityListener.onContractLog(syntheticContractLog);

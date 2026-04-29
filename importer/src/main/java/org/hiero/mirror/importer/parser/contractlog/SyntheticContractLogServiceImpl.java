@@ -6,10 +6,12 @@ import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractLog;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.springframework.data.util.Version;
 
 @Named
@@ -18,6 +20,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
 
     protected static final Version HAPI_SYNTHETIC_LOG_VERSION = new Version(0, 71, 0);
 
+    private final ParserContext parserContext;
     private final EntityListener entityListener;
     private final EntityProperties entityProperties;
     private final byte[] empty = Bytes.of(0).toArray();
@@ -97,7 +100,12 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
 
         // The current recordItem should always be set, so that we know which RecordItem/ContractResult bloom to update.
         // This field is set to be only used to calculate bloom aggregation for the RecordItem/ContractResult.
-        contractLog.setRecordItem(recordItem);
+
+        if (contractRelatedParentRecordItem != null) {
+            final var contractResult =
+                    parserContext.get(ContractResult.class, contractRelatedParentRecordItem.getConsensusTimestamp());
+            contractLog.setContractResult(contractResult);
+        }
 
         entityListener.onContractLog(contractLog);
     }

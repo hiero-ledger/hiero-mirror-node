@@ -37,7 +37,6 @@ import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.domain.contract.ContractTransaction;
@@ -131,42 +130,6 @@ public class RecordItem implements StreamItem {
      */
     @NonFinal
     private LogsBloomFilter syntheticContractLogsBloom;
-
-    /**
-     * First initialize bloom with existing bloom from ContractResult, then merges a synthetic contract log bloom into
-     * the aggregate for this record item (bitwise OR).
-     *
-     * @param bloom bloom bytes; must be {@link LogsBloomFilter#BYTE_SIZE} bytes to be merged
-     */
-    public void mergeSyntheticContractLogBloom(byte[] bloom) {
-        if (bloom == null || bloom.length != LogsBloomFilter.BYTE_SIZE) {
-            return;
-        }
-
-        if (syntheticContractLogsBloom == null) {
-            syntheticContractLogsBloom = new LogsBloomFilter();
-            if (transactionRecord.hasContractCreateResult()
-                    && !transactionRecord.getContractCreateResult().getBloom().isEmpty()) {
-                syntheticContractLogsBloom.or(
-                        transactionRecord.getContractCreateResult().getBloom().toByteArray());
-            } else if (transactionRecord.hasContractCallResult()
-                    && !transactionRecord.getContractCallResult().getBloom().isEmpty()) {
-                syntheticContractLogsBloom.or(
-                        transactionRecord.getContractCallResult().getBloom().toByteArray());
-            }
-        }
-
-        syntheticContractLogsBloom.or(bloom);
-    }
-
-    /**
-     * @return the merged synthetic contract log blooms, or {@code null} if none were recorded
-     */
-    public byte[] getMergedSyntheticContractLogsBloom() {
-        return syntheticContractLogsBloom != null
-                ? syntheticContractLogsBloom.toArrayUnsafe()
-                : ArrayUtils.EMPTY_BYTE_ARRAY;
-    }
 
     /**
      * Gets the next hook context from the execution queue. Returns null if no more contexts are available.

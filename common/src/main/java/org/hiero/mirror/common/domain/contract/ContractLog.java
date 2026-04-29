@@ -7,19 +7,23 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Transient;
 import java.io.Serializable;
+import java.util.Arrays;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.data.domain.Persistable;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
 @Builder
 @Data
+@EqualsAndHashCode(exclude = "contractResult")
 @Entity
 @IdClass(ContractLog.Id.class)
 @NoArgsConstructor
@@ -58,13 +62,13 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     private boolean synthetic;
 
     /**
-     * Transient reference to the RecordItem this log belongs to.
-     * Used for updating the bloom filter in the correct RecordItem during synthetic log processing.
+     * Transient reference to the ContractResult this log belongs to.
+     * Used for updating the bloom filter in the correct ContractResult during synthetic log processing.
      */
     @JsonIgnore
     @Transient
     @ToString.Exclude
-    private RecordItem recordItem;
+    private ContractResult contractResult;
 
     @Override
     @JsonIgnore
@@ -79,6 +83,24 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     @Override
     public boolean isNew() {
         return true;
+    }
+
+    public void setBloom(final byte[] bloom) {
+        if (bloom == null) {
+            return;
+        }
+
+        this.bloom = bloom;
+        if (synthetic && contractResult != null) {
+            final var bloomFilter = new LogsBloomFilter();
+            final var existingResultBloom = contractResult.getBloom();
+            if (existingResultBloom != null && !Arrays.equals(ArrayUtils.EMPTY_BYTE_ARRAY, existingResultBloom)) {
+                bloomFilter.or(existingResultBloom);
+            }
+
+            bloomFilter.or(bloom);
+            contractResult.setBloom(bloomFilter.toArrayUnsafe());
+        }
     }
 
     @Data

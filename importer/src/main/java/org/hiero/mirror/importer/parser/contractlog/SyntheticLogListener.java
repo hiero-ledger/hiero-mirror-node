@@ -16,6 +16,7 @@ import jakarta.inject.Named;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,7 +31,6 @@ import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
@@ -71,54 +71,24 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         final var logUpdaters = parserContext.getTransient(SyntheticLogUpdater.class);
         final var keys = parserContext.getEvmAddressLookupIds();
         final var entityMap = getEvmCache().getAll(keys);
-
-        final var syntheticBloomsByRecordItem = new HashMap<RecordItem, LogsBloomFilter>();
+        final var updatedContractResults = new HashSet<ContractResult>();
 
         for (final var updater : logUpdaters) {
             updater.updateContractLog(entityMap);
 
-            // Merge ContractLog bloom into RecordItem
-            final var item = updater.getRecordItem();
+            final var contractResult = updater.getContractResult();
             final var contractLog = updater.getContractLog();
-            if (item != null && contractLog != null && contractLog.getBloom() != null) {
-                item.mergeSyntheticContractLogBloom(contractLog.getBloom());
 
-                // Collect synthetic blooms by RecordItem for ContractResult update
-                syntheticBloomsByRecordItem
-                        .computeIfAbsent(item, k -> new LogsBloomFilter())
-                        .or(contractLog.getBloom());
+            if (contractResult != null && contractLog != null && contractLog.getBloom() != null) {
+                updatedContractResults.add(contractResult);
             }
         }
 
-        updateContractResultBlooms(syntheticBloomsByRecordItem);
-        updateRecordFileBloom(syntheticBloomsByRecordItem.keySet());
+        updateRecordFileBloom(updatedContractResults);
     }
 
-    private void updateContractResultBlooms(Map<RecordItem, LogsBloomFilter> syntheticBloomsByRecordItem) {
-        for (final var entry : syntheticBloomsByRecordItem.entrySet()) {
-            final var recordItem = entry.getKey();
-            final var syntheticBloom = entry.getValue();
-
-            final var contractResult = parserContext.get(ContractResult.class, recordItem.getConsensusTimestamp());
-            if (contractResult != null) {
-                final var existingBloom = contractResult.getBloom();
-                final var mergedBloom = new LogsBloomFilter();
-
-                if (existingBloom != null && existingBloom.length == LogsBloomFilter.BYTE_SIZE) {
-                    mergedBloom.or(existingBloom);
-                }
-                mergedBloom.or(syntheticBloom.toArrayUnsafe());
-
-                final var updatedBloom = mergedBloom.toArrayUnsafe();
-                if (updatedBloom.length == LogsBloomFilter.BYTE_SIZE) {
-                    contractResult.setBloom(updatedBloom);
-                }
-            }
-        }
-    }
-
-    private void updateRecordFileBloom(Set<RecordItem> recordItemsWithSyntheticBloom) {
-        if (recordItemsWithSyntheticBloom.isEmpty()) {
+    private void updateRecordFileBloom(final Set<ContractResult> contractResults) {
+        if (contractResults.isEmpty()) {
             return;
         }
 
@@ -136,7 +106,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             return;
         }
 
-        final var aggregatedBloom = aggregateRecordFileBloom(recordFile, recordItemsWithSyntheticBloom);
+        final var aggregatedBloom = aggregateRecordFileBloom(recordFile, contractResults);
 
         if (aggregatedBloom.toArrayUnsafe().length == LogsBloomFilter.BYTE_SIZE) {
             recordFile.setLogsBloom(aggregatedBloom.toArrayUnsafe());
@@ -144,7 +114,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
     }
 
     private LogsBloomFilter aggregateRecordFileBloom(
-            final RecordFile recordFile, final Set<RecordItem> recordItemsWithSyntheticBloom) {
+            final RecordFile recordFile, final Set<ContractResult> contractResults) {
         final var aggregatedBloom = new LogsBloomFilter();
 
         final var existingBloom = recordFile.getLogsBloom();
@@ -154,8 +124,8 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             aggregatedBloom.or(existingBloom);
         }
 
-        for (final var item : recordItemsWithSyntheticBloom) {
-            final var syntheticBloom = item.getMergedSyntheticContractLogsBloom();
+        for (final var contractResult : contractResults) {
+            final var syntheticBloom = contractResult.getBloom();
             if (syntheticBloom != null && syntheticBloom.length == LogsBloomFilter.BYTE_SIZE) {
                 aggregatedBloom.or(syntheticBloom);
             }
@@ -172,7 +142,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             var receiverId = fromTrimmedEvmAddress(contractLog.getTopic2());
             if (!(EntityId.isEmpty(contractId) && EntityId.isEmpty(senderId) && EntityId.isEmpty(receiverId))) {
                 final var updater = new SyntheticLogUpdater(
-                        contractId, senderId, receiverId, contractLog, contractLog.getRecordItem(), parserContext);
+                        contractId, senderId, receiverId, contractLog, contractLog.getContractResult(), parserContext);
                 updater.populateSearchIds();
                 parserContext.addTransient(updater);
             }
@@ -228,7 +198,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         private final EntityId sender;
         private final EntityId receiver;
         private final ContractLog contractLog;
-        private final RecordItem recordItem;
+        private final ContractResult contractResult;
         private final ParserContext parserContext;
 
         public void populateSearchIds() {
