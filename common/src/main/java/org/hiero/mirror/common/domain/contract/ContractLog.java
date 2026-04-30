@@ -7,7 +7,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Transient;
 import java.io.Serializable;
-import java.util.Arrays;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,7 +14,6 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.data.domain.Persistable;
@@ -92,14 +90,12 @@ public class ContractLog implements Persistable<ContractLog.Id> {
 
         this.bloom = bloom;
         if (synthetic && contractResult != null) {
-            final var bloomFilter = new LogsBloomFilter();
             final var existingResultBloom = contractResult.getBloom();
-            if (existingResultBloom != null && !Arrays.equals(ArrayUtils.EMPTY_BYTE_ARRAY, existingResultBloom)) {
-                bloomFilter.or(existingResultBloom);
-            }
+            final var aggregatedBloom = bloom.length == LogsBloomFilter.BYTE_SIZE
+                    ? LogsBloomFilter.or(existingResultBloom, bloom)
+                    : existingResultBloom;
 
-            bloomFilter.or(bloom);
-            contractResult.setBloom(bloomFilter.toArrayUnsafe());
+            contractResult.setBloom(aggregatedBloom);
         }
     }
 

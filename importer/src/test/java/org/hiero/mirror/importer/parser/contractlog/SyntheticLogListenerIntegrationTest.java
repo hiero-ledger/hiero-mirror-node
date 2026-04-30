@@ -12,10 +12,8 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
-import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
@@ -86,13 +84,13 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
     @Test
     void childContractExecutionWithAliasTopicsUsesParentTransactionHash() {
-        byte[] senderEvm = Bytes.fromHexString("0xd838319b64e38ca2ed8b08c9324ebe4d37facecf")
+        var senderEvm = Bytes.fromHexString("0xd838319b64e38ca2ed8b08c9324ebe4d37facecf")
                 .toArrayUnsafe();
-        byte[] receiverEvm = Bytes.fromHexString("0x2818870d1daa81b75e38cec44ceae51b4b684696")
+        var receiverEvm = Bytes.fromHexString("0x2818870d1daa81b75e38cec44ceae51b4b684696")
                 .toArrayUnsafe();
-        byte[] contractEvm = Bytes.fromHexString("0xabcdef1234567890abcdef1234567890abcdef12")
+        var contractEvm = Bytes.fromHexString("0xabcdef1234567890abcdef1234567890abcdef12")
                 .toArrayUnsafe();
-        byte[] parentTransactionHash = Bytes.fromHexString(
+        var parentTransactionHash = Bytes.fromHexString(
                         "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
                 .toArrayUnsafe();
 
@@ -112,10 +110,10 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         var senderEntityId = EntityId.of(sender.getId());
         var receiverEntityId = EntityId.of(receiver.getId());
-        byte[] topic1Before = AbstractSyntheticContractLog.entityIdToBytes(senderEntityId);
-        byte[] topic2Before = AbstractSyntheticContractLog.entityIdToBytes(receiverEntityId);
+        var topic1Before = AbstractSyntheticContractLog.entityIdToBytes(senderEntityId);
+        var topic2Before = AbstractSyntheticContractLog.entityIdToBytes(receiverEntityId);
 
-        byte[] markerBloom = new byte[] {1};
+        var markerBloom = new byte[] {1};
 
         var syntheticContractLog = domainBuilder
                 .contractLog()
@@ -163,15 +161,15 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
     }
 
     private void completeFileAndCommit() {
-        RecordFile recordFile =
+        var recordFile =
                 domainBuilder.recordFile().customize(r -> r.sidecars(List.of())).get();
         transactionTemplate.executeWithoutResult(status -> recordFileStreamListener.onEnd(recordFile));
     }
 
     @Test
     void recordFileBloomUnchangedWhenNoSyntheticLogs() {
-        byte[] existingBloom = domainBuilder.bloomFilter();
-        RecordFile recordFile = domainBuilder
+        var existingBloom = domainBuilder.bloomFilter();
+        var recordFile = domainBuilder
                 .recordFile()
                 .customize(r -> r.sidecars(List.of()).logsBloom(existingBloom))
                 .get();
@@ -195,20 +193,20 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
 
-        byte[] existingAddress = domainBuilder.evmAddress();
+        var existingAddress = domainBuilder.evmAddress();
         var existingBloomFilter = new LogsBloomFilter();
         existingBloomFilter.insertAddress(existingAddress);
-        byte[] existingBloom = existingBloomFilter.toArrayUnsafe();
+        var existingBloom = existingBloomFilter.toArrayUnsafe();
 
-        RecordFile recordFile = domainBuilder
+        var recordFile = domainBuilder
                 .recordFile()
                 .customize(r -> r.sidecars(List.of()).logsBloom(existingBloom))
                 .get();
 
         parserContext.add(recordFile);
 
-        long consensusTimestamp = domainBuilder.timestamp();
-        ContractResult contractResult = domainBuilder
+        var consensusTimestamp = domainBuilder.timestamp();
+        var contractResult = domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
                         .contractId(contractEntity.getId())
@@ -216,7 +214,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                         .bloom(existingBloom))
                 .get();
 
-        byte[] markerBloom = new byte[] {1};
+        var markerBloom = new byte[] {1};
         var syntheticContractLog = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.synthetic(true)
@@ -233,7 +231,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         entityListener.onContractLog(syntheticContractLog);
 
-        byte[] rfBloomBefore =
+        var rfBloomBefore =
                 recordFile.getLogsBloom() != null ? recordFile.getLogsBloom().clone() : null;
 
         transactionTemplate.executeWithoutResult(status -> {
@@ -254,16 +252,16 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
 
-        RecordFile recordFile = domainBuilder
+        var recordFile = domainBuilder
                 .recordFile()
                 .customize(r -> r.sidecars(List.of()).logsBloom(null))
                 .get();
 
         parserContext.add(recordFile);
 
-        byte[] existingBloom = domainBuilder.bloomFilter();
-        long consensusTimestamp = domainBuilder.timestamp();
-        ContractResult contractResult = domainBuilder
+        var existingBloom = domainBuilder.bloomFilter();
+        var consensusTimestamp = domainBuilder.timestamp();
+        var contractResult = domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
                         .contractId(contractEntity.getId())
@@ -271,7 +269,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                         .bloom(existingBloom))
                 .get();
 
-        byte[] markerBloom = new byte[] {1};
+        var markerBloom = new byte[] {1};
         var syntheticContractLog = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.synthetic(true)
@@ -288,7 +286,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         entityListener.onContractLog(syntheticContractLog);
 
-        byte[] rfBloomBefore =
+        var rfBloomBefore =
                 recordFile.getLogsBloom() != null ? recordFile.getLogsBloom().clone() : null;
 
         transactionTemplate.executeWithoutResult(status -> {
@@ -311,20 +309,20 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
 
-        byte[] existingAddress = domainBuilder.evmAddress();
+        var existingAddress = domainBuilder.evmAddress();
         var existingBloomFilter = new LogsBloomFilter();
         existingBloomFilter.insertAddress(existingAddress);
-        byte[] existingBloom = existingBloomFilter.toArrayUnsafe();
+        var existingBloom = existingBloomFilter.toArrayUnsafe();
 
-        RecordFile recordFile = domainBuilder
+        var recordFile = domainBuilder
                 .recordFile()
                 .customize(r -> r.sidecars(List.of()).logsBloom(existingBloom))
                 .get();
 
         parserContext.add(recordFile);
 
-        long consensusTimestamp = domainBuilder.timestamp();
-        ContractResult contractResult = domainBuilder
+        var consensusTimestamp = domainBuilder.timestamp();
+        var contractResult = domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
                         .contractId(contractEntity.getId())
@@ -332,7 +330,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                         .bloom(existingBloom))
                 .get();
 
-        byte[] markerBloom = new byte[] {1};
+        var markerBloom = new byte[] {1};
 
         var syntheticContractLog1 = domainBuilder
                 .contractLog()
@@ -365,7 +363,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
         entityListener.onContractLog(syntheticContractLog1);
         entityListener.onContractLog(syntheticContractLog2);
 
-        byte[] rfBloomBefore =
+        var rfBloomBefore =
                 recordFile.getLogsBloom() != null ? recordFile.getLogsBloom().clone() : null;
 
         transactionTemplate.executeWithoutResult(status -> {
@@ -386,14 +384,14 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
 
-        byte[] existingAddress = domainBuilder.evmAddress();
+        var existingAddress = domainBuilder.evmAddress();
         var existingBloomFilter = new LogsBloomFilter();
         existingBloomFilter.insertAddress(existingAddress);
-        byte[] existingBloom = existingBloomFilter.toArrayUnsafe();
+        var existingBloom = existingBloomFilter.toArrayUnsafe();
 
-        long consensusTimestamp = domainBuilder.timestamp();
+        var consensusTimestamp = domainBuilder.timestamp();
 
-        ContractResult contractResult = domainBuilder
+        var contractResult = domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
                         .contractId(contractEntity.getId())
@@ -403,14 +401,14 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         parserContext.add(contractResult, contractResult.getConsensusTimestamp());
 
-        RecordFile recordFile = domainBuilder
+        var recordFile = domainBuilder
                 .recordFile()
                 .customize(r -> r.sidecars(List.of()).logsBloom(existingBloom))
                 .get();
 
         parserContext.add(recordFile);
 
-        byte[] markerBloom = new byte[] {1};
+        var markerBloom = new byte[] {1};
         var syntheticContractLog = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.synthetic(true)
@@ -451,9 +449,9 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
 
-        long consensusTimestamp = domainBuilder.timestamp();
+        var consensusTimestamp = domainBuilder.timestamp();
 
-        ContractResult contractResult = domainBuilder
+        var contractResult = domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
                         .contractId(contractEntity.getId())
@@ -463,14 +461,14 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         parserContext.add(contractResult, contractResult.getConsensusTimestamp());
 
-        RecordFile recordFile = domainBuilder
+        var recordFile = domainBuilder
                 .recordFile()
                 .customize(r -> r.sidecars(List.of()).logsBloom(null))
                 .get();
 
         parserContext.add(recordFile);
 
-        byte[] markerBloom = new byte[] {1};
+        var markerBloom = new byte[] {1};
         var syntheticContractLog = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.synthetic(true)
@@ -508,14 +506,14 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
 
-        byte[] existingAddress = domainBuilder.evmAddress();
+        var existingAddress = domainBuilder.evmAddress();
         var existingBloomFilter = new LogsBloomFilter();
         existingBloomFilter.insertAddress(existingAddress);
-        byte[] existingBloom = existingBloomFilter.toArrayUnsafe();
+        var existingBloom = existingBloomFilter.toArrayUnsafe();
 
-        long consensusTimestamp = domainBuilder.timestamp();
+        var consensusTimestamp = domainBuilder.timestamp();
 
-        ContractResult contractResult = domainBuilder
+        var contractResult = domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
                         .contractId(contractEntity.getId())
@@ -525,7 +523,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         parserContext.add(contractResult, contractResult.getConsensusTimestamp());
 
-        RecordFile recordFile = domainBuilder
+        var recordFile = domainBuilder
                 .recordFile()
                 .customize(r -> r.sidecars(List.of()).logsBloom(null))
                 .get();

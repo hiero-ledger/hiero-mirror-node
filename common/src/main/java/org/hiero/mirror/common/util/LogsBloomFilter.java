@@ -47,6 +47,26 @@ public final class LogsBloomFilter {
         return true;
     }
 
+    public static byte[] or(final byte[] source, final byte[] target) {
+        if (target != null && source == null && target.length == BYTE_SIZE) {
+            return target;
+        }
+
+        if (source == null || target == null || source.length > target.length) {
+            throw new IllegalArgumentException("Invalid parameter");
+        }
+
+        for (int i = 0; i < target.length; i++) {
+            target[i] |= source[i];
+        }
+
+        if (target.length == BYTE_SIZE) {
+            return target;
+        } else {
+            return new byte[BYTE_SIZE];
+        }
+    }
+
     public void insertAddress(final byte[] input) {
         insert(input);
     }

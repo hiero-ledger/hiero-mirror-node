@@ -20,7 +20,6 @@ import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
@@ -348,8 +347,8 @@ class SyntheticLogListenerTest {
 
     @Test
     void recordFileBloomUnchangedWhenNoSyntheticLogs() {
-        byte[] existingBloom = domainBuilder.bloomFilter();
-        RecordFile recordFile = domainBuilder
+        var existingBloom = domainBuilder.bloomFilter();
+        var recordFile = domainBuilder
                 .recordFile()
                 .customize(r -> r.logsBloom(existingBloom))
                 .get();
@@ -362,13 +361,13 @@ class SyntheticLogListenerTest {
 
     @Test
     void recordFileBloomMergesExistingAndSyntheticBlooms() {
-        byte[] existingAddress = domainBuilder.evmAddress();
+        var existingAddress = domainBuilder.evmAddress();
         var existingBloomFilter = new LogsBloomFilter();
         existingBloomFilter.insertAddress(existingAddress);
-        byte[] existingBloom = existingBloomFilter.toArrayUnsafe();
+        var existingBloom = existingBloomFilter.toArrayUnsafe();
 
-        long consensusTimestamp = domainBuilder.timestamp();
-        ContractResult contractResult = domainBuilder
+        var consensusTimestamp = domainBuilder.timestamp();
+        var contractResult = domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
                         .contractId(CONTRACT_ENTITY.getId())
@@ -376,7 +375,7 @@ class SyntheticLogListenerTest {
                         .bloom(existingBloom))
                 .get();
 
-        RecordFile recordFile = domainBuilder
+        var recordFile = domainBuilder
                 .recordFile()
                 .customize(r -> r.logsBloom(existingBloom))
                 .get();
@@ -392,7 +391,7 @@ class SyntheticLogListenerTest {
 
         listener.onContractLog(contractLog);
 
-        byte[] rfBloomBefore =
+        var rfBloomBefore =
                 recordFile.getLogsBloom() != null ? recordFile.getLogsBloom().clone() : null;
 
         listener.onEnd(recordFile);
@@ -403,8 +402,8 @@ class SyntheticLogListenerTest {
 
     @Test
     void recordFileBloomUpdatedWhenSyntheticBloomAdded() {
-        long consensusTimestamp = domainBuilder.timestamp();
-        ContractResult contractResult = domainBuilder
+        var consensusTimestamp = domainBuilder.timestamp();
+        var contractResult = domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
                         .contractId(CONTRACT_ENTITY.getId())
@@ -412,7 +411,7 @@ class SyntheticLogListenerTest {
                         .bloom(null))
                 .get();
 
-        RecordFile recordFile =
+        var recordFile =
                 domainBuilder.recordFile().customize(r -> r.logsBloom(null)).get();
         parserContext.add(recordFile);
 
@@ -426,7 +425,7 @@ class SyntheticLogListenerTest {
 
         listener.onContractLog(contractLog);
 
-        byte[] rfBloomBefore =
+        var rfBloomBefore =
                 recordFile.getLogsBloom() != null ? recordFile.getLogsBloom().clone() : null;
 
         listener.onEnd(recordFile);
@@ -437,13 +436,13 @@ class SyntheticLogListenerTest {
 
     @Test
     void recordFileBloomAggregatesMultipleSyntheticLogs() {
-        byte[] existingAddress = domainBuilder.evmAddress();
+        var existingAddress = domainBuilder.evmAddress();
         var existingBloomFilter = new LogsBloomFilter();
         existingBloomFilter.insertAddress(existingAddress);
-        byte[] existingBloom = existingBloomFilter.toArrayUnsafe();
+        var existingBloom = existingBloomFilter.toArrayUnsafe();
 
-        long consensusTimestamp = domainBuilder.timestamp();
-        ContractResult contractResult = domainBuilder
+        var consensusTimestamp = domainBuilder.timestamp();
+        var contractResult = domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
                         .contractId(CONTRACT_ENTITY.getId())
@@ -451,7 +450,7 @@ class SyntheticLogListenerTest {
                         .bloom(existingBloom))
                 .get();
 
-        RecordFile recordFile = domainBuilder
+        var recordFile = domainBuilder
                 .recordFile()
                 .customize(r -> r.logsBloom(existingBloom))
                 .get();
@@ -475,7 +474,7 @@ class SyntheticLogListenerTest {
         listener.onContractLog(contractLog1);
         listener.onContractLog(contractLog2);
 
-        byte[] rfBloomBefore =
+        var rfBloomBefore =
                 recordFile.getLogsBloom() != null ? recordFile.getLogsBloom().clone() : null;
 
         listener.onEnd(recordFile);
@@ -486,13 +485,13 @@ class SyntheticLogListenerTest {
 
     @Test
     void recordFileBloomAggregatesMultipleLogsEachWithItsOwnContractResult() {
-        byte[] existingAddress = domainBuilder.evmAddress();
+        var existingAddress = domainBuilder.evmAddress();
         var existingBloomFilter = new LogsBloomFilter();
         existingBloomFilter.insertAddress(existingAddress);
-        byte[] existingBloom = existingBloomFilter.toArrayUnsafe();
+        var existingBloom = existingBloomFilter.toArrayUnsafe();
 
-        long consensusTimestamp1 = domainBuilder.timestamp();
-        ContractResult contractResult1 = domainBuilder
+        var consensusTimestamp1 = domainBuilder.timestamp();
+        var contractResult1 = domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp1)
                         .contractId(CONTRACT_ENTITY.getId())
@@ -500,13 +499,13 @@ class SyntheticLogListenerTest {
                         .bloom(existingBloom))
                 .get();
 
-        byte[] cr2BloomAddress = domainBuilder.evmAddress();
+        var cr2BloomAddress = domainBuilder.evmAddress();
         var cr2BloomFilter = new LogsBloomFilter();
         cr2BloomFilter.insertAddress(cr2BloomAddress);
-        byte[] cr2Bloom = cr2BloomFilter.toArrayUnsafe();
+        var cr2Bloom = cr2BloomFilter.toArrayUnsafe();
 
-        long consensusTimestamp2 = domainBuilder.timestamp();
-        ContractResult contractResult2 = domainBuilder
+        var consensusTimestamp2 = domainBuilder.timestamp();
+        var contractResult2 = domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp2)
                         .contractId(CONTRACT_ENTITY.getId())
@@ -514,7 +513,7 @@ class SyntheticLogListenerTest {
                         .bloom(cr2Bloom))
                 .get();
 
-        RecordFile recordFile = domainBuilder
+        var recordFile = domainBuilder
                 .recordFile()
                 .customize(r -> r.logsBloom(existingBloom))
                 .get();
@@ -557,35 +556,6 @@ class SyntheticLogListenerTest {
                 contractResult1.getBloom());
         assertArrayEquals(
                 mergeLogBloomIntoContractResultBloom(cr2Bloom, contractLog2.getBloom()), contractResult2.getBloom());
-    }
-
-    @Test
-    void recordFileBloomNotUpdatedWhenNoRecordFileInContext() {
-        long consensusTimestamp = domainBuilder.timestamp();
-        ContractResult contractResult = domainBuilder
-                .contractResult()
-                .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
-                        .contractId(CONTRACT_ENTITY.getId())
-                        .payerAccountId(domainBuilder.entityId())
-                        .bloom(null))
-                .get();
-
-        var contractLog = syntheticTransferLogWithRecordItem(
-                LONG_ZERO_1, LONG_ZERO_2, CONTRACT_ENTITY, contractResult, consensusTimestamp);
-        contractLog.setBloom(CONTRACT_LOG_MARKER);
-
-        final var mappings =
-                List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2), evmMap(CONTRACT_EVM, CONTRACT_ENTITY));
-        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(mappings);
-
-        listener.onContractLog(contractLog);
-
-        RecordFile recordFile = domainBuilder.recordFile().get();
-        byte[] originalBloom = recordFile.getLogsBloom().clone();
-
-        listener.onEnd(recordFile);
-
-        assertArrayEquals(originalBloom, recordFile.getLogsBloom());
     }
 
     private ContractLog syntheticTransferLogWithRecordItem(

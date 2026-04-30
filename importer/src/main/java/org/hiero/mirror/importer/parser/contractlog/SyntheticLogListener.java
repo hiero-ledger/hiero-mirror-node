@@ -76,33 +76,22 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         for (final var updater : logUpdaters) {
             updater.updateContractLog(entityMap);
 
-            final var contractResult = updater.getContractResult();
             final var contractLog = updater.getContractLog();
 
-            if (contractResult != null && contractLog != null && contractLog.getBloom() != null) {
-                updatedContractResults.put(contractResult.getConsensusTimestamp(), contractResult);
+            if (contractLog != null) {
+                final var contractResult = contractLog.getContractResult();
+
+                if (contractResult != null && contractLog.getBloom() != null) {
+                    updatedContractResults.put(contractResult.getConsensusTimestamp(), contractResult);
+                }
             }
         }
 
-        updateRecordFileBloom(updatedContractResults.values());
+        updateRecordFileBloom(recordFile, updatedContractResults.values());
     }
 
-    private void updateRecordFileBloom(final Collection<ContractResult> contractResults) {
+    private void updateRecordFileBloom(final RecordFile recordFile, final Collection<ContractResult> contractResults) {
         if (contractResults.isEmpty()) {
-            return;
-        }
-
-        final var recordFiles = parserContext.get(RecordFile.class);
-        if (recordFiles.isEmpty()) {
-            return;
-        }
-
-        final var recordFilesIterator = recordFiles.iterator();
-        final var recordFile = recordFilesIterator.next();
-
-        if (recordFilesIterator.hasNext()) {
-            // Shouldn't happen. We have more than one record files currently in the context, so something went wrong
-            // and we shouldn't update the bloom.
             return;
         }
 
@@ -141,8 +130,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             var senderId = fromTrimmedEvmAddress(contractLog.getTopic1());
             var receiverId = fromTrimmedEvmAddress(contractLog.getTopic2());
             if (!(EntityId.isEmpty(contractId) && EntityId.isEmpty(senderId) && EntityId.isEmpty(receiverId))) {
-                final var updater = new SyntheticLogUpdater(
-                        contractId, senderId, receiverId, contractLog, contractLog.getContractResult(), parserContext);
+                final var updater = new SyntheticLogUpdater(contractId, senderId, receiverId, contractLog);
                 updater.populateSearchIds();
                 parserContext.addTransient(updater);
             }
@@ -198,8 +186,6 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         private final EntityId sender;
         private final EntityId receiver;
         private final ContractLog contractLog;
-        private final ContractResult contractResult;
-        private final ParserContext parserContext;
 
         public void populateSearchIds() {
             if (!EntityId.isEmpty(contractId)) {
