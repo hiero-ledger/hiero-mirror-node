@@ -4,12 +4,12 @@ package org.hiero.mirror.importer.repository;
 
 import java.util.Optional;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
-import org.springframework.data.jdbc.repository.query.Query;
+import org.springframework.data.jpa.repository.Query;
 
 public interface AccountBalanceFileRepository extends StreamFileRepository<AccountBalanceFile, Long> {
 
     @Override
-    @Query(value = "select * from account_balance_file order by consensus_timestamp desc limit 1")
+    @Query(value = "select * from account_balance_file order by consensus_timestamp desc limit 1", nativeQuery = true)
     Optional<AccountBalanceFile> findLatest();
 
     @Query(

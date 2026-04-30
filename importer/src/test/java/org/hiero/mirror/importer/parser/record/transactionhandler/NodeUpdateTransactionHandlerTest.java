@@ -184,9 +184,9 @@ final class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerT
         // given
         var recordItem = recordItemBuilder
                 .nodeUpdate()
-                .transactionBody(NodeUpdateTransactionBody.Builder::clearAdminKey)
-                .transactionBody(NodeUpdateTransactionBody.Builder::clearDeclineReward)
-                .transactionBody(NodeUpdateTransactionBody.Builder::clearGrpcProxyEndpoint)
+                .transactionBody(Builder::clearAdminKey)
+                .transactionBody(Builder::clearDeclineReward)
+                .transactionBody(Builder::clearGrpcProxyEndpoint)
                 .build();
         var transaction = domainBuilder.transaction().get();
 

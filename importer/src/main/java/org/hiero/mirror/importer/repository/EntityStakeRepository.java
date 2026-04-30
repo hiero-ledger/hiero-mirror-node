@@ -4,8 +4,8 @@ package org.hiero.mirror.importer.repository;
 
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityStake;
-import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +15,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
     Optional<Long> getEndStakePeriod(long stakingRewardAccount);
 
     @Modifying
-    @Query(value = "lock table entity_stake in share row exclusive mode nowait")
+    @Query(value = "lock table entity_stake in share row exclusive mode nowait", nativeQuery = true)
     @Transactional
     void lockFromConcurrentUpdates();
 
@@ -33,7 +33,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
                         else false
                    end
             from staking_reward_account
-            """)
+            """, nativeQuery = true)
     boolean updated(long stakingRewardAccount);
 
     /**
@@ -188,7 +188,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
               staked_to_me = excluded.staked_to_me,
               stake_total_start = excluded.stake_total_start,
               timestamp_range = excluded.timestamp_range;
-            """)
+            """, nativeQuery = true)
     @Transactional
     void updateEntityStake(long stakingRewardAccount);
 }

@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.batch;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
+import jakarta.persistence.Entity;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;

@@ -12,6 +12,7 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.GeneratedMessage;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import jakarta.persistence.EntityManager;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -73,7 +74,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.transaction.support.TransactionOperations;
@@ -603,9 +603,9 @@ final class BlockStreamVerificationTest {
         @Bean
         DomainBuilder domainBuilder(
                 CommonProperties commonProperties,
-                JdbcAggregateTemplate jdbcAggregateTemplate,
+                EntityManager entityManager,
                 TransactionOperations transactionOperations) {
-            return new DomainBuilder(commonProperties, jdbcAggregateTemplate, transactionOperations);
+            return new DomainBuilder(commonProperties, entityManager, transactionOperations);
         }
     }
 

@@ -66,40 +66,29 @@ public class BatchInserter implements BatchPersister {
         this.properties = properties;
         this.meterRegistry = meterRegistry;
         this.tableName = CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, tableName);
-
         var mapper = new CsvMapper();
         SimpleModule module = new SimpleModule();
-
-        // Static instances (assuming these still have the INSTANCE field)
         module.addSerializer(byte[][].class, ByteArrayArrayToHexSerializer.INSTANCE);
         module.addSerializer(byte[].class, ByteArrayToHexSerializer.INSTANCE);
+        module.addSerializer(EntityIdSerializer.INSTANCE);
         module.addSerializer(ListToStringSerializer.INSTANCE);
-
-        // New class-based instances
-        module.addSerializer(new EntityIdSerializer());
-        module.addSerializer(new RangeToStringSerializer()); // This fixes the specific error
-
+        module.addSerializer(RangeToStringSerializer.INSTANCE);
         mapper.registerModule(module);
         mapper.configure(CsvGenerator.Feature.ALWAYS_QUOTE_EMPTY_STRINGS, true);
-
         var schema = mapper.schemaFor(entityClass);
         writer = mapper.writer(schema);
-
         String columnsCsv = Lists.newArrayList(schema.iterator()).stream()
                 .map(CsvSchema.Column::getName)
                 .distinct()
                 .map(name -> CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, name))
                 .collect(Collectors.joining(", "));
-
         sql = String.format("COPY %s(%s) FROM STDIN WITH CSV", this.tableName, columnsCsv);
-
         var parentTableName = this.tableName.replaceAll("_\\d+$", ""); // Strip _01 shard suffix
         latencyMetric = Timer.builder(LATENCY_METRIC)
                 .description("The time it took to batch insert rows")
                 .tag("table", parentTableName)
                 .tag("upsert", "false")
                 .register(meterRegistry);
-
         rowsMetric = Counter.builder("hiero.mirror.importer.batch.rows")
                 .description("The number of rows inserted into the table")
                 .tag("table", parentTableName)

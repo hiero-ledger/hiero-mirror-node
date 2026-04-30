@@ -45,13 +45,13 @@ public class StreamFilename implements Comparable<StreamFilename> {
     private static final Splitter FILENAME_SPLITTER =
             Splitter.on(FilenameUtils.EXTENSION_SEPARATOR).omitEmptyStrings();
     private static final Pattern SIDECAR_PATTERN;
-    private static final Map<StreamType, Map<String, StreamType.Extension>> STREAM_TYPE_EXTENSION_MAP;
+    private static final Map<StreamType, Map<String, Extension>> STREAM_TYPE_EXTENSION_MAP;
 
     static {
         SIDECAR_PATTERN = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}T(\\d{2}_){2}\\d{2}(\\.\\d{1,9})?Z_(\\d{2})\\.");
-        Map<StreamType, Map<String, StreamType.Extension>> streamTypeExtensionMap = new EnumMap<>(StreamType.class);
+        Map<StreamType, Map<String, Extension>> streamTypeExtensionMap = new EnumMap<>(StreamType.class);
         for (StreamType type : StreamType.values()) {
-            Map<String, StreamType.Extension> extensions = new HashMap<>();
+            Map<String, Extension> extensions = new HashMap<>();
             type.getDataExtensions().forEach(ext -> extensions.put(ext.getName(), ext));
             type.getSignatureExtensions().forEach(ext -> extensions.put(ext.getName(), ext));
             streamTypeExtensionMap.put(type, Collections.unmodifiableMap(extensions));
@@ -62,7 +62,7 @@ public class StreamFilename implements Comparable<StreamFilename> {
 
     private final String bucketFilePath;
     private final String compressor;
-    private final StreamType.Extension extension;
+    private final Extension extension;
     private final String filename;
     private final FileType fileType;
     private final String fullExtension;
@@ -170,7 +170,7 @@ public class StreamFilename implements Comparable<StreamFilename> {
             String compressor = null;
             String sidecarIndex = null;
             String streamTypeExtension = null;
-            Map<String, StreamType.Extension> extensions = STREAM_TYPE_EXTENSION_MAP.get(type);
+            Map<String, Extension> extensions = STREAM_TYPE_EXTENSION_MAP.get(type);
 
             if (extensions.containsKey(last)) {
                 streamTypeExtension = last;

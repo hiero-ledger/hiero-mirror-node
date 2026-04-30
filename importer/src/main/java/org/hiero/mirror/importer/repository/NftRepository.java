@@ -5,8 +5,8 @@ package org.hiero.mirror.importer.repository;
 import jakarta.transaction.Transactional;
 import org.hiero.mirror.common.domain.token.AbstractNft;
 import org.hiero.mirror.common.domain.token.Nft;
-import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 @Transactional
@@ -47,6 +47,6 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
                   balance_timestamp = :consensusTimestamp
             from updated_count
             where account_id in (:newTreasury, :previousTreasury) and token_id = :tokenId
-            """)
+            """, nativeQuery = true)
     void updateTreasury(long consensusTimestamp, long newTreasury, long previousTreasury, long tokenId);
 }
