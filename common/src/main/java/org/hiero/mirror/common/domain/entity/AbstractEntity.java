@@ -5,8 +5,10 @@ package org.hiero.mirror.common.domain.entity;
 import com.google.common.collect.Range;
 import java.sql.Date;
 import java.util.concurrent.TimeUnit;
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
@@ -69,11 +71,13 @@ public abstract class AbstractEntity implements History {
     @Id
     private Long id;
 
+    @Setter(AccessLevel.NONE)
     @ToString.Exclude
     private byte[] key;
 
     private Integer maxAutomaticTokenAssociations;
 
+    @Setter(AccessLevel.NONE)
     private String memo;
 
     private Long num;
@@ -119,6 +123,24 @@ public abstract class AbstractEntity implements History {
 
         var publicKey = DomainUtils.getPublicKey(protobufKey);
         return publicKey != null ? publicKey : CLEAR_PUBLIC_KEY;
+    }
+
+    public void setMemo(String memo) {
+        this.memo = DomainUtils.sanitize(memo);
+    }
+
+    public void setKey(byte[] key) {
+        this.key = key;
+        this.publicKey = getPublicKey(key);
+    }
+
+    public void addBalance(Long delta) {
+        if (balance == null && delta == null) {
+            return;
+        }
+        long base = balance != null ? balance : 0L;
+        long d = delta != null ? delta : 0L;
+        setBalance(base + d);
     }
 
     @SuppressWarnings("java:S1610")

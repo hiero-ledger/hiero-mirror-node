@@ -155,7 +155,53 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
         return (id >> (NUM_BITS + REALM_BITS)) & SHARD_MASK;
     }
 
-    // ... toProtobuf methods and toEntity remain the same ...
+    public AccountID toAccountID() {
+        return AccountID.newBuilder()
+                .setShardNum(getShard())
+                .setRealmNum(getRealm())
+                .setAccountNum(getNum())
+                .build();
+    }
+
+    public ContractID toContractID() {
+        return ContractID.newBuilder()
+                .setShardNum(getShard())
+                .setRealmNum(getRealm())
+                .setContractNum(getNum())
+                .build();
+    }
+
+    public FileID toFileID() {
+        return FileID.newBuilder()
+                .setShardNum(getShard())
+                .setRealmNum(getRealm())
+                .setFileNum(getNum())
+                .build();
+    }
+
+    public ScheduleID toScheduleID() {
+        return ScheduleID.newBuilder()
+                .setShardNum(getShard())
+                .setRealmNum(getRealm())
+                .setScheduleNum(getNum())
+                .build();
+    }
+
+    public TokenID toTokenID() {
+        return TokenID.newBuilder()
+                .setShardNum(getShard())
+                .setRealmNum(getRealm())
+                .setTokenNum(getNum())
+                .build();
+    }
+
+    public TopicID toTopicID() {
+        return TopicID.newBuilder()
+                .setShardNum(getShard())
+                .setRealmNum(getRealm())
+                .setTopicNum(getNum())
+                .build();
+    }
 
     @Override
     public int compareTo(EntityId other) {

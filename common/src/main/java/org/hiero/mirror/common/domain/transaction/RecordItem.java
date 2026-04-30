@@ -249,6 +249,7 @@ public class RecordItem implements StreamItem {
             return Collections.emptyList();
         }
         var ids = new ArrayList<>(contractTransactions.keySet());
+        Collections.sort(ids);
         contractTransactions.values().forEach(contractTransaction -> contractTransaction.setContractIds(ids));
         return contractTransactions.values();
     }

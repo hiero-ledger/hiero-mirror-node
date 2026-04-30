@@ -1,0 +1,155 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package org.hiero.mirror.common.tableusage;
+
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
+import lombok.CustomLog;
+import lombok.experimental.UtilityClass;
+import org.hiero.mirror.common.interceptor.RepositoryUsageInterceptor;
+
+@CustomLog
+@UtilityClass
+public class MarkdownReportGenerator {
+    private static final String NEWLINE = System.lineSeparator();
+    private static final String LINE_BREAK = "<br>";
+
+    public static void generateReport() {
+        final var apiTableQueries = RepositoryUsageInterceptor.getApiTableQueries();
+        final var path = Paths.get("build", "reports", "tableusage", "table-usage.md");
+        path.getParent().toFile().mkdirs();
+
+        try (final var writer = Files.newBufferedWriter(path)) {
+            writer.write("# Table Usage Report" + NEWLINE + NEWLINE);
+            writer.write("## By Endpoint" + NEWLINE + NEWLINE);
+            writer.write("| Endpoint | Tables | Sources |" + NEWLINE);
+            writer.write("|----------|--------|---------|" + NEWLINE);
+
+            final var sortedEndpoints =
+                    apiTableQueries.keySet().stream().sorted(String::compareTo).toList();
+
+            for (final var endpoint : sortedEndpoints) {
+                writeEndpointTables(writer, endpoint, apiTableQueries.get(endpoint));
+            }
+
+            writer.newLine();
+            writer.newLine();
+
+            writer.write("## By Table" + NEWLINE + NEWLINE);
+            writer.write("| Table | Endpoints | Sources |" + NEWLINE);
+            writer.write("|-------|-----------|---------|" + NEWLINE);
+
+            // Invert map: table -> (endpoint -> sources)
+            final var tableToEndpointSources = invertMap(apiTableQueries);
+
+            // Write second table rows sorted by table name
+            for (final var tableEntry : new TreeMap<>(tableToEndpointSources).entrySet()) {
+                final var table = tableEntry.getKey();
+                final var endpointSources = tableEntry.getValue();
+
+                writeTableGroupedByTableRow(writer, table, endpointSources);
+            }
+        } catch (final IOException e) {
+            log.warn("Unexpected error occurred: {}", e.getMessage());
+        }
+    }
+
+    private static void writeEndpointTables(
+            final BufferedWriter writer, final String endpoint, final Map<String, Set<String>> tableToMethods)
+            throws IOException {
+        final var escapedEndpoint = escapeMarkdown(endpoint);
+
+        // Sort tables alphabetically
+        final var sortedTables = new TreeMap<>(tableToMethods);
+
+        final var tablesBuilder = new StringBuilder();
+        final var allSourcesSet = new HashSet<String>();
+
+        for (final var tableEntry : sortedTables.entrySet()) {
+            final var table = escapeMarkdown(tableEntry.getKey());
+            tablesBuilder.append(table).append(LINE_BREAK);
+
+            allSourcesSet.addAll(tableEntry.getValue().stream()
+                    .map(MarkdownReportGenerator::escapeMarkdown)
+                    .toList());
+        }
+
+        final var sortedSources = allSourcesSet.stream().sorted().toList();
+
+        final var sourcesBuilder = new StringBuilder();
+        for (final var source : sortedSources) {
+            sourcesBuilder.append(source).append(LINE_BREAK);
+        }
+
+        if (!sourcesBuilder.isEmpty()) {
+            sourcesBuilder.setLength(sourcesBuilder.length() - LINE_BREAK.length());
+        }
+        if (!tablesBuilder.isEmpty()) {
+            tablesBuilder.setLength(tablesBuilder.length() - LINE_BREAK.length());
+        }
+
+        writeTableRow(writer, escapedEndpoint, tablesBuilder.toString(), sourcesBuilder.toString());
+    }
+
+    private static void writeTableRow(
+            final BufferedWriter writer, final String endpoint, final String table, final String methods)
+            throws IOException {
+        writer.write("| " + endpoint + " | " + table + " | " + methods + " |" + NEWLINE);
+    }
+
+    private static String escapeMarkdown(final String input) {
+        return input == null ? "" : input.replace("|", "\\|");
+    }
+
+    /**
+     * Inverts the Map of endpoint -> Map<table, sources> into table -> Map<endpoint, sources>
+     */
+    private static Map<String, Map<String, Set<String>>> invertMap(
+            final Map<String, Map<String, Set<String>>> endpointTableSources) {
+        final Map<String, Map<String, Set<String>>> result = new HashMap<>();
+
+        for (final var endpointEntry : endpointTableSources.entrySet()) {
+            final var endpoint = endpointEntry.getKey();
+            final var tableSources = endpointEntry.getValue();
+
+            for (final var tableEntry : tableSources.entrySet()) {
+                final var table = tableEntry.getKey();
+                final var sources = tableEntry.getValue();
+
+                result.computeIfAbsent(table, t -> new HashMap<>())
+                        .computeIfAbsent(endpoint, e -> new HashSet<>())
+                        .addAll(sources);
+            }
+        }
+        return result;
+    }
+
+    private static void writeTableGroupedByTableRow(
+            final BufferedWriter writer, final String table, final Map<String, Set<String>> endpointSources)
+            throws IOException {
+        final var escapedTable = escapeMarkdown(table);
+
+        // Build endpoints list with bullets, sorted alphabetically
+        final var endpoints = new TreeSet<>(endpointSources.keySet());
+        final var endpointList =
+                endpoints.stream().map(MarkdownReportGenerator::escapeMarkdown).collect(Collectors.joining(LINE_BREAK));
+
+        // Build source list from all sources in all endpoints, merged & sorted
+        final var allSources =
+                endpointSources.values().stream().flatMap(Set::stream).collect(Collectors.toCollection(TreeSet::new));
+        final var sourceList = allSources.stream()
+                .map(MarkdownReportGenerator::escapeMarkdown)
+                .collect(Collectors.joining(LINE_BREAK));
+
+        writer.write("| " + escapedTable + " | " + endpointList + " | " + sourceList + " |" + NEWLINE);
+    }
+}

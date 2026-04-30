@@ -29,7 +29,6 @@ dependencies {
     api("org.bouncycastle:bcprov-jdk18on")
     api("org.slf4j:jcl-over-slf4j")
     api("org.springframework.boot:spring-boot-jackson2")
-    //    api("org.springframework.boot:spring-boot-starter-data-jpa")
     api("org.springframework.boot:spring-boot-starter-micrometer-metrics")
     api("org.springframework.boot:spring-boot-starter-validation")
     testImplementation("jakarta.inject:jakarta.inject-api")

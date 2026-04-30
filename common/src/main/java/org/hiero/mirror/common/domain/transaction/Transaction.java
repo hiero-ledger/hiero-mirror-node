@@ -4,6 +4,7 @@ package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -96,7 +97,45 @@ public class Transaction implements Persistable<Long> {
 
     private Long validStartNs;
 
-    // ... Methods (addItemizedTransfer, addNftTransfer, etc.) remain unchanged ...
+    public void addItemizedTransfer(ItemizedTransfer itemizedTransfer) {
+        if (itemizedTransfer == null) {
+            return;
+        }
+        if (this.itemizedTransfer == null) {
+            this.itemizedTransfer = new ArrayList<>();
+        } else if (!(this.itemizedTransfer instanceof ArrayList)) {
+            this.itemizedTransfer = new ArrayList<>(this.itemizedTransfer);
+        }
+        this.itemizedTransfer.add(itemizedTransfer);
+    }
+
+    public void addNftTransfer(NftTransfer nftTransfer) {
+        if (nftTransfer == null) {
+            return;
+        }
+        if (this.nftTransfer == null) {
+            this.nftTransfer = new ArrayList<>();
+        } else if (!(this.nftTransfer instanceof ArrayList)) {
+            this.nftTransfer = new ArrayList<>(this.nftTransfer);
+        }
+        this.nftTransfer.add(nftTransfer);
+    }
+
+    public void addInnerTransaction(Transaction innerTransaction) {
+        if (type == null || !type.equals(TransactionType.ATOMIC_BATCH.getProtoId())) {
+            throw new IllegalStateException("Inner transactions can only be added to atomic batch transaction");
+        }
+        if (innerTransaction == null) {
+            return;
+        }
+        if (innerTransactions == null) {
+            innerTransactions = new ArrayList<>();
+        } else if (!(innerTransactions instanceof ArrayList)) {
+            innerTransactions = new ArrayList<>(innerTransactions);
+        }
+        innerTransactions.add(innerTransaction.getPayerAccountId().getId());
+        innerTransactions.add(innerTransaction.getValidStartNs());
+    }
 
     @JsonIgnore
     @Override
@@ -109,6 +148,4 @@ public class Transaction implements Persistable<Long> {
     public boolean isNew() {
         return true;
     }
-
-    // ... Logic methods (addInnerTransaction, toTransactionHash) remain unchanged ...
 }

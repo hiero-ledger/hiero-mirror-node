@@ -72,4 +72,24 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance, Pers
         private long owner;
         private long spender;
     }
+
+    @SuppressWarnings("java:S1610")
+    public abstract static class AbstractCryptoAllowanceBuilder<
+            C extends AbstractCryptoAllowance, B extends AbstractCryptoAllowanceBuilder<C, B>> {
+        public B owner(long owner) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setOwner(owner);
+            return self();
+        }
+
+        public B spender(long spender) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setSpender(spender);
+            return self();
+        }
+    }
 }
