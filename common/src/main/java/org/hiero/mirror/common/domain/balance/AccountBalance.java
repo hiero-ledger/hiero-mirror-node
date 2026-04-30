@@ -13,8 +13,8 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.MappedCollection;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -27,22 +27,30 @@ public class AccountBalance implements Persistable<AccountBalance.Id>, StreamIte
 
     private long balance;
 
-    @org.springframework.data.annotation.Id
-    private long consensusTimestamp;
-
-    @org.springframework.data.annotation.Id
-    private EntityId accountId;
-
     @Builder.Default
     @EqualsAndHashCode.Exclude
     @JsonIgnore
     @MappedCollection(idColumn = "account_id", keyColumn = "consensus_timestamp")
     private List<TokenBalance> tokenBalances = new ArrayList<>();
 
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
+
+    // Convenience accessor so callers can use accountBalance.getConsensusTimestamp() without going through getId()
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    // Convenience accessor so callers can use accountBalance.getAccountId() without going through getId()
+    public EntityId getAccountId() {
+        return id != null ? id.getAccountId() : null;
+    }
+
     @JsonIgnore
     @Override
     public Id getId() {
-        return new Id(consensusTimestamp, accountId);
+        return id;
     }
 
     @JsonIgnore

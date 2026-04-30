@@ -9,8 +9,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Builder
@@ -23,18 +23,13 @@ public class TokenBalance implements Persistable<TokenBalance.Id> {
     private long balance;
 
     @org.springframework.data.annotation.Id
-    private long consensusTimestamp;
-
-    @org.springframework.data.annotation.Id
-    private EntityId accountId;
-
-    @org.springframework.data.annotation.Id
-    private EntityId tokenId;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
     @JsonIgnore
     @Override
     public Id getId() {
-        return new Id(consensusTimestamp, accountId, tokenId);
+        return id;
     }
 
     @JsonIgnore

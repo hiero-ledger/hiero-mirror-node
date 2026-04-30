@@ -4,49 +4,107 @@ package org.hiero.mirror.common.domain.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
+import java.io.Serial;
 import java.io.Serializable;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
-import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
 @NoArgsConstructor
-@SuperBuilder
+@SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public abstract class AbstractNftAllowance implements History {
+public abstract class AbstractNftAllowance implements History, Persistable<AbstractNftAllowance.Id> {
 
     private boolean approvedForAll;
 
-    @org.springframework.data.annotation.Id
-    private long owner;
-
-    // Converter removed. Handled by global EntityIdConverter bean.
     private EntityId payerAccountId;
 
     @org.springframework.data.annotation.Id
-    private long spender;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
-    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
+    // JDBC: Marked as @Transient to avoid AOT/Reflection errors into Guava internals.
+    @Transient
     private Range<Long> timestampRange;
 
-    @org.springframework.data.annotation.Id
-    private long tokenId;
+    // --- Convenience Accessors ---
+
+    public long getOwner() {
+        return id != null ? id.getOwner() : 0L;
+    }
+
+    public long getSpender() {
+        return id != null ? id.getSpender() : 0L;
+    }
+
+    public long getTokenId() {
+        return id != null ? id.getTokenId() : 0L;
+    }
+
+    // --- Persistable Implementation ---
 
     @JsonIgnore
-    public AbstractNftAllowance.Id getId() {
-        return new Id(owner, spender, tokenId);
+    @Override
+    public Id getId() {
+        return id;
     }
+
+    @JsonIgnore
+    @Override
+    public boolean isNew() {
+        // Essential for mirror node performance to skip the existence check
+        return true;
+    }
+
+    // --- Composite ID Class ---
 
     @Data
     @NoArgsConstructor
-    @lombok.AllArgsConstructor
+    @AllArgsConstructor
     public static class Id implements Serializable {
+
+        @Serial
         private static final long serialVersionUID = 4078820027811154183L;
+
         private long owner;
         private long spender;
         private long tokenId;
+    }
+
+    // --- Custom SuperBuilder Bridge ---
+    // Overriding these methods allows the SuperBuilder to populate the embedded Id object
+    public abstract static class AbstractNftAllowanceBuilder<
+            C extends AbstractNftAllowance, B extends AbstractNftAllowanceBuilder<C, B>> {
+
+        public B owner(long owner) {
+            initId();
+            this.id.setOwner(owner);
+            return self();
+        }
+
+        public B spender(long spender) {
+            initId();
+            this.id.setSpender(spender);
+            return self();
+        }
+
+        public B tokenId(long tokenId) {
+            initId();
+            this.id.setTokenId(tokenId);
+            return self();
+        }
+
+        private void initId() {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+        }
     }
 }

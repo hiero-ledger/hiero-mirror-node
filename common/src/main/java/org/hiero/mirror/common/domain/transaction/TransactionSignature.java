@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -12,48 +13,80 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
+@Builder(toBuilder = true)
 @Data
 @Table("transaction_signature")
 @NoArgsConstructor
 public class TransactionSignature implements Persistable<TransactionSignature.Id> {
 
     @org.springframework.data.annotation.Id
-    private long consensusTimestamp;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
-    // @Convert removed. Mapping is handled by the global EntityIdConverter bean.
     private EntityId entityId;
-
-    @org.springframework.data.annotation.Id
-    @ToString.Exclude
-    private byte[] publicKeyPrefix;
 
     @ToString.Exclude
     private byte[] signature;
 
     private int type;
 
+    /**
+     * Custom builder to maintain compatibility with existing code that sets
+     * consensusTimestamp and publicKeyPrefix directly on the builder.
+     */
+    public static class TransactionSignatureBuilder {
+        public TransactionSignatureBuilder consensusTimestamp(long consensusTimestamp) {
+            initId();
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public TransactionSignatureBuilder publicKeyPrefix(byte[] publicKeyPrefix) {
+            initId();
+            this.id.setPublicKeyPrefix(publicKeyPrefix);
+            return this;
+        }
+
+        private void initId() {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+        }
+    }
+
+    // Convenience accessors
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public byte[] getPublicKeyPrefix() {
+        return id != null ? id.getPublicKeyPrefix() : null;
+    }
+
     @Override
     @JsonIgnore
-    public TransactionSignature.Id getId() {
-        return new TransactionSignature.Id(consensusTimestamp, publicKeyPrefix);
+    public Id getId() {
+        return id;
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
-        // Keeps behavior consistent: always INSERT, skip the SELECT-before-SAVE.
-        return true;
+        return true; // Force INSERT for performance
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
     public static class Id implements Serializable {
+
+        @Serial
         private static final long serialVersionUID = -8758644338990079234L;
+
         private long consensusTimestamp;
         private byte[] publicKeyPrefix;
     }

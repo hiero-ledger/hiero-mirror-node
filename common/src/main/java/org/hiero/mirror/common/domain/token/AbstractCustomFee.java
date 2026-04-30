@@ -16,6 +16,7 @@ import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.util.CollectionUtils;
 
 @Data
@@ -40,6 +41,7 @@ public abstract class AbstractCustomFee implements History {
     @UpsertColumn(shouldCoalesce = false)
     private List<RoyaltyFee> royaltyFees;
 
+    @Transient
     private Range<Long> timestampRange;
 
     public void addFixedFee(@NonNull FixedFee fixedFee) {

@@ -15,46 +15,73 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
+@Builder(toBuilder = true)
 @Data
 @Table("assessed_custom_fee")
 @NoArgsConstructor
 public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
 
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
+
     private long amount;
 
-    @org.springframework.data.annotation.Id
-    private long collectorAccountId;
-
-    @org.springframework.data.annotation.Id
-    private long consensusTimestamp;
-
-    // Use a custom Writing/Reading converter if this is stored as a string or array in the DB
     @Builder.Default
     @JsonSerialize(using = ListToStringSerializer.class)
     private List<Long> effectivePayerAccountIds = Collections.emptyList();
 
-    // Handled by global EntityIdConverter
     private EntityId tokenId;
 
-    // Handled by global EntityIdConverter
     private EntityId payerAccountId;
+
+    /**
+     * Custom builder to maintain compatibility with existing code that sets
+     * collectorAccountId and consensusTimestamp directly.
+     */
+    public static class AssessedCustomFeeBuilder {
+        public AssessedCustomFeeBuilder collectorAccountId(long collectorAccountId) {
+            initId();
+            this.id.setCollectorAccountId(collectorAccountId);
+            return this;
+        }
+
+        public AssessedCustomFeeBuilder consensusTimestamp(long consensusTimestamp) {
+            initId();
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        private void initId() {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+        }
+    }
+
+    // Convenience accessors
+    public long getCollectorAccountId() {
+        return id != null ? id.getCollectorAccountId() : 0L;
+    }
+
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
 
     @JsonIgnore
     @Override
     public Id getId() {
-        return new Id(collectorAccountId, consensusTimestamp);
+        return id;
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
-        // True forces an INSERT; ideal for immutable transaction data
         return true;
     }
 
@@ -67,7 +94,6 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
         private static final long serialVersionUID = -636368167561206418L;
 
         private long collectorAccountId;
-
         private long consensusTimestamp;
     }
 }

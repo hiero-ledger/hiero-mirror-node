@@ -14,6 +14,7 @@ import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 
 @Data
 @NoArgsConstructor
@@ -38,6 +39,7 @@ public abstract class AbstractRegisteredNode implements History {
     private List<RegisteredServiceEndpoint> serviceEndpoints;
 
     // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
+    @Transient
     private Range<Long> timestampRange;
 
     // JDBC: Requires custom Reading/Writing converters if stored as CSV or Array

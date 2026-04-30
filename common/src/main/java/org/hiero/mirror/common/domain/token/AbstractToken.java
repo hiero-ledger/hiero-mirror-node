@@ -13,6 +13,7 @@ import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 
 @Data
 @NoArgsConstructor
@@ -67,6 +68,7 @@ public abstract class AbstractToken implements History {
     private String symbol;
 
     // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
+    @Transient
     private Range<Long> timestampRange;
 
     @Id

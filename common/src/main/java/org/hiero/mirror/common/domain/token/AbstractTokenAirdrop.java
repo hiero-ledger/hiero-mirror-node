@@ -12,43 +12,68 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
-import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public abstract class AbstractTokenAirdrop implements History {
+public abstract class AbstractTokenAirdrop implements History, Persistable<AbstractTokenAirdrop.Id> {
 
     private Long amount;
-
-    @org.springframework.data.annotation.Id
-    private long receiverAccountId;
-
-    @org.springframework.data.annotation.Id
-    private long senderAccountId;
-
-    @org.springframework.data.annotation.Id
-    private long serialNumber;
 
     // Handled by global Reading/Writing converters for Postgres Named Enum
     private TokenAirdropStateEnum state;
 
-    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
+
+    // JDBC: Marked as @Transient to avoid AOT/Reflection errors into Guava internals.
+    @Transient
     private Range<Long> timestampRange;
 
-    @org.springframework.data.annotation.Id
-    private long tokenId;
+    // --- Convenience Accessors ---
 
-    @JsonIgnore
-    public Id getId() {
-        return new Id(receiverAccountId, senderAccountId, serialNumber, tokenId);
+    public long getReceiverAccountId() {
+        return id != null ? id.getReceiverAccountId() : 0L;
     }
 
+    public long getSenderAccountId() {
+        return id != null ? id.getSenderAccountId() : 0L;
+    }
+
+    public long getSerialNumber() {
+        return id != null ? id.getSerialNumber() : 0L;
+    }
+
+    public long getTokenId() {
+        return id != null ? id.getTokenId() : 0L;
+    }
+
+    // --- Persistable Implementation ---
+
+    @JsonIgnore
+    @Override
+    public Id getId() {
+        return id;
+    }
+
+    @JsonIgnore
+    @Override
+    public boolean isNew() {
+        return true;
+    }
+
+    // --- Composite ID Class ---
+
     @Data
-    @AllArgsConstructor
     @NoArgsConstructor
+    @AllArgsConstructor
     public static class Id implements Serializable {
+
         @Serial
         private static final long serialVersionUID = -8165098238647325621L;
 
@@ -56,5 +81,40 @@ public abstract class AbstractTokenAirdrop implements History {
         private long senderAccountId;
         private long serialNumber;
         private long tokenId;
+    }
+
+    // --- Custom SuperBuilder Bridge ---
+    public abstract static class AbstractTokenAirdropBuilder<
+            C extends AbstractTokenAirdrop, B extends AbstractTokenAirdropBuilder<C, B>> {
+
+        public B receiverAccountId(long receiverAccountId) {
+            initId();
+            this.id.setReceiverAccountId(receiverAccountId);
+            return self();
+        }
+
+        public B senderAccountId(long senderAccountId) {
+            initId();
+            this.id.setSenderAccountId(senderAccountId);
+            return self();
+        }
+
+        public B serialNumber(long serialNumber) {
+            initId();
+            this.id.setSerialNumber(serialNumber);
+            return self();
+        }
+
+        public B tokenId(long tokenId) {
+            initId();
+            this.id.setTokenId(tokenId);
+            return self();
+        }
+
+        private void initId() {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+        }
     }
 }

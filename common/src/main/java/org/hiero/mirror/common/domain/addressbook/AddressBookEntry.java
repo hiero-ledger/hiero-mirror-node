@@ -23,6 +23,7 @@ import org.hiero.mirror.common.exception.NonParsableKeyException;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.MappedCollection;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -36,10 +37,8 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
     private String description;
 
     @org.springframework.data.annotation.Id
-    private long consensusTimestamp;
-
-    @org.springframework.data.annotation.Id
-    private long nodeId;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
     private String memo;
 
@@ -65,6 +64,16 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
 
     private Long stake;
 
+    // Convenience accessor so callers can use entry.getConsensusTimestamp() without going through getId()
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    // Convenience accessor so callers can use entry.getNodeId() without going through getId()
+    public long getNodeId() {
+        return id != null ? id.getNodeId() : 0L;
+    }
+
     // Custom getter to maintain the logic for the transient field
     public PublicKey getPublicKeyObject() {
         if (publicKeyObject == null && publicKey != null) {
@@ -87,7 +96,7 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
     @JsonIgnore
     @Override
     public Id getId() {
-        return new Id(consensusTimestamp, nodeId);
+        return id;
     }
 
     @JsonIgnore
@@ -103,5 +112,20 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
         private static final long serialVersionUID = -3761184325551298389L;
         private long consensusTimestamp;
         private long nodeId;
+    }
+
+    // Custom builder methods so existing callers can use .consensusTimestamp(x).nodeId(y) without restructuring
+    public static class AddressBookEntryBuilder {
+        public AddressBookEntryBuilder consensusTimestamp(long consensusTimestamp) {
+            if (this.id == null) this.id = new Id();
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public AddressBookEntryBuilder nodeId(long nodeId) {
+            if (this.id == null) this.id = new Id();
+            this.id.setNodeId(nodeId);
+            return this;
+        }
     }
 }

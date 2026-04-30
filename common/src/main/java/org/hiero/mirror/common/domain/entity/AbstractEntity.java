@@ -16,6 +16,7 @@ import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 
 @Data
 @NoArgsConstructor
@@ -104,6 +105,7 @@ public abstract class AbstractEntity implements History {
     private Long stakePeriodStart;
 
     // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
+    @Transient
     private Range<Long> timestampRange;
 
     // No @Enumerated or @JdbcTypeCode needed.

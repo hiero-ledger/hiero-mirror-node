@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Builder(toBuilder = true)
@@ -23,25 +24,13 @@ import org.springframework.data.relational.core.mapping.Table;
 public class AddressBookServiceEndpoint implements Persistable<AddressBookServiceEndpoint.Id> {
 
     @org.springframework.data.annotation.Id
-    private long consensusTimestamp;
-
-    @org.springframework.data.annotation.Id
-    @Column("ip_address_v4")
-    private String ipAddressV4;
-
-    @org.springframework.data.annotation.Id
-    private long nodeId;
-
-    @org.springframework.data.annotation.Id
-    private Integer port;
-
-    @org.springframework.data.annotation.Id
-    private String domainName;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
     @JsonIgnore
     @Override
     public Id getId() {
-        return new Id(consensusTimestamp, ipAddressV4, nodeId, port, domainName);
+        return id;
     }
 
     @JsonIgnore
@@ -49,6 +38,53 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
     public boolean isNew() {
         // Natural IDs for service endpoints should always trigger an INSERT
         return true;
+    }
+
+    // Convenience accessors so existing callers keep working without restructuring
+
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        if (id == null) id = new Id();
+        id.setConsensusTimestamp(consensusTimestamp);
+    }
+
+    public String getIpAddressV4() {
+        return id != null ? id.getIpAddressV4() : null;
+    }
+
+    public void setIpAddressV4(String ipAddressV4) {
+        if (id == null) id = new Id();
+        id.setIpAddressV4(ipAddressV4);
+    }
+
+    public long getNodeId() {
+        return id != null ? id.getNodeId() : 0L;
+    }
+
+    public void setNodeId(long nodeId) {
+        if (id == null) id = new Id();
+        id.setNodeId(nodeId);
+    }
+
+    public Integer getPort() {
+        return id != null ? id.getPort() : null;
+    }
+
+    public void setPort(Integer port) {
+        if (id == null) id = new Id();
+        id.setPort(port);
+    }
+
+    public String getDomainName() {
+        return id != null ? id.getDomainName() : null;
+    }
+
+    public void setDomainName(String domainName) {
+        if (id == null) id = new Id();
+        id.setDomainName(domainName);
     }
 
     @Data
@@ -61,6 +97,7 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
 
         private long consensusTimestamp;
 
+        @Column("ip_address_v4")
         private String ipAddressV4;
 
         private long nodeId;
@@ -68,5 +105,38 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
         private Integer port;
 
         private String domainName;
+    }
+
+    // Custom builder methods so existing callers can set individual key fields directly
+    public static class AddressBookServiceEndpointBuilder {
+        public AddressBookServiceEndpointBuilder consensusTimestamp(long consensusTimestamp) {
+            if (this.id == null) this.id = new Id();
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public AddressBookServiceEndpointBuilder ipAddressV4(String ipAddressV4) {
+            if (this.id == null) this.id = new Id();
+            this.id.setIpAddressV4(ipAddressV4);
+            return this;
+        }
+
+        public AddressBookServiceEndpointBuilder nodeId(long nodeId) {
+            if (this.id == null) this.id = new Id();
+            this.id.setNodeId(nodeId);
+            return this;
+        }
+
+        public AddressBookServiceEndpointBuilder port(Integer port) {
+            if (this.id == null) this.id = new Id();
+            this.id.setPort(port);
+            return this;
+        }
+
+        public AddressBookServiceEndpointBuilder domainName(String domainName) {
+            if (this.id == null) this.id = new Id();
+            this.id.setDomainName(domainName);
+            return this;
+        }
     }
 }

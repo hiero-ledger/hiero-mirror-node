@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -10,45 +11,79 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
+@Builder(toBuilder = true)
 @Data
 @Table("crypto_transfer")
 @NoArgsConstructor
 public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
 
     @org.springframework.data.annotation.Id
-    private long amount;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
-    @org.springframework.data.annotation.Id
-    private long consensusTimestamp;
-
-    @org.springframework.data.annotation.Id
-    private long entityId;
-
-    // No @Enumerated or @JdbcTypeCode needed.
-    // Spring Data JDBC handles enums via registered Converters or standard string mapping.
     private ErrataType errata;
 
     private Boolean isApproval;
 
-    // Ensure your EntityId converters (from the previous step) are registered
-    // in your AbstractJdbcConfiguration.
     private EntityId payerAccountId;
+
+    /**
+     * Custom builder to maintain compatibility with existing record processing logic.
+     */
+    public static class CryptoTransferBuilder {
+        public CryptoTransferBuilder amount(long amount) {
+            initId();
+            this.id.setAmount(amount);
+            return this;
+        }
+
+        public CryptoTransferBuilder consensusTimestamp(long consensusTimestamp) {
+            initId();
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public CryptoTransferBuilder entityId(long entityId) {
+            initId();
+            this.id.setEntityId(entityId);
+            return this;
+        }
+
+        private void initId() {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+        }
+    }
+
+    // Convenience accessors
+    public long getAmount() {
+        return id != null ? id.getAmount() : 0L;
+    }
+
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public long getEntityId() {
+        return id != null ? id.getEntityId() : 0L;
+    }
 
     @JsonIgnore
     @Override
     public Id getId() {
-        return new Id(amount, consensusTimestamp, entityId);
+        return id;
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
+        // Critical for high-volume transfer ingestion to avoid existence checks.
         return true;
     }
 
@@ -56,7 +91,10 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class Id implements Serializable {
+
+        @Serial
         private static final long serialVersionUID = 6187276796581956587L;
+
         private long amount;
         private long consensusTimestamp;
         private long entityId;

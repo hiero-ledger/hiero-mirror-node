@@ -19,50 +19,45 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@Table("sidecar_file") // Explicit table name is recommended
+@Table("sidecar_file")
 @NoArgsConstructor
 public class SidecarFile implements Persistable<SidecarFile.Id> {
 
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
+
     @JsonIgnore
     @ToString.Exclude
-    @Transient // Spring Data's version: org.springframework.data.annotation.Transient
+    @Transient
     private byte[] actualHash;
 
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     private byte[] bytes;
 
-    @org.springframework.data.annotation.Id
-    private long consensusEnd;
-
     private Integer count;
 
-    // No @Enumerated needed; Spring handles this via standard mapping or custom converters
     private DigestAlgorithm hashAlgorithm;
 
     @ToString.Exclude
     private byte[] hash;
-
-    @org.springframework.data.annotation.Id
-    @Column("id") // Maps the Java field 'index' to the DB column 'id'
-    @JsonProperty("id")
-    private int index;
 
     private String name;
 
     @Builder.Default
     @JsonIgnore
     @ToString.Exclude
-    @Transient
+    @Transient // Critical: This field uses Protobuf types that break AOT if not transient
     private List<TransactionSidecarRecord> records = Collections.emptyList();
 
     private Integer size;
@@ -71,10 +66,43 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     @JsonSerialize(using = ListToStringSerializer.class)
     private List<Integer> types = Collections.emptyList();
 
+    /**
+     * Custom builder to maintain compatibility with existing code.
+     * Note: We map 'index' in Java to the 'id' column in the DB within the Id class.
+     */
+    public static class SidecarFileBuilder {
+        public SidecarFileBuilder consensusEnd(long consensusEnd) {
+            initId();
+            this.id.setConsensusEnd(consensusEnd);
+            return this;
+        }
+
+        public SidecarFileBuilder index(int index) {
+            initId();
+            this.id.setIndex(index);
+            return this;
+        }
+
+        private void initId() {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+        }
+    }
+
+    // Convenience accessors
+    public long getConsensusEnd() {
+        return id != null ? id.getConsensusEnd() : 0L;
+    }
+
+    public int getIndex() {
+        return id != null ? id.getIndex() : 0;
+    }
+
     @JsonIgnore
     @Override
     public Id getId() {
-        return new Id(consensusEnd, index);
+        return id;
     }
 
     @JsonIgnore
@@ -91,6 +119,9 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
         private static final long serialVersionUID = -5844173241500874821L;
 
         private long consensusEnd;
+
+        @Column("id") // Maintains mapping: Java 'index' -> DB 'id'
+        @JsonProperty("id")
         private int index;
     }
 }

@@ -15,18 +15,18 @@ import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public abstract class AbstractNft implements History {
+public abstract class AbstractNft implements History, Persistable<AbstractNft.Id> {
 
-    // sentinel value to indicate delegating spender / spender should keep its previous value
     public static final long RETAIN_SPENDER = 0L;
 
-    // Handled by global EntityId converters
     @UpsertColumn(coalesce = "case when deleted = true then null else coalesce({0}, e_{0}, {1}) end")
     private EntityId accountId;
 
@@ -40,26 +40,46 @@ public abstract class AbstractNft implements History {
     @ToString.Exclude
     private byte[] metadata;
 
-    @org.springframework.data.annotation.Id
-    private long serialNumber;
-
     @UpsertColumn(coalesce = "case when {0} is not null and {0} = 0 then e_{0} else {0} end")
     private Long spender;
 
     @org.springframework.data.annotation.Id
-    private long tokenId;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
-    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
+    // JDBC: Marked as @Transient to avoid AOT/Reflection errors into Guava internals.
+    @Transient
     private Range<Long> timestampRange;
 
-    @JsonIgnore
-    public AbstractNft.Id getId() {
-        return new Id(serialNumber, tokenId);
+    // --- Convenience Accessors ---
+
+    public long getSerialNumber() {
+        return id != null ? id.getSerialNumber() : 0L;
+    }
+
+    public long getTokenId() {
+        return id != null ? id.getTokenId() : 0L;
     }
 
     public static boolean shouldKeepSpender(Long spender) {
         return spender != null && spender == RETAIN_SPENDER;
     }
+
+    // --- Persistable Implementation ---
+
+    @JsonIgnore
+    @Override
+    public Id getId() {
+        return id;
+    }
+
+    @JsonIgnore
+    @Override
+    public boolean isNew() {
+        return true;
+    }
+
+    // --- Composite ID Class ---
 
     @AllArgsConstructor
     @Data
@@ -71,5 +91,27 @@ public abstract class AbstractNft implements History {
 
         private long serialNumber;
         private long tokenId;
+    }
+
+    // --- Custom SuperBuilder Bridge ---
+    public abstract static class AbstractNftBuilder<C extends AbstractNft, B extends AbstractNftBuilder<C, B>> {
+
+        public B serialNumber(long serialNumber) {
+            initId();
+            this.id.setSerialNumber(serialNumber);
+            return self();
+        }
+
+        public B tokenId(long tokenId) {
+            initId();
+            this.id.setTokenId(tokenId);
+            return self();
+        }
+
+        private void initId() {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+        }
     }
 }

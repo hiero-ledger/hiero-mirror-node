@@ -11,8 +11,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
@@ -23,41 +23,75 @@ import org.springframework.data.relational.core.mapping.Table;
 public class TokenTransfer implements Persistable<TokenTransfer.Id> {
 
     @org.springframework.data.annotation.Id
-    private long consensusTimestamp;
-
-    @org.springframework.data.annotation.Id
-    private EntityId tokenId;
-
-    @org.springframework.data.annotation.Id
-    private EntityId accountId;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
     private long amount;
 
     private Boolean isApproval;
 
-    // Converter removed. Handled by global EntityId Reading/Writing converters.
     private EntityId payerAccountId;
 
+    // Standard constructor maintained for manual instantiation
     public TokenTransfer(long consensusTimestamp, long amount, EntityId tokenId, EntityId accountId) {
-        this.consensusTimestamp = consensusTimestamp;
-        this.tokenId = tokenId;
-        this.accountId = accountId;
+        this.id = new Id(consensusTimestamp, tokenId, accountId);
         this.amount = amount;
+    }
+
+    /**
+     * Custom builder to maintain compatibility with existing code.
+     */
+    public static class TokenTransferBuilder {
+        public TokenTransferBuilder consensusTimestamp(long consensusTimestamp) {
+            initId();
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public TokenTransferBuilder tokenId(EntityId tokenId) {
+            initId();
+            this.id.setTokenId(tokenId);
+            return this;
+        }
+
+        public TokenTransferBuilder accountId(EntityId accountId) {
+            initId();
+            this.id.setAccountId(accountId);
+            return this;
+        }
+
+        private void initId() {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+        }
+    }
+
+    // Convenience accessors
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public EntityId getTokenId() {
+        return id != null ? id.getTokenId() : null;
+    }
+
+    public EntityId getAccountId() {
+        return id != null ? id.getAccountId() : null;
     }
 
     @JsonIgnore
     @Override
     public Id getId() {
-        return new Id(consensusTimestamp, tokenId, accountId);
+        return id;
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Bypasses the "Select before Insert" existence check
+        return true;
     }
 
-    @Builder(toBuilder = true)
     @Data
     @AllArgsConstructor
     @NoArgsConstructor

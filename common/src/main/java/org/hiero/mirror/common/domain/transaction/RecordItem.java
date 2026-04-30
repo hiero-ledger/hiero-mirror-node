@@ -43,6 +43,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.util.Version;
 
 @Builder(buildMethodName = "buildInternal")
@@ -115,6 +116,7 @@ public class RecordItem implements StreamItem {
     @Builder.Default
     @NonFinal
     @Setter
+    @Transient
     private List<TransactionSidecarRecord> sidecarRecords = Collections.emptyList();
 
     // Transient hook execution queue for CryptoTransfer transactions that may trigger hooks

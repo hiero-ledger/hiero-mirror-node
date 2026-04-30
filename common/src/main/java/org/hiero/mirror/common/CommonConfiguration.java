@@ -126,6 +126,17 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new LongToEntityIdConverter(),
                 new RangeToPGobjectWritingConverter(), // Replaces @TypeRegistration
                 new PGobjectToRangeReadingConverter(), // Replaces @TypeRegistration
-                new ObjectToJsonbWritingConverter()));
+                new ObjectToJsonbWritingConverter(),
+                com.google.protobuf.Message.class,
+                com.google.protobuf.MessageLite.class,
+                com.google.protobuf.AbstractMessage.class,
+                com.google.protobuf.AbstractMessageLite.class,
+                com.google.protobuf.Message.class,
+                com.google.protobuf.ByteString.class,
+                com.google.common.collect.Range.class,
+                com.google.common.collect.Range.class,
+                com.google.protobuf.GeneratedMessage.class, // For specific proto versions
+                // Add your own custom types that wrap these
+                org.hiero.mirror.common.domain.entity.EntityId.class));
     }
 }

@@ -10,46 +10,66 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hiero.mirror.common.domain.entity.EntityTransaction.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
-@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder(toBuilder = true)
 @Data
 @Table("entity_transaction")
 @NoArgsConstructor
-public class EntityTransaction implements Persistable<Id> {
+public class EntityTransaction implements Persistable<EntityTransaction.Id> {
 
-    @org.springframework.data.relational.core.mapping.Column
     @org.springframework.data.annotation.Id
-    private Long consensusTimestamp;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
-    @org.springframework.data.relational.core.mapping.Column
-    @org.springframework.data.annotation.Id
-    private Long entityId;
-
-    // Specify converter explicitly so translation works with native image
-    //    @Convert(converter = EntityIdConverter.class)
-    @org.springframework.data.relational.core.mapping.Column
     private EntityId payerAccountId;
 
-    @org.springframework.data.relational.core.mapping.Column
     private Integer result;
 
-    @org.springframework.data.relational.core.mapping.Column
     private Integer type;
+
+    public static class EntityTransactionBuilder {
+        public EntityTransactionBuilder consensusTimestamp(long consensusTimestamp) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public EntityTransactionBuilder entityId(long entityId) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setEntityId(entityId);
+            return this;
+        }
+    }
+
+    // Convenience accessors to maintain backward compatibility with existing code
+    public Long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : null;
+    }
+
+    public Long getEntityId() {
+        return id != null ? id.getEntityId() : null;
+    }
 
     @JsonIgnore
     @Override
     public Id getId() {
-        return new Id(consensusTimestamp, entityId);
+        return id;
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        // Maintained as true to ensure Spring Data performs an INSERT/UPSERT
+        // without a preceding SELECT, which is optimal for mirror node performance.
+        return true;
     }
 
     @AllArgsConstructor
@@ -60,6 +80,8 @@ public class EntityTransaction implements Persistable<Id> {
         @Serial
         private static final long serialVersionUID = -3010905088908209508L;
 
+        // Spring Data JDBC maps these field names to the column names directly
+        // unless @Column is specified on these fields inside the Id class.
         private long consensusTimestamp;
         private long entityId;
     }

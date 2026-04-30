@@ -13,41 +13,68 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
 @Table("contract_transaction")
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Builder(toBuilder = true)
 public class ContractTransaction implements Persistable<ContractTransaction.Id> {
 
     @org.springframework.data.annotation.Id
-    private Long consensusTimestamp;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
-    @org.springframework.data.annotation.Id
-    private Long entityId;
-
-    // JDBC: Requires a custom Reading/Writing converter (e.g., to PG array or CSV)
-    // to prevent Spring Data JDBC from treating this as a One-to-Many relationship.
     @Builder.Default
     @JsonSerialize(using = ListToStringSerializer.class)
     private List<Long> contractIds = Collections.emptyList();
 
     private long payerAccountId;
 
+    /**
+     * Custom builder to maintain compatibility with existing code that sets
+     * consensusTimestamp and entityId directly on the builder.
+     */
+    public static class ContractTransactionBuilder {
+        public ContractTransactionBuilder consensusTimestamp(long consensusTimestamp) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public ContractTransactionBuilder entityId(long entityId) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setEntityId(entityId);
+            return this;
+        }
+    }
+
+    // Convenience accessors
+    public Long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : null;
+    }
+
+    public Long getEntityId() {
+        return id != null ? id.getEntityId() : null;
+    }
+
     @Override
     @JsonIgnore
     public Id getId() {
-        return new ContractTransaction.Id(consensusTimestamp, entityId);
+        return id;
     }
 
     @Override
     @JsonIgnore
     public boolean isNew() {
-        return true; // Optimizes ingestion by forcing INSERT without checking existence
+        return true;
     }
 
     @Data
