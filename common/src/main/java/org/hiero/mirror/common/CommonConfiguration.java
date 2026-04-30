@@ -8,8 +8,9 @@ import java.util.List;
 import javax.sql.DataSource;
 import org.hiero.mirror.common.config.CommonRuntimeHints;
 import org.hiero.mirror.common.converter.EntityIdToLongConverter;
+import org.hiero.mirror.common.converter.JsonbReadingConverters;
+import org.hiero.mirror.common.converter.JsonbWritingConverters;
 import org.hiero.mirror.common.converter.LongToEntityIdConverter;
-import org.hiero.mirror.common.converter.ObjectToJsonbWritingConverter;
 import org.hiero.mirror.common.converter.PGobjectToRangeReadingConverter;
 import org.hiero.mirror.common.converter.RangeToPGobjectWritingConverter;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -59,15 +60,6 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
     HikariConfig hikariConfig() {
         return new HikariConfig();
     }
-
-    //    @Override
-    //    public org.springframework.data.jdbc.core.convert.JdbcCustomConversions jdbcCustomConversions() {
-    //        return new org.springframework.data.jdbc.core.convert.JdbcCustomConversions(List.of(
-    //                new EntityIdToLongConverter(),
-    //                new LongToEntityIdConverter()
-    //                // Add your Range, Enum, and JSON converters here
-    //        ));
-    //    }
 
     /**
      * Mirror Node Naming Strategy.
@@ -126,17 +118,17 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new LongToEntityIdConverter(),
                 new RangeToPGobjectWritingConverter(), // Replaces @TypeRegistration
                 new PGobjectToRangeReadingConverter(), // Replaces @TypeRegistration
-                new ObjectToJsonbWritingConverter(),
-                com.google.protobuf.Message.class,
-                com.google.protobuf.MessageLite.class,
-                com.google.protobuf.AbstractMessage.class,
-                com.google.protobuf.AbstractMessageLite.class,
-                com.google.protobuf.Message.class,
-                com.google.protobuf.ByteString.class,
-                com.google.common.collect.Range.class,
-                com.google.common.collect.Range.class,
-                com.google.protobuf.GeneratedMessage.class, // For specific proto versions
-                // Add your own custom types that wrap these
-                org.hiero.mirror.common.domain.entity.EntityId.class));
+                new JsonbWritingConverters.FixedFeeList(),
+                new JsonbWritingConverters.FractionalFeeList(),
+                new JsonbWritingConverters.RoyaltyFeeList(),
+                new JsonbWritingConverters.RegisteredServiceEndpointList(),
+                new JsonbReadingConverters.PgobjectToRegisteredServiceEndpointList(),
+                new JsonbReadingConverters.StringToRegisteredServiceEndpointList(),
+                new JsonbReadingConverters.SqlArrayToShortList(),
+                new JsonbWritingConverters.ItemizedTransferList(),
+                new JsonbWritingConverters.NftTransferList(),
+                new JsonbWritingConverters.AuthorizationList(),
+                new JsonbWritingConverters.LedgerNodeContributionList(),
+                new JsonbWritingConverters.ServiceEndpointSingle()));
     }
 }

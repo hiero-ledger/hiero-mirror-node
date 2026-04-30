@@ -12,8 +12,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -24,19 +24,13 @@ import org.springframework.data.relational.core.mapping.Table;
 public class ContractStateChange implements Persistable<ContractStateChange.Id> {
 
     @org.springframework.data.annotation.Id
-    private long consensusTimestamp;
-
-    @org.springframework.data.annotation.Id
-    private long contractId;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
     private boolean migration;
 
     // Converter is now managed globally by your JdbcCustomConversions configuration
     private EntityId payerAccountId;
-
-    @org.springframework.data.annotation.Id
-    @ToString.Exclude
-    private byte[] slot;
 
     @ToString.Exclude
     private byte[] valueRead;
@@ -44,10 +38,51 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
     @ToString.Exclude
     private byte[] valueWritten;
 
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setConsensusTimestamp(consensusTimestamp);
+    }
+
+    public long getContractId() {
+        return id != null ? id.getContractId() : 0L;
+    }
+
+    /** Stores {@link EntityId#getId()} as the relational contract id (same as {@link #setContractId(long)}). */
+    public void setContractId(EntityId entityId) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setContractId(entityId.getId());
+    }
+
+    public void setContractId(long contractId) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setContractId(contractId);
+    }
+
+    public byte[] getSlot() {
+        return id != null ? id.getSlot() : null;
+    }
+
+    public void setSlot(byte[] slot) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setSlot(slot);
+    }
+
     @Override
     @JsonIgnore
     public Id getId() {
-        return new Id(consensusTimestamp, contractId, slot);
+        return id;
     }
 
     @JsonIgnore
@@ -55,10 +90,6 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
     public boolean isNew() {
         // Keeps the optimization to skip the "SELECT" check before insert
         return true;
-    }
-
-    public void setContractId(EntityId contractId) {
-        this.contractId = contractId.getId();
     }
 
     @AllArgsConstructor
@@ -70,6 +101,34 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
 
         private long consensusTimestamp;
         private long contractId;
+
+        @ToString.Exclude
         private byte[] slot;
+    }
+
+    public static class ContractStateChangeBuilder {
+        public ContractStateChangeBuilder consensusTimestamp(long consensusTimestamp) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public ContractStateChangeBuilder contractId(long contractId) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setContractId(contractId);
+            return this;
+        }
+
+        public ContractStateChangeBuilder slot(byte[] slot) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setSlot(slot);
+            return this;
+        }
     }
 }

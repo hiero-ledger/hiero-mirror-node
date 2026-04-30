@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
@@ -26,7 +26,8 @@ public class ContractState {
     private static final int SLOT_BYTE_LENGTH = 32;
 
     @org.springframework.data.annotation.Id
-    private long contractId;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
     // Hibernate's 'updatable = false' is removed;
     // enforcement now relies on the Upsert logic/SQL generator.
@@ -34,20 +35,34 @@ public class ContractState {
 
     private long modifiedTimestamp;
 
-    @org.springframework.data.annotation.Id
-    @ToString.Exclude
-    private byte[] slot;
-
     @ToString.Exclude
     private byte[] value;
 
-    @JsonIgnore
-    public ContractState.Id getId() {
-        return new Id(contractId, slot);
+    public long getContractId() {
+        return id != null ? id.getContractId() : 0L;
+    }
+
+    public void setContractId(long contractId) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setContractId(contractId);
+    }
+
+    public byte[] getSlot() {
+        return id != null ? id.getSlot() : null;
     }
 
     public void setSlot(byte[] slot) {
-        this.slot = DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
+    }
+
+    @JsonIgnore
+    public Id getId() {
+        return id;
     }
 
     @Data
@@ -56,6 +71,27 @@ public class ContractState {
     public static class Id implements Serializable {
         private static final long serialVersionUID = 6192377810161178246L;
         private long contractId;
+
+        @ToString.Exclude
         private byte[] slot;
+    }
+
+    /** Bridges {@link Builder} to the flattened {@link #contractId} / {@link #slot} API. */
+    public static class ContractStateBuilder {
+        public ContractStateBuilder contractId(long contractId) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setContractId(contractId);
+            return this;
+        }
+
+        public ContractStateBuilder slot(byte[] slot) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
+            return this;
+        }
     }
 }

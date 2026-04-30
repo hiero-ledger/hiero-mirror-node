@@ -11,8 +11,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -26,16 +26,14 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     private byte[] bloom;
 
     @org.springframework.data.annotation.Id
-    private long consensusTimestamp;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
     // Mapping handled by global EntityId converters registered in your configuration
     private EntityId contractId;
 
     @ToString.Exclude
     private byte[] data;
-
-    @org.springframework.data.annotation.Id
-    private int index;
 
     private EntityId rootContractId;
 
@@ -55,10 +53,32 @@ public class ContractLog implements Persistable<ContractLog.Id> {
 
     private boolean synthetic;
 
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setConsensusTimestamp(consensusTimestamp);
+    }
+
+    public int getIndex() {
+        return id != null ? id.getIndex() : 0;
+    }
+
+    public void setIndex(int index) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setIndex(index);
+    }
+
     @Override
     @JsonIgnore
     public Id getId() {
-        return new Id(consensusTimestamp, index);
+        return id;
     }
 
     @JsonIgnore
@@ -75,5 +95,24 @@ public class ContractLog implements Persistable<ContractLog.Id> {
         private static final long serialVersionUID = -6192177810161178246L;
         private long consensusTimestamp;
         private int index;
+    }
+
+    /** Bridges {@link Builder} to the flattened {@link #consensusTimestamp} / {@link #index} API used across the codebase. */
+    public static class ContractLogBuilder {
+        public ContractLogBuilder consensusTimestamp(long consensusTimestamp) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public ContractLogBuilder index(int index) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setIndex(index);
+            return this;
+        }
     }
 }

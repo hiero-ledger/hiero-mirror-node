@@ -4,7 +4,6 @@ package org.hiero.mirror.restjava.controller;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hiero.mirror.restjava.common.Constants.APPLICATION_JSON;
-import static org.hiero.mirror.restjava.common.Constants.REGISTERED_NODE_ID;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
 import com.google.common.collect.ImmutableSortedMap;
@@ -126,7 +125,7 @@ final class NetworkController {
         final var registeredNodes = networkService.getRegisteredNodes(request);
         final var registeredNodeDtos = registeredNodeMapper.map(registeredNodes);
 
-        final var sort = Sort.by(request.getOrder(), REGISTERED_NODE_ID);
+        final var sort = Sort.by(request.getOrder(), Constants.REGISTERED_NODE_ID);
         final var pageable = PageRequest.of(0, request.getLimit(), sort);
         final var links = linkFactory.create(registeredNodeDtos, pageable, REGISTERED_NODE_EXTRACTOR);
 

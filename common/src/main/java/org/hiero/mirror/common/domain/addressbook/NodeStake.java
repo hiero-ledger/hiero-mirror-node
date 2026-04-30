@@ -10,8 +10,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -22,16 +22,14 @@ import org.springframework.data.relational.core.mapping.Table;
 public class NodeStake implements Persistable<NodeStake.Id> {
 
     @org.springframework.data.annotation.Id
-    private long consensusTimestamp;
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
     private long epochDay;
 
     private long maxStake;
 
     private long minStake;
-
-    @org.springframework.data.annotation.Id
-    private long nodeId;
 
     private long rewardRate;
 
@@ -43,10 +41,32 @@ public class NodeStake implements Persistable<NodeStake.Id> {
 
     private long stakingPeriod;
 
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setConsensusTimestamp(consensusTimestamp);
+    }
+
+    public long getNodeId() {
+        return id != null ? id.getNodeId() : 0L;
+    }
+
+    public void setNodeId(long nodeId) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setNodeId(nodeId);
+    }
+
     @JsonIgnore
     @Override
     public Id getId() {
-        return new Id(consensusTimestamp, nodeId);
+        return id;
     }
 
     @JsonIgnore
@@ -65,5 +85,24 @@ public class NodeStake implements Persistable<NodeStake.Id> {
 
         private long consensusTimestamp;
         private long nodeId;
+    }
+
+    /** Bridges {@link Builder} to the flattened {@link #consensusTimestamp} / {@link #nodeId} API. */
+    public static class NodeStakeBuilder {
+        public NodeStakeBuilder consensusTimestamp(long consensusTimestamp) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public NodeStakeBuilder nodeId(long nodeId) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setNodeId(nodeId);
+            return this;
+        }
     }
 }

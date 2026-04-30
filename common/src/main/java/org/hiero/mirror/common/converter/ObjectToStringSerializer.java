@@ -14,10 +14,14 @@ import java.io.IOException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S6548")
 public class ObjectToStringSerializer extends JsonSerializer<Object> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ObjectToStringSerializer.class);
 
     public static final ObjectToStringSerializer INSTANCE = new ObjectToStringSerializer();
     public static final ObjectMapper OBJECT_MAPPER;
@@ -32,8 +36,12 @@ public class ObjectToStringSerializer extends JsonSerializer<Object> {
                 .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
                 .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
-        // Configure hyperpersistence utils so that JsonBinaryType uses the same object mapper
-        JsonConfiguration.INSTANCE.getObjectMapperWrapper().setObjectMapper(OBJECT_MAPPER);
+        // Optional: fails outside Hibernate (e.g. some JDBC-only modules); JsonBinaryType is JPA-specific.
+        try {
+            JsonConfiguration.INSTANCE.getObjectMapperWrapper().setObjectMapper(OBJECT_MAPPER);
+        } catch (Throwable e) {
+            LOG.debug("Skipping Hypersistence JsonConfiguration hook: {}", e.toString());
+        }
     }
 
     public static void init() {
