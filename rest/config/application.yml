@@ -54,6 +54,7 @@ hiero:
       port: 5551
       query:
         bindTimestampRange: false
+        maxFileAttempts: 12
         maxRecordFileCloseInterval: 10s
         maxRepeatedQueryParameters: 100
         maxScheduledTransactionConsensusTimestampRange: 89285m

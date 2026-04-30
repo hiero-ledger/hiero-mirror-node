@@ -67,8 +67,10 @@ public final class SystemFileLoader {
     private final CacheManager defaultSystemFileCacheManager;
     private final V0490FileSchema fileSchema = new V0490FileSchema();
     private final File genesisNetworkProperties;
+
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
-            .maxRetries(9)
+            .maxRetries(properties.getMaxFileAttempts() - 1)
             .predicate(e -> e instanceof InvalidFileException)
             .build());
 
@@ -162,12 +164,12 @@ public final class SystemFileLoader {
      * @return The parsed file data, or the default value if no valid data is found
      */
     private File loadWithRetry(final FileID key, final long currentTimestamp, SystemFile systemFile) {
-        AtomicLong nanoSeconds = new AtomicLong(currentTimestamp);
+        final var nanoSeconds = new AtomicLong(currentTimestamp);
         final var fileId = toEntityId(key).getId();
         final var attempt = new AtomicInteger(0);
 
         try {
-            return retryTemplate.execute(() -> fileDataRepository
+            return getRetryTemplate().execute(() -> fileDataRepository
                     .getFileAtTimestamp(fileId, nanoSeconds.get())
                     .filter(fileData -> ArrayUtils.isNotEmpty(fileData.getFileData()))
                     .map(fileData -> {
