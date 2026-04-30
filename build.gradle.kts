@@ -23,6 +23,7 @@ extra.apply {
     set("jooq.version", "3.21.2") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
+    set("postgresql.version", "42.7.11") // Temporary until next Spring Boot
     set("protobufVersion", "4.34.1")
     set("springGrpcVersion", "1.0.3")
     set("tuweniVersion", "2.3.1")

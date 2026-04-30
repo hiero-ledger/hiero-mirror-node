@@ -11,7 +11,7 @@ const getUrl = (testParameters) =>
   `/transactions?transactionType=CRYPTOTRANSFER&limit=${testParameters['DEFAULT_LIMIT']}&order=asc`;
 
 const {options, run, setup} = new RestTestScenarioBuilder()
-  .name('transactionsByTransactionType') // use unique scenario name among all tests
+  .name('transactionsByTransactionTypeAscending') // use unique scenario name among all tests
   .tags({url: urlTag})
   .request((testParameters) => {
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;
