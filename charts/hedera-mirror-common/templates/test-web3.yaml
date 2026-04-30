@@ -21,6 +21,8 @@ spec:
     args:
       - /data/repo/tools/k6/src/web3/apis.js
       {{- if $.Values.testkube.prometheus.enabled }}
+      - --no-summary
+      - --no-thresholds
       - --out
       - experimental-prometheus-rw
       {{- end }}
