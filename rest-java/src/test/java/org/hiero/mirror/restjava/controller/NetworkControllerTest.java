@@ -61,6 +61,7 @@ import org.hiero.mirror.restjava.mapper.NetworkStakeMapper;
 import org.hiero.mirror.restjava.parameter.EntityIdParameter;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
+import org.hiero.mirror.restjava.service.QueryProperties;
 import org.hiero.mirror.restjava.service.fee.FeeEstimationService;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
@@ -85,6 +86,7 @@ final class NetworkControllerTest extends ControllerTest {
     private final FeeScheduleMapper feeScheduleMapper;
     private final NetworkStakeMapper networkStakeMapper;
     private final NetworkProperties networkProperties;
+    private final QueryProperties queryProperties;
     private final SystemEntity systemEntity;
 
     @DisplayName("/api/v1/network/exchangerate")
@@ -212,16 +214,9 @@ final class NetworkControllerTest extends ControllerTest {
         void fallbackRetriesExceeded() {
             // given
             exchangeRateMapper.map(systemFile()); // Fails before reaching the valid file
-            exchangeRateFile(domainBuilder.bytes(100));
-            exchangeRateFile(domainBuilder.bytes(100));
-            exchangeRateFile(domainBuilder.bytes(100));
-            exchangeRateFile(domainBuilder.bytes(100));
-            exchangeRateFile(domainBuilder.bytes(100));
-            exchangeRateFile(domainBuilder.bytes(100));
-            exchangeRateFile(domainBuilder.bytes(100));
-            exchangeRateFile(domainBuilder.bytes(100));
-            exchangeRateFile(domainBuilder.bytes(100));
-            exchangeRateFile(domainBuilder.bytes(100));
+            for (int i = 0; i < queryProperties.getMaxFileAttempts(); i++) {
+                exchangeRateFile(domainBuilder.bytes(100));
+            }
 
             // when/then
             validateError(
@@ -435,7 +430,7 @@ final class NetworkControllerTest extends ControllerTest {
             systemFileFee(); // Create valid file first
             systemFileExchangeRate(); // Create valid exchange rate
             // Add 10 corrupt files - retry logic will fail before reaching the valid file
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < queryProperties.getMaxFileAttempts(); i++) {
                 feeScheduleFile(domainBuilder.bytes(100));
                 exchangeRateFile(exchangeRateSet(1).toByteArray());
             }
@@ -1748,6 +1743,16 @@ final class NetworkControllerTest extends ControllerTest {
     @Nested
     final class RegisteredNodesEndpointTest extends EndpointTest {
 
+        private static long registeredNodeIdForType(RegisteredNodeType type) {
+            return switch (type) {
+                case BLOCK_NODE -> 1L;
+                case GENERAL_SERVICE -> 2L;
+                case MIRROR_NODE -> 3L;
+                case RPC_RELAY -> 4L;
+                case UNKNOWN -> 5L;
+            };
+        }
+
         @Override
         protected String getUrl() {
             return "network/registered-nodes";
@@ -2136,16 +2141,6 @@ final class NetworkControllerTest extends ControllerTest {
                     .registeredNode()
                     .customize(r -> r.registeredNodeId(3L).type(List.of(RegisteredNodeType.RPC_RELAY.getId())))
                     .persist();
-        }
-
-        private static long registeredNodeIdForType(RegisteredNodeType type) {
-            return switch (type) {
-                case BLOCK_NODE -> 1L;
-                case GENERAL_SERVICE -> 2L;
-                case MIRROR_NODE -> 3L;
-                case RPC_RELAY -> 4L;
-                case UNKNOWN -> 5L;
-            };
         }
     }
 }
