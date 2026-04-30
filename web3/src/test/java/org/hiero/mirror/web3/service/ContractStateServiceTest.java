@@ -27,6 +27,7 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
@@ -51,12 +52,14 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
 
     private final CacheProperties cacheProperties;
     private final ContractStateService contractStateService;
+    private final Web3Properties web3Properties;
     private final ContractStateRepository contractStateRepository;
     private final EntityRepository entityRepository;
 
     @BeforeEach
     void setup() {
         cacheProperties.setEnableBatchContractSlotCaching(true);
+        web3Properties.setBatchSize(100);
     }
 
     @Test
@@ -454,6 +457,25 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
 
         // Read and verify values exist in cache after contract states deletion
         findStorage(contract, contractStates);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {50, 100, 150})
+    void verifyBatchQueryReturnsAllValuesForDifferentBatchSizes(final int batchSize) {
+        // Given: 200 slots so that batchSize=50 produces 4 chunks, batchSize=100 produces 2,
+        // and batchSize=150 produces 2 (150 + 50).
+        // Reset slotsPerContract cache spec explicitly: prior tests may have reduced maximumSize to 10.
+        web3Properties.setBatchSize(batchSize);
+        cacheProperties.setSlotsPerContract("expireAfterAccess=5m,maximumSize=1500");
+        cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
+
+        final int slotCount = 200;
+        final var contract = persistContract();
+        final var contractStates = persistContractStates(contract.getId(), slotCount);
+
+        // When / Then: findStorage internally asserts each returned value matches the persisted one
+        findStorage(contract, contractStates);
+        assertThat(getCachedSlots(contract)).asInstanceOf(LIST).hasSize(slotCount);
     }
 
     private Entity persistContract() {

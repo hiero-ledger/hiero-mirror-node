@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Optional;
 import lombok.CustomLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -33,18 +34,21 @@ final class ContractStateServiceImpl implements ContractStateService {
     private final Cache contractSlotsCache;
     private final Cache contractStateCache;
     private final ContractStateRepository contractStateRepository;
+    private final Web3Properties web3Properties;
 
     ContractStateServiceImpl(
             final @Qualifier(CACHE_MANAGER_CONTRACT_SLOTS) CacheManager cacheManagerContractSlots,
             final @Qualifier(CACHE_MANAGER_CONTRACT_STATE) CacheManager cacheManagerContractState,
             final @Qualifier(CACHE_MANAGER_SLOTS_PER_CONTRACT) CacheManager cacheManagerSlotsPerContract,
             final CacheProperties cacheProperties,
-            final ContractStateRepository contractStateRepository) {
+            final ContractStateRepository contractStateRepository,
+            final Web3Properties web3Properties) {
         this.cacheManagerSlotsPerContract = cacheManagerSlotsPerContract;
         this.cacheProperties = cacheProperties;
         this.contractSlotsCache = cacheManagerContractSlots.getCache(CACHE_NAME);
         this.contractStateCache = cacheManagerContractState.getCache(CACHE_NAME);
         this.contractStateRepository = contractStateRepository;
+        this.web3Properties = web3Properties;
     }
 
     /**
@@ -100,16 +104,22 @@ final class ContractStateServiceImpl implements ContractStateService {
             }
         }
 
-        final var contractSlotValues = contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots);
+        final int batchSize = web3Properties.getBatchSize();
         byte[] cachedValue = null;
 
-        for (final var contractSlotValue : contractSlotValues) {
-            final byte[] slotKey = contractSlotValue.getSlot();
-            final byte[] slotValue = contractSlotValue.getValue();
-            contractStateCache.put(generateCacheKey(contractId, slotKey), slotValue);
+        for (int i = 0; i < cachedSlots.size(); i += batchSize) {
+            final var chunk = cachedSlots.subList(i, Math.min(i + batchSize, cachedSlots.size()));
+            final var contractSlotValues =
+                    contractStateRepository.findStorageBatch(contractId.getId(), chunk.toArray(byte[][]::new));
 
-            if (Arrays.equals(slotKey, key)) {
-                cachedValue = slotValue;
+            for (final var contractSlotValue : contractSlotValues) {
+                final byte[] slotKey = contractSlotValue.getSlot();
+                final byte[] slotValue = contractSlotValue.getValue();
+                contractStateCache.put(generateCacheKey(contractId, slotKey), slotValue);
+
+                if (Arrays.equals(slotKey, key)) {
+                    cachedValue = slotValue;
+                }
             }
         }
 

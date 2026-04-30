@@ -14,6 +14,9 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class Web3Properties {
     @Positive
+    private int batchSize = 100;
+
+    @Positive
     private int maxPayloadLogSize = 300;
 
     @DurationMin(seconds = 1L)
