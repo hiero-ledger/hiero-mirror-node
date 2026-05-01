@@ -8,7 +8,7 @@ const account = __ENV.FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ASSOCIATED_ACCOUNT_ADDRESS;
 const token = __ENV.FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS;
 const selector = '0x9c219247'; //dissociateTokenExternal
 const runMode = __ENV.RUN_WITH_VARIABLES;
-const testName = 'estimateTokenDissociate';
+const testName = 'contractCallEstimateDissociateToken';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =
