@@ -19,7 +19,7 @@ extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.31.0")
     set("consensusNodeVersion", "0.73.0")
-    set("grpcVersion", "1.80.0")
+    set("grpcVersion", "1.81.0")
     set("jooq.version", "3.21.2") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
