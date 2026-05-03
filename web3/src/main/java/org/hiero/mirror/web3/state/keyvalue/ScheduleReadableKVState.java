@@ -15,7 +15,6 @@ import com.hedera.node.app.service.schedule.ScheduleService;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
-import com.hederahashgraph.api.proto.java.SignaturePair;
 import com.hederahashgraph.api.proto.java.SignaturePair.SignatureCase;
 import jakarta.inject.Named;
 import java.util.List;
@@ -108,7 +107,7 @@ final class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, 
 
             return signatures.stream()
                     .map(signature -> {
-                        final var signatureCase = SignaturePair.SignatureCase.forNumber(signature.getType());
+                        final var signatureCase = SignatureCase.forNumber(signature.getType());
                         return switch (signatureCase) {
                             case SignatureCase.ED25519 ->
                                 Key.newBuilder()

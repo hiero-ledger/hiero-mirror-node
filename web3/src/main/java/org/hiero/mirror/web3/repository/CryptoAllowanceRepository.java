@@ -5,7 +5,7 @@ package org.hiero.mirror.web3.repository;
 import java.util.List;
 import org.hiero.mirror.common.domain.entity.AbstractCryptoAllowance;
 import org.hiero.mirror.common.domain.entity.CryptoAllowance;
-import org.springframework.data.jdbc.repository.query.Query;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface CryptoAllowanceRepository extends CrudRepository<CryptoAllowance, AbstractCryptoAllowance.Id> {
@@ -65,6 +65,6 @@ public interface CryptoAllowanceRepository extends CrudRepository<CryptoAllowanc
                         from crypto_allowances ca
                     ) result
                     where amount > 0
-                    """)
+                    """, nativeQuery = true)
     List<CryptoAllowance> findByOwnerAndTimestamp(long owner, long blockTimestamp);
 }

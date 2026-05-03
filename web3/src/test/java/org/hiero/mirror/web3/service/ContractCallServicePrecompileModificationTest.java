@@ -1663,7 +1663,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 new byte[0],
                 Address.ZERO.toHexString()); // the key needed for token minting or burning
         final var keys = new ArrayList<TokenKey>();
-        keys.add(new TokenKey(AbstractContractCallServiceTest.KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
+        keys.add(new TokenKey(KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
 
         return new HederaToken(
                 token.getName(),

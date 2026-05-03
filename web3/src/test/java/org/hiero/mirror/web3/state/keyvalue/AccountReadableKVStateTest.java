@@ -203,7 +203,7 @@ class AccountReadableKVStateTest {
                                 entity.getShard(),
                                 entity.getRealm(),
                                 new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
+                        Account::accountId)
                 .returns(
                         TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS),
                         Account::expirationSecond)
@@ -222,7 +222,7 @@ class AccountReadableKVStateTest {
                                 entity.getShard(),
                                 entity.getRealm(),
                                 new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
+                        Account::accountId)
                 .returns(EMPTY_KEY_LIST, Account::key));
     }
 
@@ -242,7 +242,7 @@ class AccountReadableKVStateTest {
                                 contractEntity.getShard(),
                                 contractEntity.getRealm(),
                                 new OneOf<>(AccountOneOfType.ACCOUNT_NUM, contractEntity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
+                        Account::accountId)
                 .returns(
                         Key.newBuilder()
                                 .contractID(ContractID.newBuilder()
@@ -273,7 +273,7 @@ class AccountReadableKVStateTest {
                                 entity.getShard(),
                                 entity.getRealm(),
                                 new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
+                        Account::accountId)
                 .returns(
                         TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS),
                         Account::expirationSecond)
@@ -296,7 +296,7 @@ class AccountReadableKVStateTest {
                                 entity.getShard(),
                                 entity.getRealm(),
                                 new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
+                        Account::accountId)
                 .returns(
                         TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS),
                         Account::expirationSecond)

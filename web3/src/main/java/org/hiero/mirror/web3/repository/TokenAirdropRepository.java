@@ -9,7 +9,7 @@ import java.util.Optional;
 import org.hiero.mirror.common.domain.token.AbstractTokenAirdrop;
 import org.hiero.mirror.common.domain.token.TokenAirdrop;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jdbc.repository.query.Query;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface TokenAirdropRepository extends CrudRepository<TokenAirdrop, AbstractTokenAirdrop.Id> {
@@ -23,7 +23,7 @@ public interface TokenAirdropRepository extends CrudRepository<TokenAirdrop, Abs
                         and token_id = :tokenId
                         and serial_number = :serialNumber
                         and state = 'PENDING'
-                    """)
+                    """, nativeQuery = true)
     Optional<TokenAirdrop> findById(long senderId, long receiverId, long tokenId, long serialNumber);
 
     /**
@@ -67,7 +67,7 @@ public interface TokenAirdropRepository extends CrudRepository<TokenAirdrop, Abs
                     order by timestamp_range desc
                     limit 1
                     )
-                    """)
+                    """, nativeQuery = true)
     Optional<TokenAirdrop> findByIdAndTimestamp(
             long senderId, long receiverId, long tokenId, long serialNumber, long blockTimestamp);
 }

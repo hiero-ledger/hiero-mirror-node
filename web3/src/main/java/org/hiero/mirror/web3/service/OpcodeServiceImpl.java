@@ -31,6 +31,7 @@ import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
@@ -82,8 +83,8 @@ public class OpcodeServiceImpl implements OpcodeService {
             case TransactionHashParameter transactionHash -> {
                 ContractTransactionHash contractTransactionHash = contractTransactionHashRepository
                         .findByHash(transactionHash.hash().toArray())
-                        .orElseThrow(
-                                () -> new RuntimeException("Contract transaction hash not found: " + transactionHash));
+                        .orElseThrow(() ->
+                                new EntityNotFoundException("Contract transaction hash not found: " + transactionHash));
 
                 transaction = null;
                 consensusTimestamp = contractTransactionHash.getConsensusTimestamp();
@@ -100,7 +101,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                         transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
                                 payerAccountId, validStartNs);
                 if (transactionList.isEmpty()) {
-                    throw new RuntimeException("Transaction not found: " + transactionId);
+                    throw new EntityNotFoundException("Transaction not found: " + transactionId);
                 }
 
                 final var parentTransaction = transactionList.getFirst();
@@ -152,7 +153,7 @@ public class OpcodeServiceImpl implements OpcodeService {
             Long consensusTimestamp, Transaction transaction, EthereumTransaction ethTransaction) {
         final var contractResult = contractResultRepository
                 .findById(consensusTimestamp)
-                .orElseThrow(() -> new RuntimeException("Contract result not found: " + consensusTimestamp));
+                .orElseThrow(() -> new EntityNotFoundException("Contract result not found: " + consensusTimestamp));
 
         final var blockType = recordFileService
                 .findByTimestamp(consensusTimestamp)

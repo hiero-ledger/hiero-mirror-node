@@ -15,13 +15,13 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
-import org.springframework.data.jdbc.repository.query.Query;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
 public interface RecordFileRepository extends PagingAndSortingRepository<RecordFile, Long> {
 
     @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_RECORD_FILE_EARLIEST, unless = "#result == null")
-    @Query(value = "select * from record_file order by index asc limit 1")
+    @Query(value = "select * from record_file order by index asc limit 1", nativeQuery = true)
     Optional<RecordFile> findEarliest();
 
     @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_RECORD_FILE_INDEX, unless = "#result == null")
@@ -35,7 +35,7 @@ public interface RecordFileRepository extends PagingAndSortingRepository<RecordF
             cacheNames = CACHE_NAME_RECORD_FILE_LATEST,
             cacheManager = CACHE_MANAGER_RECORD_FILE_LATEST,
             unless = "#result == null")
-    @Query(value = "select * from record_file order by consensus_end desc limit 1")
+    @Query(value = "select * from record_file order by consensus_end desc limit 1", nativeQuery = true)
     Optional<RecordFile> findLatest();
 
     @Caching(
@@ -48,6 +48,6 @@ public interface RecordFileRepository extends PagingAndSortingRepository<RecordF
     @Query("select r from RecordFile r where r.consensusEnd >= ?1 order by r.consensusEnd asc limit 1")
     Optional<RecordFile> findByTimestamp(long timestamp);
 
-    @Query(value = "select * from record_file where index >= ?1 and index <= ?2 order by index asc")
+    @Query(value = "select * from record_file where index >= ?1 and index <= ?2 order by index asc", nativeQuery = true)
     List<RecordFile> findByIndexRange(long startIndex, long endIndex);
 }

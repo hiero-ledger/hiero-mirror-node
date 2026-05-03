@@ -4,7 +4,7 @@ package org.hiero.mirror.web3.repository;
 
 import java.util.Optional;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
-import org.springframework.data.jdbc.repository.query.Query;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface AccountBalanceRepository extends CrudRepository<AccountBalance, AccountBalance.Id> {
@@ -26,7 +26,7 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
                      consensus_timestamp <= ?2
                  order by consensus_timestamp desc
                  limit 1
-                 """)
+                 """, nativeQuery = true)
     Optional<AccountBalance> findByIdAndTimestampLessThan(long accountId, long blockTimestamp);
 
     /**
@@ -82,7 +82,7 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
                         (ct.errata is null or ct.errata <> 'DELETE')
                     )
                     select coalesce((select balance from balance_snapshot), 0) + coalesce((select amount from change), 0)
-                    """)
+                    """, nativeQuery = true)
     Optional<Long> findHistoricalAccountBalanceUpToTimestamp(
             long accountId, long blockTimestamp, long treasuryAccountId);
 }

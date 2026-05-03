@@ -159,14 +159,8 @@ class TokenReadableKVStateTest {
         Token token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
         assertThat(token)
                 .returns(TOKEN_ID, Token::tokenId)
-                .returns(
-                        com.hedera.hapi.node.base.TokenType.valueOf(
-                                databaseToken.getType().name()),
-                        Token::tokenType)
-                .returns(
-                        com.hedera.hapi.node.base.TokenSupplyType.valueOf(
-                                databaseToken.getSupplyType().name()),
-                        Token::supplyType)
+                .returns(TokenType.valueOf(databaseToken.getType().name()), Token::tokenType)
+                .returns(TokenSupplyType.valueOf(databaseToken.getSupplyType().name()), Token::supplyType)
                 .returns(databaseToken.getMaxSupply(), Token::maxSupply)
                 .returns(databaseToken.getFreezeDefault(), Token::accountsFrozenByDefault)
                 .returns(false, Token::deleted)
@@ -391,7 +385,7 @@ class TokenReadableKVStateTest {
         when(commonEntityAccessor.get(TOKEN_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
 
         assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID)).satisfies(token -> assertThat(token)
-                .returns(Utils.parseKey(entity.getKey()), com.hedera.hapi.node.state.token.Token::adminKey)
+                .returns(Utils.parseKey(entity.getKey()), Token::adminKey)
                 .returns(Utils.parseKey(databaseToken.getKycKey()), Token::kycKey)
                 .returns(Utils.parseKey(databaseToken.getPauseKey()), Token::pauseKey)
                 .returns(Utils.parseKey(databaseToken.getFreezeKey()), Token::freezeKey)

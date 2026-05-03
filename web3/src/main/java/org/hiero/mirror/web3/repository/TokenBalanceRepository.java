@@ -4,7 +4,7 @@ package org.hiero.mirror.web3.repository;
 
 import java.util.Optional;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
-import org.springframework.data.jdbc.repository.query.Query;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface TokenBalanceRepository extends CrudRepository<TokenBalance, TokenBalance.Id> {
@@ -28,7 +28,7 @@ public interface TokenBalanceRepository extends CrudRepository<TokenBalance, Tok
                     consensus_timestamp <= ?3
                 order by consensus_timestamp desc
                 limit 1
-                """)
+                """, nativeQuery = true)
     Optional<TokenBalance> findByIdAndTimestampLessThan(long tokenId, long accountId, long blockTimestamp);
 
     /**
@@ -74,7 +74,7 @@ public interface TokenBalanceRepository extends CrudRepository<TokenBalance, Tok
                             tt.consensus_timestamp <= ?3
                     )
                     select coalesce((select balance from base), 0) + coalesce((select amount from change), 0)
-                    """)
+                    """, nativeQuery = true)
     Optional<Long> findHistoricalTokenBalanceUpToTimestamp(
             long tokenId, long accountId, long blockTimestamp, long treasuryAccountId);
 }

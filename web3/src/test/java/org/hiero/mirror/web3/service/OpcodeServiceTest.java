@@ -45,6 +45,7 @@ import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.utils.EvmEncodingFacade;
@@ -646,7 +647,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 DEFAULT_TRANSACTION_VALUE,
                 consensusTimestamp);
         // Then: processOpcodeCall should fail when building call service parameters
-        assertThatExceptionOfType(RuntimeException.class)
+        assertThatExceptionOfType(EntityNotFoundException.class)
                 .isThrownBy(() ->
                         opcodeService.processOpcodeCall(new OpcodeRequest(transactionIdOrHash, true, false, false)))
                 .withMessage("Contract result not found: " + consensusTimestamp);
@@ -670,7 +671,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 DEFAULT_TRANSACTION_VALUE,
                 domainBuilder.timestamp());
         // Then: processOpcodeCall should fail when building call service parameters
-        assertThatExceptionOfType(RuntimeException.class)
+        assertThatExceptionOfType(EntityNotFoundException.class)
                 .isThrownBy(() ->
                         opcodeService.processOpcodeCall(new OpcodeRequest(transactionIdOrHash, true, false, false)))
                 .withMessage("Transaction not found: " + transactionIdOrHash);
@@ -704,7 +705,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 domainBuilder.timestamp());
 
         // Then: processOpcodeCall should fail when building call service parameters
-        assertThatExceptionOfType(RuntimeException.class)
+        assertThatExceptionOfType(EntityNotFoundException.class)
                 .isThrownBy(() ->
                         opcodeService.processOpcodeCall(new OpcodeRequest(transactionIdOrHash, true, false, false)))
                 .withMessage("Contract transaction hash not found: " + transactionIdOrHash);
@@ -1072,7 +1073,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         return entity;
     }
 
-    private NestedCalls.HederaToken populateHederaToken(
+    private HederaToken populateHederaToken(
             final String contractAddress,
             final TokenTypeEnum tokenType,
             final EntityId treasuryAccountId,
@@ -1087,16 +1088,15 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 .customize(t -> t.tokenId(tokenEntity.getId()).type(tokenType).treasuryAccountId(treasuryAccountId))
                 .persist();
 
-        final var supplyKey = new NestedCalls.KeyValue(
+        final var supplyKey = new KeyValue(
                 Boolean.FALSE,
                 contractAddress,
                 new byte[0],
                 new byte[0],
                 Address.ZERO.toHexString()); // the key needed for token minting or burning
         final var keys = new ArrayList<TokenKey>();
-        keys.add(new NestedCalls.TokenKey(
-                AbstractContractCallServiceTest.KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
-        return new NestedCalls.HederaToken(
+        keys.add(new TokenKey(KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
+        return new HederaToken(
                 token.getName(),
                 token.getSymbol(),
                 getAddressFromEntityId(treasuryAccountId), // id of the account holding the initial token supply
@@ -1128,7 +1128,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         return populateHederaToken(contractAddress, tokenType, treasuryEntity.toEntityId(), freezeDefault, tokenKeys);
     }
 
-    private NestedCalls.HederaToken populateHederaToken(
+    private HederaToken populateHederaToken(
             final String contractAddress,
             final TokenTypeEnum tokenType,
             final EntityId treasuryAccountId,
@@ -1146,16 +1146,15 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 .customize(t -> t.tokenId(tokenEntity.getId()).type(tokenType).treasuryAccountId(treasuryAccountId))
                 .persist();
 
-        final var supplyKey = new NestedCalls.KeyValue(
+        final var supplyKey = new KeyValue(
                 Boolean.FALSE,
                 contractAddress,
                 new byte[0],
                 new byte[0],
                 Address.ZERO.toHexString()); // the key needed for token minting or burning
-        tokenKeys.add(new NestedCalls.TokenKey(
-                AbstractContractCallServiceTest.KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
+        tokenKeys.add(new TokenKey(KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
 
-        return new NestedCalls.HederaToken(
+        return new HederaToken(
                 token.getName(),
                 token.getSymbol(),
                 getAddressFromEntityId(treasuryAccountId), // id of the account holding the initial token supply
