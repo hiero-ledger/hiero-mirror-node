@@ -3,6 +3,7 @@
 package org.hiero.mirror.restjava.service;
 
 import jakarta.inject.Named;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -19,5 +20,10 @@ final class CustomFeeServiceImpl implements CustomFeeService {
         return customFeeRepository
                 .findById(id.getId())
                 .orElseThrow(() -> new RuntimeException("Custom fee for entity not found"));
+    }
+
+    @Override
+    public Optional<CustomFee> findByIdOptional(EntityId id) {
+        return customFeeRepository.findById(id.getId());
     }
 }

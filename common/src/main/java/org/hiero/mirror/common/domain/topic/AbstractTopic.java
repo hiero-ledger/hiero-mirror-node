@@ -10,7 +10,6 @@ import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
 
 @Data
 @NoArgsConstructor
@@ -34,8 +33,7 @@ public abstract class AbstractTopic implements History {
 
     private byte[] submitKey;
 
-    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
-    @Transient
+    // Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     @ToString.Include
     private Range<Long> timestampRange;
 }

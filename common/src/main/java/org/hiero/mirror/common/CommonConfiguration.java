@@ -15,6 +15,7 @@ import org.hiero.mirror.common.converter.LongToEntityIdConverter;
 import org.hiero.mirror.common.converter.PGobjectToRangeReadingConverter;
 import org.hiero.mirror.common.converter.PostgresAirdropStateJdbcConverters;
 import org.hiero.mirror.common.converter.PostgresEntityTypeJdbcConverters;
+import org.hiero.mirror.common.converter.PostgresHookJdbcConverters;
 import org.hiero.mirror.common.converter.RangeToPGobjectWritingConverter;
 import org.hiero.mirror.common.converter.ShortArrayJdbcConverters;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -131,6 +132,12 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new PostgresEntityTypeJdbcConverters.PostgresEntityTypeToPGobject(),
                 new PostgresEntityTypeJdbcConverters.PGobjectToPostgresEntityType(),
                 new PostgresEntityTypeJdbcConverters.StringToPostgresEntityType(),
+                new PostgresHookJdbcConverters.PostgresHookExtensionPointToPGobject(),
+                new PostgresHookJdbcConverters.PGobjectToPostgresHookExtensionPoint(),
+                new PostgresHookJdbcConverters.StringToPostgresHookExtensionPoint(),
+                new PostgresHookJdbcConverters.PostgresHookTypeToPGobject(),
+                new PostgresHookJdbcConverters.PGobjectToPostgresHookType(),
+                new PostgresHookJdbcConverters.StringToPostgresHookType(),
                 new RangeToPGobjectWritingConverter(), // Replaces @TypeRegistration
                 new PGobjectToRangeReadingConverter(), // Replaces @TypeRegistration
                 new JsonbWritingConverters.FixedFeesHolderToJsonb(),

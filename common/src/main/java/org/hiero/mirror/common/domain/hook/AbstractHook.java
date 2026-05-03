@@ -16,6 +16,7 @@ import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
@@ -46,8 +47,13 @@ public abstract class AbstractHook implements History {
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
     private Boolean deleted;
 
+    /**
+     * Stored as Postgres {@code hook_extension_point}. See {@link PostgresHookExtensionPoint} — do not map
+     * {@code PGobject} directly on the aggregate.
+     */
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
-    private HookExtensionPoint extensionPoint;
+    @Column("extension_point")
+    private PostgresHookExtensionPoint extensionPointPg;
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
@@ -57,8 +63,29 @@ public abstract class AbstractHook implements History {
     @Transient
     private Range<Long> timestampRange;
 
+    /**
+     * Stored as Postgres {@code hook_type}. See {@link PostgresHookType} — do not map {@code PGobject} directly on the
+     * aggregate.
+     */
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
-    private HookType type;
+    @Column("type")
+    private PostgresHookType hookTypePg;
+
+    public HookExtensionPoint getExtensionPoint() {
+        return extensionPointPg == null ? null : extensionPointPg.getHookExtensionPoint();
+    }
+
+    public void setExtensionPoint(HookExtensionPoint extensionPoint) {
+        extensionPointPg = PostgresHookExtensionPoint.of(extensionPoint);
+    }
+
+    public HookType getType() {
+        return hookTypePg == null ? null : hookTypePg.getHookType();
+    }
+
+    public void setType(HookType type) {
+        hookTypePg = PostgresHookType.of(type);
+    }
 
     public long getHookId() {
         return id != null ? id.getHookId() : 0L;
@@ -122,6 +149,18 @@ public abstract class AbstractHook implements History {
 
         public B ownerId(EntityId ownerId) {
             return ownerId(ownerId.getId());
+        }
+
+        /** Same as {@link #setExtensionPoint(HookExtensionPoint)} for SuperBuilder / DomainBuilder. */
+        public B extensionPoint(HookExtensionPoint extensionPoint) {
+            this.extensionPointPg = PostgresHookExtensionPoint.of(extensionPoint);
+            return self();
+        }
+
+        /** Same as {@link #setType(HookType)} for SuperBuilder / DomainBuilder. */
+        public B type(HookType hookType) {
+            this.hookTypePg = PostgresHookType.of(hookType);
+            return self();
         }
     }
 }
