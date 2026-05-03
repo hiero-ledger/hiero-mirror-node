@@ -1504,7 +1504,7 @@ public class DomainBuilder {
                         "Unable to persist entity without JdbcAggregateTemplate and TransactionOperations");
             }
 
-            transactionOperations.executeWithoutResult(t -> jdbcAggregateTemplate.save(entity));
+            transactionOperations.executeWithoutResult(t -> jdbcAggregateTemplate.insert(entity));
             log.trace("Inserted {}", entity);
             return entity;
         }

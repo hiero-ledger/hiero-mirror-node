@@ -4,7 +4,6 @@ package org.hiero.mirror.common.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import org.springframework.data.annotation.Transient;
 
 public interface History {
 
@@ -13,7 +12,6 @@ public interface History {
         return getTimestampRange() != null;
     }
 
-    @Transient
     Range<Long> getTimestampRange();
 
     void setTimestampRange(Range<Long> timestampRange);

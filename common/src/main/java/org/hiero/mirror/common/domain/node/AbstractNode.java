@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common.domain.node;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.Range;
 import java.util.List;
@@ -16,7 +17,7 @@ import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
 
 @Data
 @NoArgsConstructor
@@ -36,8 +37,9 @@ public abstract class AbstractNode implements History {
 
     private boolean deleted;
 
-    @JsonSerialize(using = ListToStringSerializer.class)
-    private List<Long> associatedRegisteredNodes;
+    @JsonIgnore
+    @Column("associated_registered_nodes")
+    private AssociatedRegisteredNodeIds associatedRegisteredNodesColumn;
 
     // JDBC: Requires custom Reading/Writing converters for JSON/JSONB
     @JsonSerialize(using = ObjectToStringSerializer.class)
@@ -47,7 +49,23 @@ public abstract class AbstractNode implements History {
     @Id
     private Long nodeId;
 
-    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
-    @Transient
+    // Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     private Range<Long> timestampRange;
+
+    @JsonSerialize(using = ListToStringSerializer.class)
+    public List<Long> getAssociatedRegisteredNodes() {
+        return associatedRegisteredNodesColumn == null ? null : associatedRegisteredNodesColumn.ids();
+    }
+
+    public void setAssociatedRegisteredNodes(List<Long> value) {
+        this.associatedRegisteredNodesColumn = AssociatedRegisteredNodeIds.of(value);
+    }
+
+    public abstract static class AbstractNodeBuilder<C extends AbstractNode, B extends AbstractNodeBuilder<C, B>> {
+
+        public B associatedRegisteredNodes(List<Long> ids) {
+            this.associatedRegisteredNodesColumn = AssociatedRegisteredNodeIds.of(ids);
+            return self();
+        }
+    }
 }

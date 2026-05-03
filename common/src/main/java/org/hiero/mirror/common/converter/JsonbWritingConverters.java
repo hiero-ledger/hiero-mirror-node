@@ -9,10 +9,14 @@ import java.sql.SQLException;
 import java.util.List;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
+import org.hiero.mirror.common.domain.node.ServiceEndpointsHolder;
 import org.hiero.mirror.common.domain.token.FixedFee;
+import org.hiero.mirror.common.domain.token.FixedFeesHolder;
 import org.hiero.mirror.common.domain.token.FractionalFee;
+import org.hiero.mirror.common.domain.token.FractionalFeesHolder;
 import org.hiero.mirror.common.domain.token.NftTransfer;
 import org.hiero.mirror.common.domain.token.RoyaltyFee;
+import org.hiero.mirror.common.domain.token.RoyaltyFeesHolder;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
 import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
@@ -76,6 +80,20 @@ public final class JsonbWritingConverters {
     }
 
     @WritingConverter
+    public static final class ServiceEndpointsHolderToJsonb implements Converter<ServiceEndpointsHolder, PGobject> {
+
+        private static final RegisteredServiceEndpointList LIST = new RegisteredServiceEndpointList();
+
+        @Override
+        public PGobject convert(ServiceEndpointsHolder source) {
+            if (source == null) {
+                return null;
+            }
+            return LIST.convert(source.items());
+        }
+    }
+
+    @WritingConverter
     public static final class ItemizedTransferList implements Converter<List<ItemizedTransfer>, PGobject> {
         @Override
         public PGobject convert(List<ItemizedTransfer> source) {
@@ -112,6 +130,48 @@ public final class JsonbWritingConverters {
         @Override
         public PGobject convert(ServiceEndpoint source) {
             return toJsonb(source);
+        }
+    }
+
+    @WritingConverter
+    public static final class FixedFeesHolderToJsonb implements Converter<FixedFeesHolder, PGobject> {
+
+        private static final FixedFeeList DELEGATE = new FixedFeeList();
+
+        @Override
+        public PGobject convert(FixedFeesHolder source) {
+            if (source == null) {
+                return null;
+            }
+            return DELEGATE.convert(source.items());
+        }
+    }
+
+    @WritingConverter
+    public static final class FractionalFeesHolderToJsonb implements Converter<FractionalFeesHolder, PGobject> {
+
+        private static final FractionalFeeList DELEGATE = new FractionalFeeList();
+
+        @Override
+        public PGobject convert(FractionalFeesHolder source) {
+            if (source == null) {
+                return null;
+            }
+            return DELEGATE.convert(source.items());
+        }
+    }
+
+    @WritingConverter
+    public static final class RoyaltyFeesHolderToJsonb implements Converter<RoyaltyFeesHolder, PGobject> {
+
+        private static final RoyaltyFeeList DELEGATE = new RoyaltyFeeList();
+
+        @Override
+        public PGobject convert(RoyaltyFeesHolder source) {
+            if (source == null) {
+                return null;
+            }
+            return DELEGATE.convert(source.items());
         }
     }
 }

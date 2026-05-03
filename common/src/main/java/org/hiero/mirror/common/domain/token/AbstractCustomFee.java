@@ -16,7 +16,7 @@ import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.util.CollectionUtils;
 
 @Data
@@ -28,47 +28,101 @@ public abstract class AbstractCustomFee implements History {
     @Id
     private Long entityId;
 
-    // JDBC: Requires custom JSON/JSONB Writing/Reading converters
-    @JsonSerialize(using = ObjectToStringSerializer.class)
+    @JsonIgnore
+    @Column("fixed_fees")
     @UpsertColumn(shouldCoalesce = false)
-    private List<FixedFee> fixedFees;
+    private FixedFeesHolder fixedFeesColumn;
 
-    @JsonSerialize(using = ObjectToStringSerializer.class)
+    @JsonIgnore
+    @Column("fractional_fees")
     @UpsertColumn(shouldCoalesce = false)
-    private List<FractionalFee> fractionalFees;
+    private FractionalFeesHolder fractionalFeesColumn;
 
-    @JsonSerialize(using = ObjectToStringSerializer.class)
+    @JsonIgnore
+    @Column("royalty_fees")
     @UpsertColumn(shouldCoalesce = false)
-    private List<RoyaltyFee> royaltyFees;
+    private RoyaltyFeesHolder royaltyFeesColumn;
 
-    @Transient
+    // Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     private Range<Long> timestampRange;
 
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<FixedFee> getFixedFees() {
+        return fixedFeesColumn == null ? null : fixedFeesColumn.items();
+    }
+
+    public void setFixedFees(List<FixedFee> value) {
+        this.fixedFeesColumn = FixedFeesHolder.of(value);
+    }
+
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<FractionalFee> getFractionalFees() {
+        return fractionalFeesColumn == null ? null : fractionalFeesColumn.items();
+    }
+
+    public void setFractionalFees(List<FractionalFee> value) {
+        this.fractionalFeesColumn = FractionalFeesHolder.of(value);
+    }
+
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<RoyaltyFee> getRoyaltyFees() {
+        return royaltyFeesColumn == null ? null : royaltyFeesColumn.items();
+    }
+
+    public void setRoyaltyFees(List<RoyaltyFee> value) {
+        this.royaltyFeesColumn = RoyaltyFeesHolder.of(value);
+    }
+
     public void addFixedFee(@NonNull FixedFee fixedFee) {
-        if (this.fixedFees == null) {
-            this.fixedFees = new ArrayList<>();
+        var list = new ArrayList<FixedFee>();
+        if (getFixedFees() != null) {
+            list.addAll(getFixedFees());
         }
-        this.fixedFees.add(fixedFee);
+        list.add(fixedFee);
+        setFixedFees(list);
     }
 
     public void addFractionalFee(@NonNull FractionalFee fractionalFee) {
-        if (this.fractionalFees == null) {
-            this.fractionalFees = new ArrayList<>();
+        var list = new ArrayList<FractionalFee>();
+        if (getFractionalFees() != null) {
+            list.addAll(getFractionalFees());
         }
-        this.fractionalFees.add(fractionalFee);
+        list.add(fractionalFee);
+        setFractionalFees(list);
     }
 
     public void addRoyaltyFee(@NonNull RoyaltyFee royaltyFee) {
-        if (this.royaltyFees == null) {
-            this.royaltyFees = new ArrayList<>();
+        var list = new ArrayList<RoyaltyFee>();
+        if (getRoyaltyFees() != null) {
+            list.addAll(getRoyaltyFees());
         }
-        this.royaltyFees.add(royaltyFee);
+        list.add(royaltyFee);
+        setRoyaltyFees(list);
     }
 
     @JsonIgnore
     public boolean isEmptyFee() {
-        return CollectionUtils.isEmpty(this.fixedFees)
-                && CollectionUtils.isEmpty(this.fractionalFees)
-                && CollectionUtils.isEmpty(this.royaltyFees);
+        return CollectionUtils.isEmpty(getFixedFees())
+                && CollectionUtils.isEmpty(getFractionalFees())
+                && CollectionUtils.isEmpty(getRoyaltyFees());
+    }
+
+    public abstract static class AbstractCustomFeeBuilder<
+            C extends AbstractCustomFee, B extends AbstractCustomFeeBuilder<C, B>> {
+
+        public B fixedFees(List<FixedFee> fees) {
+            this.fixedFeesColumn = FixedFeesHolder.of(fees);
+            return self();
+        }
+
+        public B fractionalFees(List<FractionalFee> fees) {
+            this.fractionalFeesColumn = FractionalFeesHolder.of(fees);
+            return self();
+        }
+
+        public B royaltyFees(List<RoyaltyFee> fees) {
+            this.royaltyFeesColumn = RoyaltyFeesHolder.of(fees);
+            return self();
+        }
     }
 }

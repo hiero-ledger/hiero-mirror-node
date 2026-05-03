@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common.domain.node;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.Range;
 import java.util.List;
@@ -14,7 +15,7 @@ import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
 
 @Data
 @NoArgsConstructor
@@ -34,15 +35,46 @@ public abstract class AbstractRegisteredNode implements History {
     @Id
     private Long registeredNodeId;
 
-    // JDBC: Requires custom Reading/Writing converters for JSON/JSONB
-    @JsonSerialize(using = ObjectToStringSerializer.class)
-    private List<RegisteredServiceEndpoint> serviceEndpoints;
+    @JsonIgnore
+    @Column("service_endpoints")
+    private ServiceEndpointsHolder serviceEndpointsColumn;
 
-    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
-    @Transient
+    // Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     private Range<Long> timestampRange;
 
-    // JDBC: Requires custom Reading/Writing converters if stored as CSV or Array
+    @JsonIgnore
+    @Column("type")
+    private RegisteredNodeTypesHolder typeColumn;
+
     @JsonSerialize(using = ListToStringSerializer.class)
-    private List<Short> type;
+    public List<Short> getType() {
+        return typeColumn == null ? null : typeColumn.types();
+    }
+
+    public void setType(List<Short> value) {
+        this.typeColumn = RegisteredNodeTypesHolder.of(value);
+    }
+
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<RegisteredServiceEndpoint> getServiceEndpoints() {
+        return serviceEndpointsColumn == null ? null : serviceEndpointsColumn.items();
+    }
+
+    public void setServiceEndpoints(List<RegisteredServiceEndpoint> value) {
+        this.serviceEndpointsColumn = ServiceEndpointsHolder.of(value);
+    }
+
+    public abstract static class AbstractRegisteredNodeBuilder<
+            C extends AbstractRegisteredNode, B extends AbstractRegisteredNodeBuilder<C, B>> {
+
+        public B serviceEndpoints(List<RegisteredServiceEndpoint> endpoints) {
+            this.serviceEndpointsColumn = ServiceEndpointsHolder.of(endpoints);
+            return self();
+        }
+
+        public B type(List<Short> types) {
+            this.typeColumn = RegisteredNodeTypesHolder.of(types);
+            return self();
+        }
+    }
 }

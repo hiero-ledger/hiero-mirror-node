@@ -71,19 +71,19 @@ final class NetworkControllerTest extends ControllerTest {
     //            assertThat(actual).isNotNull().isEqualTo(expected);
     //        }
     //
-    ////        @Test
-    ////        void fallbackRecovers() {
-    ////            // given
-    ////            final var expected = exchangeRateMapper.map(systemFile());
-    ////            exchangeRateFile(domainBuilder.bytes(100)); // The latest file is corrupt and is skipped
-    ////
-    ////            // when
-    ////            final var actual =
+    //        @Test
+    //        void fallbackRecovers() {
+    //            // given
+    //            final var expected = exchangeRateMapper.map(systemFile());
+    //            exchangeRateFile(domainBuilder.bytes(100)); // The latest file is corrupt and is skipped
+    //
+    //            // when
+    //            final var actual =
     // restClient.get().uri("").retrieve().body(NetworkExchangeRateSetResponse.class);
-    ////
-    ////            // then
-    ////            assertThat(actual).isNotNull().isEqualTo(expected);
-    ////        }
+    //
+    //            // then
+    //            assertThat(actual).isNotNull().isEqualTo(expected);
+    //        }
     //
     //        @ParameterizedTest
     //        @CsvSource({

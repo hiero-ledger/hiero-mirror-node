@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror;
+package org.hiero.mirror.restjava;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
-import org.hiero.mirror.restjava.RestJavaProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;

@@ -12,8 +12,8 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
-import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
@@ -24,16 +24,24 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
 
     private Long amount;
 
-    // Handled by global Reading/Writing converters for Postgres Named Enum
-    private TokenAirdropStateEnum state;
+    /** Stored as Postgres {@code airdrop_state}; see {@link PostgresAirdropState}. */
+    @Column("state")
+    private PostgresAirdropState airdropState;
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
-    // JDBC: Marked as @Transient to avoid AOT/Reflection errors into Guava internals.
-    @Transient
+    // JDBC: Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     private Range<Long> timestampRange;
+
+    public TokenAirdropStateEnum getState() {
+        return airdropState == null ? null : airdropState.getState();
+    }
+
+    public void setState(TokenAirdropStateEnum state) {
+        airdropState = PostgresAirdropState.of(state);
+    }
 
     // --- Convenience Accessors ---
 
@@ -108,6 +116,11 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
         public B tokenId(long tokenId) {
             initId();
             this.id.setTokenId(tokenId);
+            return self();
+        }
+
+        public B state(TokenAirdropStateEnum state) {
+            this.airdropState = PostgresAirdropState.of(state);
             return self();
         }
 

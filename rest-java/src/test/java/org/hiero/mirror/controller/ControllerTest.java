@@ -12,6 +12,7 @@ import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.rest.model.ErrorStatusMessagesInner;
+import org.hiero.mirror.restjava.RestJavaApplication;
 import org.hiero.mirror.restjava.RestJavaProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,7 @@ import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 
 @RequiredArgsConstructor
 @EnableConfigurationProperties(value = RestJavaProperties.class)
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = RestJavaApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 abstract class ControllerTest extends RestJavaIntegrationTest {
 
     protected static final String ALIAS = "HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA";

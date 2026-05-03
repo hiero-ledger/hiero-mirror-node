@@ -10,9 +10,13 @@ import org.hiero.mirror.common.config.CommonRuntimeHints;
 import org.hiero.mirror.common.converter.EntityIdToLongConverter;
 import org.hiero.mirror.common.converter.JsonbReadingConverters;
 import org.hiero.mirror.common.converter.JsonbWritingConverters;
+import org.hiero.mirror.common.converter.LongArrayJdbcConverters;
 import org.hiero.mirror.common.converter.LongToEntityIdConverter;
 import org.hiero.mirror.common.converter.PGobjectToRangeReadingConverter;
+import org.hiero.mirror.common.converter.PostgresAirdropStateJdbcConverters;
+import org.hiero.mirror.common.converter.PostgresEntityTypeJdbcConverters;
 import org.hiero.mirror.common.converter.RangeToPGobjectWritingConverter;
+import org.hiero.mirror.common.converter.ShortArrayJdbcConverters;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.util.DatabaseWaiter;
 import org.hiero.mirror.common.util.SpelHelper;
@@ -116,13 +120,32 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
         return new JdbcCustomConversions(List.of(
                 new EntityIdToLongConverter(),
                 new LongToEntityIdConverter(),
+                new LongArrayJdbcConverters.AssociatedRegisteredNodeIdsToLongArray(),
+                new LongArrayJdbcConverters.SqlArrayToAssociatedRegisteredNodeIds(),
+                new LongArrayJdbcConverters.SqlArrayToLongList(),
+                new LongArrayJdbcConverters.SqlArrayToLongArray(),
+                new ShortArrayJdbcConverters.RegisteredNodeTypesHolderToShortArray(),
+                new ShortArrayJdbcConverters.SqlArrayToRegisteredNodeTypesHolder(),
+                new PostgresAirdropStateJdbcConverters.PostgresAirdropStateToPGobject(),
+                new PostgresAirdropStateJdbcConverters.PGobjectToPostgresAirdropState(),
+                new PostgresEntityTypeJdbcConverters.PostgresEntityTypeToPGobject(),
+                new PostgresEntityTypeJdbcConverters.PGobjectToPostgresEntityType(),
+                new PostgresEntityTypeJdbcConverters.StringToPostgresEntityType(),
                 new RangeToPGobjectWritingConverter(), // Replaces @TypeRegistration
                 new PGobjectToRangeReadingConverter(), // Replaces @TypeRegistration
-                new JsonbWritingConverters.FixedFeeList(),
-                new JsonbWritingConverters.FractionalFeeList(),
-                new JsonbWritingConverters.RoyaltyFeeList(),
+                new JsonbWritingConverters.FixedFeesHolderToJsonb(),
+                new JsonbWritingConverters.FractionalFeesHolderToJsonb(),
+                new JsonbWritingConverters.RoyaltyFeesHolderToJsonb(),
+                new JsonbReadingConverters.PgobjectToFixedFeesHolder(),
+                new JsonbReadingConverters.StringToFixedFeesHolder(),
+                new JsonbReadingConverters.PgobjectToFractionalFeesHolder(),
+                new JsonbReadingConverters.StringToFractionalFeesHolder(),
+                new JsonbReadingConverters.PgobjectToRoyaltyFeesHolder(),
+                new JsonbReadingConverters.StringToRoyaltyFeesHolder(),
                 new JsonbWritingConverters.RegisteredServiceEndpointList(),
+                new JsonbWritingConverters.ServiceEndpointsHolderToJsonb(),
                 new JsonbReadingConverters.PgobjectToRegisteredServiceEndpointList(),
+                new JsonbReadingConverters.PgobjectToServiceEndpointsHolder(),
                 new JsonbReadingConverters.StringToRegisteredServiceEndpointList(),
                 new JsonbReadingConverters.SqlArrayToShortList(),
                 new JsonbWritingConverters.ItemizedTransferList(),

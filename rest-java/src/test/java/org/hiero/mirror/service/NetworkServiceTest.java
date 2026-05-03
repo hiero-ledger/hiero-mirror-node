@@ -1,0 +1,424 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package org.hiero.mirror.service;
+
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyShort;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.assertj.core.api.Assertions;
+import org.hiero.mirror.RestJavaIntegrationTest;
+import org.hiero.mirror.common.domain.node.RegisteredNode;
+import org.hiero.mirror.common.domain.node.RegisteredNodeType;
+import org.hiero.mirror.restjava.common.RangeOperator;
+import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
+import org.hiero.mirror.restjava.dto.RegisteredNodesRequest;
+import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
+import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
+import org.hiero.mirror.restjava.repository.RegisteredNodeRepository;
+import org.hiero.mirror.restjava.service.Bound;
+import org.hiero.mirror.restjava.service.NetworkService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.data.domain.Sort;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+@RequiredArgsConstructor
+final class NetworkServiceTest extends RestJavaIntegrationTest {
+
+    private final NetworkService networkService;
+
+    @MockitoBean
+    private RegisteredNodeRepository repository;
+
+    @BeforeEach
+    void resetRegisteredNodeRepositoryMock() {
+        Mockito.reset(repository);
+    }
+
+    @Test
+    void returnsLatestStake() {
+        // given
+        final var expected = domainBuilder.networkStake().persist();
+
+        // when
+        final var actual = networkService.getLatestNetworkStake();
+
+        // then
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void throwsIfNoStakePresent() {
+        assertThatThrownBy(networkService::getLatestNetworkStake)
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("No network stake data found");
+    }
+
+    @Test
+    void getSupplyFromEntity() {
+        // given
+        final var balance = 1_000_000_000L;
+        final var timestamp = domainBuilder.timestamp();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(domainBuilder.entityNum(2).getId())
+                        .balance(balance)
+                        .balanceTimestamp(timestamp))
+                .persist();
+
+        // when
+        final var result = networkService.getSupply(Bound.EMPTY);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.consensusTimestamp()).isEqualTo(timestamp);
+        assertThat(result.releasedSupply()).isNotNull();
+    }
+
+    @Test
+    void getSupplyWhenNoMatchingEntities() {
+        final var result = networkService.getSupply(Bound.EMPTY);
+        assertThat(result.unreleasedSupply()).isZero();
+        assertThat(result.consensusTimestamp()).isZero();
+    }
+
+    @Test
+    void getNetworkNodesWithNoFilters() {
+        // given
+        var fileId = setupNetworkNodeData();
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeIds(List.of())
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        // when
+        var result = networkService.getNetworkNodes(request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.size()).isEqualTo(3);
+        assertThat(result.get(0).nodeId()).isEqualTo(1L);
+        assertThat(result.get(1).nodeId()).isEqualTo(2L);
+        assertThat(result.get(2).nodeId()).isEqualTo(3L);
+    }
+
+    @Test
+    void getNetworkNodesWithNodeIdEquality() {
+        // given
+        var fileId = setupNetworkNodeData();
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeIds(List.of(new NumberRangeParameter(RangeOperator.EQ, 1L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        // when
+        var result = networkService.getNetworkNodes(request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.size()).isEqualTo(1);
+        assertThat(result.get(0).nodeId()).isEqualTo(1L);
+    }
+
+    @Test
+    void getNetworkNodesWithNodeIdRange() {
+        // given
+        var fileId = setupNetworkNodeData();
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeIds(List.of(
+                        new NumberRangeParameter(RangeOperator.GTE, 1L),
+                        new NumberRangeParameter(RangeOperator.LTE, 2L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        // when
+        var result = networkService.getNetworkNodes(request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.size()).isEqualTo(2);
+        assertThat(result.get(0).nodeId()).isEqualTo(1L);
+        assertThat(result.get(1).nodeId()).isEqualTo(2L);
+    }
+
+    @Test
+    void getNetworkNodesWithCombinedFilters() {
+        // given
+        var fileId = setupNetworkNodeData();
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeIds(List.of(
+                        new NumberRangeParameter(RangeOperator.EQ, 2L),
+                        new NumberRangeParameter(RangeOperator.EQ, 3L),
+                        new NumberRangeParameter(RangeOperator.GTE, 2L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        // when
+        var result = networkService.getNetworkNodes(request);
+
+        // then - should return nodes matching equality AND range
+        assertThat(result).isNotNull();
+        assertThat(result.size()).isEqualTo(2);
+        assertThat(result.get(0).nodeId()).isEqualTo(2L);
+        assertThat(result.get(1).nodeId()).isEqualTo(3L);
+    }
+
+    @Test
+    void getNetworkNodesWithOrderDesc() {
+        // given
+        var fileId = setupNetworkNodeData();
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeIds(List.of())
+                .limit(25)
+                .order(Sort.Direction.DESC)
+                .build();
+
+        // when
+        var result = networkService.getNetworkNodes(request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.size()).isEqualTo(3);
+        assertThat(result.get(0).nodeId()).isEqualTo(3L);
+        assertThat(result.get(1).nodeId()).isEqualTo(2L);
+        assertThat(result.get(2).nodeId()).isEqualTo(1L);
+    }
+
+    @Test
+    void getNetworkNodesWithLimit() {
+        // given
+        var fileId = setupNetworkNodeData();
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeIds(List.of())
+                .limit(2)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        // when
+        var result = networkService.getNetworkNodes(request);
+
+        // then
+        // Service queries for limit + 1 to support pagination
+        // Controller truncates to limit if needed
+        assertThat(result).isNotNull();
+        assertThat(result.size()).isEqualTo(2); // Returns limit
+        assertThat(result.get(0).nodeId()).isEqualTo(1L);
+        assertThat(result.get(1).nodeId()).isEqualTo(2L);
+    }
+
+    @Test
+    void getNetworkNodesEmptyResults() {
+        // given
+        var fileId = setupNetworkNodeData();
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeIds(List.of(new NumberRangeParameter(RangeOperator.EQ, 99999L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        // when
+        var result = networkService.getNetworkNodes(request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.size()).isEqualTo(0);
+    }
+
+    private org.hiero.mirror.common.domain.entity.EntityId setupNetworkNodeData() {
+        var timestamp = domainBuilder.timestamp();
+        var addressBook = domainBuilder
+                .addressBook()
+                .customize(ab -> ab.startConsensusTimestamp(timestamp))
+                .persist();
+
+        // Nested endpoints omitted: JDBC persistence expects prefixed FK columns this table does not have.
+        domainBuilder
+                .addressBookEntry(0)
+                .customize(e -> e.consensusTimestamp(timestamp).nodeId(1L))
+                .persist();
+        domainBuilder
+                .addressBookEntry(0)
+                .customize(e -> e.consensusTimestamp(timestamp).nodeId(2L))
+                .persist();
+        domainBuilder
+                .addressBookEntry(0)
+                .customize(e -> e.consensusTimestamp(timestamp).nodeId(3L))
+                .persist();
+
+        // Add corresponding node stake data
+        domainBuilder.nodeStake().customize(ns -> ns.nodeId(1L)).persist();
+        domainBuilder.nodeStake().customize(ns -> ns.nodeId(2L)).persist();
+        domainBuilder.nodeStake().customize(ns -> ns.nodeId(3L)).persist();
+
+        // Add corresponding node data
+        domainBuilder.node().customize(n -> n.nodeId(1L)).persist();
+        domainBuilder.node().customize(n -> n.nodeId(2L)).persist();
+        domainBuilder.node().customize(n -> n.nodeId(3L)).persist();
+
+        return addressBook.getFileId();
+    }
+
+    @Test
+    void getNetworkNodesWithMultipleLowerBounds() {
+        // given - gte:1 AND gte:2 should use the most restrictive lower bound (2), returning only node 2 and 3
+        var fileId = setupNetworkNodeData();
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeIds(List.of(
+                        new NumberRangeParameter(RangeOperator.GTE, 1L),
+                        new NumberRangeParameter(RangeOperator.GTE, 2L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        // when
+        var result = networkService.getNetworkNodes(request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.size()).isEqualTo(2);
+        assertThat(result.get(0).nodeId()).isEqualTo(2L);
+        assertThat(result.get(1).nodeId()).isEqualTo(3L);
+    }
+
+    @Test
+    void getNetworkNodesWithMultipleUpperBounds() {
+        // given - lte:3 AND lte:2 should use the most restrictive upper bound (2), returning only nodes 1 and 2
+        var fileId = setupNetworkNodeData();
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeIds(List.of(
+                        new NumberRangeParameter(RangeOperator.LTE, 3L),
+                        new NumberRangeParameter(RangeOperator.LTE, 2L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        // when
+        var result = networkService.getNetworkNodes(request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.size()).isEqualTo(2);
+        assertThat(result.get(0).nodeId()).isEqualTo(1L);
+        assertThat(result.get(1).nodeId()).isEqualTo(2L);
+    }
+
+    @Test
+    void getNetworkNodesInvalidEmptyRange() {
+        // given - setup data
+        var fileId = setupNetworkNodeData();
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeIds(List.of(
+                        new NumberRangeParameter(RangeOperator.GT, 4L), new NumberRangeParameter(RangeOperator.LT, 5L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        // when/then
+        assertThatThrownBy(() -> networkService.getNetworkNodes(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid range provided for node.id");
+    }
+
+    @Test
+    void getNetworkNodesNoOverlapBetweenEqualityAndRange() {
+        // given - setup data with nodes 1, 2, 3
+        var fileId = setupNetworkNodeData();
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeIds(List.of(
+                        new NumberRangeParameter(RangeOperator.EQ, 1L), // Node 1 exists
+                        new NumberRangeParameter(RangeOperator.EQ, 2L), // Node 2 exists
+                        new NumberRangeParameter(RangeOperator.GT, 10L))) // Range gt:10 excludes nodes 1, 2
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        // when
+        var result = networkService.getNetworkNodes(request);
+
+        // then - should return empty list because no equality IDs fall within the range
+        assertThat(result).isNotNull();
+        assertThat(result.size()).isEqualTo(0);
+    }
+
+    @Test
+    void getRegisteredNodesWithoutTypeCallsFindBetween() {
+        // given
+        final var node = new RegisteredNode();
+        final var request = RegisteredNodesRequest.builder()
+                .registeredNodeIds(List.of(
+                        new NumberRangeParameter(RangeOperator.GTE, 1L),
+                        new NumberRangeParameter(RangeOperator.LTE, 10L)))
+                .limit(25)
+                .order(Sort.Direction.DESC)
+                .type(null)
+                .build();
+
+        when(repository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
+                        eq(1L), eq(10L), isNull(), eq(-1), eq(25)))
+                .thenReturn(List.of(node));
+
+        // when
+        final var result = networkService.getRegisteredNodes(request);
+
+        // then
+        Assertions.assertThat(result).containsExactly(node);
+        verify(repository)
+                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(eq(1L), eq(10L), isNull(), eq(-1), eq(25));
+        verify(repository, never())
+                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
+                        anyLong(), anyLong(), anyShort(), anyInt(), anyInt());
+    }
+
+    @Test
+    void getRegisteredNodesWithTypeCallsFindBetweenAndTypeIn() {
+        // given
+        final var node = new RegisteredNode();
+        final var request = RegisteredNodesRequest.builder()
+                .limit(10)
+                .order(Sort.Direction.ASC)
+                .type(RegisteredNodeType.MIRROR_NODE)
+                .build();
+
+        when(repository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
+                        eq(0L), eq(Long.MAX_VALUE), eq(RegisteredNodeType.MIRROR_NODE.getId()), eq(1), eq(10)))
+                .thenReturn(List.of(node));
+
+        // when
+        final var result = networkService.getRegisteredNodes(request);
+
+        // then
+        Assertions.assertThat(result).containsExactly(node);
+        verify(repository)
+                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
+                        eq(0L), eq(Long.MAX_VALUE), eq(RegisteredNodeType.MIRROR_NODE.getId()), eq(1), eq(10));
+        verify(repository, never())
+                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
+                        anyLong(), anyLong(), isNull(), anyInt(), anyInt());
+    }
+}

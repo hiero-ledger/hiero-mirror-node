@@ -18,7 +18,7 @@ import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
 
 @Data
 @NoArgsConstructor
@@ -108,13 +108,22 @@ public abstract class AbstractEntity implements History {
 
     private Long stakePeriodStart;
 
-    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
-    @Transient
+    // JDBC: Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     private Range<Long> timestampRange;
 
-    // No @Enumerated or @JdbcTypeCode needed.
-    // Handled by global EntityType converter for PG named enum.
-    private EntityType type;
+    /**
+     * Stored as Postgres {@code entity_type}. See {@link PostgresEntityType} — do not map {@code PGobject} directly on the aggregate.
+     */
+    @Column("type")
+    private PostgresEntityType entityTypePg;
+
+    public EntityType getType() {
+        return entityTypePg == null ? null : entityTypePg.getEntityType();
+    }
+
+    public void setType(EntityType entityType) {
+        entityTypePg = PostgresEntityType.of(entityType);
+    }
 
     private static String getPublicKey(@Nullable byte[] protobufKey) {
         if (protobufKey == null) {
@@ -154,6 +163,12 @@ public abstract class AbstractEntity implements History {
 
         public B memo(String memo) {
             this.memo = DomainUtils.sanitize(memo);
+            return self();
+        }
+
+        /** Same as {@link #setType(EntityType)} for SuperBuilder / DomainBuilder ({@code .type(ACCOUNT)}). */
+        public B type(EntityType entityType) {
+            this.entityTypePg = PostgresEntityType.of(entityType);
             return self();
         }
     }

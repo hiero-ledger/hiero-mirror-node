@@ -12,7 +12,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
-import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 
@@ -30,8 +29,7 @@ public abstract class AbstractNftAllowance implements History, Persistable<Abstr
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
-    // JDBC: Marked as @Transient to avoid AOT/Reflection errors into Guava internals.
-    @Transient
+    // JDBC: Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     private Range<Long> timestampRange;
 
     // --- Convenience Accessors ---
