@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.restjava.service.fee;
 
+import static com.hedera.hapi.util.HapiUtils.functionOf;
+
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.base.FileID;
@@ -17,6 +19,7 @@ import com.hedera.hapi.node.state.token.Nft;
 import com.hedera.hapi.node.state.token.TokenRelation;
 import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.TransactionBody;
+import com.hedera.hapi.util.UnknownHederaFunctionality;
 import com.hedera.node.app.authorization.AuthorizerImpl;
 import com.hedera.node.app.authorization.PrivilegesVerifier;
 import com.hedera.node.app.config.ConfigProviderImpl;
@@ -39,15 +42,22 @@ import com.swirlds.config.api.Configuration;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.CommonProperties;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 @RequiredArgsConstructor
 final class FeeEstimationFeeContext implements FeeContext {
 
-    static final Map<String, String> FEE_PROPERTIES = Map.of("fees.simpleFeesEnabled", "true");
-    private static final ConfigProviderImpl CONFIG_PROVIDER = new ConfigProviderImpl(false, null, FEE_PROPERTIES);
-    private static final Configuration CONFIGURATION = CONFIG_PROVIDER.getConfiguration();
+    private static final ConfigProviderImpl CONFIG_PROVIDER = new ConfigProviderImpl(
+            false,
+            null,
+            Map.of(
+                    "hedera.shard",
+                            String.valueOf(CommonProperties.getInstance().getShard()),
+                    "hedera.realm",
+                            String.valueOf(CommonProperties.getInstance().getRealm())));
+    static final Configuration CONFIGURATION = CONFIG_PROVIDER.getConfiguration();
     private static final Authorizer FEE_AUTHORIZER =
             new AuthorizerImpl(CONFIG_PROVIDER, new PrivilegesVerifier(CONFIG_PROVIDER));
 
@@ -178,6 +188,7 @@ final class FeeEstimationFeeContext implements FeeContext {
     private final TransactionBody body;
     private final FeeTopicStore topicStore;
     private final FeeTokenStore tokenStore;
+    private final int throttleUtilization;
 
     @Override
     @SuppressWarnings("unchecked")
@@ -283,11 +294,15 @@ final class FeeEstimationFeeContext implements FeeContext {
     @Override
     @NonNull
     public HederaFunctionality functionality() {
-        throw new UnsupportedOperationException();
+        try {
+            return functionOf(body);
+        } catch (UnknownHederaFunctionality e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Override
     public int getHighVolumeThrottleUtilization(@NonNull final HederaFunctionality functionality) {
-        return 0;
+        return throttleUtilization;
     }
 }

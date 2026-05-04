@@ -55,7 +55,17 @@ final class RuntimeHintsConfiguration {
 
             registerVelocityHints(hints, loader);
 
-            registerResourcePatterns(hints, "db/migration/common/**", "db/migration/v1/**", "db/migration/v2/**");
+            registerResourcePatterns(
+                    hints,
+                    "addressbook/**",
+                    "accountInfo.txt.gz",
+                    "accountInfoContracts.txt",
+                    "com/hedera/nativelib/wraps/**",
+                    "com/hedera/nativelib/hints/**",
+                    "db/migration/common/**",
+                    "db/migration/v1/**",
+                    "db/migration/v2/**",
+                    "errata/**");
         }
 
         private void registerVelocityHints(RuntimeHints hints, ClassLoader loader) {

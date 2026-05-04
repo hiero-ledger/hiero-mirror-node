@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {proto} from '@hiero-ledger/proto';
+import {fromBinary} from '@bufbuild/protobuf';
+import {CustomFeeLimitSchema} from '../gen/services/custom_fees_pb.js';
 
 class CustomFeeLimits {
   /**
@@ -13,7 +14,7 @@ class CustomFeeLimits {
       return;
     }
 
-    this.fees = customFeeLimits.map((feeBytes) => proto.CustomFeeLimit.decode(feeBytes));
+    this.fees = customFeeLimits.map((feeBytes) => fromBinary(CustomFeeLimitSchema, feeBytes));
   }
 }
 

@@ -28,9 +28,9 @@ import reactor.core.publisher.Hooks;
 import reactor.core.scheduler.Schedulers;
 
 @CustomLog
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @RequiredArgsConstructor
-class MonitorConfiguration {
+final class MonitorConfiguration {
 
     static {
         // Avoid logging a stack trace when the SDK thread throws an exception right after the flux timeout

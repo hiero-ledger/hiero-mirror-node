@@ -34,7 +34,7 @@ import {
 } from './middleware';
 
 // routes
-import {AccountRoutes, BlockRoutes, ContractRoutes, NetworkRoutes} from './routes';
+import {AccountRoutes, BlockRoutes, ContractRoutes} from './routes';
 import {handleRejection, handleUncaughtException} from './middleware/httpErrorHandler';
 import {initializePool} from './dbpool';
 
@@ -107,9 +107,6 @@ app.getExt(`${apiPrefix}/balances`, balances.getBalances);
 
 // contracts routes
 app.use(`${apiPrefix}/${ContractRoutes.resource}`, ContractRoutes.router);
-
-// network routes
-app.use(`${apiPrefix}/${NetworkRoutes.resource}`, NetworkRoutes.router);
 
 // block routes
 app.use(`${apiPrefix}/${BlockRoutes.resource}`, BlockRoutes.router);

@@ -3,12 +3,11 @@
 import http from 'k6/http';
 
 import {isValidListResponse, RestJavaTestScenarioBuilder} from '../libex/common.js';
-import {accountNftAllowanceListName} from '../libex/constants.js';
+import {nodeListName} from '../libex/constants.js';
 
-const urlTag = '/accounts/{id}/allowances/nfts';
+const urlTag = '/network/nodes';
 
-const getUrl = (testParameters) =>
-  `/accounts/${testParameters['DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_OWNER']}/allowances/nfts?owner=true&limit=${testParameters['DEFAULT_LIMIT']}`;
+const getUrl = (testParameters) => `${urlTag}?limit=${testParameters['DEFAULT_LIMIT']}`;
 
 const {options, run, setup} = new RestJavaTestScenarioBuilder()
   .name('rampUp') // use unique scenario name among all tests
@@ -28,7 +27,7 @@ const {options, run, setup} = new RestJavaTestScenarioBuilder()
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;
     return http.get(url);
   })
-  .check('Account NFT allowances owner results OK', (r) => isValidListResponse(r, accountNftAllowanceListName))
+  .check('Ramp up OK', (r) => isValidListResponse(r, nodeListName))
   .build();
 
 export {options, run, setup};

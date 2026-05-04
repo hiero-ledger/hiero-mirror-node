@@ -264,7 +264,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
     void findNetworkNodesAllFieldsPopulated() {
         // given
         var timestamp = domainBuilder.timestamp();
-        var addressBook = domainBuilder
+        domainBuilder
                 .addressBook()
                 .customize(ab -> ab.startConsensusTimestamp(timestamp))
                 .persist();
@@ -290,6 +290,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         assertThat(result.startConsensusTimestamp()).isNotNull();
         assertThat(result.endConsensusTimestamp()).isNotNull();
         assertThat(result.adminKey()).isNotNull();
+        assertThat(result.associatedRegisteredNodes()).isNotEmpty();
         assertThat(result.declineReward()).isNotNull();
         assertThat(result.maxStake()).isNotNull();
         assertThat(result.minStake()).isNotNull();

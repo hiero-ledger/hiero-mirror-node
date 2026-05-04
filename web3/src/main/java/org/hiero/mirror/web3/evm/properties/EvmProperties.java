@@ -61,6 +61,10 @@ public class EvmProperties {
     @NotNull
     private NavigableMap<Long, SemanticVersion> evmVersions = new TreeMap<>();
 
+    @Min(1)
+    private int maxFileAttempts = 12;
+
+    @NotNull
     @Min(21_000L)
     private long maxGasLimit = 15_000_000L;
 
@@ -156,6 +160,7 @@ public class EvmProperties {
         props.put("contracts.throttle.throttleByGas", "false");
         props.put("contracts.systemContract.scheduleService.scheduleCall.enabled", "true");
         props.put("executor.disableThrottles", "true");
+        props.put("fees.simpleFeesEnabled", "false");
         props.put("hedera.realm", String.valueOf(CommonProperties.getInstance().getRealm()));
         props.put("hedera.shard", String.valueOf(CommonProperties.getInstance().getShard()));
         props.put("jumboTransactions.allowedHederaFunctionalities", "ContractCall,ContractCreate,EthereumTransaction");

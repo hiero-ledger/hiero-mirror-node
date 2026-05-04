@@ -50,8 +50,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private static final Range<Long> EMPTY_BLOCK_RANGE = Range.closedOpen(0L, 0L);
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
 
-    private final ManagedChannel statusChannel;
-    private final ManagedChannel streamingChannel;
+    private final ManagedChannel channel;
     private final AtomicInteger errors = new AtomicInteger();
     private final Consumer<BlockingClientCall<?, ?>> grpcBufferDisposer;
 
@@ -74,25 +73,11 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final MeterRegistry meterRegistry) {
         final int maxInboundMessageSize =
                 (int) streamProperties.getMaxStreamResponseSize().toBytes();
-        final var host = properties.getHost();
-        final var streamingHost = properties.getStreamingHost();
-        final boolean sameEndpoint = host.equals(streamingHost)
-                && properties.getStatusPort() == properties.getStreamingPort()
-                && properties.isStatusApiRequireTls() == properties.isStreamingApiRequireTls();
 
-        this.statusChannel = channelBuilderProvider
-                .get(host, properties.getStatusPort(), properties.isStatusApiRequireTls())
+        this.channel = channelBuilderProvider
+                .get(properties.getHost(), properties.getPort(), properties.isRequiresTls())
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .build();
-
-        if (sameEndpoint) {
-            this.streamingChannel = this.statusChannel;
-        } else {
-            this.streamingChannel = channelBuilderProvider
-                    .get(streamingHost, properties.getStreamingPort(), properties.isStreamingApiRequireTls())
-                    .maxInboundMessageSize(maxInboundMessageSize)
-                    .build();
-        }
 
         this.grpcBufferDisposer = grpcBufferDisposer;
         this.properties = properties;
@@ -100,24 +85,20 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         this.errorsMetric = Counter.builder(ERROR_METRIC_NAME)
                 .description("The number of errors that occurred while streaming from a particular block node.")
                 .tag("type", StreamType.BLOCK.toString())
-                .tag("block_node", properties.getStatusEndpoint())
+                .tag("block_node", properties.getEndpoint())
                 .register(meterRegistry);
     }
 
     @Override
     public void close() {
-        if (!statusChannel.isShutdown()) {
-            statusChannel.shutdown();
-        }
-
-        if (streamingChannel != statusChannel && !streamingChannel.isShutdown()) {
-            streamingChannel.shutdown();
+        if (!channel.isShutdown()) {
+            channel.shutdown();
         }
     }
 
     public Range<Long> getBlockRange() {
         try {
-            final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(statusChannel)
+            final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(channel)
                     .withDeadlineAfter(streamProperties.getResponseTimeout());
             final var response = blockNodeService.serverStatus(SERVER_STATUS_REQUEST);
             final long firstBlockNumber = response.getFirstAvailableBlock();
@@ -146,7 +127,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                     .setStartBlockNumber(blockNumber)
                     .build();
             final var grpcCall = ClientCalls.blockingV2ServerStreamingCall(
-                    streamingChannel,
+                    channel,
                     BlockStreamSubscribeServiceGrpc.getSubscribeBlockStreamMethod(),
                     CallOptions.DEFAULT,
                     request);
@@ -197,7 +178,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     @Override
     public String toString() {
-        return String.format("BlockNode(%s)", properties.getStatusEndpoint());
+        return String.format("BlockNode(%s)", properties.getEndpoint());
     }
 
     public BlockNode tryReadmit(final boolean force) {

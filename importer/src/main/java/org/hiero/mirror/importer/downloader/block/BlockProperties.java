@@ -9,7 +9,6 @@ import java.util.Collection;
 import java.util.Collections;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
-import org.hibernate.validator.constraints.time.DurationMin;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.block.tss.LedgerProperties;
@@ -28,12 +27,6 @@ public class BlockProperties {
     private boolean autoDiscoveryEnabled = true;
 
     private String bucketName;
-
-    private Boolean cutover;
-
-    @DurationMin(seconds = 8)
-    @NotNull
-    private Duration cutoverThreshold = Duration.ofSeconds(8);
 
     private boolean enabled = false;
 

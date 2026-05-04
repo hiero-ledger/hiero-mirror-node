@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {proto} from '@hiero-ledger/proto';
+import {ResponseCodeEnum} from '../../gen/services/response_code_pb.js';
 
 // models
 import {TransactionResult} from '../../model';
 
+const responseCodeEntries = Object.entries(ResponseCodeEnum).filter(([, id]) => typeof id === 'number');
+
 describe('transactionResult constants are up to date', () => {
   describe('Name to ID', () => {
-    for (const [name, id] of Object.entries(proto.ResponseCodeEnum)) {
+    for (const [name, id] of responseCodeEntries) {
       test(name, () => {
         expect(TransactionResult.getProtoId(name)).toEqual(`${id}`);
       });
@@ -15,7 +17,7 @@ describe('transactionResult constants are up to date', () => {
   });
 
   describe('ID to Name', () => {
-    for (const [name, id] of Object.entries(proto.ResponseCodeEnum)) {
+    for (const [name, id] of responseCodeEntries) {
       test(`${id}`, () => {
         expect(TransactionResult.getName(id)).toEqual(name);
       });

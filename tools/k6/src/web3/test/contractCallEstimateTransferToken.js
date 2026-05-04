@@ -10,7 +10,7 @@ const token = __ENV.TOKEN_ADDRESS;
 const amount = __ENV.AMOUNT;
 const runMode = __ENV.RUN_WITH_VARIABLES;
 const selector = '0x4fd6ce0a'; //transferTokenExternal
-const testName = 'estimateTransferToken';
+const testName = 'contractCallEstimateTransferToken';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =

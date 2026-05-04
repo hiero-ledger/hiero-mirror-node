@@ -127,6 +127,10 @@ rest/__tests__/integration/*.spec.test.js
 # esbuild bundle output
 rest/buildDist/
 
+# REST vendored protos (regenerate with npm run generate-proto-js after adding sources)
+rest/proto/services/
+rest/gen/
+
 # Rosetta
 rosetta-cli
 coverage.txt

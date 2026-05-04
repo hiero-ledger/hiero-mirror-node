@@ -43,6 +43,7 @@ import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -2142,8 +2143,8 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .createdTimestamp(null)
                 .description("updated")
                 .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
-                        .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
-                                .endpointApi(RegisteredServiceEndpoint.BlockNodeApi.STATUS)
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApis(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
                                 .build())
                         .ipAddress("192.168.1.1")
                         .port(8080)
