@@ -7,11 +7,9 @@ import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerAnnotatedP
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionTypes;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerResourcePatterns;
-import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerSerialization;
 
 import com.hedera.node.app.hapi.utils.sysfiles.domain.throttling.ThrottleGroup;
 import com.swirlds.config.api.ConfigData;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
@@ -71,10 +69,6 @@ final class RuntimeHintsConfiguration {
                     "genesis/**",
                     "*.json",
                     "*.properties");
-
-            // Repository methods accept entity id as a parameter and this serialization is needed to work with those
-            // methods
-            registerSerialization(hints, loader, EntityId.class.getName());
         }
     }
 }
