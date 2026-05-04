@@ -23,7 +23,6 @@ public class Schedule {
 
     private Long consensusTimestamp;
 
-    // Converter removed. Handled by global EntityIdConverter bean.
     private EntityId creatorAccountId;
 
     private Long executedTimestamp;

@@ -82,7 +82,6 @@ public abstract class AbstractEntity implements History {
 
     private Long num;
 
-    // Converter removed. Handled by global EntityId Reading/Writing converters.
     private EntityId obtainerId;
 
     private Boolean permanentRemoval;
@@ -108,12 +107,8 @@ public abstract class AbstractEntity implements History {
 
     private Long stakePeriodStart;
 
-    // JDBC: Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     private Range<Long> timestampRange;
 
-    /**
-     * Stored as Postgres {@code entity_type}. See {@link PostgresEntityType} — do not map {@code PGobject} directly on the aggregate.
-     */
     @Column("type")
     private PostgresEntityType entityTypePg;
 
@@ -166,7 +161,6 @@ public abstract class AbstractEntity implements History {
             return self();
         }
 
-        /** Same as {@link #setType(EntityType)} for SuperBuilder / DomainBuilder ({@code .type(ACCOUNT)}). */
         public B type(EntityType entityType) {
             this.entityTypePg = PostgresEntityType.of(entityType);
             return self();

@@ -49,7 +49,6 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
         }
     }
 
-    // Convenience accessors to maintain backward compatibility with existing code
     public Long getConsensusTimestamp() {
         return id != null ? id.getConsensusTimestamp() : null;
     }
@@ -67,8 +66,6 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        // Maintained as true to ensure Spring Data performs an INSERT/UPSERT
-        // without a preceding SELECT, which is optimal for mirror node performance.
         return true;
     }
 
@@ -80,8 +77,6 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
         @Serial
         private static final long serialVersionUID = -3010905088908209508L;
 
-        // Spring Data JDBC maps these field names to the column names directly
-        // unless @Column is specified on these fields inside the Id class.
         private long consensusTimestamp;
         private long entityId;
     }

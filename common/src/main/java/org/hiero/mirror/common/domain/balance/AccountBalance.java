@@ -37,12 +37,10 @@ public class AccountBalance implements Persistable<AccountBalance.Id>, StreamIte
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
-    // Convenience accessor so callers can use accountBalance.getConsensusTimestamp() without going through getId()
     public long getConsensusTimestamp() {
         return id != null ? id.getConsensusTimestamp() : 0L;
     }
 
-    // Convenience accessor so callers can use accountBalance.getAccountId() without going through getId()
     public EntityId getAccountId() {
         return id != null ? id.getAccountId() : null;
     }

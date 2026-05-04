@@ -25,7 +25,6 @@ import org.springframework.data.relational.core.mapping.Column;
 @Upsertable(history = true)
 public abstract class AbstractNode implements History {
 
-    // Handled by global EntityId converters
     private EntityId accountId;
 
     @ToString.Exclude
@@ -41,7 +40,6 @@ public abstract class AbstractNode implements History {
     @Column("associated_registered_nodes")
     private AssociatedRegisteredNodeIds associatedRegisteredNodesColumn;
 
-    // JDBC: Requires custom Reading/Writing converters for JSON/JSONB
     @JsonSerialize(using = ObjectToStringSerializer.class)
     @UpsertColumn(coalesce = "case when ({0} -> ''port'')::integer = -1 then null else coalesce({0}, e_{0}) end")
     private ServiceEndpoint grpcProxyEndpoint;
@@ -49,7 +47,6 @@ public abstract class AbstractNode implements History {
     @Id
     private Long nodeId;
 
-    // Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     private Range<Long> timestampRange;
 
     @JsonSerialize(using = ListToStringSerializer.class)

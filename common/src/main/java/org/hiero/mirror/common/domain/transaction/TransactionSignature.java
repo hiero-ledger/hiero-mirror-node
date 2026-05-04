@@ -34,10 +34,6 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
 
     private int type;
 
-    /**
-     * Custom builder to maintain compatibility with existing code that sets
-     * consensusTimestamp and publicKeyPrefix directly on the builder.
-     */
     public static class TransactionSignatureBuilder {
         public TransactionSignatureBuilder consensusTimestamp(long consensusTimestamp) {
             initId();
@@ -58,7 +54,6 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
         }
     }
 
-    // Convenience accessors
     public long getConsensusTimestamp() {
         return id != null ? id.getConsensusTimestamp() : 0L;
     }

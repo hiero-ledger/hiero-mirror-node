@@ -27,10 +27,8 @@ public class ContractAction implements Persistable<ContractAction.Id> {
 
     private int callDepth;
 
-    // Handled by global EntityId Reading/Writing converters
     private EntityId caller;
 
-    // Handled by global EntityType converter (if custom PG type)
     private EntityType callerType;
 
     private int callOperationType;

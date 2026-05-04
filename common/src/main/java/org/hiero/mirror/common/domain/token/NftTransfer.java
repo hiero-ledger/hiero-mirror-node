@@ -9,7 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // for Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
 @NoArgsConstructor
@@ -19,7 +19,6 @@ public class NftTransfer {
 
     private Boolean isApproval;
 
-    // Converter removed. Handled by global EntityId Reading/Writing converters.
     private EntityId receiverAccountId;
 
     private EntityId senderAccountId;

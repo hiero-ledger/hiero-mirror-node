@@ -29,7 +29,6 @@ public class Ledger {
     @ToString.Include
     private byte[] ledgerId;
 
-    // Handled by global Jackson JSON Reading/Writing converters
     @JsonSerialize(using = ObjectToStringSerializer.class)
     private List<LedgerNodeContribution> nodeContributions;
 }

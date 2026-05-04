@@ -35,8 +35,6 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.data.jdbc.core.convert.JdbcCustomConversions;
 import org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
-import org.springframework.data.relational.core.mapping.NamingStrategy;
-import org.springframework.data.relational.core.mapping.Table;
 
 @Configuration(proxyBeanMethods = false)
 @ConfigurationPropertiesScan("org.hiero.mirror")
@@ -64,25 +62,6 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
     @ConfigurationProperties("spring.datasource.hikari")
     HikariConfig hikariConfig() {
         return new HikariConfig();
-    }
-
-    /**
-     * Mirror Node Naming Strategy.
-     * Ensures class 'AccountBalance' maps to 'account_balance' and
-     * respects the @Table annotation values.
-     */
-    @Bean
-    public NamingStrategy namingStrategy() {
-        return new NamingStrategy() {
-            @Override
-            public String getTableName(Class<?> type) {
-                var table = type.getAnnotation(Table.class);
-                if (table != null && !table.value().isEmpty()) {
-                    return table.value();
-                }
-                return NamingStrategy.super.getTableName(type);
-            }
-        };
     }
 
     @Bean
@@ -138,8 +117,8 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new PostgresHookJdbcConverters.PostgresHookTypeToPGobject(),
                 new PostgresHookJdbcConverters.PGobjectToPostgresHookType(),
                 new PostgresHookJdbcConverters.StringToPostgresHookType(),
-                new RangeToPGobjectWritingConverter(), // Replaces @TypeRegistration
-                new PGobjectToRangeReadingConverter(), // Replaces @TypeRegistration
+                new RangeToPGobjectWritingConverter(),
+                new PGobjectToRangeReadingConverter(),
                 new JsonbWritingConverters.FixedFeesHolderToJsonb(),
                 new JsonbWritingConverters.FractionalFeesHolderToJsonb(),
                 new JsonbWritingConverters.RoyaltyFeesHolderToJsonb(),

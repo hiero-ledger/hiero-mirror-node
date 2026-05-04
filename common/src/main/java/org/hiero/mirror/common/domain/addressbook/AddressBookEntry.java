@@ -42,7 +42,6 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
 
     private String memo;
 
-    // Converter removed. Handled by global EntityId Reading/Writing converters.
     private EntityId nodeAccountId;
 
     @ToString.Exclude
@@ -53,7 +52,7 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
 
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
-    @Transient // Spring Data version
+    @Transient
     private PublicKey publicKeyObject;
 
     @Builder.Default
@@ -64,17 +63,14 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
 
     private Long stake;
 
-    // Convenience accessor so callers can use entry.getConsensusTimestamp() without going through getId()
     public long getConsensusTimestamp() {
         return id != null ? id.getConsensusTimestamp() : 0L;
     }
 
-    // Convenience accessor so callers can use entry.getNodeId() without going through getId()
     public long getNodeId() {
         return id != null ? id.getNodeId() : 0L;
     }
 
-    // Custom getter to maintain the logic for the transient field
     public PublicKey getPublicKeyObject() {
         if (publicKeyObject == null && publicKey != null) {
             publicKeyObject = parsePublicKey();
@@ -114,7 +110,6 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
         private long nodeId;
     }
 
-    // Custom builder methods so existing callers can use .consensusTimestamp(x).nodeId(y) without restructuring
     public static class AddressBookEntryBuilder {
         public AddressBookEntryBuilder consensusTimestamp(long consensusTimestamp) {
             if (this.id == null) this.id = new Id();

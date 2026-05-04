@@ -17,8 +17,6 @@ import org.springframework.data.relational.core.mapping.Table;
 @SuperBuilder
 public class Contract {
 
-    // Removed @Convert. Mapping is handled by your global EntityIdConverter bean.
-    // updatable = false is a JPA concept; Spring Data JDBC maps this via standard @Column.
     @Column("file_id")
     private EntityId fileId;
 

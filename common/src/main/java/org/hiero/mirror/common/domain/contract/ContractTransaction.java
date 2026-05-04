@@ -34,10 +34,6 @@ public class ContractTransaction implements Persistable<ContractTransaction.Id> 
 
     private long payerAccountId;
 
-    /**
-     * Custom builder to maintain compatibility with existing code that sets
-     * consensusTimestamp and entityId directly on the builder.
-     */
     public static class ContractTransactionBuilder {
         public ContractTransactionBuilder consensusTimestamp(long consensusTimestamp) {
             if (this.id == null) {
@@ -56,7 +52,6 @@ public class ContractTransaction implements Persistable<ContractTransaction.Id> 
         }
     }
 
-    // Convenience accessors
     public Long getConsensusTimestamp() {
         return id != null ? id.getConsensusTimestamp() : null;
     }

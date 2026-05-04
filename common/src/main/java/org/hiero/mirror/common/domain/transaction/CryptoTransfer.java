@@ -32,9 +32,6 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
 
     private EntityId payerAccountId;
 
-    /**
-     * Custom builder to maintain compatibility with existing record processing logic.
-     */
     public static class CryptoTransferBuilder {
         public CryptoTransferBuilder amount(long amount) {
             initId();
@@ -61,7 +58,6 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
         }
     }
 
-    // Convenience accessors
     public long getAmount() {
         return id != null ? id.getAmount() : 0L;
     }
@@ -83,7 +79,6 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        // Critical for high-volume transfer ingestion to avoid existence checks.
         return true;
     }
 

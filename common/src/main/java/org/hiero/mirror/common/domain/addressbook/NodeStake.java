@@ -17,7 +17,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@Table("node_stake") // Explicit naming is best practice
+@Table("node_stake")
 @NoArgsConstructor
 public class NodeStake implements Persistable<NodeStake.Id> {
 
@@ -72,7 +72,6 @@ public class NodeStake implements Persistable<NodeStake.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        // Keeps the optimization to skip the "SELECT" check before insert
         return true;
     }
 
@@ -87,7 +86,6 @@ public class NodeStake implements Persistable<NodeStake.Id> {
         private long nodeId;
     }
 
-    /** Bridges {@link Builder} to the flattened {@link #consensusTimestamp} / {@link #nodeId} API. */
     public static class NodeStakeBuilder {
         public NodeStakeBuilder consensusTimestamp(long consensusTimestamp) {
             if (this.id == null) {

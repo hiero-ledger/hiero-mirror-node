@@ -28,7 +28,6 @@ public class FileData implements Persistable<Long> {
     @SuppressWarnings("java:S1700")
     private byte[] fileData;
 
-    // Converter removed. Handled by global EntityIdConverter bean.
     private EntityId entityId;
 
     private Integer transactionType;
@@ -51,7 +50,6 @@ public class FileData implements Persistable<Long> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        // Keeps the optimization to skip the "SELECT" check before insert
         return true;
     }
 }

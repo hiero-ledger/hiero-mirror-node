@@ -56,14 +56,8 @@ public class DomainUtils {
     private static final String TIMESTAMP_ZERO = "0.0";
 
     static {
-        try {
-            // Ensure it's eagerly instantiated since it is used for the conversion of JSONB data into domain objects.
-            ObjectToStringSerializer.init();
-        } catch (NoClassDefFoundError e) {
-            log.warn(
-                    "Unable to initialize ObjectToStringSerializer possibly due to lack of Hibernate dependencies: {}",
-                    e.getMessage());
-        }
+        // Ensure it's eagerly instantiated since it is used for the conversion of JSONB data into domain objects.
+        ObjectToStringSerializer.init();
     }
 
     /**

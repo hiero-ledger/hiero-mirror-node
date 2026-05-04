@@ -15,7 +15,7 @@ import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
 @Table("token_transfer")
@@ -32,15 +32,11 @@ public class TokenTransfer implements Persistable<TokenTransfer.Id> {
 
     private EntityId payerAccountId;
 
-    // Standard constructor maintained for manual instantiation
     public TokenTransfer(long consensusTimestamp, long amount, EntityId tokenId, EntityId accountId) {
         this.id = new Id(consensusTimestamp, tokenId, accountId);
         this.amount = amount;
     }
 
-    /**
-     * Custom builder to maintain compatibility with existing code.
-     */
     public static class TokenTransferBuilder {
         public TokenTransferBuilder consensusTimestamp(long consensusTimestamp) {
             initId();
@@ -67,7 +63,6 @@ public class TokenTransfer implements Persistable<TokenTransfer.Id> {
         }
     }
 
-    // Convenience accessors
     public long getConsensusTimestamp() {
         return id != null ? id.getConsensusTimestamp() : 0L;
     }

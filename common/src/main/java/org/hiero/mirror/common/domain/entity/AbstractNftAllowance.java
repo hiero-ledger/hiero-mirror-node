@@ -29,10 +29,7 @@ public abstract class AbstractNftAllowance implements History, Persistable<Abstr
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
-    // JDBC: Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     private Range<Long> timestampRange;
-
-    // --- Convenience Accessors ---
 
     public long getOwner() {
         return id != null ? id.getOwner() : 0L;
@@ -46,8 +43,6 @@ public abstract class AbstractNftAllowance implements History, Persistable<Abstr
         return id != null ? id.getTokenId() : 0L;
     }
 
-    // --- Persistable Implementation ---
-
     @JsonIgnore
     @Override
     public Id getId() {
@@ -57,11 +52,8 @@ public abstract class AbstractNftAllowance implements History, Persistable<Abstr
     @JsonIgnore
     @Override
     public boolean isNew() {
-        // Essential for mirror node performance to skip the existence check
         return true;
     }
-
-    // --- Composite ID Class ---
 
     @Data
     @NoArgsConstructor
@@ -76,8 +68,6 @@ public abstract class AbstractNftAllowance implements History, Persistable<Abstr
         private long tokenId;
     }
 
-    // --- Custom SuperBuilder Bridge ---
-    // Overriding these methods allows the SuperBuilder to populate the embedded Id object
     public abstract static class AbstractNftAllowanceBuilder<
             C extends AbstractNftAllowance, B extends AbstractNftAllowanceBuilder<C, B>> {
 

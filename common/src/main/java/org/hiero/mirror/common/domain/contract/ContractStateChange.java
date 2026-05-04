@@ -29,7 +29,6 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
 
     private boolean migration;
 
-    // Converter is now managed globally by your JdbcCustomConversions configuration
     private EntityId payerAccountId;
 
     @ToString.Exclude
@@ -53,7 +52,6 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
         return id != null ? id.getContractId() : 0L;
     }
 
-    /** Stores {@link EntityId#getId()} as the relational contract id (same as {@link #setContractId(long)}). */
     public void setContractId(EntityId entityId) {
         if (id == null) {
             id = new Id();
@@ -88,7 +86,6 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
     @JsonIgnore
     @Override
     public boolean isNew() {
-        // Keeps the optimization to skip the "SELECT" check before insert
         return true;
     }
 

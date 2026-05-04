@@ -23,11 +23,9 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class AddressBook {
 
-    // consensusTimestamp + 1ns of transaction containing final fileAppend operation
     @Id
     private Long startConsensusTimestamp;
 
-    // consensusTimestamp of transaction containing final fileAppend operation of next address book
     private Long endConsensusTimestamp;
 
     @EqualsAndHashCode.Exclude
@@ -39,7 +37,6 @@ public class AddressBook {
     @ToString.Exclude
     private byte[] fileData;
 
-    // Converter removed. Handled by global EntityIdConverter bean.
     private EntityId fileId;
 
     private Integer nodeCount;

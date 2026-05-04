@@ -36,11 +36,8 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
     @JsonIgnore
     @Override
     public boolean isNew() {
-        // Natural IDs for service endpoints should always trigger an INSERT
         return true;
     }
-
-    // Convenience accessors so existing callers keep working without restructuring
 
     public long getConsensusTimestamp() {
         return id != null ? id.getConsensusTimestamp() : 0L;
@@ -107,7 +104,6 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
         private String domainName;
     }
 
-    // Custom builder methods so existing callers can set individual key fields directly
     public static class AddressBookServiceEndpointBuilder {
         public AddressBookServiceEndpointBuilder consensusTimestamp(long consensusTimestamp) {
             if (this.id == null) this.id = new Id();

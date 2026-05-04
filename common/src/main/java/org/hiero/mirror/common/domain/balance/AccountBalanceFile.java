@@ -18,7 +18,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 @Builder(toBuilder = true)
 @Data
-@Table("account_balance_file") // Explicitly named for consistency
+@Table("account_balance_file")
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor
 public class AccountBalanceFile implements StreamFile<AccountBalance> {
@@ -37,7 +37,7 @@ public class AccountBalanceFile implements StreamFile<AccountBalance> {
     @Builder.Default
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
-    @Transient // Switched to org.springframework.data.annotation.Transient
+    @Transient
     private List<AccountBalance> items = List.of();
 
     private Long loadEnd;

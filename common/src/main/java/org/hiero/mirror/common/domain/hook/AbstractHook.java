@@ -47,10 +47,6 @@ public abstract class AbstractHook implements History {
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
     private Boolean deleted;
 
-    /**
-     * Stored as Postgres {@code hook_extension_point}. See {@link PostgresHookExtensionPoint} — do not map
-     * {@code PGobject} directly on the aggregate.
-     */
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
     @Column("extension_point")
     private PostgresHookExtensionPoint extensionPointPg;
@@ -59,14 +55,9 @@ public abstract class AbstractHook implements History {
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
-    // JDBC: writing/reading via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     @Transient
     private Range<Long> timestampRange;
 
-    /**
-     * Stored as Postgres {@code hook_type}. See {@link PostgresHookType} — do not map {@code PGobject} directly on the
-     * aggregate.
-     */
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
     @Column("type")
     private PostgresHookType hookTypePg;

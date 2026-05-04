@@ -37,10 +37,8 @@ public class Transaction implements Persistable<Long> {
     @Id
     private Long consensusTimestamp;
 
-    // Handled by global EntityIdConverter
     private EntityId entityId;
 
-    // Handled by global ErrataType converter (if custom PG type)
     private ErrataType errata;
 
     private Boolean highVolume;
@@ -54,7 +52,6 @@ public class Transaction implements Persistable<Long> {
 
     private Long initialBalance;
 
-    // JDBC: Requires custom JSON Reading/Writing converters
     @JsonSerialize(using = ObjectToStringSerializer.class)
     private List<ItemizedTransfer> itemizedTransfer;
 
@@ -66,7 +63,6 @@ public class Transaction implements Persistable<Long> {
     @ToString.Exclude
     private byte[] memo;
 
-    // JDBC: Requires custom JSON Reading/Writing converters
     @JsonSerialize(using = ObjectToStringSerializer.class)
     private List<NftTransfer> nftTransfer;
 

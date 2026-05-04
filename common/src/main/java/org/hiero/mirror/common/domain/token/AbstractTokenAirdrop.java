@@ -24,7 +24,6 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
 
     private Long amount;
 
-    /** Stored as Postgres {@code airdrop_state}; see {@link PostgresAirdropState}. */
     @Column("state")
     private PostgresAirdropState airdropState;
 
@@ -32,7 +31,6 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
-    // JDBC: Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     private Range<Long> timestampRange;
 
     public TokenAirdropStateEnum getState() {
@@ -42,8 +40,6 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
     public void setState(TokenAirdropStateEnum state) {
         airdropState = PostgresAirdropState.of(state);
     }
-
-    // --- Convenience Accessors ---
 
     public long getReceiverAccountId() {
         return id != null ? id.getReceiverAccountId() : 0L;
@@ -61,8 +57,6 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
         return id != null ? id.getTokenId() : 0L;
     }
 
-    // --- Persistable Implementation ---
-
     @JsonIgnore
     @Override
     public Id getId() {
@@ -74,8 +68,6 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
     public boolean isNew() {
         return true;
     }
-
-    // --- Composite ID Class ---
 
     @Data
     @NoArgsConstructor
@@ -91,7 +83,6 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
         private long tokenId;
     }
 
-    // --- Custom SuperBuilder Bridge ---
     public abstract static class AbstractTokenAirdropBuilder<
             C extends AbstractTokenAirdrop, B extends AbstractTokenAirdropBuilder<C, B>> {
 

@@ -15,7 +15,6 @@ import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 
@@ -47,11 +46,7 @@ public abstract class AbstractNft implements History, Persistable<AbstractNft.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
-    // JDBC: Marked as @Transient to avoid AOT/Reflection errors into Guava internals.
-    @Transient
     private Range<Long> timestampRange;
-
-    // --- Convenience Accessors ---
 
     public long getSerialNumber() {
         return id != null ? id.getSerialNumber() : 0L;
@@ -65,8 +60,6 @@ public abstract class AbstractNft implements History, Persistable<AbstractNft.Id
         return spender != null && spender == RETAIN_SPENDER;
     }
 
-    // --- Persistable Implementation ---
-
     @JsonIgnore
     @Override
     public Id getId() {
@@ -78,8 +71,6 @@ public abstract class AbstractNft implements History, Persistable<AbstractNft.Id
     public boolean isNew() {
         return true;
     }
-
-    // --- Composite ID Class ---
 
     @AllArgsConstructor
     @Data
@@ -93,7 +84,6 @@ public abstract class AbstractNft implements History, Persistable<AbstractNft.Id
         private long tokenId;
     }
 
-    // --- Custom SuperBuilder Bridge ---
     public abstract static class AbstractNftBuilder<C extends AbstractNft, B extends AbstractNftBuilder<C, B>> {
 
         public B serialNumber(long serialNumber) {

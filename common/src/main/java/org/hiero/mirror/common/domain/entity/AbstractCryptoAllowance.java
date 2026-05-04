@@ -12,7 +12,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
-import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 
@@ -29,20 +28,16 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance, Pers
 
     private EntityId payerAccountId;
 
-    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
-    @Transient
     private Range<Long> timestampRange;
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
-    // Convenience accessor for owner
     public long getOwner() {
         return id != null ? id.getOwner() : 0L;
     }
 
-    // Convenience accessor for spender
     public long getSpender() {
         return id != null ? id.getSpender() : 0L;
     }
@@ -56,8 +51,6 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance, Pers
     @JsonIgnore
     @Override
     public boolean isNew() {
-        // Typically true for mirror node upserts where we want to force an insert/upsert logic
-        // or logic based on whether the timestampRange/id is populated.
         return true;
     }
 
@@ -73,6 +66,17 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance, Pers
         private long spender;
     }
 
+    /**
+     *  Allows using
+     *  CryptoAllowance.builder()
+     *       .owner(entityId.getId())
+     *       .spender(payerAccount.getId())
+     *       ...
+     *   instead of
+     *   CryptoAllowance.builder()
+     *       .id(new AbstractCryptoAllowance.Id(ownerValue, spenderValue))
+     *       ...
+     */
     @SuppressWarnings("java:S1610")
     public abstract static class AbstractCryptoAllowanceBuilder<
             C extends AbstractCryptoAllowance, B extends AbstractCryptoAllowanceBuilder<C, B>> {

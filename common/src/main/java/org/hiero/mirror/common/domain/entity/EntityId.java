@@ -60,7 +60,6 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
         this.id = id;
     }
 
-    // ... encode logic remains the same ...
     private static long encode(long shard, long realm, long num) {
         if (shard > SHARD_MASK || shard < 0 || realm > REALM_MASK || realm < 0 || num > NUM_MASK || num < 0) {
             throw new InvalidEntityException("Invalid entity ID: " + shard + "." + realm + "." + num);
@@ -140,7 +139,7 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
         return entityId == null || EMPTY.equals(entityId);
     }
 
-    @Transient // Switched to Spring Data Transient
+    @Transient
     public long getNum() {
         return id & NUM_MASK;
     }

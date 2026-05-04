@@ -66,10 +66,6 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     @JsonSerialize(using = ListToStringSerializer.class)
     private List<Integer> types = Collections.emptyList();
 
-    /**
-     * Custom builder to maintain compatibility with existing code.
-     * Note: We map 'index' in Java to the 'id' column in the DB within the Id class.
-     */
     public static class SidecarFileBuilder {
         public SidecarFileBuilder consensusEnd(long consensusEnd) {
             initId();
@@ -90,7 +86,6 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
         }
     }
 
-    // Convenience accessors
     public long getConsensusEnd() {
         return id != null ? id.getConsensusEnd() : 0L;
     }

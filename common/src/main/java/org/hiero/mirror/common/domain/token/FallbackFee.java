@@ -20,6 +20,5 @@ public class FallbackFee {
     /**
      * Fungible token the fee is paid in, if left unset - paid in HBAR.
      */
-    // Converter removed. Handled by global EntityId converters in JdbcCustomConversions.
     private EntityId denominatingTokenId;
 }

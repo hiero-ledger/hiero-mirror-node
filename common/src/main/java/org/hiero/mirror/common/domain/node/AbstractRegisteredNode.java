@@ -39,7 +39,6 @@ public abstract class AbstractRegisteredNode implements History {
     @Column("service_endpoints")
     private ServiceEndpointsHolder serviceEndpointsColumn;
 
-    // Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     private Range<Long> timestampRange;
 
     @JsonIgnore

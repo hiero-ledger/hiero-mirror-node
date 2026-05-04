@@ -30,10 +30,6 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
 
     private EntityId payerAccountId;
 
-    /**
-     * Custom builder to maintain compatibility with existing code that sets
-     * accountId and consensusTimestamp directly on the builder.
-     */
     public static class StakingRewardTransferBuilder {
         public StakingRewardTransferBuilder accountId(long accountId) {
             initId();
@@ -54,7 +50,6 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
         }
     }
 
-    // Convenience accessors
     public long getAccountId() {
         return id != null ? id.getAccountId() : 0L;
     }

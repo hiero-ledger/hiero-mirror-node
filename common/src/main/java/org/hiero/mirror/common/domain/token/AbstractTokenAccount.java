@@ -60,27 +60,21 @@ public abstract class AbstractTokenAccount implements History, Persistable<Abstr
             """)
     private TokenKycStatusEnum kycStatus;
 
-    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
-    @Transient
     private Range<Long> timestampRange;
 
-    // Convenience accessor so callers can use tokenAccount.getAccountId() without going through getId()
     public long getAccountId() {
         return id != null ? id.getAccountId() : 0L;
     }
 
-    // Convenience accessor so callers can use tokenAccount.setAccountId(x) without going through getId()
     public void setAccountId(long accountId) {
         if (id == null) id = new Id();
         id.setAccountId(accountId);
     }
 
-    // Convenience accessor so callers can use tokenAccount.getTokenId() without going through getId()
     public long getTokenId() {
         return id != null ? id.getTokenId() : 0L;
     }
 
-    // Convenience accessor so callers can use tokenAccount.setTokenId(x) without going through getId()
     public void setTokenId(long tokenId) {
         if (id == null) id = new Id();
         id.setTokenId(tokenId);
@@ -109,7 +103,6 @@ public abstract class AbstractTokenAccount implements History, Persistable<Abstr
         private long tokenId;
     }
 
-    // Custom builder methods so existing callers can use .accountId(x).tokenId(y) without restructuring
     public abstract static class AbstractTokenAccountBuilder<
             C extends AbstractTokenAccount, B extends AbstractTokenAccountBuilder<C, B>> {
         public B accountId(long accountId) {

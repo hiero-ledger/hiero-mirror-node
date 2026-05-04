@@ -21,7 +21,6 @@ public abstract class AbstractFee {
     /**
      * The id of the account collecting the fee.
      */
-    // Converter removed. Handled by global EntityId Reading/Writing converters.
     private EntityId collectorAccountId;
 
     public abstract boolean isChargedInToken(EntityId tokenId);

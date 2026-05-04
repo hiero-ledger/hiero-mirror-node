@@ -10,7 +10,6 @@ configurations.all {
 
 dependencies {
     val testClasses by configurations.registering
-    annotationProcessor("jakarta.persistence:jakarta.persistence-api")
     api("org.postgresql:postgresql")
     api("org.springframework.data:spring-data-relational")
     api("org.springframework.boot:spring-boot-starter-data-jdbc")
@@ -21,7 +20,6 @@ dependencies {
     api("com.google.protobuf:protobuf-java")
     api("com.hedera.hashgraph:hedera-protobuf-java-api") { isTransitive = false }
     api("commons-codec:commons-codec")
-    api("io.hypersistence:hypersistence-utils-hibernate-71")
     api("jakarta.servlet:jakarta.servlet-api")
     api("org.apache.commons:commons-lang3")
     api("org.apache.tuweni:tuweni-bytes")

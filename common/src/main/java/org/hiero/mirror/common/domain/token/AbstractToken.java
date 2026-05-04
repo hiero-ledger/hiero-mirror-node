@@ -13,7 +13,6 @@ import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
 
 @Data
 @NoArgsConstructor
@@ -33,7 +32,6 @@ public abstract class AbstractToken implements History {
     @ToString.Exclude
     private byte[] freezeKey;
 
-    // JDBC: Handled by global ordinal-to-enum converter
     private TokenFreezeStatusEnum freezeStatus;
 
     private Long initialSupply;
@@ -41,7 +39,6 @@ public abstract class AbstractToken implements History {
     @ToString.Exclude
     private byte[] kycKey;
 
-    // JDBC: Handled by global ordinal-to-enum converter
     private TokenKycStatusEnum kycStatus;
 
     private long maxSupply;
@@ -57,7 +54,6 @@ public abstract class AbstractToken implements History {
     @ToString.Exclude
     private byte[] pauseKey;
 
-    // JDBC: Handled by global String-to-PGobject (named enum) converter
     private TokenPauseStatusEnum pauseStatus;
 
     @ToString.Exclude
@@ -67,8 +63,6 @@ public abstract class AbstractToken implements History {
 
     private String symbol;
 
-    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
-    @Transient
     private Range<Long> timestampRange;
 
     @Id
@@ -77,7 +71,6 @@ public abstract class AbstractToken implements History {
     @UpsertColumn(coalesce = "case when {0} >= 0 then {0} else e_{0} + coalesce({0}, {1}) end")
     private Long totalSupply;
 
-    // Handled by global EntityId converters
     private EntityId treasuryAccountId;
 
     private TokenTypeEnum type;

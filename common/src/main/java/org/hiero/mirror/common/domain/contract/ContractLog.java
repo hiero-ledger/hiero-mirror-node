@@ -29,7 +29,6 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
-    // Mapping handled by global EntityId converters registered in your configuration
     private EntityId contractId;
 
     @ToString.Exclude
@@ -84,7 +83,6 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        // Natural IDs for immutable logs should always trigger an INSERT
         return true;
     }
 
@@ -97,7 +95,6 @@ public class ContractLog implements Persistable<ContractLog.Id> {
         private int index;
     }
 
-    /** Bridges {@link Builder} to the flattened {@link #consensusTimestamp} / {@link #index} API used across the codebase. */
     public static class ContractLogBuilder {
         public ContractLogBuilder consensusTimestamp(long consensusTimestamp) {
             if (this.id == null) {

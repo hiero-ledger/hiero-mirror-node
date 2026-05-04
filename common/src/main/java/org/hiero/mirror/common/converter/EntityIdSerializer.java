@@ -6,10 +6,11 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import java.io.IOException;
+import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
-@NoArgsConstructor()
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S6548")
 public class EntityIdSerializer extends JsonSerializer<EntityId> {
 

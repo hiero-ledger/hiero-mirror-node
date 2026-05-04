@@ -9,7 +9,6 @@ import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
 
 @Data
 @NoArgsConstructor
@@ -30,7 +29,5 @@ public abstract class AbstractEntityStake implements History {
 
     private long stakeTotalStart;
 
-    // JDBC: Requires custom Reading/Writing converters for PG 'int8range'
-    @Transient
     private Range<Long> timestampRange;
 }

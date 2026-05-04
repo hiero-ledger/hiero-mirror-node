@@ -20,7 +20,6 @@ public class FixedFee extends AbstractFee {
     /**
      * Fungible token the fee is paid in, if left unset - paid in HBAR.
      */
-    // Converter removed. Handled by global EntityId converters in JdbcCustomConversions.
     private EntityId denominatingTokenId;
 
     @Override

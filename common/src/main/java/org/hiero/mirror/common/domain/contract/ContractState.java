@@ -29,8 +29,6 @@ public class ContractState {
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
-    // Hibernate's 'updatable = false' is removed;
-    // enforcement now relies on the Upsert logic/SQL generator.
     private long createdTimestamp;
 
     private long modifiedTimestamp;
@@ -76,7 +74,6 @@ public class ContractState {
         private byte[] slot;
     }
 
-    /** Bridges {@link Builder} to the flattened {@link #contractId} / {@link #slot} API. */
     public static class ContractStateBuilder {
         public ContractStateBuilder contractId(long contractId) {
             if (this.id == null) {

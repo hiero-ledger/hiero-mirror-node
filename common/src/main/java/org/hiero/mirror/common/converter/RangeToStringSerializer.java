@@ -26,8 +26,6 @@ public class RangeToStringSerializer extends StdSerializer<Range<Long>> {
         String lower = range.hasLowerBound() ? range.lowerEndpoint().toString() : "";
         String upper = range.hasUpperBound() ? range.upperEndpoint().toString() : "";
 
-        // Mirror Node standard: [lower,upper)
-        // This produces the same string format the Hibernate type used to generate
         gen.writeString(String.format("[%s,%s)", lower, upper));
     }
 }

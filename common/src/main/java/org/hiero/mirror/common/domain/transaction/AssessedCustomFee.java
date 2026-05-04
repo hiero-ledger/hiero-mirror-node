@@ -40,10 +40,6 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
 
     private EntityId payerAccountId;
 
-    /**
-     * Custom builder to maintain compatibility with existing code that sets
-     * collectorAccountId and consensusTimestamp directly.
-     */
     public static class AssessedCustomFeeBuilder {
         public AssessedCustomFeeBuilder collectorAccountId(long collectorAccountId) {
             initId();
@@ -64,7 +60,6 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
         }
     }
 
-    // Convenience accessors
     public long getCollectorAccountId() {
         return id != null ? id.getCollectorAccountId() : 0L;
     }

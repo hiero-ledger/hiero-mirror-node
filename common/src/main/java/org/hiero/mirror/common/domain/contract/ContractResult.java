@@ -40,7 +40,6 @@ public class ContractResult implements Persistable<Long> {
 
     private long contractId;
 
-    // JDBC: Requires a custom Reading/Writing converter if stored as a DB array or CSV string
     @Builder.Default
     @JsonSerialize(using = ListToStringSerializer.class)
     private List<Long> createdContractIds = Collections.emptyList();
@@ -61,10 +60,8 @@ public class ContractResult implements Persistable<Long> {
 
     private Long gasUsed;
 
-    // Handled by global EntityId converters
     private EntityId payerAccountId;
 
-    // Handled by global EntityId converters
     private EntityId senderId;
 
     private byte[] transactionHash;
