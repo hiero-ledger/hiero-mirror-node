@@ -69,7 +69,18 @@ gateway:
       maxRatePerEndpoint: 250  # Requires a change to HPA to take effect
       sessionAffinity:
         type: CLIENT_IP
-      timeoutSec: 20
+      timeoutSec: 15
+    streamingBackendPolicy:
+      cdn:
+        enabled: false
+      connectionDraining:
+        drainingTimeoutSec: 10
+      logging:
+        enabled: false
+      maxRatePerEndpoint: 250
+      sessionAffinity:
+        type: CLIENT_IP
+      timeoutSec: 9999999
     enabled: true
     healthCheckPolicy:
       config:
@@ -79,6 +90,15 @@ gateway:
         type: HTTP
       healthyThreshold: 1
   rules:
+    - backendRefs:
+        - group: "{{ .Values.gateway.target.group }}"
+          kind: "{{ .Values.gateway.target.kind }}"
+          name: "{{ include \"hedera-mirror-grpc.fullname\" $ }}-streaming"
+          port: 5600
+      matches:
+        - method:
+            method: subscribeTopic
+            service: com.hedera.mirror.api.proto.ConsensusService
     - backendRefs:
         - group: "{{ .Values.gateway.target.group }}"
           kind: "{{ .Values.gateway.target.kind }}"

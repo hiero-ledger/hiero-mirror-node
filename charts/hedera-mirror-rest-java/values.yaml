@@ -56,7 +56,7 @@ gateway:
       maxRatePerEndpoint: 250  # Requires a change to HPA to take effect
       sessionAffinity:
         type: CLIENT_IP
-      timeoutSec: 20
+      timeoutSec: 15
     enabled: true
     healthCheckPolicy:
       config:

@@ -19,3 +19,25 @@ spec:
       name: http
   selector: {{ include "hedera-mirror-grpc.selectorLabels" . | nindent 4 }}
   type: {{ .Values.service.type }}
+{{- if and .Values.global.gateway.enabled .Values.gateway.gcp.enabled (not (empty .Values.gateway.gcp.streamingBackendPolicy)) -}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations: {{ toYaml .Values.service.annotations | nindent 4 }}
+  labels: {{ include "hedera-mirror-grpc.labels" . | nindent 4 }}
+  name: {{ include "hedera-mirror-grpc.fullname" . }}-streaming
+  namespace: {{ include "hedera-mirror-grpc.namespace" . }}
+spec:
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector: {{ include "hedera-mirror-grpc.selectorLabels" . | nindent 4 }}
+  type: {{ .Values.service.type }}
+{{- end }}
