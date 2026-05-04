@@ -230,15 +230,15 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected void verifyEthCallAndEstimateGas(
             final RemoteFunctionCall<TransactionReceipt> functionCall, final Contract contract) {
-        final var actualGasUsed = gasUsedAfterExecution(getContractExecutionParameters(functionCall, contract));
+        final var actualGasUsed = contractExecutionService
+                .processCallWithGas(getContractExecutionParameters(functionCall, contract))
+                .gasUsed();
 
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();
-        // Verify eth_call
         assertDoesNotThrow(
                 () -> estimateGasUsedResult.set(functionCall.send().getGasUsed().longValue()));
 
-        // Verify eth_estimateGas
         assertThat(isWithinExpectedGasRange(estimateGasUsedResult.get(), actualGasUsed))
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimateGasUsedResult.get(), actualGasUsed)
                 .isTrue();
@@ -259,16 +259,15 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Contract contract,
             final Address payerAddress,
             final long value) {
-        final var actualGasUsed =
-                gasUsedAfterExecution(getContractExecutionParameters(functionCall, contract, payerAddress, value));
+        final var actualGasUsed = contractExecutionService
+                .processCallWithGas(getContractExecutionParameters(functionCall, contract, payerAddress, value))
+                .gasUsed();
 
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();
-        // Verify ethCall
         assertDoesNotThrow(
                 () -> estimateGasUsedResult.set(functionCall.send().getGasUsed().longValue()));
 
-        // Verify estimateGas
         assertThat(isWithinExpectedGasRange(estimateGasUsedResult.get(), actualGasUsed))
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimateGasUsedResult.get(), actualGasUsed)
                 .isTrue();
