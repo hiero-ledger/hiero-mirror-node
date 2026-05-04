@@ -2,11 +2,13 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
 @Data
@@ -19,8 +21,13 @@ public class NetworkFreeze {
 
     private Long endTime;
     private byte[] fileHash;
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId fileId;
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
+
     private long startTime;
     private int type;
 }
