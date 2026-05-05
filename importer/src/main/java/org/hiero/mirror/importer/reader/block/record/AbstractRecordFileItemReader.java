@@ -65,12 +65,14 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
 
             // Set other common fields. Note metadata hash calculation is skipped because there is only signature for
             // file hash in SignedRecordFileProof
+            final long creationTimestamp = DomainUtils.timestampInNanosMax(recordFileItem.getCreationTime());
             final var items = context.items();
             final var recordFile = context.recordFile();
             final byte[] bytes = bos.toByteArray();
             recordFile.setBytes(bytes);
-            recordFile.setConsensusEnd(items.getLast().getConsensusTimestamp());
-            recordFile.setConsensusStart(items.getFirst().getConsensusTimestamp());
+            recordFile.setConsensusEnd(!items.isEmpty() ? items.getLast().getConsensusTimestamp() : creationTimestamp);
+            recordFile.setConsensusStart(
+                    !items.isEmpty() ? items.getFirst().getConsensusTimestamp() : creationTimestamp);
             recordFile.setCount((long) items.size());
             recordFile.setDigestAlgorithm(DigestAlgorithm.SHA_384);
             recordFile.setFileHash(Hex.encodeHexString(context.fileDigest().digest()));
@@ -86,6 +88,10 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
         }
     }
 
+    private static long getConsensusTimestamp(final RecordStreamItem recordStreamItem) {
+        return DomainUtils.timestampInNanosMax(recordStreamItem.getRecord().getConsensusTimestamp());
+    }
+
     protected void finalize(final RecordFile recordFile) {
         final long consensusEnd = recordFile.getConsensusEnd();
         for (final var sidecar : recordFile.getSidecars()) {
@@ -96,9 +102,40 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
     protected void onBody(final Context context) throws IOException {
         readSidecars(context);
 
-        final var recordStreamFile = context.recordFileItem().getRecordFileContents();
-        for (final var recordStreamItem : recordStreamFile.getRecordStreamItemsList()) {
-            onRecordStreamItem(context, recordStreamItem);
+        final var recordFileItem = context.recordFileItem();
+        final var amendments = recordFileItem.getAmendmentsList();
+        final var recordStreamItems = recordFileItem.getRecordFileContents().getRecordStreamItemsList();
+
+        if (amendments.isEmpty()) {
+            // Most WRBs don't have amendments, shortcut for performance gain
+            for (final var recordStreamItem : recordStreamItems) {
+                onRecordStreamItem(context, recordStreamItem);
+            }
+
+            return;
+        }
+
+        int amendmentIndex = 0;
+        for (final var recordStreamItem : recordStreamItems) {
+            final long recordTimestamp = getConsensusTimestamp(recordStreamItem);
+
+            // Insert any amendments with earlier timestamps (additions)
+            while (amendmentIndex < amendments.size()
+                    && getConsensusTimestamp(amendments.get(amendmentIndex)) < recordTimestamp) {
+                onRecordStreamItem(context, amendments.get(amendmentIndex++));
+            }
+
+            if (amendmentIndex < amendments.size()
+                    && getConsensusTimestamp(amendments.get(amendmentIndex)) == recordTimestamp) {
+                // Replace if the consensus timestamps are the same
+                onRecordStreamItem(context, amendments.get(amendmentIndex++));
+            } else {
+                onRecordStreamItem(context, recordStreamItem);
+            }
+        }
+
+        for (; amendmentIndex < amendments.size(); amendmentIndex++) {
+            onRecordStreamItem(context, amendments.get(amendmentIndex));
         }
     }
 

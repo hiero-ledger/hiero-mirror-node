@@ -1,23 +1,17 @@
 FROM gcr.io/cloud-marketplace-tools/k8s/deployer_helm
 
-ENV HELM_VERSION=v4.1.3
-ENV KUBECTL_VERSION=v1.32.13
-ENV YQ_VERSION=v4.52.4
+# Marketplace image still depends upon Helm 3
+ENV HELM_VERSION=4.1.4
+ENV YQ_VERSION=v4.53.2
 
 # Install yq
 RUN wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 && \
     mv yq_linux_amd64 /usr/local/bin/yq && \
     chmod +x /usr/local/bin/yq
 
-# Install kubectl
-RUN rm -rf /opt/kubectl && \
-    mkdir -p /opt/kubectl/default && \
-    wget -q -O /opt/kubectl/default/kubectl https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl && \
-    chmod 755 /opt/kubectl/default/kubectl
-
-# Install Helm
-RUN wget -q https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz -O - | \
-    tar -C /usr/bin --strip-components=1 -zxv linux-amd64/helm
+# Install Helm - temporarily use fork until next Helm version
+RUN wget -q https://github.com/steven-sheehy/helm/releases/download/v${HELM_VERSION}/helm-${HELM_VERSION}-linux-amd64.tar.gz -O - | \
+    tar -C /usr/local/bin --strip-components=1 -zxv linux-amd64/helm
 
 # Pull in charts
 WORKDIR /app
@@ -28,13 +22,6 @@ RUN yq -i '. *= load("marketplace/gcp/values.yaml")' hedera-mirror/values.yaml &
 
 ARG TAG
 RUN sed -i "s/\$TAG/$TAG/g" marketplace/gcp/schema.yaml
-
-# Update base image dependencies every time since it is not well maintained
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    pip3 install --no-cache-dir "pyOpenSSL>=26.0.0"
 
 # Run helm template to render and verify templates
 RUN helm dependency update hedera-mirror

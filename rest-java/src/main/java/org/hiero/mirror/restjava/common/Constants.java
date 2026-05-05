@@ -23,6 +23,8 @@ public class Constants {
     public static final String NODE_ID = "node.id";
     public static final String ORDER = "order";
     public static final String RECEIVER_ID = "receiver.id";
+    public static final String REGISTERED_NODE_ID = "registerednode.id";
+    public static final String REGISTERED_NODE_TYPE = "type";
     public static final String SENDER_ID = "sender.id";
     public static final String SERIAL_NUMBER = "serialnumber";
     public static final String TIMESTAMP = "timestamp";

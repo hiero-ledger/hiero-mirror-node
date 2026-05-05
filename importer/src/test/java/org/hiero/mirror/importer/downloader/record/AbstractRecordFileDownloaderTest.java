@@ -4,9 +4,11 @@ package org.hiero.mirror.importer.downloader.record;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mock.Strictness.LENIENT;
-import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -24,8 +26,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.downloader.AbstractLinkedStreamDownloaderTest;
 import org.hiero.mirror.importer.downloader.Downloader;
 import org.hiero.mirror.importer.downloader.DownloaderProperties;
-import org.hiero.mirror.importer.downloader.block.BlockDownloaderProperties;
-import org.hiero.mirror.importer.downloader.block.CutoverService;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 import org.hiero.mirror.importer.reader.record.CompositeRecordFileReader;
@@ -53,7 +54,15 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
     protected void beforeEach() {
         super.beforeEach();
         setupRecordFiles(getRecordFileMap());
-        doReturn(true).when(cutoverService).isActive(StreamType.RECORD);
+        doAnswer(answer -> {
+                    if (answer.getArgument(1) instanceof Runnable task) {
+                        task.run();
+                    }
+
+                    return null;
+                })
+                .when(cutoverService)
+                .get(eq(StreamType.RECORD), any(Runnable.class));
     }
 
     protected abstract Map<String, RecordFile> getRecordFileMap();
@@ -92,8 +101,7 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
                 signatureFileReader,
                 streamFileNotifier,
                 streamFileProvider,
-                recordFileReader,
-                new BlockDownloaderProperties());
+                recordFileReader);
     }
 
     protected void setupRecordFiles(Map<String, RecordFile> recordFileMap) {

@@ -153,8 +153,8 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         // Verify that the logs the high-priority node's port
         String logs = output.getAll();
         final var nodeLogs = findAllMatches(logs, "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\) ?");
-        final var nodeAPort = String.valueOf(nodeAProperties.getStatusPort());
-        final var nodeBPort = String.valueOf(nodeBProperties.getStatusPort());
+        final var nodeAPort = String.valueOf(nodeAProperties.getPort());
+        final var nodeBPort = String.valueOf(nodeBProperties.getPort());
 
         assertThat(nodeLogs).containsExactly("Start streaming block 0 from BlockNode(localhost:" + nodeAPort + ") ");
         assertThat(nodeLogs).doesNotContain(nodeBPort);
@@ -191,9 +191,9 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         // then
         assertVerifiedBlockFiles(0L);
 
-        final var nodeAPort = String.valueOf(nodeAProperties.getStatusPort());
-        final var nodeBPort = String.valueOf(nodeBProperties.getStatusPort());
-        final var nodeCPort = String.valueOf(nodeCProperties.getStatusPort());
+        final var nodeAPort = String.valueOf(nodeAProperties.getPort());
+        final var nodeBPort = String.valueOf(nodeBProperties.getPort());
+        final var nodeCPort = String.valueOf(nodeCProperties.getPort());
 
         // Attempt 2: next block is 1 - Nodes A and B don't have it so Node C must be chosen
         subscriber.get();
@@ -237,7 +237,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
             final var nodeLogs =
                     findAllMatches(logs, "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\) ?");
 
-            final var nodeAPort = String.valueOf(nodeAProperties.getStatusPort());
+            final var nodeAPort = String.valueOf(nodeAProperties.getPort());
 
             assertThat(nodeLogs)
                     .containsExactly("Start streaming block 5 from BlockNode(localhost:" + nodeAPort + ") ");
@@ -283,9 +283,9 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         String logs = output.getAll();
         final var nodeLogs = findAllMatches(logs, "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\) ?");
 
-        final var nodeAPort = String.valueOf(nodeAProperties.getStatusPort());
-        final var nodeBPort = String.valueOf(nodeBProperties.getStatusPort());
-        final var nodeCPort = String.valueOf(nodeCProperties.getStatusPort());
+        final var nodeAPort = String.valueOf(nodeAProperties.getPort());
+        final var nodeBPort = String.valueOf(nodeBProperties.getPort());
+        final var nodeCPort = String.valueOf(nodeCProperties.getPort());
 
         assertThat(nodeLogs)
                 .containsExactly(
@@ -333,9 +333,9 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         String logs = output.getAll();
         final var nodeLogs = findAllMatches(logs, "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\) ?");
 
-        final var nodeAPort = String.valueOf(nodeAProperties.getStatusPort());
-        final var nodeBPort = String.valueOf(nodeBProperties.getStatusPort());
-        final var nodeCPort = String.valueOf(nodeCProperties.getStatusPort());
+        final var nodeAPort = String.valueOf(nodeAProperties.getPort());
+        final var nodeBPort = String.valueOf(nodeBProperties.getPort());
+        final var nodeCPort = String.valueOf(nodeCProperties.getPort());
 
         assertThat(nodeLogs)
                 .containsExactly(
@@ -394,8 +394,8 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         final var nodeLogsMarkedInactive = findAllMatches(
                 logs, "Marking connection to BlockNode\\(localhost:\\d+\\) as inactive after 3 attempts");
 
-        final var nodeAPort = String.valueOf(nodeAProperties.getStatusPort());
-        final var nodeBPort = String.valueOf(nodeBProperties.getStatusPort());
+        final var nodeAPort = String.valueOf(nodeAProperties.getPort());
+        final var nodeBPort = String.valueOf(nodeBProperties.getPort());
 
         assertThat(nodeLogsMarkedInactive)
                 .containsExactly(

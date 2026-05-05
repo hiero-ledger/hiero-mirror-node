@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.hiero.mirror.common.util.DomainUtils.fromTrimmedEvmAddress;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogServiceImpl.CONTRACT_LOG_MARKER;
 
 import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -12,6 +13,7 @@ import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.collect.Iterators;
 import io.micrometer.core.annotation.Timed;
 import jakarta.inject.Named;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +28,8 @@ import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
 import org.hiero.mirror.importer.domain.EvmAddressMapping;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
@@ -72,11 +76,12 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
 
     @Override
     public void onContractLog(ContractLog contractLog) {
-        if (contractLog.isSyntheticTransfer()) {
+        if (contractLog.isSynthetic()) {
+            var contractId = contractLog.getContractId();
             var senderId = fromTrimmedEvmAddress(contractLog.getTopic1());
             var receiverId = fromTrimmedEvmAddress(contractLog.getTopic2());
-            if (!(EntityId.isEmpty(senderId) && EntityId.isEmpty(receiverId))) {
-                final var updater = new SyntheticLogUpdater(senderId, receiverId, contractLog);
+            if (!(EntityId.isEmpty(contractId) && EntityId.isEmpty(senderId) && EntityId.isEmpty(receiverId))) {
+                final var updater = new SyntheticLogUpdater(contractId, senderId, receiverId, contractLog);
                 updater.populateSearchIds();
                 parserContext.addTransient(updater);
             }
@@ -127,11 +132,16 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
 
     @RequiredArgsConstructor
     class SyntheticLogUpdater {
+        private final EntityId contractId;
         private final EntityId sender;
         private final EntityId receiver;
         private final ContractLog contractLog;
 
         public void populateSearchIds() {
+            if (!EntityId.isEmpty(contractId)) {
+                parserContext.addEvmAddressLookupId(contractId.getId());
+            }
+
             if (!EntityId.isEmpty(receiver)) {
                 parserContext.addEvmAddressLookupId(receiver.getId());
             }
@@ -144,6 +154,57 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         public void updateContractLog(Map<Long, byte[]> entityEvmAddresses) {
             updateTopicField(sender, entityEvmAddresses, contractLog::setTopic1, contractLog.getTopic1());
             updateTopicField(receiver, entityEvmAddresses, contractLog::setTopic2, contractLog.getTopic2());
+
+            var contractAddress = getContractAddress(contractId, entityEvmAddresses);
+            if (Arrays.equals(CONTRACT_LOG_MARKER, contractLog.getBloom())) {
+                contractLog.setBloom(createBloom(contractAddress));
+            }
+        }
+
+        /**
+         * Retrieves the EVM address for a contract. Returns the alias if available,
+         * otherwise returns the long-zero address (contract num as hex representation).
+         *
+         * @param contractEntityId the contract entity ID
+         * @param entityEvmAddresses the map of entity IDs to EVM addresses
+         * @return the contract address as a byte array
+         */
+        private byte[] getContractAddress(final EntityId contractEntityId, final Map<Long, byte[]> entityEvmAddresses) {
+            if (EntityId.isEmpty(contractEntityId)) {
+                return DomainUtils.toEvmAddress(contractLog.getContractId());
+            }
+
+            var cachedEvmAddress = entityEvmAddresses.get(contractEntityId.getId());
+            if (cachedEvmAddress != null) {
+                return cachedEvmAddress;
+            }
+
+            var contextEntity = parserContext.get(Entity.class, contractEntityId.getId());
+            if (contextEntity != null && !ArrayUtils.isEmpty(contextEntity.getEvmAddress())) {
+                var trimmedEvmAddress = trim(contextEntity.getEvmAddress());
+                getEvmCache().put(contractEntityId.getId(), trimmedEvmAddress);
+                return trimmedEvmAddress;
+            }
+
+            var longZeroAddress = DomainUtils.toEvmAddress(contractEntityId);
+            getEvmCache().put(contractEntityId.getId(), longZeroAddress);
+            return longZeroAddress;
+        }
+
+        /**
+         * Creates a bloom filter for a synthetic contract log using the log's address, topics, and data.
+         *
+         * @param contractAddress the contract address to use in the bloom filter
+         * @return the bloom filter as a byte array
+         */
+        private byte[] createBloom(byte[] contractAddress) {
+            final var logsBloomFilter = new LogsBloomFilter();
+            logsBloomFilter.insertAddress(contractAddress);
+            logsBloomFilter.insertTopic(contractLog.getTopic0());
+            logsBloomFilter.insertTopic(contractLog.getTopic1());
+            logsBloomFilter.insertTopic(contractLog.getTopic2());
+            logsBloomFilter.insertTopic(contractLog.getTopic3());
+            return logsBloomFilter.toArrayUnsafe();
         }
 
         public void updateTopicField(

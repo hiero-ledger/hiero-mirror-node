@@ -64,12 +64,14 @@ class SystemFileLoaderTest {
 
     private SystemFileLoader systemFileLoader;
     private VersionedConfiguration configuration;
+    private EvmProperties evmProperties;
     private SystemEntity systemEntity;
 
     @BeforeEach
     void setup() {
         systemEntity = new SystemEntity(commonProperties);
-        final var evmProperties = new EvmProperties();
+        evmProperties = new EvmProperties();
+        evmProperties.setMaxFileAttempts(2);
         systemFileLoader = new SystemFileLoader(
                 evmProperties, fileDataRepository, systemEntity, exchangeRatesCacheManager, modularizedCacheManager);
         configuration = evmProperties.getVersionedConfiguration();
@@ -198,7 +200,8 @@ class SystemFileLoaderTest {
                 .isNotNull()
                 .returns(expected.contents(), File::contents)
                 .returns(fileId, File::fileId);
-        verify(fileDataRepository, times(10)).getFileAtTimestamp(eq(entityId), anyLong());
+        verify(fileDataRepository, times(evmProperties.getMaxFileAttempts()))
+                .getFileAtTimestamp(eq(entityId), anyLong());
     }
 
     @Test
@@ -310,7 +313,8 @@ class SystemFileLoaderTest {
                 .isNotNull()
                 .returns(expected.contents(), File::contents)
                 .returns(fileId, File::fileId);
-        verify(fileDataRepository, times(10)).getFileAtTimestamp(eq(entityId), anyLong());
+        verify(fileDataRepository, times(evmProperties.getMaxFileAttempts()))
+                .getFileAtTimestamp(eq(entityId), anyLong());
     }
 
     @ParameterizedTest

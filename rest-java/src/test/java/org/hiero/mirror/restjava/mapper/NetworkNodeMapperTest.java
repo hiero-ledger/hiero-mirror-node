@@ -19,6 +19,7 @@ final class NetworkNodeMapperTest {
     void map() {
         // Given - row with all fields populated
         var row = mock(NetworkNodeDto.class);
+        when(row.associatedRegisteredNodes()).thenReturn(new Long[] {1L, 10L});
         when(row.nodeId()).thenReturn(3L);
         when(row.fileId()).thenReturn(102L);
         when(row.nodeAccountId()).thenReturn(8L);
@@ -37,6 +38,7 @@ final class NetworkNodeMapperTest {
 
         // Then - verify mapped values
         assertThat(result).isNotNull().satisfies(node -> {
+            assertThat(node.getAssociatedRegisteredNodes()).containsExactly(1L, 10L);
             assertThat(node.getNodeId()).isEqualTo(3L);
             assertThat(node.getFileId()).isEqualTo("0.0.102");
             assertThat(node.getNodeAccountId()).isEqualTo("0.0.8");
@@ -60,6 +62,7 @@ final class NetworkNodeMapperTest {
         when(row.startConsensusTimestamp()).thenReturn(null);
         when(row.endConsensusTimestamp()).thenReturn(null);
         when(row.stakingPeriod()).thenReturn(null);
+        when(row.associatedRegisteredNodes()).thenReturn(new Long[] {});
 
         // When
         result = mapper.map(row);
@@ -71,7 +74,21 @@ final class NetworkNodeMapperTest {
             assertThat(node.getNodeCertHash()).isEqualTo("0x");
             assertThat(node.getTimestamp()).isNull();
             assertThat(node.getStakingPeriod()).isNull();
+            assertThat(node.getAssociatedRegisteredNodes()).isEmpty();
         });
+    }
+
+    @Test
+    void mapAssociatedRegisteredNodesNull() {
+        // given
+        final var row = mock(NetworkNodeDto.class);
+        when(row.associatedRegisteredNodes()).thenCallRealMethod();
+
+        // when
+        final var result = mapper.map(row);
+
+        // then
+        assertThat(result.getAssociatedRegisteredNodes()).isEmpty();
     }
 
     private ServiceEndpoint createServiceEndpoint(String ip, int port) {

@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.DigestOutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -31,7 +32,7 @@ import org.springframework.data.util.Version;
 
 @CustomLog
 @Named
-public class ProtoRecordFileReader implements RecordFileReader {
+public final class ProtoRecordFileReader implements RecordFileReader {
 
     public static final int VERSION = 6;
 
@@ -55,10 +56,21 @@ public class ProtoRecordFileReader implements RecordFileReader {
                         endHashAlgorithm);
             }
 
+            var items = readItems(recordStreamFile);
+            final long consensusStart;
+            final long consensusEnd;
+            if (!items.isEmpty()) {
+                consensusStart = items.getFirst().getConsensusTimestamp();
+                consensusEnd = items.getLast().getConsensusTimestamp();
+            } else {
+                final long fileTimestamp = DomainUtils.convertToNanosMax(
+                        streamFileData.getStreamFilename().getInstant());
+                consensusStart = fileTimestamp;
+                consensusEnd = fileTimestamp;
+            }
+
             var bytes = streamFileData.getBytes();
-            var items = readItems(filename, recordStreamFile);
             int count = items.size();
-            long consensusEnd = items.get(count - 1).getConsensusTimestamp();
             var digestAlgorithm = getDigestAlgorithm(filename, startHashAlgorithm, endHashAlgorithm);
             var hapiProtoVersion = recordStreamFile.getHapiProtoVersion();
             var majorVersion = hapiProtoVersion.getMajor();
@@ -68,7 +80,7 @@ public class ProtoRecordFileReader implements RecordFileReader {
 
             return RecordFile.builder()
                     .bytes(bytes)
-                    .consensusStart(items.get(0).getConsensusTimestamp())
+                    .consensusStart(consensusStart)
                     .consensusEnd(consensusEnd)
                     .count((long) count)
                     .digestAlgorithm(digestAlgorithm)
@@ -157,10 +169,10 @@ public class ProtoRecordFileReader implements RecordFileReader {
         }
     }
 
-    private List<RecordItem> readItems(String filename, RecordStreamFile recordStreamFile) {
-        int count = recordStreamFile.getRecordStreamItemsCount();
+    private List<RecordItem> readItems(final RecordStreamFile recordStreamFile) {
+        final int count = recordStreamFile.getRecordStreamItemsCount();
         if (count == 0) {
-            throw new InvalidStreamFileException("No record stream objects in record file " + filename);
+            return Collections.emptyList();
         }
 
         var hapiProtoVersion = recordStreamFile.getHapiProtoVersion();

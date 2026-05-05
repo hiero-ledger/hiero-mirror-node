@@ -42,13 +42,21 @@ import com.swirlds.config.api.Configuration;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.CommonProperties;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 @RequiredArgsConstructor
 final class FeeEstimationFeeContext implements FeeContext {
 
-    private static final ConfigProviderImpl CONFIG_PROVIDER = new ConfigProviderImpl(false, null, Map.of());
+    private static final ConfigProviderImpl CONFIG_PROVIDER = new ConfigProviderImpl(
+            false,
+            null,
+            Map.of(
+                    "hedera.shard",
+                            String.valueOf(CommonProperties.getInstance().getShard()),
+                    "hedera.realm",
+                            String.valueOf(CommonProperties.getInstance().getRealm())));
     static final Configuration CONFIGURATION = CONFIG_PROVIDER.getConfiguration();
     private static final Authorizer FEE_AUTHORIZER =
             new AuthorizerImpl(CONFIG_PROVIDER, new PrivilegesVerifier(CONFIG_PROVIDER));

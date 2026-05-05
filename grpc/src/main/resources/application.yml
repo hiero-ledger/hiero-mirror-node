@@ -15,8 +15,8 @@ hiero:
 logging:
   level:
     root: warn
-    org.hiero.mirror.grpc: info
-    io.grpc.netty.shaded.io.grpc.netty.NettyServerHandler: error
+    org.hiero.mirror: info
+    io.grpc.netty.NettyServerHandler: error
     org.hibernate.orm.deprecation: error # Suppress hibernate.dialect warnings
     # io.grpc: debug
     # org.hibernate.SQL: debug

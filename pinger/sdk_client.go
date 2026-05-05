@@ -15,7 +15,7 @@ func newClient(cfg config) (*hiero.Client, error) {
 
 	switch cfg.network {
 	case "other":
-		netmap, err := buildNetworkFromMirrorNodes(context.Background(), cfg.mirrorRest)
+		netmap, err := buildNetworkFromMirrorNodes(context.Background(), cfg)
 		if err != nil {
 			return nil, err
 		}

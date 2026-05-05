@@ -48,6 +48,7 @@ spec:
           readinessProbe: {{ toYaml .Values.readinessProbe | nindent 12 }}
           resources: {{ toYaml .Values.resources | nindent 12 }}
           securityContext: {{ toYaml .Values.securityContext | nindent 12 }}
+          startupProbe: {{ toYaml .Values.startupProbe | nindent 12 }}
           volumeMounts:
             {{- range $name, $config := .Values.volumeMounts }}
             - name: {{ $name }}

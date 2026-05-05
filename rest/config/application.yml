@@ -54,6 +54,7 @@ hiero:
       port: 5551
       query:
         bindTimestampRange: false
+        maxFileAttempts: 12
         maxRecordFileCloseInterval: 10s
         maxRepeatedQueryParameters: 100
         maxScheduledTransactionConsensusTimestampRange: 89285m
@@ -109,7 +110,6 @@ hiero:
               { "cache-control": "public, max-age=600" }
             /api/v1/contracts/results/:transactionIdOrHash/actions:
               { "cache-control": "public, max-age=600" }
-            /api/v1/network/nodes: { "cache-control": "public, max-age=60" }
             /api/v1/schedules: { "cache-control": "public, max-age=10" }
             /api/v1/tokens: { "cache-control": "public, max-age=10" }
             /api/v1/tokens/:tokenId: { "cache-control": "public, max-age=5" }

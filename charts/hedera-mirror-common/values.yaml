@@ -605,11 +605,19 @@ testkube:
       repository: grafana/k6
       tag: 0.58.0
   namespace: testkube
+  prometheus:
+    enabled: false
+    password: ""
+    serverUrl: ""
+    username: ""
   test:
     config:
-      rest: {}
-      restjava: {}
-      web3: {}
+      rest:
+        K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
+      restjava:
+        K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
+      web3:
+        K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
     delay: 600s  # Delay duration between test suite steps. This needs to be at least 600s to match the pgbouncer server
                  # connection idle timeout, so that connections will be freed up for the next set of tests
     extraExecutionRequestVariables: {}

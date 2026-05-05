@@ -7,7 +7,6 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Comparator;
 import lombok.Data;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
 @Data
@@ -17,61 +16,35 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
     private static final Comparator<BlockNodeProperties> COMPARATOR = Comparator.comparing(
                     BlockNodeProperties::getPriority)
             .thenComparing(BlockNodeProperties::getHost)
-            .thenComparing(BlockNodeProperties::getStreamingHost)
-            .thenComparing(BlockNodeProperties::getStatusPort)
-            .thenComparing(BlockNodeProperties::getStreamingPort)
-            .thenComparing(BlockNodeProperties::isStatusApiRequireTls)
-            .thenComparing(BlockNodeProperties::isStreamingApiRequireTls);
+            .thenComparing(BlockNodeProperties::getPort)
+            .thenComparing(BlockNodeProperties::isRequiresTls);
 
-    /**
-     * Used for status and streaming (when streamingHost is not set)
-     */
     @NotBlank
     private String host;
+
+    @Max(65535)
+    @Min(0)
+    private int port = 40840;
 
     @Min(0)
     private int priority = 0;
 
-    private boolean statusApiRequireTls;
-
-    @Max(65535)
-    @Min(0)
-    private int statusPort = 40840;
-
-    private boolean streamingApiRequireTls;
-
-    private String streamingHost;
-
-    @Max(65535)
-    @Min(0)
-    private int streamingPort = 40840;
+    private boolean requiresTls;
 
     @Override
     public int compareTo(BlockNodeProperties other) {
         return COMPARATOR.compare(this, other);
     }
 
-    public String getStreamingHost() {
-        return StringUtils.isNotBlank(streamingHost) ? streamingHost : host;
-    }
-
-    public String getStatusEndpoint() {
-        return host + ":" + statusPort;
-    }
-
-    public String getStreamingEndpoint() {
-        return getStreamingHost() + ":" + streamingPort;
+    public String getEndpoint() {
+        return host + ":" + port;
     }
 
     /**
      * Returns a key that uniquely identifies this block node configuration for merge purposes.
-     * Two configurations are considered the same when both status endpoint (host+port) and
-     * requiresTls match, and both streaming endpoint (host+port) and requiresTls match.
+     * Two configurations are considered the same when both the endpoint (host+port) and requiresTls match.
      */
     public String getMergeKey() {
-        return getStatusEndpoint()
-                + "|" + statusApiRequireTls
-                + "|" + getStreamingEndpoint()
-                + "|" + streamingApiRequireTls;
+        return getEndpoint() + "|" + requiresTls;
     }
 }

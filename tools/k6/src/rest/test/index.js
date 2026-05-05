@@ -23,6 +23,7 @@ import * as balancesAccountTimestamp from './balancesAccountTimestamp.js';
 import * as balancesPublicKeyTimestamp from './balancesPublicKeyTimestamp.js';
 import * as balancesTimestamp from './balancesTimestamp.js';
 import * as blocks from './blocks.js';
+import * as blocksHash from './blocksHash.js';
 import * as blocksNumber from './blocksNumber.js';
 import * as contracts from './contracts.js';
 import * as contractsId from './contractsId.js';
@@ -34,7 +35,6 @@ import * as contractsResults from './contractsResult.js';
 import * as contractsResultsId from './contractsResultsId.js';
 import * as contractsResultsIdActions from './contractsResultsIdActions.js';
 import * as contractsResultsLogs from './contractsResultsLogs.js';
-import * as networkNodes from './networkNodes.js';
 import * as rampUp from './rampUp.js';
 import * as schedules from './schedules.js';
 import * as schedulesAccount from './schedulesAccount.js';
@@ -83,6 +83,7 @@ const tests = {
   balancesPublicKeyTimestamp,
   balancesTimestamp,
   blocks,
+  blocksHash,
   blocksNumber,
   contracts,
   contractsId,
@@ -94,7 +95,6 @@ const tests = {
   contractsResultsId,
   contractsResultsIdActions,
   contractsResultsLogs,
-  networkNodes,
   rampUp,
   schedules,
   schedulesAccount,

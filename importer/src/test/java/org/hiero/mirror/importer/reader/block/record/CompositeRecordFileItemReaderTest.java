@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.reader.block.record;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.EXPECTED_RECORD_FILES;
 import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.readWrappedRecordBlocks;
@@ -25,9 +26,11 @@ import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.SemanticVersion;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -57,6 +60,16 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 @ExtendWith(OutputCaptureExtension.class)
 final class CompositeRecordFileItemReaderTest {
 
+    private static final Transaction DEFAULT_TRANSACTION = Transaction.newBuilder()
+            .setSignedTransactionBytes(SignedTransaction.newBuilder()
+                    .setBodyBytes(TransactionBody.newBuilder()
+                            .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
+                            .build()
+                            .toByteString())
+                    .build()
+                    .toByteString())
+            .build();
+
     private static final RecursiveComparisonConfiguration RECORD_FILE_COMPARISON_CONFIG =
             RecursiveComparisonConfiguration.builder()
                     .withIgnoredFields("bytes", "items")
@@ -85,6 +98,30 @@ final class CompositeRecordFileItemReaderTest {
         assertThatThrownBy(() -> reader.read(RecordFileItem.getDefaultInstance(), 0))
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessage("Unsupported record file version 0");
+    }
+
+    @Test
+    void readWithNoTransactions() {
+        // given
+        final long creationTime = DomainUtils.convertToNanosMax(Instant.now());
+        final var recordFileItem = RecordFileItem.newBuilder()
+                .setCreationTime(TestUtils.toTimestamp(creationTime))
+                .setRecordFileContents(RecordStreamFile.newBuilder()
+                        .setStartObjectRunningHash(hashObject())
+                        .setEndObjectRunningHash(hashObject())
+                        .build())
+                .build();
+
+        // when
+        final var recordFile = reader.read(recordFileItem, 6);
+
+        // then
+        assertThat(recordFile)
+                .returns(creationTime, RecordFile::getConsensusEnd)
+                .returns(creationTime, RecordFile::getConsensusStart)
+                .returns(0L, RecordFile::getCount)
+                .extracting(RecordFile::getItems, LIST)
+                .isEmpty();
     }
 
     @Test
@@ -162,9 +199,7 @@ final class CompositeRecordFileItemReaderTest {
                         .setSidecars(
                                 0,
                                 SidecarMetadata.newBuilder()
-                                        .setHash(HashObject.newBuilder()
-                                                .setAlgorithm(HashAlgorithm.SHA_384)
-                                                .setHash(ByteString.copyFrom(TestUtils.generateRandomByteArray(48))))
+                                        .setHash(hashObject())
                                         .setId(1)
                                         .build()))
                 .build();
@@ -199,6 +234,91 @@ final class CompositeRecordFileItemReaderTest {
                 .contains(
                         "Recoverable error. Missing sidecar file content for id %d of wrapped record file 2025-08-02T02_55_14.210243Z.rcd"
                                 .formatted(metadataIndex));
+    }
+
+    @Test
+    void readWithAmendmentAddition() {
+        // given - amendments insert items before, in the middle of, and after the existing items
+        final var timestamp1 = TestUtils.toTimestamp(1_000_000_000L);
+        final var timestamp2 = TestUtils.toTimestamp(2_000_000_000L);
+        final var timestamp3 = TestUtils.toTimestamp(3_000_000_000L);
+        final var timestamp4 = TestUtils.toTimestamp(4_000_000_000L);
+        final var timestamp5 = TestUtils.toTimestamp(5_000_000_000L);
+        final var recordFileItem = createRecordFileItemWithAmendments(
+                List.of(recordStreamItem(timestamp2), recordStreamItem(timestamp4)),
+                List.of(recordStreamItem(timestamp1), recordStreamItem(timestamp3), recordStreamItem(timestamp5)));
+
+        // when
+        final var recordFile = reader.read(recordFileItem, 6);
+
+        // then
+        final var expectedTimestamps = Stream.of(timestamp1, timestamp2, timestamp3, timestamp4, timestamp5)
+                .map(DomainUtils::timestampInNanosMax)
+                .toList();
+        assertThat(recordFile)
+                .returns(5L, RecordFile::getCount)
+                .extracting(RecordFile::getItems)
+                .asInstanceOf(InstanceOfAssertFactories.list(RecordItem.class))
+                .extracting(RecordItem::getConsensusTimestamp)
+                .containsExactlyElementsOf(expectedTimestamps);
+    }
+
+    @Test
+    void readWithAmendmentReplacement() {
+        // given - amendment replaces an existing item with a corrected transaction record
+        final var timestamp1 = TestUtils.toTimestamp(1_000_000_000L);
+        final var timestamp2 = TestUtils.toTimestamp(2_000_000_000L);
+        final var amendedHash = ByteString.copyFrom(TestUtils.generateRandomByteArray(48));
+        final var recordFileItem = createRecordFileItemWithAmendments(
+                List.of(recordStreamItem(timestamp1), recordStreamItem(timestamp2)),
+                List.of(recordStreamItemWithHash(timestamp2, amendedHash)));
+
+        // when
+        final var recordFile = reader.read(recordFileItem, 6);
+
+        // then
+        assertThat(recordFile)
+                .returns(2L, RecordFile::getCount)
+                .extracting(RecordFile::getItems)
+                .asInstanceOf(InstanceOfAssertFactories.list(RecordItem.class))
+                .hasSize(2)
+                .last()
+                .extracting(item -> item.getTransactionRecord().getTransactionHash())
+                .isEqualTo(amendedHash);
+    }
+
+    @Test
+    void readWithMixedAmendments() {
+        // given - amendments include both additions (t2, t4) and a replacement (t3)
+        final var timestamp1 = TestUtils.toTimestamp(1_000_000_000L);
+        final var timestamp2 = TestUtils.toTimestamp(2_000_000_000L);
+        final var timestamp3 = TestUtils.toTimestamp(3_000_000_000L);
+        final var timestamp4 = TestUtils.toTimestamp(4_000_000_000L);
+        final var amendedHash = ByteString.copyFrom(TestUtils.generateRandomByteArray(48));
+        final var recordFileItem = createRecordFileItemWithAmendments(
+                List.of(recordStreamItem(timestamp1), recordStreamItem(timestamp3)),
+                List.of(
+                        recordStreamItem(timestamp2),
+                        recordStreamItemWithHash(timestamp3, amendedHash),
+                        recordStreamItem(timestamp4)));
+
+        // when
+        final var recordFile = reader.read(recordFileItem, 6);
+
+        // then
+        final var expectedTimestamps = Stream.of(timestamp1, timestamp2, timestamp3, timestamp4)
+                .map(DomainUtils::timestampInNanosMax)
+                .toList();
+        assertThat(recordFile)
+                .returns(4L, RecordFile::getCount)
+                .extracting(RecordFile::getItems)
+                .asInstanceOf(InstanceOfAssertFactories.list(RecordItem.class))
+                .satisfies(
+                        items -> assertThat(items)
+                                .extracting(RecordItem::getConsensusTimestamp)
+                                .containsExactlyElementsOf(expectedTimestamps),
+                        items -> assertThat(items.get(2).getTransactionRecord().getTransactionHash())
+                                .isEqualTo(amendedHash));
     }
 
     private static void assertRecordFileWithSidecars(
@@ -252,12 +372,27 @@ final class CompositeRecordFileItemReaderTest {
                                 .satisfies(sidecarFileAssertion));
     }
 
+    private static RecordFileItem createRecordFileItemWithAmendments(
+            final List<RecordStreamItem> items, final List<RecordStreamItem> amendments) {
+        final var recordStreamFile = RecordStreamFile.newBuilder()
+                .setHapiProtoVersion(SemanticVersion.newBuilder().setMinor(64))
+                .setStartObjectRunningHash(hashObject(TestUtils.generateRandomByteArray(48)))
+                .addAllRecordStreamItems(items)
+                .setEndObjectRunningHash(hashObject(TestUtils.generateRandomByteArray(48)))
+                .setBlockNumber(1L)
+                .build();
+        return RecordFileItem.newBuilder()
+                .setCreationTime(items.getFirst().getRecord().getConsensusTimestamp())
+                .setRecordFileContents(recordStreamFile)
+                .addAllAmendments(amendments)
+                .build();
+    }
+
     private static RecordFileItem createRecordFileItemWithSidecar() {
         final var consensusStart = TestUtils.toTimestamp(1754103314210243000L);
         final var consensusEnd = TestUtils.toTimestamp(1754103314210243287L);
 
         final var sidecarDigest = createSha384Digest();
-        final var hashObjectBuilder = HashObject.newBuilder().setAlgorithm(HashAlgorithm.SHA_384);
         final var sidecarRecordBuilder = TransactionSidecarRecord.newBuilder().setConsensusTimestamp(consensusStart);
         final var sidecarFiles = List.of(
                 com.hedera.services.stream.proto.SidecarFile.newBuilder()
@@ -275,47 +410,30 @@ final class CompositeRecordFileItemReaderTest {
                                 .setBytecode(ContractBytecode.getDefaultInstance())
                                 .build())
                         .build());
-        final var defaultTransaction = Transaction.newBuilder()
-                .setSignedTransactionBytes(SignedTransaction.newBuilder()
-                        .setBodyBytes(TransactionBody.newBuilder()
-                                .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
-                                .build()
-                                .toByteString())
-                        .build()
-                        .toByteString())
-                .build();
         final var recordStreamFile = RecordStreamFile.newBuilder()
                 .setHapiProtoVersion(SemanticVersion.newBuilder().setMinor(64))
-                .setStartObjectRunningHash(hashObjectBuilder
-                        .setHash(DomainUtils.fromBytes(TestUtils.generateRandomByteArray(48)))
-                        .build())
+                .setStartObjectRunningHash(hashObject())
                 .addAllRecordStreamItems(List.of(
                         RecordStreamItem.newBuilder()
-                                .setTransaction(defaultTransaction)
+                                .setTransaction(DEFAULT_TRANSACTION)
                                 .setRecord(TransactionRecord.newBuilder().setConsensusTimestamp(consensusStart))
                                 .build(),
                         RecordStreamItem.newBuilder()
-                                .setTransaction(defaultTransaction)
+                                .setTransaction(DEFAULT_TRANSACTION)
                                 .setRecord(TransactionRecord.newBuilder().setConsensusTimestamp(consensusEnd))
                                 .build()))
-                .setEndObjectRunningHash(hashObjectBuilder
-                        .setHash(DomainUtils.fromBytes(TestUtils.generateRandomByteArray(48)))
-                        .build())
+                .setEndObjectRunningHash(hashObject())
                 .setBlockNumber(82697486L)
                 .addAllSidecars(List.of(
                         SidecarMetadata.newBuilder()
-                                .setHash(hashObjectBuilder
-                                        .setHash(DomainUtils.fromBytes(sidecarDigest.digest(
-                                                sidecarFiles.getFirst().toByteArray())))
-                                        .build())
+                                .setHash(hashObject(sidecarDigest.digest(
+                                        sidecarFiles.getFirst().toByteArray())))
                                 .setId(1)
                                 .addAllTypes(List.of(SidecarType.CONTRACT_STATE_CHANGE, SidecarType.CONTRACT_ACTION))
                                 .build(),
                         SidecarMetadata.newBuilder()
-                                .setHash(hashObjectBuilder
-                                        .setHash(DomainUtils.fromBytes(sidecarDigest.digest(
-                                                sidecarFiles.getLast().toByteArray())))
-                                        .build())
+                                .setHash(hashObject(sidecarDigest.digest(
+                                        sidecarFiles.getLast().toByteArray())))
                                 .setId(2)
                                 .addTypes(SidecarType.CONTRACT_BYTECODE)
                                 .build()))
@@ -324,6 +442,31 @@ final class CompositeRecordFileItemReaderTest {
                 .setCreationTime(consensusStart)
                 .setRecordFileContents(recordStreamFile)
                 .addAllSidecarFileContents(sidecarFiles)
+                .build();
+    }
+
+    private static HashObject hashObject() {
+        return hashObject(TestUtils.generateRandomByteArray(48));
+    }
+
+    private static HashObject hashObject(final byte[] hash) {
+        return HashObject.newBuilder()
+                .setAlgorithm(HashAlgorithm.SHA_384)
+                .setHash(DomainUtils.fromBytes(hash))
+                .build();
+    }
+
+    private static RecordStreamItem recordStreamItem(final Timestamp consensusTimestamp) {
+        return recordStreamItemWithHash(consensusTimestamp, ByteString.EMPTY);
+    }
+
+    private static RecordStreamItem recordStreamItemWithHash(
+            final Timestamp consensusTimestamp, final ByteString transactionHash) {
+        return RecordStreamItem.newBuilder()
+                .setTransaction(DEFAULT_TRANSACTION)
+                .setRecord(TransactionRecord.newBuilder()
+                        .setConsensusTimestamp(consensusTimestamp)
+                        .setTransactionHash(transactionHash))
                 .build();
     }
 
