@@ -64,6 +64,7 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
+import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.TestWeb3jService;
@@ -228,20 +229,23 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         }
     }
 
-    protected void verifyEthCallAndEstimateGas(
+    protected ContractExecutionResult verifyEthCallAndEstimateGas(
             final RemoteFunctionCall<TransactionReceipt> functionCall, final Contract contract) {
-        final var actualGasUsed = contractExecutionService
-                .processCallWithGas(getContractExecutionParameters(functionCall, contract))
-                .gasUsed();
+        final var executionResult =
+                contractExecutionService.processCallWithGas(getContractExecutionParameters(functionCall, contract));
 
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();
+        // Verify eth_call
         assertDoesNotThrow(
                 () -> estimateGasUsedResult.set(functionCall.send().getGasUsed().longValue()));
 
-        assertThat(isWithinExpectedGasRange(estimateGasUsedResult.get(), actualGasUsed))
-                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimateGasUsedResult.get(), actualGasUsed)
+        // Verify eth_estimateGas
+        assertThat(isWithinExpectedGasRange(estimateGasUsedResult.get(), executionResult.gasUsed()))
+                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimateGasUsedResult.get(), executionResult.gasUsed())
                 .isTrue();
+
+        return executionResult;
     }
 
     protected <T extends Exception> void verifyEstimateGasRevertExecution(
@@ -254,23 +258,26 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         assertThatThrownBy(functionCall::send).isInstanceOf(exceptionClass).hasMessage(exceptionMessage);
     }
 
-    protected void verifyEthCallAndEstimateGasWithValue(
+    protected ContractExecutionResult verifyEthCallAndEstimateGasWithValue(
             final RemoteFunctionCall<TransactionReceipt> functionCall,
             final Contract contract,
             final Address payerAddress,
             final long value) {
-        final var actualGasUsed = contractExecutionService
-                .processCallWithGas(getContractExecutionParameters(functionCall, contract, payerAddress, value))
-                .gasUsed();
+        final var executionResult = contractExecutionService.processCallWithGas(
+                getContractExecutionParameters(functionCall, contract, payerAddress, value));
 
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();
+        // Verify ethCall
         assertDoesNotThrow(
                 () -> estimateGasUsedResult.set(functionCall.send().getGasUsed().longValue()));
 
-        assertThat(isWithinExpectedGasRange(estimateGasUsedResult.get(), actualGasUsed))
-                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimateGasUsedResult.get(), actualGasUsed)
+        // Verify estimateGas
+        assertThat(isWithinExpectedGasRange(estimateGasUsedResult.get(), executionResult.gasUsed()))
+                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimateGasUsedResult.get(), executionResult.gasUsed())
                 .isTrue();
+
+        return executionResult;
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(

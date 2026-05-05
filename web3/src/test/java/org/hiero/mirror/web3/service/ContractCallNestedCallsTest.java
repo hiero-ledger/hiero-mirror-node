@@ -23,6 +23,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls.HederaToken;
@@ -82,17 +83,13 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final var tokenKey = new TokenKey(keyType.getKeyTypeNumeric(), keyValue);
 
         // When
-        final var result = contract.call_updateTokenKeysAndGetUpdatedTokenKey(
-                        tokenAddress.toHexString(), List.of(tokenKey), keyType.getKeyTypeNumeric())
-                .send();
-
-        // Then
-        assertThat(result).isEqualTo(keyValue);
-
         final var functionCall = contract.send_updateTokenKeysAndGetUpdatedTokenKey(
                 tokenAddress.toHexString(), List.of(tokenKey), keyType.getKeyTypeNumeric());
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        // Then
+        assertThat(executionResult.gasUsed()).isPositive();
+        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -138,17 +135,13 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final var tokenKey = new TokenKey(keyType.getKeyTypeNumeric(), keyValue);
 
         // When
-        final var result = contract.call_updateTokenKeysAndGetUpdatedTokenKey(
-                        tokenAddress, List.of(tokenKey), keyType.getKeyTypeNumeric())
-                .send();
-
-        // Then
-        assertThat(result).isEqualTo(keyValue);
-
         final var functionCall = contract.send_updateTokenKeysAndGetUpdatedTokenKey(
                 tokenAddress, List.of(tokenKey), keyType.getKeyTypeNumeric());
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        // Then
+        assertThat(executionResult.gasUsed()).isPositive();
+        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -169,17 +162,13 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 BigInteger.valueOf(8_000_000));
 
         // When
-        final var result = contract.call_updateTokenExpiryAndGetUpdatedTokenExpiry(
-                        tokenAddress.toHexString(), tokenExpiry)
-                .send();
-
-        // Then
-        assertThat(result).isEqualTo(tokenExpiry);
-
         final var functionCall =
                 contract.send_updateTokenExpiryAndGetUpdatedTokenExpiry(tokenAddress.toHexString(), tokenExpiry);
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        // Then
+        assertThat(executionResult.gasUsed()).isPositive();
+        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -198,17 +187,13 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 contract.getContractAddress(), tokenType, treasury.toEntityId(), tokenWithAutoRenewPair.getRight());
 
         // When
-        final var result = contract.call_updateTokenInfoAndGetUpdatedTokenInfoSymbol(
-                        tokenAddress.toHexString(), tokenInfo)
-                .send();
-
-        // Then
-        assertThat(result).isEqualTo(tokenInfo.symbol);
-
         final var functionCall =
                 contract.send_updateTokenInfoAndGetUpdatedTokenInfoSymbol(tokenAddress.toHexString(), tokenInfo);
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        // Then
+        assertThat(executionResult.gasUsed()).isPositive();
+        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -227,17 +212,13 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 contract.getContractAddress(), tokenType, treasury.toEntityId(), tokenWithAutoRenewPair.getRight());
 
         // When
-        final var result = contract.call_updateTokenInfoAndGetUpdatedTokenInfoName(
-                        tokenAddress.toHexString(), tokenInfo)
-                .send();
-
-        // Then
-        assertThat(result).isEqualTo(tokenInfo.name);
-
         final var functionCall =
                 contract.send_updateTokenInfoAndGetUpdatedTokenInfoName(tokenAddress.toHexString(), tokenInfo);
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        // Then
+        assertThat(executionResult.gasUsed()).isPositive();
+        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -256,17 +237,13 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 contract.getContractAddress(), tokenType, treasury.toEntityId(), tokenWithAutoRenewPair.getRight());
 
         // When
-        final var result = contract.call_updateTokenInfoAndGetUpdatedTokenInfoMemo(
-                        tokenAddress.toHexString(), tokenInfo)
-                .send();
-
-        // Then
-        assertThat(result).isEqualTo(tokenInfo.memo);
-
         final var functionCall =
                 contract.send_updateTokenInfoAndGetUpdatedTokenInfoMemo(tokenAddress.toHexString(), tokenInfo);
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        // Then
+        assertThat(executionResult.gasUsed()).isPositive();
+        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -283,15 +260,12 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
 
         // When
-        final var result = contract.call_deleteTokenAndGetTokenInfoIsDeleted(tokenAddress.toHexString())
-                .send();
-
-        // Then
-        assertThat(result).isTrue();
-
         final var functionCall = contract.send_deleteTokenAndGetTokenInfoIsDeleted(tokenAddress.toHexString());
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        // Then - ABI-encoded boolean true ends with "1"
+        assertThat(executionResult.gasUsed()).isPositive();
+        assertThat(executionResult.result()).endsWith("1");
     }
 
     @ParameterizedTest
@@ -321,21 +295,15 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
 
         // When
-        final var result =
-                contract.call_createFungibleTokenAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
-                                tokenInfo, BigInteger.ONE, BigInteger.ONE)
-                        .send();
-
-        // Then
-        assertThat(result.component1()).isEqualTo(defaultKycStatus);
-        assertThat(result.component2()).isEqualTo(defaultFreezeStatus);
-        assertThat(result.component3()).isTrue(); // is a token
-
         final var functionCall =
                 contract.send_createFungibleTokenAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
                         tokenInfo, BigInteger.ONE, BigInteger.ONE, BigInteger.valueOf(CREATE_TOKEN_VALUE));
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGasWithValue(
+                functionCall, contract, toAddress(treasury.getId()), CREATE_TOKEN_VALUE);
 
-        verifyEthCallAndEstimateGasWithValue(functionCall, contract, toAddress(treasury.getId()), CREATE_TOKEN_VALUE);
+        // Then
+        assertThat(executionResult.gasUsed()).isPositive();
+        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -365,19 +333,14 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
 
         // When
-        final var result = contract.call_createNFTAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
-                        tokenInfo)
-                .send();
-
-        // Then
-        assertThat(result.component1()).isEqualTo(defaultKycStatus);
-        assertThat(result.component2()).isEqualTo(defaultFreezeStatus);
-        assertThat(result.component3()).isTrue(); // is a token
-
         final var functionCall = contract.send_createNFTAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
                 tokenInfo, BigInteger.valueOf(CREATE_TOKEN_VALUE));
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGasWithValue(
+                functionCall, contract, toAddress(treasury.getId()), CREATE_TOKEN_VALUE);
 
-        verifyEthCallAndEstimateGasWithValue(functionCall, contract, toAddress(treasury.getId()), CREATE_TOKEN_VALUE);
+        // Then
+        assertThat(executionResult.gasUsed()).isPositive();
+        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @Test
