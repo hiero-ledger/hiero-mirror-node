@@ -90,6 +90,10 @@ public class RecordItem implements StreamItem {
 
     @NonFinal
     @Setter
+    private Integer evmTransactionIndex;
+
+    @NonFinal
+    @Setter
     private Predicate<EntityId> contractTransactionPredicate;
 
     @NonFinal
@@ -249,6 +253,12 @@ public class RecordItem implements StreamItem {
                 .map(EthereumTransaction::getHash)
                 .orElseGet(() -> Arrays.copyOfRange(
                         DomainUtils.toBytes(getTransactionRecord().getTransactionHash()), 0, 32));
+    }
+
+    public boolean isEvmTransaction() {
+        return transactionType == TransactionType.CONTRACTCALL.getProtoId()
+                || transactionType == TransactionType.CONTRACTCREATEINSTANCE.getProtoId()
+                || transactionType == TransactionType.ETHEREUMTRANSACTION.getProtoId();
     }
 
     private Map<Long, ContractTransaction> getContractTransactions() {

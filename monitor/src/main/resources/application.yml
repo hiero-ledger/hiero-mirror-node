@@ -31,6 +31,7 @@ logging:
 management:
   endpoint:
     health:
+      validate-group-membership: false
       group:
         cluster:
           include: subscriber, importerLag

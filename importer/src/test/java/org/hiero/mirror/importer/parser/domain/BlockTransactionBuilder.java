@@ -46,7 +46,6 @@ import com.hedera.hapi.block.stream.trace.protoc.ExecutedInitcode;
 import com.hedera.hapi.block.stream.trace.protoc.InitcodeBookends;
 import com.hedera.hapi.block.stream.trace.protoc.SlotRead;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
-import com.hedera.hapi.platform.state.legacy.NodeId;
 import com.hedera.services.stream.proto.ContractStateChanges;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.Account;
@@ -556,7 +555,7 @@ public class BlockTransactionBuilder {
         final long registeredNodeId =
                 recordItem.getTransactionRecord().getReceipt().getRegisteredNodeId();
         final var key = MapChangeKey.newBuilder()
-                .setNodeIdKey(NodeId.newBuilder().setId(registeredNodeId))
+                .setEntityNumberKey(UInt64Value.of(registeredNodeId))
                 .build();
         final var value = MapChangeValue.newBuilder()
                 .setRegisteredNodeValue(RegisteredNode.newBuilder().setRegisteredNodeId(registeredNodeId))

@@ -21,10 +21,10 @@ final class RegisteredNodeCreateTransformer extends AbstractBlockTransactionTran
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        receiptBuilder.setRegisteredNodeId(blockTransaction
+        blockTransaction
                 .getStateChangeContext()
                 .getNewRegisteredNodeId()
-                .orElseThrow());
+                .ifPresent(receiptBuilder::setRegisteredNodeId);
     }
 
     @Override

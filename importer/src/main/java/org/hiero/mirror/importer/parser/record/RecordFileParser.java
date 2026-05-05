@@ -135,6 +135,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         boolean shouldLog = log.isDebugEnabled() || log.isTraceEnabled();
         final var logIndex = new AtomicInteger(0);
 
+        final var evmTransactionIndex = new AtomicInteger(0);
         applicationEventPublisher.publishEvent(new RecordFileParsedEvent(this, recordFile.getConsensusEnd()));
         recordFile.getItems().forEach(recordItem -> {
             if (shouldLog) {
@@ -142,6 +143,17 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             }
 
             aggregator.accept(recordItem);
+
+            if (recordItem.isTopLevel()) {
+                if (recordItem.isEvmTransaction()) {
+                    recordItem.setEvmTransactionIndex(evmTransactionIndex.getAndIncrement());
+                }
+            } else {
+                var parent = recordItem.getParent();
+                if (parent != null) {
+                    recordItem.setEvmTransactionIndex(parent.getEvmTransactionIndex());
+                }
+            }
 
             if (dateRangeFilter.filter(recordItem.getConsensusTimestamp())) {
                 recordItem.setLogIndex(logIndex);

@@ -48,7 +48,9 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         if (contractRelatedParentRecordItem != null) {
             consensusTimestamp = contractRelatedParentRecordItem.getConsensusTimestamp();
             logIndex = contractRelatedParentRecordItem.getAndIncrementLogIndex();
-            transactionIndex = contractRelatedParentRecordItem.getTransactionIndex();
+            transactionIndex = contractRelatedParentRecordItem.getEvmTransactionIndex() != null
+                    ? contractRelatedParentRecordItem.getEvmTransactionIndex()
+                    : 0;
             transactionHash = contractRelatedParentRecordItem.getTransactionHash();
 
             final var parentTransactionRecord = contractRelatedParentRecordItem.getTransactionRecord();
@@ -72,7 +74,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         } else {
             consensusTimestamp = recordItem.getConsensusTimestamp();
             logIndex = recordItem.getAndIncrementLogIndex();
-            transactionIndex = recordItem.getTransactionIndex();
+            transactionIndex = recordItem.getEvmTransactionIndex() != null ? recordItem.getEvmTransactionIndex() : 0;
             transactionHash = recordItem.getTransactionHash();
             contractId = log.getEntityId();
             rootContractId = log.getEntityId();
