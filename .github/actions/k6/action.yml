@@ -53,8 +53,8 @@ runs:
         done
 
         # Collect TRANSACTION_ID=<id> lines printed by the acceptance tests,
-        # deduplicate (preserving order), join with commas, and export as TRANSACTION_IDS
-        TRANSACTION_IDS=$(grep -oP '^TRANSACTION_ID=\K.+$' "$LOG_FILE" | awk '!seen[$0]++' | paste -sd, - || true)
+        # pick the first matching id and export as TRANSACTION_IDS
+        TRANSACTION_IDS=$(grep -oP '^TRANSACTION_ID=\K.+$' "$LOG_FILE" | head -n 1 || true)
         echo "TRANSACTION_IDS=${TRANSACTION_IDS}" >> $GITHUB_ENV
 
     - name: Install k6
