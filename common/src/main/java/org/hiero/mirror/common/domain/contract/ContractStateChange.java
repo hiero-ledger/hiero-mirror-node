@@ -37,19 +37,11 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
     @ToString.Exclude
     private byte[] valueWritten;
 
-    public long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : 0L;
-    }
-
     public void setConsensusTimestamp(long consensusTimestamp) {
         if (id == null) {
             id = new Id();
         }
         id.setConsensusTimestamp(consensusTimestamp);
-    }
-
-    public long getContractId() {
-        return id != null ? id.getContractId() : 0L;
     }
 
     public void setContractId(EntityId entityId) {
@@ -64,10 +56,6 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
             id = new Id();
         }
         id.setContractId(contractId);
-    }
-
-    public byte[] getSlot() {
-        return id != null ? id.getSlot() : null;
     }
 
     public void setSlot(byte[] slot) {
@@ -98,8 +86,6 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
 
         private long consensusTimestamp;
         private long contractId;
-
-        @ToString.Exclude
         private byte[] slot;
     }
 

@@ -2,100 +2,97 @@
 
 package org.hiero.mirror.common.converter;
 
+import java.sql.JDBCType;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookType;
-import org.hiero.mirror.common.domain.hook.PostgresHookExtensionPoint;
-import org.hiero.mirror.common.domain.hook.PostgresHookType;
 import org.postgresql.util.PGobject;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.ReadingConverter;
 import org.springframework.data.convert.WritingConverter;
+import org.springframework.data.jdbc.core.mapping.JdbcValue;
 
 public final class PostgresHookJdbcConverters {
 
     private PostgresHookJdbcConverters() {}
 
     @WritingConverter
-    public static final class PostgresHookExtensionPointToPGobject
-            implements Converter<PostgresHookExtensionPoint, PGobject> {
+    public static final class HookExtensionPointToJdbcValue implements Converter<HookExtensionPoint, JdbcValue> {
 
         @Override
         @SneakyThrows
-        public PGobject convert(PostgresHookExtensionPoint source) {
+        public JdbcValue convert(HookExtensionPoint source) {
             if (source == null) {
                 return null;
             }
             var pg = new PGobject();
             pg.setType("hook_extension_point");
-            pg.setValue(source.getHookExtensionPoint().name());
-            return pg;
+            pg.setValue(source.name());
+            return JdbcValue.of(pg, JDBCType.OTHER);
         }
     }
 
     @ReadingConverter
-    public static final class PGobjectToPostgresHookExtensionPoint
-            implements Converter<PGobject, PostgresHookExtensionPoint> {
+    public static final class PGobjectToHookExtensionPoint implements Converter<PGobject, HookExtensionPoint> {
 
         @Override
-        public PostgresHookExtensionPoint convert(PGobject source) {
+        public HookExtensionPoint convert(PGobject source) {
             if (source == null || source.getValue() == null || source.getValue().isEmpty()) {
                 return null;
             }
-            return PostgresHookExtensionPoint.of(HookExtensionPoint.valueOf(source.getValue()));
+            return HookExtensionPoint.valueOf(source.getValue());
         }
     }
 
     @ReadingConverter
-    public static final class StringToPostgresHookExtensionPoint
-            implements Converter<String, PostgresHookExtensionPoint> {
+    public static final class StringToHookExtensionPoint implements Converter<String, HookExtensionPoint> {
 
         @Override
-        public PostgresHookExtensionPoint convert(String source) {
+        public HookExtensionPoint convert(String source) {
             if (source == null || source.isEmpty()) {
                 return null;
             }
-            return PostgresHookExtensionPoint.of(HookExtensionPoint.valueOf(source));
+            return HookExtensionPoint.valueOf(source);
         }
     }
 
     @WritingConverter
-    public static final class PostgresHookTypeToPGobject implements Converter<PostgresHookType, PGobject> {
+    public static final class HookTypeToJdbcValue implements Converter<HookType, JdbcValue> {
 
         @Override
         @SneakyThrows
-        public PGobject convert(PostgresHookType source) {
+        public JdbcValue convert(HookType source) {
             if (source == null) {
                 return null;
             }
             var pg = new PGobject();
             pg.setType("hook_type");
-            pg.setValue(source.getHookType().name());
-            return pg;
+            pg.setValue(source.name());
+            return JdbcValue.of(pg, JDBCType.OTHER);
         }
     }
 
     @ReadingConverter
-    public static final class PGobjectToPostgresHookType implements Converter<PGobject, PostgresHookType> {
+    public static final class PGobjectToHookType implements Converter<PGobject, HookType> {
 
         @Override
-        public PostgresHookType convert(PGobject source) {
+        public HookType convert(PGobject source) {
             if (source == null || source.getValue() == null || source.getValue().isEmpty()) {
                 return null;
             }
-            return PostgresHookType.of(HookType.valueOf(source.getValue()));
+            return HookType.valueOf(source.getValue());
         }
     }
 
     @ReadingConverter
-    public static final class StringToPostgresHookType implements Converter<String, PostgresHookType> {
+    public static final class StringToHookType implements Converter<String, HookType> {
 
         @Override
-        public PostgresHookType convert(String source) {
+        public HookType convert(String source) {
             if (source == null || source.isEmpty()) {
                 return null;
             }
-            return PostgresHookType.of(HookType.valueOf(source));
+            return HookType.valueOf(source);
         }
     }
 }

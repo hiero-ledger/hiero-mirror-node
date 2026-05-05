@@ -10,7 +10,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
@@ -37,51 +36,6 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
     @Override
     public boolean isNew() {
         return true;
-    }
-
-    public long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : 0L;
-    }
-
-    public void setConsensusTimestamp(long consensusTimestamp) {
-        if (id == null) id = new Id();
-        id.setConsensusTimestamp(consensusTimestamp);
-    }
-
-    public String getIpAddressV4() {
-        return id != null ? id.getIpAddressV4() : null;
-    }
-
-    public void setIpAddressV4(String ipAddressV4) {
-        if (id == null) id = new Id();
-        id.setIpAddressV4(ipAddressV4);
-    }
-
-    public long getNodeId() {
-        return id != null ? id.getNodeId() : 0L;
-    }
-
-    public void setNodeId(long nodeId) {
-        if (id == null) id = new Id();
-        id.setNodeId(nodeId);
-    }
-
-    public Integer getPort() {
-        return id != null ? id.getPort() : null;
-    }
-
-    public void setPort(Integer port) {
-        if (id == null) id = new Id();
-        id.setPort(port);
-    }
-
-    public String getDomainName() {
-        return id != null ? id.getDomainName() : null;
-    }
-
-    public void setDomainName(String domainName) {
-        if (id == null) id = new Id();
-        id.setDomainName(domainName);
     }
 
     @Data

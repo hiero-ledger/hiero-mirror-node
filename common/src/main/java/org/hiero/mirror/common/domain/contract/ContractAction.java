@@ -62,19 +62,11 @@ public class ContractAction implements Persistable<ContractAction.Id> {
 
     private long value;
 
-    public long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : 0L;
-    }
-
     public void setConsensusTimestamp(long consensusTimestamp) {
         if (id == null) {
             id = new Id();
         }
         id.setConsensusTimestamp(consensusTimestamp);
-    }
-
-    public int getIndex() {
-        return id != null ? id.getIndex() : 0;
     }
 
     public void setIndex(int index) {
@@ -93,7 +85,7 @@ public class ContractAction implements Persistable<ContractAction.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true;
+        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
     }
 
     @JsonIgnore

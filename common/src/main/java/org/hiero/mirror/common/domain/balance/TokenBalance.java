@@ -35,7 +35,7 @@ public class TokenBalance implements Persistable<TokenBalance.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true;
+        return true; // Since we never update balances and use a natural ID, avoid Hibernate querying before insert
     }
 
     @Data

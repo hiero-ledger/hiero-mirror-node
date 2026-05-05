@@ -2,58 +2,56 @@
 
 package org.hiero.mirror.common.converter;
 
+import java.sql.JDBCType;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.domain.entity.PostgresEntityType;
 import org.postgresql.util.PGobject;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.ReadingConverter;
 import org.springframework.data.convert.WritingConverter;
+import org.springframework.data.jdbc.core.mapping.JdbcValue;
 
 public final class PostgresEntityTypeJdbcConverters {
 
     private PostgresEntityTypeJdbcConverters() {}
 
     @WritingConverter
-    public static final class PostgresEntityTypeToPGobject implements Converter<PostgresEntityType, PGobject> {
+    public static final class EntityTypeToJdbcValue implements Converter<EntityType, JdbcValue> {
 
         @Override
         @SneakyThrows
-        public PGobject convert(PostgresEntityType source) {
+        public JdbcValue convert(EntityType source) {
             if (source == null) {
                 return null;
             }
             var pg = new PGobject();
             pg.setType("entity_type");
-            pg.setValue(source.getEntityType().name());
-            return pg;
+            pg.setValue(source.name());
+            return JdbcValue.of(pg, JDBCType.OTHER);
         }
     }
 
     @ReadingConverter
-    public static final class PGobjectToPostgresEntityType implements Converter<PGobject, PostgresEntityType> {
+    public static final class PGobjectToEntityType implements Converter<PGobject, EntityType> {
 
         @Override
-        public PostgresEntityType convert(PGobject source) {
+        public EntityType convert(PGobject source) {
             if (source == null || source.getValue() == null || source.getValue().isEmpty()) {
                 return null;
             }
-            return PostgresEntityType.of(EntityType.valueOf(source.getValue()));
+            return EntityType.valueOf(source.getValue());
         }
     }
 
-    /**
-     * Some JDBC stacks return Postgres {@code entity_type} enum columns as plain strings instead of {@link PGobject}.
-     */
     @ReadingConverter
-    public static final class StringToPostgresEntityType implements Converter<String, PostgresEntityType> {
+    public static final class StringToEntityType implements Converter<String, EntityType> {
 
         @Override
-        public PostgresEntityType convert(String source) {
+        public EntityType convert(String source) {
             if (source == null || source.isEmpty()) {
                 return null;
             }
-            return PostgresEntityType.of(EntityType.valueOf(source));
+            return EntityType.valueOf(source);
         }
     }
 }

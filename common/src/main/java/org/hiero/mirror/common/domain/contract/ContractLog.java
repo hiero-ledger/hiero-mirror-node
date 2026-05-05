@@ -52,19 +52,11 @@ public class ContractLog implements Persistable<ContractLog.Id> {
 
     private boolean synthetic;
 
-    public long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : 0L;
-    }
-
     public void setConsensusTimestamp(long consensusTimestamp) {
         if (id == null) {
             id = new Id();
         }
         id.setConsensusTimestamp(consensusTimestamp);
-    }
-
-    public int getIndex() {
-        return id != null ? id.getIndex() : 0;
     }
 
     public void setIndex(int index) {

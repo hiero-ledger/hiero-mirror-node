@@ -32,7 +32,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.data.jdbc.core.convert.JdbcCustomConversions;
 import org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 
@@ -96,8 +95,8 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
     }
 
     @Override
-    public JdbcCustomConversions jdbcCustomConversions() {
-        return new JdbcCustomConversions(List.of(
+    protected List<?> userConverters() {
+        return List.of(
                 new EntityIdToLongConverter(),
                 new LongToEntityIdConverter(),
                 new LongArrayJdbcConverters.AssociatedRegisteredNodeIdsToLongArray(),
@@ -108,15 +107,15 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new ShortArrayJdbcConverters.SqlArrayToRegisteredNodeTypesHolder(),
                 new PostgresAirdropStateJdbcConverters.PostgresAirdropStateToPGobject(),
                 new PostgresAirdropStateJdbcConverters.PGobjectToPostgresAirdropState(),
-                new PostgresEntityTypeJdbcConverters.PostgresEntityTypeToPGobject(),
-                new PostgresEntityTypeJdbcConverters.PGobjectToPostgresEntityType(),
-                new PostgresEntityTypeJdbcConverters.StringToPostgresEntityType(),
-                new PostgresHookJdbcConverters.PostgresHookExtensionPointToPGobject(),
-                new PostgresHookJdbcConverters.PGobjectToPostgresHookExtensionPoint(),
-                new PostgresHookJdbcConverters.StringToPostgresHookExtensionPoint(),
-                new PostgresHookJdbcConverters.PostgresHookTypeToPGobject(),
-                new PostgresHookJdbcConverters.PGobjectToPostgresHookType(),
-                new PostgresHookJdbcConverters.StringToPostgresHookType(),
+                new PostgresEntityTypeJdbcConverters.EntityTypeToJdbcValue(),
+                new PostgresEntityTypeJdbcConverters.PGobjectToEntityType(),
+                new PostgresEntityTypeJdbcConverters.StringToEntityType(),
+                new PostgresHookJdbcConverters.HookExtensionPointToJdbcValue(),
+                new PostgresHookJdbcConverters.PGobjectToHookExtensionPoint(),
+                new PostgresHookJdbcConverters.StringToHookExtensionPoint(),
+                new PostgresHookJdbcConverters.HookTypeToJdbcValue(),
+                new PostgresHookJdbcConverters.PGobjectToHookType(),
+                new PostgresHookJdbcConverters.StringToHookType(),
                 new RangeToPGobjectWritingConverter(),
                 new PGobjectToRangeReadingConverter(),
                 new JsonbWritingConverters.FixedFeesHolderToJsonb(),
@@ -138,6 +137,6 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new JsonbWritingConverters.NftTransferList(),
                 new JsonbWritingConverters.AuthorizationList(),
                 new JsonbWritingConverters.LedgerNodeContributionList(),
-                new JsonbWritingConverters.ServiceEndpointSingle()));
+                new JsonbWritingConverters.ServiceEndpointSingle());
     }
 }

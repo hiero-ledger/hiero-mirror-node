@@ -34,14 +34,6 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance, Pers
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
-    public long getOwner() {
-        return id != null ? id.getOwner() : 0L;
-    }
-
-    public long getSpender() {
-        return id != null ? id.getSpender() : 0L;
-    }
-
     @JsonIgnore
     @Override
     public Id getId() {
@@ -77,7 +69,6 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance, Pers
      *       .id(new AbstractCryptoAllowance.Id(ownerValue, spenderValue))
      *       ...
      */
-    @SuppressWarnings("java:S1610")
     public abstract static class AbstractCryptoAllowanceBuilder<
             C extends AbstractCryptoAllowance, B extends AbstractCryptoAllowanceBuilder<C, B>> {
         public B owner(long owner) {

@@ -15,12 +15,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.NonParsableKeyException;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
@@ -51,9 +51,10 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
     private String publicKey;
 
     @EqualsAndHashCode.Exclude
+    @Getter(lazy = true)
     @ToString.Exclude
     @Transient
-    private PublicKey publicKeyObject;
+    private final PublicKey publicKeyObject = parsePublicKey();
 
     @Builder.Default
     @EqualsAndHashCode.Exclude
@@ -64,18 +65,11 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
     private Long stake;
 
     public long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : 0L;
+        return id.getConsensusTimestamp();
     }
 
     public long getNodeId() {
-        return id != null ? id.getNodeId() : 0L;
-    }
-
-    public PublicKey getPublicKeyObject() {
-        if (publicKeyObject == null && publicKey != null) {
-            publicKeyObject = parsePublicKey();
-        }
-        return publicKeyObject;
+        return id.getNodeId();
     }
 
     private PublicKey parsePublicKey() {

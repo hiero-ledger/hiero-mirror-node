@@ -52,7 +52,7 @@ public class ContractResult implements Persistable<Long> {
     @ToString.Exclude
     private byte[] functionParameters;
 
-    private byte[] functionResult;
+    private byte[] functionResult; // Temporary field until we can confirm the migration captured everything
 
     private Long gasConsumed;
 
@@ -85,7 +85,7 @@ public class ContractResult implements Persistable<Long> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true;
+        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
     }
 
     public ContractTransactionHash toContractTransactionHash() {

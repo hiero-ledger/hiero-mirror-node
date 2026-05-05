@@ -36,19 +36,11 @@ public class ContractState {
     @ToString.Exclude
     private byte[] value;
 
-    public long getContractId() {
-        return id != null ? id.getContractId() : 0L;
-    }
-
     public void setContractId(long contractId) {
         if (id == null) {
             id = new Id();
         }
         id.setContractId(contractId);
-    }
-
-    public byte[] getSlot() {
-        return id != null ? id.getSlot() : null;
     }
 
     public void setSlot(byte[] slot) {
@@ -69,8 +61,6 @@ public class ContractState {
     public static class Id implements Serializable {
         private static final long serialVersionUID = 6192377810161178246L;
         private long contractId;
-
-        @ToString.Exclude
         private byte[] slot;
     }
 

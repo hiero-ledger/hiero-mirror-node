@@ -110,15 +110,7 @@ public abstract class AbstractEntity implements History {
     private Range<Long> timestampRange;
 
     @Column("type")
-    private PostgresEntityType entityTypePg;
-
-    public EntityType getType() {
-        return entityTypePg == null ? null : entityTypePg.getEntityType();
-    }
-
-    public void setType(EntityType entityType) {
-        entityTypePg = PostgresEntityType.of(entityType);
-    }
+    private EntityType entityType;
 
     private static String getPublicKey(@Nullable byte[] protobufKey) {
         if (protobufKey == null) {
@@ -162,7 +154,7 @@ public abstract class AbstractEntity implements History {
         }
 
         public B type(EntityType entityType) {
-            this.entityTypePg = PostgresEntityType.of(entityType);
+            this.entityType = entityType;
             return self();
         }
     }

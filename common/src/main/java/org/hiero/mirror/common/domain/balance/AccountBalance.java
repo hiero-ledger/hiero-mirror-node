@@ -37,14 +37,6 @@ public class AccountBalance implements Persistable<AccountBalance.Id>, StreamIte
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
-    public long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : 0L;
-    }
-
-    public EntityId getAccountId() {
-        return id != null ? id.getAccountId() : null;
-    }
-
     @JsonIgnore
     @Override
     public Id getId() {
@@ -54,7 +46,7 @@ public class AccountBalance implements Persistable<AccountBalance.Id>, StreamIte
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true;
+        return true; // Since we never update balances and use a natural ID, avoid Hibernate querying before insert
     }
 
     @Data

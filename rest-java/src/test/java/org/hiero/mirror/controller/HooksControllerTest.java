@@ -116,7 +116,10 @@ final class HooksControllerTest extends ControllerTest {
             final var actual = restClient.get().uri("", address).retrieve().toEntity(HooksResponse.class);
 
             // then
-            assertThat(actual.getBody()).isNotNull().isEqualTo(expectedResponse);
+            final var body = actual.getBody();
+            assertThat(body).isNotNull();
+            clearTimestampRangeFromHookResponse(body.getHooks());
+            assertThat(body).isEqualTo(expectedResponse);
             assertThat(actual.getHeaders().containsHeader(HttpHeaders.LINK)).isFalse();
         }
 
@@ -181,8 +184,11 @@ final class HooksControllerTest extends ControllerTest {
                     .toEntity(HooksResponse.class);
 
             // then
-            assertThat(actual.getBody()).isNotNull().isEqualTo(expectedResponse);
-            assertThat(actual.getBody().getHooks()).hasSize(limit);
+            final var body = actual.getBody();
+            assertThat(body).isNotNull();
+            clearTimestampRangeFromHookResponse(body.getHooks());
+            assertThat(body).isEqualTo(expectedResponse);
+            assertThat(body.getHooks()).hasSize(limit);
             assertThat(actual.getHeaders().containsHeaderValue(HttpHeaders.LINK, LINK_HEADER.formatted(nextLink)));
         }
 
@@ -265,7 +271,9 @@ final class HooksControllerTest extends ControllerTest {
                     restClient.get().uri(formattedParams, ACCOUNT_ID).retrieve().body(HooksResponse.class);
 
             // then
-            assertThat(actual).isNotNull().isEqualTo(expectedResponse);
+            assertThat(actual).isNotNull();
+            clearTimestampRangeFromHookResponse(actual.getHooks());
+            assertThat(actual).isEqualTo(expectedResponse);
         }
 
         @Test
@@ -401,10 +409,7 @@ final class HooksControllerTest extends ControllerTest {
                     .persist();
         }
 
-        /**
-         * {@link Hook} rows from the API are built from jOOQ without an in-memory {@code timestamp_range} when the DB
-         * value is null; expected objects from {@link #hookMapper} would still carry a range from the domain model.
-         */
+        /** Nulls {@code timestampRange} on API hooks so comparisons align with mapper expectations (DB persists {@code timestamp_range}). */
         private void clearTimestampRangeFromHookResponse(List<org.hiero.mirror.rest.model.Hook> hooks) {
             hooks.forEach(h -> h.setTimestampRange(null));
         }

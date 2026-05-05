@@ -41,19 +41,11 @@ public class NodeStake implements Persistable<NodeStake.Id> {
 
     private long stakingPeriod;
 
-    public long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : 0L;
-    }
-
     public void setConsensusTimestamp(long consensusTimestamp) {
         if (id == null) {
             id = new Id();
         }
         id.setConsensusTimestamp(consensusTimestamp);
-    }
-
-    public long getNodeId() {
-        return id != null ? id.getNodeId() : 0L;
     }
 
     public void setNodeId(long nodeId) {
@@ -72,7 +64,7 @@ public class NodeStake implements Persistable<NodeStake.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true;
+        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
     }
 
     @AllArgsConstructor
