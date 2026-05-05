@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: slack
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack
+  eventSeverity: info
+  eventSources:
+    - kind: HelmRelease
+      name: "*"
+  inclusionList:
+    - "^packaged 'hedera-mirror' chart with version"

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Provider
+metadata:
+  name: slack
+  namespace: flux-system
+spec:
+  type: slack
+  channel: "#network-operations"
+  secretRef:
+    name: slack-url
