@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.repository;
+package org.hiero.mirror.restjava.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.restjava.common.RangeOperator.EQ;
@@ -24,7 +24,6 @@ import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.NftAllowanceRequest;
 import org.hiero.mirror.restjava.parameter.EntityIdNumParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
-import org.hiero.mirror.restjava.repository.NftAllowanceRepository;
 import org.hiero.mirror.restjava.service.Bound;
 import org.jspecify.annotations.NullUnmarked;
 import org.junit.jupiter.api.Test;

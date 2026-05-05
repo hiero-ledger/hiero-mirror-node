@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.repository;
+package org.hiero.mirror.restjava.repository;
 
 import static java.lang.Long.MAX_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,7 +12,6 @@ import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.restjava.dto.HooksRequest;
 import org.hiero.mirror.restjava.parameter.EntityIdParameter;
-import org.hiero.mirror.restjava.repository.HookRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Sort.Direction;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.repository;
+package org.hiero.mirror.restjava.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.token.TokenTypeEnum.FUNGIBLE_COMMON;
@@ -14,7 +14,6 @@ import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.restjava.dto.TokenAirdropRequest;
 import org.hiero.mirror.restjava.parameter.EntityIdNumParameter;
-import org.hiero.mirror.restjava.repository.TokenAirdropRepository;
 import org.hiero.mirror.restjava.service.Bound;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;

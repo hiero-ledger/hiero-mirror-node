@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.repository;
+package org.hiero.mirror.restjava.repository;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.RestJavaIntegrationTest;
-import org.hiero.mirror.restjava.repository.NetworkStakeRepository;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor

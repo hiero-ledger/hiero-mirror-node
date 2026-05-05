@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.repository;
+package org.hiero.mirror.restjava.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.FILEAPPEND;
@@ -16,7 +16,6 @@ import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
-import org.hiero.mirror.restjava.repository.FileDataRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
