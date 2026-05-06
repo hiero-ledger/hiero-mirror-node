@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain.topic;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import java.util.Comparator;
@@ -14,6 +15,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 
@@ -42,6 +44,8 @@ public class TopicMessage implements Comparable<TopicMessage>, Persistable<Long>
     @ToString.Exclude
     private byte[] message;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
     @ToString.Exclude
@@ -51,6 +55,8 @@ public class TopicMessage implements Comparable<TopicMessage>, Persistable<Long>
 
     private long sequenceNumber;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId topicId;
 
     private Long validStartTimestamp;

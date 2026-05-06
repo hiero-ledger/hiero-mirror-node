@@ -11,7 +11,6 @@ import com.hedera.hapi.node.base.NftID;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
-import java.util.Collections;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -182,11 +181,6 @@ class NftReadableKVStateTest {
     void getNftMappedValuesMissingEntity() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         assertThat(nftReadableKVState.readFromDataSource(NFT_ID)).isNull();
-    }
-
-    @Test
-    void testIterateFromDataSource() {
-        assertThat(nftReadableKVState.iterateFromDataSource()).isEqualTo(Collections.emptyIterator());
     }
 
     @Test

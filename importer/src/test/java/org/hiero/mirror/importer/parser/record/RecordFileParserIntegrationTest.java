@@ -3,7 +3,7 @@
 package org.hiero.mirror.importer.parser.record;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hiero.mirror.importer.parser.domain.RecordItemBuilder.DEFAULT_GAS_USED;
+import static org.hiero.mirror.common.domain.RecordItemBuilder.DEFAULT_GAS_USED;
 
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.util.Comparator;
@@ -11,18 +11,18 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.domain.RecordFileBuilder;
-import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.CryptoTransferRepository;
 import org.hiero.mirror.importer.repository.EntityRepository;
@@ -123,7 +123,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         // given
         int transactions = 2;
         int entities = 2;
-        LogsBloomAggregator logsBloom = new LogsBloomAggregator();
+        final var logsBloom = new LogsBloomFilter();
         var recordFileTemplate = recordFileBuilder
                 .recordFile()
                 .recordItems(i -> i.count(transactions).entities(entities).subType(SubType.CONTRACT_CALL));
@@ -131,7 +131,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         recordFile.getItems().forEach(r -> {
             var rec = r.getTransactionRecord();
             var result = rec.hasContractCreateResult() ? rec.getContractCreateResult() : rec.getContractCallResult();
-            logsBloom.aggregate(DomainUtils.toBytes(result.getBloom()));
+            logsBloom.or(DomainUtils.toBytes(result.getBloom()));
         });
 
         // when
@@ -143,7 +143,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         assertThat(updatedRecordFileOptional).isPresent();
         var updatedRecordFile = updatedRecordFileOptional.get();
         assertThat(updatedRecordFile.getGasUsed()).isEqualTo(transactions * DEFAULT_GAS_USED);
-        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
+        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.toArrayUnsafe());
     }
 
     @Test
@@ -151,7 +151,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         // given
         int transactions = 2;
         int entities = 2;
-        LogsBloomAggregator logsBloom = new LogsBloomAggregator();
+        final var logsBloom = new LogsBloomFilter();
         var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
                 .entities(entities)
                 .subType(SubType.CONTRACT_CALL)
@@ -161,7 +161,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         recordFile.getItems().forEach(r -> {
             var rec = r.getTransactionRecord();
             var result = rec.hasContractCreateResult() ? rec.getContractCreateResult() : rec.getContractCallResult();
-            logsBloom.aggregate(DomainUtils.toBytes(result.getBloom()));
+            logsBloom.or(DomainUtils.toBytes(result.getBloom()));
         });
 
         // when
@@ -173,7 +173,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         assertThat(updatedRecordFileOptional).isPresent();
         var updatedRecordFile = updatedRecordFileOptional.get();
         assertThat(updatedRecordFile.getGasUsed()).isEqualTo(transactions * DEFAULT_GAS_USED);
-        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
+        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.toArrayUnsafe());
     }
 
     @Test
@@ -181,7 +181,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         // given
         int transactions = 2;
         int entities = 2;
-        LogsBloomAggregator logsBloom = new LogsBloomAggregator();
+        final var logsBloom = new LogsBloomFilter();
         var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
                 .entities(entities)
                 .subType(SubType.CONTRACT_CALL)
@@ -193,7 +193,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         recordFile.getItems().forEach(r -> {
             var rec = r.getTransactionRecord();
             var result = rec.hasContractCreateResult() ? rec.getContractCreateResult() : rec.getContractCallResult();
-            logsBloom.aggregate(DomainUtils.toBytes(result.getBloom()));
+            logsBloom.or(DomainUtils.toBytes(result.getBloom()));
         });
 
         // when
@@ -205,7 +205,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         assertThat(updatedRecordFileOptional).isPresent();
         var updatedRecordFile = updatedRecordFileOptional.get();
         assertThat(updatedRecordFile.getGasUsed()).isEqualTo(DEFAULT_GAS_USED);
-        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
+        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.toArrayUnsafe());
     }
 
     @Test
@@ -213,7 +213,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         // given
         int transactions = 2;
         int entities = 2;
-        LogsBloomAggregator logsBloom = new LogsBloomAggregator();
+        final var logsBloom = new LogsBloomFilter();
         var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
                 .entities(entities)
                 .subType(SubType.CONTRACT_CALL)
@@ -223,7 +223,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         recordFile.getItems().forEach(r -> {
             var rec = r.getTransactionRecord();
             var result = rec.hasContractCreateResult() ? rec.getContractCreateResult() : rec.getContractCallResult();
-            logsBloom.aggregate(DomainUtils.toBytes(result.getBloom()));
+            logsBloom.or(DomainUtils.toBytes(result.getBloom()));
         });
 
         // when
@@ -235,7 +235,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         assertThat(updatedRecordFileOptional).isPresent();
         var updatedRecordFile = updatedRecordFileOptional.get();
         assertThat(updatedRecordFile.getGasUsed()).isEqualTo(transactions * DEFAULT_GAS_USED);
-        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
+        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.toArrayUnsafe());
     }
 
     @Test
@@ -243,7 +243,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         // given
         int transactions = 2;
         int entities = 1;
-        LogsBloomAggregator logsBloom = new LogsBloomAggregator();
+        final var logsBloom = new LogsBloomFilter();
         var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
                 .entities(entities)
                 .subType(SubType.CONTRACT_CALL)
@@ -256,7 +256,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         var result = transactionRecord.hasContractCreateResult()
                 ? transactionRecord.getContractCreateResult()
                 : transactionRecord.getContractCallResult();
-        logsBloom.aggregate(DomainUtils.toBytes(result.getBloom()));
+        logsBloom.or(DomainUtils.toBytes(result.getBloom()));
 
         // when
         recordFileParser.parse(recordFile);
@@ -267,7 +267,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         assertThat(updatedRecordFileOptional).isPresent();
         var updatedRecordFile = updatedRecordFileOptional.get();
         assertThat(updatedRecordFile.getGasUsed()).isEqualTo(entities * DEFAULT_GAS_USED);
-        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
+        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.toArrayUnsafe());
     }
 
     @Test

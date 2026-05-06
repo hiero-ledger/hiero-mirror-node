@@ -127,7 +127,7 @@ build something great together! Please read our Hiero
 For detailed instructions on setting up a local development environment refer to the
 [Development Guide](docs/development.md).
 
-Our role guidelines can be found under **[Hiero-Ledger's roles and groups guidelines](https://github.com/hiero-ledger/governance/blob/main/roles-and-groups.md#maintainers).**
+Users and Maintainers guidelines are located in **[Hiero-Ledger's CONTRIBUTING.md file](https://github.com/hiero-ledger/.github/blob/main/CONTRIBUTING.md#about-users-and-maintainers)** under the "About-Users-and-Maintainers" section.
 
 ## Code of Conduct
 

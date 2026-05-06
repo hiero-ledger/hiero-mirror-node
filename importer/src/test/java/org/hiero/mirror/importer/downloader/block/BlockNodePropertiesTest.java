@@ -9,10 +9,28 @@ import org.junit.jupiter.api.Test;
 final class BlockNodePropertiesTest {
 
     @Test
-    void getStatusEndpoint() {
+    void getEndpoint() {
         var properties = new BlockNodeProperties();
         properties.setHost("localhost");
-        properties.setStatusPort(12345);
-        assertThat(properties.getStatusEndpoint()).isEqualTo("localhost:12345");
+        properties.setPort(12345);
+        assertThat(properties.getEndpoint()).isEqualTo("localhost:12345");
+    }
+
+    @Test
+    void getMergeKeyIncludesEndpointAndTls() {
+        var properties = new BlockNodeProperties();
+        properties.setHost("blocknode.example.com");
+        properties.setPort(40840);
+        properties.setRequiresTls(true);
+        assertThat(properties.getMergeKey()).isEqualTo("blocknode.example.com:40840|true");
+    }
+
+    @Test
+    void getMergeKeyWithoutTls() {
+        var properties = new BlockNodeProperties();
+        properties.setHost("blocknode.example.com");
+        properties.setPort(40840);
+        properties.setRequiresTls(false);
+        assertThat(properties.getMergeKey()).isEqualTo("blocknode.example.com:40840|false");
     }
 }

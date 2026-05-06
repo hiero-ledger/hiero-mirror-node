@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import camelCase from 'lodash/camelCase';
+import mapKeys from 'lodash/mapKeys';
 
 class TopicMessageLookup {
   /**
@@ -9,7 +10,7 @@ class TopicMessageLookup {
   constructor(topicMessageLookup) {
     Object.assign(
       this,
-      _.mapKeys(topicMessageLookup, (v, k) => _.camelCase(k))
+      mapKeys(topicMessageLookup, (v, k) => camelCase(k))
     );
   }
 

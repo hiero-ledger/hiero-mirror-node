@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import AddressBookServiceEndpointViewModel from './addressBookServiceEndpointViewModel';
 import AssessedCustomFeeViewModel from './assessedCustomFeeViewModel';
 import CustomFeeViewModel from './customFeeViewModel';
 import CustomFeeLimitsViewModel from './customFeeLimitsViewModel';
@@ -12,8 +11,6 @@ import ContractResultDetailsViewModel from './contractResultDetailsViewModel';
 import ContractResultStateChangeViewModel from './contractResultStateChangeViewModel';
 import ContractResultViewModel from './contractResultViewModel';
 import CryptoAllowanceViewModel from './cryptoAllowanceViewModel';
-import NetworkNodeViewModel from './networkNodeViewModel';
-import NetworkSupplyViewModel from './networkSupplyViewModel';
 import NftTransactionHistoryViewModel from './nftTransactionHistoryViewModel';
 import NftTransferViewModel from './nftTransferViewModel';
 import NftViewModel from './nftViewModel';
@@ -26,7 +23,6 @@ import BlockViewModel from './blockViewModel';
 import ContractStateViewModel from './contractStateViewModel';
 
 export {
-  AddressBookServiceEndpointViewModel,
   AssessedCustomFeeViewModel,
   CustomFeeViewModel,
   CustomFeeLimitsViewModel,
@@ -38,8 +34,6 @@ export {
   ContractResultStateChangeViewModel,
   ContractResultViewModel,
   CryptoAllowanceViewModel,
-  NetworkNodeViewModel,
-  NetworkSupplyViewModel,
   NftTransactionHistoryViewModel,
   NftTransferViewModel,
   NftViewModel,

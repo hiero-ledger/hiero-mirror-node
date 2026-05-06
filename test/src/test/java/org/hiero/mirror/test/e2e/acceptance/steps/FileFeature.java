@@ -11,7 +11,6 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.rest.model.TransactionDetail;
@@ -20,7 +19,6 @@ import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.http.HttpStatus;
 
-@CustomLog
 @RequiredArgsConstructor
 public class FileFeature {
     private static final String ORIGINAL_FILE_CONTENTS = "Mirror Node v1";

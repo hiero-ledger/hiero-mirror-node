@@ -13,37 +13,48 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
+import org.hiero.mirror.common.domain.SystemEntity;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.flyway.FlywayProperties;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
-import org.springframework.boot.autoconfigure.jdbc.JdbcConnectionDetails;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.flyway.autoconfigure.FlywayProperties;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
+import org.springframework.boot.jdbc.autoconfigure.JdbcConnectionDetails;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.lifecycle.TestcontainersStartup;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Scope;
 import org.springframework.transaction.support.TransactionOperations;
 import org.testcontainers.containers.BindMode;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+@RequiredArgsConstructor
 @TestConfiguration(proxyBeanMethods = false)
 public class CommonTestConfiguration {
 
     public static final String POSTGRESQL = "postgresql";
 
+    private final CommonProperties commonProperties;
+
     @Value("#{environment.matchesProfiles('v2')}")
     private boolean v2;
 
     @Bean
-    DomainBuilder domainBuilder(
-            CommonProperties commonProperties,
-            EntityManager entityManager,
-            TransactionOperations transactionOperations) {
+    DomainBuilder domainBuilder(EntityManager entityManager, TransactionOperations transactionOperations) {
         return new DomainBuilder(commonProperties, entityManager, transactionOperations);
+    }
+
+    @Bean
+    @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+    RecordItemBuilder recordItemBuilder(SystemEntity systemEntity) {
+        return new RecordItemBuilder(commonProperties, systemEntity);
     }
 
     @Bean
@@ -90,7 +101,7 @@ public class CommonTestConfiguration {
     }
 
     @Bean(POSTGRESQL)
-    PostgreSQLContainer<?> postgresql() {
+    PostgreSQLContainer postgresql() {
         var imageName = v2 ? "gcr.io/mirrornode/citus:12.1.1" : "gcr.io/mirrornode/postgres:16-alpine";
         var dockerImageName = DockerImageName.parse(imageName).asCompatibleSubstituteFor("postgres");
         var logger = LoggerFactory.getLogger(PostgreSQLContainer.class);
@@ -98,7 +109,7 @@ public class CommonTestConfiguration {
         var logConsumer = new FilteringConsumer(
                 new Slf4jLogConsumer(logger, true),
                 o -> !Strings.CS.contains(o.getUtf8StringWithoutLineEnding(), excluded));
-        return new PostgreSQLContainer<>(dockerImageName)
+        return new PostgreSQLContainer(dockerImageName)
                 .withClasspathResourceMapping("init.sql", "/docker-entrypoint-initdb.d/init.sql", BindMode.READ_ONLY)
                 .withDatabaseName("mirror_node")
                 .withLogConsumer(logConsumer)
@@ -109,17 +120,17 @@ public class CommonTestConfiguration {
     // Avoid using @ServiceConnection and use our own custom connection details so we can pass mirror_importer as user
     @Bean
     JdbcConnectionDetails jdbcConnectionDetails(
-            DataSourceProperties dataSourceProperties, PostgreSQLContainer<?> postgresql) {
+            DataSourceProperties dataSourceProperties, PostgreSQLContainer postgresql) {
         TestcontainersStartup.start(postgresql);
         return new JdbcConnectionDetails() {
 
             @Override
-            public String getDriverClassName() {
+            public @NonNull String getDriverClassName() {
                 return postgresql.getDriverClassName();
             }
 
             @Override
-            public String getJdbcUrl() {
+            public @NonNull String getJdbcUrl() {
                 return postgresql.getJdbcUrl();
             }
 

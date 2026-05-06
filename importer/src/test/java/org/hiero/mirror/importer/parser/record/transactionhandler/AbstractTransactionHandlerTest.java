@@ -44,6 +44,7 @@ import lombok.Builder;
 import lombok.Value;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.AbstractEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -55,7 +56,6 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogService;
-import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.repository.EntityRepository;
@@ -101,7 +101,7 @@ abstract class AbstractTransactionHandlerTest {
     private static final Long MODIFIED_TIMESTAMP_NS = DomainUtils.timestampInNanosMax(MODIFIED_TIMESTAMP);
 
     protected final DomainBuilder domainBuilder = new DomainBuilder();
-    protected final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
+    protected final RecordItemBuilder recordItemBuilder = new RecordItemBuilder().withEntityTransactions(true);
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
     protected final EntityId defaultEntityId = domainBuilder.entityNum(DEFAULT_ENTITY_NUM);
@@ -192,7 +192,7 @@ abstract class AbstractTransactionHandlerTest {
     void beforeEach(TestInfo testInfo) {
         log.info("Executing: {}", testInfo.getDisplayName());
         entityProperties.getPersist().setEntityTransactions(true);
-        recordItemBuilder.getPersistProperties().setEntityTransactions(true);
+        recordItemBuilder.setEntityTransactions(true);
         transactionHandler = getTransactionHandler();
         when(entityIdService.lookup(AccountID.getDefaultInstance())).thenReturn(Optional.of(EntityId.EMPTY));
         when(entityIdService.lookup(AccountID.newBuilder().setAccountNum(0).build()))
@@ -202,16 +202,13 @@ abstract class AbstractTransactionHandlerTest {
     @AfterEach
     void afterEach() {
         entityProperties.getPersist().setEntityTransactions(false);
-        recordItemBuilder.getPersistProperties().setEntityTransactions(false);
+        recordItemBuilder.setEntityTransactions(false);
     }
 
     @Test
     void testGetEntityId() {
-        EntityId expectedEntityId = null;
-        var entityType = getExpectedEntityIdType();
-        if (entityType != null) {
-            expectedEntityId = defaultEntityId;
-        }
+        final var entityType = getExpectedEntityIdType();
+        EntityId expectedEntityId = entityType != null ? defaultEntityId : null;
         testGetEntityIdHelper(
                 getDefaultTransactionBody().build(),
                 getDefaultTransactionRecord().build(),

@@ -9,7 +9,8 @@ import {StakingRewardTransfer} from '../model';
 import {EntityService, NftService, StakingRewardTransferService} from '../service';
 import {NftViewModel, StakingRewardTransferViewModel} from '../viewmodel';
 import * as utils from '../utils';
-import _ from 'lodash';
+import isNil from 'lodash/isNil';
+import last from 'lodash/last';
 
 const {default: defaultLimit} = getResponseLimit();
 
@@ -115,7 +116,7 @@ class AccountController extends BaseController {
     const startPosition = 3; // caller will later insert accountId at $1 and limit at $2
 
     for (const filter of filters) {
-      if (_.isNil(filter)) {
+      if (isNil(filter)) {
         continue;
       }
 
@@ -191,11 +192,11 @@ class AccountController extends BaseController {
     };
 
     if (response.rewards.length === query.limit) {
-      const lastRow = _.last(response.rewards);
-      const last = {
+      const lastRow = last(response.rewards);
+      const lastValue = {
         [filterKeys.TIMESTAMP]: lastRow.timestamp,
       };
-      response.links.next = utils.getPaginationLink(req, false, last, query.order);
+      response.links.next = utils.getPaginationLink(req, false, lastValue, query.order);
     }
 
     res.locals[responseDataLabel] = response;

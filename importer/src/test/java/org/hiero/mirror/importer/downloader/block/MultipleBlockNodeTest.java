@@ -5,20 +5,14 @@ package org.hiero.mirror.importer.downloader.block;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.importer.TestUtils.findAllMatches;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.clearInvocations;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import java.util.ArrayList;
 import java.util.List;
 import org.hiero.block.api.protoc.BlockItemSet;
-import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.system.CapturedOutput;
 
 final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
@@ -30,8 +24,8 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         // - Node B has lower priority, has blocks [0,1,2] and should be picked
         final var generator = new BlockGenerator(0);
         final var blocks = generator.next(7);
-        addSimulatorWithBlocks(blocks.subList(4, 7)).withSamePort();
-        addSimulatorWithBlocks(blocks.subList(0, 3)).withPriority(1).withSamePort();
+        addSimulatorWithBlocks(blocks.subList(4, 7));
+        addSimulatorWithBlocks(blocks.subList(0, 3)).withPriority(1);
         subscriber = getBlockNodeSubscriber();
 
         // when
@@ -39,9 +33,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
         // then
         // should have processed exactly [0,1,2] (from Node B)
-        final var captor = ArgumentCaptor.forClass(RecordFile.class);
-        verify(streamFileNotifier, times(3)).verified(captor.capture());
-        assertThat(captor.getAllValues()).extracting(RecordFile::getIndex).containsExactly(0L, 1L, 2L);
+        assertVerifiedBlockFiles(0L, 1L, 2L);
     }
 
     @Test
@@ -60,9 +52,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
         // then
         // should have processed exactly 0,1,2
-        final var captor = ArgumentCaptor.forClass(RecordFile.class);
-        verify(streamFileNotifier, times(3)).verified(captor.capture());
-        assertThat(captor.getAllValues()).extracting(RecordFile::getIndex).containsExactly(0L, 1L, 2L);
+        assertVerifiedBlockFiles(0L, 1L, 2L);
     }
 
     @Test
@@ -80,9 +70,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
         // then
         // Verify that Exactly 2 blocks were processed (0 and 1) from Node A
-        final var captor = ArgumentCaptor.forClass(RecordFile.class);
-        verify(streamFileNotifier, times(2)).verified(captor.capture());
-        assertThat(captor.getAllValues()).extracting(RecordFile::getIndex).containsExactly(0L, 1L);
+        assertVerifiedBlockFiles(0L, 1L);
     }
 
     @Test
@@ -98,14 +86,13 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         // when
         subscriber.get();
 
-        final var captor = ArgumentCaptor.forClass(RecordFile.class);
-        verify(streamFileNotifier, times(3)).verified(captor.capture());
-        assertThat(captor.getAllValues()).extracting(RecordFile::getIndex).containsExactly(0L, 1L, 2L);
+        // then
+        assertVerifiedBlockFiles(0L, 1L, 2L);
 
         // then
         // Verify that the logs the high-priority node's port
-        final int nodeAPort = simulators.getFirst().getStatusPort();
-        final int nodeBPort = simulators.get(1).getStatusPort();
+        final int nodeAPort = simulators.getFirst().getPort();
+        final int nodeBPort = simulators.get(1).getPort();
         assertThat(findAllMatches(output.getAll(), "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\)"))
                 .containsExactly(String.format("Start streaming block 0 from BlockNode(localhost:%d)", nodeAPort))
                 .doesNotContain(String.valueOf(nodeBPort));
@@ -127,15 +114,12 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         // Attempt 1:  should pick A and process only block 0
         subscriber.get();
 
-        var captor = ArgumentCaptor.forClass(RecordFile.class);
-        verify(streamFileNotifier).verified(captor.capture());
+        // then
+        assertVerifiedBlockFiles(0L);
 
-        assertThat(captor.getAllValues()).extracting(RecordFile::getIndex).containsExactly(0L);
-        clearInvocations(streamFileNotifier);
-
-        final int nodeAPort = simulators.get(0).getStatusPort();
-        final int nodeBPort = simulators.get(1).getStatusPort();
-        final int nodeCPort = simulators.get(2).getStatusPort();
+        final int nodeAPort = simulators.get(0).getPort();
+        final int nodeBPort = simulators.get(1).getPort();
+        final int nodeCPort = simulators.get(2).getPort();
 
         // Attempt 2: next block is 1 - Nodes A and B don't have it so Node C must be chosen
         subscriber.get();
@@ -146,11 +130,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                         String.format("Start streaming block 0 from BlockNode(localhost:%d)", nodeAPort),
                         String.format("Start streaming block 1 from BlockNode(localhost:%d)", nodeCPort))
                 .doesNotContain(String.valueOf(nodeBPort));
-
-        // Verify that blocks 1 and 2 are verified exactly once
-        captor = ArgumentCaptor.forClass(RecordFile.class);
-        verify(streamFileNotifier, times(2)).verified(captor.capture());
-        assertThat(captor.getAllValues()).extracting(RecordFile::getIndex).containsExactly(1L, 2L);
+        assertVerifiedBlockFiles(0L, 1L, 2L);
     }
 
     @Test
@@ -165,12 +145,10 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         subscriber.get();
 
         // Verify that only blocks 5, 6 and 7 were verified
-        final var captor = ArgumentCaptor.forClass(RecordFile.class);
-        verify(streamFileNotifier, times(3)).verified(captor.capture());
-        assertThat(captor.getAllValues()).extracting(RecordFile::getIndex).containsExactly(5L, 6L, 7L);
+        assertVerifiedBlockFiles(5L, 6L, 7L);
 
         // Verify that logs explicitly show that it starts processing from block 5
-        final int port = simulators.getFirst().getStatusPort();
+        final int port = simulators.getFirst().getPort();
         assertThat(findAllMatches(output.getAll(), "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\)"))
                 .containsExactly(String.format("Start streaming block 5 from BlockNode(localhost:%d)", port));
     }
@@ -190,21 +168,19 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
         // Attempt 1: Node A is selected for block 0
         subscriber.get();
-        verify(streamFileNotifier).verified(argThat(rf -> rf.getIndex() == 0));
-        clearInvocations(streamFileNotifier);
+        assertVerifiedBlockFiles(0L);
 
         // Attempt 2: Node B is selected for block 1
         subscriber.get();
-        verify(streamFileNotifier).verified(argThat(rf -> rf.getIndex() == 1));
-        clearInvocations(streamFileNotifier);
+        assertVerifiedBlockFiles(0L, 1L);
 
         // Attempt 3: Node C is selected for block 2
         subscriber.get();
-        verify(streamFileNotifier).verified(argThat(rf -> rf.getIndex() == 2));
+        assertVerifiedBlockFiles(0L, 1L, 2L);
 
-        final int nodeAPort = simulators.get(0).getStatusPort();
-        final int nodeBPort = simulators.get(1).getStatusPort();
-        final int nodeCPort = simulators.get(2).getStatusPort();
+        final int nodeAPort = simulators.get(0).getPort();
+        final int nodeBPort = simulators.get(1).getPort();
+        final int nodeCPort = simulators.get(2).getPort();
         assertThat(findAllMatches(output.getAll(), "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\)"))
                 .containsExactly(
                         String.format("Start streaming block 0 from BlockNode(localhost:%d)", nodeAPort),
@@ -227,21 +203,19 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
         // Attempt 1: Node A is selected for block 0
         subscriber.get();
-        verify(streamFileNotifier).verified(argThat(rf -> rf.getIndex() == 0));
-        clearInvocations(streamFileNotifier);
+        assertVerifiedBlockFiles(0L);
 
         // Attempt 2: Node B is selected for block 1
         subscriber.get();
-        verify(streamFileNotifier).verified(argThat(rf -> rf.getIndex() == 1));
-        clearInvocations(streamFileNotifier);
+        assertVerifiedBlockFiles(0L, 1L);
 
         // Attempt 3: Node C is selected for block 2
         subscriber.get();
-        verify(streamFileNotifier).verified(argThat(rf -> rf.getIndex() == 2));
+        assertVerifiedBlockFiles(0L, 1L, 2L);
 
-        final int nodeAPort = simulators.get(0).getStatusPort();
-        final int nodeBPort = simulators.get(1).getStatusPort();
-        final int nodeCPort = simulators.get(2).getStatusPort();
+        final int nodeAPort = simulators.get(0).getPort();
+        final int nodeBPort = simulators.get(1).getPort();
+        final int nodeCPort = simulators.get(2).getPort();
         assertThat(findAllMatches(output.getAll(), "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\)"))
                 .containsExactly(
                         String.format("Start streaming block 0 from BlockNode(localhost:%d)", nodeAPort),
@@ -272,27 +246,22 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         // Attempt 1: streams block 0 from A, then fails on malformed block 1
         assertThatThrownBy(subscriber::get)
                 .isInstanceOf(BlockStreamException.class)
-                .hasMessage("Incorrect first block item case ROUND_HEADER");
-        verify(streamFileNotifier).verified(argThat(rf -> rf.getIndex() == 0L));
+                .hasNoCause()
+                .hasMessageContaining("Incorrect first block item case")
+                .hasMessageContaining("ROUND_HEADER");
+        assertVerifiedBlockFiles(0L);
 
         // Attempts 2 and 3: keep failing on A (hits failure threshold)
-        assertThatThrownBy(subscriber::get)
-                .isInstanceOf(BlockStreamException.class)
-                .hasMessage("Incorrect first block item case ROUND_HEADER");
-        assertThatThrownBy(subscriber::get)
-                .isInstanceOf(BlockStreamException.class)
-                .hasMessage("Incorrect first block item case ROUND_HEADER");
-        clearInvocations(streamFileNotifier);
+        assertThatThrownBy(subscriber::get).isInstanceOf(BlockStreamException.class);
+        assertThatThrownBy(subscriber::get).isInstanceOf(BlockStreamException.class);
 
         // Attempt 4: should switch to B and successfully stream blocks 1 and 2
         subscriber.get();
-        final var captor = ArgumentCaptor.forClass(RecordFile.class);
-        verify(streamFileNotifier, times(2)).verified(captor.capture());
-        assertThat(captor.getAllValues()).extracting(RecordFile::getIndex).containsExactly(1L, 2L);
+        assertVerifiedBlockFiles(0L, 1L, 2L);
 
         String logs = output.getAll();
-        final int nodeAPort = simulators.get(0).getStatusPort();
-        final int nodeBPort = simulators.get(1).getStatusPort();
+        final int nodeAPort = simulators.get(0).getPort();
+        final int nodeBPort = simulators.get(1).getPort();
         assertThat(findAllMatches(
                         logs, "Marking connection to BlockNode\\(localhost:\\d+\\) as inactive after 3 attempts"))
                 .containsExactly(String.format(

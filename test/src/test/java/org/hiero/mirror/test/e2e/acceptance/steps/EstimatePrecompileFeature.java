@@ -151,7 +151,6 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
-import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.util.encoders.Hex;
@@ -161,12 +160,10 @@ import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.ExecuteContractResult;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum;
-import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 
-@CustomLog
 @RequiredArgsConstructor
 public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     private static final Tuple[] EMPTY_TUPLE_ARRAY = new Tuple[] {};
@@ -175,7 +172,6 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     private final CommonProperties commonProperties;
     private final TokenClient tokenClient;
     private final AccountClient accountClient;
-    private final Web3Properties web3Properties;
     private TokenId fungibleKycUnfrozenTokenId;
     private TokenId nonFungibleKycUnfrozenTokenId;
 
@@ -2109,7 +2105,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
     @Getter
     @RequiredArgsConstructor
-    enum ContractMethods implements ContractMethodInterface {
+    public enum ContractMethods implements ContractMethodInterface {
         ALLOWANCE("allowanceExternal", 28778, MUTABLE),
         ALLOWANCE_ERC("allowance", 30724, VIEW),
         APPROVE("approveExternal", 729571, MUTABLE),
@@ -2213,6 +2209,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         UPDATE_TOKEN_EXPIRY("updateTokenExpiryInfoExternal", 39699, MUTABLE),
         UPDATE_TOKEN_INFO("updateTokenInfoExternal", 74920, MUTABLE),
         UPDATE_TOKEN_KEYS("updateTokenKeysExternal", 60427, MUTABLE),
+        UPDATE_TOKEN_KEYS_SIMPLE_FEES("updateTokenKeysExternal", 480_000, MUTABLE),
         WIPE_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", 101170, MUTABLE),
         WIPE_NFT_ACCOUNT("wipeTokenAccountNFTExternal", 40394, MUTABLE),
         WIPE_NFT_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", 101792, MUTABLE),

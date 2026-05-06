@@ -60,6 +60,11 @@ class NodeUpdateTransactionHandler extends AbstractNodeTransactionHandler {
             node.setGrpcProxyEndpoint(toServiceEndpoint(consensusTimestamp, nodeUpdate.getGrpcProxyEndpoint()));
         }
 
+        if (nodeUpdate.hasAssociatedRegisteredNodeList()) {
+            node.setAssociatedRegisteredNodes(
+                    nodeUpdate.getAssociatedRegisteredNodeList().getAssociatedRegisteredNodeList());
+        }
+
         // As a special case, nodes migrated state to mirror nodes via a NodeUpdate instead of a proper NodeCreate
         if (recordItem.getTransactionRecord().getTransactionID().getNonce() > 0) {
             node.setCreatedTimestamp(consensusTimestamp);

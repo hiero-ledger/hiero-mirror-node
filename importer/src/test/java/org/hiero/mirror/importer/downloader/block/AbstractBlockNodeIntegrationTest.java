@@ -2,27 +2,46 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
 import java.io.Serial;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
+import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverServiceImpl;
 import org.hiero.mirror.importer.downloader.block.scheduler.LatencyService;
 import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerSupplier;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
+import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
+import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
+import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
+import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,53 +53,72 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest {
 
-    protected BlockProperties blockProperties = new BlockProperties();
-
-    protected BlockStreamVerifier blockStreamVerifier;
-
-    @AutoClose
-    protected ScheduledExecutorService executor;
-
-    @AutoClose
-    protected LatencyService latencyService;
-
-    @AutoClose
-    protected AutoCloseArrayList<BlockNodeSimulator> simulators = new AutoCloseArrayList<>();
-
-    @AutoClose
-    protected BlockNodeSubscriber subscriber;
+    @Mock(strictness = Mock.Strictness.LENIENT)
+    protected BlockNodeDiscoveryService blockNodeDiscoveryService;
 
     @Resource
     private BlockFileTransformer blockFileTransformer;
 
+    protected BlockProperties blockProperties;
+
     @Resource
     private BlockStreamReader blockStreamReader;
 
+    protected BlockStreamVerifier blockStreamVerifier;
+
     @Resource
     protected CommonDownloaderProperties commonDownloaderProperties;
+
+    protected CutoverService cutoverService;
+
+    @AutoClose
+    protected ScheduledExecutorService executor;
+
+    @Resource
+    private ImporterProperties importerProperties;
+
+    @AutoClose
+    protected LatencyService latencyService;
 
     @Resource
     private ManagedChannelBuilderProvider managedChannelBuilderProvider;
 
     @Resource
+    private RecordDownloaderProperties recordDownloaderProperties;
+
+    @Resource
     private RecordFileRepository recordFileRepository;
 
-    @Mock(strictness = Mock.Strictness.LENIENT)
-    protected StreamFileNotifier streamFileNotifier;
+    @AutoClose
+    protected AutoCloseArrayList<BlockNodeSimulator> simulators = new AutoCloseArrayList<>();
+
+    protected PassThroughStreamFileNotifier streamFileNotifier;
+
+    @AutoClose
+    protected BlockNodeSubscriber subscriber;
 
     private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @BeforeEach
     void setup() {
+        blockProperties = new BlockProperties(importerProperties);
+        blockProperties.setEnabled(true);
+        cutoverService = new CutoverServiceImpl(
+                blockProperties, new CutoverProperties(), recordDownloaderProperties, recordFileRepository);
+        streamFileNotifier = new PassThroughStreamFileNotifier(cutoverService);
         blockStreamVerifier = new BlockStreamVerifier(
                 blockFileTransformer,
-                commonDownloaderProperties,
-                recordFileRepository,
+                mock(BlockStateProofHasher.class),
+                mock(ConsensusNodeService.class),
+                cutoverService,
+                mock(LedgerIdPublicationTransactionParser.class),
+                meterRegistry,
+                mock(NodeSignatureVerifier.class),
                 streamFileNotifier,
-                meterRegistry);
-        var scheduler = blockProperties.getScheduler();
-        scheduler.setMinRescheduleInterval(Duration.ofMillis(500));
-        scheduler.setRescheduleLatencyThreshold(Duration.ofMillis(20));
+                mock(TssVerifier.class));
+        final var schedulerProperties = blockProperties.getScheduler();
+        schedulerProperties.setMinRescheduleInterval(Duration.ofMillis(500));
+        schedulerProperties.setRescheduleLatencyThreshold(Duration.ofMillis(20));
         latencyService = new LatencyService(blockProperties, blockStreamReader, blockStreamVerifier);
         executor = Executors.newSingleThreadScheduledExecutor();
         executor.scheduleWithFixedDelay(() -> latencyService.schedule(), 5, 5, TimeUnit.MILLISECONDS);
@@ -89,6 +127,12 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
     @AfterEach
     void teardown() {
         commonDownloaderProperties.getImporterProperties().setStartBlockNumber(null);
+    }
+
+    protected void assertVerifiedBlockFiles(Long... blockNumbers) {
+        assertThat(streamFileNotifier.getVerifiedStreamFiles())
+                .map(StreamFile::getIndex)
+                .containsExactly(blockNumbers);
     }
 
     protected final String endpoint(int index) {
@@ -101,15 +145,24 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
 
     protected final BlockNodeSubscriber getBlockNodeSubscriber(boolean reversedNodes) {
         startAll();
-        var nodes = reversedNodes ? getBlockNodeProperties().reversed() : getBlockNodeProperties();
+        final var nodes = reversedNodes ? getBlockNodeProperties().reversed() : getBlockNodeProperties();
         blockProperties.setNodes(nodes);
-        var channelBuilderProvider = nodes.getFirst().getStatusPort() == -1
+        var channelBuilderProvider = nodes.getFirst().getPort() == -1
                 ? InProcessManagedChannelBuilderProvider.INSTANCE
                 : managedChannelBuilderProvider;
-        var schedulerSupplier =
+
+        final var sortedNodes = getBlockNodeProperties();
+        Collections.sort(sortedNodes);
+        when(blockNodeDiscoveryService.getBlockNodes()).thenReturn(sortedNodes);
+        final var schedulerSupplier =
                 new SchedulerSupplier(blockProperties, latencyService, channelBuilderProvider, meterRegistry);
         return new BlockNodeSubscriber(
-                blockStreamReader, blockStreamVerifier, commonDownloaderProperties, blockProperties, schedulerSupplier);
+                blockStreamReader,
+                blockStreamVerifier,
+                commonDownloaderProperties,
+                cutoverService,
+                blockProperties,
+                schedulerSupplier);
     }
 
     protected final BlockNodeSimulator addSimulatorWithBlocks(List<BlockGenerator.BlockRecord> blocks) {
@@ -136,6 +189,22 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
             for (var e : this) {
                 e.close();
             }
+        }
+    }
+
+    @NullMarked
+    @RequiredArgsConstructor
+    protected static class PassThroughStreamFileNotifier implements StreamFileNotifier {
+
+        private final StreamFileNotifier delegate;
+
+        @Getter
+        private final List<StreamFile<?>> verifiedStreamFiles = new ArrayList<>();
+
+        @Override
+        public void verified(final StreamFile<?> streamFile) {
+            delegate.verified(streamFile);
+            verifiedStreamFiles.add(streamFile);
         }
     }
 }

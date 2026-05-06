@@ -15,6 +15,7 @@ import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.SystemFile;
 import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
@@ -52,14 +53,19 @@ final class FileServiceTest extends RestJavaIntegrationTest {
     @Test
     void getExchangeRateRecovers() {
         // given
+        final var baseTimestamp = domainBuilder.timestamp();
         final var exchangeRateSet = ExchangeRateSet.newBuilder().build();
         final var fileData = domainBuilder
                 .fileData()
-                .customize(f -> f.entityId(systemEntity.exchangeRateFile()).fileData(exchangeRateSet.toByteArray()))
+                .customize(f -> f.entityId(systemEntity.exchangeRateFile())
+                        .fileData(exchangeRateSet.toByteArray())
+                        .consensusTimestamp(baseTimestamp))
                 .persist();
         domainBuilder
                 .fileData()
-                .customize(f -> f.entityId(systemEntity.exchangeRateFile()).fileData(domainBuilder.bytes(10)))
+                .customize(f -> f.entityId(systemEntity.exchangeRateFile())
+                        .fileData(domainBuilder.bytes(10))
+                        .consensusTimestamp(baseTimestamp + 1))
                 .persist();
         final var bound = bound(RangeOperator.GTE, fileData);
 
@@ -122,6 +128,52 @@ final class FileServiceTest extends RestJavaIntegrationTest {
         // then
         fileData.setTransactionType(null);
         assertThat(actual).isEqualTo(new SystemFile<>(fileData, feeSchedule));
+    }
+
+    @Nested
+    class GetSimpleFeeSchedule {
+
+        @Test
+        void success() {
+            // given
+            // FQN needed because of name collision
+            final var expected = org.hiero.hapi.support.fees.FeeSchedule.DEFAULT;
+            final var feeBytes = org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF
+                    .toBytes(expected)
+                    .toByteArray();
+            domainBuilder
+                    .fileData()
+                    .customize(f ->
+                            f.entityId(systemEntity.simpleFeeScheduleFile()).fileData(feeBytes))
+                    .persist();
+
+            // when
+            final var actual = service.getSimpleFeeSchedule(Bound.EMPTY);
+
+            // then
+            assertThat(actual.data()).isEqualTo(expected);
+        }
+
+        @Test
+        void notFound() {
+            // when / then
+            assertThatThrownBy(() -> service.getSimpleFeeSchedule(Bound.EMPTY))
+                    .isInstanceOf(EntityNotFoundException.class);
+        }
+
+        @Test
+        void invalidBytes() {
+            // given
+            domainBuilder
+                    .fileData()
+                    .customize(f ->
+                            f.entityId(systemEntity.simpleFeeScheduleFile()).fileData(domainBuilder.bytes(10)))
+                    .persist();
+
+            // when / then
+            assertThatThrownBy(() -> service.getSimpleFeeSchedule(Bound.EMPTY))
+                    .isInstanceOf(EntityNotFoundException.class);
+        }
     }
 
     private Bound bound(RangeOperator operator, org.hiero.mirror.common.domain.file.FileData fileData) {

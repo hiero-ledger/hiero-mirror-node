@@ -3,7 +3,6 @@
 package org.hiero.mirror.common.domain;
 
 import java.util.List;
-import org.jspecify.annotations.NonNull;
 
 public interface StreamFile<T extends StreamItem> {
 
@@ -59,10 +58,6 @@ public interface StreamFile<T extends StreamItem> {
     String getName();
 
     void setName(String name);
-
-    Long getNodeId();
-
-    void setNodeId(@NonNull Long nodeId);
 
     // Get the chained hash of the previous stream file
     default String getPreviousHash() {

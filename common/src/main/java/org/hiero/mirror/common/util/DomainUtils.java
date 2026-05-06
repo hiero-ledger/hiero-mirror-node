@@ -43,6 +43,7 @@ import org.jspecify.annotations.Nullable;
 public class DomainUtils {
 
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+    public static final ByteString EMPTY_BYTE_STRING = ByteString.EMPTY;
     public static final int EVM_ADDRESS_LENGTH = 20;
     public static final long NANOS_PER_SECOND = 1_000_000_000L;
     public static final long TINYBARS_IN_ONE_HBAR = 100_000_000L;
@@ -256,7 +257,7 @@ public class DomainUtils {
             return null;
         }
 
-        if (ByteString.EMPTY.equals(byteString)) {
+        if (EMPTY_BYTE_STRING.equals(byteString)) {
             return Internal.EMPTY_BYTE_ARRAY;
         }
 

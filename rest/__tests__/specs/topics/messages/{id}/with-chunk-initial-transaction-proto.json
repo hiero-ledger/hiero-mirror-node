@@ -31,7 +31,8 @@
         "consensus_timestamp": "1234567890000000001",
         "name": "CONSENSUSSUBMITMESSAGE",
         "type": 27,
-        "entity_id": "0.0.7"
+        "entity_id": "0.0.7",
+        "high_volume": false
       },
       {
         "payerAccountId": "0.0.3",
@@ -39,7 +40,8 @@
         "consensus_timestamp": "1234567890000000002",
         "name": "CONSENSUSSUBMITMESSAGE",
         "type": 27,
-        "entity_id": "0.0.7"
+        "entity_id": "0.0.7",
+        "high_volume": false
       },
       {
         "payerAccountId": "0.0.3",
@@ -47,7 +49,8 @@
         "consensus_timestamp": "1234567890000000003",
         "name": "CONSENSUSSUBMITMESSAGE",
         "type": 27,
-        "entity_id": "0.0.7"
+        "entity_id": "0.0.7",
+        "high_volume": false
       }
     ]
   },

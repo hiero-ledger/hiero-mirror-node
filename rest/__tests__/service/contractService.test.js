@@ -10,7 +10,7 @@ import {setupIntegrationTest} from '../integrationUtils';
 import {TransactionResult, TransactionType} from '../../model';
 import {orderFilterValues} from '../../constants';
 import EntityId from '../../entityId';
-import entityId from '../../entityId';
+import config from '../../config';
 
 setupIntegrationTest();
 
@@ -1301,7 +1301,7 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
         consensus_timestamp: 1690086061111222333n,
         chain_id: [0x1, 0x2a],
         hash: '0x3df8d8a9891a3f94dc07c70509c4a25f0069795365ba9de8c43e214d80f48fa8',
-        max_fee_per_gas: '0x56',
+        max_fee_per_gas: '0xc83bfe9800', // 86 * 10^10 = 860000000000
         nonce: 10,
         payer_account_id: entityId500.num,
         value: [0xa0],
@@ -1310,7 +1310,7 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
         consensus_timestamp: 1690086061111222555n,
         chain_id: [0x1, 0x2a],
         hash: '0xd96ea0ca4474b1f92c73af999eb81b1a3df71e3c750124fbf940da5fd0ff87ab',
-        max_fee_per_gas: '0x70',
+        max_fee_per_gas: '0x104c533c000', // 112 * 10^10 = 1120000000000
         nonce: 6,
         payer_account_id: entityId600.num,
         value: [0xa6],
@@ -1323,10 +1323,11 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
         1690086061111222333n,
         {
           accessList: null,
+          authorizationList: [],
           chainId: '012a',
           consensusTimestamp: 1690086061111222333n,
-          gasPrice: '4a817c80',
-          maxFeePerGas: '56',
+          gasPrice: 'ad78ebc5ac620000',
+          maxFeePerGas: 'c83bfe9800',
           maxPriorityFeePerGas: null,
           nonce: 10,
           recoveryId: 1,
@@ -1342,10 +1343,11 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
         1690086061111222555n,
         {
           accessList: null,
+          authorizationList: [],
           chainId: '012a',
           consensusTimestamp: 1690086061111222555n,
-          gasPrice: '4a817c80',
-          maxFeePerGas: '70',
+          gasPrice: 'ad78ebc5ac620000',
+          maxFeePerGas: '0104c533c000',
           maxPriorityFeePerGas: null,
           nonce: 6,
           recoveryId: 1,
@@ -1362,6 +1364,54 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
     await expect(ContractService.getEthereumTransactionsByPayerAndTimestampArray(payers, timestamps)).resolves.toEqual(
       expected
     );
+  });
+
+  test('Excludes authorization_list when feature flag is disabled', async () => {
+    const originalFlagValue = config.response.enableDelegationAddress;
+    config.response.enableDelegationAddress = false;
+    await integrationDomainOps.loadEthereumTransactions([
+      {
+        consensus_timestamp: 1690086061111222333n,
+        chain_id: [0x1, 0x2a],
+        hash: '0x3df8d8a9891a3f94dc07c70509c4a25f0069795365ba9de8c43e214d80f48fa8',
+        max_fee_per_gas: '0xc83bfe9800', // 86 * 10^10 = 860000000000
+        nonce: 10,
+        payer_account_id: entityId500.num,
+        value: [0xa0],
+      },
+    ]);
+    const payer = [entityId500.getEncodedId()];
+    const timestamp = [1690086061111222333n];
+
+    const result = await ContractService.getEthereumTransactionsByPayerAndTimestampArray(payer, timestamp);
+    const ethTx = result.get(1690086061111222333n);
+    expect(ethTx).not.toHaveProperty('authorizationList');
+
+    config.response.enableDelegationAddress = originalFlagValue;
+  });
+
+  test('Returns empty authorizationList when null and feature flag is enabled', async () => {
+    const originalFlagValue = config.response.enableDelegationAddress;
+    config.response.enableDelegationAddress = true;
+    await integrationDomainOps.loadEthereumTransactions([
+      {
+        consensus_timestamp: 1690086061111222333n,
+        chain_id: [0x1, 0x2a],
+        hash: '0x3df8d8a9891a3f94dc07c70509c4a25f0069795365ba9de8c43e214d80f48fa8',
+        max_fee_per_gas: '0xc83bfe9800',
+        nonce: 10,
+        payer_account_id: entityId500.num,
+        value: [0xa0],
+      },
+    ]);
+    const payer = [entityId500.getEncodedId()];
+    const timestamp = [1690086061111222333n];
+
+    const result = await ContractService.getEthereumTransactionsByPayerAndTimestampArray(payer, timestamp);
+    const ethTx = result.get(1690086061111222333n);
+    expect(ethTx.authorizationList).toEqual([]);
+
+    config.response.enableDelegationAddress = originalFlagValue;
   });
 });
 

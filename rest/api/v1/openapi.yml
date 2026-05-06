@@ -462,12 +462,8 @@ paths:
     post:
       summary: Invoke a smart contract
       description:
-        Returns a result from EVM execution such as cost-free execution of read-only smart contract queries, gas estimation, and transient simulation of read-write operations. If the `estimate` field is set to true gas estimation is executed. However, gas estimation only supports the `latest` block.
-        When `estimate` is false, it can process calls against the `earliest` block and specific historical blocks when a hexadecimal or decimal block number is provided in the `block` field for `eth_call` operations.
-        [Link to Supported/Unsupported Operations Table](https://github.com/hiero-ledger/hiero-mirror-node/blob/main/docs/web3/README.md#supported/unsupported-operations)
-
-        The operations types which are not currently supported should return 501 error status.
-
+        Returns a result from EVM execution such as cost-free execution of read-only smart contract queries, gas estimation, and transient simulation of read-write operations. If the `estimate` field is set to true gas estimation is executed.
+        This API can process calls against the `latest` block or specific historical blocks when a hexadecimal or decimal block number is provided in the `block` field.
       operationId: contractCall
       requestBody:
         required: true
@@ -620,6 +616,7 @@ paths:
       operationId: getContractResultByIdAndTimestamp
       parameters:
         - $ref: "#/components/parameters/contractIdOrAddressPathParam"
+        - $ref: "#/components/parameters/hbarQueryParam"
         - $ref: "#/components/parameters/timestampPathParam"
       responses:
         200:
@@ -649,6 +646,7 @@ paths:
         - $ref: "#/components/parameters/fromQueryParam"
         - $ref: "#/components/parameters/blockHashQueryParam"
         - $ref: "#/components/parameters/contractsBlockNumberQueryParam"
+        - $ref: "#/components/parameters/hbarQueryParam"
         - $ref: "#/components/parameters/internalQueryParam"
         - $ref: "#/components/parameters/limitQueryParam"
         - $ref: "#/components/parameters/orderQueryParamDesc"
@@ -672,6 +670,7 @@ paths:
       operationId: getContractResultByTransactionIdOrHash
       parameters:
         - $ref: "#/components/parameters/transactionIdOrEthHashPathParam"
+        - $ref: "#/components/parameters/hbarQueryParam"
         - $ref: "#/components/parameters/nonceQueryParamWithDefault"
       responses:
         200:
@@ -920,6 +919,7 @@ paths:
       operationId: estimateFees
       parameters:
         - $ref: "#/components/parameters/estimateModeQueryParam"
+        - $ref: "#/components/parameters/highVolumeThrottleQueryParam"
       requestBody:
         content:
           application/protobuf:
@@ -962,6 +962,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NetworkNodesResponse"
+        400:
+          $ref: "#/components/responses/InvalidParameterError"
+      tags:
+        - network
+  /api/v1/network/registered-nodes:
+    get:
+      summary: Get registered nodes
+      description: Returns the list of registered nodes
+      operationId: getRegisteredNodes
+      parameters:
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParam"
+        - $ref: "#/components/parameters/registeredNodeIdQueryParam"
+        - $ref: "#/components/parameters/registeredNodeTypeQueryParam"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisteredNodesResponse"
         400:
           $ref: "#/components/responses/InvalidParameterError"
       tags:
@@ -1479,7 +1500,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Mirror Node REST API
-  version: 0.148.0-SNAPSHOT
+  version: 0.155.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -1871,6 +1892,16 @@ components:
             type: string
             format: binary
           nullable: true
+    RegisteredNodesResponse:
+      type: object
+      required:
+        - links
+        - registered_nodes
+      properties:
+        registered_nodes:
+          $ref: "#/components/schemas/RegisteredNodes"
+        links:
+          $ref: "#/components/schemas/Links"
     SchedulesResponse:
       type: object
       properties:
@@ -2339,7 +2370,9 @@ components:
           example: "0x25fe26adc577cc89172e6156c9e24f7b9751b762"
           type: string
         amount:
-          description: The number of tinybars sent to the function
+          description: >-
+            The amount sent to the function. When `hbar=true` (default), the value is in tinybars.
+            When `hbar=false`, the value is in weibars.
           example: 10
           format: int64
           nullable: true
@@ -2411,7 +2444,10 @@ components:
           format: int64
           type: integer
         gas_price:
-          description: The hex encoded gas_price of the wrapped ethereum transaction
+          description: >-
+            The hex encoded gas_price of the wrapped ethereum transaction.
+            When `hbar=true` (default), the value is converted to tinybars.
+            When `hbar=false`, the value is in weibars.
           nullable: true
           type: string
           example: "0x4a817c800"
@@ -2426,12 +2462,18 @@ components:
           example: "0xfebbaa29c513d124a6377246ea3506ad917d740c21a88f61a1c55ba338fc2bb1"
           type: string
         max_fee_per_gas:
-          description: The hex encoded max_fee_per_gas of the wrapped ethereum transaction
+          description: >-
+            The hex encoded max_fee_per_gas of the wrapped ethereum transaction.
+            When `hbar=true` (default), the value is converted to tinybars.
+            When `hbar=false`, the value is in weibars.
           nullable: true
           type: string
           example: "0x5"
         max_priority_fee_per_gas:
-          description: The hex encoded max_priority_fee_per_gas of the wrapped ethereum transaction
+          description: >-
+            The hex encoded max_priority_fee_per_gas of the wrapped ethereum transaction.
+            When `hbar=true` (default), the value is converted to tinybars.
+            When `hbar=false`, the value is in weibars.
           nullable: true
           type: string
           example: "0x100"
@@ -2980,6 +3022,7 @@ components:
       type: object
       required:
         - admin_key
+        - associated_registered_nodes
         - decline_reward
         - description
         - file_id
@@ -3001,6 +3044,12 @@ components:
       properties:
         admin_key:
           $ref: "#/components/schemas/Key"
+        associated_registered_nodes:
+          type: array
+          items:
+            format: int64
+            minimum: 0
+            type: integer
         decline_reward:
           description: Whether the node wants to receive staking rewards or not.
           nullable: true
@@ -3078,6 +3127,7 @@ components:
         admin_key:
           _type: "ED25519"
           key: "15706b229b3ba33d4a5a41ff54ce1cfe0a3d308672a33ff382f81583e02bd743"
+        associated_registered_nodes: [1, 10]
         decline_reward: false
         description: "address book 1"
         file_id: "0.0.102"
@@ -3438,18 +3488,18 @@ components:
     FeeEstimateResponse:
       description: The response containing the estimated transaction fees.
       properties:
+        high_volume_multiplier:
+          description: The high-volume pricing multiplier per HIP-1313. A value of 1 indicates no high-volume pricing. A value greater than 1 applies when the transaction's highVolume flag is true and throttle utilization is non-zero.
+          example: 100
+          format: int64
+          minimum: 1
+          type: integer
         network:
           $ref: "#/components/schemas/FeeEstimateNetwork"
         node:
           allOf:
             - $ref: "#/components/schemas/FeeEstimate"
             - description: The node fee component which is to be paid to the node that submitted the transaction to the network. This fee exists to compensate the node for the work it performed to pre-check the transaction before submitting it, and incentivizes the node to accept new transactions from users.
-        notes:
-          description: An array of strings for any caveats.
-          example: ["Fallback to worst-case due to missing state"]
-          items:
-            type: string
-          type: array
         service:
           allOf:
             - $ref: "#/components/schemas/FeeEstimate"
@@ -3461,9 +3511,9 @@ components:
           minimum: 0
           type: integer
       required:
+        - high_volume_multiplier
         - network
         - node
-        - notes
         - service
         - total
       type: object
@@ -3473,13 +3523,13 @@ components:
         charged:
           description: The charged count of items as calculated by `max(0, count - included)`.
           example: 1
-          format: int32
+          format: int64
           minimum: 0
           type: integer
         count:
           description: The actual count of items received.
           example: 2
-          format: int32
+          format: int64
           minimum: 0
           type: integer
         fee_per_unit:
@@ -3491,7 +3541,7 @@ components:
         included:
           description: The count of this "extra" that is included for free.
           example: 1
-          format: int32
+          format: int64
           minimum: 0
           type: integer
         name:
@@ -3535,6 +3585,131 @@ components:
       required:
         - transactions
         - links
+    RegisteredBlockNodeApi:
+      type: string
+      enum:
+        [OTHER, STATUS, PUBLISH, SUBSCRIBE_STREAM, STATE_PROOF, UNRECOGNIZED]
+    RegisteredBlockNodeEndpoint:
+      type: object
+      properties:
+        endpoint_apis:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegisteredBlockNodeApi"
+    RegisteredGeneralServiceEndpoint:
+      type: object
+      properties:
+        description:
+          type: string
+    RegisteredMirrorNodeEndpoint:
+      type: object
+    RegisteredNode:
+      type: object
+      required:
+        - admin_key
+        - created_timestamp
+        - description
+        - registered_node_id
+        - service_endpoints
+        - timestamp
+      properties:
+        admin_key:
+          $ref: "#/components/schemas/Key"
+        created_timestamp:
+          $ref: "#/components/schemas/TimestampNullable"
+        description:
+          description: A short description of the node
+          nullable: true
+          type: string
+        registered_node_id:
+          description: An identifier for the registered node
+          format: int64
+          type: integer
+        service_endpoints:
+          $ref: "#/components/schemas/RegisteredServiceEndpoints"
+        timestamp:
+          $ref: "#/components/schemas/TimestampRange"
+      example:
+        admin_key:
+          _type: "ProtobufEncoded"
+          key: "421050820e1485acdd59726088e0e4a2130ebbbb70009f640ad95c78dd5a7b38"
+        created_timestamp: "1586567700.453054001"
+        description: "alpha"
+        registered_node_id: 1
+        service_endpoints:
+          - ip_address_v4: 128.0.0.6
+            port: 50216
+        timestamp:
+          from: "187654.000123457"
+          to: null
+    RegisteredNodes:
+      type: array
+      items:
+        $ref: "#/components/schemas/RegisteredNode"
+    RegisteredNodeType:
+      description: Registered node type.
+      enum: [BLOCK_NODE, GENERAL_SERVICE, MIRROR_NODE, RPC_RELAY]
+      example: BLOCK_NODE
+      type: string
+    RegisteredRpcRelayEndpoint:
+      type: object
+    RegisteredServiceEndpoint:
+      type: object
+      required:
+        - block_node
+        - general_service
+        - mirror_node
+        - port
+        - rpc_relay
+        - requires_tls
+        - type
+      allOf:
+        # Ensures at least one of these two fields is present
+        - anyOf:
+            - required: [domain_name]
+            - required: [ip_address]
+      properties:
+        block_node:
+          $ref: "#/components/schemas/RegisteredBlockNodeEndpoint"
+        domain_name:
+          description: The DNS domain name of the service
+          example: "block1.alpha.com"
+          nullable: true
+          type: string
+        general_service:
+          $ref: "#/components/schemas/RegisteredGeneralServiceEndpoint"
+        ip_address:
+          description: The IP address of the service
+          example: "191.91.239.79"
+          nullable: true
+          type: string
+        mirror_node:
+          $ref: "#/components/schemas/RegisteredMirrorNodeEndpoint"
+        port:
+          format: int32
+          type: integer
+          minimum: 0
+          maximum: 65535
+        requires_tls:
+          description: Whether the registered service endpoint requires TLS or not.
+          type: boolean
+        rpc_relay:
+          $ref: "#/components/schemas/RegisteredRpcRelayEndpoint"
+        type:
+          $ref: "#/components/schemas/RegisteredNodeType"
+      example:
+        domain_name: block1.alpha.com
+        general_service: null
+        ip_address: null
+        mirror_node: null
+        port: 40840
+        requires_tls: false
+        rpc_relay: null
+        type: BLOCK_NODE
+    RegisteredServiceEndpoints:
+      type: array
+      items:
+        $ref: "#/components/schemas/RegisteredServiceEndpoint"
     Schedule:
       type: object
       properties:
@@ -3978,10 +4153,14 @@ components:
         - FILEUPDATE
         - FREEZE
         - HOOKSTORE
+        - LEDGERIDPUBLICATION
         - NODECREATE
         - NODEDELETE
         - NODESTAKEUPDATE
         - NODEUPDATE
+        - REGISTEREDNODECREATE
+        - REGISTEREDNODEDELETE
+        - REGISTEREDNODEUPDATE
         - SCHEDULECREATE
         - SCHEDULEDELETE
         - SCHEDULESIGN
@@ -4129,6 +4308,15 @@ components:
           $ref: "#/components/schemas/Timestamp"
         entity_id:
           $ref: "#/components/schemas/EntityId"
+        high_volume:
+          description: Whether the transaction used high-volume entity creation throttles and pricing per HIP-1313
+          type: boolean
+        high_volume_pricing_multiplier:
+          description: The multiplier applied to the transaction fee when high-volume pricing was in effect per HIP-1313, scaled by 1000 (e.g. 1000 = 1x, 4000 = 4x). A value of 0 means high-volume pricing was not applied. Null for pre-HIP-1313 transactions.
+          format: int64
+          minimum: 0
+          nullable: true
+          type: integer
         max_custom_fees:
           type: array
           items:
@@ -4220,11 +4408,15 @@ components:
         valid_start_timestamp:
           $ref: "#/components/schemas/Timestamp"
       example:
-        batch_key: "0xae8bebf1c9fa0f309356e48057f6047af7cde63037d0509d16ddc3b20e085158bfdf14d15345c1b18b199b72fed4dead"
+        batch_key:
+          _type: "ED25519"
+          key: "7934a257a6144fabc8fbdeeaa5810662adb89e7b6978ace46a74fdb2d12bd4b2"
         bytes: null
         charged_tx_fee: 7
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
+        high_volume: false
+        high_volume_pricing_multiplier: 1
         max_custom_fees:
           - account_id: 0.0.8
             amount: 1000
@@ -4306,6 +4498,8 @@ components:
         charged_tx_fee: 7
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
+        high_volume: false
+        high_volume_pricing_multiplier: 1
         max_fee: 33
         memo_base64: null
         name: CRYPTOTRANSFER
@@ -4984,6 +5178,35 @@ components:
           value: lte:0.0.200
       schema:
         $ref: "#/components/schemas/EntityIdQuery"
+    registeredNodeIdQueryParam:
+      name: registerednode.id
+      description: The ID of the registered node
+      in: query
+      examples:
+        noValue:
+          summary: --
+          value: ""
+        serialNumNoOperator:
+          summary: Example of registeredNodeId equals with no operator
+          value: 1
+        serialNumEqOperator:
+          summary: Example of registeredNodeId equals operator
+          value: eq:2
+        serialNumGtOperator:
+          summary: Example of registeredNodeId greater than operator
+          value: gt:3
+        serialNumGteOperator:
+          summary: Example of registeredNodeId greater than or equals operator
+          value: gte:4
+        serialNumLtOperator:
+          summary: Example of registeredNodeId less than operator
+          value: lt:5
+        serialNumLteOperator:
+          summary: Example of registeredNodeId less than or equals operator
+          value: lte:6
+      schema:
+        type: string
+        pattern: ^((eq|gt|gte|lt|lte):)?\d{1,19}$
     scheduledQueryParam:
       name: scheduled
       in: query
@@ -5355,6 +5578,22 @@ components:
       example: INTRINSIC
       schema:
         $ref: "#/components/schemas/FeeEstimateMode"
+    highVolumeThrottleQueryParam:
+      description: The high-volume throttle utilization in basis points where 10000 equals 100%. A value of 0, the default, indicates no high-volume pricing.
+      in: query
+      name: high_volume_throttle
+      example: 10000
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 10000
+        default: 0
+    registeredNodeTypeQueryParam:
+      example: BLOCK_NODE
+      in: query
+      name: type
+      schema:
+        $ref: "#/components/schemas/RegisteredNodeType"
     stack:
       name: stack
       description: If provided and set to false, stack information will not be included in the response
@@ -5594,6 +5833,17 @@ components:
         format: int32
         minimum: 0
         type: integer
+    hbarQueryParam:
+      name: hbar
+      in: query
+      description: >-
+        Controls the unit used for monetary fields (`amount`, `gas_price`, `max_fee_per_gas`, `max_priority_fee_per_gas`).
+        When `true` (default), values are returned in tinybars.
+        When `false`, values are returned in weibars (the native Ethereum unit, where 1 tinybar = 10,000,000,000 weibars).
+      example: false
+      schema:
+        type: boolean
+        default: true
     internalQueryParam:
       name: internal
       in: query

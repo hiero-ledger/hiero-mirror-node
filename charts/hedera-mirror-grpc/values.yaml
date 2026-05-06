@@ -91,6 +91,8 @@ gateway:
             service: com.hedera.mirror.api.proto.NetworkService
         - method:
             service: grpc.reflection.v1alpha.ServerReflection
+        - method:
+            service: grpc.reflection.v1.ServerReflection
   target:
     group: ""
     kind: Service
@@ -136,6 +138,7 @@ ingress:
         - "/com.hedera.mirror.api.proto.ConsensusService"
         - "/com.hedera.mirror.api.proto.NetworkService"
         - "/grpc.reflection.v1alpha.ServerReflection"
+        - "/grpc.reflection.v1.ServerReflection"
   tls:
     enabled: false
     secretName: ""
@@ -146,7 +149,7 @@ livenessProbe:
   httpGet:
     path: /actuator/health/liveness
     port: http
-  initialDelaySeconds: 50
+  initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 2
 
@@ -299,7 +302,7 @@ readinessProbe:
   httpGet:
     path: /actuator/health/readiness
     port: http
-  initialDelaySeconds: 40
+  initialDelaySeconds: 0
   timeoutSeconds: 2
 
 # Only set if HPA is disabled
@@ -335,6 +338,15 @@ serviceAccount:
 serviceMonitor:
   enabled: false
   interval: 30s
+
+startupProbe:
+  failureThreshold: 120
+  httpGet:
+    path: /actuator/health/liveness
+    port: http
+  initialDelaySeconds: 0
+  periodSeconds: 1
+  timeoutSeconds: 2
 
 terminationGracePeriodSeconds: 60
 

@@ -20,7 +20,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -39,7 +38,6 @@ import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.boot.convert.DurationStyle;
 import org.springframework.http.HttpStatus;
 
-@CustomLog
 @RequiredArgsConstructor
 public class ScheduleFeature extends AbstractFeature {
 

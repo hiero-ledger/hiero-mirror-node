@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import org.flywaydb.core.api.MigrationVersion;
-import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -71,7 +71,8 @@ public class BackfillBlockMigration extends AsyncJavaMigration<Long> {
     }
 
     /**
-     * Backfills information for the record file immediately before the consensus end timestamp of the last record file.
+     * Backfills information for the record file immediately before the consensus end timestamp of the last record
+     * file.
      *
      * @param lastConsensusEnd The consensus end timestamp of the last record file
      * @return The consensus end of the processed record file or null if no record file is processed
@@ -89,15 +90,15 @@ public class BackfillBlockMigration extends AsyncJavaMigration<Long> {
                             "consensusEnd",
                             recordFile.getConsensusEnd());
 
-                    var bloomAggregator = new LogsBloomAggregator();
+                    var logsBloomFilter = new LogsBloomFilter();
                     var gasUsedTotal = new AtomicLong(0);
                     getNamedParameterJdbcOperations().query(SELECT_CONTRACT_RESULT, queryParams, rs -> {
-                        bloomAggregator.aggregate(rs.getBytes("bloom"));
+                        logsBloomFilter.or(rs.getBytes("bloom"));
                         gasUsedTotal.addAndGet(rs.getLong("gas_used"));
                     });
 
                     recordFile.setGasUsed(gasUsedTotal.get());
-                    recordFile.setLogsBloom(bloomAggregator.getBloom());
+                    recordFile.setLogsBloom(logsBloomFilter.toArrayUnsafe());
                     recordFileRepositoryProvider.getObject().save(recordFile);
 
                     // set transaction index for the transactions in the record file

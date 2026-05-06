@@ -3,15 +3,16 @@
 import _ from 'lodash';
 import pgformat from 'pg-format';
 import {Range} from 'pg-range';
-import {proto} from '@hashgraph/proto';
+import {create, fromBinary, toBinary} from '@bufbuild/protobuf';
+import {AccountIDSchema, TransactionIDSchema, TokenIDSchema} from '../gen/services/basic_types_pb.js';
+import {CustomFeeLimitSchema, FixedFeeSchema} from '../gen/services/custom_fees_pb.js';
 
 import base32 from '../base32';
 import {getMirrorConfig} from '../config';
 import * as constants from '../constants';
 import EntityId from '../entityId';
 import {valueToBuffer} from './testutils';
-import {JSONStringify} from '../utils';
-import long from 'long';
+import {parseInteger, JSONStringify} from '../utils';
 import {encodedIdFromSpecValue} from './integrationUtils';
 
 const config = getMirrorConfig();
@@ -22,6 +23,42 @@ const DEFAULT_FEE_COLLECTOR_NUM = EntityId.systemEntity.networkAdminFeeAccount.n
 const DEFAULT_NODE_ID = 3;
 const DEFAULT_PAYER_ACCOUNT_ID = 102;
 const DEFAULT_SENDER_ID = 101;
+
+const encodeCustomFeeLimitPayload = (fee) => {
+  const acc = fee.accountId;
+  const accountId = create(AccountIDSchema, {
+    shardNum: parseInteger(acc.shardNum),
+    realmNum: parseInteger(acc.realmNum),
+    account: {case: 'accountNum', value: parseInteger(acc.accountNum)},
+  });
+  const fees = (fee.fees ?? []).map((f) => {
+    const tid = f.denominatingTokenId;
+    const hasToken =
+      tid != null &&
+      typeof tid === 'object' &&
+      Object.keys(tid).length > 0 &&
+      (tid.tokenNum != null || tid.shardNum != null || tid.realmNum != null);
+    return create(FixedFeeSchema, {
+      amount: parseInteger(f.amount),
+      denominatingTokenId: hasToken
+        ? create(TokenIDSchema, {
+            shardNum: parseInteger(tid.shardNum),
+            realmNum: parseInteger(tid.realmNum),
+            tokenNum: parseInteger(tid.tokenNum ?? 0),
+          })
+        : undefined,
+    });
+  });
+  return Buffer.from(
+    toBinary(
+      CustomFeeLimitSchema,
+      create(CustomFeeLimitSchema, {
+        accountId,
+        fees,
+      })
+    )
+  );
+};
 
 const defaultFileData = '\\x97c1fc0a6ed5551bc831571325e9bdb365d06803100dc20648640ba24ce69750';
 
@@ -47,6 +84,7 @@ const setup = async (testDataJson) => {
   await loadCustomFees(testDataJson.customfees);
   await loadEntities(testDataJson.entities);
   await loadEntityStakes(testDataJson.entityStakes);
+  await loadEntityTransactions(testDataJson.entityTransactions);
   await loadEthereumTransactions(testDataJson.ethereumtransactions);
   await loadFileData(testDataJson.filedata);
   await loadNfts(testDataJson.nfts);
@@ -326,6 +364,16 @@ const loadEntities = async (entities) => {
   }
 };
 
+const loadEntityTransactions = async (entityTransactions) => {
+  if (entityTransactions == null) {
+    return;
+  }
+
+  for (const entityTransaction of entityTransactions) {
+    await addEntityTransaction(entityTransaction);
+  }
+};
+
 const loadEntityStakes = async (entityStakes) => {
   if (entityStakes == null) {
     return;
@@ -587,6 +635,7 @@ const entityDefaults = {
   balance_timestamp: null,
   created_timestamp: null,
   decline_reward: false,
+  delegation_address: null,
   deleted: false,
   ethereum_nonce: null,
   evm_address: null,
@@ -624,6 +673,7 @@ const addEntity = async (defaults, custom) => {
   ).getEncodedId();
   entity.alias = base32.decode(entity.alias);
   entity.evm_address = valueToBuffer(entity.evm_address);
+  entity.delegation_address = valueToBuffer(entity.delegation_address);
   entity.staked_account_id = encodedIdFromSpecValue(entity.staked_account_id);
   entity.obtainer_id = encodedIdFromSpecValue(entity.obtainer_id);
   entity.proxy_account_id = encodedIdFromSpecValue(entity.proxy_account_id);
@@ -638,6 +688,14 @@ const addEntity = async (defaults, custom) => {
   const table = getTableName('entity', entity);
   await insertDomainObject(table, insertFields, entity);
   return entity;
+};
+
+const addEntityTransaction = async (entityTransaction) => {
+  const clone = {...entityTransaction};
+  clone.entity_id = encodedIdFromSpecValue(entityTransaction.entity_id);
+  clone.payer_account_id = encodedIdFromSpecValue(entityTransaction.payer_account_id);
+
+  await insertDomainObject('entity_transaction', Object.keys(clone), clone);
 };
 
 const SECONDS_PER_DAY = 86400;
@@ -672,13 +730,14 @@ const addEntityStake = async (entityStake) => {
 
 const ethereumTransactionDefaults = {
   access_list: null,
+  authorization_list: null,
   call_data_id: null,
   call_data: null,
   chain_id: null,
   consensus_timestamp: '187654000123456',
   data: '0x000000000',
   gas_limit: 1000000,
-  gas_price: '0x4a817c80',
+  gas_price: '0xAD78EBC5AC620000',
   hash: '0x0000000000000000000000000000000000000000000000000000000000000123',
   max_fee_per_gas: null,
   max_gas_allowance: 10000,
@@ -720,6 +779,10 @@ const addEthereumTransaction = async (ethereumTransaction) => {
     ],
     ethTx
   );
+
+  if (ethTx.authorization_list != null) {
+    ethTx.authorization_list = JSONStringify(ethTx.authorization_list);
+  }
 
   ethTx.payer_account_id = encodedIdFromSpecValue(ethTx.payer_account_id);
   ethTx.call_data_id = encodedIdFromSpecValue(ethTx.call_data_id);
@@ -865,6 +928,8 @@ const defaultTransaction = {
   charged_tx_fee: NODE_FEE + NETWORK_FEE + SERVICE_FEE,
   consensus_timestamp: null,
   entity_id: null,
+  high_volume: false,
+  high_volume_pricing_multiplier: 1,
   inner_transactions: null,
   max_custom_fees: [],
   max_fee: 33,
@@ -893,12 +958,13 @@ const addTransaction = async (transaction) => {
     valid_start_ns: transaction.valid_start_timestamp,
   };
 
+  transaction.high_volume = transaction.high_volume ?? false;
   transaction.entity_id = encodedIdFromSpecValue(transaction.entity_id);
   transaction.node_account_id = encodedIdFromSpecValue(transaction.nodeAccountId);
   transaction.payer_account_id = encodedIdFromSpecValue(transaction.payerAccountId);
 
   if ((transaction.max_custom_fees ?? []).length !== 0) {
-    const idDefaults = {shardNum: long.fromValue(config.common.shard), realmNum: long.fromValue(config.common.realm)};
+    const idDefaults = {shardNum: `${config.common.shard}`, realmNum: `${config.common.realm}`};
     transaction.max_custom_fees = transaction.max_custom_fees.map((fee) => {
       if (fee.fees) {
         fee.fees = fee.fees.map((f) => {
@@ -909,7 +975,7 @@ const addTransaction = async (transaction) => {
         });
       }
       fee.accountId = {...fee.accountId, ...idDefaults};
-      return proto.CustomFeeLimit.encode(fee).finish();
+      return encodeCustomFeeLimitPayload(fee);
     });
   }
 
@@ -1359,13 +1425,16 @@ const addTopicMessage = async (message) => {
 
   message.initial_transaction_id = valueToBuffer(message.initial_transaction_id);
   if (message.initial_transaction_id) {
-    const initialTransactionIdProto = proto.TransactionID.decode(valueToBuffer(message.initial_transaction_id));
-    initialTransactionIdProto.accountID = proto.AccountID.create({
-      accountNum: initialTransactionIdProto.accountID.accountNum,
-      shardNum: long.fromValue(config.common.shard),
-      realmNum: long.fromValue(config.common.realm),
+    const initialBuf = valueToBuffer(message.initial_transaction_id);
+    const initialTransactionIdProto = fromBinary(TransactionIDSchema, initialBuf);
+    const prevAccount = initialTransactionIdProto.accountID;
+    const accountNum = prevAccount?.account?.case === 'accountNum' ? prevAccount.account.value : 0n;
+    initialTransactionIdProto.accountID = create(AccountIDSchema, {
+      shardNum: parseInteger(config.common.shard),
+      realmNum: parseInteger(config.common.realm),
+      account: {case: 'accountNum', value: accountNum},
     });
-    message.initial_transaction_id = proto.TransactionID.encode(initialTransactionIdProto).finish();
+    message.initial_transaction_id = Buffer.from(toBinary(TransactionIDSchema, initialTransactionIdProto));
   }
   message.payer_account_id = encodedIdFromSpecValue(message.payer_account_id);
   message.topic_id = encodedIdFromSpecValue(message.topic_id);
@@ -1683,7 +1752,6 @@ const addRecordFile = async (recordFileInput) => {
     'load_start',
     'logs_bloom',
     'name',
-    'node_id',
     'prev_hash',
     'size',
     'version',
@@ -1706,7 +1774,6 @@ const addRecordFile = async (recordFileInput) => {
     load_start: 1629298233,
     logs_bloom: Buffer.alloc(0),
     name: '2021-08-12T06_59_32.000852000Z.rcd',
-    node_id: 0,
     prev_hash: '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
     size: 6,
     version: 5,
@@ -1755,6 +1822,7 @@ export default {
   loadCryptoAllowances,
   loadCryptoTransfers,
   loadEntities,
+  loadEntityTransactions,
   loadEthereumTransactions,
   loadFileData,
   loadNodes,

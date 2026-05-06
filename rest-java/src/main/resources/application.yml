@@ -28,12 +28,16 @@ hiero:
               "Cache-Control": "public, max-age=60"
             "[/api/v1/network/fees]":
               "Cache-Control": "public, max-age=60"
+            "[/api/v1/network/nodes]":
+              "Cache-Control": "public, max-age=60"
+            "[/api/v1/network/registered-nodes]":
+              "Cache-Control": "public, max-age=60"
             "[/api/v1/network/supply]":
               "Cache-Control": "public, max-age=60"
 logging:
   level:
     root: warn
-    org.hiero.mirror.restjava: info
+    org.hiero.mirror: info
     org.hibernate.orm.deprecation: error # Suppress hibernate.dialect warnings
   pattern:
     console: "%clr(%date{${LOG_DATEFORMAT_PATTERN:yyyy-MM-dd'T'HH:mm:ss.SSS}, UTC}Z){faint} %clr(${LOG_LEVEL_PATTERN:%5level}) %clr(%thread){magenta} %clr(%logger{20}){cyan} %m %exception%n"
@@ -70,6 +74,11 @@ server:
     max-http-form-post-size: 1KB
     max-swallow-size: 1KB
 spring:
+  aot:
+    enabled: true
+    repositories:
+      # Disabling due to issues with aot repositories https://github.com/spring-projects/spring-data-jpa/issues/4223
+      enabled: false
   application:
     name: rest-java
   datasource:
@@ -87,6 +96,8 @@ spring:
       maximum-pool-size: 50
       minimum-idle: 4
       validation-timeout: 3000
+  jackson:
+    use-jackson2-defaults: true
   jooq:
     sql-dialect: Postgres
   jpa:

@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -36,13 +37,16 @@ import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.block.api.protoc.SubscribeStreamResponse.Code;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.downloader.block.scheduler.LatencyService;
 import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerSupplier;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,6 +63,9 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
 
+    //    @Mock(strictness = LENIENT)
+    //    private BlockNodeDiscoveryService blockNodeDiscoveryService;
+
     @Mock
     private BlockStreamReader blockStreamReader;
 
@@ -66,9 +73,14 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
     private BlockStreamVerifier blockStreamVerifier;
 
     @Mock
+    private CutoverService cutoverService;
+
+    @Mock
     private LatencyService latencyService;
 
+    @AutoClose
     private BlockNodeSubscriber blockNodeSubscriber;
+
     private CommonDownloaderProperties commonDownloaderProperties;
     private Map<String, Server> servers;
     private Map<String, Integer> statusCalls;
@@ -76,8 +88,8 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
     @BeforeEach
     void setup() {
-        final var blockProperties = new BlockProperties();
         commonDownloaderProperties = new CommonDownloaderProperties(new ImporterProperties());
+        final var blockProperties = new BlockProperties(commonDownloaderProperties.getImporterProperties());
         servers = new HashMap<>();
         statusCalls = new HashMap<>();
         streamCalls = new HashMap<>();
@@ -88,7 +100,12 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         var schedulerFactory = new SchedulerSupplier(
                 blockProperties, latencyService, InProcessManagedChannelBuilderProvider.INSTANCE, meterRegistry);
         blockNodeSubscriber = new BlockNodeSubscriber(
-                blockStreamReader, blockStreamVerifier, commonDownloaderProperties, blockProperties, schedulerFactory);
+                blockStreamReader,
+                blockStreamVerifier,
+                commonDownloaderProperties,
+                cutoverService,
+                blockProperties,
+                schedulerFactory);
     }
 
     @ParameterizedTest(name = "last block number {0}")
@@ -100,7 +117,9 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
     void get(long lastBlockNumber, String expectedStatusCalls, String expectedStreamCalls, Resources resources) {
         // given
         doReturn(blockFile(0)).when(blockStreamReader).read(any());
-        doReturn(lastBlockNumber + 1).when(blockStreamVerifier).getNextBlockNumber();
+        doReturn(Optional.of(RecordFile.builder().index(lastBlockNumber).build()))
+                .when(cutoverService)
+                .getLastRecordFile();
         doNothing().when(blockStreamVerifier).verify(any());
         startServer(
                 SERVER_NAMES[0],
@@ -128,15 +147,92 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
             assertBlockStream(blockStream, lastBlockNumber + 1);
             return true;
         }));
-        verify(blockStreamVerifier).getNextBlockNumber();
         verify(blockStreamVerifier).verify(any());
+        verify(cutoverService).getLastRecordFile();
     }
+
+    //    @Test
+    //    void getWithMergeAndDeduplication(Resources resources) {
+    //        // given: config has test1, merged result has config (test1) + test2 - config wins for test1
+    //        final var blockProperties = new BlockProperties(commonDownloaderProperties.getImporterProperties());
+    //        final var configNode = blockNodeProperties(0, SERVER_NAMES[0]);
+    //        blockProperties.setNodes(List.of(configNode));
+    //        final var discovered2 = blockNodeProperties(2, SERVER_NAMES[1]);
+    //        final var mergedNodes = List.of(configNode, discovered2);
+    //        doReturn(mergedNodes).when(blockNodeDiscoveryService).getBlockNodes();
+    //        blockNodeSubscriber = new BlockNodeSubscriber(
+    //                blockNodeDiscoveryService,
+    //                blockStreamReader,
+    //                blockStreamVerifier,
+    //                commonDownloaderProperties,
+    //                cutoverService,
+    //                InProcessManagedChannelBuilderProvider.INSTANCE,
+    //                blockProperties,
+    //                meterRegistry);
+    //        // merged: config (test1:40840) wins over discovered1, discovered2 (test2:40840) added = 2 nodes
+    //        doReturn(new BlockFile()).when(blockStreamReader).read(any());
+    //        doReturn(Optional.of(RecordFile.builder().index(5L).build()))
+    //                .when(cutoverService)
+    //                .getLastRecordFile();
+    //        doNothing().when(blockStreamVerifier).verify(any());
+    //        startServer(
+    //                SERVER_NAMES[0],
+    //                resources,
+    //                serverStatusResponse(6, 6),
+    //                ResponsesOrError.fromResponses(fullBlockResponses(6)));
+    //        startServer(
+    //                SERVER_NAMES[1],
+    //                resources,
+    //                serverStatusResponse(7, 7),
+    //                ResponsesOrError.fromResponses(fullBlockResponses(7)));
+    //
+    //        blockNodeSubscriber.get();
+    //
+    //        verify(blockStreamReader).read(any());
+    //    }
+    //
+    //    @Test
+    //    void getWithAutoDiscovery(Resources resources) {
+    //        // given: merged nodes from discovery service returns a node
+    //        clearInvocations(blockNodeDiscoveryService);
+    //        final var blockProperties = new BlockProperties(commonDownloaderProperties.getImporterProperties());
+    //        blockProperties.setNodes(List.of());
+    //        var discoveredProps = blockNodeProperties(0, SERVER_NAMES[0]);
+    //        doReturn(List.of(discoveredProps)).when(blockNodeDiscoveryService).getBlockNodes();
+    //        blockNodeSubscriber = new BlockNodeSubscriber(
+    //                blockNodeDiscoveryService,
+    //                blockStreamReader,
+    //                blockStreamVerifier,
+    //                commonDownloaderProperties,
+    //                cutoverService,
+    //                InProcessManagedChannelBuilderProvider.INSTANCE,
+    //                blockProperties,
+    //                meterRegistry);
+    //        doReturn(new BlockFile()).when(blockStreamReader).read(any());
+    //        doReturn(Optional.of(RecordFile.builder().index(5L).build()))
+    //                .when(cutoverService)
+    //                .getLastRecordFile();
+    //        doNothing().when(blockStreamVerifier).verify(any());
+    //        startServer(
+    //                SERVER_NAMES[0],
+    //                resources,
+    //                serverStatusResponse(6, 6),
+    //                ResponsesOrError.fromResponses(fullBlockResponses(6)));
+    //
+    //        // when
+    //        blockNodeSubscriber.get();
+    //
+    //        // then: uses discovered node
+    //        verify(blockStreamReader).read(any());
+    //        verify(blockNodeDiscoveryService).getBlockNodes();
+    //    }
 
     @Test
     void getFromEarliestAvailableBlockNumber(Resources resources) {
         // given
+        commonDownloaderProperties.getImporterProperties().setStartBlockNumber(EARLIEST_AVAILABLE_BLOCK_NUMBER);
         doReturn(new BlockFile()).when(blockStreamReader).read(any());
-        doReturn(EARLIEST_AVAILABLE_BLOCK_NUMBER).when(blockStreamVerifier).getNextBlockNumber();
+        doReturn(Optional.empty()).when(cutoverService).getLastRecordFile();
         doNothing().when(blockStreamVerifier).verify(any());
         startServer(
                 SERVER_NAMES[0],
@@ -154,8 +250,8 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
             assertBlockStream(blockStream, 6);
             return true;
         }));
-        verify(blockStreamVerifier).getNextBlockNumber();
         verify(blockStreamVerifier).verify(any());
+        verify(cutoverService).getLastRecordFile();
     }
 
     @Test
@@ -164,7 +260,7 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         final var importerProperties = commonDownloaderProperties.getImporterProperties();
         importerProperties.setStartBlockNumber(EARLIEST_AVAILABLE_BLOCK_NUMBER);
         importerProperties.setEndBlockNumber(5L);
-        doReturn(EARLIEST_AVAILABLE_BLOCK_NUMBER).when(blockStreamVerifier).getNextBlockNumber();
+        doReturn(Optional.empty()).when(cutoverService).getLastRecordFile();
         startServer(
                 SERVER_NAMES[0],
                 resources,
@@ -178,14 +274,16 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         assertCalls(statusCalls, "1,0,0");
         assertCalls(streamCalls, "0,0,0");
         verify(blockStreamReader, never()).read(any());
-        verify(blockStreamVerifier).getNextBlockNumber();
         verify(blockStreamVerifier, never()).verify(any());
+        verify(cutoverService).getLastRecordFile();
     }
 
     @Test
     void getWhenBlockNotAvailable(Resources resources) {
         // given
-        doReturn(21L).when(blockStreamVerifier).getNextBlockNumber();
+        doReturn(Optional.of(RecordFile.builder().index(20L).build()))
+                .when(cutoverService)
+                .getLastRecordFile();
         startServer(
                 SERVER_NAMES[0],
                 resources,
@@ -211,8 +309,8 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         assertCalls(statusCalls, "1,1,1");
         assertCalls(streamCalls, "0,0,0");
         verifyNoInteractions(blockStreamReader);
-        verify(blockStreamVerifier).getNextBlockNumber();
         verify(blockStreamVerifier, never()).verify(any());
+        verify(cutoverService).getLastRecordFile();
     }
 
     @Test
@@ -220,7 +318,11 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         // given
         commonDownloaderProperties.getImporterProperties().setEndBlockNumber(6L);
         doReturn(blockFile(0)).when(blockStreamReader).read(any());
-        doReturn(6L, 7L).when(blockStreamVerifier).getNextBlockNumber();
+        doReturn(
+                        Optional.of(RecordFile.builder().index(5L).build()),
+                        Optional.of(RecordFile.builder().index(6L).build()))
+                .when(cutoverService)
+                .getLastRecordFile();
         doNothing().when(blockStreamVerifier).verify(any());
         startServer(
                 SERVER_NAMES[0],
@@ -241,15 +343,17 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
             return true;
         }));
         verifyNoMoreInteractions(blockStreamReader);
-        verify(blockStreamVerifier, times(2)).getNextBlockNumber();
         verify(blockStreamVerifier).verify(any());
         verifyNoMoreInteractions(blockStreamVerifier);
+        verify(cutoverService, times(2)).getLastRecordFile();
     }
 
     @Test
     void getWhenFirstNodeFails(Resources resources) {
         // given
-        doReturn(10L).when(blockStreamVerifier).getNextBlockNumber();
+        doReturn(Optional.of(RecordFile.builder().index(9L).build()))
+                .when(cutoverService)
+                .getLastRecordFile();
         doReturn(blockFile(0)).when(blockStreamReader).read(any());
         doNothing().when(blockStreamVerifier).verify(any());
         startServer(
@@ -276,8 +380,8 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         assertCalls(statusCalls, "3,0,0");
         assertCalls(streamCalls, "3,0,0");
         verifyNoInteractions(blockStreamReader);
-        verify(blockStreamVerifier, times(3)).getNextBlockNumber();
         verify(blockStreamVerifier, never()).verify(any());
+        verify(cutoverService, times(3)).getLastRecordFile();
 
         // when get again from the second node
         blockNodeSubscriber.get();
@@ -285,8 +389,8 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         // then
         assertCalls(statusCalls, "3,1,0");
         assertCalls(streamCalls, "3,1,0");
-        verify(blockStreamVerifier, times(4)).getNextBlockNumber();
         verify(blockStreamVerifier, times(2)).verify(any());
+        verify(cutoverService, times(4)).getLastRecordFile();
 
         var captor = ArgumentCaptor.forClass(BlockStream.class);
         verify(blockStreamReader, times(2)).read(captor.capture());
@@ -298,7 +402,9 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
     @Test
     void getWhenAllFailThenForceReadmit(Resources resources) {
         // given
-        doReturn(10L).when(blockStreamVerifier).getNextBlockNumber();
+        doReturn(Optional.of(RecordFile.builder().index(9L).build()))
+                .when(cutoverService)
+                .getLastRecordFile();
         doReturn(blockFile(10)).when(blockStreamReader).read(any());
         doNothing().when(blockStreamVerifier).verify(any());
         startServer(
@@ -320,8 +426,8 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         assertCalls(statusCalls, "3,3,0");
         assertCalls(streamCalls, "3,3,0");
         verifyNoInteractions(blockStreamReader);
-        verify(blockStreamVerifier, times(6)).getNextBlockNumber();
         verify(blockStreamVerifier, never()).verify(any());
+        verify(cutoverService, times(6)).getLastRecordFile();
 
         // when servers become healthy however test1 no longer has the next block
         startServer(
@@ -339,8 +445,8 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         // then
         assertCalls(statusCalls, "4,4,0");
         assertCalls(streamCalls, "3,4,0");
-        verify(blockStreamVerifier, times(7)).getNextBlockNumber();
         verify(blockStreamVerifier, times(2)).verify(any());
+        verify(cutoverService, times(7)).getLastRecordFile();
 
         var captor = ArgumentCaptor.forClass(BlockStream.class);
         verify(blockStreamReader, times(2)).read(captor.capture());
@@ -353,7 +459,6 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         assertThat(actual)
                 .returns(null, BlockStream::bytes)
                 .returns(BlockFile.getFilename(blockNumber, false), BlockStream::filename)
-                .returns(-1L, BlockStream::nodeId)
                 .extracting(BlockStream::loadStart, InstanceOfAssertFactories.LONG)
                 .isGreaterThan(0L);
     }
@@ -383,7 +488,7 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
     }
 
     private void recordCall(String name, Map<String, Integer> calls) {
-        calls.compute(name, (key, value) -> value == null ? 1 : value + 1);
+        calls.compute(name, (_, value) -> value == null ? 1 : value + 1);
     }
 
     private ServerStatusResponse serverStatusResponse(long firstBlockNumber, long lastBlockNumber) {

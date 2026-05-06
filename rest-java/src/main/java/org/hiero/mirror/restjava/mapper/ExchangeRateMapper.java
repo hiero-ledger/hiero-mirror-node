@@ -14,8 +14,8 @@ import org.mapstruct.Mapping;
 @Mapper(config = MapperConfiguration.class, uses = CommonMapper.class)
 public interface ExchangeRateMapper {
 
-    @Mapping(source = "protobuf.currentRate", target = "currentRate")
-    @Mapping(source = "protobuf.nextRate", target = "nextRate")
+    @Mapping(source = "data.currentRate", target = "currentRate")
+    @Mapping(source = "data.nextRate", target = "nextRate")
     @Mapping(source = "fileData.consensusTimestamp", target = "timestamp", qualifiedByName = QUALIFIER_TIMESTAMP)
     NetworkExchangeRateSetResponse map(SystemFile<ExchangeRateSet> source);
 

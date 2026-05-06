@@ -20,7 +20,7 @@ import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionParser;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.DataClassRowMapper;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ParameterizedPreparedStatementSetter;
@@ -41,7 +41,7 @@ public final class BackfillEthereumTransactionHashMigration extends RepeatableMi
         ps.setLong(2, transaction.getConsensusTimestamp());
     };
     private static final RowMapper<MigrationEthereumTransaction> ROW_MAPPER =
-            new DataClassRowMapper<>(MigrationEthereumTransaction.class);
+            new BeanPropertyRowMapper<>(MigrationEthereumTransaction.class);
     private static final String SELECT_ETHEREUM_TRANSACTION_SQL = """
             select call_data, call_data_id, consensus_timestamp, data, hash, payer_account_id
             from ethereum_transaction

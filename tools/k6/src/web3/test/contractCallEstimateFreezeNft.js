@@ -8,7 +8,7 @@ const account = __ENV.TOKEN_FREEZE_KEY_ACCOUNT_ADDRESS;
 const token = __ENV.NON_FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS;
 const runMode = __ENV.RUN_WITH_VARIABLES;
 const selector = '0x9333700b'; //freezeTokenExternal
-const testName = 'estimateFreezeNft';
+const testName = 'contractCallEstimateFreezeNft';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =

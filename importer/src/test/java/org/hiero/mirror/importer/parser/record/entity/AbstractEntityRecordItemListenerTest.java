@@ -35,6 +35,7 @@ import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.entity.AbstractEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -48,7 +49,6 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFilename;
-import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 import org.hiero.mirror.importer.repository.ContractRepository;
 import org.hiero.mirror.importer.repository.ContractResultRepository;
@@ -478,7 +478,6 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
                 .loadEnd(System.currentTimeMillis())
                 .loadStart(System.currentTimeMillis())
                 .name(filename)
-                .nodeId(0L)
                 .previousHash("")
                 .build();
     }

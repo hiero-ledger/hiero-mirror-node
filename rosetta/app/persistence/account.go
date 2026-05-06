@@ -230,17 +230,17 @@ func (ar *accountRepository) getCryptoEntity(ctx context.Context, accountId type
 	defer cancel()
 
 	var query string
-	var args []interface{}
+	var args []any
 	consensusEndArg := sql.Named("consensus_end", getInclusiveInt8Range(consensusEnd, consensusEnd))
 	if accountId.HasAlias() {
 		query = selectCryptoEntityByAlias
-		args = []interface{}{
+		args = []any{
 			sql.Named("alias", accountId.GetAlias()),
 			consensusEndArg,
 		}
 	} else {
 		query = selectCryptoEntityById
-		args = []interface{}{
+		args = []any{
 			consensusEndArg,
 			sql.Named("id", accountId.GetId()),
 		}

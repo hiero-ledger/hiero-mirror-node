@@ -10,18 +10,19 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
-import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
-import org.springframework.boot.web.client.RestClientCustomizer;
+import org.springframework.boot.http.client.HttpClientSettings;
+import org.springframework.boot.restclient.RestClientCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.retry.annotation.EnableRetry;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.resilience.annotation.EnableResilientMethods;
 
 @Configuration
-@EnableRetry
+@EnableResilientMethods
 @RequiredArgsConstructor
 class ClientConfiguration {
 
@@ -31,7 +32,7 @@ class ClientConfiguration {
     RestClientCustomizer restClientCustomizer() {
         var baseUrl = acceptanceTestProperties.getRestProperties().getBaseUrl();
         var clientProperties = acceptanceTestProperties.getWebClientProperties();
-        var factorySettings = ClientHttpRequestFactorySettings.defaults()
+        var factorySettings = HttpClientSettings.defaults()
                 .withConnectTimeout(clientProperties.getConnectionTimeout())
                 .withReadTimeout(clientProperties.getReadTimeout());
         var logger = LoggerFactory.getLogger(MirrorNodeClient.class);
@@ -62,11 +63,10 @@ class ClientConfiguration {
                 ReceiptStatusException.class,
                 RuntimeException.class,
                 TimeoutException.class);
-        return RetryTemplate.builder()
-                .fixedBackoff(acceptanceTestProperties.getBackOffPeriod().toMillis())
-                .maxAttempts(acceptanceTestProperties.getMaxRetries())
-                .retryOn(retryableExceptions)
-                .traversingCauses()
-                .build();
+        return new RetryTemplate(RetryPolicy.builder()
+                .delay(acceptanceTestProperties.getBackOffPeriod())
+                .includes(retryableExceptions)
+                .maxRetries(acceptanceTestProperties.getMaxRetries())
+                .build());
     }
 }

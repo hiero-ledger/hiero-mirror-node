@@ -18,7 +18,7 @@ import java.util.List;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryTemplate;
 
 /**
  * Client for creating and executing Hook-related transactions. This client handles hook attachment, HookStore

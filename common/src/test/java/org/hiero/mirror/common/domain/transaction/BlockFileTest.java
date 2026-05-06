@@ -9,19 +9,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-class BlockFileTest {
+final class BlockFileTest {
 
-    @ParameterizedTest(name = "gzipped={0}")
-    @CsvSource(value = {"true, '.gz'", "false, ''"})
-    void getBlockStreamFilename(boolean gzipped, String extraSuffix) {
-        assertThat(BlockFile.getFilename(0, gzipped))
-                .isEqualTo("000000000000000000000000000000000000.blk" + extraSuffix);
-        assertThat(BlockFile.getFilename(1, gzipped))
-                .isEqualTo("000000000000000000000000000000000001.blk" + extraSuffix);
-        assertThat(BlockFile.getFilename(0, gzipped))
-                .isEqualTo("000000000000000000000000000000000000.blk" + extraSuffix);
-        assertThat(BlockFile.getFilename(1, gzipped))
-                .isEqualTo("000000000000000000000000000000000001.blk" + extraSuffix);
+    @ParameterizedTest(name = "compressed={0}")
+    @CsvSource(value = {"true, '.zstd'", "false, ''"})
+    void getBlockStreamFilename(final boolean compressed, final String extraSuffix) {
+        assertThat(BlockFile.getFilename(0, compressed)).isEqualTo("0000000000000000000.blk" + extraSuffix);
+        assertThat(BlockFile.getFilename(1, compressed)).isEqualTo("0000000000000000001.blk" + extraSuffix);
+        assertThat(BlockFile.getFilename(0, compressed)).isEqualTo("0000000000000000000.blk" + extraSuffix);
+        assertThat(BlockFile.getFilename(1, compressed)).isEqualTo("0000000000000000001.blk" + extraSuffix);
         assertThatThrownBy(() -> BlockFile.getFilename(-1, true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Block number must be non-negative");
@@ -30,11 +26,11 @@ class BlockFileTest {
     @ParameterizedTest
     @CsvSource(textBlock = """
             ,
-            000000000000000000000000000000000000.blk, BLOCK_NODE
-            000000000000000000000000000000000000.blk.gz, FILE
+            0000000000000000000.blk, BLOCK_NODE
+            0000000000000000000.blk.zstd, FILE
             """)
-    void getSourceType(String name, BlockSourceType type) {
-        var blockFile = new BlockFile();
+    void getSourceType(final String name, final BlockSourceType type) {
+        final var blockFile = new BlockFile();
         blockFile.setName(name);
         assertThat(blockFile.getSourceType()).isEqualTo(type);
     }

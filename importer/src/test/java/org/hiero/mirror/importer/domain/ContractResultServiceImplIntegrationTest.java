@@ -39,6 +39,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
@@ -55,7 +56,6 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
-import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.repository.ContractActionRepository;
@@ -98,7 +98,9 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
 
     @AfterEach
     void cleanup() {
-        entityProperties.getPersist().setTrackNonce(true);
+        final var persist = entityProperties.getPersist();
+        persist.setContractResults(true);
+        persist.setTrackNonce(true);
     }
 
     @ParameterizedTest
@@ -317,6 +319,31 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
                 .transactionResult(ResponseCodeEnum.CONSENSUS_GAS_EXHAUSTED_VALUE)
                 .build();
         assertThat(contractResultRepository.findAll()).containsExactly(expected);
+        assertThat(contractLogRepository.count()).isZero();
+        assertThat(contractActionRepository.count()).isZero();
+        assertThat(contractStateChangeRepository.count()).isZero();
+        assertThat(contractRepository.count()).isZero();
+        assertThat(entityRepository.count()).isZero();
+    }
+
+    @Test
+    void processFailedEthereumTransactionWithoutContractResultWhenPersistDisabled() {
+        // given
+        entityProperties.getPersist().setContractResults(false);
+        final var ethereumTransaction = domainBuilder.ethereumTransaction(true).get();
+        final var recordItem = recordItemBuilder
+                .ethereumTransaction()
+                .recordItem(r -> r.ethereumTransaction(ethereumTransaction))
+                .record(r -> r.clearContractCallResult().clearContractCreateResult())
+                .receipt(r -> r.setStatus(ResponseCodeEnum.CONSENSUS_GAS_EXHAUSTED))
+                .sidecarRecords(List::clear)
+                .build();
+
+        // when
+        process(recordItem);
+
+        // then
+        assertThat(contractResultRepository.findAll()).isEmpty();
         assertThat(contractLogRepository.count()).isZero();
         assertThat(contractActionRepository.count()).isZero();
         assertThat(contractStateChangeRepository.count()).isZero();

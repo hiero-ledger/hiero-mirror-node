@@ -4,8 +4,8 @@ package org.hiero.mirror.importer.parser.record.ethereum;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.common.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
-import static org.hiero.mirror.importer.parser.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA_OFFLOADED;
@@ -85,6 +85,26 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
         var ethereumTransaction = ethereumTransactionParser.decode(Hex.decode(BERLIN_RAW_TX_1));
         validateEthereumTransaction(ethereumTransaction);
         assertThat(ethereumTransaction.getType()).isEqualTo(Eip2930EthereumTransactionParser.EIP2930_TYPE_BYTE);
+    }
+
+    @Test
+    void decodeEip7702() {
+        var ethereumTransaction = ethereumTransactionParser.decode(Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX);
+        validateEthereumTransaction(ethereumTransaction);
+        assertThat(ethereumTransaction.getType()).isEqualTo(Eip7702EthereumTransactionParser.EIP7702_TYPE_BYTE);
+        assertThat(ethereumTransaction.getAuthorizationList()).isNotEmpty();
+    }
+
+    @Test
+    void getHashEip7702() {
+        var expected = new Keccak.Digest256().digest(Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX);
+        var actual = ethereumTransactionParser.getHash(
+                EMPTY_BYTE_ARRAY,
+                null,
+                domainBuilder.timestamp(),
+                Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX,
+                true);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test

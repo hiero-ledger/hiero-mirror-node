@@ -32,4 +32,12 @@ public interface FileDataRepository extends CrudRepository<FileData, Long> {
               and (transaction_type <> 19 or length(file_data) <> 0)
             """)
     Optional<FileData> getFileAtTimestamp(long fileId, long lowerTimestamp, long upperTimestamp);
+
+    @Query(nativeQuery = true, value = """
+            select max(consensus_timestamp)
+            from file_data
+            where entity_id = ?1
+              and (transaction_type = 17 or (transaction_type = 19 and length(file_data) <> 0))
+            """)
+    Optional<Long> getLatestTimestamp(long fileId);
 }

@@ -10,9 +10,10 @@ const MAX_LONG = 2n ** 63n - 1n;
 const ONE_DAY_IN_NS = 86_400_000_000_000n;
 const ZERO_UINT256 = '0x0000000000000000000000000000000000000000000000000000000000000000';
 const AUTO_RENEW_PERIOD_MULTIPLE = BigInt(1e9);
-const DECIMALS_IN_HBARS = 8;
+const WEIBARS_TO_TINYBARS = 10_000_000_000n;
 const EMPTY_STRING = '';
 const EVM_ADDRESS_LENGTH = 20;
+const ZERO_EVM_ADDRESS = `${HEX_PREFIX}0000000000000000000000000000000000000000`;
 const ETH_HASH_LENGTH = 32;
 
 const apiPrefix = '/api/v1';
@@ -30,17 +31,15 @@ const filterKeys = {
   CREDIT_TYPE: 'type',
   ENCODING: 'encoding',
   ENTITY_PUBLICKEY: 'publickey',
-  FILE_ID: 'file.id',
   FROM: 'from',
+  HBAR: 'hbar',
   ID_OR_ALIAS_OR_EVM_ADDRESS: 'idOrAliasOrEvmAddress',
   INDEX: 'index',
   INTERNAL: 'internal',
   LIMIT: 'limit',
   NAME: 'name',
-  NODE_ID: 'node.id',
   NONCE: 'nonce',
   ORDER: 'order',
-  Q: 'q',
   RESULT: 'result',
   SCHEDULED: 'scheduled',
   SCHEDULEID: 'scheduleid',
@@ -113,17 +112,6 @@ const characterEncoding = {
   UTF8: 'utf-8',
 };
 
-const networkSupplyQuery = {
-  CIRCULATING: 'circulating',
-  TOTALCOINS: 'totalcoins',
-};
-
-const networkSupplyCurrencyFormatType = {
-  TINYBARS: 'TINYBARS', // output circulating or total coins in tinybars
-  HBARS: 'HBARS', // output circulating or total coins in hbars (rounded to nearest integer)
-  BOTH: 'BOTH', // default; output circulating or total coins in fractional hbars (with a decimal point between hbars and remaining tinybars)
-};
-
 const transactionResultFilter = {
   SUCCESS: 'success',
   FAIL: 'fail',
@@ -133,34 +121,6 @@ const cryptoTransferType = {
   CREDIT: 'credit',
   DEBIT: 'debit',
 };
-
-const cloudProviders = {
-  S3: 'S3',
-  GCP: 'GCP',
-};
-
-const defaultCloudProviderEndpoints = {
-  [cloudProviders.S3]: 'https://s3.amazonaws.com',
-  [cloudProviders.GCP]: 'https://storage.googleapis.com',
-};
-
-const networks = {
-  DEMO: 'DEMO',
-  MAINNET: 'MAINNET',
-  TESTNET: 'TESTNET',
-  PREVIEWNET: 'PREVIEWNET',
-  OTHER: 'OTHER',
-};
-
-const defaultBucketNames = {
-  [networks.DEMO]: 'hedera-demo-streams',
-  [networks.MAINNET]: 'hedera-mainnet-streams',
-  [networks.TESTNET]: 'hedera-testnet-streams-2024-02',
-  [networks.PREVIEWNET]: 'hedera-preview-testnet-streams',
-  [networks.OTHER]: null,
-};
-
-const recordStreamPrefix = 'recordstreams/record';
 
 const tokenTypeFilter = {
   ALL: 'all',
@@ -210,7 +170,6 @@ const queryParamOperators = {
 
 export {
   AUTO_RENEW_PERIOD_MULTIPLE,
-  DECIMALS_IN_HBARS,
   EMPTY_STRING,
   EVM_ADDRESS_LENGTH,
   ETH_HASH_LENGTH,
@@ -222,24 +181,19 @@ export {
   MAX_INT32,
   MAX_LONG,
   ONE_DAY_IN_NS,
+  WEIBARS_TO_TINYBARS,
+  ZERO_EVM_ADDRESS,
   ZERO_UINT256,
   apiPrefix,
   characterEncoding,
-  cloudProviders,
   contentTypeHeader,
   cryptoTransferType,
-  defaultBucketNames,
-  defaultCloudProviderEndpoints,
   entityTypes,
   filterKeys,
   httpStatusCodes,
   keyTypes,
-  networks,
-  networkSupplyCurrencyFormatType,
-  networkSupplyQuery,
   orderFilterValues,
   queryParamOperators,
-  recordStreamPrefix,
   requestIdLabel,
   requestPathLabel,
   requestStartTime,

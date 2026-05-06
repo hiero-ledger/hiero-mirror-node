@@ -14,7 +14,6 @@ import com.hedera.hapi.node.base.PendingAirdropId;
 import com.hedera.hapi.node.base.PendingAirdropValue;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.token.AccountPendingAirdrop;
-import java.util.Collections;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.token.TokenAirdrop;
@@ -34,6 +33,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class AirdropsReadableKVStateTest {
 
+    private static final Optional<Long> timestamp = Optional.of(1726231985623004672L);
+    private static MockedStatic<ContractCallContext> contextMockedStatic;
+
     @InjectMocks
     private AirdropsReadableKVState airdropsReadableKVState;
 
@@ -43,11 +45,7 @@ class AirdropsReadableKVStateTest {
     @Spy
     private ContractCallContext contractCallContext;
 
-    private static MockedStatic<ContractCallContext> contextMockedStatic;
-
     private DomainBuilder domainBuilder;
-
-    private static final Optional<Long> timestamp = Optional.of(1726231985623004672L);
 
     @BeforeAll
     static void initStaticMocks() {
@@ -68,11 +66,6 @@ class AirdropsReadableKVStateTest {
     @Test
     void sizeIsAlwaysZero() {
         assertThat(airdropsReadableKVState.size()).isZero();
-    }
-
-    @Test
-    void iterateReturnsEmptyIterator() {
-        assertThat(airdropsReadableKVState.iterateFromDataSource()).isEqualTo(Collections.emptyIterator());
     }
 
     @Test

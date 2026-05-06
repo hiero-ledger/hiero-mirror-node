@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain.contract;
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REVERT_REASON;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -18,6 +19,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.springframework.data.domain.Persistable;
@@ -32,6 +34,8 @@ public class ContractAction implements Persistable<ContractAction.Id> {
 
     private int callDepth;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId caller;
 
     @Enumerated(EnumType.STRING)
@@ -55,13 +59,19 @@ public class ContractAction implements Persistable<ContractAction.Id> {
     @ToString.Exclude
     private byte[] input;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId recipientAccount;
 
     @ToString.Exclude
     private byte[] recipientAddress;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId recipientContract;
 
     @ToString.Exclude

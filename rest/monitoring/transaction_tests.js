@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
-import * as math from 'mathjs';
+import {filter, map, max} from 'lodash-es';
 import config from './config';
 
 import {
@@ -17,6 +16,7 @@ import {
   fetchAPIResponse,
   getUrl,
   hasEmptyList,
+  incrementTimestamp,
   testRunner,
 } from './utils';
 
@@ -87,9 +87,9 @@ const getTransactionsWithAccountCheck = async (server) => {
   const transaction = transactions[0];
   const transfers = mergeArrays(transaction.transfers, transaction.token_transfers);
 
-  const highestAccount = _.max(
-    _.map(
-      _.filter(transfers, (xfer) => xfer.amount > 0),
+  const highestAccount = max(
+    map(
+      filter(transfers, (xfer) => xfer.amount > 0),
       (xfer) => xfer.account
     )
   );
@@ -215,8 +215,8 @@ const getTransactionsWithTimeAndLimitParams = async (server) => {
     return {url, ...result};
   }
 
-  const plusOne = math.add(math.bignumber(transactions[0].consensus_timestamp), math.bignumber(1));
-  const minusOne = math.subtract(math.bignumber(transactions[0].consensus_timestamp), math.bignumber(1));
+  const plusOne = incrementTimestamp(transactions[0].consensus_timestamp, 1n);
+  const minusOne = incrementTimestamp(transactions[0].consensus_timestamp, -1n);
   url = getUrl(server, transactionsPath, {
     timestamp: [`gt:${minusOne.toString()}`, `lt:${plusOne.toString()}`],
     limit: 1,

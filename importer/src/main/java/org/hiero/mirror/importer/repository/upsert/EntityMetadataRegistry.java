@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.repository.upsert;
 
-import static java.lang.invoke.MethodType.methodType;
 import static org.hiero.mirror.importer.util.Utility.toSnakeCase;
 
 import jakarta.inject.Named;
@@ -13,10 +12,6 @@ import jakarta.persistence.metamodel.Attribute;
 import jakarta.persistence.metamodel.EmbeddableType;
 import jakarta.persistence.metamodel.EntityType;
 import jakarta.persistence.metamodel.SingularAttribute;
-import java.lang.invoke.LambdaMetafactory;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Set;
@@ -165,36 +160,38 @@ public final class EntityMetadataRegistry {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private Function<Object, Object> getter(Field field) {
         try {
-            String prefix = field.getType().equals(boolean.class) ? "is" : "get";
-            String methodName = prefix + StringUtils.capitalize(field.getName());
-            MethodHandles.Lookup lookup = MethodHandles.lookup();
-            MethodType type = MethodType.methodType(field.getType());
-            MethodHandle handle = lookup.findVirtual(field.getDeclaringClass(), methodName, type);
-            MethodType functionType = handle.type();
-            final var callSite = LambdaMetafactory.metafactory(
-                    lookup, "apply", methodType(Function.class), functionType.erase(), handle, functionType);
-            return (Function<Object, Object>) callSite.getTarget().invokeExact();
-        } catch (Throwable t) {
-            throw new FieldInaccessibleException(t);
+            final var prefix = field.getType().equals(boolean.class) ? "is" : "get";
+            final var methodName = prefix + StringUtils.capitalize(field.getName());
+            final var method = field.getDeclaringClass().getMethod(methodName);
+            method.setAccessible(true);
+            return value -> {
+                try {
+                    return method.invoke(value);
+                } catch (ReflectiveOperationException e) {
+                    throw new FieldInaccessibleException(e);
+                }
+            };
+        } catch (ReflectiveOperationException e) {
+            throw new FieldInaccessibleException(e);
         }
     }
 
-    @SuppressWarnings("unchecked")
     private BiConsumer<Object, Object> setter(Field field) {
         try {
-            String methodName = "set" + StringUtils.capitalize(field.getName());
-            MethodHandles.Lookup lookup = MethodHandles.lookup();
-            MethodType type = MethodType.methodType(void.class, field.getType());
-            MethodHandle handle = lookup.findVirtual(field.getDeclaringClass(), methodName, type);
-            MethodType functionType = handle.type();
-            final var callSite = LambdaMetafactory.metafactory(
-                    lookup, "accept", methodType(BiConsumer.class), functionType.erase(), handle, functionType);
-            return (BiConsumer<Object, Object>) callSite.getTarget().invokeExact();
-        } catch (Throwable t) {
-            throw new FieldInaccessibleException(t);
+            final var methodName = "set" + StringUtils.capitalize(field.getName());
+            final var method = field.getDeclaringClass().getMethod(methodName, field.getType());
+            method.setAccessible(true);
+            return (target, value) -> {
+                try {
+                    method.invoke(target, value);
+                } catch (ReflectiveOperationException e) {
+                    throw new FieldInaccessibleException(e);
+                }
+            };
+        } catch (ReflectiveOperationException e) {
+            throw new FieldInaccessibleException(e);
         }
     }
 

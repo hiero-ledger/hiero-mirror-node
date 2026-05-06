@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import isEmpty from 'lodash/isEmpty';
+import camelCase from 'lodash/camelCase';
+import mapKeys from 'lodash/mapKeys';
+
+import config from '../config';
 
 class EthereumTransaction {
   /**
@@ -9,14 +13,23 @@ class EthereumTransaction {
   constructor(ethereumTransaction) {
     Object.assign(
       this,
-      _.mapKeys(ethereumTransaction, (v, k) => _.camelCase(k))
+      mapKeys(ethereumTransaction, (v, k) => camelCase(k))
     );
+
+    if (config.response.enableDelegationAddress) {
+      if (this.authorizationList == null) {
+        this.authorizationList = [];
+      }
+    } else {
+      delete this.authorizationList;
+    }
   }
 
   static tableAlias = 'etht';
   static tableName = 'ethereum_transaction';
 
   static ACCESS_LIST = 'access_list';
+  static AUTHORIZATION_LIST = 'authorization_list';
   static CALL_DATA_ID = 'call_data_id';
   static CALL_DATA = 'call_data';
   static CHAIN_ID = 'chain_id';

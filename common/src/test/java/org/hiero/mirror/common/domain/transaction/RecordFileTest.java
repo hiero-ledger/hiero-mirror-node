@@ -34,4 +34,10 @@ class RecordFileTest {
                 .build();
         assertThat(recordFile.getHapiVersion()).isEqualTo(RecordFile.HAPI_VERSION_NOT_SET);
     }
+
+    @Test
+    void testIsEmpty() {
+        assertThat(RecordFile.EMPTY.isEmpty()).isTrue();
+        assertThat(new RecordFile().isEmpty()).isFalse();
+    }
 }

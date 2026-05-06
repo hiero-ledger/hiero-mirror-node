@@ -406,7 +406,6 @@ func (suite *transactionRepositorySuite) TestFindBetweenTokenCreatedAtOrBeforeGe
 	expected := []*types.Transaction{
 		{
 			Hash: tools.SafeAddHexPrefix(hex.EncodeToString(transaction.TransactionHash)),
-			Memo: []byte{},
 			Operations: types.OperationSlice{
 				{
 					AccountId: suite.treasuryAccountId,
@@ -484,7 +483,6 @@ func (suite *transactionRepositorySuite) TestFindBetweenUnknownTransactionType()
 	expected := []*types.Transaction{
 		{
 			Hash: tools.SafeAddHexPrefix(hex.EncodeToString(transaction.TransactionHash)),
-			Memo: []byte{},
 			Operations: types.OperationSlice{
 				{
 					AccountId: suite.firstAccountId,
@@ -714,7 +712,6 @@ func (suite *transactionRepositorySuite) setupDb() []*types.Transaction {
 	expectedTransaction3 := &types.Transaction{
 		EntityId: &suite.tokenId2,
 		Hash:     "0xaaccdd",
-		Memo:     []byte{},
 		Operations: types.OperationSlice{
 			{AccountId: suite.firstAccountId, Amount: &types.HbarAmount{Value: -15}, Type: types.OperationTypeFee,
 				Status: resultSuccess},
@@ -740,7 +737,6 @@ func (suite *transactionRepositorySuite) setupDb() []*types.Transaction {
 	expectedTransaction4 := &types.Transaction{
 		EntityId: &suite.tokenId3,
 		Hash:     "0xaa1122",
-		Memo:     []byte{},
 		Operations: types.OperationSlice{
 			{AccountId: suite.firstAccountId, Amount: &types.HbarAmount{Value: -15}, Type: types.OperationTypeFee,
 				Status: resultSuccess},
@@ -766,7 +762,6 @@ func (suite *transactionRepositorySuite) setupDb() []*types.Transaction {
 	expectedTransaction5 := &types.Transaction{
 		EntityId: &suite.tokenId3,
 		Hash:     "0xaa1133",
-		Memo:     []byte{},
 		Operations: types.OperationSlice{
 			{AccountId: suite.firstAccountId, Amount: &types.HbarAmount{Value: -15}, Type: types.OperationTypeFee,
 				Status: resultSuccess},
@@ -793,7 +788,6 @@ func (suite *transactionRepositorySuite) setupDb() []*types.Transaction {
 	operationType = types.OperationTypeCryptoTransfer
 	expectedTransaction6 := &types.Transaction{
 		Hash: "0xaa1166",
-		Memo: []byte{},
 		Operations: types.OperationSlice{
 			{AccountId: suite.firstAccountId, Amount: &types.HbarAmount{Value: -15}, Type: types.OperationTypeFee,
 				Status: resultSuccess},
@@ -824,7 +818,6 @@ func (suite *transactionRepositorySuite) setupDb() []*types.Transaction {
 	operationType = types.OperationTypeCryptoTransfer
 	expectedTransaction7 := &types.Transaction{
 		Hash: tools.SafeAddHexPrefix(hex.EncodeToString(transactionHash)),
-		Memo: []byte{},
 		Operations: types.OperationSlice{
 			{AccountId: suite.firstAccountId, Amount: &types.HbarAmount{Value: -120}, Type: types.OperationTypeFee,
 				Status: resultSuccess},
@@ -858,7 +851,6 @@ func (suite *transactionRepositorySuite) setupDb() []*types.Transaction {
 	expectedTransaction8 := &types.Transaction{
 		EntityId: &suite.newEntityId,
 		Hash:     tools.SafeAddHexPrefix(hex.EncodeToString(transactionHash)),
-		Memo:     []byte{},
 		Operations: types.OperationSlice{
 			{AccountId: suite.firstAccountId, Amount: &types.HbarAmount{Value: -500},
 				Type: types.OperationTypeCryptoCreateAccount, Status: resultSuccess},
@@ -901,7 +893,6 @@ func (suite *transactionRepositorySuite) setupDb() []*types.Transaction {
 	operationType = types.OperationTypeCryptoTransfer
 	expectedTransaction9 := &types.Transaction{
 		Hash: tools.SafeAddHexPrefix(hex.EncodeToString(transactionHash)),
-		Memo: []byte{},
 		Operations: types.OperationSlice{
 			{AccountId: suite.firstAccountId, Amount: &types.HbarAmount{Value: -500}, Type: operationType,
 				Status: resultSuccess},

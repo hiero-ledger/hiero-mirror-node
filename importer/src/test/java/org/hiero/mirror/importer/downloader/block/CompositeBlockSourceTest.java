@@ -2,41 +2,47 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Stream;
-import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
+import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class CompositeBlockSourceTest {
+final class CompositeBlockSourceTest {
 
     @Mock
     private BlockFileSource blockFileSource;
 
-    @Mock
+    @Mock(strictness = LENIENT)
     private BlockNodeSubscriber blockNodeSubscriber;
 
-    @Mock
-    private BlockStreamVerifier blockStreamVerifier;
+    @Mock(strictness = LENIENT)
+    private CutoverService cutoverService;
+
+    @Mock(strictness = LENIENT)
+    private BlockNodeDiscoveryService blockNodeDiscoveryService;
 
     private BlockProperties properties;
     private CompositeBlockSource source;
@@ -44,10 +50,12 @@ class CompositeBlockSourceTest {
 
     @BeforeEach
     void setup() {
-        properties = new BlockProperties();
+        properties = new BlockProperties(new ImporterProperties());
         properties.setEnabled(true);
         properties.setNodes(List.of(new BlockNodeProperties()));
-        source = new CompositeBlockSource(blockFileSource, blockNodeSubscriber, blockStreamVerifier, properties);
+        when(blockNodeDiscoveryService.getBlockNodes()).thenReturn(List.of(new BlockNodeProperties()));
+        source = new CompositeBlockSource(
+                blockFileSource, blockNodeDiscoveryService, blockNodeSubscriber, cutoverService, properties);
         sources = Map.of(
                 BlockSourceType.AUTO,
                 blockNodeSubscriber,
@@ -55,12 +63,21 @@ class CompositeBlockSourceTest {
                 blockNodeSubscriber,
                 BlockSourceType.FILE,
                 blockFileSource);
+        doAnswer(answer -> {
+                    if (answer.getArgument(1) instanceof Runnable task) {
+                        task.run();
+                    }
+
+                    return null;
+                })
+                .when(cutoverService)
+                .get(eq(StreamType.BLOCK), any(Runnable.class));
     }
 
     @Test
     void disabled() {
         // given
-        properties.setEnabled(false);
+        doNothing().when(cutoverService).get(eq(StreamType.BLOCK), any(Runnable.class));
 
         // when
         source.get();
@@ -109,23 +126,20 @@ class CompositeBlockSourceTest {
 
     @Test
     void getAutoNoBlockNodes() {
-        // given
-        properties.setNodes(Collections.emptyList());
-        doReturn(Optional.of(blockFile(2, true))).when(blockStreamVerifier).getLastBlockFile();
+        // given - discovery service returns empty (no config nodes, no discovered nodes)
+        when(blockNodeDiscoveryService.getBlockNodes()).thenReturn(Collections.emptyList());
 
         // when
         source.get();
 
         // then
         verify(blockFileSource).get();
-        verifyNoInteractions(blockNodeSubscriber);
+        verify(blockNodeSubscriber, never()).get();
     }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("provideAutoSwitchBlockFile")
-    void getAutoSwitchOnError(String filename, BlockFile blockFile) {
+    @Test
+    void getAutoSwitchOnError() {
         // given
-        doReturn(Optional.of(blockFile)).when(blockStreamVerifier).getLastBlockFile();
         doThrow(new RuntimeException()).when(blockFileSource).get();
         doThrow(new RuntimeException()).when(blockNodeSubscriber).get();
 
@@ -184,45 +198,5 @@ class CompositeBlockSourceTest {
         // then
         verify(blockFileSource, times(5)).get();
         verify(blockNodeSubscriber, times(8)).get();
-    }
-
-    @Test
-    void getAutoWithLastBlockStreamed() {
-        // given
-        doReturn(Optional.of(blockFile(5, false))).when(blockStreamVerifier).getLastBlockFile();
-        doThrow(new RuntimeException()).when(blockNodeSubscriber).get();
-
-        // when
-        for (int i = 0; i < 4; i++) {
-            source.get();
-        }
-
-        // then
-        verifyNoInteractions(blockFileSource);
-        verify(blockNodeSubscriber, times(4)).get();
-    }
-
-    private static Stream<Arguments> provideAutoSwitchBlockFile() {
-        return Stream.of(
-                Arguments.of(null, BlockStreamVerifier.EMPTY),
-                Arguments.of(
-                        "2022-07-13T08_46_11.304284003Z.rcd.gz",
-                        BlockFile.builder()
-                                .index(100L)
-                                .name("2022-07-13T08_46_11.304284003Z.rcd.gz")
-                                .build()),
-                Arguments.of(
-                        "000000000000000000000000000000000077.blk.gz",
-                        BlockFile.builder()
-                                .index(77L)
-                                .name("000000000000000000000000000000000077.blk.gz")
-                                .build()));
-    }
-
-    private BlockFile blockFile(long blockNumber, boolean gzipped) {
-        return BlockFile.builder()
-                .name(BlockFile.getFilename(blockNumber, gzipped))
-                .index(blockNumber)
-                .build();
     }
 }

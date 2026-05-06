@@ -2,14 +2,15 @@
 
 package org.hiero.mirror.web3.controller;
 
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
@@ -61,20 +62,22 @@ class ContractController {
         } else {
             receiver = Address.fromHexString(request.getTo());
         }
-        Bytes data;
+
+        String data;
         try {
-            data = request.getData() != null ? Bytes.fromHexString(request.getData()) : Bytes.EMPTY;
-        } catch (Exception e) {
+            data = request.getData() != null ? request.getData() : HEX_PREFIX;
+        } catch (final Exception e) {
             throw new InvalidParametersException(
                     "data field '%s' contains invalid odd length characters".formatted(request.getData()));
         }
+
         final var isStaticCall = false;
         final var callType = request.isEstimate() ? ETH_ESTIMATE_GAS : ETH_CALL;
         final var block = request.getBlock();
 
         return ContractExecutionParameters.builder()
                 .block(block)
-                .callData(data)
+                .callData(hexToBytes(data))
                 .callType(callType)
                 .gas(request.getGas())
                 .gasPrice(request.getGasPrice())

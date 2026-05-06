@@ -18,7 +18,7 @@ type Transaction struct {
 // ToRosetta returns Rosetta type Transaction from the current domain type Transaction
 func (t *Transaction) ToRosetta() *types.Transaction {
 	operations := t.Operations.ToRosetta()
-	metadata := make(map[string]interface{})
+	metadata := make(map[string]any)
 
 	if t.EntityId != nil {
 		metadata["entity_id"] = t.EntityId.String()

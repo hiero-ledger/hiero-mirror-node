@@ -9,7 +9,7 @@ import java.util.Optional;
 import lombok.CustomLog;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
@@ -46,14 +46,16 @@ public class ContractDebugService extends ContractCallService {
     }
 
     public OpcodesProcessingResult processOpcodeCall(
-            final @Valid ContractDebugParameters params, final OpcodeTracerOptions opcodeTracerOptions) {
+            final @Valid ContractDebugParameters params, final OpcodeContext opcodeContext) {
         ContractCallContext ctx = ContractCallContext.get();
         ctx.setTimestamp(Optional.of(params.getConsensusTimestamp() - 1));
-        ctx.setOpcodeTracerOptions(opcodeTracerOptions);
-        ctx.setContractActions(
-                contractActionRepository.findFailedSystemActionsByConsensusTimestamp(params.getConsensusTimestamp()));
+        ctx.setOpcodeContext(opcodeContext);
+        ctx.getOpcodeContext()
+                .setActions(contractActionRepository.findFailedSystemActionsByConsensusTimestamp(
+                        params.getConsensusTimestamp()));
         final var ethCallTxnResult = callContract(params, ctx);
-        return new OpcodesProcessingResult(ethCallTxnResult, params.getReceiver(), ctx.getOpcodes());
+        return new OpcodesProcessingResult(
+                ethCallTxnResult, params.getReceiver(), ctx.getOpcodeContext().getOpcodes());
     }
 
     @Override

@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import isEmpty from 'lodash/isEmpty';
+import isNil from 'lodash/isNil';
+import toArray from 'lodash/toArray';
+import config from '../config';
 import EntityId from '../entityId';
+import {fromBinary} from '@bufbuild/protobuf';
+import {ContractFunctionResultSchema} from '../gen/services/contract_types_pb.js';
 import {nsToSecNs, toHexString} from '../utils';
-import {proto} from '@hashgraph/proto';
 
 /**
  * Contract results view model
@@ -23,11 +27,14 @@ class ContractResultViewModel {
       ? toHexString(contractResult.evmAddress, true)
       : contractId.toEvmAddress();
     this.amount = contractResult.amount;
+    if (config.response.enableDelegationAddress && !isEmpty(contractResult.authorizationList)) {
+      this.authorization_list = contractResult.authorizationList || [];
+    }
     this.bloom = this.#encodeBloom(contractResult.bloom);
     this.call_result = toHexString(contractResult.callResult, true);
     this.contract_id = contractId.toString();
-    this.created_contract_ids = _.toArray(contractResult.createdContractIds).map((id) => EntityId.parse(id).toString());
-    this.error_message = _.isEmpty(contractResult.errorMessage) ? null : contractResult.errorMessage;
+    this.created_contract_ids = toArray(contractResult.createdContractIds).map((id) => EntityId.parse(id).toString());
+    this.error_message = isEmpty(contractResult.errorMessage) ? null : contractResult.errorMessage;
     this.from =
       EntityId.parse(contractResult.senderId, {isNullable: true}).toEvmAddress() ||
       this.#extractSenderFromFunctionResult(contractResult);
@@ -45,10 +52,11 @@ class ContractResultViewModel {
   }
 
   #extractSenderFromFunctionResult(contractResult) {
-    if (!contractResult.sender_id && contractResult.functionResult) {
+    if (isNil(contractResult.senderId) && contractResult.functionResult) {
       try {
-        const functionResult = proto.ContractFunctionResult.decode(contractResult.functionResult);
-        return functionResult?.senderId?.alias?.length ? toHexString(functionResult.senderId.alias, true) : null;
+        const functionResult = fromBinary(ContractFunctionResultSchema, contractResult.functionResult);
+        const senderAlias = functionResult.senderId?.account;
+        return senderAlias?.case === 'alias' && senderAlias.value?.length ? toHexString(senderAlias.value, true) : null;
       } catch (error) {
         logger.warn('Error decoding function result', error);
       }

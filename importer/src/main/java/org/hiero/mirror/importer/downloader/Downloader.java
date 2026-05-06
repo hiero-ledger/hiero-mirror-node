@@ -332,9 +332,8 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
                 var dataFilename = signature.getDataFilename();
                 var node = signature.getNode();
                 var streamFileData = Objects.requireNonNull(
-                        streamFileProvider.get(node, dataFilename).block());
+                        streamFileProvider.get(dataFilename).block());
                 T streamFile = streamFileReader.read(streamFileData);
-                streamFile.setNodeId(nodeId);
 
                 verify(streamFile, signature);
 
@@ -345,8 +344,8 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
                 }
 
                 if (downloaderProperties.isWriteSignatures()) {
-                    signatures.forEach(s ->
-                            Utility.archiveFile(s.getFilename().getFilePath(), s.getBytes(), archiveDestinationFolder));
+                    signatures.forEach(s -> Utility.archiveFile(
+                            s.getFilename().getBucketFilePath(), s.getBytes(), archiveDestinationFolder));
                 }
 
                 if (!downloaderProperties.isPersistBytes()) {
@@ -359,7 +358,7 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
                     return false;
                 }
 
-                onVerified(streamFileData, streamFile, node);
+                onVerified(streamFileData, streamFile);
                 return true;
             } catch (FileOperationException | HashMismatchException | TransientProviderException e) {
                 final var previous =
@@ -383,8 +382,7 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
         return false;
     }
 
-    @SuppressWarnings({"unchecked", "java:S1172"}) // Unused Parameter (node) required by subclass implementations
-    protected void onVerified(StreamFileData streamFileData, T streamFile, ConsensusNode node) {
+    protected void onVerified(StreamFileData streamFileData, T streamFile) {
         setStreamFileIndex(streamFile);
         streamFileNotifier.verified(streamFile);
 

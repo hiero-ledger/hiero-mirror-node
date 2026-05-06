@@ -10,13 +10,13 @@ import lombok.RequiredArgsConstructor;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
+import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.QueryTimeoutException;
 
 @CustomLog
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @RequiredArgsConstructor
 class HibernateConfiguration implements HibernatePropertiesCustomizer {
 

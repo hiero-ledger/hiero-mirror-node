@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import camelCase from 'lodash/camelCase';
+import mapKeys from 'lodash/mapKeys';
 
 class FileData {
   /**
@@ -9,7 +10,7 @@ class FileData {
   constructor(fileData) {
     Object.assign(
       this,
-      _.mapKeys(fileData, (v, k) => _.camelCase(k))
+      mapKeys(fileData, (v, k) => camelCase(k))
     );
   }
 

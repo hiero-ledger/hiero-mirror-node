@@ -12,6 +12,7 @@ import com.google.protobuf.ByteString;
 import java.math.BigInteger;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.AbstractContractCallServiceTest;
 import org.hiero.mirror.web3.web3j.generated.SelfDestructContract;
@@ -19,7 +20,6 @@ import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
-import org.testcontainers.shaded.org.bouncycastle.util.encoders.Hex;
 
 @RequiredArgsConstructor
 class SelfDestructOperationTest extends AbstractContractCallServiceTest {

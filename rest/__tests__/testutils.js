@@ -50,12 +50,27 @@ const valueToBuffer = (value) => {
 
   if (typeof value === 'string') {
     if (hexRegex.test(value)) {
-      return Buffer.from(value.replace(/^0x/, '').padStart(2, '0'), 'hex');
+      let hex = value.replace(/^0x/, '');
+      // Pad to even length for proper hex encoding
+      if (hex.length % 2 !== 0) {
+        hex = '0' + hex;
+      }
+      return Buffer.from(hex, 'hex');
     }
 
     // base64
     return Buffer.from(value, 'base64');
   } else if (Array.isArray(value)) {
+    // If array has a single hex string element, process it as hex
+    if (value.length === 1 && typeof value[0] === 'string' && hexRegex.test(value[0])) {
+      let hex = value[0].replace(/^0x/, '');
+      // Pad to even length for proper hex encoding
+      if (hex.length % 2 !== 0) {
+        hex = '0' + hex;
+      }
+      return Buffer.from(hex, 'hex');
+    }
+    // Otherwise treat as byte array
     return Buffer.from(value);
   }
 

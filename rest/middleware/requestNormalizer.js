@@ -2,7 +2,7 @@
 
 import {getOpenApiMap} from './openapiHandler.js';
 import {filterKeys} from '../constants.js';
-import _ from 'lodash';
+import isEmpty from 'lodash/isEmpty';
 import * as querystring from 'node:querystring';
 
 const openApiMap = getOpenApiMap();
@@ -34,8 +34,8 @@ const NON_SORTED_PARAMS = COLLAPSABLE_PARAMS.concat([filterKeys.BLOCK_NUMBER, fi
  */
 const normalizeRequestQueryParams = (openApiRoute, path, query) => {
   const openApiParameters = openApiMap.get(openApiRoute);
-  if (_.isEmpty(openApiParameters)) {
-    return _.isEmpty(query) ? path : path + '?' + querystring.stringify(query);
+  if (isEmpty(openApiParameters)) {
+    return isEmpty(query) ? path : path + '?' + querystring.stringify(query);
   }
 
   let normalizedQuery = '';
@@ -50,12 +50,12 @@ const normalizeRequestQueryParams = (openApiRoute, path, query) => {
       normalizedValue = param.defaultValue;
     }
 
-    if (!_.isEmpty(normalizedValue)) {
+    if (!isEmpty(normalizedValue)) {
       normalizedQuery = appendToQuery(normalizedQuery, name + '=' + normalizedValue);
     }
   }
 
-  return _.isEmpty(normalizedQuery) ? path : path + '?' + normalizedQuery;
+  return isEmpty(normalizedQuery) ? path : path + '?' + normalizedQuery;
 };
 
 const appendToQuery = (queryString, queryValue) => {
@@ -63,7 +63,7 @@ const appendToQuery = (queryString, queryValue) => {
 };
 
 const getNormalizedArrayValue = (name, valueArray) => {
-  if (_.isEmpty(valueArray)) {
+  if (isEmpty(valueArray)) {
     return;
   }
 

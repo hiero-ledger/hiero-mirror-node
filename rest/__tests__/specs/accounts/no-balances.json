@@ -13,6 +13,7 @@
         "num": 2
       },
       {
+        "delegation_address": "0xdeadbeef00000000000000000000000000000001",
         "num": 3
       },
       {
@@ -100,6 +101,7 @@
         "alias": null,
         "created_timestamp": null,
         "decline_reward": false,
+        "delegation_address": "0x",
         "deleted": false,
         "ethereum_nonce": null,
         "evm_address": "0x0000000000000000000000000000000000000001",
@@ -133,6 +135,7 @@
         "alias": null,
         "created_timestamp": null,
         "decline_reward": false,
+        "delegation_address": "0x",
         "deleted": false,
         "ethereum_nonce": null,
         "evm_address": "0x0000000000000000000000000000000000000002",
@@ -157,6 +160,7 @@
         "alias": null,
         "created_timestamp": null,
         "decline_reward": false,
+        "delegation_address": "0xdeadbeef00000000000000000000000000000001",
         "deleted": false,
         "ethereum_nonce": null,
         "evm_address": "0x0000000000000000000000000000000000000003",
@@ -181,6 +185,7 @@
         "alias": null,
         "created_timestamp": null,
         "decline_reward": false,
+        "delegation_address": "0x",
         "deleted": false,
         "ethereum_nonce": null,
         "evm_address": "0x0000000000000000000000000000000000000004",
@@ -214,6 +219,7 @@
         "alias": null,
         "created_timestamp": null,
         "decline_reward": false,
+        "delegation_address": "0x",
         "deleted": false,
         "ethereum_nonce": null,
         "evm_address": "0x0000000000000000000000000000000000000005",

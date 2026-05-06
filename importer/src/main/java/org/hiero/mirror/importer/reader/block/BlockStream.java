@@ -4,11 +4,7 @@ package org.hiero.mirror.importer.reader.block;
 
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 public record BlockStream(
-        List<BlockItem> blockItems,
-        long blockCompleteTime,
-        byte[] bytes,
-        String filename,
-        long loadStart,
-        long nodeId) {}
+        List<BlockItem> blockItems, long blockCompleteTime, byte @Nullable [] bytes, String filename, long loadStart) {}

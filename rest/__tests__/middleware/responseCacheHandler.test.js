@@ -3,15 +3,13 @@
 import {jest} from '@jest/globals';
 
 import config from '../../config';
-import {Cache} from '../../cache';
 import integrationContainerOps from '../integrationContainerOps';
 import {slowStepTimeoutMillis} from '../integrationUtils';
-import {cacheKeyGenerator, responseCacheCheckHandler, responseCacheUpdateHandler} from '../../middleware';
+import {cacheKeyGenerator, getCache, responseCacheCheckHandler, responseCacheUpdateHandler} from '../../middleware';
 import {CachedApiResponse} from '../../model';
 import {httpStatusCodes, responseBodyLabel, responseCacheKeyLabel} from '../../constants';
 import {JSONStringify} from '../../utils';
 
-let cache;
 let compressEnabled;
 let redisContainer;
 
@@ -24,11 +22,9 @@ beforeAll(async () => {
   logger.info('Started Redis container');
 
   config.redis.uri = `0.0.0.0:${redisContainer.getMappedPort(6379)}`;
-  cache = new Cache();
 }, slowStepTimeoutMillis);
 
 afterAll(async () => {
-  await cache.stop();
   await redisContainer.stop({signal: 'SIGKILL', timeout: 3000});
   logger.info('Stopped Redis container');
   config.cache.response.compress = compressEnabled;
@@ -36,7 +32,7 @@ afterAll(async () => {
 }, slowStepTimeoutMillis);
 
 beforeEach(async () => {
-  await cache.clear();
+  await getCache().clear();
 }, slowStepTimeoutMillis);
 
 describe('Response cache middleware', () => {
@@ -105,7 +101,7 @@ describe('Response cache middleware', () => {
         const cachedBody = JSONStringify({a: 'b'});
         const cachedResponse = new CachedApiResponse(httpStatusCodes.OK.code, cachedHeaders, cachedBody, false);
         const cacheKey = cacheKeyGenerator(mockRequest);
-        await cache.setSingle(cacheKey, cacheControlMaxAge, cachedResponse);
+        await getCache().setSingle(cacheKey, cacheControlMaxAge, cachedResponse);
 
         await responseCacheCheckHandler(mockRequest, mockResponse, null);
         expect(mockResponse.send).toHaveBeenCalledWith(cachedBody);
@@ -117,7 +113,7 @@ describe('Response cache middleware', () => {
         const cachedBody = JSONStringify({a: 'b'});
         const cachedResponse = new CachedApiResponse(httpStatusCodes.OK.code, cachedHeaders, cachedBody, false);
         const cacheKey = cacheKeyGenerator(mockRequest);
-        await cache.setSingle(cacheKey, cacheControlMaxAge, cachedResponse);
+        await getCache().setSingle(cacheKey, cacheControlMaxAge, cachedResponse);
 
         mockRequest.method = 'HEAD';
         await responseCacheCheckHandler(mockRequest, mockResponse, null);
@@ -133,7 +129,7 @@ describe('Response cache middleware', () => {
 
         // No cache key in locals means don't cache the response
         await responseCacheUpdateHandler(mockRequest, mockResponse, null);
-        const cachedResponse = await cache.getSingleWithTtl(cacheKey);
+        const cachedResponse = await getCache().getSingleWithTtl(cacheKey);
         expect(cachedResponse).toBeUndefined();
       });
 
@@ -143,7 +139,7 @@ describe('Response cache middleware', () => {
         mockResponse.statusCode = 503;
 
         await responseCacheUpdateHandler(mockRequest, mockResponse, null);
-        const cachedResponse = await cache.getSingleWithTtl(cacheKey);
+        const cachedResponse = await getCache().getSingleWithTtl(cacheKey);
         expect(cachedResponse).toBeUndefined();
       });
 
@@ -154,7 +150,7 @@ describe('Response cache middleware', () => {
         mockResponse.statusCode = httpStatusCodes.OK.code;
 
         await responseCacheUpdateHandler(mockRequest, mockResponse, null);
-        const cachedResponse = await cache.getSingleWithTtl(cacheKey);
+        const cachedResponse = await getCache().getSingleWithTtl(cacheKey);
         expect(cachedResponse).toBeUndefined();
       });
 
@@ -166,7 +162,7 @@ describe('Response cache middleware', () => {
         mockResponse.getHeaders.mockImplementation(() => mockResponse.headers);
 
         await responseCacheUpdateHandler(mockRequest, mockResponse, null);
-        const cachedResponse = await cache.getSingleWithTtl(cacheKey);
+        const cachedResponse = await getCache().getSingleWithTtl(cacheKey);
         expect(cachedResponse).toBeUndefined();
       });
     });

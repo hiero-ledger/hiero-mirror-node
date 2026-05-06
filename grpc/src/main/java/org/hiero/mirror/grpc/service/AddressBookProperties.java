@@ -31,11 +31,7 @@ public class AddressBookProperties {
 
     @DurationMin(millis = 100L)
     @NotNull
-    private Duration maxPageDelay = Duration.ofMillis(250L);
-
-    @DurationMin(millis = 100L)
-    @NotNull
-    private Duration minPageDelay = Duration.ofMillis(100L);
+    private Duration pageDelay = Duration.ofMillis(250L);
 
     @Min(1)
     private int pageSize = 10;

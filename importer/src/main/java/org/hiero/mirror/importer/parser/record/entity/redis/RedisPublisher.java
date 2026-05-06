@@ -18,14 +18,13 @@ import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.importer.parser.record.RecordParserProperties;
 import org.hiero.mirror.importer.parser.record.entity.BatchPublisher;
-import org.hiero.mirror.importer.parser.record.entity.ConditionOnEntityRecordParser;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 
-@ConditionOnEntityRecordParser
 @CustomLog
 @Named
 @Order(0) // Triggering the async publishing before other operations can reduce latency
@@ -36,6 +35,7 @@ public class RedisPublisher implements BatchPublisher {
     private final LoadingCache<Long, String> channelNames;
     private final ParserContext parserContext;
     private final RedisProperties redisProperties;
+    private final RecordParserProperties parserProperties;
     private final RedisOperations<String, StreamMessage> redisOperations;
     private final Timer timer;
     private final BlockingQueue<Collection<TopicMessage>> topicMessagesQueue;
@@ -44,13 +44,19 @@ public class RedisPublisher implements BatchPublisher {
             RedisProperties redisProperties,
             RedisOperations<String, StreamMessage> redisOperations,
             MeterRegistry meterRegistry,
-            ParserContext parserContext) {
+            ParserContext parserContext,
+            RecordParserProperties parserProperties) {
         this.channelNames = Caffeine.newBuilder().maximumSize(1000L).build(this::getChannelName);
         this.parserContext = parserContext;
         this.redisOperations = redisOperations;
         this.redisProperties = redisProperties;
+        this.parserProperties = parserProperties;
         this.timer = PUBLISH_TIMER.tag("type", "redis").register(meterRegistry);
         this.topicMessagesQueue = new ArrayBlockingQueue<>(redisProperties.getQueueCapacity());
+
+        if (!isEnabled()) {
+            return;
+        }
 
         Executor executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
@@ -67,11 +73,10 @@ public class RedisPublisher implements BatchPublisher {
     @Override
     @SneakyThrows
     public void onEnd(RecordFile recordFile) {
-        if (!redisProperties.isEnabled()) {
+        if (!isEnabled()) {
             return;
         }
-
-        var topicMessages = parserContext.get(TopicMessage.class);
+        final var topicMessages = parserContext.get(TopicMessage.class);
 
         if (!topicMessages.isEmpty() && !topicMessagesQueue.offer(topicMessages)) {
             log.warn("topicMessagesQueue is full, will block until space is available");
@@ -105,5 +110,9 @@ public class RedisPublisher implements BatchPublisher {
 
     private String getChannelName(Long id) {
         return String.format(TOPIC_FORMAT, id);
+    }
+
+    private boolean isEnabled() {
+        return redisProperties.isEnabled() && parserProperties.isEnabled();
     }
 }

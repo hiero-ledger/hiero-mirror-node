@@ -35,7 +35,7 @@ func (c *cryptoFeature) createCryptoAccount(ctx context.Context) error {
 				Currency: currencyHbar,
 			},
 			Type:     operationTypeCryptoCreateAccount,
-			Metadata: map[string]interface{}{"key": c.newAccountKey.PublicKey().String()},
+			Metadata: map[string]any{"key": c.newAccountKey.PublicKey().String()},
 		},
 	}
 

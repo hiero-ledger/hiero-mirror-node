@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {jest} from '@jest/globals';
 import request from 'supertest';
 
 // set env vars before importing config implicitly
 process.env['HIERO_MIRROR_COMMON_SHARD'] = 1;
 process.env['HIERO_MIRROR_COMMON_REALM'] = 2;
+
+jest.resetModules();
 
 const config = (await import('../config')).default;
 const EntityId = (await import('../entityId')).default;
@@ -103,22 +106,5 @@ describe('System Entities', () => {
 
   test('treasuryAccount', () => {
     expect(EntityId.systemEntity.treasuryAccount.toString()).toEqual('1.2.2');
-  });
-
-  test('unreleasedSupplyAccounts', () => {
-    const expected = config.network.unreleasedSupplyAccounts.map((item) => {
-      return {
-        from: `1.2.${item.from}`,
-        to: `1.2.${item.to}`,
-      };
-    });
-    expect(
-      EntityId.systemEntity.unreleasedSupplyAccounts.map((item) => {
-        return {
-          from: item.from.toString(),
-          to: item.to.toString(),
-        };
-      })
-    ).toEqual(expected);
   });
 });

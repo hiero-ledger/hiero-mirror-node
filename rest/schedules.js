@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import omit from 'lodash/omit';
+import range from 'lodash/range';
 
 import {getResponseLimit} from './config';
 import * as constants from './constants';
@@ -211,11 +212,11 @@ const extractSqlFromScheduleFilters = (filters) => {
  */
 const mergeScheduleEntities = (schedules, entities, signatures) => {
   const entityMap = entities.reduce((result, entity) => {
-    result[entity.id] = _.omit(entity, ['id']);
+    result[entity.id] = omit(entity, ['id']);
     return result;
   }, {});
   const signatureMap = signatures.reduce((result, signature) => {
-    result[signature.entity_id] = _.omit(signature, ['entity_id']);
+    result[signature.entity_id] = omit(signature, ['entity_id']);
     return result;
   }, {});
 
@@ -247,7 +248,7 @@ const getSchedules = async (req, res) => {
   }
 
   const entityIds = schedules.map((s) => s.schedule_id);
-  const positions = _.range(1, entityIds.length + 1)
+  const positions = range(1, entityIds.length + 1)
     .map((i) => `$${i}`)
     .join(',');
   const entityQuery = `select ${entityFields} from entity where id in (${positions}) order by id ${order}`;

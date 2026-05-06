@@ -164,7 +164,10 @@ class TopicControllerTest extends ControllerTest {
                     () -> restClient.get().uri("", id).retrieve().body(Topic.class);
 
             // Then
-            validateError(callable, HttpClientErrorException.NotFound.class, "No static resource api/v1/topics.");
+            validateError(
+                    callable,
+                    HttpClientErrorException.NotFound.class,
+                    "No static resource api/v1/topics for request '/api/v1/topics/'.");
         }
     }
 }

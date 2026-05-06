@@ -5,6 +5,10 @@ hiero:
     rest:
       metrics:
         enabled: false
+      query:
+        maxRepeatedQueryParameters: 8
       redis:
         enabled: false
         maxRetriesPerRequest: 10
+      response:
+        enableDelegationAddress: true

@@ -62,8 +62,8 @@ import * as contractCallPrecompileTransferFungibleToken from './modificationTest
 import * as contractCallRedirectApprove from './modificationTests/contractCallRedirectApprove.js';
 import * as contractCallComplexFunctionTokenLifecycle from './complex-functions/contractCallComplexFunctionsTokenLifecycle.js';
 import * as contractCallComplexFunctionNFTLifecycle from './complex-functions/contractCallComplexFunctionsNFTLifecycle.js';
-import * as contractResultsOpcodesAllPropertiesDisabled from './opcodes/contractResultsOpcodesAllPropertiesDisabled.js';
-import * as contractResultsOpcodesAllPropertiesEnabled from './opcodes/contractResultsOpcodesAllPropertiesEnabled.js';
+import * as opcodesAllDisabled from './opcodes/opcodesAllDisabled.js';
+import * as opcodesAllEnabled from './opcodes/opcodesAllEnabled.js';
 import * as trafficReplay from './traffic-replay/trafficReplay.js';
 import * as rampUp from './rampUp.js';
 
@@ -147,8 +147,8 @@ if (__ENV.RUN_COMPLEX_TESTS !== 'false') {
 
 if (__ENV.RUN_OPCODE_TESTS !== 'false' && __ENV.TRANSACTION_IDS) {
   Object.assign(tests, {
-    contractResultsOpcodesAllPropertiesDisabled,
-    contractResultsOpcodesAllPropertiesEnabled,
+    opcodesAllDisabled,
+    opcodesAllEnabled,
   });
 }
 

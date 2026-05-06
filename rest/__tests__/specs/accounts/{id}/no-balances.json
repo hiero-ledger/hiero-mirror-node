@@ -73,7 +73,8 @@
         "consensus_timestamp": "1234567890000000031",
         "name": "CRYPTOUPDATEACCOUNT",
         "type": "15",
-        "entity_id": "0.0.9"
+        "entity_id": "0.0.9",
+        "high_volume": false
       }
     ],
     "cryptotransfers": [
@@ -122,6 +123,8 @@
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000031",
         "entity_id": "0.0.9",
+        "high_volume": false,
+        "high_volume_pricing_multiplier": 1,
         "max_custom_fees": [],
         "max_fee": "33",
         "memo_base64": null,
@@ -162,6 +165,8 @@
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000005",
         "entity_id": null,
+        "high_volume": false,
+        "high_volume_pricing_multiplier": 1,
         "max_custom_fees": [],
         "max_fee": "33",
         "memo_base64": null,
@@ -202,6 +207,8 @@
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000001",
         "entity_id": null,
+        "high_volume": false,
+        "high_volume_pricing_multiplier": 1,
         "max_custom_fees": [],
         "max_fee": "33",
         "memo_base64": null,
@@ -246,6 +253,7 @@
     "alias": "KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ",
     "created_timestamp": null,
     "decline_reward": false,
+    "delegation_address": "0x",
     "deleted": false,
     "ethereum_nonce": null,
     "evm_address": "0x0000000000000000000000000000000000000008",

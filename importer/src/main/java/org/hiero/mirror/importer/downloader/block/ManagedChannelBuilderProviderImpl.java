@@ -17,14 +17,14 @@ final class ManagedChannelBuilderProviderImpl implements ManagedChannelBuilderPr
     private final MeterRegistry meterRegistry;
 
     @Override
-    public ManagedChannelBuilder<?> get(final String host, final int port) {
+    public ManagedChannelBuilder<?> get(final String host, final int port, final boolean useTls) {
         final var interceptor = new MetricCollectingClientInterceptor(
                 meterRegistry, counter -> counter.tag(TAG_SERVER, host), timer -> timer.tag(TAG_SERVER, host));
         final var builder = ManagedChannelBuilder.forAddress(host, port).intercept(interceptor);
-        if (port != 443) {
-            builder.usePlaintext();
-        } else {
+        if (useTls) {
             builder.useTransportSecurity();
+        } else {
+            builder.usePlaintext();
         }
 
         return builder;

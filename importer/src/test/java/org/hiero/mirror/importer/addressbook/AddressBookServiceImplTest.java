@@ -8,7 +8,6 @@ import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.protobuf.ByteString;
@@ -20,9 +19,11 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -55,6 +56,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.platform.commons.util.StringUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.interceptor.SimpleKey;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,7 +70,9 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     private static final int TEST_INITIAL_ADDRESS_BOOK_NODE_COUNT = 4;
     private static final String BASE_ACCOUNT_ID = "0.0.";
     private static final int BASE_PORT = 50211;
+    private static final long T1 = 1767117600294393897L;
     private static byte[] initialAddressBookBytes;
+    private static byte[] initialAddressBookBytesT1;
 
     private final AddressBookEntryRepository addressBookEntryRepository;
     private final AddressBookRepository addressBookRepository;
@@ -86,6 +90,10 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
 
     @Value("classpath:addressbook")
     private Path testPath;
+
+    private static Instant instantFromNanos(long epochNanos) {
+        return Instant.ofEpochSecond(0, epochNanos);
+    }
 
     @SuppressWarnings("deprecation")
     private static NodeAddressBook addressBook(int size, int endPointSize) {
@@ -124,6 +132,8 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         Path addressBookPath =
                 ResourceUtils.getFile("classpath:addressbook/testnet").toPath();
         initialAddressBookBytes = Files.readAllBytes(addressBookPath);
+        initialAddressBookBytesT1 = Files.readAllBytes(
+                ResourceUtils.getFile("classpath:addressbook/testnet-" + T1).toPath());
     }
 
     @BeforeEach
@@ -992,6 +1002,28 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void getNode() {
+        // given, when
+        final var nodes = List.of(
+                addressBookService.getNode(0L),
+                addressBookService.getNode(1L),
+                addressBookService.getNode(2L),
+                addressBookService.getNode(3L));
+
+        // then
+        assertThat(nodes)
+                .allMatch(c -> c.getStake() == 1L)
+                .allMatch(c -> c.getTotalStake() == 4L)
+                .allMatch(c -> c.getNodeAccountId().getNum() - 3 == c.getNodeId())
+                .allSatisfy(c -> assertThat(c.getPublicKey()).isNotNull())
+                .extracting(ConsensusNode::getNodeId)
+                .containsExactly(0L, 1L, 2L, 3L);
+
+        // when, then
+        assertThat(addressBookService.getNode(4L)).isNull();
+    }
+
+    @Test
     void getNodesEmptyNodeStake() {
         assertThat(addressBookService.getNodes())
                 .hasSize(TEST_INITIAL_ADDRESS_BOOK_NODE_COUNT)
@@ -1088,20 +1120,88 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .persist();
 
         // Verify cache is empty to start
-        assertNull(cacheManager.getCache(CACHE_NAME).get(SimpleKey.EMPTY));
+        final var cache = cacheManager.getCache(CACHE_NAME);
+        assertThat(cache.get(SimpleKey.EMPTY)).isNull();
+
+        // getNode
+        final var nodeIds = List.of(0L, 1L, 2L, 3L);
+        assertThat(nodeIds.stream().map(cache::get)).containsOnlyNulls();
 
         // Verify getCurrent() adds an entry to the cache
         var nodes = addressBookService.getNodes();
-        var nodesCache = cacheManager.getCache(CACHE_NAME).get(SimpleKey.EMPTY).get();
+        var nodesCache = cache.get(SimpleKey.EMPTY).get();
         assertThat(nodes)
                 .isNotNull()
                 .isEqualTo(nodesCache)
                 .allMatch(node -> node.getStake() > 1)
                 .allMatch(node -> node.getTotalStake() > 1)
-                .allMatch(node -> node.getNodeAccountId() != null);
+                .allMatch(node -> node.getNodeAccountId() != null)
+                .extracting(ConsensusNode::getNodeId)
+                .containsExactlyElementsOf(nodeIds);
+
+        // getNode
+        final var nodeByIds = nodeIds.stream().map(addressBookService::getNode).toList();
+        final var nodeByIdsCache = nodeIds.stream()
+                .map(cache::get)
+                .filter(Objects::nonNull)
+                .map(Cache.ValueWrapper::get)
+                .toList();
+        assertThat(nodeByIds)
+                .isNotNull()
+                .isEqualTo(nodeByIdsCache)
+                .allMatch(node -> node.getStake() > 1)
+                .allMatch(node -> node.getTotalStake() > 1)
+                .allMatch(node -> node.getNodeAccountId() != null)
+                .extracting(ConsensusNode::getNodeId)
+                .containsExactlyElementsOf(nodeIds);
 
         addressBookService.refresh();
-        assertNull(cacheManager.getCache(CACHE_NAME).get(SimpleKey.EMPTY));
+        assertThat(cache.get(SimpleKey.EMPTY)).isNull();
+        assertThat(nodeIds.stream().map(cache::get)).containsOnlyNulls();
+    }
+
+    @Test
+    void startupSelectsTimestampedAddressBookWhenAtOrAfterStartDate() {
+        // Given: a start date after T1
+        importerProperties.setInitialAddressBook(null);
+        importerProperties.setStartDate(instantFromNanos(T1 + 1));
+        importerProperties.setNetwork("TESTNET");
+
+        // When
+        final var addressBook = addressBookService.getCurrent();
+
+        // Then: fileData came from testnet-T1
+        assertThat(addressBook.getFileData()).isEqualTo(initialAddressBookBytesT1);
+        assertThat(addressBook.getStartConsensusTimestamp()).isEqualTo(1L);
+        assertEquals(1, addressBookRepository.count());
+    }
+
+    @Test
+    void startupFallsBackToPlainNetworkWhenNoTimestampedLessThanTarget() {
+        // Given: a start date before T1 so no timestamped file qualifies
+        importerProperties.setInitialAddressBook(null);
+        importerProperties.setStartDate(instantFromNanos(T1 - 1));
+        importerProperties.setNetwork("testnet");
+
+        // When
+        final var addressBook = addressBookService.getCurrent();
+
+        // Then: falls back to plain 'addressbook/testnet'
+        assertThat(addressBook.getFileData()).isEqualTo(initialAddressBookBytes);
+        assertThat(addressBook.getStartConsensusTimestamp()).isEqualTo(1L);
+        assertEquals(1, addressBookRepository.count());
+    }
+
+    @Test
+    void startupFailsWhenNoPlainOrTimestampedResourceExists() {
+        importerProperties.setInitialAddressBook(null);
+        importerProperties.setNetwork("does-not-exist");
+        importerProperties.setStartDate(instantFromNanos(T1));
+
+        assertThatThrownBy(addressBookService::getCurrent)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unable to load bootstrap address book")
+                .hasCauseInstanceOf(IOException.class);
     }
 
     private ServiceEndpoint getServiceEndpoint(String ip, Integer port) throws UnknownHostException {

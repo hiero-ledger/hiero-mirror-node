@@ -35,6 +35,7 @@ hiero:
         username: mirror_api
       log:
         level: info
+        sampleRate: 0.1
       metrics:
         enabled: true
         config:
@@ -43,28 +44,8 @@ hiero:
           password: password
           requestSizeBuckets: []
           responseSizeBuckets: [100, 250, 500, 1000]
-          swaggerOnly: true,
           username: metrics
           uriPath: "/swagger"
-        ipMetrics: false
-      network:
-        unreleasedSupplyAccounts:
-          - from: 2
-            to: 2
-          - from: 42
-            to: 42
-          - from: 44
-            to: 71
-          - from: 73
-            to: 87
-          - from: 99
-            to: 100
-          - from: 200
-            to: 349
-          - from: 400
-            to: 750
-        # valid values for currencyFormat are 'BOTH', 'HBARS', and 'TINYBARS'
-        currencyFormat: "BOTH"
       openapi:
         specFileName: "openapi"
         swaggerUIPath: "docs"
@@ -73,6 +54,7 @@ hiero:
       port: 5551
       query:
         bindTimestampRange: false
+        maxFileAttempts: 12
         maxRecordFileCloseInterval: 10s
         maxRepeatedQueryParameters: 100
         maxScheduledTransactionConsensusTimestampRange: 89285m
@@ -103,6 +85,7 @@ hiero:
         uri: redis://127.0.0.1:6379
       response:
         compression: true
+        enableDelegationAddress: false
         headers:
           default:
             {
@@ -127,8 +110,6 @@ hiero:
               { "cache-control": "public, max-age=600" }
             /api/v1/contracts/results/:transactionIdOrHash/actions:
               { "cache-control": "public, max-age=600" }
-            /api/v1/network/nodes: { "cache-control": "public, max-age=60" }
-            /api/v1/network/supply: { "cache-control": "public, max-age=60" }
             /api/v1/schedules: { "cache-control": "public, max-age=10" }
             /api/v1/tokens: { "cache-control": "public, max-age=10" }
             /api/v1/tokens/:tokenId: { "cache-control": "public, max-age=5" }
@@ -139,8 +120,6 @@ hiero:
             /api/v1/transactions: { "cache-control": "public, max-age=2" }
             /api/v1/transactions/:transactionIdOrHash:
               { "cache-control": "public, max-age=600" }
-            /api/v1/transactions/:transactionId/stateproof:
-              { "cache-control": "public, max-age=600" }
         includeHostInLink: false
         limit:
           default: 25
@@ -149,19 +128,3 @@ hiero:
             multipleAccounts: 50
             singleAccount: 1000
       users: []
-      stateproof:
-        addressBookHistory: false
-        enabled: false
-        streams:
-          accessKey:
-          bucketName:
-          cloudProvider: "S3"
-          endpointOverride:
-          gcpProjectId:
-          httpOptions:
-            connectTimeout: 2000
-            timeout: 5000
-          maxRetries: 3
-          network: "DEMO"
-          region: "us-east-1"
-          secretKey:

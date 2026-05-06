@@ -4,6 +4,7 @@ package org.hiero.mirror.common.domain.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.IdClass;
 import java.io.Serial;
@@ -13,6 +14,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityTransaction.Id;
 import org.springframework.data.domain.Persistable;
 
@@ -32,6 +34,8 @@ public class EntityTransaction implements Persistable<Id> {
     @jakarta.persistence.Id
     private Long entityId;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     @Column(updatable = false)
     private EntityId payerAccountId;
 

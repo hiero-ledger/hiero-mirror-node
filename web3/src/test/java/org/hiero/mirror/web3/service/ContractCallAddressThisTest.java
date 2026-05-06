@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import java.math.BigInteger;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -27,11 +28,10 @@ import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import org.testcontainers.shaded.org.apache.commons.lang3.StringUtils;
 
 @AutoConfigureMockMvc
 class ContractCallAddressThisTest extends AbstractContractCallServiceTest {

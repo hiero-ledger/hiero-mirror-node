@@ -31,7 +31,6 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -635,11 +634,6 @@ class AccountReadableKVStateTest {
     @Test
     void sizeIsAlwaysEmpty() {
         assertThat(accountReadableKVState.size()).isZero();
-    }
-
-    @Test
-    void iterateReturnsEmptyIterator() {
-        assertThat(accountReadableKVState.iterateFromDataSource()).isEqualTo(Collections.emptyIterator());
     }
 
     @Test

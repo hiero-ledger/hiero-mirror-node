@@ -30,6 +30,7 @@ import org.springframework.data.util.Version;
 @NoArgsConstructor
 public class RecordFile implements StreamFile<RecordItem> {
 
+    public static final RecordFile EMPTY = new RecordFile();
     public static final Version HAPI_VERSION_NOT_SET = new Version(0, 0, 0);
     public static final Version HAPI_VERSION_0_23_0 = new Version(0, 23, 0);
     public static final Version HAPI_VERSION_0_27_0 = new Version(0, 27, 0);
@@ -91,12 +92,13 @@ public class RecordFile implements StreamFile<RecordItem> {
 
     private String name;
 
-    private Long nodeId;
-
     @Column(name = "prev_hash")
     @JsonProperty("prev_hash")
     @ToString.Exclude
     private String previousHash;
+
+    @ToString.Exclude
+    private byte[] previousWrappedRecordBlockHash;
 
     private Long roundEnd;
 
@@ -119,6 +121,9 @@ public class RecordFile implements StreamFile<RecordItem> {
 
     private int version;
 
+    @ToString.Exclude
+    private byte[] wrappedRecordBlockHash;
+
     @Override
     public RecordFile clear() {
         StreamFile.super.clear();
@@ -136,6 +141,11 @@ public class RecordFile implements StreamFile<RecordItem> {
     @JsonIgnore
     public StreamType getType() {
         return StreamType.RECORD;
+    }
+
+    @JsonIgnore
+    public boolean isEmpty() {
+        return this == EMPTY;
     }
 
     private Version hapiVersion() {

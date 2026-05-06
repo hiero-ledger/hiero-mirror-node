@@ -12,7 +12,6 @@ import com.hedera.hapi.node.base.ContractID.ContractOneOfType;
 import com.hedera.hapi.node.state.contract.Bytecode;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import java.util.Collections;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -129,10 +128,5 @@ class ContractBytecodeReadableKVStateTest {
     @Test
     void getExpectedSize() {
         assertThat(contractBytecodeReadableKVState.size()).isZero();
-    }
-
-    @Test
-    void iterateFromDataSourceReturnsEmptyIterator() {
-        assertThat(contractBytecodeReadableKVState.iterateFromDataSource()).isEqualTo(Collections.emptyIterator());
     }
 }

@@ -26,7 +26,6 @@ import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.migration.GasConsumedMigrationTest.MigrationContractResult;
-import org.hiero.mirror.importer.repository.ContractResultRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,8 +42,6 @@ import org.springframework.util.StreamUtils;
 @DisableRepeatableSqlMigration
 class BackfillFailedEthereumTransactionContractResultMigrationTest extends ImporterIntegrationTest {
 
-    private final ContractResultRepository contractResultRepository;
-
     private final JdbcTemplate jdbcTemplate;
 
     @Value("classpath:db/migration/v1/V1.80.0__backfill_ethereum_transaction_contract_result.sql")
@@ -53,13 +50,15 @@ class BackfillFailedEthereumTransactionContractResultMigrationTest extends Impor
     @Test
     void empty() {
         runMigration();
-        assertThat(contractResultRepository.count()).isZero();
+        assertThat(jdbcOperations.queryForObject("select count(*) from contract_result", Integer.class))
+                .isZero();
     }
 
     @Test
     void migrate() {
         // given
-        var ethTx1 = domainBuilder.ethereumTransaction(true).persist();
+        var ethTx1 = ethereumTransaction(true);
+        persistEthereumTransaction(ethTx1);
 
         var migrationContractResult = createMigrationContractResult(
                 ethTx1.getConsensusTimestamp(),
@@ -70,15 +69,19 @@ class BackfillFailedEthereumTransactionContractResultMigrationTest extends Impor
         persistMigrationContractResult(migrationContractResult, jdbcTemplate);
 
         var transaction1 = transaction(ethTx1.getConsensusTimestamp(), SUCCESS, ethTx1.getPayerAccountId(), 0, 0);
-        var ethTx2 = domainBuilder.ethereumTransaction(false).persist();
+        var ethTx2 = ethereumTransaction(false);
+        persistEthereumTransaction(ethTx2);
         var transaction2 =
                 transaction(ethTx2.getConsensusTimestamp(), DUPLICATE_TRANSACTION, ethTx2.getPayerAccountId(), 0, 0);
-        var ethTx3 = domainBuilder.ethereumTransaction(true).persist();
+        var ethTx3 = ethereumTransaction(true);
+        persistEthereumTransaction(ethTx3);
         var transaction3 = transaction(ethTx3.getConsensusTimestamp(), WRONG_NONCE, ethTx3.getPayerAccountId(), 0, 0);
-        var ethTx4 = domainBuilder.ethereumTransaction(false).persist();
+        var ethTx4 = ethereumTransaction(false);
+        persistEthereumTransaction(ethTx4);
         var transaction4 =
                 transaction(ethTx4.getConsensusTimestamp(), CONSENSUS_GAS_EXHAUSTED, ethTx4.getPayerAccountId(), 4, 3);
-        var ethTx5 = domainBuilder.ethereumTransaction(true).persist();
+        var ethTx5 = ethereumTransaction(true);
+        persistEthereumTransaction(ethTx5);
         var transaction5 =
                 transaction(ethTx5.getConsensusTimestamp(), INVALID_ACCOUNT_ID, ethTx5.getPayerAccountId(), 5, 0);
         persistTransactions(List.of(transaction1, transaction2, transaction3, transaction4, transaction5));
@@ -91,6 +94,60 @@ class BackfillFailedEthereumTransactionContractResultMigrationTest extends Impor
         var expectedContractResult5 = toMigrationContractResult(ethTx5.getCallData(), ethTx5, transaction5);
         assertThat(findAllContractResults())
                 .containsExactlyInAnyOrder(migrationContractResult, expectedContractResult4, expectedContractResult5);
+    }
+
+    private EthereumTransaction ethereumTransaction(boolean hasCallData) {
+        final var ethTx = domainBuilder.ethereumTransaction(hasCallData).get();
+        return EthereumTransaction.builder()
+                .callData(ethTx.getCallData())
+                .chainId(ethTx.getChainId())
+                .consensusTimestamp(ethTx.getConsensusTimestamp())
+                .data(ethTx.getData())
+                .gasLimit(ethTx.getGasLimit())
+                .gasPrice(ethTx.getGasPrice())
+                .hash(ethTx.getHash())
+                .maxFeePerGas(ethTx.getMaxFeePerGas())
+                .maxGasAllowance(ethTx.getMaxGasAllowance())
+                .maxPriorityFeePerGas(ethTx.getMaxPriorityFeePerGas())
+                .nonce(ethTx.getNonce())
+                .payerAccountId(ethTx.getPayerAccountId())
+                .recoveryId(ethTx.getRecoveryId())
+                .signatureR(ethTx.getSignatureR())
+                .signatureS(ethTx.getSignatureS())
+                .signatureV(ethTx.getSignatureV())
+                .toAddress(ethTx.getToAddress())
+                .type(ethTx.getType())
+                .value(ethTx.getValue())
+                .build();
+    }
+
+    private void persistEthereumTransaction(EthereumTransaction ethTx) {
+        jdbcOperations.update(
+                """
+                insert into ethereum_transaction (
+                  call_data, chain_id, consensus_timestamp, data, gas_limit, gas_price, hash,
+                  max_fee_per_gas, max_gas_allowance, max_priority_fee_per_gas, nonce, payer_account_id,
+                  recovery_id, signature_r, signature_s, signature_v, to_address, type, value)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ethTx.getCallData(),
+                ethTx.getChainId(),
+                ethTx.getConsensusTimestamp(),
+                ethTx.getData(),
+                ethTx.getGasLimit(),
+                ethTx.getGasPrice(),
+                ethTx.getHash(),
+                ethTx.getMaxFeePerGas(),
+                ethTx.getMaxGasAllowance() != null ? ethTx.getMaxGasAllowance() : 0L,
+                ethTx.getMaxPriorityFeePerGas(),
+                ethTx.getNonce(),
+                ethTx.getPayerAccountId().getId(),
+                ethTx.getRecoveryId(),
+                ethTx.getSignatureR(),
+                ethTx.getSignatureS(),
+                ethTx.getSignatureV(),
+                ethTx.getToAddress(),
+                ethTx.getType(),
+                ethTx.getValue());
     }
 
     private MigrationContractResult toMigrationContractResult(

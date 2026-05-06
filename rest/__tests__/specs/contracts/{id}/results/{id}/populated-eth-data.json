@@ -118,37 +118,53 @@
     ],
     "ethereumtransactions": [
       {
-        "_value_description": "3000000000 tinybars, in importer java BigInteger.toByteArray always adds extra 0x00",
+        "_value_description": "3000000000 tinybars = 30000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00",
         "access_list": "0xabcd",
+        "authorization_list": [
+          {
+            "chain_id": "0x0127",
+            "address": "0x1111111111111111111111111111111111111111",
+            "nonce": 5,
+            "y_parity": 1,
+            "r": "0x2222222222222222222222222222222222222222222222222222222222222222",
+            "s": "0x3333333333333333333333333333333333333333333333333333333333333333"
+          }
+        ],
         "call_data": "0x0606",
         "call_data_id": "5001",
         "chain_id": "0x0127",
         "consensus_timestamp": 167654000123456,
         "gas_limit": 15000,
         "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
-        "max_fee_per_gas": "0x5",
-        "max_priority_fee_per_gas": "0x100",
+        "max_fee_per_gas": "0xBA43B7400",
+        "max_priority_fee_per_gas": "0x2540BE4000",
         "payer_account_id": 8001,
         "signature_r": "0xd693b532a80fed6392b428604171fb32fdbf953728a3a7ecc7d4062b1652c043",
         "signature_s": "0x24e9c602ac800b983b035700a14b23f78a253ab762deab5dc27e3555a750b355",
-        "value": "0x00B2D05E00"
+        "value": "0x0001A055690D9DB80000"
       }
     ],
     "filedata": [
       {
         "file_data": [12, 11, 10, 9, 8, 7, 255],
         "consensus_timestamp": "987654000123000",
-        "entity_id": "5001"
+        "entity_id": "5001",
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       },
       {
         "file_data": [16, 28],
         "consensus_timestamp": "987654000123005",
-        "entity_id": "5002"
+        "entity_id": "5002",
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null
       },
       {
         "file_data": [128],
         "consensus_timestamp": "987654000123010",
         "entity_id": "5001",
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null,
         "transaction_type": 16
       }
     ]
@@ -166,6 +182,16 @@
   "responseJson": {
     "access_list": "0xabcd",
     "amount": 3000000000,
+    "authorization_list": [
+      {
+        "chain_id": "0x127",
+        "address": "0x1111111111111111111111111111111111111111",
+        "nonce": 5,
+        "y_parity": 1,
+        "r": "0x2222222222222222222222222222222222222222222222222222222222222222",
+        "s": "0x3333333333333333333333333333333333333333333333333333333333333333"
+      }
+    ],
     "block_gas_used": 50000000,
     "block_hash": "0x6ceecd8bb224da491",
     "block_number": 17,

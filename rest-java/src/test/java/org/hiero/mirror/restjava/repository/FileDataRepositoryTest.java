@@ -70,6 +70,52 @@ final class FileDataRepositoryTest extends RestJavaIntegrationTest {
         assertThat(actual).isEmpty();
     }
 
+    @Test
+    void getLatestTimestampEmpty() {
+        assertThat(fileDataRepository.getLatestTimestamp(entityId.getId())).isEmpty();
+    }
+
+    @Test
+    void getLatestTimestampWrongEntity() {
+        // given
+        fileData(FILECREATE, 100);
+        final var wrongId = domainBuilder.entityId().getId();
+
+        // when
+        final var actual = fileDataRepository.getLatestTimestamp(wrongId);
+
+        // then
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
+    void getLatestTimestampExcludesAppendAndEmptyUpdate() {
+        // given — FILEAPPEND (type 16) and empty FILEUPDATE are both excluded by the filter
+        fileData(FILEAPPEND, 10);
+        fileData(FILEUPDATE, 0);
+
+        // when
+        final var actual = fileDataRepository.getLatestTimestamp(entityId.getId());
+
+        // then
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
+    void getLatestTimestamp() {
+        // given
+        fileData(FILECREATE, 100);
+        fileData(FILEAPPEND, 10); // excluded (type 16)
+        fileData(FILEUPDATE, 0); // excluded (empty data)
+        final var latestIncluded = fileData(FILEUPDATE, 50);
+
+        // when
+        final var actual = fileDataRepository.getLatestTimestamp(entityId.getId());
+
+        // then
+        assertThat(actual).hasValue(latestIncluded.getConsensusTimestamp());
+    }
+
     private void assertFileData(long lower, long upper, FileData... fileData) {
         if (fileData.length > 0) {
             var bytes = Bytes.concat(Arrays.stream(fileData)

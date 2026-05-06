@@ -23,12 +23,12 @@ import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
-import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Stream;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
@@ -49,40 +49,26 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListenerTest {
+@RequiredArgsConstructor
+final class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListenerTest {
 
     private static final long CREATE_TIMESTAMP = 1L;
     private static final long EXECUTE_TIMESTAMP = 500L;
     private static final String SCHEDULE_CREATE_MEMO = "ScheduleCreate memo";
     private static final SchedulableTransactionBody SCHEDULED_TRANSACTION_BODY =
             SchedulableTransactionBody.getDefaultInstance();
-    private static final ScheduleID SCHEDULE_ID = ScheduleID.newBuilder()
-            .setShardNum(0)
-            .setRealmNum(0)
-            .setScheduleNum(2)
-            .build();
     private static final Key SCHEDULE_REF_KEY = keyFromString(KEY);
     private static final long SIGN_TIMESTAMP = 10L;
 
-    @Resource
-    private BlockFileBuilder blockFileBuilder;
-
-    @Resource
-    private BlockFileTransformer blockFileTransformer;
-
-    @Resource
-    private BlockTransactionBuilder blockTransactionBuilder;
-
-    @Resource
-    protected ScheduleRepository scheduleRepository;
-
-    @Resource
-    protected TransactionSignatureRepository transactionSignatureRepository;
-
-    @Resource
-    protected TransactionRepository transactionRepository;
+    private final BlockFileBuilder blockFileBuilder;
+    private final BlockFileTransformer blockFileTransformer;
+    private final BlockTransactionBuilder blockTransactionBuilder;
+    private final ScheduleRepository scheduleRepository;
+    private final TransactionSignatureRepository transactionSignatureRepository;
+    private final TransactionRepository transactionRepository;
 
     private List<TransactionSignature> defaultSignatureList;
+    private ScheduleID scheduleId;
 
     private static Stream<Arguments> provideScheduleCreatePayer() {
         return Stream.of(
@@ -97,17 +83,23 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
     @BeforeEach
     void before() {
         entityProperties.getPersist().setSchedules(true);
-        defaultSignatureList = toTransactionSignatureList(CREATE_TIMESTAMP, SCHEDULE_ID, DEFAULT_SIG_MAP);
+        scheduleId = recordItemBuilder.scheduleId();
+        defaultSignatureList = toTransactionSignatureList(CREATE_TIMESTAMP, scheduleId, DEFAULT_SIG_MAP);
     }
 
     @ParameterizedTest(name = "{2}")
     @MethodSource("provideScheduleCreatePayer")
-    void scheduleCreate(AccountID payer, AccountID expectedPayer, String name, boolean useBlockTransformer) {
-        insertScheduleCreateTransaction(CREATE_TIMESTAMP, payer, SCHEDULE_ID, useBlockTransformer);
+    void scheduleCreate(
+            final AccountID payer,
+            final AccountID expectedPayer,
+            final String name,
+            final boolean useBlockTransformer) {
+        final var recordItem =
+                insertScheduleCreateTransaction(CREATE_TIMESTAMP, payer, scheduleId, useBlockTransformer);
 
         // verify entity count
-        Entity expectedEntity = createEntity(
-                EntityId.of(SCHEDULE_ID),
+        final var expectedEntity = createEntity(
+                EntityId.of(scheduleId),
                 SCHEDULE,
                 SCHEDULE_REF_KEY,
                 null,
@@ -118,11 +110,11 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
                 CREATE_TIMESTAMP,
                 CREATE_TIMESTAMP);
 
-        Schedule expectedSchedule = Schedule.builder()
+        final var expectedSchedule = Schedule.builder()
                 .consensusTimestamp(CREATE_TIMESTAMP)
                 .creatorAccountId(EntityId.of(PAYER))
                 .payerAccountId(EntityId.of(expectedPayer))
-                .scheduleId(EntityId.of(SCHEDULE_ID).getId())
+                .scheduleId(EntityId.of(scheduleId).getId())
                 .transactionBody(SCHEDULED_TRANSACTION_BODY.toByteArray())
                 .build();
 
@@ -135,7 +127,7 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
         assertTransactionSignatureInRepository(defaultSignatureList);
 
         // verify transaction
-        assertTransactionInRepository(CREATE_TIMESTAMP, false, SUCCESS);
+        assertTransactionInRepository(recordItem.getCongestionPricingMultiplier(), CREATE_TIMESTAMP, false, SUCCESS);
     }
 
     @Test
@@ -145,7 +137,7 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
         var signature = recordItemBuilder.bytes(32);
         var recordItem = recordItemBuilder
                 .scheduleCreate()
-                .receipt(r -> r.setScheduleID(SCHEDULE_ID))
+                .receipt(r -> r.setScheduleID(scheduleId))
                 .signatureMap(s -> s.clear()
                         .addSigPair(SignaturePair.newBuilder()
                                 .setPubKeyPrefix(pubKeyPrefix)
@@ -155,7 +147,7 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
         var scheduleCreate = recordItem.getTransactionBody().getScheduleCreate();
         var timestamp = recordItem.getConsensusTimestamp();
         var expectedEntity = createEntity(
-                EntityId.of(SCHEDULE_ID),
+                EntityId.of(scheduleId),
                 SCHEDULE,
                 scheduleCreate.getAdminKey(),
                 null,
@@ -170,13 +162,13 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
                 .creatorAccountId(recordItem.getPayerAccountId())
                 .expirationTime(DomainUtils.timestampInNanosMax(expirationTime))
                 .payerAccountId(EntityId.of(scheduleCreate.getPayerAccountID()))
-                .scheduleId(SCHEDULE_ID.getScheduleNum())
+                .scheduleId(EntityId.of(scheduleId).getId())
                 .transactionBody(scheduleCreate.getScheduledTransactionBody().toByteArray())
                 .waitForExpiry(true)
                 .build();
         var expectedTransactionSignature = TransactionSignature.builder()
                 .consensusTimestamp(timestamp)
-                .entityId(EntityId.of(SCHEDULE_ID))
+                .entityId(EntityId.of(scheduleId))
                 .publicKeyPrefix(DomainUtils.toBytes(pubKeyPrefix))
                 .signature(DomainUtils.toBytes(signature))
                 .type(SignaturePair.ED25519_FIELD_NUMBER)
@@ -189,22 +181,24 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
         assertThat(entityRepository.findAll()).containsOnly(expectedEntity);
         assertThat(scheduleRepository.findAll()).containsOnly(expectedSchedule);
         assertThat(transactionSignatureRepository.findAll()).containsOnly(expectedTransactionSignature);
-        assertTransactionInRepository(timestamp, false, SUCCESS);
+        assertTransactionInRepository(recordItem.getCongestionPricingMultiplier(), timestamp, false, SUCCESS);
     }
 
     @ValueSource(booleans = {true, false})
     @ParameterizedTest
-    void scheduleDelete(boolean useBlockTransformer) {
+    void scheduleDelete(final boolean useBlockTransformer) {
         // given
-        insertScheduleCreateTransaction(CREATE_TIMESTAMP, null, SCHEDULE_ID, useBlockTransformer);
+        final var scheduleCreateRecordItem =
+                insertScheduleCreateTransaction(CREATE_TIMESTAMP, null, scheduleId, useBlockTransformer);
 
         // when
-        long deletedTimestamp = CREATE_TIMESTAMP + 10;
-        insertScheduleDeleteTransaction(deletedTimestamp, SCHEDULE_ID, useBlockTransformer);
+        final long deletedTimestamp = CREATE_TIMESTAMP + 10;
+        final var scheduleDeleteRecordItem =
+                insertScheduleDeleteTransaction(deletedTimestamp, scheduleId, useBlockTransformer);
 
         // then
-        Entity expected = createEntity(
-                EntityId.of(SCHEDULE_ID),
+        final var expected = createEntity(
+                EntityId.of(scheduleId),
                 SCHEDULE,
                 SCHEDULE_REF_KEY,
                 null,
@@ -219,63 +213,73 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
 
         // verify schedule
         assertThat(scheduleRepository.count()).isOne();
-        assertScheduleInRepository(SCHEDULE_ID, CREATE_TIMESTAMP, PAYER, null);
+        assertScheduleInRepository(scheduleId, CREATE_TIMESTAMP, PAYER, null);
 
         // verify transaction
-        assertTransactionInRepository(deletedTimestamp, false, SUCCESS);
+        assertTransactionInRepository(
+                scheduleCreateRecordItem.getCongestionPricingMultiplier(), CREATE_TIMESTAMP, false, SUCCESS);
+        assertTransactionInRepository(
+                scheduleDeleteRecordItem.getCongestionPricingMultiplier(), deletedTimestamp, false, SUCCESS);
     }
 
     @ValueSource(booleans = {true, false})
     @ParameterizedTest
-    void scheduleSign(boolean useBlockTransformer) {
-        insertScheduleCreateTransaction(CREATE_TIMESTAMP, null, SCHEDULE_ID, useBlockTransformer);
+    void scheduleSign(final boolean useBlockTransformer) {
+        final var scheduleCreateRecordItem =
+                insertScheduleCreateTransaction(CREATE_TIMESTAMP, null, scheduleId, useBlockTransformer);
 
         // sign
-        SignatureMap signatureMap = getSigMap(3, true);
-        insertScheduleSign(SIGN_TIMESTAMP, signatureMap, SCHEDULE_ID, useBlockTransformer);
+        final var signatureMap = getSigMap(3, true);
+        final var scheduleSignRecorditem =
+                insertScheduleSign(SIGN_TIMESTAMP, signatureMap, scheduleId, useBlockTransformer);
 
         // verify entity count
         assertEquals(1, entityRepository.count());
 
         // verify schedule
         assertThat(scheduleRepository.count()).isOne();
-        assertScheduleInRepository(SCHEDULE_ID, CREATE_TIMESTAMP, PAYER, null);
+        assertScheduleInRepository(scheduleId, CREATE_TIMESTAMP, PAYER, null);
 
         // verify schedule signatures
         List<TransactionSignature> expectedTransactionSignatureList = new ArrayList<>(defaultSignatureList);
-        expectedTransactionSignatureList.addAll(toTransactionSignatureList(SIGN_TIMESTAMP, SCHEDULE_ID, signatureMap));
+        expectedTransactionSignatureList.addAll(toTransactionSignatureList(SIGN_TIMESTAMP, scheduleId, signatureMap));
         assertTransactionSignatureInRepository(expectedTransactionSignatureList);
 
         // verify transaction
-        assertTransactionInRepository(SIGN_TIMESTAMP, false, SUCCESS);
+        assertTransactionInRepository(
+                scheduleCreateRecordItem.getCongestionPricingMultiplier(), CREATE_TIMESTAMP, false, SUCCESS);
+        assertTransactionInRepository(
+                scheduleSignRecorditem.getCongestionPricingMultiplier(), SIGN_TIMESTAMP, false, SUCCESS);
     }
 
     @ValueSource(booleans = {true, false})
     @ParameterizedTest
-    void scheduleSignTwoBatches(boolean useBlockTransformer) {
-        insertScheduleCreateTransaction(CREATE_TIMESTAMP, null, SCHEDULE_ID, useBlockTransformer);
+    void scheduleSignTwoBatches(final boolean useBlockTransformer) {
+        insertScheduleCreateTransaction(CREATE_TIMESTAMP, null, scheduleId, useBlockTransformer);
 
         // first sign
-        SignatureMap firstSignatureMap = getSigMap(2, true);
-        insertScheduleSign(SIGN_TIMESTAMP, firstSignatureMap, SCHEDULE_ID, useBlockTransformer);
+        final var firstSignatureMap = getSigMap(2, true);
+        final var scheduleSignRecordItem1 =
+                insertScheduleSign(SIGN_TIMESTAMP, firstSignatureMap, scheduleId, useBlockTransformer);
 
         // verify schedule signatures
-        List<TransactionSignature> expectedTransactionSignatureList = new ArrayList<>(defaultSignatureList);
+        final var expectedTransactionSignatureList = new ArrayList<>(defaultSignatureList);
         expectedTransactionSignatureList.addAll(
-                toTransactionSignatureList(SIGN_TIMESTAMP, SCHEDULE_ID, firstSignatureMap));
+                toTransactionSignatureList(SIGN_TIMESTAMP, scheduleId, firstSignatureMap));
         assertTransactionSignatureInRepository(expectedTransactionSignatureList);
 
         // second sign
-        long timestamp = SIGN_TIMESTAMP + 10;
-        SignatureMap secondSignatureMap = getSigMap(3, true);
-        insertScheduleSign(timestamp, secondSignatureMap, SCHEDULE_ID, useBlockTransformer);
+        final long timestamp = SIGN_TIMESTAMP + 10;
+        final var secondSignatureMap = getSigMap(3, true);
+        final var scheduleSignRecordItem2 =
+                insertScheduleSign(timestamp, secondSignatureMap, scheduleId, useBlockTransformer);
 
-        expectedTransactionSignatureList.addAll(toTransactionSignatureList(timestamp, SCHEDULE_ID, secondSignatureMap));
+        expectedTransactionSignatureList.addAll(toTransactionSignatureList(timestamp, scheduleId, secondSignatureMap));
         assertTransactionSignatureInRepository(expectedTransactionSignatureList);
 
         // verify entity count
-        Entity expected = createEntity(
-                EntityId.of(SCHEDULE_ID),
+        final var expected = createEntity(
+                EntityId.of(scheduleId),
                 SCHEDULE,
                 SCHEDULE_REF_KEY,
                 null,
@@ -290,38 +294,41 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
 
         // verify schedule
         assertThat(scheduleRepository.count()).isOne();
-        assertScheduleInRepository(SCHEDULE_ID, CREATE_TIMESTAMP, PAYER, null);
+        assertScheduleInRepository(scheduleId, CREATE_TIMESTAMP, PAYER, null);
 
         // verify transaction
-        assertTransactionInRepository(SIGN_TIMESTAMP, false, SUCCESS);
+        assertTransactionInRepository(
+                scheduleSignRecordItem1.getCongestionPricingMultiplier(), SIGN_TIMESTAMP, false, SUCCESS);
+        assertTransactionInRepository(
+                scheduleSignRecordItem2.getCongestionPricingMultiplier(), timestamp, false, SUCCESS);
     }
 
     @ValueSource(booleans = {true, false})
     @ParameterizedTest
-    void scheduleSignDuplicateEd25519Signatures(boolean useBlockTransformer) {
-        SignatureMap signatureMap = getSigMap(3, true);
-        SignaturePair first = signatureMap.getSigPair(0);
-        SignaturePair third = signatureMap.getSigPair(2);
-        SignatureMap signatureMapWithDuplicate =
+    void scheduleSignDuplicateEd25519Signatures(final boolean useBlockTransformer) {
+        final var signatureMap = getSigMap(3, true);
+        final var first = signatureMap.getSigPair(0);
+        final var third = signatureMap.getSigPair(2);
+        final var signatureMapWithDuplicate =
                 signatureMap.toBuilder().addSigPair(first).addSigPair(third).build();
 
-        insertScheduleSign(SIGN_TIMESTAMP, signatureMapWithDuplicate, SCHEDULE_ID, useBlockTransformer);
+        insertScheduleSign(SIGN_TIMESTAMP, signatureMapWithDuplicate, scheduleId, useBlockTransformer);
 
         // verify lack of schedule data and transaction
-        assertTransactionSignatureInRepository(toTransactionSignatureList(SIGN_TIMESTAMP, SCHEDULE_ID, signatureMap));
+        assertTransactionSignatureInRepository(toTransactionSignatureList(SIGN_TIMESTAMP, scheduleId, signatureMap));
         assertThat(transactionRepository.count()).isEqualTo(1);
     }
 
     @SuppressWarnings("deprecation")
     @ValueSource(booleans = {true, false})
     @ParameterizedTest
-    void unknownSignatureType(boolean useBlockTransformer) {
+    void unknownSignatureType(final boolean useBlockTransformer) {
         int unknownType = 999;
-        ByteString sig = ByteString.copyFromUtf8("123");
-        UnknownFieldSet.Field unknownField =
+        final var sig = ByteString.copyFromUtf8("123");
+        final var unknownField =
                 UnknownFieldSet.Field.newBuilder().addLengthDelimited(sig).build();
 
-        SignatureMap.Builder signatureMap = SignatureMap.newBuilder()
+        final var signatureMap = SignatureMap.newBuilder()
                 .addSigPair(SignaturePair.newBuilder()
                         .setPubKeyPrefix(byteString(8))
                         .setContract(sig)
@@ -349,7 +356,7 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
                                 .build())
                         .build());
 
-        insertScheduleSign(SIGN_TIMESTAMP, signatureMap.build(), SCHEDULE_ID, useBlockTransformer);
+        insertScheduleSign(SIGN_TIMESTAMP, signatureMap.build(), scheduleId, useBlockTransformer);
 
         // verify
         assertThat(transactionRepository.count()).isEqualTo(1);
@@ -372,28 +379,28 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
 
     @ValueSource(booleans = {true, false})
     @ParameterizedTest
-    void unsupportedSignature(boolean useBlockTransformer) {
-        SignatureMap signatureMap = SignatureMap.newBuilder()
+    void unsupportedSignature(final boolean useBlockTransformer) {
+        final var signatureMap = SignatureMap.newBuilder()
                 .addSigPair(SignaturePair.newBuilder().build())
                 .build();
-        insertScheduleSign(SIGN_TIMESTAMP, signatureMap, SCHEDULE_ID, useBlockTransformer);
+        final var recordItem = insertScheduleSign(SIGN_TIMESTAMP, signatureMap, scheduleId, useBlockTransformer);
 
         // verify
         assertThat(transactionRepository.count()).isOne();
         assertThat(transactionSignatureRepository.count()).isZero();
         assertThat(scheduleRepository.count()).isZero();
-        assertTransactionInRepository(SIGN_TIMESTAMP, false, SUCCESS);
+        assertTransactionInRepository(recordItem.getCongestionPricingMultiplier(), SIGN_TIMESTAMP, false, SUCCESS);
     }
 
     @ValueSource(booleans = {true, false})
     @ParameterizedTest
-    void scheduleExecuteOnSuccess(boolean useBlockTransformer) {
+    void scheduleExecuteOnSuccess(final boolean useBlockTransformer) {
         scheduleExecute(SUCCESS, useBlockTransformer);
     }
 
     @ValueSource(booleans = {true, false})
     @ParameterizedTest
-    void scheduleExecuteOnFailure(boolean useBlockTransformer) {
+    void scheduleExecuteOnFailure(final boolean useBlockTransformer) {
         scheduleExecute(ResponseCodeEnum.INVALID_CHUNK_TRANSACTION_ID, useBlockTransformer);
     }
 
@@ -401,19 +408,19 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
         return ByteString.copyFrom(domainBuilder.bytes(length));
     }
 
-    void scheduleExecute(ResponseCodeEnum responseCodeEnum, boolean useBlockTransformer) {
-        insertScheduleCreateTransaction(CREATE_TIMESTAMP, null, SCHEDULE_ID, useBlockTransformer);
+    void scheduleExecute(final ResponseCodeEnum responseCodeEnum, final boolean useBlockTransformer) {
+        insertScheduleCreateTransaction(CREATE_TIMESTAMP, null, scheduleId, useBlockTransformer);
 
         // sign
-        SignatureMap signatureMap = getSigMap(3, true);
-        insertScheduleSign(SIGN_TIMESTAMP, signatureMap, SCHEDULE_ID, useBlockTransformer);
+        final var signatureMap = getSigMap(3, true);
+        insertScheduleSign(SIGN_TIMESTAMP, signatureMap, scheduleId, useBlockTransformer);
 
         // scheduled transaction
-        insertScheduledTransaction(EXECUTE_TIMESTAMP, SCHEDULE_ID, responseCodeEnum);
+        final var recordItem = insertScheduledTransaction(EXECUTE_TIMESTAMP, scheduleId, responseCodeEnum);
 
         // verify entity count
-        Entity expected = createEntity(
-                EntityId.of(SCHEDULE_ID),
+        final var expected = createEntity(
+                EntityId.of(scheduleId),
                 SCHEDULE,
                 SCHEDULE_REF_KEY,
                 null,
@@ -427,15 +434,16 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
         assertEntity(expected);
 
         // verify schedule
-        assertScheduleInRepository(SCHEDULE_ID, CREATE_TIMESTAMP, PAYER, EXECUTE_TIMESTAMP);
+        assertScheduleInRepository(scheduleId, CREATE_TIMESTAMP, PAYER, EXECUTE_TIMESTAMP);
 
         // verify schedule signatures
         List<TransactionSignature> expectedTransactionList = new ArrayList<>(defaultSignatureList);
-        expectedTransactionList.addAll(toTransactionSignatureList(SIGN_TIMESTAMP, SCHEDULE_ID, signatureMap));
+        expectedTransactionList.addAll(toTransactionSignatureList(SIGN_TIMESTAMP, scheduleId, signatureMap));
         assertTransactionSignatureInRepository(expectedTransactionList);
 
         // verify transaction
-        assertTransactionInRepository(EXECUTE_TIMESTAMP, true, responseCodeEnum);
+        assertTransactionInRepository(
+                recordItem.getCongestionPricingMultiplier(), EXECUTE_TIMESTAMP, true, responseCodeEnum);
     }
 
     private Transaction scheduleCreateTransaction(AccountID payer) {
@@ -467,6 +475,23 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
                 .getTransfersBuilder()
                 .addAccountAmounts(accountAmount(PAYER.getAccountNum(), 1000))
                 .addAccountAmounts(accountAmount(NODE.getAccountNum(), 2000)));
+    }
+
+    private RecordItem getRecordItem(
+            final Function<RecordItem, BlockTransactionBuilder.Builder> buildBlockTransaction,
+            final Transaction transaction,
+            final TransactionRecord transactionRecord,
+            final boolean useBlockTransformer) {
+        final var builder = RecordItem.builder().transaction(transaction).transactionRecord(transactionRecord);
+        if (useBlockTransformer) {
+            final var recordItem = builder.congestionPricingMultiplier(
+                            recordItemBuilder.accountId().getAccountNum())
+                    .build();
+            final var blockTransaction = buildBlockTransaction.apply(recordItem).build();
+            return transformBlockItemToRecordItem(blockTransaction);
+        } else {
+            return builder.build();
+        }
     }
 
     @SuppressWarnings("deprecation")
@@ -513,74 +538,65 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
                 responseCode.getNumber());
     }
 
-    private void insertScheduleCreateTransaction(
-            long createdTimestamp, AccountID payer, ScheduleID scheduleID, boolean useBlockTransformer) {
-        Transaction createTransaction = scheduleCreateTransaction(payer);
-        TransactionBody createTransactionBody = getTransactionBody(createTransaction);
+    private RecordItem insertScheduleCreateTransaction(
+            final long createdTimestamp,
+            final AccountID payer,
+            final ScheduleID scheduleId,
+            final boolean useBlockTransformer) {
+        final var createTransaction = scheduleCreateTransaction(payer);
+        final var createTransactionBody = getTransactionBody(createTransaction);
         var createTransactionRecord =
-                createTransactionRecord(createdTimestamp, scheduleID, createTransactionBody, SUCCESS, false);
-
-        var recordItem = RecordItem.builder()
-                .transactionRecord(createTransactionRecord)
-                .transaction(createTransaction)
-                .build();
-
-        if (useBlockTransformer) {
-            var blockItem = blockTransactionBuilder.scheduleCreate(recordItem).build();
-            recordItem = transformBlockItemToRecordItem(blockItem);
-        }
+                createTransactionRecord(createdTimestamp, scheduleId, createTransactionBody, SUCCESS, false);
+        final var recordItem = getRecordItem(
+                blockTransactionBuilder::scheduleCreate,
+                createTransaction,
+                createTransactionRecord,
+                useBlockTransformer);
 
         parseRecordItemAndCommit(recordItem);
+        return recordItem;
     }
 
-    private void insertScheduleDeleteTransaction(long timestamp, ScheduleID scheduleId, boolean useBlockTransformer) {
-        var transaction = scheduleDeleteTransaction(scheduleId);
-        var transactionBody = getTransactionBody(transaction);
-        var transactionRecord = createTransactionRecord(timestamp, scheduleId, transactionBody, SUCCESS, false);
-
-        var recordItem = RecordItem.builder()
-                .transactionRecord(transactionRecord)
-                .transaction(transaction)
-                .build();
-
-        if (useBlockTransformer) {
-            var blockItem = blockTransactionBuilder.scheduleDelete(recordItem).build();
-            recordItem = transformBlockItemToRecordItem(blockItem);
-        }
+    private RecordItem insertScheduleDeleteTransaction(
+            final long timestamp, final ScheduleID scheduleId, final boolean useBlockTransformer) {
+        final var transaction = scheduleDeleteTransaction(scheduleId);
+        final var transactionBody = getTransactionBody(transaction);
+        final var transactionRecord = createTransactionRecord(timestamp, scheduleId, transactionBody, SUCCESS, false);
+        final var recordItem = getRecordItem(
+                blockTransactionBuilder::scheduleDelete, transaction, transactionRecord, useBlockTransformer);
 
         parseRecordItemAndCommit(recordItem);
+        return recordItem;
     }
 
-    private void insertScheduleSign(
-            long signTimestamp, SignatureMap signatureMap, ScheduleID scheduleID, boolean useBlockTransformer) {
-        Transaction signTransaction = scheduleSignTransaction(scheduleID, signatureMap);
-        TransactionBody signTransactionBody = getTransactionBody(signTransaction);
-        var signTransactionRecord =
-                createTransactionRecord(signTimestamp, scheduleID, signTransactionBody, SUCCESS, false);
-
-        var recordItem = RecordItem.builder()
-                .transaction(signTransaction)
-                .transactionRecord(signTransactionRecord)
-                .build();
-
-        if (useBlockTransformer) {
-            var blockItem = blockTransactionBuilder.scheduleSign(recordItem).build();
-            recordItem = transformBlockItemToRecordItem(blockItem);
-        }
+    private RecordItem insertScheduleSign(
+            final long signTimestamp,
+            final SignatureMap signatureMap,
+            final ScheduleID scheduleId,
+            final boolean useBlockTransformer) {
+        final var signTransaction = scheduleSignTransaction(scheduleId, signatureMap);
+        final var signTransactionBody = getTransactionBody(signTransaction);
+        final var signTransactionRecord =
+                createTransactionRecord(signTimestamp, scheduleId, signTransactionBody, SUCCESS, false);
+        final var recordItem = getRecordItem(
+                blockTransactionBuilder::scheduleSign, signTransaction, signTransactionRecord, useBlockTransformer);
 
         parseRecordItemAndCommit(recordItem);
+        return recordItem;
     }
 
-    private void insertScheduledTransaction(
-            long signTimestamp, ScheduleID scheduleID, ResponseCodeEnum responseCodeEnum) {
-        var transaction = scheduledTransaction();
-        var transactionBody = getTransactionBody(transaction);
-        var txnRecord = createTransactionRecord(signTimestamp, scheduleID, transactionBody, responseCodeEnum, true);
+    private RecordItem insertScheduledTransaction(
+            final long signTimestamp, final ScheduleID scheduleId, final ResponseCodeEnum responseCodeEnum) {
+        final var transaction = scheduledTransaction();
+        final var transactionBody = getTransactionBody(transaction);
+        final var txnRecord =
+                createTransactionRecord(signTimestamp, scheduleId, transactionBody, responseCodeEnum, true);
         var recordItem = RecordItem.builder()
                 .transactionRecord(txnRecord)
                 .transaction(transaction)
                 .build();
         parseRecordItemAndCommit(recordItem);
+        return recordItem;
     }
 
     private void assertScheduleInRepository(
@@ -601,9 +617,13 @@ class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordItemListe
     }
 
     private void assertTransactionInRepository(
-            long consensusTimestamp, boolean scheduled, ResponseCodeEnum responseCode) {
+            Long congestionPricingMultiplier,
+            long consensusTimestamp,
+            boolean scheduled,
+            ResponseCodeEnum responseCode) {
         assertThat(transactionRepository.findById(consensusTimestamp))
                 .get()
+                .returns(congestionPricingMultiplier, t -> t.getCongestionPricingMultiplier())
                 .returns(scheduled, from(org.hiero.mirror.common.domain.transaction.Transaction::isScheduled))
                 .returns(
                         responseCode.getNumber(),

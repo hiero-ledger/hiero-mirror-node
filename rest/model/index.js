@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import AccountBalanceFile from './accountBalanceFile';
-import AddressBook from './addressBook';
-import AddressBookEntry from './addressBookEntry';
-import AddressBookServiceEndpoint from './addressBookServiceEndpoint';
 import AssessedCustomFee from './assessedCustomFee';
+import AuthorizationListItem from './authorizationListItem.js';
 import CachedApiResponse from './cachedApiResponse';
 import CachedToken from './cachedToken';
 import Contract from './contract';
@@ -18,16 +16,14 @@ import CryptoTransfer from './cryptoTransfer';
 import CustomFee from './customFee';
 import CustomFeeLimits from './customFeeLimits';
 import Entity from './entity';
+import EntityTransaction from './entityTransaction.js';
 import EthereumTransaction from './ethereumTransaction';
 import ExchangeRate from './exchangeRate';
 import FileData from './fileData';
 import FixedFee from './fixedFee';
-import Node from './node';
-import NetworkNode from './networkNode';
 import Nft from './nft';
 import NftHistory from './nftHistory';
 import NftTransfer from './nftTransfer';
-import NodeStake from './nodeStake';
 import RecordFile from './recordFile';
 import ServiceEndpoint from './serviceEndpoint';
 import SignatureType from './signatureType';
@@ -51,10 +47,8 @@ import ContractState from './contractState';
 
 export {
   AccountBalanceFile,
-  AddressBook,
-  AddressBookEntry,
-  AddressBookServiceEndpoint,
   AssessedCustomFee,
+  AuthorizationListItem,
   CachedApiResponse,
   CachedToken,
   Contract,
@@ -68,16 +62,14 @@ export {
   CustomFee,
   CustomFeeLimits,
   Entity,
+  EntityTransaction,
   EthereumTransaction,
   ExchangeRate,
   FileData,
   FixedFee,
-  Node,
-  NetworkNode,
   Nft,
   NftHistory,
   NftTransfer,
-  NodeStake,
   RecordFile,
   ServiceEndpoint,
   SignatureType,

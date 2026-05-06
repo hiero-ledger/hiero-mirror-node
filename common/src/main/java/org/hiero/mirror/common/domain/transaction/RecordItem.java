@@ -7,6 +7,7 @@ import static lombok.AccessLevel.PRIVATE;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
+import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -53,9 +54,13 @@ import org.springframework.data.util.Version;
 @Value
 public class RecordItem implements StreamItem {
 
+    public static final int HOOK_CONTRACT_NUM = 365;
+
     static final String BAD_TRANSACTION_BYTES_MESSAGE = "Failed to parse transaction bytes";
     static final String BAD_RECORD_BYTES_MESSAGE = "Failed to parse record bytes";
     static final String BAD_TRANSACTION_BODY_BYTES_MESSAGE = "Error parsing transactionBody from transaction";
+
+    private static final Predicate<EntityId> REJECT_ALL = _ -> false;
 
     // Final fields
     @Builder.Default
@@ -65,6 +70,8 @@ public class RecordItem implements StreamItem {
     private final long consensusTimestamp;
 
     private final boolean blockstream;
+    private final Long congestionPricingMultiplier;
+    private final RecordItem hookParent;
     private final RecordItem parent;
     private final EntityId payerAccountId;
     private final RecordItem previous;
@@ -88,13 +95,17 @@ public class RecordItem implements StreamItem {
     @NonFinal
     private Map<Long, ContractTransaction> contractTransactions;
 
+    @Builder.Default
+    @NonFinal
+    private Predicate<EntityId> entityNftTransactionPredicate = REJECT_ALL;
+
     @Getter(AccessLevel.NONE)
     @NonFinal
     private EntityTransaction.EntityTransactionBuilder entityTransactionBuilder;
 
+    @Builder.Default
     @NonFinal
-    @Setter
-    private Predicate<EntityId> entityTransactionPredicate;
+    private Predicate<EntityId> entityTransactionPredicate = REJECT_ALL;
 
     @NonFinal
     private Map<Long, EntityTransaction> entityTransactions;
@@ -136,8 +147,25 @@ public class RecordItem implements StreamItem {
                 .build());
     }
 
-    public void addEntityId(EntityId entityId) {
-        if (entityTransactionPredicate == null || !entityTransactionPredicate.test(entityId)) {
+    public void addEntityId(final EntityId entityId) {
+        doAddEntityId(entityId, entityTransactionPredicate);
+    }
+
+    public void addNftTransactionEntityId(final EntityId entityId) {
+        doAddEntityId(entityId, entityNftTransactionPredicate);
+    }
+
+    public void setEntityNftTransactionPredicate(final Predicate<EntityId> predicate) {
+        entityNftTransactionPredicate =
+                predicate != null ? predicate.and(entityId -> !payerAccountId.equals(entityId)) : REJECT_ALL;
+    }
+
+    public void setEntityTransactionPredicate(final Predicate<EntityId> predicate) {
+        entityTransactionPredicate = predicate != null ? predicate : REJECT_ALL;
+    }
+
+    private void doAddEntityId(final EntityId entityId, final Predicate<EntityId> predicate) {
+        if (!predicate.test(entityId)) {
             return;
         }
 
@@ -240,6 +268,30 @@ public class RecordItem implements StreamItem {
         return contractTransactions.values();
     }
 
+    public RecordItem getContractRelatedParent() {
+        if (hookParent != null) {
+            return hookParent;
+        }
+        if (parent != null && parent.hasContractResult()) {
+            return parent;
+        }
+        return null;
+    }
+
+    private boolean hasContractResult() {
+        return transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult();
+    }
+
+    private ContractFunctionResult getContractResult() {
+        if (transactionRecord.hasContractCallResult()) {
+            return transactionRecord.getContractCallResult();
+        } else if (transactionRecord.hasContractCreateResult()) {
+            return transactionRecord.getContractCreateResult();
+        }
+
+        return null;
+    }
+
     public static class RecordItemBuilder {
 
         private TransactionRecord.Builder transactionRecordBuilder;
@@ -252,6 +304,7 @@ public class RecordItem implements StreamItem {
             parseTransaction();
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
             this.parent = parseParent();
+            this.hookParent = parsePossiblyHookContractRelatedParent();
             this.payerAccountId = EntityId.of(transactionBody.getTransactionID().getAccountID());
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
@@ -292,6 +345,43 @@ public class RecordItem implements StreamItem {
                 }
             }
             return this.parent;
+        }
+
+        private RecordItem parsePossiblyHookContractRelatedParent() {
+            final var currentTxnRecordContractResult = getContractResult();
+
+            if (transactionRecord.hasParentConsensusTimestamp()
+                    && currentTxnRecordContractResult != null
+                    && currentTxnRecordContractResult.getContractID().getContractNum() != HOOK_CONTRACT_NUM
+                    && previous != null) {
+                var candidateRecord = previous;
+
+                while (candidateRecord != null && candidateRecord != parent) {
+                    var candidateTxnRecordContractResult = candidateRecord.getContractResult();
+                    if (candidateTxnRecordContractResult == null) {
+                        break;
+                    }
+
+                    if (candidateTxnRecordContractResult.getContractID().getContractNum() == HOOK_CONTRACT_NUM) {
+                        // we found the first hook child item, which has a ContractResult and is executed via a hook
+                        return candidateRecord;
+                    }
+
+                    candidateRecord = candidateRecord.previous;
+                }
+            }
+
+            return null;
+        }
+
+        private ContractFunctionResult getContractResult() {
+            if (transactionRecord.hasContractCallResult()) {
+                return transactionRecord.getContractCallResult();
+            } else if (transactionRecord.hasContractCreateResult()) {
+                return transactionRecord.getContractCreateResult();
+            }
+
+            return null;
         }
 
         private boolean parseSuccess() {

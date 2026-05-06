@@ -4,6 +4,7 @@ package org.hiero.mirror.common.domain.contract;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import java.util.Arrays;
@@ -15,6 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
@@ -60,8 +62,12 @@ public class ContractResult implements Persistable<Long> {
 
     private Long gasUsed;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId senderId;
 
     private byte[] transactionHash;

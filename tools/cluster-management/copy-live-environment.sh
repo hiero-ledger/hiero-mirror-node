@@ -11,11 +11,19 @@ source ./utils/snapshot-utils.sh
 CREATE_NEW_BACKUPS="${CREATE_NEW_BACKUPS:-true}"
 DEFAULT_POOL_MAX_PER_ZONE="${DEFAULT_POOL_MAX_PER_ZONE:-5}"
 DEFAULT_POOL_NAME="${DEFAULT_POOL_NAME:-default-pool}"
+K6_TEST_REPORT_DIR="${K6_TEST_REPORT_DIR:-/tmp/mirrornode-k6-test-report}"
+K6_TEST_SUITE_NAME="${K6_TEST_SUITE_NAME:-test-suite-rest-mainnet-citus}"
 K8S_SOURCE_CLUSTER_CONTEXT=${K8S_SOURCE_CLUSTER_CONTEXT:-}
 K8S_TARGET_CLUSTER_CONTEXT=${K8S_TARGET_CLUSTER_CONTEXT:-}
+REQUIRE_CLEAN_TARGET=${REQUIRE_CLEAN_TARGET:-true}
+RESTORE="${RESTORE:-true}"
+RUN_ACCEPTANCE_TEST="${RUN_ACCEPTANCE_TEST:-false}"
+RUN_K6_TEST="${RUN_K6_TEST:-true}"
+TEARDOWN_TARGET="${TEARDOWN_TARGET:-false}"
 TEST_KUBE_NAMESPACE="${TEST_KUBE_NAMESPACE:-testkube}"
-TEST_KUBE_TARGET_NAMESPACE=("mainnet-citus")
-WAIT_FOR_K6="${WAIT_FOR_K6:-false}"
+TEST_KUBE_TARGET_NAMESPACE="${TEST_KUBE_TARGET_NAMESPACE:-mainnet-citus}"
+SNAPSHOT_ID="${SNAPSHOT_ID:-}"
+USE_STATIC_SNAPSHOT="${USE_STATIC_SNAPSHOT:-true}"
 
 function deleteBackupsFromSource() {
   local lines
@@ -111,6 +119,15 @@ EOF
       esac
     done
   done
+}
+
+function ensureContext() {
+  local name="$1"
+  ensureEnvVar "$name"
+  if ! contextExists "${!name}"; then
+    log "$name ${!name} doesn't exist"
+    exit 1
+  fi
 }
 
 function runBackupsForAllNamespaces() {
@@ -252,6 +269,10 @@ function snapshotSource() {
 }
 
 function patchBackupPaths() {
+  if [[ "${USE_STATIC_SNAPSHOT}" == "true" ]]; then
+    return 0
+  fi
+
   local lines
   lines="$(
     jq -r '
@@ -318,15 +339,11 @@ function scaleupResources() {
 }
 
 function restoreTarget() {
-  if [[ -z "${SNAPSHOT_ID}" ]]; then
-    log "SNAPSHOT_ID is not set"
-    exit 1
-  fi
-
   PAUSE_CLUSTER="true"
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
   configureAndValidateSnapshotRestore
   scaleupResources
+  resumeKustomization
   resumeCommonChart
   patchBackupPaths
   replaceDisks
@@ -350,6 +367,27 @@ function deleteSnapshots() {
   done
 
   return 0
+}
+
+function runAcceptanceTest() {
+  if [[ "${RUN_ACCEPTANCE_TEST}" != "true" ]]; then
+    return
+  fi
+
+  acceptanceTestEnabled=$(kubectl get helmrelease "${HELM_RELEASE_NAME}" -n "${TEST_KUBE_TARGET_NAMESPACE}" -o json 2>/dev/null \
+    | jq 'if has("spec") then (.spec.values.test.enabled // false) else true end')
+  if [[ "${acceptanceTestEnabled}" == "true" ]]; then
+    # Don't run it again if it's enabled in helmrelease or there is no helmrelease at all
+    return
+  fi
+
+  waitForHelmReleaseReady "${TEST_KUBE_TARGET_NAMESPACE}"
+  # suspend kustomization to allow enabling acceptance test in the helmrelease
+  suspendKustomization
+  kubectl patch helmrelease "${HELM_RELEASE_NAME}" -n "${TEST_KUBE_TARGET_NAMESPACE}" --type merge \
+    -p '{"spec": {"values": {"test": {"enabled": true }}}}'
+  flux reconcile helmrelease "${HELM_RELEASE_NAME}" -n "${TEST_KUBE_TARGET_NAMESPACE}" \
+    --timeout "${FLUX_RECONCILE_HR_TIMEOUT}"
 }
 
 function scaleDownNodePools() {
@@ -483,6 +521,50 @@ function getHpaMaxReplicas() {
   kubectl get hpa "${hpaName}" -n "${namespace}" -o jsonpath='{.spec.maxReplicas}' 2>/dev/null || true
 }
 
+function copyLiveEnvironment() {
+  ensureContext K8S_SOURCE_CLUSTER_CONTEXT
+  changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
+
+  local node_count
+  node_count=$(kubectl get nodes -o json | jq '.items | length')
+
+  if [[ "${REQUIRE_CLEAN_TARGET}" == "true" && "${node_count}" -ne 0 ]]; then
+    log "There are GKE nodes in the target cluster, please teardown the environment before any restore attempt."
+    exit 1
+  fi
+
+  snapshotSource
+  restoreTarget
+  deleteSnapshots
+}
+
+function runK6Test() {
+  if [[ "${RUN_K6_TEST}" != "true" ]]; then
+    return 0
+  fi
+
+  log "Awaiting k6 results"
+  changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
+  if kubectl get helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
+    if [[ "${RESTORE}" == "true" ]]; then
+      waitForHelmReleaseReady "${TEST_KUBE_TARGET_NAMESPACE}"
+    fi
+
+    log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${TEST_KUBE_TARGET_NAMESPACE}"
+    flux suspend helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}"
+  fi
+
+  if [[ "${USE_STATIC_SNAPSHOT}" == "true" ]]; then
+    scaleDeployment "${TEST_KUBE_TARGET_NAMESPACE}" 0 "app.kubernetes.io/component=importer"
+  fi
+
+  testkube run testsuite "${K6_TEST_SUITE_NAME}"
+  waitForK6PodExecution "rest" "${TEST_KUBE_TARGET_NAMESPACE}"
+  waitForK6PodExecution "rest-java" "${TEST_KUBE_TARGET_NAMESPACE}"
+  waitForK6PodExecution "web3" "${TEST_KUBE_TARGET_NAMESPACE}"
+  log "K6 tests completed"
+}
+
 function scaleHpaMin() {
   local namespace="$1"
   local hpaName="$2"
@@ -497,7 +579,13 @@ function scaleHpaMin() {
 }
 
 function teardownResources() {
+  if [[ "${TEARDOWN_TARGET}" != "true" ]]; then
+    return 0
+  fi
+
   log "Tearing down resources"
+  changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
+  setCitusNamespaces
   for namespace in "${CITUS_NAMESPACES[@]}"; do
     unrouteTraffic "${namespace}"
     pauseCitus "${namespace}" "true"
@@ -569,7 +657,7 @@ function waitForK6PodExecution() {
   log "downloading artifacts for job ${job}"
   until {
     rm -f artifacts/report.md 2>/dev/null || true
-    kubectl testkube download artifacts "${job}"  >/dev/null 2>&1
+    testkube download artifacts "${job}"  >/dev/null 2>&1
     [[ -s artifacts/report.md ]]
   }; do
     log "Waiting for artifacts to be available"
@@ -577,6 +665,9 @@ function waitForK6PodExecution() {
   done
 
   cat artifacts/report.md
+  mkdir -p "${K6_TEST_REPORT_DIR}"
+  cp artifacts/report.md "${K6_TEST_REPORT_DIR}/${testName}.md"
+  rm -fr artifacts
 
   scaleHpaMin "${targetNamespace}" "${hpaName}"
 }
@@ -584,7 +675,6 @@ function waitForK6PodExecution() {
 function waitForHelmReleaseReady() {
   local namespace="$1"
   local hrJson
-  local testsEnabled
   local testStatus
   local testMsg
   local readyStatus
@@ -593,20 +683,13 @@ function waitForHelmReleaseReady() {
   log "Waiting for helm tests to finish in namespace ${namespace}"
   while true; do
     hrJson="$(kubectl -n "${namespace}" get helmrelease "${HELM_RELEASE_NAME}" -o json 2>/dev/null || true)"
-    testsEnabled="$(jq -r '.spec.test.enable // false' <<<"${hrJson}")"
-
-    if [[ "${testsEnabled}" != "true" ]]; then
-      log "Helm tests not enabled for ${HELM_RELEASE_NAME} in ${namespace}; proceeding without waiting."
-      break
-    fi
-
     testStatus="$(jq -r '.status.conditions[]? | select(.type=="TestSuccess") | .status // empty' <<<"${hrJson}")"
     testMsg="$(jq -r '.status.conditions[]? | select(.type=="TestSuccess") | .message // empty' <<<"${hrJson}")"
     readyStatus="$(jq -r '.status.conditions[]? | select(.type=="Ready") | .status // empty' <<<"${hrJson}")"
     readyReason="$(jq -r '.status.conditions[]? | select(.type=="Ready") | .reason // empty' <<<"${hrJson}")"
 
-    if [[ "${testStatus}" == "True" ]] || { [[ "${readyStatus}" == "True" && "${readyReason}" == "TestSucceeded" ]]; }; then
-      log "Helm tests SUCCEEDED for ${HELM_RELEASE_NAME} in ${namespace}"
+    if [[ "${readyStatus}" == "True" ]]; then
+      log "Helmrelease is ready (reason=${readyReason}) for ${HELM_RELEASE_NAME} in ${namespace}"
       break
     fi
 
@@ -621,42 +704,20 @@ function waitForHelmReleaseReady() {
   done
 }
 
-function cleanupAcceptancePod() {
-  local namespace="$1"
-  kubectl -n "${namespace}" wait pod -l"app.kubernetes.io/component=hedera-mirror" \
-      --for=jsonpath='{.status.phase}'=Succeeded \
-      --timeout=30m || true
-  kubectl -n "${namespace}" delete pod -l"app.kubernetes.io/component=hedera-mirror" --ignore-not-found
+function createEnvironment() {
+  if [[ "${RESTORE}" != "true" ]]; then
+    return 0
+  fi
+
+  if [[ "${USE_STATIC_SNAPSHOT}" == "true" ]]; then
+    export WAIT_FOR_STREAM_SYNC="false"
+    restoreTarget
+  else
+    copyLiveEnvironment
+  fi
 }
 
-if [[ -z "${K8S_SOURCE_CLUSTER_CONTEXT}" || -z "${K8S_TARGET_CLUSTER_CONTEXT}" ]]; then
-  log "K8S_SOURCE_CLUSTER_CONTEXT and K8S_TARGET_CLUSTER_CONTEXT are required"
-  exit 1
-elif ! contextExists "${K8S_SOURCE_CLUSTER_CONTEXT}"; then
-  log "context ${K8S_SOURCE_CLUSTER_CONTEXT} doesn't exist"
-  exit 1
-elif ! contextExists "${K8S_TARGET_CLUSTER_CONTEXT}"; then
-  log "context ${K8S_TARGET_CLUSTER_CONTEXT} doesn't exist"
-  exit 1
-fi
-
-snapshotSource
-restoreTarget
-deleteSnapshots
-
-if [[ "${WAIT_FOR_K6}" == "true" ]]; then
-  log "Awaiting k6 results"
-  for namespace in "${TEST_KUBE_TARGET_NAMESPACE[@]}"; do
-    if kubectl get helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
-      waitForHelmReleaseReady "${namespace}"
-      cleanupAcceptancePod "${namespace}"
-      log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${namespace}"
-      flux suspend helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}"
-    fi
-    waitForK6PodExecution "rest" "${namespace}"
-    waitForK6PodExecution "rest-java" "${namespace}"
-    waitForK6PodExecution "web3" "${namespace}"
-  done
-  log "K6 tests completed"
-  teardownResources
-fi
+createEnvironment
+runAcceptanceTest
+runK6Test
+teardownResources

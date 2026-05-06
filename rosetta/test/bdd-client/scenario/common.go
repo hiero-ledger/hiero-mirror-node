@@ -21,7 +21,7 @@ var (
 	currencyHbar = &types.Currency{
 		Symbol:   "HBAR",
 		Decimals: 8,
-		Metadata: map[string]interface{}{"issuer": "Hedera"},
+		Metadata: map[string]any{"issuer": "Hedera"},
 	}
 	testClient      client.Client
 	treasuryAccount = getRosettaAccountIdentifier(hiero.AccountID{Account: 98})

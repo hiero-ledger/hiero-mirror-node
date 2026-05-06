@@ -11,12 +11,12 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 class LongRangeConverterTest {
 
-    @CsvSource(delimiterString = "#", textBlock = """
-            1# true# 100# false# [1,100)
-            1# true# 100# true# [1,100]
-            1# true# # false# [1,)
-             # false# 100# true# (,100]
-             # false# # false# (,)
+    @CsvSource(delimiterString = "|", textBlock = """
+            1| true  | 100 | false | [1,100)
+            1| true  | 100 | true  | [1,100]
+            1| true  |     | false | [1,)
+             | false | 100 | true  | (,100]
+             | false |     | false | (,)
             """)
     @ParameterizedTest
     void convert(Long lower, boolean lowerInclusive, Long upper, boolean upperInclusive, String expected) {

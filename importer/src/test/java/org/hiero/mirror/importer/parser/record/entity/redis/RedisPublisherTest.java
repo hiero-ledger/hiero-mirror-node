@@ -13,6 +13,7 @@ import java.time.Duration;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
+import org.hiero.mirror.importer.parser.record.RecordParserProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,7 +44,12 @@ class RedisPublisherTest {
     void setup() {
         parserContext = new ParserContext();
         redisProperties = new RedisProperties();
-        entityListener = new RedisPublisher(redisProperties, redisOperations, new SimpleMeterRegistry(), parserContext);
+        entityListener = new RedisPublisher(
+                redisProperties,
+                redisOperations,
+                new SimpleMeterRegistry(),
+                parserContext,
+                new RecordParserProperties());
     }
 
     @Test

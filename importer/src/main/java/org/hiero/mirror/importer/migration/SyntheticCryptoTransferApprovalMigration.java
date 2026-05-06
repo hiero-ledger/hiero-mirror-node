@@ -21,7 +21,7 @@ import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.util.Version;
-import org.springframework.jdbc.core.DataClassRowMapper;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -122,7 +122,7 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
             join entity e on e.id = t.sender and e.timestamp_range @> t.consensus_timestamp
             order by t.consensus_timestamp
             """;
-    private static final RowMapper<ApprovalTransfer> ROW_MAPPER = new DataClassRowMapper<>(ApprovalTransfer.class);
+    private static final RowMapper<ApprovalTransfer> ROW_MAPPER = new BeanPropertyRowMapper<>(ApprovalTransfer.class);
     private static final String UPDATE_CRYPTO_TRANSFER_SQL = """
             update crypto_transfer
             set is_approval = true

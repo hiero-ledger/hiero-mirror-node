@@ -2,12 +2,14 @@
 
 package com.swirlds.state.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
-import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A base class for implementations of {@link ReadableKVState} and {@link WritableKVState}.
@@ -18,24 +20,36 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 @SuppressWarnings("unchecked")
 public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V> {
 
-    // The state ID
-    protected final int stateId;
-
     private static final Object marker = new Object();
+
+    /** The state ID */
+    protected final int stateId;
 
     /**
      * Create a new StateBase.
      *
      * @param stateId The state ID
-     * @param label The state label (may be null)
+     * @param label The state label
      */
-    protected ReadableKVStateBase(final int stateId, @Nullable final String label) {
+    protected ReadableKVStateBase(final int stateId, final String label) {
+        this(stateId, label, new ConcurrentHashMap<>());
+    }
+
+    /**
+     * Create a new StateBase from the provided map.
+     *
+     * @param stateId The state ID
+     * @param label The state label
+     * @param readCache A map that is used to init the cache.
+     */
+    // This constructor is used by some consumers of the API that are outside of this repository.
+    @SuppressWarnings("unused")
+    protected ReadableKVStateBase(final int stateId, final String label, @NonNull ConcurrentMap<K, V> readCache) {
         this.stateId = stateId;
     }
 
     /** {@inheritDoc} */
     @Override
-    @Nonnull
     public final int getStateId() {
         return stateId;
     }
@@ -43,12 +57,10 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
     /** {@inheritDoc} */
     @Override
     @Nullable
-    public V get(@Nonnull K key) {
+    public V get(@NonNull K key) {
         // We need to cache the item because somebody may perform business logic basic on this
         // contains call, even if they never need the value itself!
-        if (key == null) {
-            throw new NullPointerException("key must not be null");
-        }
+        Objects.requireNonNull(key);
         if (!hasBeenRead(key)) {
             final var value = readFromDataSource(key);
             markRead(key, value);
@@ -62,16 +74,9 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      *
      * @return The possibly empty set of keys.
      */
-    @Nonnull
+    @NonNull
     public final Set<K> readKeys() {
         return (Set<K>) getReadCache().keySet();
-    }
-
-    /** {@inheritDoc} */
-    @Nonnull
-    @Override
-    public Iterator<K> keys() {
-        return iterateFromDataSource();
     }
 
     /** Clears all cached data, including the set of all read keys. */
@@ -87,15 +92,7 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      * @param key key to read from state
      * @return The value read from the underlying data source. May be null.
      */
-    protected abstract V readFromDataSource(@Nonnull K key);
-
-    /**
-     * Gets an iterator from the data source that iterates over all keys.
-     *
-     * @return An iterator over all keys in the data source.
-     */
-    @Nonnull
-    protected abstract Iterator<K> iterateFromDataSource();
+    protected abstract V readFromDataSource(@NonNull K key);
 
     /**
      * Records the given key and associated value were read.
@@ -103,8 +100,12 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      * @param key The key
      * @param value The value
      */
-    protected final void markRead(@Nonnull K key, @Nullable V value) {
-        getReadCache().put(key, value == null ? (V) marker : value);
+    protected final void markRead(@NonNull K key, @Nullable V value) {
+        if (value == null) {
+            getReadCache().put(key, (V) marker);
+        } else {
+            getReadCache().put(key, value);
+        }
     }
 
     /**
@@ -113,7 +114,7 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      * @param key The key.
      * @return Whether it has been read
      */
-    protected final boolean hasBeenRead(@Nonnull K key) {
+    protected final boolean hasBeenRead(@NonNull K key) {
         return getReadCache().containsKey(key);
     }
 

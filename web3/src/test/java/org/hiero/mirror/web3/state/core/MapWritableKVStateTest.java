@@ -10,7 +10,6 @@ import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.node.app.service.token.TokenService;
 import com.swirlds.state.spi.ReadableKVState;
-import java.util.Collections;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
@@ -43,12 +42,6 @@ class MapWritableKVStateTest {
     }
 
     @Test
-    void testGetForModifyFromDataSourceReturnsCorrectValue() {
-        when(readableKVState.get(accountID)).thenReturn(account);
-        assertThat(mapWritableKVState.getForModifyFromDataSource(accountID)).isEqualTo(account);
-    }
-
-    @Test
     void testDataSourceSizeIsZero() {
         assertThat(mapWritableKVState.sizeOfDataSource()).isZero();
     }
@@ -57,12 +50,6 @@ class MapWritableKVStateTest {
     void testReadFromDataSourceReturnsCorrectValue() {
         when(readableKVState.get(accountID)).thenReturn(account);
         assertThat(mapWritableKVState.readFromDataSource(accountID)).isEqualTo(account);
-    }
-
-    @Test
-    void testIterateFromDataSourceReturnsEmptyIterator() {
-        when(readableKVState.keys()).thenReturn(Collections.emptyIterator());
-        assertThat(mapWritableKVState.iterateFromDataSource()).isEqualTo(Collections.emptyIterator());
     }
 
     @Test

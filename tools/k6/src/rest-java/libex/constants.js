@@ -4,3 +4,5 @@ export const accountNftAllowanceListName = 'allowances';
 export const airdrops = 'airdrops';
 export const hooks = 'hooks';
 export const hookStorage = 'storage';
+export const nodeListName = 'nodes';
+export const registeredNodes = 'registered_nodes';

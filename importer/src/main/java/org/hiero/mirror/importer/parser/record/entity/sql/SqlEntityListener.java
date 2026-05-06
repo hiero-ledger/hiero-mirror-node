@@ -31,6 +31,7 @@ import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.node.Node;
+import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.AbstractNft;
 import org.hiero.mirror.common.domain.token.AbstractTokenAccount.Id;
@@ -54,16 +55,16 @@ import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.exception.ImporterException;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.batch.BatchPersister;
+import org.hiero.mirror.importer.parser.record.RecordParserProperties;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
-import org.hiero.mirror.importer.parser.record.entity.ConditionOnEntityRecordParser;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
-import org.hiero.mirror.importer.repository.HookStorageRepository;
 import org.hiero.mirror.importer.repository.NftRepository;
 import org.hiero.mirror.importer.repository.TokenAccountRepository;
 import org.hiero.mirror.importer.util.Utility;
@@ -73,7 +74,6 @@ import org.springframework.util.CollectionUtils;
 @CustomLog
 @Named
 @Order(3)
-@ConditionOnEntityRecordParser
 @RequiredArgsConstructor
 public class SqlEntityListener implements EntityListener, RecordStreamFileListener {
 
@@ -85,17 +85,19 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     private final EntityProperties entityProperties;
     private final NftRepository nftRepository;
     private final TokenAccountRepository tokenAccountRepository;
-    private final HookStorageRepository hookStorageRepository;
     private final SqlProperties sqlProperties;
+    private final RecordParserProperties parserProperties;
 
     @Override
     public boolean isEnabled() {
-        return sqlProperties.isEnabled();
+        return sqlProperties.isEnabled() && parserProperties.isEnabled();
     }
 
     @Override
     public void onEnd(RecordFile recordFile) {
-        flush();
+        if (isEnabled()) {
+            flush();
+        }
     }
 
     @Override
@@ -235,6 +237,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     }
 
     @Override
+    public void onLedger(final Ledger ledger) throws ImporterException {
+        context.merge(ledger.getLedgerId(), ledger, this::mergeLedger);
+    }
+
+    @Override
     public void onLiveHash(LiveHash liveHash) throws ImporterException {
         context.add(liveHash);
     }
@@ -272,6 +279,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     @Override
     public void onPrng(Prng prng) {
         context.add(prng);
+    }
+
+    @Override
+    public void onRegisteredNode(RegisteredNode registeredNode) {
+        context.merge(registeredNode.getRegisteredNodeId(), registeredNode, this::mergeRegisteredNode);
     }
 
     @Override
@@ -502,6 +514,10 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             dest.setDeleted(src.getDeleted());
         }
 
+        if (dest.getDelegationAddress() == null) {
+            dest.setDelegationAddress(src.getDelegationAddress());
+        }
+
         if (dest.getEthereumNonce() == null) {
             dest.setEthereumNonce(src.getEthereumNonce());
         }
@@ -597,6 +613,15 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
         // Current must be an approved transfer and previous can be either so should accumulate the amounts regardless.
         previous.setAmount(previous.getAmount() + current.getAmount());
+        return previous;
+    }
+
+    private Ledger mergeLedger(final Ledger previous, final Ledger current) {
+        // always override, i.e., copy info from current to previous
+        previous.setConsensusTimestamp(current.getConsensusTimestamp());
+        previous.setHistoryProofVerificationKey(current.getHistoryProofVerificationKey());
+        previous.setNodeContributions(current.getNodeContributions());
+
         return previous;
     }
 
@@ -709,6 +734,33 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
         if (current.getGrpcProxyEndpoint() == null) {
             current.setGrpcProxyEndpoint(previous.getGrpcProxyEndpoint());
+        }
+
+        if (current.getAssociatedRegisteredNodes() == null) {
+            current.setAssociatedRegisteredNodes(previous.getAssociatedRegisteredNodes());
+        }
+
+        return current;
+    }
+
+    private RegisteredNode mergeRegisteredNode(RegisteredNode previous, RegisteredNode current) {
+        previous.setTimestampUpper(current.getTimestampLower());
+        current.setCreatedTimestamp(previous.getCreatedTimestamp());
+
+        if (current.getAdminKey() == null) {
+            current.setAdminKey(previous.getAdminKey());
+        }
+
+        if (current.getDescription() == null) {
+            current.setDescription(previous.getDescription());
+        }
+
+        if (current.getServiceEndpoints() == null) {
+            current.setServiceEndpoints(previous.getServiceEndpoints());
+        }
+
+        if (current.getType() == null) {
+            current.setType(previous.getType());
         }
 
         return current;

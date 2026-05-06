@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
-import {proto} from '@hashgraph/proto';
+import isNil from 'lodash/isNil';
+import {fromBinary} from '@bufbuild/protobuf';
+import {TransactionIDSchema} from '../gen/services/basic_types_pb.js';
 
 import EntityId from '../entityId';
 import {TransactionId} from '../model/index';
@@ -22,7 +23,7 @@ class TopicMessageViewModel {
    * @param {String} messageEncoding the encoding to display the message in
    */
   constructor(topicMessage, messageEncoding) {
-    this.chunk_info = _.isNil(topicMessage.chunkNum) ? null : new ChunkInfoViewModel(topicMessage);
+    this.chunk_info = isNil(topicMessage.chunkNum) ? null : new ChunkInfoViewModel(topicMessage);
     this.consensus_timestamp = nsToSecNs(topicMessage.consensusTimestamp);
     this.message = encodeBinary(topicMessage.message, messageEncoding);
     this.payer_account_id = EntityId.parse(topicMessage.payerAccountId).toString();
@@ -36,8 +37,8 @@ class TopicMessageViewModel {
 class ChunkInfoViewModel {
   constructor(topicMessage) {
     let initialTransactionId;
-    if (!_.isNil(topicMessage.initialTransactionId)) {
-      initialTransactionId = proto.TransactionID.decode(topicMessage.initialTransactionId);
+    if (!isNil(topicMessage.initialTransactionId)) {
+      initialTransactionId = fromBinary(TransactionIDSchema, topicMessage.initialTransactionId);
     } else {
       initialTransactionId = new TransactionId(
         topicMessage.payerAccountId,

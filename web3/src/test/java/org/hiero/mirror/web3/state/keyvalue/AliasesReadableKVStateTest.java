@@ -11,7 +11,6 @@ import static org.mockito.Mockito.when;
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import java.util.Collections;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -180,10 +179,5 @@ class AliasesReadableKVStateTest {
     @Test
     void getExpectedSize() {
         assertThat(aliasesReadableKVState.size()).isZero();
-    }
-
-    @Test
-    void iterateFromDataSourceReturnsEmptyIterator() {
-        assertThat(aliasesReadableKVState.iterateFromDataSource()).isEqualTo(Collections.emptyIterator());
     }
 }

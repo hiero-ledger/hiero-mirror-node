@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.parser.record.historicalbalance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import static org.hiero.mirror.common.domain.balance.AccountBalanceFile.INVALID_NODE_ID;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.domain.entity.EntityType.FILE;
 import static org.hiero.mirror.common.domain.entity.EntityType.UNKNOWN;
@@ -43,7 +42,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.boot.autoconfigure.flyway.FlywayProperties;
+import org.springframework.boot.flyway.autoconfigure.FlywayProperties;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -477,7 +476,6 @@ class HistoricalBalanceServiceIntegrationTest extends ImporterIntegrationTest {
         expectedAccountBalanceFiles.add(AccountBalanceFile.builder()
                 .consensusTimestamp(balanceTimestamp)
                 .count((long) updatedEntities.size())
-                .nodeId(INVALID_NODE_ID)
                 .synthetic(true)
                 .build());
         updatedEntities.forEach(e -> expectedAccountBalances.add(getAccountBalance(balanceTimestamp, e)));

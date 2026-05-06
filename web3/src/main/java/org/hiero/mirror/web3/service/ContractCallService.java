@@ -2,8 +2,10 @@
 
 package org.hiero.mirror.web3.service;
 
+import static java.time.ZoneOffset.UTC;
 import static org.apache.logging.log4j.util.Strings.EMPTY;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
@@ -12,17 +14,20 @@ import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import jakarta.inject.Named;
+import java.time.Instant;
+import java.time.YearMonth;
 import lombok.CustomLog;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
+import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.Suppliers;
+import org.hiero.mirror.web3.viewmodel.BlockType;
 
 @Named
 @CustomLog
@@ -31,6 +36,10 @@ public abstract class ContractCallService {
     static final String EVM_INVOCATION_METRIC = "hiero.mirror.web3.evm.invocation";
     static final String GAS_LIMIT_METRIC = "hiero.mirror.web3.evm.gas.limit";
     static final String GAS_USED_METRIC = "hiero.mirror.web3.evm.gas.used";
+    static final String TAG_BLOCK = "block";
+    static final String TAG_ITERATION = "iteration";
+    static final String TAG_STATUS = "status";
+    static final String TAG_TYPE = "type";
 
     protected final EvmProperties evmProperties;
 
@@ -144,22 +153,33 @@ public abstract class ContractCallService {
 
     protected void validateResult(final EvmTransactionResult txnResult, final CallServiceParameters params) {
         if (!txnResult.isSuccessful()) {
-            var revertReason = txnResult.getErrorMessage().orElse(Bytes.EMPTY);
-            var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReason);
+            var revertReasonHex = txnResult.getErrorMessage().orElse(HEX_PREFIX);
+            var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReasonHex);
             throw new MirrorEvmTransactionException(
-                    txnResult.responseCodeEnum().protoName(), detail, revertReason.toHexString(), txnResult);
+                    txnResult.responseCodeEnum().protoName(), detail, revertReasonHex, txnResult);
         }
     }
 
     protected final void updateMetrics(CallServiceParameters parameters, long gasUsed, int iterations, String status) {
-        var tags = Tags.of("iteration", String.valueOf(iterations))
-                .and("type", parameters.getCallType().toString());
-        invocationCounter.withTags(tags.and("status", status)).increment();
-        gasUsedCounter.withTags(tags).increment(gasUsed);
+        final var block = getBlock();
+        final var callType = parameters.getCallType().toString();
+        final var iterationTag = String.valueOf(iterations);
+        var tags = Tags.of(TAG_STATUS, status, TAG_TYPE, callType);
+        invocationCounter.withTags(tags.and(TAG_BLOCK, block)).increment();
+        gasUsedCounter.withTags(tags.and(TAG_ITERATION, iterationTag)).increment(gasUsed);
     }
 
     protected final void updateGasLimitMetric(final CallServiceParameters parameters) {
-        var tags = Tags.of("type", parameters.getCallType().toString());
-        gasLimitCounter.withTags(tags).increment(parameters.getGas());
+        final var callType = parameters.getCallType().toString();
+        gasLimitCounter.withTag(TAG_TYPE, callType).increment(parameters.getGas());
+    }
+
+    private String getBlock() {
+        return ContractCallContext.get()
+                .getTimestamp()
+                .filter(t -> t <= Utils.getCurrentTimestamp()) // Filter future timestamps to reduce cardinality
+                .map(t ->
+                        YearMonth.from(Instant.ofEpochSecond(0L, t).atZone(UTC)).toString())
+                .orElse(BlockType.LATEST.toString());
     }
 }

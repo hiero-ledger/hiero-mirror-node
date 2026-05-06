@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.25.4-bookworm AS build
+FROM --platform=$BUILDPLATFORM golang:1.26.2-trixie AS build
 ARG TARGETARCH
 ARG TARGETOS
 ARG VERSION=development
@@ -8,7 +8,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X main.Version=${VERSION}" -o rosetta
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 ENV DEBIAN_FRONTEND=noninteractive
 EXPOSE 5700
 HEALTHCHECK --interval=10s --retries=5 --start-period=30s --timeout=2s CMD wget -q -O- http://localhost:5700/health/liveness

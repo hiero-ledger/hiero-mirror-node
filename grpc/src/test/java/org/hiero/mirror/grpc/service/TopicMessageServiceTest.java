@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Sinks;
 import reactor.test.StepVerifier;
 
 @NullUnmarked
@@ -330,7 +331,7 @@ class TopicMessageServiceTest extends GrpcIntegrationTest {
 
     @Test
     void incomingMessagesWithEndTimeBefore() {
-        long endTime = now + 500_000_000L;
+        long endTime = now + 5_000_000_000L;
         var generator = domainBuilder.topicMessages(2, endTime - 2L);
 
         var filter = TopicMessageFilter.builder()
@@ -347,7 +348,7 @@ class TopicMessageServiceTest extends GrpcIntegrationTest {
                 .then(generator::blockLast)
                 .expectNext(1L, 2L)
                 .expectComplete()
-                .verify(Duration.ofMillis(1000));
+                .verify(WAIT);
     }
 
     @Test
@@ -442,6 +443,9 @@ class TopicMessageServiceTest extends GrpcIntegrationTest {
         Mockito.when(topicMessageRetriever.retrieve(
                         ArgumentMatchers.isA(TopicMessageFilter.class), ArgumentMatchers.eq(true)))
                 .thenReturn(Flux.just(topicMessage(1, 0), topicMessage(1, 1), topicMessage(2, 2), topicMessage(1, 3)));
+        Mockito.when(topicMessageRetriever.retrieve(
+                        ArgumentMatchers.isA(TopicMessageFilter.class), ArgumentMatchers.eq(false)))
+                .thenReturn(Flux.empty());
 
         Mockito.when(topicListener.listen(ArgumentMatchers.any())).thenReturn(Flux.empty());
 
@@ -580,6 +584,87 @@ class TopicMessageServiceTest extends GrpcIntegrationTest {
                 .expectNext(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L)
                 .expectComplete()
                 .verify(WAIT);
+    }
+
+    @Test
+    void receivedMessagesBeforeQueryCompletion() {
+        var topicListener = Mockito.mock(TopicListener.class);
+        var entityRepository = Mockito.mock(EntityRepository.class);
+        var topicMessageRetriever = Mockito.mock(TopicMessageRetriever.class);
+        topicMessageService = new TopicMessageServiceImpl(
+                new GrpcProperties(),
+                topicListener,
+                entityRepository,
+                topicMessageRetriever,
+                new SimpleMeterRegistry());
+
+        var filter = TopicMessageFilter.builder().startTime(0).topicId(TOPIC_ID).build();
+        var newFilter = filter.toBuilder().startTime(2L).build();
+
+        var message1 = topicMessage(1);
+        var message2 = topicMessage(2);
+        var message3 = topicMessage(3);
+
+        Mockito.when(entityRepository.findById(filter.getTopicId().getId())).thenReturn(optionalEntity());
+        Mockito.when(topicMessageRetriever.retrieve(
+                        Mockito.any(TopicMessageFilter.class), ArgumentMatchers.anyBoolean()))
+                .thenReturn(Flux.defer(() -> Flux.just(message1).delayElements(Duration.ofMillis(500))));
+        Mockito.when(topicMessageRetriever.retrieve(
+                        ArgumentMatchers.argThat(t -> t.getStartTime() == message1.getConsensusTimestamp() + 1),
+                        ArgumentMatchers.eq(false)))
+                .thenReturn(Flux.just(message2, message3));
+
+        Sinks.Many<TopicMessage> liveSink = Sinks.many().multicast().onBackpressureBuffer();
+        Mockito.when(topicListener.listen(filter)).thenReturn(liveSink.asFlux());
+        Mockito.when(topicListener.listen(newFilter)).thenReturn(Flux.empty());
+
+        StepVerifier.withVirtualTime(
+                        () -> topicMessageService.subscribeTopic(filter).map(TopicMessage::getSequenceNumber))
+                .expectSubscription()
+                .thenAwait(Duration.ofMillis(100)) // We are 100ms into the 500ms DB wait
+                .then(() -> {
+                    // Emit message before the DB query is finished.
+                    log.info("Emit live message 3");
+                    liveSink.tryEmitNext(message3);
+                })
+                .thenAwait(Duration.ofMillis(400)) // Finish the remaining DB wait time
+                .thenAwait(Duration.ofSeconds(1)) // Await the safety check to finish
+                .expectNext(1L, 2L, 3L)
+                .thenCancel()
+                .verify();
+    }
+
+    @Test
+    void receivedMessageBeforeSafetyCheckCompletion() {
+        var topicListener = Mockito.mock(TopicListener.class);
+        var entityRepository = Mockito.mock(EntityRepository.class);
+        var topicMessageRetriever = Mockito.mock(TopicMessageRetriever.class);
+        topicMessageService = new TopicMessageServiceImpl(
+                new GrpcProperties(),
+                topicListener,
+                entityRepository,
+                topicMessageRetriever,
+                new SimpleMeterRegistry());
+
+        var filter = TopicMessageFilter.builder().startTime(0).topicId(TOPIC_ID).build();
+        var newFilter = filter.toBuilder().startTime(2L).build();
+
+        var message1 = topicMessage(1);
+
+        Mockito.when(entityRepository.findById(filter.getTopicId().getId())).thenReturn(optionalEntity());
+        // No historical messages
+        Mockito.when(topicMessageRetriever.retrieve(filter, true)).thenReturn(Flux.empty());
+        // Gap message from the safety check
+        Mockito.when(topicMessageRetriever.retrieve(filter, false)).thenReturn(Flux.just(message1));
+        Mockito.when(topicListener.listen(Mockito.any())).thenReturn(Flux.empty());
+
+        StepVerifier.withVirtualTime(
+                        () -> topicMessageService.subscribeTopic(filter).map(TopicMessage::getSequenceNumber))
+                .expectSubscription()
+                .thenAwait(Duration.ofSeconds(2)) // Await the safety check to finish
+                .expectNext(1L)
+                .thenCancel()
+                .verify();
     }
 
     private void missingMessagesFromListenerTest(TopicMessageFilter filter, Flux<TopicMessage> missingMessages) {

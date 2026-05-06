@@ -13,7 +13,7 @@ import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryTemplate;
 
 @Named
 public class FileClient extends AbstractNetworkClient {

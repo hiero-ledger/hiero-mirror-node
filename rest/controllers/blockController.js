@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import isEmpty from 'lodash/isEmpty';
+import findLast from 'lodash/findLast';
+import last from 'lodash/last';
 
 import BaseController from './baseController';
 import {filterKeys, orderFilterValues, responseDataLabel} from '../constants';
@@ -37,7 +39,7 @@ const validateHashOrNumber = (hashOrNumber) => {
 
 class BlockController extends BaseController {
   extractOrderFromFilters = (filters) => {
-    const order = _.findLast(filters, {key: filterKeys.ORDER});
+    const order = findLast(filters, {key: filterKeys.ORDER});
 
     return order ? orderFilterValues[order.value.toUpperCase()] : orderFilterValues.DESC;
   };
@@ -49,11 +51,11 @@ class BlockController extends BaseController {
         return f.key === filterKeys.BLOCK_NUMBER ? RecordFile.INDEX : RecordFile.CONSENSUS_END;
       })[0];
 
-    return _.isEmpty(orderBy) ? RecordFile.CONSENSUS_END : orderBy;
+    return isEmpty(orderBy) ? RecordFile.CONSENSUS_END : orderBy;
   };
 
   extractLimitFromFilters = (filters) => {
-    const limit = _.findLast(filters, {key: filterKeys.LIMIT});
+    const limit = findLast(filters, {key: filterKeys.LIMIT});
     const maxLimit = getEffectiveMaxLimit();
     return limit ? (limit.value > maxLimit ? defaultLimit : limit.value) : defaultLimit;
   };
@@ -90,7 +92,7 @@ class BlockController extends BaseController {
       ? utils.getPaginationLink(
           req,
           blocks.length !== filters.limit,
-          {[filterKeys.BLOCK_NUMBER]: _.last(blocks).index},
+          {[filterKeys.BLOCK_NUMBER]: last(blocks).index},
           filters.order
         )
       : null;

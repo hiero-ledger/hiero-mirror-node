@@ -4,6 +4,7 @@ package org.hiero.mirror.common.domain.token;
 
 import com.google.common.collect.Range;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
@@ -14,6 +15,7 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
@@ -92,6 +94,8 @@ public class AbstractToken implements History {
     @UpsertColumn(coalesce = "case when {0} >= 0 then {0} else e_{0} + coalesce({0}, {1}) end")
     private Long totalSupply; // Increment with initialSupply and mint amounts, decrement with burn amount
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId treasuryAccountId;
 
     @Column(updatable = false)

@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain.addressbook;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
@@ -28,6 +29,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.NonParsableKeyException;
 import org.springframework.data.domain.Persistable;
@@ -47,6 +49,8 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
 
     private String memo;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId nodeAccountId;
 
     @ToString.Exclude

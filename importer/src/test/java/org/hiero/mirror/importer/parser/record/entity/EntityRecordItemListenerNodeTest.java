@@ -8,7 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.BoolValue;
+import com.hederahashgraph.api.proto.java.AssociatedRegisteredNodeList;
 import com.hederahashgraph.api.proto.java.NodeUpdateTransactionBody;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
@@ -90,25 +92,30 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
 
     @Test
     void nodeCreate() {
-        var recordItem = recordItemBuilder.nodeCreate().build();
-        var nodeCreate = recordItem.getTransactionBody().getNodeCreate();
-        var protoEndpoint = nodeCreate.getGrpcProxyEndpoint();
-        var expectedNode = Node.builder()
-                .accountId(EntityId.of(nodeCreate.getAccountId()))
-                .adminKey(nodeCreate.getAdminKey().toByteArray())
+        // given
+        final var recordItem = recordItemBuilder.nodeCreate().build();
+        final var nodeCreateTxnBody = recordItem.getTransactionBody().getNodeCreate();
+
+        // node expected to be stored in DB as a result of the successful node create transaction
+        final var expectedNode = Node.builder()
+                .accountId(EntityId.of(nodeCreateTxnBody.getAccountId()))
+                .adminKey(nodeCreateTxnBody.getAdminKey().toByteArray())
+                .associatedRegisteredNodes(List.copyOf(nodeCreateTxnBody.getAssociatedRegisteredNodeList()))
                 .createdTimestamp(recordItem.getConsensusTimestamp())
                 .declineReward(false)
                 .grpcProxyEndpoint(ServiceEndpoint.builder()
-                        .domainName(protoEndpoint.getDomainName())
+                        .domainName(nodeCreateTxnBody.getGrpcProxyEndpoint().getDomainName())
                         .ipAddressV4("")
-                        .port(protoEndpoint.getPort())
+                        .port(nodeCreateTxnBody.getGrpcProxyEndpoint().getPort())
                         .build())
                 .nodeId(recordItem.getTransactionRecord().getReceipt().getNodeId())
                 .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                 .build();
 
+        // when
         parseRecordItemAndCommit(recordItem);
 
+        // then
         softly.assertThat(entityRepository.count()).isZero();
         softly.assertThat(transactionRepository.findAll())
                 .hasSize(1)
@@ -121,23 +128,30 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
 
     @Test
     void nodeUpdate() {
-        var recordItem = recordItemBuilder
+        final var registeredNodeId1 = domainBuilder.id();
+        final var registeredNodeId2 = domainBuilder.id();
+        final var recordItem = recordItemBuilder
                 .nodeUpdate()
-                .transactionBody(b -> b.setDeclineReward(BoolValue.of(true)))
+                .transactionBody(b -> b.setDeclineReward(BoolValue.of(true))
+                        .setAssociatedRegisteredNodeList(AssociatedRegisteredNodeList.newBuilder()
+                                .addAssociatedRegisteredNode(registeredNodeId1)
+                                .addAssociatedRegisteredNode(registeredNodeId2)))
                 .build();
-        var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
-        var timestamp = recordItem.getConsensusTimestamp() - 1;
-        var node = domainBuilder
+        final var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
+        final var timestamp = recordItem.getConsensusTimestamp() - 1;
+        final var node = domainBuilder
                 .node()
                 .customize(n -> n.createdTimestamp(timestamp)
                         .declineReward(false)
                         .nodeId(nodeUpdate.getNodeId())
+                        .associatedRegisteredNodes(List.of(registeredNodeId1, registeredNodeId2))
                         .timestampRange(Range.atLeast(timestamp)))
                 .persist();
 
-        var expectedNode = Node.builder()
+        final var expectedNode = Node.builder()
                 .accountId(EntityId.of(nodeUpdate.getAccountId()))
                 .adminKey(nodeUpdate.getAdminKey().toByteArray())
+                .associatedRegisteredNodes(node.getAssociatedRegisteredNodes())
                 .createdTimestamp(node.getCreatedTimestamp())
                 .declineReward(nodeUpdate.getDeclineReward().getValue())
                 .grpcProxyEndpoint(ServiceEndpoint.builder()
@@ -170,6 +184,7 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
                 .nodeUpdate()
                 .transactionBody(b -> b.clearAccountId()
                         .clearAdminKey()
+                        .clearAssociatedRegisteredNodeList()
                         .setGrpcProxyEndpoint(com.hederahashgraph.api.proto.java.ServiceEndpoint.getDefaultInstance()))
                 .build();
         var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
@@ -196,24 +211,30 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
 
     @Test
     void nodeUpdateNoChange() {
-        var recordItem = recordItemBuilder
+        final var registeredNodeId1 = domainBuilder.id();
+        final var registeredNodeId2 = domainBuilder.id();
+        final var recordItem = recordItemBuilder
                 .nodeUpdate()
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearAccountId)
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearAdminKey)
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearDeclineReward)
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearGrpcProxyEndpoint)
+                .transactionBody(b -> b.setAssociatedRegisteredNodeList(AssociatedRegisteredNodeList.newBuilder()
+                        .addAssociatedRegisteredNode(registeredNodeId1)
+                        .addAssociatedRegisteredNode(registeredNodeId2)))
                 .build();
-        var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
-        var timestamp = recordItem.getConsensusTimestamp() - 1;
-        var node = domainBuilder
+        final var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
+        final var timestamp = recordItem.getConsensusTimestamp() - 1;
+        final var node = domainBuilder
                 .node()
                 .customize(n -> n.createdTimestamp(timestamp)
                         .declineReward(true)
                         .nodeId(nodeUpdate.getNodeId())
+                        .associatedRegisteredNodes(List.of(registeredNodeId1, registeredNodeId2))
                         .timestampRange(Range.atLeast(timestamp)))
                 .persist();
 
-        var expectedNode = node.toBuilder()
+        final var expectedNode = node.toBuilder()
                 .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                 .build();
 
@@ -257,6 +278,80 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
                 .returns(recordItem.getTransaction().toByteArray(), Transaction::getTransactionBytes)
                 .returns(recordItem.getTransactionRecord().toByteArray(), Transaction::getTransactionRecordBytes);
         softly.assertThat(nodeRepository.findAll()).containsExactly(deletedNode);
+        softly.assertThat(findHistory(Node.class)).containsExactly(node);
+    }
+
+    @Test
+    void nodeCreateWithAssociatedRegisteredNodes() {
+        final var registeredNodeId1 = domainBuilder.id();
+        final var registeredNodeId2 = domainBuilder.id();
+        final var recordItem = recordItemBuilder
+                .nodeCreate()
+                .transactionBody(b ->
+                        b.addAssociatedRegisteredNode(registeredNodeId1).addAssociatedRegisteredNode(registeredNodeId2))
+                .build();
+        final var nodeCreate = recordItem.getTransactionBody().getNodeCreate();
+        final var protoEndpoint = nodeCreate.getGrpcProxyEndpoint();
+        final var expectedNode = Node.builder()
+                .accountId(EntityId.of(nodeCreate.getAccountId()))
+                .adminKey(nodeCreate.getAdminKey().toByteArray())
+                .associatedRegisteredNodes(List.of(registeredNodeId1, registeredNodeId2))
+                .createdTimestamp(recordItem.getConsensusTimestamp())
+                .declineReward(false)
+                .grpcProxyEndpoint(ServiceEndpoint.builder()
+                        .domainName(protoEndpoint.getDomainName())
+                        .ipAddressV4("")
+                        .port(protoEndpoint.getPort())
+                        .build())
+                .nodeId(recordItem.getTransactionRecord().getReceipt().getNodeId())
+                .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
+                .build();
+
+        parseRecordItemAndCommit(recordItem);
+
+        softly.assertThat(nodeRepository.findAll()).containsExactly(expectedNode);
+    }
+
+    @Test
+    void nodeUpdateWithAssociatedRegisteredNodes() {
+        final var registeredNodeId1 = domainBuilder.id();
+        final var registeredNodeId2 = domainBuilder.id();
+        final var recordItem = recordItemBuilder
+                .nodeUpdate()
+                .transactionBody(b -> b.setAssociatedRegisteredNodeList(AssociatedRegisteredNodeList.newBuilder()
+                        .addAssociatedRegisteredNode(registeredNodeId1)
+                        .addAssociatedRegisteredNode(registeredNodeId2)))
+                .build();
+        final var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
+        final var timestamp = recordItem.getConsensusTimestamp() - 1;
+        final var node = domainBuilder
+                .node()
+                .customize(n -> n.createdTimestamp(timestamp)
+                        .nodeId(nodeUpdate.getNodeId())
+                        .associatedRegisteredNodes(List.of(registeredNodeId1, registeredNodeId2))
+                        .timestampRange(Range.atLeast(timestamp)))
+                .persist();
+
+        final var expectedNode = Node.builder()
+                .accountId(EntityId.of(nodeUpdate.getAccountId()))
+                .adminKey(nodeUpdate.getAdminKey().toByteArray())
+                .associatedRegisteredNodes(node.getAssociatedRegisteredNodes())
+                .createdTimestamp(node.getCreatedTimestamp())
+                .declineReward(nodeUpdate.getDeclineReward().getValue())
+                .grpcProxyEndpoint(ServiceEndpoint.builder()
+                        .domainName(nodeUpdate.getGrpcProxyEndpoint().getDomainName())
+                        .ipAddressV4("")
+                        .port(nodeUpdate.getGrpcProxyEndpoint().getPort())
+                        .build())
+                .nodeId(node.getNodeId())
+                .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
+                .build();
+
+        parseRecordItemAndCommit(recordItem);
+
+        node.setTimestampUpper(recordItem.getConsensusTimestamp());
+
+        softly.assertThat(nodeRepository.findAll()).containsExactly(expectedNode);
         softly.assertThat(findHistory(Node.class)).containsExactly(node);
     }
 }

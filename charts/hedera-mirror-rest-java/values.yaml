@@ -72,26 +72,20 @@ gateway:
           name: "{{ include \"hedera-mirror-rest-java.fullname\" $ }}"
           port: 80
       matches: |
+        {{- if .Values.routes.hooks }}
         - path:
-            type: RegularExpression  # GKE does not yet support RegularExpression type
-            value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/(allowances/nfts|airdrops|hooks)'
+            type: RegularExpression
+            value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/hooks'
         - path:
-            type: RegularExpression  # GKE does not yet support RegularExpression type
+            type: RegularExpression
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/hooks/(0|[1-9]\d*)/storage'
-        - path:
-            type: RegularExpression
-            value: '/api/v1/network/exchangerate'
-        - path:
-            type: RegularExpression
-            value: '/api/v1/network/fees$'
-        - path:
-            type: RegularExpression
-            value: '/api/v1/network/stake$'
-        {{- if .Values.routes.supply }}
-        - path:
-            type: RegularExpression
-            value: '/api/v1/network/supply$'
         {{- end }}
+        - path:
+            type: RegularExpression
+            value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/(allowances/nfts|airdrops)'
+        - path:
+            type: PathPrefix
+            value: '/api/v1/network/'
         - path:
             type: RegularExpression
             value: '/api/v1/topics/(\d+\.){0,2}\d+$'
@@ -139,13 +133,13 @@ ingress:
     - host: ""
       paths:
         # the rest of /api/v1/* is still handled by the Node.js based REST API logic, except for these paths
-        - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/(allowances/nfts|airdrops|hooks)'
+        - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/(allowances/nfts|airdrops)'
+        - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/hooks'
+          condition: '{{ .Values.routes.hooks }}'
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/hooks/(0|[1-9]\d*)/storage'
-        - path: '/api/v1/network/exchangerate'
-        - path: '/api/v1/network/fees$'
-        - path: '/api/v1/network/stake$'
-        - path: '/api/v1/network/supply$'
-          condition: "{{ .Values.routes.supply }}"
+          condition: '{{ .Values.routes.hooks }}'
+        - path: '/api/v1/network/'
+          type: Prefix
         - path: '/api/v1/topics/(\d+\.){0,2}\d+$'
   tls:
     enabled: false
@@ -157,7 +151,7 @@ livenessProbe:
   httpGet:
     path: /actuator/health/liveness
     port: http
-  initialDelaySeconds: 50
+  initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 2
 
@@ -310,7 +304,7 @@ readinessProbe:
   httpGet:
     path: /actuator/health/readiness
     port: http
-  initialDelaySeconds: 40
+  initialDelaySeconds: 0
   timeoutSeconds: 2
 
 # Only set if HPA is disabled
@@ -327,7 +321,7 @@ resources:
 revisionHistoryLimit: 3
 
 routes:
-  supply: true
+  hooks: false
 
 securityContext:
   allowPrivilegeEscalation: false
@@ -348,6 +342,15 @@ serviceAccount:
 serviceMonitor:
   enabled: false
   interval: 30s
+
+startupProbe:
+  failureThreshold: 120
+  httpGet:
+    path: /actuator/health/liveness
+    port: http
+  initialDelaySeconds: 0
+  periodSeconds: 1
+  timeoutSeconds: 2
 
 terminationGracePeriodSeconds: 60
 

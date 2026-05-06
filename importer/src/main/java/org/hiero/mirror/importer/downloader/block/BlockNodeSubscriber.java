@@ -8,6 +8,7 @@ import jakarta.inject.Named;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.downloader.block.scheduler.Scheduler;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
@@ -23,9 +24,10 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
             final BlockStreamReader blockStreamReader,
             final BlockStreamVerifier blockStreamVerifier,
             final CommonDownloaderProperties commonDownloaderProperties,
+            final CutoverService cutoverService,
             final BlockProperties properties,
             final Supplier<Scheduler> schedulerSupplier) {
-        super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, properties);
+        super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, cutoverService, properties);
         scheduler = schedulerSupplier.get();
     }
 

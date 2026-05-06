@@ -13,7 +13,7 @@ import org.hiero.mirror.graphql.viewmodel.Account;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.springframework.boot.test.autoconfigure.graphql.tester.AutoConfigureHttpGraphQlTester;
+import org.springframework.boot.graphql.test.autoconfigure.tester.AutoConfigureHttpGraphQlTester;
 import org.springframework.graphql.ResponseError;
 import org.springframework.graphql.test.tester.HttpGraphQlTester;
 

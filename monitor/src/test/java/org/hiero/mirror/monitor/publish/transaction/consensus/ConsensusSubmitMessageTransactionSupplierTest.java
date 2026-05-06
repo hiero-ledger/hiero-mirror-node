@@ -12,9 +12,9 @@ import org.hiero.mirror.monitor.publish.transaction.AbstractTransactionSupplierT
 import org.hiero.mirror.monitor.publish.transaction.TransactionSupplier;
 import org.junit.jupiter.api.Test;
 
-class ConsensusSubmitMessageTransactionSupplierTest extends AbstractTransactionSupplierTest {
+final class ConsensusSubmitMessageTransactionSupplierTest extends AbstractTransactionSupplierTest {
 
-    private static final Hbar MAX_TRANSACTION_FEE_HBAR = Hbar.fromTinybars(1_000_000);
+    private static final Hbar MAX_TRANSACTION_FEE_HBAR = Hbar.fromTinybars(4_000_000);
 
     @Test
     void createWithMinimumData() {

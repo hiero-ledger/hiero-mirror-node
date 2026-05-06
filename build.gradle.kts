@@ -17,17 +17,16 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.24.2")
-    set("commons-lang3.version", "3.20.0") // Temporary until next Spring Boot
-    set("consensusNodeVersion", "0.70.0-rc.1")
-    set("grpcVersion", "1.78.0")
-    set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
+    set("blockNodeVersion", "0.32.0")
+    set("consensusNodeVersion", "0.73.0")
+    set("grpcVersion", "1.81.0")
+    set("jooq.version", "3.21.2") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
-    set("protobufVersion", "4.33.4")
-    set("springGrpcVersion", "0.12.0")
+    set("postgresql.version", "42.7.11") // Temporary until next Spring Boot
+    set("protobufVersion", "4.34.1")
+    set("springGrpcVersion", "1.0.3")
     set("tuweniVersion", "2.3.1")
-    set("web3jVersion", "5.0.1")
 }
 
 // Creates a platform/BOM with specific versions so subprojects don't need to specify a version when
@@ -42,32 +41,31 @@ dependencies {
         val protobufVersion: String by rootProject.extra
         val springGrpcVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
-        val web3jVersion: String by rootProject.extra
 
         api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:13.3.1")
+        api("com.github.luben:zstd-jni:1.5.7-8")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.guava:guava:33.5.0-jre")
+        api("com.google.guava:guava:33.6.0-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
-        api("com.graphql-java-generator:graphql-java-client-runtime:3.1")
+        api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.7.11")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.66.0")
+        api("com.hedera.hashgraph:sdk:2.71.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
-        api("commons-io:commons-io:2.21.0")
-        api("io.cucumber:cucumber-bom:7.23.0")
-        api("io.fabric8:kubernetes-client-bom:7.5.1")
-        api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
+        api("commons-io:commons-io:2.22.0")
+        api("io.cucumber:cucumber-bom:7.34.3")
+        api("io.fabric8:kubernetes-client-bom:7.6.1")
+        api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-63:3.14.1")
-        api("io.projectreactor:reactor-core-micrometer:1.2.12")
-        api("io.vertx:vertx-web:4.5.22") // Temporary until next Fabric8 version
+        api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.2")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("net.java.dev.jna:jna:5.18.1")
         api("org.apache.commons:commons-collections4:4.5.0")
@@ -76,8 +74,10 @@ dependencies {
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
-        api("org.gaul:s3proxy:3.0.0")
-        api("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
+        api("org.bouncycastle:bcpkix-jdk18on:1.84") // Temporary until next hedera-app
+        api("org.bouncycastle:bcprov-jdk18on:1.84")
+        api("org.gaul:s3proxy:3.1.0")
+        api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
         api("org.hyperledger.besu:evm:$besuVersion")
@@ -86,8 +86,8 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.11")
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
-        api("org.web3j:core:$web3jVersion")
-        api("software.amazon.awssdk:bom:2.41.10")
+        api("org.web3j:core:5.0.2")
+        api("software.amazon.awssdk:bom:2.44.0")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
@@ -164,6 +164,8 @@ spotless {
         target("rest/**/*.js", "tools/**/*.js")
         targetExclude(
             "**/build/**",
+            "**/buildDist/**",
+            "**/dist/**",
             "**/node_modules/**",
             "**/__tests__/integration/*.spec.test.js",
             "tools/mirror-report/index.js",

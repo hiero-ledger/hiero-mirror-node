@@ -12,7 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
  * Copy HIP-679 bucket structured files and configure the stream file provider to access S3 using
  * the new consensus node ID based hierarchy rather than the legacy node account ID mechanism.
  */
-class NodeIdS3StreamProviderTest extends AbstractHip679S3StreamFileProviderTest {
+final class NodeIdS3StreamProviderTest extends AbstractHip679S3StreamFileProviderTest {
 
     @Override
     @BeforeEach

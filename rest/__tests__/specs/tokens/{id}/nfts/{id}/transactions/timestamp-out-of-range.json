@@ -58,7 +58,8 @@
             "is_approval": true
           }
         ],
-        "entity_id": "0.0.1500"
+        "entity_id": "0.0.1500",
+        "high_volume": false
       },
       {
         "name": "CRYPTOTRANSFER",
@@ -127,7 +128,8 @@
         "treasuryAccountId": "0.0.98",
         "transfers": [],
         "nft_transfer": [],
-        "entity_id": "0.0.1500"
+        "entity_id": "0.0.1500",
+        "high_volume": false
       }
     ],
     "nfts": [

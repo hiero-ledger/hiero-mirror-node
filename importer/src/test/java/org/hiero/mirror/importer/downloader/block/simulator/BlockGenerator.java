@@ -11,6 +11,7 @@ import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
+import com.hedera.hapi.block.stream.protoc.TssSignedBlockProof;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.time.Duration;
 import java.time.Instant;
@@ -19,10 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
-import org.apache.commons.codec.binary.Hex;
 import org.hiero.block.api.protoc.BlockItemSet;
-import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
-import org.hiero.mirror.importer.reader.block.BlockRootHashDigest;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
+import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
 import org.hiero.mirror.importer.util.Utility;
 
 public final class BlockGenerator {
@@ -63,7 +63,7 @@ public final class BlockGenerator {
     private void calculateBlockRootHash(BlockItemSet block) {
         var blockRootHashDigest = new BlockRootHashDigest();
         block.getBlockItemsList().forEach(blockRootHashDigest::addBlockItem);
-        previousBlockRootHash = Hex.decodeHex(blockRootHashDigest.digest());
+        previousBlockRootHash = blockRootHashDigest.digest();
     }
 
     private BlockRecord next() {
@@ -135,7 +135,9 @@ public final class BlockGenerator {
 
     private static BlockItem blockProof(final long blockNumber) {
         return BlockItem.newBuilder()
-                .setBlockProof(BlockProof.newBuilder().setBlock(blockNumber))
+                .setBlockProof(BlockProof.newBuilder()
+                        .setBlock(blockNumber)
+                        .setSignedBlockProof(TssSignedBlockProof.getDefaultInstance()))
                 .build();
     }
 }

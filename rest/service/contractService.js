@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import isEmpty from 'lodash/isEmpty';
+import range from 'lodash/range';
 
 import BaseService from './baseService';
 import {getResponseLimit} from '../config';
@@ -22,7 +23,6 @@ import {
 } from '../model';
 import ContractTransaction from '../model/contractTransaction';
 import {RecordFileService} from './index';
-
 const {default: defaultLimit} = getResponseLimit();
 const contractLogsFields = `${ContractLog.getFullName(ContractLog.BLOOM)},
 ${ContractLog.getFullName(ContractLog.CONTRACT_ID)},
@@ -178,6 +178,7 @@ class ContractService extends BaseService {
 
   static ethereumTransactionByPayerAndTimestampArrayQuery = `select
         encode(${EthereumTransaction.ACCESS_LIST}, 'hex') ${EthereumTransaction.ACCESS_LIST},
+        ${EthereumTransaction.AUTHORIZATION_LIST},
         encode(${EthereumTransaction.CHAIN_ID}, 'hex') ${EthereumTransaction.CHAIN_ID},
         ${EthereumTransaction.CONSENSUS_TIMESTAMP},
         encode(${EthereumTransaction.GAS_PRICE}, 'hex') ${EthereumTransaction.GAS_PRICE},
@@ -270,7 +271,7 @@ class ContractService extends BaseService {
     let timestampsOpAndValue = '= $1';
     if (Array.isArray(timestamps)) {
       params = timestamps;
-      const positions = _.range(1, timestamps.length + 1).map((i) => `$${i}`);
+      const positions = range(1, timestamps.length + 1).map((i) => `$${i}`);
       timestampsOpAndValue = `in (${positions})`;
     }
     const conditions = [`${ContractResult.CONSENSUS_TIMESTAMP} ${timestampsOpAndValue}`];
@@ -311,7 +312,7 @@ class ContractService extends BaseService {
       return null;
     }
     const contractDetails = await super.getSingleRow(ContractService.involvedContractsQuery, [timestamp, contractId]);
-    return _.isNull(contractDetails) ? null : new ContractTransaction(contractDetails);
+    return contractDetails === null ? null : new ContractTransaction(contractDetails);
   }
 
   /**
@@ -396,7 +397,7 @@ class ContractService extends BaseService {
     let timestampsOpAndValue = '= $1';
     if (Array.isArray(timestamps)) {
       params = timestamps;
-      const positions = _.range(1, timestamps.length + 1).map((i) => `$${i}`);
+      const positions = range(1, timestamps.length + 1).map((i) => `$${i}`);
       timestampsOpAndValue = `in (${positions})`;
     }
 
@@ -417,7 +418,7 @@ class ContractService extends BaseService {
     let timestampsOpAndValue = '= $1';
     if (Array.isArray(timestamps)) {
       params = timestamps;
-      const positions = _.range(1, timestamps.length + 1).map((i) => `$${i}`);
+      const positions = range(1, timestamps.length + 1).map((i) => `$${i}`);
       timestampsOpAndValue = `in (${positions})`;
     }
 
@@ -517,7 +518,7 @@ class ContractService extends BaseService {
    */
   async getEthereumTransactionsByPayerAndTimestampArray(payers, timestamps) {
     const transactionMap = new Map();
-    if (_.isEmpty(payers) || _.isEmpty(timestamps)) {
+    if (isEmpty(payers) || isEmpty(timestamps)) {
       return transactionMap;
     }
 

@@ -61,7 +61,7 @@ You'll need the following tools in your development environment:
 - [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 - [gcloud](https://cloud.google.com/sdk/gcloud/)
 - [grpcurl](https://github.com/fullstorydev/grpcurl)
-- [Helm 3](https://helm.sh/)
+- [Helm](https://helm.sh/)
 - [kubectl](https://kubernetes.io/docs/reference/kubectl/overview/)
 
 > **NOTE:** We recommend using a `kubectl` version that is the same as the version of your cluster. Using the same

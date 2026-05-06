@@ -194,7 +194,7 @@ func (c Client) Submit(
 
 	trySubmit := func() (bool, *types.Error, error) {
 		// preprocess
-		metadata := make(map[string]interface{})
+		metadata := make(map[string]any)
 		if len(memo) != 0 {
 			metadata["memo"] = memo
 		}

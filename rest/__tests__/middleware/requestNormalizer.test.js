@@ -6,7 +6,7 @@ import {openApiValidator} from '../../middleware/index.js';
 import express from 'express';
 
 const app = express();
-openApiValidator(app);
+await openApiValidator(app);
 
 describe('request normalizer', () => {
   const testSpecs = [

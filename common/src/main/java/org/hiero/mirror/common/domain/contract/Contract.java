@@ -3,12 +3,14 @@
 package org.hiero.mirror.common.domain.contract;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
 @Data
@@ -17,6 +19,8 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 @SuperBuilder
 public class Contract {
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     @Column(updatable = false)
     private EntityId fileId;
 

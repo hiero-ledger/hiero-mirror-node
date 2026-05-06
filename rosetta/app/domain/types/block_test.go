@@ -41,7 +41,7 @@ func expectedBlock() *types.Block {
 			{
 				TransactionIdentifier: &types.TransactionIdentifier{Hash: "somehash"},
 				Operations:            []*types.Operation{},
-				Metadata:              map[string]interface{}{},
+				Metadata:              map[string]any{},
 			},
 		},
 	}

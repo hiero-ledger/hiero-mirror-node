@@ -19,7 +19,7 @@ func TestAddErrorDetails(t *testing.T) {
 		Code:      0,
 		Message:   "foobar1",
 		Retriable: false,
-		Details: map[string]interface{}{
+		Details: map[string]any{
 			"name": "value",
 		},
 	}

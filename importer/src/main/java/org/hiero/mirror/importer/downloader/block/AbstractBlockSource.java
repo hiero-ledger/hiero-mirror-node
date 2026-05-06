@@ -2,9 +2,12 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.jspecify.annotations.NullMarked;
@@ -18,12 +21,13 @@ abstract class AbstractBlockSource implements BlockSource {
     protected final BlockStreamReader blockStreamReader;
     protected final BlockStreamVerifier blockStreamVerifier;
     protected final CommonDownloaderProperties commonDownloaderProperties;
+    protected final CutoverService cutoverService;
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final BlockProperties properties;
 
     @Override
     public final void get() {
-        final long blockNumber = blockStreamVerifier.getNextBlockNumber();
+        final long blockNumber = getNextBlockNumber();
         if (shouldGetBlock(blockNumber)) {
             doGet(
                     blockNumber,
@@ -37,7 +41,12 @@ abstract class AbstractBlockSource implements BlockSource {
         var blockFile = blockStreamReader.read(blockStream);
         if (!properties.isPersistBytes()) {
             blockFile.setBytes(null);
+
+            if (blockFile.hasRecordFile()) {
+                blockFile.getRecordFile().setBytes(null);
+            }
         }
+
         blockFile.setNode(blockNode);
         blockStreamVerifier.verify(blockFile);
         return blockFile;
@@ -47,5 +56,15 @@ abstract class AbstractBlockSource implements BlockSource {
         final var endBlockNumber =
                 commonDownloaderProperties.getImporterProperties().getEndBlockNumber();
         return endBlockNumber == null || blockNumber <= endBlockNumber;
+    }
+
+    private long getNextBlockNumber() {
+        return cutoverService
+                .getLastRecordFile()
+                .map(RecordFile::getIndex)
+                .map(v -> v + 1)
+                .or(() -> Optional.ofNullable(
+                        commonDownloaderProperties.getImporterProperties().getStartBlockNumber()))
+                .orElse(GENESIS_BLOCK_NUMBER);
     }
 }

@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
+import static org.hiero.mirror.common.domain.node.RegisteredNodeType.BLOCK_NODE;
 import static org.hiero.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 
 import com.google.common.collect.Range;
@@ -25,11 +26,15 @@ import com.hederahashgraph.api.proto.java.TransactionID;
 import jakarta.persistence.EntityManager;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.security.KeyPairGenerator;
 import java.security.SecureRandom;
+import java.security.Security;
+import java.security.spec.ECGenParameterSpec;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -43,8 +48,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -84,6 +90,9 @@ import org.hiero.mirror.common.domain.job.ReconciliationJob;
 import org.hiero.mirror.common.domain.job.ReconciliationStatus;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.NodeHistory;
+import org.hiero.mirror.common.domain.node.RegisteredNode;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -113,6 +122,7 @@ import org.hiero.mirror.common.domain.topic.TopicHistory;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.domain.topic.TopicMessageLookup;
 import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
+import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
@@ -126,13 +136,14 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.domain.tss.Ledger;
+import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionOperations;
-import org.web3j.crypto.Keys;
-import org.web3j.utils.Numeric;
 
 @Component
 @CustomLog
@@ -144,6 +155,10 @@ public class DomainBuilder {
     public static final int KEY_LENGTH_ED25519 = 32;
 
     private static final long LAST_RESERVED_ID = 1000;
+
+    static {
+        Security.addProvider(new BouncyCastleProvider());
+    }
 
     private final CommonProperties commonProperties;
     private final EntityManager entityManager;
@@ -176,7 +191,6 @@ public class DomainBuilder {
                 .loadEnd(timestamp + 1)
                 .loadStart(timestamp)
                 .name(name)
-                .nodeId(number())
                 .timeOffset(0);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
@@ -204,7 +218,7 @@ public class DomainBuilder {
                 .memo(text(10))
                 .nodeId(nodeId)
                 .nodeAccountId(entityNum(nodeId + 3))
-                .nodeCertHash(bytes(96))
+                .nodeCertHash(hexBytes(96))
                 .publicKey(text(64))
                 .stake(0L);
 
@@ -292,7 +306,8 @@ public class DomainBuilder {
                 .topic2(bytes(64))
                 .topic3(bytes(64))
                 .transactionHash(bytes(48))
-                .transactionIndex(transactionIndex());
+                .transactionIndex(transactionIndex())
+                .synthetic(false);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -431,6 +446,7 @@ public class DomainBuilder {
                 .createdTimestamp(createdTimestamp)
                 .declineReward(false)
                 .deleted(false)
+                .delegationAddress(bytes(20))
                 .ethereumNonce(1L)
                 .evmAddress(evmAddress())
                 .expirationTimestamp(createdTimestamp + 30_000_000L)
@@ -476,6 +492,7 @@ public class DomainBuilder {
                 .createdTimestamp(createdTimestamp)
                 .declineReward(false)
                 .deleted(false)
+                .delegationAddress(bytes(20))
                 .ethereumNonce(1L)
                 .evmAddress(evmAddress())
                 .expirationTimestamp(createdTimestamp + 30_000_000L)
@@ -544,6 +561,7 @@ public class DomainBuilder {
             boolean hasInitCode) {
         var builder = EthereumTransaction.builder()
                 .accessList(bytes(100))
+                .authorizationList(authorizationList())
                 .chainId(bytes(1))
                 .consensusTimestamp(timestamp())
                 .data(bytes(100))
@@ -633,6 +651,26 @@ public class DomainBuilder {
                 .ownerId(id())
                 .valueRead(value)
                 .valueWritten(value);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<Ledger, Ledger.LedgerBuilder<?, ?>> ledger() {
+        final var nodeContributions = new ArrayList<LedgerNodeContribution>(List.of(
+                LedgerNodeContribution.builder()
+                        .historyProofKey(bytes(48))
+                        .nodeId(number())
+                        .weight(number())
+                        .build(),
+                LedgerNodeContribution.builder()
+                        .historyProofKey(bytes(48))
+                        .nodeId(number())
+                        .weight(number())
+                        .build()));
+        final var builder = Ledger.builder()
+                .consensusTimestamp(timestamp())
+                .historyProofVerificationKey(bytes(64))
+                .ledgerId(bytes(32))
+                .nodeContributions(nodeContributions);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -739,6 +777,7 @@ public class DomainBuilder {
         var builder = Node.builder()
                 .accountId(entityId())
                 .adminKey(key())
+                .associatedRegisteredNodes(List.of(number(), number()))
                 .createdTimestamp(timestamp)
                 .declineReward(false)
                 .deleted(false)
@@ -766,6 +805,28 @@ public class DomainBuilder {
                         .build())
                 .nodeId(number())
                 .timestampRange(Range.closedOpen(timestamp, timestamp + 10));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<RegisteredNode, RegisteredNode.RegisteredNodeBuilder<?, ?>> registeredNode() {
+        final long timestamp = timestamp();
+        final long nodeId = number();
+        final var builder = RegisteredNode.builder()
+                .adminKey(key())
+                .createdTimestamp(timestamp)
+                .deleted(false)
+                .description("node-" + nodeId)
+                .registeredNodeId(nodeId)
+                .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApis(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
+                                .build())
+                        .ipAddress("127.0.0.1")
+                        .port(443)
+                        .requiresTls(true)
+                        .build()))
+                .timestampRange(Range.atLeast(timestamp))
+                .type(List.of(BLOCK_NODE.getId()));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -833,7 +894,6 @@ public class DomainBuilder {
                 .loadEnd(now.toEpochMilli() + 1000L)
                 .loadStart(now.toEpochMilli())
                 .name(instantString + ".rcd.gz")
-                .nodeId(number())
                 .previousHash(hash(96))
                 .roundEnd(round)
                 .roundStart(round)
@@ -1134,8 +1194,11 @@ public class DomainBuilder {
     public DomainWrapper<Transaction, Transaction.TransactionBuilder> transaction() {
         var builder = Transaction.builder()
                 .chargedTxFee(10000000L)
+                .congestionPricingMultiplier(id())
                 .consensusTimestamp(timestamp())
                 .entityId(entityId())
+                .highVolume(false)
+                .highVolumePricingMultiplier(1L)
                 .index(transactionIndex())
                 .initialBalance(10000000L)
                 .itemizedTransfer(List.of(ItemizedTransfer.builder()
@@ -1183,7 +1246,7 @@ public class DomainBuilder {
     }
 
     public byte[] bloomFilter() {
-        return bytes(LogsBloomAggregator.BYTE_SIZE);
+        return bytes(LogsBloomFilter.BYTE_SIZE);
     }
 
     // Helper methods
@@ -1191,6 +1254,15 @@ public class DomainBuilder {
         byte[] bytes = new byte[length];
         random.nextBytes(bytes);
         return bytes;
+    }
+
+    public byte[] hexBytes(int length) {
+        var hexChars = "0123456789abcdef";
+        var result = new byte[length];
+        for (int i = 0; i < length; i++) {
+            result[i] = (byte) hexChars.charAt(random.nextInt(hexChars.length()));
+        }
+        return result;
     }
 
     public EntityId entityId() {
@@ -1204,6 +1276,17 @@ public class DomainBuilder {
 
     public byte[] evmAddress() {
         return bytes(20);
+    }
+
+    public List<Authorization> authorizationList() {
+        return List.of(Authorization.builder()
+                .address("0x" + hash(40))
+                .chainId("0x1")
+                .nonce(number())
+                .r("0x" + hash(64))
+                .s("0x" + hash(64))
+                .yParity(0x01)
+                .build());
     }
 
     public FixedFee fixedFee() {
@@ -1275,9 +1358,10 @@ public class DomainBuilder {
 
     public Timestamp protoTimestamp() {
         long timestamp = timestamp();
+        int nanos = Math.toIntExact(timestamp % DomainUtils.NANOS_PER_SECOND);
         return Timestamp.newBuilder()
                 .setSeconds(timestamp / DomainUtils.NANOS_PER_SECOND)
-                .setNanos((int) (timestamp % DomainUtils.NANOS_PER_SECOND))
+                .setNanos(nanos)
                 .build();
     }
 
@@ -1347,11 +1431,13 @@ public class DomainBuilder {
 
     @SneakyThrows
     private ByteString generateSecp256k1Key() {
-        var keyPair = Keys.createEcKeyPair();
-        var publicKey = keyPair.getPublicKey();
+        final var keyPairGenerator = KeyPairGenerator.getInstance("EC", "BC");
+        keyPairGenerator.initialize(new ECGenParameterSpec("secp256k1"));
+        final var keyPair = keyPairGenerator.generateKeyPair();
 
-        // Convert BigInteger public key to a full 65-byte uncompressed key
-        var fullPublicKey = Numeric.hexStringToByteArray(Numeric.toHexStringWithPrefixZeroPadded(publicKey, 130));
+        // Extract the public key bytes (BouncyCastle gives us the 65-byte uncompressed key)
+        final var bcPublicKey = (BCECPublicKey) keyPair.getPublic();
+        final var fullPublicKey = bcPublicKey.getQ().getEncoded(false); // false = uncompressed (65 bytes)
 
         // Convert to compressed format (33 bytes)
         var prefix = (byte) (fullPublicKey[64] % 2 == 0 ? 0x02 : 0x03); // 0x02 for even Y, 0x03 for odd Y

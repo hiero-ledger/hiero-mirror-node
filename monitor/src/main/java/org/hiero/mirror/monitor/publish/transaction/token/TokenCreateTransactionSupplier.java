@@ -11,7 +11,7 @@ import com.hedera.hashgraph.sdk.TokenType;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.security.SecureRandom;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.Data;
 import org.hiero.mirror.monitor.publish.transaction.AdminKeyable;
 import org.hiero.mirror.monitor.publish.transaction.TransactionSupplier;
@@ -19,8 +19,6 @@ import org.hiero.mirror.monitor.util.Utility;
 
 @Data
 public class TokenCreateTransactionSupplier implements TransactionSupplier<TokenCreateTransaction>, AdminKeyable {
-
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     private String adminKey;
 
@@ -42,7 +40,8 @@ public class TokenCreateTransactionSupplier implements TransactionSupplier<Token
     private TokenSupplyType supplyType = TokenSupplyType.INFINITE;
 
     @NotBlank
-    private String symbol = RANDOM.ints(5, 'A', 'Z')
+    private String symbol = ThreadLocalRandom.current()
+            .ints(5, 'A', 'Z')
             .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
             .toString();
 

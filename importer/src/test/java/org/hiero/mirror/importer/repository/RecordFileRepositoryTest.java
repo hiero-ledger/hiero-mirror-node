@@ -9,18 +9,28 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @RequiredArgsConstructor
-class RecordFileRepositoryTest extends ImporterIntegrationTest {
+final class RecordFileRepositoryTest extends ImporterIntegrationTest {
 
     private final RecordFileRepository recordFileRepository;
 
-    @Test
-    void findFirst() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void findFirst(final boolean hasPreviousWrappedRecordBlockHash) {
         // empty
         assertThat(recordFileRepository.findFirst()).isEmpty();
 
-        var first = domainBuilder.recordFile().persist();
+        var first = domainBuilder
+                .recordFile()
+                .customize(rf -> {
+                    if (hasPreviousWrappedRecordBlockHash) {
+                        rf.previousWrappedRecordBlockHash(domainBuilder.bytes(48));
+                    }
+                })
+                .persist();
         assertThat(recordFileRepository.findFirst()).get().isEqualTo(first);
 
         // first stays the same

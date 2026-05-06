@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.file;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
@@ -10,6 +11,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.springframework.data.domain.Persistable;
@@ -28,6 +30,8 @@ public class FileData implements Persistable<Long> {
     @SuppressWarnings("java:S1700")
     private byte[] fileData;
 
+    // Specify converter explicitly so translation works with native image
+    @Convert(converter = EntityIdConverter.class)
     private EntityId entityId;
 
     private Integer transactionType;

@@ -13,7 +13,7 @@ import org.hiero.mirror.importer.EnabledIfV2;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.flyway.FlywayProperties;
+import org.springframework.boot.flyway.autoconfigure.FlywayProperties;
 import org.springframework.jdbc.core.DataClassRowMapper;
 
 @RequiredArgsConstructor

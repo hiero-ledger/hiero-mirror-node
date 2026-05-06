@@ -8,8 +8,10 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
+import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.downloader.block.tss.LedgerProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
@@ -17,14 +19,22 @@ import org.springframework.validation.annotation.Validated;
 @Component("blockProperties")
 @ConfigurationProperties("hiero.mirror.importer.block")
 @Data
-@RequiredArgsConstructor
 @Validated
 public class BlockProperties {
+
+    private final ImporterProperties importerProperties;
+
+    private boolean autoDiscoveryEnabled = true;
+
+    private String bucketName;
 
     private boolean enabled = false;
 
     @NotNull
     private Duration frequency = Duration.ofMillis(100L);
+
+    @Valid
+    private LedgerProperties ledger;
 
     @NotNull
     @Valid
@@ -44,4 +54,10 @@ public class BlockProperties {
     private StreamProperties stream = new StreamProperties();
 
     private boolean writeFiles = false;
+
+    public String getBucketName() {
+        return StringUtils.isNotBlank(bucketName)
+                ? bucketName
+                : ImporterProperties.HederaNetwork.getBlockStreamBucketName(importerProperties.getNetwork());
+    }
 }

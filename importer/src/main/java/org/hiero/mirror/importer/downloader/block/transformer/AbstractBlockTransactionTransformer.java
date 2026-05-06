@@ -3,9 +3,6 @@
 package org.hiero.mirror.importer.downloader.block.transformer;
 
 import static org.hiero.mirror.common.util.DomainUtils.normalize;
-import static org.hiero.mirror.importer.downloader.block.transformer.Utils.asInitcode;
-import static org.hiero.mirror.importer.downloader.block.transformer.Utils.bloomFor;
-import static org.hiero.mirror.importer.downloader.block.transformer.Utils.bloomForAll;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
@@ -13,6 +10,7 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.trace.protoc.ContractSlotUsage;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
+import com.hedera.hapi.block.stream.trace.protoc.InitcodeBookends;
 import com.hedera.hapi.block.stream.trace.protoc.SlotRead;
 import com.hedera.services.stream.proto.ContractActions;
 import com.hedera.services.stream.proto.ContractBytecode;
@@ -38,8 +36,8 @@ import org.hiero.mirror.common.domain.transaction.ContractSlotKey;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.SlotValue;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.util.Utility;
-import org.hyperledger.besu.evm.log.LogsBloomFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,19 +45,22 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
-    public void transform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockTransaction = blockTransactionTransformation.blockTransaction();
-        var transactionBody = blockTransactionTransformation.getTransactionBody();
-        var transactionResult = blockTransaction.getTransactionResult();
-        var receiptBuilder = TransactionReceipt.newBuilder().setStatus(transactionResult.getStatus());
-        var recordBuilder = blockTransactionTransformation
+    public void transform(final BlockTransactionTransformation blockTransactionTransformation) {
+        final var blockTransaction = blockTransactionTransformation.blockTransaction();
+        final var transactionBody = blockTransactionTransformation.getTransactionBody();
+        final var transactionResult = blockTransaction.getTransactionResult();
+        final var recordItemBuilder = blockTransactionTransformation
                 .recordItemBuilder()
+                .congestionPricingMultiplier(transactionResult.getCongestionPricingMultiplier());
+        final var receiptBuilder = TransactionReceipt.newBuilder().setStatus(transactionResult.getStatus());
+        var recordBuilder = recordItemBuilder
                 .transactionRecordBuilder()
                 .addAllAssessedCustomFees(transactionResult.getAssessedCustomFeesList())
                 .addAllAutomaticTokenAssociations(transactionResult.getAutomaticTokenAssociationsList())
                 .addAllPaidStakingRewards(transactionResult.getPaidStakingRewardsList())
                 .addAllTokenTransferLists(transactionResult.getTokenTransferListsList())
                 .setConsensusTimestamp(transactionResult.getConsensusTimestamp())
+                .setHighVolumePricingMultiplier(transactionResult.getHighVolumePricingMultiplier())
                 .setMemo(transactionBody.getMemo())
                 .setReceipt(receiptBuilder)
                 .setTransactionFee(transactionResult.getTransactionFeeCharged())
@@ -198,12 +199,17 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         }
 
         var evmTransactionLogs = evmTraceData.getLogsList();
-        var bloomFilters = new ArrayList<LogsBloomFilter>(evmTransactionLogs.size());
-        for (var evmTransactionLog : evmTransactionLogs) {
-            var bloomFilter = bloomFor(evmTransactionLog);
-            bloomFilters.add(bloomFilter);
+        final var logsBloomFilter = new LogsBloomFilter();
+
+        for (final var evmTransactionLog : evmTransactionLogs) {
+            final var logsBloomFilterInner = new LogsBloomFilter();
+            final var evmAddress = DomainUtils.toEvmAddress(evmTransactionLog.getContractId());
+            logsBloomFilterInner.insertAddress(evmAddress);
+            evmTransactionLog.getTopicsList().forEach(logsBloomFilterInner::insertTopic);
+            logsBloomFilter.or(logsBloomFilterInner);
+
             var logInfo = ContractLoginfo.newBuilder()
-                    .setBloom(DomainUtils.fromBytes(bloomFilter.toArray()))
+                    .setBloom(logsBloomFilterInner.toByteString())
                     .setContractID(evmTransactionLog.getContractId())
                     .setData(evmTransactionLog.getData())
                     .addAllTopic(evmTransactionLog.getTopicsList())
@@ -211,8 +217,21 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             contractResultBuilder.addLogInfo(logInfo);
         }
 
-        contractResultBuilder.setBloom(
-                DomainUtils.fromBytes(bloomForAll(bloomFilters).toArray()));
+        contractResultBuilder.setBloom(logsBloomFilter.toByteString());
+    }
+
+    ByteString asInitcode(InitcodeBookends initcodeBookends, ByteString runtimeBytecode) {
+        var initcode = runtimeBytecode;
+
+        if (!initcodeBookends.getDeployBytecode().isEmpty()) {
+            initcode = initcodeBookends.getDeployBytecode().concat(initcode);
+        }
+
+        if (!initcodeBookends.getMetadataBytecode().isEmpty()) {
+            initcode = initcode.concat(initcodeBookends.getMetadataBytecode());
+        }
+
+        return initcode;
     }
 
     private void transformContractActions(

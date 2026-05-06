@@ -8,6 +8,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -37,6 +38,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConversionException;
+import org.springframework.validation.BindException;
 import org.springframework.validation.Errors;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
@@ -64,7 +66,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     private final RestJavaProperties properties;
 
     @Bean
-    @SuppressWarnings("java:S5122") // Make sure that enabling CORS is safe here.
+    @SuppressWarnings("java:S5122")
     WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
@@ -87,6 +89,11 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         final var detail = "Failed to convert '%s'".formatted(e.getPropertyName());
         var problem = ProblemDetail.forStatusAndDetail(BAD_REQUEST, detail);
         return handleExceptionInternal(e, problem, null, BAD_REQUEST, request);
+    }
+
+    @ExceptionHandler(BindException.class)
+    private ResponseEntity<Object> bindException(final BindException e, final WebRequest request) {
+        return handleExceptionInternal(e, null, null, BAD_REQUEST, request);
     }
 
     @ExceptionHandler({
@@ -134,6 +141,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
         Error errorResponse =
                 switch (ex) {
+                    case BindException e -> bindExceptionResponse(e);
                     case Errors errors -> errorResponse(errors.getAllErrors());
                     case MethodValidationResult errors -> errorResponse(errors.getAllErrors());
                     default -> {
@@ -149,21 +157,46 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         return new ResponseEntity<>(errorResponse, headers, statusCode);
     }
 
+    private Error bindExceptionResponse(BindException e) {
+        var messages = e.getBindingResult().getAllErrors().stream()
+                .map(this::formatBindingErrorMessage)
+                .map(ErrorStatusMessagesInner.class::cast)
+                .toList();
+        var errorStatus = new ErrorStatus().messages(messages);
+        return new Error().status(errorStatus);
+    }
+
     private Error errorResponse(List<? extends MessageSourceResolvable> errors) {
-        var messages = errors.stream().map(this::formatErrorMessage).toList();
+        var messages = errors.stream()
+                .map(this::formatErrorMessage)
+                .map(ErrorStatusMessagesInner.class::cast)
+                .toList();
         var errorStatus = new ErrorStatus().messages(messages);
         return new Error().status(errorStatus);
     }
 
     private Error errorResponse(final String message, final String detail) {
-        var errorMessage = new ErrorStatusMessagesInner();
+        var errorMessage = new ErrorMessage();
         errorMessage.setDetail(detail);
         errorMessage.setMessage(message);
         var errorStatus = new ErrorStatus().addMessagesItem(errorMessage);
         return new Error().status(errorStatus);
     }
 
-    private ErrorStatusMessagesInner formatErrorMessage(MessageSourceResolvable error) {
+    private ErrorMessage formatBindingErrorMessage(MessageSourceResolvable error) {
+        var detail = error.getDefaultMessage();
+        if (error instanceof FieldError fieldError) {
+            detail = "Invalid parameter: " + fieldError.getField();
+        } else if (error instanceof DefaultMessageSourceResolvable resolvable && !(error instanceof ObjectError)) {
+            detail = messageSource.getMessage(resolvable, Locale.getDefault());
+        }
+
+        var errorMessage = new ErrorMessage();
+        errorMessage.setMessage(detail);
+        return errorMessage;
+    }
+
+    private ErrorMessage formatErrorMessage(MessageSourceResolvable error) {
         var detail = error.getDefaultMessage();
 
         if (error instanceof FieldError fieldError) {
@@ -172,9 +205,28 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
             detail = messageSource.getMessage(resolvable, Locale.getDefault());
         }
 
-        return new ErrorStatusMessagesInner()
-                .message(BAD_REQUEST.getReasonPhrase())
-                .detail(detail);
+        var errorMessage = new ErrorMessage();
+        errorMessage.setMessage(BAD_REQUEST.getReasonPhrase());
+        errorMessage.setDetail(detail);
+        return errorMessage;
+    }
+
+    // Subclass that overrides nullable getters with @JsonInclude(NON_NULL) so that unset
+    // fields are omitted from the serialized error response, matching the JS module behavior.
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private static class ErrorMessage extends ErrorStatusMessagesInner {
+
+        @Override
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public String getData() {
+            return super.getData();
+        }
+
+        @Override
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public String getDetail() {
+            return super.getDetail();
+        }
     }
 
     private static class ErrorMessageSource extends StaticMessageSource {

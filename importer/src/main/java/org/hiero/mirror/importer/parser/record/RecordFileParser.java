@@ -18,11 +18,11 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
@@ -30,8 +30,7 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.hiero.mirror.importer.util.Utility;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.transaction.annotation.Transactional;
 
 @Named
@@ -98,14 +97,11 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
      */
     @Override
     @Retryable(
-            backoff =
-                    @Backoff(
-                            delayExpression = "#{@recordParserProperties.getRetry().getMinBackoff().toMillis()}",
-                            maxDelayExpression = "#{@recordParserProperties.getRetry().getMaxBackoff().toMillis()}",
-                            multiplierExpression = "#{@recordParserProperties.getRetry().getMultiplier()}"),
-            retryFor = Throwable.class,
-            noRetryFor = OutOfMemoryError.class,
-            maxAttemptsExpression = "#{@recordParserProperties.getRetry().getMaxAttempts()}")
+            delayString = "#{@recordParserProperties.getRetry().getMinBackoff().toMillis()}",
+            excludes = OutOfMemoryError.class,
+            maxDelayString = "#{@recordParserProperties.getRetry().getMaxBackoff().toMillis()}",
+            maxRetriesString = "#{@recordParserProperties.getRetry().getMaxAttempts() - 1}",
+            multiplierString = "#{@recordParserProperties.getRetry().getMultiplier()}")
     @Transactional(timeoutString = "#{@recordParserProperties.getTransactionTimeout().toSeconds()}")
     public synchronized void parse(RecordFile recordFile) {
         try {
@@ -117,14 +113,11 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
     @Override
     @Retryable(
-            backoff =
-                    @Backoff(
-                            delayExpression = "#{@recordParserProperties.getRetry().getMinBackoff().toMillis()}",
-                            maxDelayExpression = "#{@recordParserProperties.getRetry().getMaxBackoff().toMillis()}",
-                            multiplierExpression = "#{@recordParserProperties.getRetry().getMultiplier()}"),
-            retryFor = Throwable.class,
-            noRetryFor = OutOfMemoryError.class,
-            maxAttemptsExpression = "#{@recordParserProperties.getRetry().getMaxAttempts()}")
+            delayString = "#{@recordParserProperties.getRetry().getMinBackoff().toMillis()}",
+            excludes = OutOfMemoryError.class,
+            maxDelayString = "#{@recordParserProperties.getRetry().getMaxBackoff().toMillis()}",
+            maxRetriesString = "#{@recordParserProperties.getRetry().getMaxAttempts() - 1}",
+            multiplierString = "#{@recordParserProperties.getRetry().getMultiplier()}")
     @Transactional(timeoutString = "#{@recordParserProperties.getTransactionTimeout().toSeconds()}")
     public synchronized void parse(List<RecordFile> recordFiles) {
         try {
@@ -205,7 +198,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
     private class RecordItemAggregator implements Consumer<RecordItem> {
 
-        private final LogsBloomAggregator logsBloom = new LogsBloomAggregator();
+        private final LogsBloomFilter logsBloom = new LogsBloomFilter();
         private long gasUsed = 0L;
 
         @Override
@@ -222,13 +215,13 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             }
 
             gasUsed += result.getGasUsed();
-            logsBloom.aggregate(DomainUtils.toBytes(result.getBloom()));
+            logsBloom.or(DomainUtils.toBytes(result.getBloom()));
         }
 
         public void update(RecordFile recordFile) {
             recordFile.setGasUsed(gasUsed);
             recordFile.setLoadEnd(System.currentTimeMillis());
-            recordFile.setLogsBloom(logsBloom.getBloom());
+            recordFile.setLogsBloom(logsBloom.toArrayUnsafe());
         }
     }
 }

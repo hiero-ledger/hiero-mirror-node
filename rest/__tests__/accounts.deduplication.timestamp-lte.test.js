@@ -150,6 +150,7 @@ describe('Accounts deduplicate timestamp lte tests', () => {
         name: 'TOKENCREATION',
         type: '29',
         entity_id: entityId90000.toString(),
+        high_volume: false,
       },
       {
         payerAccountId: entityId9.toString(),
@@ -158,6 +159,7 @@ describe('Accounts deduplicate timestamp lte tests', () => {
         name: 'CRYPTODELETE',
         type: '12',
         entity_id: entityId7.toString(),
+        high_volume: false,
       },
       {
         charged_tx_fee: 0,
@@ -167,6 +169,7 @@ describe('Accounts deduplicate timestamp lte tests', () => {
         name: 'CRYPTOUPDATEACCOUNT',
         type: '15',
         entity_id: entityId8.toString(),
+        high_volume: false,
       },
     ]);
 
@@ -237,6 +240,8 @@ describe('Accounts deduplicate timestamp lte tests', () => {
             charged_tx_fee: 7,
             consensus_timestamp: `${utils.nsToSecNs(consensusTimestamp3)}`,
             entity_id: null,
+            high_volume: false,
+            high_volume_pricing_multiplier: 1,
             max_custom_fees: [],
             max_fee: '33',
             memo_base64: null,
@@ -292,6 +297,8 @@ describe('Accounts deduplicate timestamp lte tests', () => {
             charged_tx_fee: 7,
             consensus_timestamp: `${utils.nsToSecNs(consensusTimestamp4)}`,
             entity_id: null,
+            high_volume: false,
+            high_volume_pricing_multiplier: 1,
             max_custom_fees: [],
             max_fee: '33',
             memo_base64: null,
@@ -360,6 +367,7 @@ describe('Accounts deduplicate timestamp lte tests', () => {
         alias: 'KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ',
         created_timestamp: null,
         decline_reward: false,
+        delegation_address: '0x',
         deleted: false,
         ethereum_nonce: null,
         evm_address: '0x0000000000000000000000000000000000000008',

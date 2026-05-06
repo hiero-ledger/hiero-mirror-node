@@ -48,6 +48,7 @@ public final class StateChangeContext {
     private final List<Long> nodeIds = new ArrayList<>();
     private final List<FileID> fileIds = new ArrayList<>();
     private final Map<PendingAirdropId, Long> pendingFungibleAirdrops = new HashMap<>();
+    private final List<Long> registeredNodeIds = new ArrayList<>();
     private final List<TokenID> tokenIds = new ArrayList<>();
     private final Map<TokenID, Long> tokenTotalSupplies = new HashMap<>();
     private final List<TopicID> topicIds = new ArrayList<>();
@@ -75,6 +76,7 @@ public final class StateChangeContext {
                         case StateIdentifier.STATE_ID_NODES_VALUE -> processNodeStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE ->
                             processPendingAirdropStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_REGISTERED_NODES_VALUE -> processRegisteredNodeChange(mapUpdate);
                         case StateIdentifier.STATE_ID_STORAGE_VALUE -> processContractStorageChange(mapUpdate);
                         case StateIdentifier.STATE_ID_TOKENS_VALUE -> processTokenStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_TOPICS_VALUE -> processTopicStateChange(mapUpdate);
@@ -148,6 +150,14 @@ public final class StateChangeContext {
         }
 
         return Optional.of(nodeIds.removeLast());
+    }
+
+    public Optional<Long> getNewRegisteredNodeId() {
+        if (registeredNodeIds.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(registeredNodeIds.removeLast());
     }
 
     public Optional<TokenID> getNewTokenId() {
@@ -307,6 +317,14 @@ public final class StateChangeContext {
                             .getPendingAirdropValue()
                             .getAmount());
         }
+    }
+
+    private void processRegisteredNodeChange(final MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasNodeIdKey()) {
+            return;
+        }
+
+        registeredNodeIds.add(mapUpdate.getKey().getNodeIdKey().getId());
     }
 
     private void processTokenStateChange(MapUpdateChange mapUpdate) {

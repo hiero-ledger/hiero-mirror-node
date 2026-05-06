@@ -12,6 +12,14 @@ function backgroundErrorHandler() {
   exit 1
 }
 
+function ensureEnvVar() {
+  local name="$1"
+  if [[ -z "${!name}" ]]; then
+    log "$name is required"
+    exit 1
+  fi
+}
+
 mask() {
   set +x
   if [[ "${GITHUB_ACTIONS:-}" == "true" && -n "${1:-}" ]]; then
@@ -315,12 +323,30 @@ function resumeCommonChart() {
       return 1
     fi
     log "Waiting for helmrelease/${HELM_RELEASE_NAME} to become Ready… retrying reconcile"
-    flux reconcile helmrelease "${HELM_RELEASE_NAME}" -n "${COMMON_NAMESPACE}" --with-source >/dev/null 2>&1 || true
+    flux reconcile helmrelease "${HELM_RELEASE_NAME}" -n "${COMMON_NAMESPACE}" \
+      --timeout "${FLUX_RECONCILE_HR_TIMEOUT}" --with-source >/dev/null 2>&1 || true
   done
 
   log "HelmRelease ${HELM_RELEASE_NAME} is Ready"
 }
 
+function resumeKustomization() {
+  log "Resuming kustomization ${KUSTOMIZATION_NAME} in namespace ${KUSTOMIZATION_NAMESPACE}"
+  if kubectl get kustomizations -n "${KUSTOMIZATION_NAMESPACE}" "${KUSTOMIZATION_NAME}" >/dev/null; then
+    flux resume kustomization "${KUSTOMIZATION_NAME}" -n "${KUSTOMIZATION_NAMESPACE}"
+  else
+    log "No kustomization ${KUSTOMIZATION_NAME} in ${KUSTOMIZATION_NAMESPACE} skipping resume"
+  fi
+}
+
+function suspendKustomization() {
+  log "Suspending kustomization ${KUSTOMIZATION_NAME} in namespace ${KUSTOMIZATION_NAMESPACE}"
+  if kubectl get kustomizations -n "${KUSTOMIZATION_NAMESPACE}" "${KUSTOMIZATION_NAME}" >/dev/null; then
+    flux suspend kustomization "${KUSTOMIZATION_NAME}" -n "${KUSTOMIZATION_NAMESPACE}"
+  else
+    log "No kustomization ${KUSTOMIZATION_NAME} in ${KUSTOMIZATION_NAMESPACE} skipping suspend"
+  fi
+}
 
 function unrouteTraffic() {
   local namespace="${1}"
@@ -378,7 +404,10 @@ function routeTraffic() {
   checkCitusMetadataSyncStatus "${namespace}"
   runTestQueries "${namespace}"
   scaleDeployment "${namespace}" 1 "app.kubernetes.io/component=importer"
-  waitForRecordStreamSync "${namespace}"
+
+  if [[ "${WAIT_FOR_STREAM_SYNC}" == "true" ]]; then
+    waitForRecordStreamSync "${namespace}"
+  fi
 
   if [[ "${AUTO_UNROUTE}" == "true" ]]; then
     if kubectl get helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" >/dev/null; then
@@ -826,19 +855,23 @@ EOF
 }
 
 function pauseClustersIfNeeded() {
+  local skipCleanShutdown="${1:-false}"
   if [[ "${PAUSE_CLUSTER}" == "true" ]]; then
     for namespace in "${CITUS_NAMESPACES[@]}"; do
       unrouteTraffic "${namespace}"
-      pauseCitus "${namespace}"
+      pauseCitus "${namespace}" "${skipCleanShutdown}"
     done
   fi
+
 }
 
 function resumeClustersIfNeeded() {
+  local reinitializeCitus="${1:-false}"
+
   if [[ "${PAUSE_CLUSTER}" == "true" ]]; then
     for namespace in "${CITUS_NAMESPACES[@]}"; do
       log "Resuming Citus in namespace ${namespace}"
-      unpauseCitus "${namespace}" true
+      unpauseCitus "${namespace}" "${reinitializeCitus}"
       routeTraffic "${namespace}"
     done
   fi
@@ -875,10 +908,14 @@ AUTO_UNROUTE="${AUTO_UNROUTE:-true}"
 CITUS_NAMESPACES=
 COMMON_NAMESPACE="${COMMON_NAMESPACE:-common}"
 DISK_PREFIX=
+FLUX_RECONCILE_HR_TIMEOUT="${FLUX_RECONCILE_HR_TIMEOUT:-60m}"
 HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-mirror}"
+KUSTOMIZATION_NAME="${KUSTOMIZATION_NAME:-flux-system}"
+KUSTOMIZATION_NAMESPACE="${KUSTOMIZATION_NAMESPACE:-flux-system}"
 PATRONI_MASTER_ROLE="${PATRONI_MASTER_ROLE:-Leader}"
 PAUSE_CLUSTER="${PAUSE_CLUSTER:-true}"
 STACKGRES_MASTER_LABELS="${STACKGRES_MASTER_LABELS:-app=StackGresCluster,role=master}"
 ZFS_POOL_NAME="${ZFS_POOL_NAME:-zfspv-pool}"
+WAIT_FOR_STREAM_SYNC="${WAIT_FOR_STREAM_SYNC:-true}"
 
 alias kubectl_common="kubectl -n ${COMMON_NAMESPACE}"

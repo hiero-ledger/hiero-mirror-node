@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import static org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hiero.mirror.common.converter.WeiBarTinyBarConverter.WEIBARS_TO_TINYBARS_BIGINT;
 import static org.hiero.mirror.common.util.CommonUtils.nextBytes;
 import static org.hiero.mirror.importer.util.Utility.HALT_ON_ERROR_PROPERTY;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -202,9 +201,8 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
         var fileId = EntityId.of(999L);
         var ethereumTransaction = domainBuilder.ethereumTransaction(create).get();
         var gasLimit = ethereumTransaction.getGasLimit();
-        var expectedValue = new BigInteger(ethereumTransaction.getValue())
-                .divide(WEIBARS_TO_TINYBARS_BIGINT)
-                .toByteArray();
+        // After removing WeiBarTinyBarConverter, values are stored in weibar
+        var expectedValue = ethereumTransaction.getValue();
         doReturn(ethereumTransaction).when(ethereumTransactionParser).decode(any());
 
         var builder = recordItemBuilder
@@ -264,9 +262,8 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
         // given
         var ethereumTransaction = domainBuilder.ethereumTransaction(true).get();
         var gasLimit = ethereumTransaction.getGasLimit();
-        var expectedValue = new BigInteger(ethereumTransaction.getValue())
-                .divide(WEIBARS_TO_TINYBARS_BIGINT)
-                .toByteArray();
+        // After removing WeiBarTinyBarConverter, values are stored in weibar
+        var expectedValue = ethereumTransaction.getValue();
         var recordItem = recordItemBuilder
                 .ethereumTransaction(false)
                 .record(r ->

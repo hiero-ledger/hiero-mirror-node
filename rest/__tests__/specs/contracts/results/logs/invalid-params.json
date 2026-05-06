@@ -81,6 +81,19 @@
           ]
         }
       }
+    },
+    {
+      "url": "/api/v1/contracts/results/logs?topic2=0x00&topic2=0x00&topic2=0x00&topic2=0x00&topic2=0x00&topic2=0x00&topic2=0x00&topic2=0x00&topic2=0x00",
+      "responseStatus": 400,
+      "responseJson": {
+        "_status": {
+          "messages": [
+            {
+              "message": "Array limit exceeded. Only 8 elements allowed in an array."
+            }
+          ]
+        }
+      }
     }
   ]
 }

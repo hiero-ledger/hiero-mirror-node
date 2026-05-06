@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.web3j;
 
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
@@ -21,7 +22,6 @@ import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -201,7 +201,7 @@ public class TestWeb3jService implements Web3jService {
     private EthSendTransaction sendEthCall(RawTransaction rawTransaction, String transactionHash, Request request) {
         final var res = new EthSendTransaction();
         var serviceParameters = serviceParametersForExecutionSingle(
-                Bytes.fromHexString(rawTransaction.getData()),
+                rawTransaction.getData(),
                 Address.fromHexString(rawTransaction.getTo()),
                 isEstimateGas ? ETH_ESTIMATE_GAS : ETH_CALL,
                 rawTransaction.getValue().longValue() >= 0
@@ -275,7 +275,7 @@ public class TestWeb3jService implements Web3jService {
     }
 
     protected ContractExecutionParameters serviceParametersForExecutionSingle(
-            final Bytes callData,
+            final String callDataHex,
             final Address contractAddress,
             final CallServiceParameters.CallType callType,
             final long value,
@@ -286,7 +286,7 @@ public class TestWeb3jService implements Web3jService {
                 .sender(sender)
                 .value(value)
                 .receiver(contractAddress)
-                .callData(callData)
+                .callData(hexToBytes(callDataHex))
                 .gas(gasLimit)
                 .gasPrice(0L)
                 .isStatic(false)
@@ -302,7 +302,7 @@ public class TestWeb3jService implements Web3jService {
                 .sender(sender)
                 .value(value)
                 .receiver(Address.fromHexString(transaction.getTo()))
-                .callData(Bytes.fromHexString(transaction.getData()))
+                .callData(hexToBytes(transaction.getData()))
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
                 .isStatic(false)
@@ -315,10 +315,10 @@ public class TestWeb3jService implements Web3jService {
     public ContractExecutionParameters serviceParametersForTopLevelContractCreate(
             final String contractInitCode, final CallServiceParameters.CallType callType, final Address senderAddress) {
 
-        final var callData = Bytes.wrap(Hex.decode(contractInitCode));
+        final var callDataHex = HEX_PREFIX + contractInitCode;
         return ContractExecutionParameters.builder()
                 .sender(senderAddress)
-                .callData(callData)
+                .callData(hexToBytes(callDataHex))
                 .receiver(Address.ZERO)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)

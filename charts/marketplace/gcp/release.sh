@@ -22,8 +22,8 @@ if [[ "$#" -eq 2 ]]; then
 fi
 
 annotation="com.googleapis.cloudmarketplace.product.service.name=services/hedera-mirror-node-mirror-node-public.cloudpartnerservices.goog"
-bats_tag="1.11.1"
-postgresql_tag="17.6.0-debian-12-r2"
+bats_tag="1.13.0"
+postgresql_tag="18.3.0-debian-12-r14"
 registry="gcr.io/mirror-node-public/hedera-mirror-node"
 target_tag="${target_tag#v}" # Strip v prefix if present
 target_tag_minor="${target_tag%\.*}"
@@ -58,7 +58,7 @@ function retag_single() {
 sed "-i.bak" "s/version: .*/version: ${target_tag}/" values.yaml
 
 # Build Marketplace deployer image
-docker buildx build --push -f ./Dockerfile --provenance false -t "${registry}/deployer:${target_tag}" -t "${registry}/deployer:${target_tag_minor}" --platform linux/amd64 --build-arg TAG="${target_tag}" --annotation "manifest,manifest-descriptor:${annotation}" ../..
+docker buildx build --pull --push -f ./Dockerfile --provenance false -t "${registry}/deployer:${target_tag}" -t "${registry}/deployer:${target_tag_minor}" --platform linux/amd64 --build-arg TAG="${target_tag}" --annotation "manifest,manifest-descriptor:${annotation}" ../..
 
 # Re-tag our manually built postgresql-repmgr image
 docker buildx imagetools create "${registry}/postgresql-repmgr:${postgresql_tag}" --tag "${registry}/postgresql-repmgr:${target_tag}" --tag "${registry}/postgresql-repmgr:${target_tag_minor}" --annotation "index,manifest-descriptor:${annotation}"

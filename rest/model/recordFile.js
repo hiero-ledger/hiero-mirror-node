@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import camelCase from 'lodash/camelCase';
+import mapKeys from 'lodash/mapKeys';
 
 class RecordFile {
   /**
@@ -9,7 +10,7 @@ class RecordFile {
   constructor(recordFile) {
     Object.assign(
       this,
-      _.mapKeys(recordFile, (v, k) => _.camelCase(k))
+      mapKeys(recordFile, (v, k) => camelCase(k))
     );
   }
 
@@ -32,7 +33,6 @@ class RecordFile {
   static LOAD_START = 'load_start';
   static LOGS_BLOOM = 'logs_bloom';
   static NAME = 'name';
-  static NODE_ACCOUNT_ID = 'node_account_id';
   static PREV_HASH = 'prev_hash';
   static SIZE = 'size';
   static VERSION = 'version';

@@ -32,6 +32,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.CommonProperties;
@@ -60,6 +61,10 @@ public class EvmProperties {
     @NotNull
     private NavigableMap<Long, SemanticVersion> evmVersions = new TreeMap<>();
 
+    @Min(1)
+    private int maxFileAttempts = 12;
+
+    @NotNull
     @Min(21_000L)
     private long maxGasLimit = 15_000_000L;
 
@@ -85,10 +90,12 @@ public class EvmProperties {
     // Contains the default properties merged with the user defined properties to pass to the consensus node library
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
+    @ToString.Exclude
     private final Map<String, String> transactionProperties = buildTransactionProperties();
 
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
+    @ToString.Exclude
     private final VersionedConfiguration versionedConfiguration =
             new ConfigProviderImpl(false, null, getTransactionProperties()).getConfiguration();
 
@@ -153,8 +160,10 @@ public class EvmProperties {
         props.put("contracts.throttle.throttleByGas", "false");
         props.put("contracts.systemContract.scheduleService.scheduleCall.enabled", "true");
         props.put("executor.disableThrottles", "true");
+        props.put("fees.simpleFeesEnabled", "false");
         props.put("hedera.realm", String.valueOf(CommonProperties.getInstance().getRealm()));
         props.put("hedera.shard", String.valueOf(CommonProperties.getInstance().getShard()));
+        props.put("jumboTransactions.allowedHederaFunctionalities", "ContractCall,ContractCreate,EthereumTransaction");
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
         props.put("nodes.gossipFqdnRestricted", "false");
         // The following 3 properties are needed to deliberately fail conditions in upstream to avoid paying rewards to
@@ -162,7 +171,6 @@ public class EvmProperties {
         props.put("nodes.nodeRewardsEnabled", "true");
         props.put("nodes.preserveMinNodeRewardBalance", "true");
         props.put("nodes.minNodeRewardBalance", String.valueOf(Long.MAX_VALUE));
-
         props.put("tss.hintsEnabled", "false");
         props.put("tss.historyEnabled", "false");
         props.putAll(properties); // Allow user defined properties to override the defaults

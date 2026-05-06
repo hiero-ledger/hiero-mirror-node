@@ -20,7 +20,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -40,7 +39,6 @@ import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.core.OrderComparator;
 import org.springframework.http.HttpStatus;
 
-@CustomLog
 @Data
 @RequiredArgsConstructor
 public class AccountFeature extends AbstractFeature {

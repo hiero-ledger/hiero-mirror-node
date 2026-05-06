@@ -4,13 +4,13 @@ package org.hiero.mirror.importer.config;
 
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
-import org.springframework.boot.autoconfigure.jdbc.JdbcProperties;
+import org.springframework.boot.jdbc.autoconfigure.JdbcProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 class JdbcTemplateConfiguration {
 
     @Bean

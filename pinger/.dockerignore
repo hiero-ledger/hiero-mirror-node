@@ -1,0 +1,9 @@
+**/*_test.go
+**/.*
+*.iml
+*.txt
+*.xml
+.*
+!Dockerfile
+bin/
+build/

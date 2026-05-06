@@ -47,9 +47,16 @@ Deployed automatically on every tag.
 - [ ] REST API performance tests
 - [ ] REST Java API performance tests
 - [ ] Web3 API performance tests
+- [ ] Verify performance test results
+- [ ] Run the `Copy StackGres Citus Cluster` workflow to tear down the cluster
+  - Uncheck `Restore the target cluster from the source`
+  - Uncheck `Run k6 test`
+  - Check `Tear down target cluster`
+- [ ] Create new static snapshot if necessary (long migration) and update github env var
 
 ## Generally Available
 
+- [ ] Verify native images run with latest RC tag
 - [ ] Tag release via manual invocation of `Release Automation` workflow with GA tag
 - [ ] Manager writes release notes and publishes GitHub release
 - [ ] Publish marketplace release

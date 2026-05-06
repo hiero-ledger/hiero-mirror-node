@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {map, max} from 'lodash-es';
 import config from './config';
 
 import {
@@ -51,7 +51,7 @@ const getContractById = async (server) => {
     return {url, ...result};
   }
 
-  const contract = _.max(_.map(contracts, (contract) => contract.contract_id));
+  const contract = max(map(contracts, (contract) => contract.contract_id));
   url = getUrl(server, `${contractsPath}/${contract}`);
   const singleContract = await fetchAPIResponse(url);
 
@@ -121,7 +121,7 @@ const getContractResults = async (server) => {
     if (!result.passed) {
       return {url, ...result};
     }
-    contractId = _.max(_.map(contractsResults, (result) => result.contract_id));
+    contractId = max(map(contractsResults, (result) => result.contract_id));
   }
 
   let url = getUrl(server, `${contractsPath}/${contractId}/results`);
@@ -139,7 +139,7 @@ const getContractResults = async (server) => {
     return {url, ...result};
   }
 
-  const timestamp = _.max(_.map(contractResults, (result) => result.timestamp));
+  const timestamp = max(map(contractResults, (result) => result.timestamp));
   url = getUrl(server, `${contractsPath}/${contractId}/results/${timestamp}`);
   const contractResultsAtTimestamp = await fetchAPIResponse(url);
   result = new CheckRunner()
@@ -175,7 +175,7 @@ const getContractResultsLogs = async (server) => {
       return {url, ...result};
     }
 
-    contractId = _.max(_.map(contractsResults, (contract) => contract.contract_id));
+    contractId = max(map(contractsResults, (contract) => contract.contract_id));
   }
 
   const jsonLogsRespKey = 'logs';
@@ -235,7 +235,7 @@ const getContractState = async (server) => {
     if (!result.passed) {
       return {url, ...result};
     }
-    contractId = _.max(_.map(contracts, (contract) => contract.contract_id));
+    contractId = max(map(contracts, (contract) => contract.contract_id));
   }
   const contractStateParams = ['address', 'contract_id', 'timestamp', 'slot', 'value'];
   const jsonStateRespKey = 'state';

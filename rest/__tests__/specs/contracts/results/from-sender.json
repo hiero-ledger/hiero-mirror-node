@@ -92,7 +92,8 @@
         "consensus_timestamp": "1676540001234390005",
         "name": "CONTRACTCALL",
         "type": "7",
-        "entity_id": "0.0.9"
+        "entity_id": "0.0.9",
+        "high_volume": false
       },
       {
         "payerAccountId": "0.0.5000",
@@ -100,7 +101,8 @@
         "consensus_timestamp": "1676540001234500005",
         "name": "CONTRACTCALL",
         "type": "7",
-        "entity_id": "0.0.9"
+        "entity_id": "0.0.9",
+        "high_volume": false
       },
       {
         "payerAccountId": "0.0.5000",
@@ -108,7 +110,8 @@
         "consensus_timestamp": "1676540001234900005",
         "name": "CONTRACTCALL",
         "type": "7",
-        "entity_id": "0.0.9"
+        "entity_id": "0.0.9",
+        "high_volume": false
       }
     ]
   },

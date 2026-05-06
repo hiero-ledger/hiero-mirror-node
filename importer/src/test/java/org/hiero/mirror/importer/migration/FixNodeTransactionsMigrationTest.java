@@ -9,12 +9,12 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
-import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.repository.NodeRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -77,6 +77,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
             historyNodes.add(node);
             historyNodes.add(Node.builder()
                     .adminKey(node.getAdminKey())
+                    .associatedRegisteredNodes(null)
                     .createdTimestamp(node.getCreatedTimestamp())
                     .declineReward(false)
                     .deleted(true)
@@ -91,6 +92,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                             .getNodeUpdate()
                             .getAdminKey()
                             .toByteArray())
+                    .associatedRegisteredNodes(null)
                     .createdTimestamp(node.getCreatedTimestamp())
                     .declineReward(false)
                     .deleted(false)
@@ -215,6 +217,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                         .getNodeCreate()
                         .getAdminKey()
                         .toByteArray())
+                .associatedRegisteredNodes(null)
                 .createdTimestamp(nodeCreateRecordItem.getConsensusTimestamp())
                 .declineReward(false)
                 .deleted(false)
@@ -228,6 +231,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                         .getNodeUpdate()
                         .getAdminKey()
                         .toByteArray())
+                .associatedRegisteredNodes(null)
                 .createdTimestamp(nodeUpdateRecordItem.getConsensusTimestamp())
                 .declineReward(false)
                 .deleted(false)
@@ -244,6 +248,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                         .getNodeUpdate()
                         .getAdminKey()
                         .toByteArray())
+                .associatedRegisteredNodes(null)
                 .createdTimestamp(null)
                 .declineReward(false)
                 .deleted(false)

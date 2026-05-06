@@ -32,6 +32,7 @@ func (d *client) GetDbWithContext(ctx context.Context) (*gorm.DB, context.Cancel
 		ctx = context.Background()
 	}
 
+	// #nosec G118
 	childCtx, cancel := context.WithTimeout(ctx, time.Duration(d.statementTimeout)*time.Second)
 	return d.db.WithContext(childCtx), cancel
 }
