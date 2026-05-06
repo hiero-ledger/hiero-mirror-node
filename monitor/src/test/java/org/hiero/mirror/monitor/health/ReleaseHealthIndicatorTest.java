@@ -5,6 +5,7 @@ package org.hiero.mirror.monitor.health;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.monitor.health.ReleaseHealthIndicator.DEPENDENCY_NOT_READY;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import io.fabric8.kubernetes.api.model.ConditionBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
@@ -19,11 +20,14 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.hiero.mirror.monitor.health.ReleaseHealthProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.Status;
+import org.springframework.mock.env.MockEnvironment;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 import uk.org.webcompere.systemstubs.environment.EnvironmentVariables;
@@ -48,11 +52,15 @@ class ReleaseHealthIndicatorTest {
     private KubernetesMockServer server;
     private ReleaseHealthIndicator healthIndicator;
     private MeterRegistry meterRegistry = mock(MeterRegistry.class);
+    private MockEnvironment environment = new MockEnvironment();
+    private ObjectProvider<KubernetesClient> clientProvider = mock(ObjectProvider.class);
 
     @BeforeEach
     void setUp() {
         var client = server.createClient().inNamespace("test");
-        healthIndicator = new ReleaseHealthIndicator(client, properties, meterRegistry);
+        when(clientProvider.getIfAvailable()).thenReturn(client);
+        environment.setActiveProfiles("kubernetes");
+        healthIndicator = new ReleaseHealthIndicator(clientProvider, environment, properties, meterRegistry);
         properties.setEnabled(true);
         server.clearExpectations();
     }
@@ -63,6 +71,18 @@ class ReleaseHealthIndicatorTest {
         properties.setEnabled(false);
 
         // then
+        var health = healthIndicator.health().block();
+
+        // then
+        assertThat(health).returns(Status.UP, Health::getStatus);
+    }
+
+    @Test
+    void notKubernetes() {
+        // given
+        environment.setActiveProfiles("test");
+
+        // when
         var health = healthIndicator.health().block();
 
         // then

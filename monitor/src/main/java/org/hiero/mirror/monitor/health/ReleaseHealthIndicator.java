@@ -17,15 +17,16 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.Strings;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnCloudPlatform;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.cloud.CloudPlatform;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.ReactiveHealthIndicator;
 import org.springframework.boot.health.contributor.Status;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-@ConditionalOnCloudPlatform(CloudPlatform.KUBERNETES)
 @CustomLog
 @Named
 @RequiredArgsConstructor
@@ -45,7 +46,8 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
             .withPlural("helmreleases")
             .withVersion("v2")
             .build();
-    private final KubernetesClient client;
+    private final ObjectProvider<KubernetesClient> client;
+    private final Environment environment;
     private final ReleaseHealthProperties properties;
     private final MeterRegistry meterRegistry;
 
@@ -61,8 +63,16 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
 
     @Override
     public Mono<Health> health() {
+        if (!isKubernetes()) {
+            return UP;
+        }
+
         final var health = properties.isEnabled() ? getHealth() : UP;
         return health.doOnNext(this::recordHealthMetric);
+    }
+
+    private boolean isKubernetes() {
+        return CloudPlatform.KUBERNETES.isActive(environment) || environment.acceptsProfiles(Profiles.of("kubernetes"));
     }
 
     private void recordHealthMetric(Health currentHealth) {
@@ -84,13 +94,21 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
 
     private String getHelmRelease() {
         var hostname = System.getenv("HOSTNAME");
-        var labels = client.pods().withName(hostname).get().getMetadata().getLabels();
+        var kubernetesClient = client.getIfAvailable();
+        if (kubernetesClient == null) {
+            throw new IllegalStateException("KubernetesClient is not available");
+        }
+        var labels = kubernetesClient.pods().withName(hostname).get().getMetadata().getLabels();
         return Objects.requireNonNull(labels.get(INSTANCE_LABEL), "No " + INSTANCE_LABEL + " label");
     }
 
     @SuppressWarnings("unchecked")
     private Mono<Health> getHelmReleaseReadyStatus(String release) {
-        var resource = client.genericKubernetesResources(RESOURCE_DEFINITION_CONTEXT)
+        var kubernetesClient = client.getIfAvailable();
+        if (kubernetesClient == null) {
+            return UNKNOWN;
+        }
+        var resource = kubernetesClient.genericKubernetesResources(RESOURCE_DEFINITION_CONTEXT)
                 .withName(release)
                 .get();
         var status = (Map<String, Object>) resource.getAdditionalProperties().get("status");
