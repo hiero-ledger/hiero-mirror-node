@@ -966,7 +966,7 @@ class ContractController extends BaseController {
       req,
       acceptedContractStateParameters
     );
-    const contractId = await ContractService.computeContractIdFromString(contractIdParam);
+    const contractId = await EntityService.getEncodedId(contractIdParam, false, filterKeys.CONTRACTID);
     const {conditions, order, limit, timestamp} = await this.extractContractStateByIdQuery(filters, contractId);
     const rows = await ContractService.getContractStateByIdAndFilters(conditions, order, limit, timestamp);
     const state = rows.map((row) => new ContractStateViewModel(row));
