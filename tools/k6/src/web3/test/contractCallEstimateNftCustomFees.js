@@ -9,7 +9,7 @@ const token = __ENV.TOKEN_ADDRESS;
 const from = __ENV.PAYER_ACCOUNT;
 const runMode = __ENV.RUN_WITH_VARIABLES;
 const selector = '0x0488c939'; //createNonFungibleTokenWithCustomFeesPublic
-const testName = 'estimateCreateNFTWithCustomFees';
+const testName = 'contractCallEstimateNftCustomFees';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =

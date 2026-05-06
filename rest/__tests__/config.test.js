@@ -209,6 +209,7 @@ describe('Override query config', () => {
     };
     const expected = {
       bindTimestampRange: true,
+      maxFileAttempts: 12,
       maxRecordFileCloseInterval: '8s',
       maxRecordFileCloseIntervalNs: 8000000000n,
       maxRepeatedQueryParameters: 2,

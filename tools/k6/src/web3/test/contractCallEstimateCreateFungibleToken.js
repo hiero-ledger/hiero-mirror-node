@@ -8,7 +8,7 @@ const treasury = __ENV.ACCOUNT_ADDRESS;
 const from = __ENV.PAYER_ACCOUNT;
 const runMode = __ENV.RUN_WITH_VARIABLES;
 const selector = '0x4b5c6687'; //createFungibleTokenPublic
-const testName = 'estimateCreateFungibleToken';
+const testName = 'contractCallEstimateCreateFungibleToken';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =
