@@ -31,6 +31,8 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
    * @param {ContractStateChange[]} contractStateChanges
    * @param {FileData} fileData
    * @param {boolean} convertToHbar - If true, convert weibar to tinybar; if false, return raw weibar
+   * @param {number|null} transactionType - The transaction type (ContractCall, ContractCreate, EthereumTransaction)
+   * @param {BigInt|null} gasPriceFromFeeSchedule - Gas price from fee schedule for non-Ethereum transactions
    */
   constructor(
     contractResult,
@@ -39,7 +41,9 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     contractLogs = null,
     contractStateChanges = null,
     fileData = null,
-    convertToHbar = true
+    convertToHbar = true,
+    transactionType = null,
+    gasPriceFromFeeSchedule = null
   ) {
     super(contractResult);
 
@@ -75,13 +79,13 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     // default eth related values
     this.access_list = null;
     this.block_gas_used = recordFile?.gasUsed != null && recordFile.gasUsed !== -1 ? recordFile.gasUsed : null;
-    this.chain_id = null;
+    this.chain_id = config.chainId ?? null;
     this.gas_price = null;
     this.max_fee_per_gas = null;
     this.max_priority_fee_per_gas = null;
     this.r = null;
     this.s = null;
-    this.type = null;
+    this.type = ContractResultDetailsViewModel._LEGACY_TYPE;
     this.v = null;
     this.nonce = null;
 
@@ -90,7 +94,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       if (config.response.enableDelegationAddress) {
         this.authorization_list = ethTransaction.authorizationList ?? [];
       }
-      this.chain_id = utils.toHexStringQuantity(ethTransaction.chainId);
+      this.chain_id = utils.toHexStringQuantity(ethTransaction.chainId) ?? config.chainId ?? null;
 
       if (!isTransactionSuccessful && isEmpty(contractResult.errorMessage)) {
         this.error_message = this.result;
@@ -128,7 +132,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       if (ethTransaction.toAddress?.length) {
         this.to = utils.toHexStringNonQuantity(ethTransaction.toAddress);
       }
-      this.type = ethTransaction.type;
+      this.type = ethTransaction.type ?? ContractResultDetailsViewModel._LEGACY_TYPE;
       this.v =
         this.type === ContractResultDetailsViewModel._LEGACY_TYPE && ethTransaction.signatureV
           ? BigInt(utils.toHexStringNonQuantity(ethTransaction.signatureV))
@@ -139,9 +143,15 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       } else if (!contractResult.functionParameters.length && !isNil(fileData)) {
         this.function_parameters = utils.toHexStringNonQuantity(fileData.file_data);
       }
-    } else if (!convertToHbar && !isNil(contractResult.amount)) {
-      // ethTransaction is null but caller wants weibar; convert tinybar to weibar
-      this.amount = BigInt(contractResult.amount) * WEIBARS_TO_TINYBARS;
+    } else {
+      // No ethereum transaction - use fee schedule gas price for ContractCall/ContractCreate
+      if (gasPriceFromFeeSchedule != null) {
+        this.gas_price = utils.toHexStringQuantity(gasPriceFromFeeSchedule);
+      }
+      if (!convertToHbar && !isNil(contractResult.amount)) {
+        // ethTransaction is null but caller wants weibar; convert tinybar to weibar
+        this.amount = BigInt(contractResult.amount) * WEIBARS_TO_TINYBARS;
+      }
     }
   }
 

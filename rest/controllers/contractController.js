@@ -25,10 +25,18 @@ import {
   ContractState,
   ContractStateChange,
   Entity,
+  FeeSchedule,
   TransactionResult,
   TransactionType,
 } from '../model';
-import {ContractService, EntityService, FileDataService, RecordFileService, TransactionService} from '../service';
+import {
+  ContractService,
+  EntityService,
+  FeeScheduleService,
+  FileDataService,
+  RecordFileService,
+  TransactionService,
+} from '../service';
 import {bindTimestampRange} from '../timestampRange';
 import {getTransactionHash} from '../transactionHash';
 import TransactionId from '../transactionId';
@@ -1039,6 +1047,23 @@ class ContractController extends BaseController {
       fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
     }
 
+    const transactionTypeMap = await ContractService.getTransactionTypesByPayerAndTimestampArray(
+      [contractDetails.payerAccountId],
+      [timestamp]
+    );
+    const txType = transactionTypeMap.get(timestamp);
+
+    let gasPriceFromFeeSchedule = null;
+    if (!ethTransaction && txType != null) {
+      const feeSchedule = await FeeScheduleService.getFeeSchedule();
+      const txTypeName = TransactionType.getName(txType);
+      if (txTypeName === 'CONTRACTCALL') {
+        gasPriceFromFeeSchedule = feeSchedule?.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL) ?? null;
+      } else if (txTypeName === 'CONTRACTCREATEINSTANCE') {
+        gasPriceFromFeeSchedule = feeSchedule?.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE) ?? null;
+      }
+    }
+
     if (isNil(contractResults[0].callResult)) {
       // set 206 partial response
       res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
@@ -1053,7 +1078,9 @@ class ContractController extends BaseController {
       contractLogs,
       contractStateChanges,
       fileData,
-      convertToHbar
+      convertToHbar,
+      txType,
+      gasPriceFromFeeSchedule
     );
   };
 
@@ -1096,23 +1123,42 @@ class ContractController extends BaseController {
       payers.push(row.payerAccountId);
       timestamps.push(row.consensusTimestamp);
     });
-    const [ethereumTransactionMap, recordFileMap] = await Promise.all([
+    const [ethereumTransactionMap, recordFileMap, transactionTypeMap] = await Promise.all([
       ContractService.getEthereumTransactionsByPayerAndTimestampArray(payers, timestamps),
       RecordFileService.getRecordFileBlockDetailsFromTimestampArray(timestamps),
+      ContractService.getTransactionTypesByPayerAndTimestampArray(payers, timestamps),
     ]);
 
-    response.results = rows.map(
-      (row) =>
-        new ContractResultDetailsViewModel(
-          row,
-          recordFileMap.get(row.consensusTimestamp),
-          ethereumTransactionMap.get(row.consensusTimestamp),
-          null,
-          null,
-          null,
-          convertToHbar
-        )
-    );
+    const feeSchedule = await FeeScheduleService.getFeeSchedule();
+    const contractCallGas = feeSchedule?.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL) ?? null;
+    const contractCreateGas = feeSchedule?.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE) ?? null;
+
+    response.results = rows.map((row) => {
+      const ethTransaction = ethereumTransactionMap.get(row.consensusTimestamp);
+      const txType = transactionTypeMap.get(row.consensusTimestamp);
+
+      let gasPriceFromFeeSchedule = null;
+      if (!ethTransaction && txType != null) {
+        const txTypeName = TransactionType.getName(txType);
+        if (txTypeName === 'CONTRACTCALL') {
+          gasPriceFromFeeSchedule = contractCallGas;
+        } else if (txTypeName === 'CONTRACTCREATEINSTANCE') {
+          gasPriceFromFeeSchedule = contractCreateGas;
+        }
+      }
+
+      return new ContractResultDetailsViewModel(
+        row,
+        recordFileMap.get(row.consensusTimestamp),
+        ethTransaction,
+        null,
+        null,
+        null,
+        convertToHbar,
+        txType,
+        gasPriceFromFeeSchedule
+      );
+    });
 
     const isEnd = response.results.length !== limit;
     const lastRow = last(response.results);
@@ -1200,6 +1246,19 @@ class ContractController extends BaseController {
       fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
     }
 
+    const txType = transactionDetails?.type ?? null;
+
+    let gasPriceFromFeeSchedule = null;
+    if (!ethTransaction && txType != null) {
+      const feeSchedule = await FeeScheduleService.getFeeSchedule();
+      const txTypeName = TransactionType.getName(txType);
+      if (txTypeName === 'CONTRACTCALL') {
+        gasPriceFromFeeSchedule = feeSchedule?.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL) ?? null;
+      } else if (txTypeName === 'CONTRACTCREATEINSTANCE') {
+        gasPriceFromFeeSchedule = feeSchedule?.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE) ?? null;
+      }
+    }
+
     this.setContractResultsResponse(
       res,
       contractResult,
@@ -1208,7 +1267,9 @@ class ContractController extends BaseController {
       contractLogs,
       contractStateChanges,
       fileData,
-      convertToHbar
+      convertToHbar,
+      txType,
+      gasPriceFromFeeSchedule
     );
 
     if (isNil(contractResult.callResult)) {
@@ -1314,7 +1375,9 @@ class ContractController extends BaseController {
     contractLogs,
     contractStateChanges,
     fileData,
-    convertToHbar = true
+    convertToHbar = true,
+    transactionType = null,
+    gasPriceFromFeeSchedule = null
   ) => {
     res.locals[responseDataLabel] = new ContractResultDetailsViewModel(
       contractResult,
@@ -1323,7 +1386,9 @@ class ContractController extends BaseController {
       contractLogs,
       contractStateChanges,
       fileData,
-      convertToHbar
+      convertToHbar,
+      transactionType,
+      gasPriceFromFeeSchedule
     );
   };
 }

@@ -298,4 +298,135 @@ describe('ContractResultDetailsViewModel', () => {
       expect(viewModel.access_list).toBeNull();
     });
   });
+
+  describe('constructor with null field defaults', () => {
+    const mockContractResult = {
+      amount: 20,
+      bloom: Buffer.from([1, 1]),
+      callResult: Buffer.from([2, 2]),
+      consensusTimestamp: '187654000123456',
+      contractId: 5001,
+      createdContractIds: [],
+      errorMessage: '',
+      functionParameters: Buffer.from([3, 3]),
+      functionResult: Buffer.from([4, 4]),
+      gasConsumed: 987,
+      gasLimit: 1234556,
+      gasUsed: 987,
+      payerAccountId: 5000,
+      senderId: 6001,
+      transactionHash: Buffer.from('185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f', 'hex'),
+      transactionIndex: 1,
+      transactionNonce: 0,
+      transactionResult: 22,
+    };
+
+    const mockRecordFile = {
+      gasUsed: 400000,
+      hash: Buffer.from(
+        'fbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1c',
+        'hex'
+      ),
+      index: 10,
+    };
+
+    test('type defaults to 0 when ethTransaction is null', () => {
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult,
+        mockRecordFile,
+        null, // no ethTransaction
+        [],
+        [],
+        null,
+        true
+      );
+
+      expect(viewModel.type).toBe(0);
+    });
+
+    test('type defaults to 0 when ethTransaction.type is null', () => {
+      const mockEthTransactionWithTypeNull = {
+        accessList: null,
+        callData: null,
+        chainId: '012a',
+        consensusTimestamp: '187654000123456',
+        gasLimit: 1234556,
+        gasPrice: 'ad78ebc5ac620000',
+        hash: '185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
+        maxFeePerGas: 'cf38224400',
+        maxPriorityFeePerGas: '76be5e6c00',
+        nonce: 5,
+        payerAccountId: 5000,
+        recoveryId: 1,
+        signatureR: 'b5c21ab4dfd336e30ac2106cad4aa8888b1873a99bce35d50f64d2ec2cc5f6d9',
+        signatureS: '1092806a99727a20c31836959133301b65a2bfa980f9795522d21a254e629110',
+        signatureV: Buffer.from('1b', 'hex'),
+        toAddress: '0000000000000000000000000000000000001389',
+        type: null,
+        value: '2e90edd000',
+      };
+
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult,
+        mockRecordFile,
+        mockEthTransactionWithTypeNull,
+        [],
+        [],
+        null,
+        true
+      );
+
+      expect(viewModel.type).toBe(0);
+    });
+
+    test('chain_id uses config value when ethTransaction is null', () => {
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult,
+        mockRecordFile,
+        null, // no ethTransaction
+        [],
+        [],
+        null,
+        true
+      );
+
+      // chain_id should come from config (0x0128 is the default in application.yml)
+      expect(viewModel.chain_id).toBe('0x0128');
+    });
+
+    test('gas_price is set from fee schedule when ethTransaction is null', () => {
+      const gasPriceFromFeeSchedule = 86n; // Example gas price in tinybars
+
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult,
+        mockRecordFile,
+        null, // no ethTransaction
+        [],
+        [],
+        null,
+        true,
+        null, // transactionType
+        gasPriceFromFeeSchedule
+      );
+
+      expect(viewModel.gas_price).toBe('0x56'); // 86 in hex
+    });
+
+    test('gas_price remains 0x when ethTransaction is null and no fee schedule gas price', () => {
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult,
+        mockRecordFile,
+        null, // no ethTransaction
+        [],
+        [],
+        null,
+        true,
+        null, // transactionType
+        null // no gas price from fee schedule
+      );
+
+      // gas_price should be null when there's no ethTransaction and no fee schedule gas price
+      expect(viewModel.gas_price).toBeNull();
+    });
+  });
 });

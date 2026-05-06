@@ -6,6 +6,7 @@ hiero:
       realm: 0
       shard: 0
     rest:
+      chainId: "0x0128"
       cache:
         entityId:
           maxAge: 1800

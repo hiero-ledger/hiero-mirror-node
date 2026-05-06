@@ -543,6 +543,44 @@ class ContractService extends BaseService {
 
     return transactionMap;
   }
+
+  /**
+   * Get transaction types for the given payer and timestamp pairs
+   *
+   * @param payers
+   * @param timestamps
+   * @returns {Promise<Map>} Map of consensus timestamp to transaction type
+   */
+  async getTransactionTypesByPayerAndTimestampArray(payers, timestamps) {
+    const transactionTypeMap = new Map();
+    if (isEmpty(payers) || isEmpty(timestamps)) {
+      return transactionTypeMap;
+    }
+
+    let maxTimestamp = -1n;
+    let minTimestamp = MAX_LONG;
+    timestamps.forEach((timestamp) => {
+      if (timestamp > maxTimestamp) {
+        maxTimestamp = timestamp;
+      }
+      if (timestamp < minTimestamp) {
+        minTimestamp = timestamp;
+      }
+    });
+
+    const query = `select ${Transaction.CONSENSUS_TIMESTAMP}, ${Transaction.TYPE}
+      from ${Transaction.tableName}
+      where ${Transaction.PAYER_ACCOUNT_ID} = any($1)
+        and ${Transaction.CONSENSUS_TIMESTAMP} = any($2)
+        and ${Transaction.CONSENSUS_TIMESTAMP} >= $3
+        and ${Transaction.CONSENSUS_TIMESTAMP} <= $4`;
+
+    const rows = await super.getRows(query, [payers, timestamps, minTimestamp, maxTimestamp]);
+
+    rows.forEach((row) => transactionTypeMap.set(row.consensus_timestamp, row.type));
+
+    return transactionTypeMap;
+  }
 }
 
 export default new ContractService();
