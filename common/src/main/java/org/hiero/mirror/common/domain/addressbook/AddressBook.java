@@ -46,7 +46,6 @@ public class AddressBook {
     @ToString.Exclude
     private byte[] fileData;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId fileId;
 

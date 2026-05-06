@@ -21,10 +21,10 @@ public class NetworkFreeze {
 
     private Long endTime;
     private byte[] fileHash;
-    // Specify converter explicitly so translation works with native image
+
     @Convert(converter = EntityIdConverter.class)
     private EntityId fileId;
-    // Specify converter explicitly so translation works with native image
+
     @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 

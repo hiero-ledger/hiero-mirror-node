@@ -41,11 +41,9 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
     @JsonSerialize(using = ListToStringSerializer.class)
     private List<Long> effectivePayerAccountIds = Collections.emptyList();
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId tokenId;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 

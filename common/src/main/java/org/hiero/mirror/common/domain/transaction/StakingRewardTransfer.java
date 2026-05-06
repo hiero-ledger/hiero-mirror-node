@@ -32,7 +32,6 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
     @jakarta.persistence.Id
     private long consensusTimestamp;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 

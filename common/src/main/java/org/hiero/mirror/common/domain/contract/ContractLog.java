@@ -31,7 +31,6 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     @jakarta.persistence.Id
     private long consensusTimestamp;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId contractId;
 
@@ -41,11 +40,9 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     @jakarta.persistence.Id
     private int index;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId rootContractId;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 

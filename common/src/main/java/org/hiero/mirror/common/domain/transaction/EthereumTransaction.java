@@ -39,7 +39,6 @@ public class EthereumTransaction implements Persistable<Long> {
     @ToString.Exclude
     private byte[] callData;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId callDataId;
 
@@ -72,7 +71,6 @@ public class EthereumTransaction implements Persistable<Long> {
 
     private Long nonce;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 

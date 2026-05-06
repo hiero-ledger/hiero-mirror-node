@@ -44,7 +44,6 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
 
     private Boolean isApproval;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
