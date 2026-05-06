@@ -71,8 +71,6 @@ gateway:
         type: CLIENT_IP
       timeoutSec: 15
     streamingBackendPolicy:
-      cdn:
-        enabled: false
       connectionDraining:
         drainingTimeoutSec: 10
       logging:
