@@ -46,13 +46,13 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
     @Override
     public BlockNode getNode(final AtomicLong blockNumber) {
         try {
-            latencyService.cancelAll();
-            current.set(super.getNode(blockNumber));
+            final var node = super.getNode(blockNumber);
+            current.set(node);
             candidates.clear();
             candidates.addAll(getCandidates());
             latencyService.setNodes(candidates);
             lastScheduledTime.set(System.currentTimeMillis());
-            return Objects.requireNonNull(current.get());
+            return node;
         } catch (BlockStreamException ex) {
             current.set(null);
             throw ex;

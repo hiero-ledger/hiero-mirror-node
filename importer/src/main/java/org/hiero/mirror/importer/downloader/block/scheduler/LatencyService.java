@@ -62,7 +62,7 @@ public final class LatencyService implements AutoCloseable {
      *
      * @param nodes - Block nodes
      */
-    void setNodes(Collection<BlockNode> nodes) {
+    void setNodes(final Collection<BlockNode> nodes) {
         cancelAll();
 
         final long bornGeneration = generation.incrementAndGet();
