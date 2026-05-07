@@ -47,7 +47,8 @@ final class NetworkLedgerLoaderTest {
         importerProperties = new ImporterProperties();
         importerProperties.setNetwork(NETWORK);
         blockProperties = new BlockProperties(importerProperties);
-        loader = new NetworkLedgerLoader(blockProperties, importerProperties, resourceLoader);
+        loader = new NetworkLedgerLoader(
+                blockProperties, importerProperties, new LedgerIdPublicationTransactionParser(), resourceLoader);
     }
 
     @Test

@@ -34,4 +34,12 @@ public final class LedgerProperties {
                 .nodeContributions(nodeContributions)
                 .build();
     }
+
+    public static LedgerProperties from(final Ledger ledger) {
+        return LedgerProperties.builder()
+                .historyProofVerificationKey(ledger.getHistoryProofVerificationKey())
+                .ledgerId(ledger.getLedgerId())
+                .nodeContributions(ledger.getNodeContributions())
+                .build();
+    }
 }

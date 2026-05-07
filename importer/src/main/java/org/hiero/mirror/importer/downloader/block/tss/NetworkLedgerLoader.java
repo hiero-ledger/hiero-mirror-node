@@ -8,12 +8,8 @@ import jakarta.inject.Named;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.jspecify.annotations.NullMarked;
@@ -32,6 +28,7 @@ final class NetworkLedgerLoader {
 
     private final BlockProperties blockProperties;
     private final ImporterProperties importerProperties;
+    private final LedgerIdPublicationTransactionParser ledgerIdPublicationTransactionParser;
     private final ResourceLoader resourceLoader;
 
     @EventListener(ApplicationReadyEvent.class)
@@ -96,20 +93,7 @@ final class NetworkLedgerLoader {
             throw new IllegalStateException("Failed to parse " + source, e);
         }
 
-        final var protoContributions = body.getNodeContributionsList();
-        final List<LedgerNodeContribution> nodeContributions = new ArrayList<>(protoContributions.size());
-        for (final var nc : protoContributions) {
-            nodeContributions.add(LedgerNodeContribution.builder()
-                    .historyProofKey(DomainUtils.toBytes(nc.getHistoryProofKey()))
-                    .nodeId(nc.getNodeId())
-                    .weight(nc.getWeight())
-                    .build());
-        }
-
-        return LedgerProperties.builder()
-                .historyProofVerificationKey(DomainUtils.toBytes(body.getHistoryProofVerificationKey()))
-                .ledgerId(DomainUtils.toBytes(body.getLedgerId()))
-                .nodeContributions(nodeContributions)
-                .build();
+        final var ledger = ledgerIdPublicationTransactionParser.parse(0L, body);
+        return LedgerProperties.from(ledger);
     }
 }
