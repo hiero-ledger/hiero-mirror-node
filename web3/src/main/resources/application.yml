@@ -14,6 +14,7 @@ hiero:
       opcode:
         tracer:
           enabled: false
+      sharedWritableState: false
 logging:
   level:
     root: warn
