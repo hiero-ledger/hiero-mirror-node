@@ -3,6 +3,7 @@
 package org.hiero.mirror.restjava.config;
 
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_METHODS;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_ONLY;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.NONE;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerAnnotatedPackage;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
@@ -19,6 +20,7 @@ import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.Year;
 import java.util.Objects;
+import org.hibernate.validator.internal.util.logging.Log_$logger;
 import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.restjava.config.RuntimeHintsConfiguration.CustomRuntimeHints;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
@@ -67,6 +69,8 @@ final class RuntimeHintsConfiguration {
             registerAnnotatedPackage(hints, loader, "com.hedera.node.config.data", ConfigData.class);
             registerPackage(hints, loader, ThrottleGroup.class.getPackageName());
             registerPackage(hints, loader, NumberRangeParameter.class.getPackageName());
+
+            registerReflectionTypes(hints, CONSTRUCTORS_ONLY, Log_$logger.class);
 
             registerResourcePatterns(
                     hints,

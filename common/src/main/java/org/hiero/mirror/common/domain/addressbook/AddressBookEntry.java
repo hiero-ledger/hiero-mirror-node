@@ -49,7 +49,6 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
 
     private String memo;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId nodeAccountId;
 

@@ -30,8 +30,7 @@ openApiGenerate {
     generateApiTests = false
     generateModelTests = false
     generatorName = "java"
-    inputSpec =
-        rootDir.resolve("rest").resolve("api").resolve("v1").resolve("openapi.yml").absolutePath
+    inputSpec = rootDir.resolve("rest").resolve("api").resolve("v1").resolve("openapi.yml")
     invokerPackage = "${openApiPackage}.handler"
     library = "native"
     modelPackage = "${openApiPackage}.model"
