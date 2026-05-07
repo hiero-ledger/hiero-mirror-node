@@ -222,7 +222,7 @@ jobs:
       - name: Run k6 tests
         if: ${{ matrix.stream-type != 'BLOCK' }}
         env:
-          BASE_URL: "http://127.0.0.1:8081"
+          BASE_URL: "http://127.0.0.1:38081"
           DEFAULT_DURATION: "3s"
           DEFAULT_GRACEFUL_STOP: "1s"
           DEFAULT_VUS: 2

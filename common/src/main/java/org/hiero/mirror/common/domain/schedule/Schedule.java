@@ -27,7 +27,6 @@ public class Schedule {
     @Column(updatable = false)
     private Long consensusTimestamp;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     @Column(updatable = false)
     private EntityId creatorAccountId;
@@ -37,6 +36,7 @@ public class Schedule {
     @Column(updatable = false)
     private Long expirationTime;
 
+    @Convert(converter = EntityIdConverter.class)
     @Column(updatable = false)
     private EntityId payerAccountId;
 

@@ -19,7 +19,6 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 @SuperBuilder
 public class Contract {
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     @Column(updatable = false)
     private EntityId fileId;

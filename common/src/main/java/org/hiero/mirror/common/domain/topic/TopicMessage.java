@@ -44,7 +44,6 @@ public class TopicMessage implements Comparable<TopicMessage>, Persistable<Long>
     @ToString.Exclude
     private byte[] message;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
@@ -55,7 +54,6 @@ public class TopicMessage implements Comparable<TopicMessage>, Persistable<Long>
 
     private long sequenceNumber;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId topicId;
 
