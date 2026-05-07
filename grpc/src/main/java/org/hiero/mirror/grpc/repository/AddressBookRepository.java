@@ -9,6 +9,6 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface AddressBookRepository extends CrudRepository<AddressBook, Long> {
 
-    @Query(value = "select max(start_consensus_timestamp) from address_book where file_id = ?")
+    @Query(value = "select max(start_consensus_timestamp) from address_book where file_id = :fileId")
     Optional<Long> findLatestTimestamp(long fileId);
 }

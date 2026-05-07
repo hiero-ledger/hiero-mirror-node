@@ -7,6 +7,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.util.List;
 import javax.sql.DataSource;
 import org.hiero.mirror.common.config.CommonRuntimeHints;
+import org.hiero.mirror.common.converter.ByteArrayArrayJdbcConverters;
 import org.hiero.mirror.common.converter.EntityIdToLongConverter;
 import org.hiero.mirror.common.converter.JsonbReadingConverters;
 import org.hiero.mirror.common.converter.JsonbWritingConverters;
@@ -15,6 +16,7 @@ import org.hiero.mirror.common.converter.LongToEntityIdConverter;
 import org.hiero.mirror.common.converter.PGobjectToRangeReadingConverter;
 import org.hiero.mirror.common.converter.PostgresAirdropStateJdbcConverters;
 import org.hiero.mirror.common.converter.PostgresEntityTypeJdbcConverters;
+import org.hiero.mirror.common.converter.PostgresErrataTypeJdbcConverters;
 import org.hiero.mirror.common.converter.PostgresHookJdbcConverters;
 import org.hiero.mirror.common.converter.RangeToPGobjectWritingConverter;
 import org.hiero.mirror.common.converter.ShortArrayJdbcConverters;
@@ -97,6 +99,8 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
     @Override
     protected List<?> userConverters() {
         return List.of(
+                new ByteArrayArrayJdbcConverters.ByteArrayArrayToPGobject(),
+                new ByteArrayArrayJdbcConverters.PGobjectToByteArrayArray(),
                 new EntityIdToLongConverter(),
                 new LongToEntityIdConverter(),
                 new LongArrayJdbcConverters.AssociatedRegisteredNodeIdsToLongArray(),
@@ -110,6 +114,9 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new PostgresEntityTypeJdbcConverters.EntityTypeToJdbcValue(),
                 new PostgresEntityTypeJdbcConverters.PGobjectToEntityType(),
                 new PostgresEntityTypeJdbcConverters.StringToEntityType(),
+                new PostgresErrataTypeJdbcConverters.ErrataTypeToJdbcValue(),
+                new PostgresErrataTypeJdbcConverters.PGobjectToErrataType(),
+                new PostgresErrataTypeJdbcConverters.StringToErrataType(),
                 new PostgresHookJdbcConverters.HookExtensionPointToJdbcValue(),
                 new PostgresHookJdbcConverters.PGobjectToHookExtensionPoint(),
                 new PostgresHookJdbcConverters.StringToHookExtensionPoint(),

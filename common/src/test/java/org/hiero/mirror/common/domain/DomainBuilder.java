@@ -123,8 +123,8 @@ import org.hiero.mirror.common.domain.topic.TopicMessageLookup;
 import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
+import org.hiero.mirror.common.domain.transaction.ErrataType;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
-import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
 import org.hiero.mirror.common.domain.transaction.LiveHash;
 import org.hiero.mirror.common.domain.transaction.NetworkFreeze;
 import org.hiero.mirror.common.domain.transaction.Prng;
@@ -1197,15 +1197,11 @@ public class DomainBuilder {
                 .congestionPricingMultiplier(id())
                 .consensusTimestamp(timestamp())
                 .entityId(entityId())
+                .errata(ErrataType.INSERT)
                 .highVolume(false)
                 .highVolumePricingMultiplier(1L)
                 .index(transactionIndex())
                 .initialBalance(10000000L)
-                .itemizedTransfer(List.of(ItemizedTransfer.builder()
-                        .amount(100L)
-                        .entityId(entityId())
-                        .isApproval(false)
-                        .build()))
                 .maxCustomFees(new byte[][] {bytes(6), bytes(8)})
                 .maxFee(100000000L)
                 .memo(bytes(10))

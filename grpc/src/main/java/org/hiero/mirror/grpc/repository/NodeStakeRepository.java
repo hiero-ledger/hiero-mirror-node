@@ -18,12 +18,13 @@ public interface NodeStakeRepository extends CrudRepository<NodeStake, NodeStake
     @Query(value = "select max(consensus_timestamp) from node_stake")
     Optional<Long> findLatestTimestamp();
 
+    @Query(value = "select * from node_stake where consensus_timestamp = :consensusTimestamp")
     List<NodeStake> findAllByConsensusTimestamp(long consensusTimestamp);
 
     // An empty map may be cached, indicating the node_stake table is empty
     @Cacheable(cacheManager = NODE_STAKE_CACHE, cacheNames = CACHE_NAME)
     default Map<Long, Long> findAllStakeByConsensusTimestamp(long consensusTimestamp) {
         return findAllByConsensusTimestamp(consensusTimestamp).stream()
-                .collect(Collectors.toUnmodifiableMap(NodeStake::getNodeId, NodeStake::getStake));
+                .collect(Collectors.toUnmodifiableMap(n -> n.getId().getNodeId(), NodeStake::getStake));
     }
 }

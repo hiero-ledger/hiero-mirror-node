@@ -23,7 +23,7 @@ public final class PostgresHookJdbcConverters {
         @SneakyThrows
         public JdbcValue convert(HookExtensionPoint source) {
             if (source == null) {
-                return null;
+                return JdbcValue.of(null, JDBCType.OTHER);
             }
             var pg = new PGobject();
             pg.setType("hook_extension_point");
@@ -63,7 +63,7 @@ public final class PostgresHookJdbcConverters {
         @SneakyThrows
         public JdbcValue convert(HookType source) {
             if (source == null) {
-                return null;
+                return JdbcValue.of(null, JDBCType.OTHER);
             }
             var pg = new PGobject();
             pg.setType("hook_type");

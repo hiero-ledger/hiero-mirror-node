@@ -46,6 +46,7 @@ class TopicMessageServiceTest extends GrpcIntegrationTest {
     private final long future = now + 30L * NANOS_PER_SECOND;
 
     private final ReactiveDomainBuilder domainBuilder;
+    private final EntityRepository entityRepository;
     private final GrpcProperties grpcProperties;
     private final ListenerProperties listenerProperties;
     private final RetrieverProperties retrieverProperties;
@@ -143,6 +144,7 @@ class TopicMessageServiceTest extends GrpcIntegrationTest {
 
     @Test
     void invalidTopic() {
+        entityRepository.deleteById(TOPIC_ID.getId());
         domainBuilder.entity(e -> e.type(EntityType.ACCOUNT)).block();
         var filter = TopicMessageFilter.builder().topicId(TOPIC_ID).build();
 

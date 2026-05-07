@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
+import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 class AddressBookEntryRepositoryTest extends GrpcIntegrationTest {
 
     private final AddressBookEntryRepository addressBookEntryRepository;
+    private final AddressBookServiceEndpointRepository addressBookServiceEndpointRepository;
 
     @Test
     void findByConsensusTimestampAndNodeId() {
@@ -28,22 +30,33 @@ class AddressBookEntryRepositoryTest extends GrpcIntegrationTest {
         assertThat(addressBookEntryRepository.findByConsensusTimestampAndNodeId(consensusTimestamp, 0L, limit))
                 .as("First page has a length equal to limit")
                 .hasSize(limit)
-                .containsExactly(addressBookEntry1, addressBookEntry2);
+                .extracting(AddressBookEntryRepository.AddressBookEntryView::nodeId)
+                .containsExactly(addressBookEntry1.getNodeId(), addressBookEntry2.getNodeId());
 
         assertThat(addressBookEntryRepository.findByConsensusTimestampAndNodeId(consensusTimestamp, limit, limit))
                 .as("Second page has less than limit")
-                .containsExactly(addressBookEntry3);
+                .extracting(AddressBookEntryRepository.AddressBookEntryView::nodeId)
+                .containsExactly(addressBookEntry3.getNodeId());
     }
 
     @Test
     @Transactional
     void serviceEndpoints() {
-        AddressBookEntry addressBookEntry = domainBuilder.addressBookEntry(3).persist();
-        assertThat(addressBookEntryRepository.findById(addressBookEntry.getId()))
-                .get()
-                .extracting(AddressBookEntry::getServiceEndpoints)
+        AddressBookEntry addressBookEntry = domainBuilder.addressBookEntry(0).persist();
+
+        var expected = new java.util.ArrayList<AddressBookServiceEndpoint>();
+        for (int i = 0; i < 3; i++) {
+            expected.add(domainBuilder
+                    .addressBookServiceEndpoint()
+                    .customize(e -> e.consensusTimestamp(addressBookEntry.getConsensusTimestamp())
+                            .nodeId(addressBookEntry.getNodeId()))
+                    .persist());
+        }
+
+        assertThat(addressBookServiceEndpointRepository.findAllByConsensusTimestampAndNodeId(
+                        addressBookEntry.getConsensusTimestamp(), addressBookEntry.getNodeId()))
                 .asInstanceOf(InstanceOfAssertFactories.COLLECTION)
-                .containsExactlyInAnyOrderElementsOf(addressBookEntry.getServiceEndpoints());
+                .containsExactlyInAnyOrderElementsOf(expected);
     }
 
     private AddressBookEntry addressBookEntry(long consensusTimestamp, long nodeId) {
