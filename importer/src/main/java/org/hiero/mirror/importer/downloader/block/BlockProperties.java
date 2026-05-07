@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
@@ -32,6 +33,8 @@ public class BlockProperties {
 
     @NotNull
     private Duration frequency = Duration.ofMillis(100L);
+
+    private Path initialLedgerIdPublication;
 
     @Valid
     private LedgerProperties ledger;

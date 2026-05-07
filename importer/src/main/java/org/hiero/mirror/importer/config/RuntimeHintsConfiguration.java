@@ -58,6 +58,7 @@ final class RuntimeHintsConfiguration {
             registerResourcePatterns(
                     hints,
                     "addressbook/**",
+                    "networkledger/**",
                     "accountInfo.txt.gz",
                     "accountInfoContracts.txt",
                     "com/hedera/nativelib/wraps/**",
