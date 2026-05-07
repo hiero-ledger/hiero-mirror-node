@@ -51,6 +51,7 @@ server:
   shutdown: graceful
   tomcat:
     connection-timeout: 3s
+    keep-alive-timeout: 620s
     max-http-form-post-size: 1MB
     max-swallow-size: 1MB
 spring:

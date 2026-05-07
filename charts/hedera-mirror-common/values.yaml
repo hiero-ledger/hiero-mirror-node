@@ -640,15 +640,15 @@ traefik:
   deployment:
     kind: DaemonSet
   enabled: true
-  globalArguments:  # Expose X-Forwarded-For header for tracing
-    - --entryPoints.web.forwardedHeaders.insecure
-    - --entryPoints.websecure.forwardedHeaders.insecure
-    - --api.insecure=true
+  globalArguments:
+   - --api.insecure=true
   logs:
     access:
       enabled: true
       filters:
-        statuscodes: 400-599
+        minduration: 2s
+        retryattempts: true
+        statuscodes: 500-599
   metrics:
     prometheus:
       addServicesLabels: true
@@ -656,7 +656,18 @@ traefik:
     enabled: true
     minAvailable: 1
   ports:
+    web:
+      forwardedHeaders:
+        insecure: true  # Expose X-Forwarded-For header for tracing
+      transport:
+        respondingTimeouts:
+          idleTimeout: 610s
     websecure:
+      forwardedHeaders:
+        insecure: true
+      transport:
+        respondingTimeouts:
+          idleTimeout: 610s
       tls:
         enabled: true
   priorityClassName: critical
