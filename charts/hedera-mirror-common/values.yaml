@@ -641,7 +641,7 @@ traefik:
     kind: DaemonSet
   enabled: true
   globalArguments:
-   - --api.insecure=true
+    - --api.insecure=true
   logs:
     access:
       enabled: true
