@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.Resources;
@@ -28,24 +27,24 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
         scheduler = createScheduler();
 
         // when
-        var node = scheduler.getNode(blockNumber(0));
+        var scheduled = scheduler.getNode(0);
 
         // then
-        assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getFirst());
+        assertScheduledBlockNode(scheduled, 0L, blockNodeProperties.getFirst());
 
         // when server-00's latency gets updated
-        setLatency(node, 500);
-        node = scheduler.getNode(blockNumber(1));
+        setLatency(scheduled, 500);
+        scheduled = scheduler.getNode(1);
 
         // then
-        assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getLast());
+        assertScheduledBlockNode(scheduled, 1L, blockNodeProperties.getLast());
 
         // when server-01's latency becomes higher
-        setLatency(node, 700);
-        node = scheduler.getNode(blockNumber(1));
+        setLatency(scheduled, 700);
+        scheduled = scheduler.getNode(1);
 
         // then
-        assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getFirst());
+        assertScheduledBlockNode(scheduled, 1L, blockNodeProperties.getFirst());
     }
 
     @ParameterizedTest
@@ -62,17 +61,17 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
         scheduler = createScheduler();
 
         // when
-        var node = scheduler.getNode(blockNumber(1));
+        var scheduled = scheduler.getNode(1);
 
         // then
-        assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getLast());
+        assertScheduledBlockNode(scheduled, 1L, blockNodeProperties.getLast());
 
         // when server-01's latency gets updated
-        node.recordLatency(500);
-        node = scheduler.getNode(blockNumber(2));
+        setLatency(scheduled, 500);
+        scheduled = scheduler.getNode(2);
 
         // then
-        assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getLast());
+        assertScheduledBlockNode(scheduled, 2L, blockNodeProperties.getLast());
     }
 
     @Override

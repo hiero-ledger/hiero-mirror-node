@@ -2,12 +2,10 @@
 
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.Resources;
 import java.util.List;
-import org.hiero.mirror.importer.downloader.block.BlockNode;
 import org.hiero.mirror.importer.downloader.block.InProcessManagedChannelBuilderProvider;
 import org.hiero.mirror.importer.downloader.block.StreamProperties;
 import org.junit.jupiter.api.Test;
@@ -26,24 +24,24 @@ final class PriorityAndLatencySchedulerTest extends AbstractSchedulerTest {
         scheduler = createScheduler();
 
         // when, then
-        var node = scheduler.getNode(blockNumber(0));
-        assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getFirst());
+        var scheduled = scheduler.getNode(0);
+        assertScheduledBlockNode(scheduled, 0L, blockNodeProperties.getFirst());
 
         // when server-00's latency becomes higher then server-01
-        setLatency(node, 500);
-        node = scheduler.getNode(blockNumber(1));
-        assertThat(node.getProperties()).isEqualTo(blockNodeProperties.get(1));
+        setLatency(scheduled, 500);
+        scheduled = scheduler.getNode(1);
+        assertScheduledBlockNode(scheduled, 1L, blockNodeProperties.get(1));
 
         // when requesting a block priority-0 nodes don't have
-        node = scheduler.getNode(blockNumber(2));
-        assertThat(node.getProperties()).isEqualTo(blockNodeProperties.get(2));
+        scheduled = scheduler.getNode(2);
+        assertScheduledBlockNode(scheduled, 2L, blockNodeProperties.get(2));
 
         // when server-02's latency becomes higher than server-03
-        setLatency(node, 600);
-        node = scheduler.getNode(blockNumber(3));
+        setLatency(scheduled, 600);
+        scheduled = scheduler.getNode(3);
 
         // then
-        assertThat(node.getProperties()).isEqualTo(blockNodeProperties.get(3));
+        assertScheduledBlockNode(scheduled, 3L, blockNodeProperties.get(3));
     }
 
     @Test
@@ -58,18 +56,10 @@ final class PriorityAndLatencySchedulerTest extends AbstractSchedulerTest {
         scheduler = createScheduler();
 
         // when, then
-        assertThat(scheduler.getNode(blockNumber(0)))
-                .extracting(BlockNode::getProperties)
-                .isEqualTo(blockNodeProperties.getFirst());
-        assertThat(scheduler.getNode(blockNumber(1)))
-                .extracting(BlockNode::getProperties)
-                .isEqualTo(blockNodeProperties.get(1));
-        assertThat(scheduler.getNode(blockNumber(2)))
-                .extracting(BlockNode::getProperties)
-                .isEqualTo(blockNodeProperties.get(2));
-        assertThat(scheduler.getNode(blockNumber(3)))
-                .extracting(BlockNode::getProperties)
-                .isEqualTo(blockNodeProperties.getLast());
+        assertScheduledBlockNode(scheduler.getNode(0), 0L, blockNodeProperties.getFirst());
+        assertScheduledBlockNode(scheduler.getNode(1), 1L, blockNodeProperties.get(1));
+        assertScheduledBlockNode(scheduler.getNode(2), 2L, blockNodeProperties.get(2));
+        assertScheduledBlockNode(scheduler.getNode(3), 3L, blockNodeProperties.getLast());
     }
 
     @Override

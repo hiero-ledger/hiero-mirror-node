@@ -9,6 +9,7 @@ import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,11 +27,15 @@ abstract class AbstractBlockSource implements BlockSource {
     @Override
     public final void get() {
         final long blockNumber = cutoverService.getNextBlockNumber();
-        if (shouldGetBlock(blockNumber)) {
-            doGet(
-                    blockNumber,
-                    commonDownloaderProperties.getImporterProperties().getEndBlockNumber());
+        final var endBlockNumber =
+                commonDownloaderProperties.getImporterProperties().getEndBlockNumber();
+        if (shouldGetBlock(blockNumber, endBlockNumber)) {
+            doGet(blockNumber, endBlockNumber);
         }
+    }
+
+    protected static boolean shouldGetBlock(final long blockNumber, final @Nullable Long endBlockNumber) {
+        return endBlockNumber == null || blockNumber <= endBlockNumber;
     }
 
     protected abstract void doGet(final long blockNumber, final Long endBlockNumber);
@@ -48,11 +53,5 @@ abstract class AbstractBlockSource implements BlockSource {
         blockFile.setNode(blockNode);
         blockStreamVerifier.verify(blockFile);
         return blockFile;
-    }
-
-    protected final boolean shouldGetBlock(final long blockNumber) {
-        final var endBlockNumber =
-                commonDownloaderProperties.getImporterProperties().getEndBlockNumber();
-        return endBlockNumber == null || blockNumber <= endBlockNumber;
     }
 }

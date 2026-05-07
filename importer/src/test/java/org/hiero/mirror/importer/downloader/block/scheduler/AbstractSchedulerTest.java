@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
@@ -12,7 +13,6 @@ import io.grpc.stub.StreamObserver;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusRequest;
@@ -55,12 +55,23 @@ abstract class AbstractSchedulerTest {
         scheduler = createScheduler();
 
         // when, then
-        assertThatThrownBy(() -> scheduler.getNode(new AtomicLong(1)))
+        assertThatThrownBy(() -> scheduler.getNode(1))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessageContaining("No block node can provide block 1");
     }
 
     protected abstract Scheduler createScheduler();
+
+    protected void assertScheduledBlockNode(
+            final ScheduledBlockNode scheduled,
+            final long expectedBlockNumber,
+            final BlockNodeProperties expectedProperties) {
+        assertThat(scheduled)
+                .returns(expectedBlockNumber, ScheduledBlockNode::nextBlockNumber)
+                .extracting(ScheduledBlockNode::blockNode)
+                .extracting(BlockNode::getProperties)
+                .isEqualTo(expectedProperties);
+    }
 
     @SneakyThrows
     protected BlockNodeProperties runBlockNodeService(
@@ -85,14 +96,11 @@ abstract class AbstractSchedulerTest {
         return properties;
     }
 
-    protected void setLatency(BlockNode blockNode, long latency) {
+    protected void setLatency(final ScheduledBlockNode scheduled, final long latency) {
+        final var node = scheduled.blockNode();
         for (int i = 0; i < 5; i++) {
-            blockNode.recordLatency(latency);
+            node.recordLatency(latency);
         }
-    }
-
-    protected static AtomicLong blockNumber(final long number) {
-        return new AtomicLong(number);
     }
 
     protected static ServerStatusResponse withAllBlocks() {

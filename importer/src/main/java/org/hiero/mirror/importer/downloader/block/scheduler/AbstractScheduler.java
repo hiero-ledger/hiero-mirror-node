@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
 import org.hiero.mirror.importer.downloader.block.BlockNodeDiscoveryService;
@@ -19,6 +18,7 @@ import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.downloader.block.ManagedChannelBuilderProvider;
 import org.hiero.mirror.importer.downloader.block.StreamProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +53,7 @@ abstract class AbstractScheduler implements Scheduler {
     }
 
     @Override
-    public BlockNode getNode(final AtomicLong blockNumber) {
+    public ScheduledBlockNode getNode(final long blockNumber) {
         refreshNodes();
 
         final var inactiveNodes = new ArrayList<BlockNode>();
@@ -65,16 +65,18 @@ abstract class AbstractScheduler implements Scheduler {
                 continue;
             }
 
-            if (hasBlock(blockNumber, node)) {
-                return node;
+            final var choice = hasBlock(blockNumber, node);
+            if (choice != null) {
+                return choice;
             }
         }
 
         // find the first inactive node with the block and force activating it
         for (var node : inactiveNodes) {
-            if (hasBlock(blockNumber, node)) {
+            final var choice = hasBlock(blockNumber, node);
+            if (choice != null) {
                 node.tryReadmit(true);
-                return node;
+                return choice;
             }
         }
 
@@ -120,6 +122,21 @@ abstract class AbstractScheduler implements Scheduler {
         setNodes(nodes);
     }
 
+    private static @Nullable ScheduledBlockNode hasBlock(final long nextBlockNumber, final BlockNode node) {
+        final var blockRange = node.getBlockRange();
+        if (blockRange.isEmpty()) {
+            return null;
+        }
+
+        if (nextBlockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER) {
+            return new ScheduledBlockNode(node, blockRange.lowerEndpoint());
+        } else if (blockRange.contains(nextBlockNumber)) {
+            return new ScheduledBlockNode(node, nextBlockNumber);
+        }
+
+        return null;
+    }
+
     private static boolean nodesChanged(final List<BlockNodeProperties> current, final List<BlockNodeProperties> next) {
         if (current.size() != next.size()) {
             return true; // Node was added or removed
@@ -132,19 +149,5 @@ abstract class AbstractScheduler implements Scheduler {
         }
 
         return false;
-    }
-
-    private static boolean hasBlock(final AtomicLong nextBlockNumber, final BlockNode node) {
-        final var blockRange = node.getBlockRange();
-        if (blockRange.isEmpty()) {
-            return false;
-        }
-
-        if (nextBlockNumber.get() == EARLIEST_AVAILABLE_BLOCK_NUMBER) {
-            nextBlockNumber.set(blockRange.lowerEndpoint());
-            return true;
-        } else {
-            return blockRange.contains(nextBlockNumber.get());
-        }
     }
 }

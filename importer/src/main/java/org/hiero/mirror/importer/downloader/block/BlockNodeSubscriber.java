@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.downloader.block;
 import static org.hiero.mirror.importer.downloader.block.scheduler.Scheduler.EARLIEST_AVAILABLE_BLOCK_NUMBER;
 
 import jakarta.inject.Named;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
@@ -38,15 +37,16 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
 
     @Override
     protected void doGet(final long blockNumber, final Long endBlockNumber) {
-        final var nextBlockNumber = new AtomicLong(blockNumber);
-        final var node = scheduler.getNode(nextBlockNumber);
-        if (blockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER && !shouldGetBlock(nextBlockNumber.get())) {
+        final var scheduled = scheduler.getNode(blockNumber);
+        if (blockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER
+                && !shouldGetBlock(scheduled.nextBlockNumber(), endBlockNumber)) {
             return;
         }
 
-        log.info("Start streaming block {} from {}", nextBlockNumber.get(), node);
+        final var node = scheduled.blockNode();
+        log.info("Start streaming block {} from {}", scheduled.nextBlockNumber(), node);
         node.streamBlocks(
-                nextBlockNumber.get(),
+                scheduled.nextBlockNumber(),
                 endBlockNumber,
                 this::handleBlockStream,
                 commonDownloaderProperties.getTimeout());

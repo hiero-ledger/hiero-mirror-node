@@ -2,12 +2,10 @@
 
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.Resources;
 import java.util.List;
-import org.hiero.mirror.importer.downloader.block.BlockNode;
 import org.hiero.mirror.importer.downloader.block.InProcessManagedChannelBuilderProvider;
 import org.hiero.mirror.importer.downloader.block.StreamProperties;
 import org.junit.jupiter.api.Test;
@@ -26,9 +24,7 @@ final class PrioritySchedulerTest extends AbstractSchedulerTest {
         scheduler = createScheduler();
 
         // when, then
-        assertThat(scheduler.getNode(blockNumber(0)))
-                .extracting(BlockNode::getProperties)
-                .isEqualTo(blockNodeProperties.getFirst());
+        assertScheduledBlockNode(scheduler.getNode(0), 0L, blockNodeProperties.getFirst());
     }
 
     @Test
@@ -43,18 +39,10 @@ final class PrioritySchedulerTest extends AbstractSchedulerTest {
         scheduler = createScheduler();
 
         // when, then
-        assertThat(scheduler.getNode(blockNumber(0)))
-                .extracting(BlockNode::getProperties)
-                .isEqualTo(blockNodeProperties.getFirst());
-        assertThat(scheduler.getNode(blockNumber(1)))
-                .extracting(BlockNode::getProperties)
-                .isEqualTo(blockNodeProperties.get(1));
-        assertThat(scheduler.getNode(blockNumber(2)))
-                .extracting(BlockNode::getProperties)
-                .isEqualTo(blockNodeProperties.get(2));
-        assertThat(scheduler.getNode(blockNumber(3)))
-                .extracting(BlockNode::getProperties)
-                .isEqualTo(blockNodeProperties.getLast());
+        assertScheduledBlockNode(scheduler.getNode(0), 0L, blockNodeProperties.getFirst());
+        assertScheduledBlockNode(scheduler.getNode(1), 1L, blockNodeProperties.get(1));
+        assertScheduledBlockNode(scheduler.getNode(2), 2L, blockNodeProperties.get(2));
+        assertScheduledBlockNode(scheduler.getNode(3), 3L, blockNodeProperties.getLast());
     }
 
     @Override

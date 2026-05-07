@@ -126,7 +126,7 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         schedulerProperties.setRescheduleLatencyThreshold(Duration.ofMillis(1));
         latencyService = new LatencyService(blockStreamReader, cutoverService, new LatencyServiceProperties());
         executor = Executors.newSingleThreadScheduledExecutor();
-        executor.scheduleWithFixedDelay(() -> latencyService.schedule(), 5, 100, TimeUnit.MILLISECONDS);
+        executor.scheduleWithFixedDelay(() -> latencyService.schedule(), 5, 5, TimeUnit.MILLISECONDS);
     }
 
     @AfterEach
