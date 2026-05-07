@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.state.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -64,7 +65,7 @@ class CaffeineWritableKVStateTest {
     @Test
     void tombstoneReturnsNullWithoutDelegateFallthrough() {
         sharedStore.put(accountID, Optional.empty());
-        when(delegate.get(accountID)).thenReturn(account); // would return non-null if reached
+        lenient().when(delegate.get(accountID)).thenReturn(account); // would return non-null if reached
         assertThat(subject.readFromDataSource(accountID)).isNull();
         verify(delegate, never()).get(accountID);
     }
