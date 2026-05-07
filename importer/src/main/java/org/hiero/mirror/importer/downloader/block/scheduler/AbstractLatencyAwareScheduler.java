@@ -80,13 +80,11 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
             return false;
         }
 
-        final long updatedLatency = node.getLatency();
+        final double updatedLatency = node.getLatency();
+        final long threshold =
+                schedulerProperties.getRescheduleLatencyThreshold().toMillis();
         for (var candidate : candidates) {
-            if (updatedLatency
-                    >= candidate.getLatency()
-                            + schedulerProperties
-                                    .getRescheduleLatencyThreshold()
-                                    .toMillis()) {
+            if (updatedLatency >= candidate.getLatency() + threshold) {
                 return true;
             }
         }

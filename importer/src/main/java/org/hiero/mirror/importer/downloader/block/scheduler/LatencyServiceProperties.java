@@ -20,6 +20,7 @@ public final class LatencyServiceProperties {
     @Min(1)
     private int backlog = 1;
 
+    @DurationMin(seconds = 2)
     @NotNull
     private Duration frequency = Duration.ofSeconds(10);
 

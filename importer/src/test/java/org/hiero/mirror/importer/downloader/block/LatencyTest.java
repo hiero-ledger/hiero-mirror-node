@@ -18,22 +18,22 @@ final class LatencyTest {
 
     @ParameterizedTest
     @CsvSource(textBlock = """
-            '', -9223372036854775808
-            '1,2', -9223372036854775808
-            '1,2,3', -9223372036854775808
-            '1,2,3,4', -9223372036854775808
-            '1,2,3,4,5', 3
-            '1,2,3,4,5,6', 4
-            '1,1,1,5,5,5,5,5', 5
-            '1,1,1,1,1,1,1,1,2,3,4,5', 3
+            '', 0
+            '1,2', 1.3
+            '1,2,3', 1.8
+            '1,2,3,4', 2.5
+            '1,2,3,4,5', 3.2
+            '1,2,3,4,5,6', 4.0
+            '1,1,1,5,5,5,5,5', 4.3
+            '1,1,1,1,1,1,1,1,2,3,4,5', 3.2
             """)
-    void average(@ConvertWith(LongListConverter.class) List<Long> history, long expected) {
+    void average(@ConvertWith(LongListConverter.class) List<Long> history, float expected) {
         // given
         var latency = new Latency();
         history.forEach(latency::record);
 
         // when, then
-        assertThat(latency.getAverage()).isEqualTo(expected);
+        assertThat(latency.getAverage()).isBetween(expected - 0.1, expected + 0.1);
     }
 
     private static class LongListConverter extends SimpleArgumentConverter {

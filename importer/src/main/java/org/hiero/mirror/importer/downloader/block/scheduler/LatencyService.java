@@ -107,6 +107,8 @@ public final class LatencyService implements AutoCloseable {
         private final long bornGeneration;
         private final BlockNode node;
 
+        private long lastMeasuredBlockNumber = -1;
+
         @Override
         public void run() {
             if (bornGeneration != generation.get()) {
@@ -114,18 +116,25 @@ public final class LatencyService implements AutoCloseable {
                 return;
             }
 
-            final long nextBlockNumber = cutoverService.getNextBlockNumber();
-            if (nextBlockNumber < 0 || !node.getBlockRange().contains(nextBlockNumber)) {
-                return;
-            }
+            try {
+                final long nextBlockNumber = cutoverService.getNextBlockNumber();
+                if (nextBlockNumber < 0
+                        || nextBlockNumber == lastMeasuredBlockNumber
+                        || !node.getBlockRange().contains(nextBlockNumber)) {
+                    return;
+                }
 
-            log.info("Measuring {}'s latency by streaming block {}", node, nextBlockNumber);
-            final var timeout = latencyServiceProperties.getTimeout();
-            node.streamBlocks(nextBlockNumber, nextBlockNumber, this::measureLatency, timeout);
-
-            if (bornGeneration == generation.get()) {
-                // add the task back to the list if it's still the current generation, so it'll get rescheduled
-                tasks.add(this);
+                log.info("Measuring {}'s latency by streaming block {}", node, nextBlockNumber);
+                final var timeout = latencyServiceProperties.getTimeout();
+                node.streamBlocks(nextBlockNumber, nextBlockNumber, this::measureLatency, timeout);
+                lastMeasuredBlockNumber = nextBlockNumber;
+            } catch (Exception ex) {
+                // ignore
+            } finally {
+                if (bornGeneration == generation.get()) {
+                    // add the task back to the list if it's still the current generation, so it'll get rescheduled
+                    tasks.add(this);
+                }
             }
         }
 

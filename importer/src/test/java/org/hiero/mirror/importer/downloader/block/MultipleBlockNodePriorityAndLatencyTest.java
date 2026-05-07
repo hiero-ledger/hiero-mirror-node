@@ -36,13 +36,13 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
                 .withBlockInterval(interval)
                 .withHostPrefix("a")
                 .withInProcessChannel()
-                .withLatency(10)
+                .withLatency(125)
                 .withPriority(0);
         addSimulatorWithBlocks(blocks)
                 .withBlockInterval(interval)
                 .withHostPrefix("b")
                 .withInProcessChannel()
-                .withLatency(100)
+                .withLatency(10)
                 .withPriority(0);
         addSimulatorWithBlocks(blocks)
                 .withBlockInterval(interval)
@@ -66,12 +66,11 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
         assertVerifiedBlockFiles(LongStream.range(0, 20).boxed().toList());
 
         // it's non-deterministic that at exactly which block, based on latency, the scheduler will switch from one
-        // block node server to the lower latency one. However, there should be two switches
+        // block node server to the lower latency one.
         assertThat(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)"))
                 .containsExactly(
                         String.format("from BlockNode(%s)", endpoint(0)),
-                        String.format("from BlockNode(%s)", endpoint(1)),
-                        String.format("from BlockNode(%s)", endpoint(0)));
+                        String.format("from BlockNode(%s)", endpoint(1)));
     }
 
     @Test
@@ -84,13 +83,13 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
                 .withBlockInterval(interval)
                 .withHostPrefix("a")
                 .withInProcessChannel()
-                .withLatency(10)
+                .withLatency(125)
                 .withPriority(0);
         addSimulatorWithBlocks(blocks.subList(0, 15))
                 .withBlockInterval(interval)
                 .withHostPrefix("b")
                 .withInProcessChannel()
-                .withLatency(100)
+                .withLatency(10)
                 .withPriority(0);
         addSimulatorWithBlocks(blocks.subList(13, 30))
                 .withBlockInterval(interval)
@@ -116,14 +115,14 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
         // the following should happen in order
         // - start from node0
         // - switch to node1
-        // - switch to node0
+        // - switch to node2
         // - switch to node2
         // - switch to node3
         assertThat(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)"))
                 .containsExactly(
                         String.format("from BlockNode(%s)", endpoint(0)),
                         String.format("from BlockNode(%s)", endpoint(1)),
-                        String.format("from BlockNode(%s)", endpoint(0)),
+                        String.format("from BlockNode(%s)", endpoint(2)),
                         String.format("from BlockNode(%s)", endpoint(2)),
                         String.format("from BlockNode(%s)", endpoint(3)));
     }

@@ -118,7 +118,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         }
     }
 
-    public long getLatency() {
+    public double getLatency() {
         return latency.getAverage();
     }
 
@@ -154,7 +154,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                     case END_OF_BLOCK -> {
                         running = !assembler.onEndOfBlock(response.getEndOfBlock());
                         if (!running) {
-                            log.info("Cancelling the subscription");
+                            log.debug("Cancelling the subscription");
                         }
                     }
                     case STATUS -> {

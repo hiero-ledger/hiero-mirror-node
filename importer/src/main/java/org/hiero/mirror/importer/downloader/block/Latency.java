@@ -5,35 +5,24 @@ package org.hiero.mirror.importer.downloader.block;
 import lombok.Getter;
 
 /**
- * Records the last 5 latency values in milliseconds, and calculates its average
+ * Records the latency in milliseconds and calculates the exponential moving average using a factor of 0.3
  */
 final class Latency {
 
-    private static final int HISTORY_SIZE = 5;
+    // A smoothing factor of 0.3 gives faster reaction and is also noisier
+    private static final double SMOOTHING_FACTOR = 0.3;
 
     @Getter
-    private long average = Long.MIN_VALUE;
+    private double average;
 
-    private int count = 0;
-    private final long[] history = new long[HISTORY_SIZE];
+    private boolean initialized;
 
-    void record(long latency) {
-        history[count++ % HISTORY_SIZE] = latency;
-        if (count < HISTORY_SIZE) {
-            return;
+    void record(final long latency) {
+        if (!initialized) {
+            average = latency;
+            initialized = true;
+        } else {
+            average = SMOOTHING_FACTOR * latency + (1.0 - SMOOTHING_FACTOR) * average;
         }
-
-        if (count >= 10) {
-            // avoid overflow
-            count = HISTORY_SIZE + (count % HISTORY_SIZE);
-        }
-
-        long sum = 0;
-        int available = Math.min(HISTORY_SIZE, count);
-        for (int i = 0; i < available; i++) {
-            sum += history[i];
-        }
-
-        average = sum / available;
     }
 }

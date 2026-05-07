@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -56,11 +57,11 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest {
 
-    @Mock(strictness = Mock.Strictness.LENIENT)
-    protected BlockNodeDiscoveryService blockNodeDiscoveryService;
-
     @Resource
     private BlockFileTransformer blockFileTransformer;
+
+    @Mock(strictness = LENIENT)
+    protected BlockNodeDiscoveryService blockNodeDiscoveryService;
 
     protected BlockProperties blockProperties;
 
@@ -122,10 +123,10 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
                 streamFileNotifier,
                 mock(TssVerifier.class));
         schedulerProperties.setMinRescheduleInterval(Duration.ofMillis(500));
-        schedulerProperties.setRescheduleLatencyThreshold(Duration.ofMillis(20));
+        schedulerProperties.setRescheduleLatencyThreshold(Duration.ofMillis(1));
         latencyService = new LatencyService(blockStreamReader, cutoverService, new LatencyServiceProperties());
         executor = Executors.newSingleThreadScheduledExecutor();
-        executor.scheduleWithFixedDelay(() -> latencyService.schedule(), 5, 5, TimeUnit.MILLISECONDS);
+        executor.scheduleWithFixedDelay(() -> latencyService.schedule(), 5, 100, TimeUnit.MILLISECONDS);
     }
 
     @AfterEach
