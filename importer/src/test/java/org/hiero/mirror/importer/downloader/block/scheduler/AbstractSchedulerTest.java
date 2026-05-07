@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
@@ -10,7 +11,6 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
@@ -18,6 +18,7 @@ import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
+import org.hiero.mirror.importer.downloader.block.BlockNodeDiscoveryService;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.jspecify.annotations.NullUnmarked;
@@ -30,6 +31,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith({GrpcCleanupExtension.class, MockitoExtension.class})
 @NullUnmarked
 abstract class AbstractSchedulerTest {
+
+    @Mock
+    protected BlockNodeDiscoveryService blockNodeDiscoveryService;
 
     @Mock
     protected LatencyService latencyService;
@@ -47,7 +51,8 @@ abstract class AbstractSchedulerTest {
         var blockNodeProperties = List.of(
                 runBlockNodeService(0, resources, withBlocks(0, 0)),
                 runBlockNodeService(0, resources, withBlocks(0, 0)));
-        scheduler = createScheduler(blockNodeProperties);
+        doReturn(blockNodeProperties).when(blockNodeDiscoveryService).getBlockNodes();
+        scheduler = createScheduler();
 
         // when, then
         assertThatThrownBy(() -> scheduler.getNode(new AtomicLong(1)))
@@ -55,7 +60,7 @@ abstract class AbstractSchedulerTest {
                 .hasMessageContaining("No block node can provide block 1");
     }
 
-    protected abstract Scheduler createScheduler(Collection<BlockNodeProperties> blockNodeProperties);
+    protected abstract Scheduler createScheduler();
 
     @SneakyThrows
     protected BlockNodeProperties runBlockNodeService(

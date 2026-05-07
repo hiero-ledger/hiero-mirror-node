@@ -80,27 +80,27 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     @Test
-    void compareTo() {
+    void compare() {
         // given
-        var first = new BlockNode(
+        final var first = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
                 NOOP_GRPC_BUFFER_DISPOSER,
                 meterRegistry,
                 blockNodeProperties("localhost", 100, 0),
                 streamProperties);
-        var second = new BlockNode(
+        final var second = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
                 NOOP_GRPC_BUFFER_DISPOSER,
                 meterRegistry,
                 blockNodeProperties("localhost", 101, 0),
                 streamProperties);
-        var third = new BlockNode(
+        final var third = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
                 NOOP_GRPC_BUFFER_DISPOSER,
                 meterRegistry,
                 blockNodeProperties("peer", 99, 0),
                 streamProperties);
-        var forth = new BlockNode(
+        final var forth = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
                 NOOP_GRPC_BUFFER_DISPOSER,
                 meterRegistry,
@@ -108,18 +108,25 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 streamProperties);
 
         // when
-        var all = Stream.of(forth, third, second, first).sorted().collect(Collectors.toList());
+        final var all = Stream.of(forth, third, second, first).sorted().collect(Collectors.toList());
 
         // then
         assertThat(all).containsExactly(first, second, third, forth);
 
-        // when latency changes and sorts again. Note it needs at least 5 latency recorded for an update
+        // when latency changes
         for (int i = 0; i < 5; i++) {
             third.recordLatency(1);
             second.recordLatency(2);
             first.recordLatency(5);
+            forth.recordLatency(10);
         }
         Collections.sort(all);
+
+        // then the order doesn't change with default comparator
+        assertThat(all).containsExactly(first, second, third, forth);
+
+        // when sort with latency comparator
+        all.sort(BlockNode.LATENCY_COMPARATOR);
 
         // then
         assertThat(all).containsExactly(third, second, first, forth);

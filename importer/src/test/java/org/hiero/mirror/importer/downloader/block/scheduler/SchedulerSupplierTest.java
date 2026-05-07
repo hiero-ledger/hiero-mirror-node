@@ -7,10 +7,11 @@ import static org.mockito.Mockito.mock;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
+import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.downloader.block.BlockNodeDiscoveryService;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.downloader.block.InProcessManagedChannelBuilderProvider;
-import org.hiero.mirror.importer.downloader.block.SchedulerProperties;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -24,18 +25,21 @@ final class SchedulerSupplierTest {
         blockNodeProperties.setHost("localhost");
         var schedulerProperties = new SchedulerProperties();
         schedulerProperties.setType(type);
-        var blockProperties = new BlockProperties();
+        var blockProperties = new BlockProperties(new ImporterProperties());
         blockProperties.setNodes(List.of(blockNodeProperties));
-        blockProperties.setScheduler(schedulerProperties);
         var latencyService = mock(LatencyService.class);
         var factory = new SchedulerSupplier(
+                mock(BlockNodeDiscoveryService.class),
                 blockProperties,
                 latencyService,
                 InProcessManagedChannelBuilderProvider.INSTANCE,
-                new SimpleMeterRegistry());
+                new SimpleMeterRegistry(),
+                schedulerProperties);
 
         // when, then
-        assertThat(factory.get()).isInstanceOf(getExpectedClass(type));
+        try (var scheduler = factory.get()) {
+            assertThat(scheduler).isInstanceOf(getExpectedClass(type));
+        }
     }
 
     private static Class<?> getExpectedClass(SchedulerType type) {

@@ -25,8 +25,7 @@ final class UtilsTest {
                 completeTime,
                 null,
                 BlockFile.getFilename(0, false),
-                System.currentTimeMillis(),
-                -1);
+                System.currentTimeMillis());
 
         // when, then
         assertThat(Utils.getLatency(blockFile, blockStream)).isEqualTo(expectedDelay);

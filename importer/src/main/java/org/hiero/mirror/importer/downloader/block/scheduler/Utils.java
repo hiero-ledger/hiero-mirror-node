@@ -17,7 +17,7 @@ final class Utils {
      * @param blockStream The block stream
      * @return Latency in millis
      */
-    static long getLatency(BlockFile blockFile, BlockStream blockStream) {
+    static long getLatency(final BlockFile blockFile, final BlockStream blockStream) {
         return blockStream.blockCompleteTime() - blockFile.getConsensusEnd() / MS_IN_NANOS;
     }
 }

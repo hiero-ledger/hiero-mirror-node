@@ -11,7 +11,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
-public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
+public final class BlockNodeProperties implements Comparable<BlockNodeProperties> {
 
     private static final Comparator<BlockNodeProperties> COMPARATOR = Comparator.comparing(
                     BlockNodeProperties::getPriority)
@@ -32,7 +32,7 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
     private boolean requiresTls;
 
     @Override
-    public int compareTo(BlockNodeProperties other) {
+    public int compareTo(final BlockNodeProperties other) {
         return COMPARATOR.compare(this, other);
     }
 

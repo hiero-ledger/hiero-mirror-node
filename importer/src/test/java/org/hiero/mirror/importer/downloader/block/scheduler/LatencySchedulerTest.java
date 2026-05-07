@@ -3,13 +3,11 @@
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.Resources;
-import java.util.Collection;
 import java.util.List;
-import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.downloader.block.InProcessManagedChannelBuilderProvider;
-import org.hiero.mirror.importer.downloader.block.SchedulerProperties;
 import org.hiero.mirror.importer.downloader.block.StreamProperties;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -23,10 +21,11 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
             """)
     void getNode(int priorityA, int priorityB, Resources resources) {
         // given
-        var blockNodeProperties = List.of(
+        final var blockNodeProperties = List.of(
                 runBlockNodeService(priorityA, resources, withAllBlocks()),
                 runBlockNodeService(priorityB, resources, withAllBlocks()));
-        scheduler = createScheduler(blockNodeProperties);
+        doReturn(blockNodeProperties).when(blockNodeDiscoveryService).getBlockNodes();
+        scheduler = createScheduler();
 
         // when
         var node = scheduler.getNode(blockNumber(0));
@@ -56,10 +55,11 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
             """)
     void getNodeIgnoreNodeWithoutBlock(int priorityA, int priorityB, Resources resources) {
         // given block node A only has block 0 and block node b has all blocks
-        var blockNodeProperties = List.of(
+        final var blockNodeProperties = List.of(
                 runBlockNodeService(priorityA, resources, withBlocks(0, 0)),
                 runBlockNodeService(priorityB, resources, withAllBlocks()));
-        scheduler = createScheduler(blockNodeProperties);
+        doReturn(blockNodeProperties).when(blockNodeDiscoveryService).getBlockNodes();
+        scheduler = createScheduler();
 
         // when
         var node = scheduler.getNode(blockNumber(1));
@@ -76,13 +76,13 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
     }
 
     @Override
-    protected Scheduler createScheduler(Collection<BlockNodeProperties> blockNodeProperties) {
+    protected Scheduler createScheduler() {
         var schedulerProperties = new SchedulerProperties();
         schedulerProperties.setType(SchedulerType.LATENCY);
         return new LatencyScheduler(
-                blockNodeProperties,
-                latencyService,
+                blockNodeDiscoveryService,
                 InProcessManagedChannelBuilderProvider.INSTANCE,
+                latencyService,
                 meterRegistry,
                 schedulerProperties,
                 new StreamProperties());

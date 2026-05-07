@@ -4,45 +4,49 @@ package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Value;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
-import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
+import org.hiero.mirror.importer.downloader.block.BlockNodeDiscoveryService;
 import org.hiero.mirror.importer.downloader.block.ManagedChannelBuilderProvider;
-import org.hiero.mirror.importer.downloader.block.SchedulerProperties;
 import org.hiero.mirror.importer.downloader.block.StreamProperties;
 import org.jspecify.annotations.Nullable;
 
 final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
 
-    private final TreeMap<Integer, PriorityGroup> priorityGroups;
+    private final AtomicReference<TreeMap<Integer, PriorityGroup>> priorityGroups =
+            new AtomicReference<>(new TreeMap<>());
 
     PriorityAndLatencyScheduler(
-            final Collection<BlockNodeProperties> blockNodeProperties,
+            final BlockNodeDiscoveryService blockNodeDiscoveryService,
+            final ManagedChannelBuilderProvider channelBuilderProvider,
             final LatencyService latencyService,
-            final ManagedChannelBuilderProvider managedChannelBuilderProvider,
             final MeterRegistry meterRegistry,
             final SchedulerProperties schedulerProperties,
             final StreamProperties streamProperties) {
-        super(latencyService, schedulerProperties);
+        super(
+                blockNodeDiscoveryService,
+                channelBuilderProvider,
+                latencyService,
+                meterRegistry,
+                schedulerProperties,
+                streamProperties);
+    }
 
-        priorityGroups = new TreeMap<>();
-        for (var blockNodeProperty : blockNodeProperties) {
-            var node = new BlockNode(
-                    managedChannelBuilderProvider,
-                    this::drainGrpcBuffer,
-                    meterRegistry,
-                    blockNodeProperty,
-                    streamProperties);
-            priorityGroups
-                    .computeIfAbsent(node.getPriority(), PriorityGroup::new)
-                    .getNodes()
-                    .add(node);
+    @Override
+    protected Iterator<BlockNode> getNodeGroupIterator() {
+        final var blockNode = current.get();
+        if (blockNode == null) {
+            return Collections.emptyIterator();
         }
+
+        final var group = Objects.requireNonNull(priorityGroups.get()).get(blockNode.getPriority());
+        return group != null ? group.getIterator() : Collections.emptyIterator();
     }
 
     @Override
@@ -50,7 +54,7 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
         return new Iterator<>() {
 
             private final Iterator<PriorityGroup> groupIter =
-                    priorityGroups.values().iterator();
+                    Objects.requireNonNull(priorityGroups.get()).values().iterator();
 
             @Nullable
             private Iterator<BlockNode> nodeGroupIterator;
@@ -74,10 +78,16 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
     }
 
     @Override
-    protected Iterator<BlockNode> getNodeGroupIterator() {
-        return Objects.requireNonNull(
-                        priorityGroups.get(Objects.requireNonNull(current.get()).getPriority()))
-                .getIterator();
+    protected void setNodes(final List<BlockNode> blockNodes) {
+        final var nodeGroups = new TreeMap<Integer, PriorityGroup>();
+        for (final var blockNode : blockNodes) {
+            nodeGroups
+                    .computeIfAbsent(blockNode.getPriority(), PriorityGroup::new)
+                    .getNodes()
+                    .add(blockNode);
+        }
+
+        priorityGroups.set(nodeGroups);
     }
 
     @Value
@@ -86,13 +96,13 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
         private final List<BlockNode> nodes;
         private final int priority;
 
-        PriorityGroup(int priority) {
+        PriorityGroup(final int priority) {
             this.priority = priority;
             this.nodes = new ArrayList<>();
         }
 
         PriorityGroup sort() {
-            nodes.sort(BlockNode::compareTo);
+            nodes.sort(BlockNode.LATENCY_COMPARATOR);
             return this;
         }
 

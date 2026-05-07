@@ -3,32 +3,36 @@
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
-import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
+import org.hiero.mirror.importer.downloader.block.BlockNodeDiscoveryService;
 import org.hiero.mirror.importer.downloader.block.ManagedChannelBuilderProvider;
 import org.hiero.mirror.importer.downloader.block.StreamProperties;
 
 final class PriorityScheduler extends AbstractScheduler {
 
-    private final List<BlockNode> nodes;
+    private final AtomicReference<List<BlockNode>> nodes = new AtomicReference<>(Collections.emptyList());
 
     PriorityScheduler(
-            final Collection<BlockNodeProperties> blockNodeProperties,
+            final BlockNodeDiscoveryService blockNodeDiscoveryService,
             final ManagedChannelBuilderProvider channelBuilderProvider,
             final MeterRegistry meterRegistry,
             final StreamProperties streamProperties) {
-        nodes = blockNodeProperties.stream()
-                .map(properties -> new BlockNode(
-                        channelBuilderProvider, this::drainGrpcBuffer, meterRegistry, properties, streamProperties))
-                .sorted()
-                .toList();
+        super(blockNodeDiscoveryService, channelBuilderProvider, meterRegistry, streamProperties);
+    }
+
+    @Override
+    protected void setNodes(final List<BlockNode> newNodes) {
+        Collections.sort(newNodes);
+        this.nodes.set(List.copyOf(newNodes));
     }
 
     @Override
     protected Iterator<BlockNode> getOrderedNodes() {
-        return nodes.iterator();
+        return Objects.requireNonNull(nodes.get()).iterator();
     }
 }

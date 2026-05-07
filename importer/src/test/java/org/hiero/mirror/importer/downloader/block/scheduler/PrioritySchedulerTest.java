@@ -3,12 +3,11 @@
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.Resources;
-import java.util.Collection;
 import java.util.List;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
-import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.downloader.block.InProcessManagedChannelBuilderProvider;
 import org.hiero.mirror.importer.downloader.block.StreamProperties;
 import org.junit.jupiter.api.Test;
@@ -23,7 +22,8 @@ final class PrioritySchedulerTest extends AbstractSchedulerTest {
                 runBlockNodeService(0, resources, withAllBlocks()),
                 runBlockNodeService(1, resources, withAllBlocks()),
                 runBlockNodeService(1, resources, withAllBlocks()));
-        scheduler = createScheduler(blockNodeProperties);
+        doReturn(blockNodeProperties).when(blockNodeDiscoveryService).getBlockNodes();
+        scheduler = createScheduler();
 
         // when, then
         assertThat(scheduler.getNode(blockNumber(0)))
@@ -39,7 +39,8 @@ final class PrioritySchedulerTest extends AbstractSchedulerTest {
                 runBlockNodeService(0, resources, withBlocks(1, 1)),
                 runBlockNodeService(1, resources, withBlocks(2, 2)),
                 runBlockNodeService(1, resources, withAllBlocks()));
-        scheduler = createScheduler(blockNodeProperties);
+        doReturn(blockNodeProperties).when(blockNodeDiscoveryService).getBlockNodes();
+        scheduler = createScheduler();
 
         // when, then
         assertThat(scheduler.getNode(blockNumber(0)))
@@ -57,9 +58,9 @@ final class PrioritySchedulerTest extends AbstractSchedulerTest {
     }
 
     @Override
-    protected Scheduler createScheduler(Collection<BlockNodeProperties> blockNodeProperties) {
+    protected Scheduler createScheduler() {
         return new PriorityScheduler(
-                blockNodeProperties,
+                blockNodeDiscoveryService,
                 InProcessManagedChannelBuilderProvider.INSTANCE,
                 meterRegistry,
                 new StreamProperties());

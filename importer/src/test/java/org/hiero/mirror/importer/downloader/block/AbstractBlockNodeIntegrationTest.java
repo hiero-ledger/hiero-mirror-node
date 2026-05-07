@@ -12,6 +12,7 @@ import jakarta.annotation.Resource;
 import java.io.Serial;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -32,6 +33,8 @@ import org.hiero.mirror.importer.downloader.block.cutover.CutoverProperties;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverServiceImpl;
 import org.hiero.mirror.importer.downloader.block.scheduler.LatencyService;
+import org.hiero.mirror.importer.downloader.block.scheduler.LatencyServiceProperties;
+import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerProperties;
 import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerSupplier;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
@@ -89,6 +92,8 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
     @Resource
     private RecordFileRepository recordFileRepository;
 
+    protected SchedulerProperties schedulerProperties = new SchedulerProperties();
+
     @AutoClose
     protected AutoCloseArrayList<BlockNodeSimulator> simulators = new AutoCloseArrayList<>();
 
@@ -116,10 +121,9 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
                 mock(NodeSignatureVerifier.class),
                 streamFileNotifier,
                 mock(TssVerifier.class));
-        final var schedulerProperties = blockProperties.getScheduler();
         schedulerProperties.setMinRescheduleInterval(Duration.ofMillis(500));
         schedulerProperties.setRescheduleLatencyThreshold(Duration.ofMillis(20));
-        latencyService = new LatencyService(blockProperties, blockStreamReader, blockStreamVerifier);
+        latencyService = new LatencyService(blockStreamReader, cutoverService, new LatencyServiceProperties());
         executor = Executors.newSingleThreadScheduledExecutor();
         executor.scheduleWithFixedDelay(() -> latencyService.schedule(), 5, 5, TimeUnit.MILLISECONDS);
     }
@@ -130,9 +134,13 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
     }
 
     protected void assertVerifiedBlockFiles(Long... blockNumbers) {
+        assertVerifiedBlockFiles(Arrays.stream(blockNumbers).toList());
+    }
+
+    protected void assertVerifiedBlockFiles(List<Long> blockNumbers) {
         assertThat(streamFileNotifier.getVerifiedStreamFiles())
                 .map(StreamFile::getIndex)
-                .containsExactly(blockNumbers);
+                .containsExactlyElementsOf(blockNumbers);
     }
 
     protected final String endpoint(int index) {
@@ -154,8 +162,13 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         final var sortedNodes = getBlockNodeProperties();
         Collections.sort(sortedNodes);
         when(blockNodeDiscoveryService.getBlockNodes()).thenReturn(sortedNodes);
-        final var schedulerSupplier =
-                new SchedulerSupplier(blockProperties, latencyService, channelBuilderProvider, meterRegistry);
+        final var schedulerSupplier = new SchedulerSupplier(
+                blockNodeDiscoveryService,
+                blockProperties,
+                latencyService,
+                channelBuilderProvider,
+                meterRegistry,
+                schedulerProperties);
         return new BlockNodeSubscriber(
                 blockStreamReader,
                 blockStreamVerifier,

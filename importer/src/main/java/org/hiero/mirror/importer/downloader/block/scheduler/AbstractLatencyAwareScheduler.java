@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import com.google.common.collect.Lists;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -10,15 +11,15 @@ import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
-import org.hiero.mirror.importer.downloader.block.SchedulerProperties;
+import org.hiero.mirror.importer.downloader.block.BlockNodeDiscoveryService;
+import org.hiero.mirror.importer.downloader.block.ManagedChannelBuilderProvider;
+import org.hiero.mirror.importer.downloader.block.StreamProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.jspecify.annotations.Nullable;
 
-@RequiredArgsConstructor
 abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
 
     protected final LatencyService latencyService;
@@ -28,7 +29,19 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
     protected final AtomicReference<@Nullable BlockNode> current = new AtomicReference<>();
     protected final AtomicLong lastScheduledTime = new AtomicLong(0);
 
-    protected long lastPostProcessingLatency;
+    private volatile long lastPostProcessingLatency;
+
+    AbstractLatencyAwareScheduler(
+            final BlockNodeDiscoveryService blockNodeDiscoveryService,
+            final ManagedChannelBuilderProvider channelBuilderProvider,
+            final LatencyService latencyService,
+            final MeterRegistry meterRegistry,
+            final SchedulerProperties schedulerProperties,
+            final StreamProperties streamProperties) {
+        super(blockNodeDiscoveryService, channelBuilderProvider, meterRegistry, streamProperties);
+        this.latencyService = latencyService;
+        this.schedulerProperties = schedulerProperties;
+    }
 
     @Override
     public BlockNode getNode(final AtomicLong blockNumber) {
@@ -47,8 +60,8 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
     }
 
     @Override
-    public boolean shouldReschedule(BlockFile blockFile, BlockStream blockStream) {
-        long previousPostProcessingLatency = lastPostProcessingLatency;
+    public boolean shouldReschedule(final BlockFile blockFile, final BlockStream blockStream) {
+        final long previousPostProcessingLatency = lastPostProcessingLatency;
         lastPostProcessingLatency = System.currentTimeMillis() - blockStream.blockCompleteTime();
 
         // when post-processing takes too long, it can significantly delay block stream response processing and skew the
@@ -67,7 +80,7 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
             return false;
         }
 
-        long updatedLatency = node.getLatency();
+        final long updatedLatency = node.getLatency();
         for (var candidate : candidates) {
             if (updatedLatency
                     >= candidate.getLatency()
@@ -84,10 +97,11 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
     protected abstract Iterator<BlockNode> getNodeGroupIterator();
 
     private Collection<BlockNode> getCandidates() {
-        var iter = getNodeGroupIterator();
+        final var iter = getNodeGroupIterator();
+        final var active = current.get();
         while (iter.hasNext()) {
             var node = iter.next();
-            if (node == current.get()) {
+            if (node == active) {
                 break;
             }
         }

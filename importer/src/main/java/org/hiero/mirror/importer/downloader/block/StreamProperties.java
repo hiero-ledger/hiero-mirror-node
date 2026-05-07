@@ -21,7 +21,7 @@ public final class StreamProperties {
 
     @DataSizeUnit(DataUnit.MEGABYTES)
     @NotNull
-    private DataSize maxStreamResponseSize = DataSize.ofMegabytes(36);
+    private DataSize maxStreamResponseSize = DataSize.ofMegabytes(125);
 
     @Min(1)
     private int maxSubscribeAttempts = 3;

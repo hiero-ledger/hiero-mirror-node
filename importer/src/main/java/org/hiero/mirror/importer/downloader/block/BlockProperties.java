@@ -20,7 +20,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties("hiero.mirror.importer.block")
 @Data
 @Validated
-public class BlockProperties {
+public final class BlockProperties {
 
     private final ImporterProperties importerProperties;
 
@@ -41,10 +41,6 @@ public class BlockProperties {
     private Collection<BlockNodeProperties> nodes = Collections.emptyList();
 
     private boolean persistBytes = false;
-
-    @NotNull
-    @Valid
-    private SchedulerProperties scheduler = new SchedulerProperties();
 
     @NotNull
     private BlockSourceType sourceType = BlockSourceType.AUTO;

@@ -6,20 +6,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.importer.TestUtils.findAllMatches;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.stream.Collectors;
 import java.util.stream.LongStream;
-import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerType;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.system.CapturedOutput;
 
 final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTest {
@@ -28,7 +23,7 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
     @Override
     void setup() {
         super.setup();
-        blockProperties.getScheduler().setType(SchedulerType.LATENCY);
+        schedulerProperties.setType(SchedulerType.LATENCY);
     }
 
     @Test
@@ -56,13 +51,7 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
                         subscriber::get)
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("No block node can provide block 20"));
-
-        var captor = ArgumentCaptor.forClass(RecordFile.class);
-        verify(streamFileNotifier, times(20)).verified(captor.capture());
-        assertThat(captor.getAllValues())
-                .extracting(RecordFile::getIndex)
-                .containsExactlyElementsOf(LongStream.range(0, 20).boxed().collect(Collectors.toList()));
-
+        assertVerifiedBlockFiles(LongStream.range(0, 20).boxed().toList());
         // it's non-deterministic that at exactly which block, based on latency, the scheduler will switch from one
         // block node server to the lower latency one. However, there should be two switches
         assertThat(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)"))
@@ -109,12 +98,7 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
                         subscriber::get)
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("No block node can provide block 40"));
-
-        var captor = ArgumentCaptor.forClass(RecordFile.class);
-        verify(streamFileNotifier, times(40)).verified(captor.capture());
-        assertThat(captor.getAllValues())
-                .extracting(RecordFile::getIndex)
-                .containsExactlyElementsOf(LongStream.range(0, 40).boxed().collect(Collectors.toList()));
+        assertVerifiedBlockFiles(LongStream.range(0, 40).boxed().toList());
 
         // the following should happen in order
         // - start from node0

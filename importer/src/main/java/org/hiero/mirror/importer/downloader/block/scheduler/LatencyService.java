@@ -18,8 +18,7 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
-import org.hiero.mirror.importer.downloader.block.BlockProperties;
-import org.hiero.mirror.importer.downloader.block.BlockStreamVerifier;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -33,9 +32,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 @RequiredArgsConstructor
 public final class LatencyService implements AutoCloseable {
 
-    private final BlockProperties blockProperties;
     private final BlockStreamReader blockStreamReader;
-    private final BlockStreamVerifier blockStreamVerifier;
+    private final CutoverService cutoverService;
+    private final LatencyServiceProperties latencyServiceProperties;
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final ThreadPoolExecutor executor = createExecutor();
@@ -66,11 +65,11 @@ public final class LatencyService implements AutoCloseable {
     void setNodes(Collection<BlockNode> nodes) {
         cancelAll();
 
-        long bornGeneration = generation.incrementAndGet();
+        final long bornGeneration = generation.incrementAndGet();
         nodes.forEach(blockNode -> tasks.add(new Task(bornGeneration, blockNode)));
     }
 
-    @Scheduled(fixedDelayString = "#{@blockProperties.getScheduler().getLatencyService().getFrequency().toMillis()}")
+    @Scheduled(fixedDelayString = "#{@latencyServiceProperties.getFrequency().toMillis()}")
     public void schedule() {
         // drain completed futures
         results.removeIf(Future::isDone);
@@ -80,7 +79,7 @@ public final class LatencyService implements AutoCloseable {
         }
 
         final var executor = getExecutor();
-        final int backlog = blockProperties.getScheduler().getLatencyService().getBacklog();
+        final int backlog = latencyServiceProperties.getBacklog();
         for (int i = 0; i < backlog + 1; i++) {
             Task task = null;
             try {
@@ -99,12 +98,7 @@ public final class LatencyService implements AutoCloseable {
         // a single-thread threadpool executor with a blocking queue to holding the backlog, to schedule 1 running
         // + backlog pending scheduled tasks
         return new ThreadPoolExecutor(
-                1,
-                1,
-                0L,
-                TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<>(
-                        blockProperties.getScheduler().getLatencyService().getBacklog()));
+                1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(latencyServiceProperties.getBacklog()));
     }
 
     @RequiredArgsConstructor
@@ -120,14 +114,13 @@ public final class LatencyService implements AutoCloseable {
                 return;
             }
 
-            final long nextBlockNumber = blockStreamVerifier.getNextBlockNumber();
+            final long nextBlockNumber = cutoverService.getNextBlockNumber();
             if (nextBlockNumber < 0 || !node.getBlockRange().contains(nextBlockNumber)) {
                 return;
             }
 
             log.info("Measuring {}'s latency by streaming block {}", node, nextBlockNumber);
-            final var timeout =
-                    blockProperties.getScheduler().getLatencyService().getTimeout();
+            final var timeout = latencyServiceProperties.getTimeout();
             node.streamBlocks(nextBlockNumber, nextBlockNumber, this::measureLatency, timeout);
 
             if (bornGeneration == generation.get()) {
@@ -139,7 +132,7 @@ public final class LatencyService implements AutoCloseable {
         private boolean measureLatency(final BlockStream blockStream, final String blockNode) {
             final var blockFile = blockStreamReader.read(blockStream);
             node.recordLatency(Utils.getLatency(blockFile, blockStream));
-            return false;
+            return true;
         }
     }
 }
