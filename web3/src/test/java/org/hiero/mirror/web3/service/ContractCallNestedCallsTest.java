@@ -35,6 +35,11 @@ import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.web3j.abi.FunctionReturnDecoder;
+import org.web3j.abi.TypeReference;
+import org.web3j.abi.datatypes.Bool;
+import org.web3j.abi.datatypes.Type;
+import org.web3j.abi.datatypes.Utf8String;
 
 class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTracerTest {
     private static final String EXPECTED_RESULT_NEGATIVE_TESTS = "hardcodedResult";
@@ -88,8 +93,10 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
         // Then
+        assertThat((KeyValue)
+                        decodeResult(executionResult.result(), KeyValue.class).get(0))
+                .isEqualTo(keyValue);
         assertThat(executionResult.gasUsed()).isPositive();
-        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -140,8 +147,10 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
         // Then
+        assertThat((KeyValue)
+                        decodeResult(executionResult.result(), KeyValue.class).get(0))
+                .isEqualTo(keyValue);
         assertThat(executionResult.gasUsed()).isPositive();
-        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -167,8 +176,10 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
         // Then
+        assertThat((NestedCalls.Expiry) decodeResult(executionResult.result(), NestedCalls.Expiry.class)
+                        .get(0))
+                .isEqualTo(tokenExpiry);
         assertThat(executionResult.gasUsed()).isPositive();
-        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -192,8 +203,11 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
         // Then
+        assertThat(decodeResult(executionResult.result(), Utf8String.class)
+                        .get(0)
+                        .getValue())
+                .isEqualTo(tokenInfo.symbol);
         assertThat(executionResult.gasUsed()).isPositive();
-        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -217,8 +231,11 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
         // Then
+        assertThat(decodeResult(executionResult.result(), Utf8String.class)
+                        .get(0)
+                        .getValue())
+                .isEqualTo(tokenInfo.name);
         assertThat(executionResult.gasUsed()).isPositive();
-        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -242,8 +259,11 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
         // Then
+        assertThat(decodeResult(executionResult.result(), Utf8String.class)
+                        .get(0)
+                        .getValue())
+                .isEqualTo(tokenInfo.memo);
         assertThat(executionResult.gasUsed()).isPositive();
-        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -263,9 +283,10 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final var functionCall = contract.send_deleteTokenAndGetTokenInfoIsDeleted(tokenAddress.toHexString());
         final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        // Then - ABI-encoded boolean true ends with "1"
+        // Then
+        assertThat(decodeResult(executionResult.result(), Bool.class).get(0).getValue())
+                .isEqualTo(Boolean.TRUE);
         assertThat(executionResult.gasUsed()).isPositive();
-        assertThat(executionResult.result()).endsWith("1");
     }
 
     @ParameterizedTest
@@ -302,8 +323,11 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 functionCall, contract, toAddress(treasury.getId()), CREATE_TOKEN_VALUE);
 
         // Then
+        final var decoded = decodeResult(executionResult.result(), Bool.class, Bool.class, Bool.class);
+        assertThat(decoded.get(0).getValue()).isEqualTo(defaultKycStatus);
+        assertThat(decoded.get(1).getValue()).isEqualTo(defaultFreezeStatus);
+        assertThat(decoded.get(2).getValue()).isEqualTo(Boolean.TRUE); // is a token
         assertThat(executionResult.gasUsed()).isPositive();
-        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @ParameterizedTest
@@ -339,8 +363,11 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 functionCall, contract, toAddress(treasury.getId()), CREATE_TOKEN_VALUE);
 
         // Then
+        final var decoded = decodeResult(executionResult.result(), Bool.class, Bool.class, Bool.class);
+        assertThat(decoded.get(0).getValue()).isEqualTo(defaultKycStatus);
+        assertThat(decoded.get(1).getValue()).isEqualTo(defaultFreezeStatus);
+        assertThat(decoded.get(2).getValue()).isEqualTo(Boolean.TRUE); // is a token
         assertThat(executionResult.gasUsed()).isPositive();
-        assertThat(executionResult.result()).isNotEqualTo("0x");
     }
 
     @Test
@@ -406,6 +433,15 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         assertThat(result.getValue1()).isNotEqualTo(result.getValue2());
         // verify that contract balances are different
         assertThat(result.getValue3()).isNotEqualTo(result.getValue4());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Type> decodeResult(final String hexResult, final Class<?>... types) {
+        final List<TypeReference<Type>> typeRefs = new ArrayList<>();
+        for (final Class<?> t : types) {
+            typeRefs.add(TypeReference.create((Class<Type>) t));
+        }
+        return FunctionReturnDecoder.decode(hexResult, typeRefs);
     }
 
     private KeyValue getKeyValueForType(final KeyValueType keyValueType, String contractAddress) {
