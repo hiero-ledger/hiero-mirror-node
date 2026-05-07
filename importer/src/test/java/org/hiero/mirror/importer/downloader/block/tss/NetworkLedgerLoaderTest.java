@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.downloader.block.tss;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
-import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.tss.legacy.LedgerIdNodeContribution;
@@ -13,63 +12,35 @@ import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.ResourceLoader;
 
-@ExtendWith(MockitoExtension.class)
 final class NetworkLedgerLoaderTest {
-
-    private static final String NETWORK = "testnet";
-    private static final String CLASSPATH_LOCATION = "classpath:/networkledger/" + NETWORK;
 
     @TempDir
     private Path tempDir;
 
-    @Mock
-    private ResourceLoader resourceLoader;
-
     private BlockProperties blockProperties;
-    private ImporterProperties importerProperties;
     private NetworkLedgerLoader loader;
 
     @BeforeEach
     void setup() {
-        importerProperties = new ImporterProperties();
-        importerProperties.setNetwork(NETWORK);
-        blockProperties = new BlockProperties(importerProperties);
-        loader = new NetworkLedgerLoader(
-                blockProperties, importerProperties, new LedgerIdPublicationTransactionParser(), resourceLoader);
+        blockProperties = new BlockProperties(new ImporterProperties());
+        loader = new NetworkLedgerLoader(blockProperties, new LedgerIdPublicationTransactionParser());
     }
 
     @Test
-    void loadWhenLedgerAlreadyConfigured() throws IOException {
-        var existingLedger = LedgerProperties.builder()
-                .historyProofVerificationKey(new byte[] {1, 2, 3})
-                .ledgerId(new byte[] {4, 5, 6})
-                .nodeContributions(List.of())
-                .build();
-        blockProperties.setLedger(existingLedger);
-        var path = tempDir.resolve("ledger");
-        Files.write(path, buildProtoBytes());
-        blockProperties.setInitialLedgerIdPublication(path);
-
+    void loadWhenInitialLedgerIdPublicationNotSet() {
         loader.load();
 
-        assertThat(blockProperties.getLedger()).isSameAs(existingLedger);
+        assertThat(blockProperties.getLedger()).isNull();
     }
 
     @Test
-    void loadFromOverridePath() throws IOException {
+    void loadFromInitialLedgerIdPublication() throws IOException {
         var body = buildProtoBody();
         var path = tempDir.resolve("ledger");
         Files.write(path, body.toByteArray());
@@ -77,60 +48,6 @@ final class NetworkLedgerLoaderTest {
 
         loader.load();
 
-        assertLedgerMatches(body);
-    }
-
-    @Test
-    void loadFromOverridePathMalformed() throws IOException {
-        var path = tempDir.resolve("ledger");
-        Files.write(path, new byte[] {(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF});
-        blockProperties.setInitialLedgerIdPublication(path);
-
-        assertThatThrownBy(loader::load)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Failed to parse initialLedgerIdPublication file");
-    }
-
-    @Test
-    void loadFromClasspathBundle() {
-        var body = buildProtoBody();
-        when(resourceLoader.getResource(CLASSPATH_LOCATION)).thenReturn(new ByteArrayResource(body.toByteArray()));
-
-        loader.load();
-
-        assertLedgerMatches(body);
-    }
-
-    @Test
-    void loadFromClasspathBundleMissing() {
-        when(resourceLoader.getResource(CLASSPATH_LOCATION))
-                .thenReturn(new ClassPathResource("nonexistent-" + NETWORK));
-
-        loader.load();
-
-        assertThat(blockProperties.getLedger()).isNull();
-    }
-
-    @Test
-    void loadFromClasspathBundleEmpty() {
-        when(resourceLoader.getResource(CLASSPATH_LOCATION)).thenReturn(new ByteArrayResource(new byte[0]));
-
-        loader.load();
-
-        assertThat(blockProperties.getLedger()).isNull();
-    }
-
-    @Test
-    void loadFromClasspathBundleMalformed() {
-        when(resourceLoader.getResource(CLASSPATH_LOCATION))
-                .thenReturn(new ByteArrayResource(new byte[] {(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF}));
-
-        assertThatThrownBy(loader::load)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Failed to parse bundled network ledger");
-    }
-
-    private void assertLedgerMatches(LedgerIdPublicationTransactionBody body) {
         var ledger = blockProperties.getLedger();
         assertThat(ledger).isNotNull();
         assertThat(ledger.getLedgerId()).isEqualTo(toBytes(body.getLedgerId()));
@@ -144,6 +61,17 @@ final class NetworkLedgerLoaderTest {
                 .returns(nc.getWeight(), c -> c.getWeight());
     }
 
+    @Test
+    void loadWithMalformedBytes() throws IOException {
+        var path = tempDir.resolve("ledger");
+        Files.write(path, new byte[] {(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF});
+        blockProperties.setInitialLedgerIdPublication(path);
+
+        assertThatThrownBy(loader::load)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Failed to parse initialLedgerIdPublication file");
+    }
+
     private static LedgerIdPublicationTransactionBody buildProtoBody() {
         return LedgerIdPublicationTransactionBody.newBuilder()
                 .setHistoryProofVerificationKey(ByteString.copyFrom(new byte[64]))
@@ -154,9 +82,5 @@ final class NetworkLedgerLoaderTest {
                         .setWeight(100L)
                         .build())
                 .build();
-    }
-
-    private static byte[] buildProtoBytes() {
-        return buildProtoBody().toByteArray();
     }
 }
