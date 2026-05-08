@@ -335,6 +335,7 @@ describe('extractContractResultsByIdQuery', () => {
   const defaultContractId = 1;
   const defaultExpected = {
     conditions: [primaryContractFilter, 'cr.transaction_nonce = 0'],
+    includeSynthetic: false,
     params: [defaultContractId],
     order: constants.orderFilterValues.DESC,
     limit: defaultLimit,
@@ -443,7 +444,36 @@ describe('extractContractResultsByIdQuery', () => {
     },
   ];
 
-  specs.forEach((spec) => {
+  // Global endpoint cases (no contractId → includeSynthetic: true)
+  const globalSpecs = [
+    {
+      name: 'global endpoint - no contractId → includeSynthetic true',
+      input: {filter: [], contractId: undefined},
+      expected: {
+        conditions: ['cr.transaction_nonce = 0'],
+        includeSynthetic: true,
+        params: [],
+        order: constants.orderFilterValues.DESC,
+        limit: defaultLimit,
+      },
+    },
+    {
+      name: 'global endpoint - from filter disables includeSynthetic',
+      input: {
+        filter: [{key: constants.filterKeys.FROM, operator: eq, value: '1001'}],
+        contractId: undefined,
+      },
+      expected: {
+        conditions: ['cr.sender_id in ($1)', 'cr.transaction_nonce = 0'],
+        includeSynthetic: false,
+        params: ['1001'],
+        order: constants.orderFilterValues.DESC,
+        limit: defaultLimit,
+      },
+    },
+  ];
+
+  [...specs, ...globalSpecs].forEach((spec) => {
     test(`${spec.name}`, async () => {
       expect(await contracts.extractContractResultsByIdQuery(spec.input.filter, spec.input.contractId)).toEqual(
         spec.expected
