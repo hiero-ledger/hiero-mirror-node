@@ -96,7 +96,10 @@ class ContractService extends BaseService {
   static syntheticContractLogsScanQuerySuffix = `
     and not exists (
       select 1 from ${ContractResult.tableName} ${ContractResult.tableAlias}
-      where ${ContractResult.getFullName(ContractResult.CONSENSUS_TIMESTAMP)} = ${ContractLog.tableName}.${
+      where ${ContractResult.getFullName(ContractResult.CONTRACT_ID)} = coalesce(${ContractLog.tableName}.${
+    ContractLog.ROOT_CONTRACT_ID
+  }, ${ContractLog.tableName}.${ContractLog.CONTRACT_ID})
+      and ${ContractResult.getFullName(ContractResult.CONSENSUS_TIMESTAMP)} = ${ContractLog.tableName}.${
     ContractLog.CONSENSUS_TIMESTAMP
   }
     )

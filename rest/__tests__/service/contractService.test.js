@@ -237,7 +237,8 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         where synthetic = true
           and not exists (
             select 1 from contract_result cr
-            where cr.consensus_timestamp = contract_log.consensus_timestamp)
+            where cr.contract_id = coalesce(contract_log.root_contract_id, contract_log.contract_id)
+            and cr.consensus_timestamp = contract_log.consensus_timestamp)
         order by consensus_timestamp, index
       ) synth
       left join entity e on e.id = synth.contract_id)
@@ -288,7 +289,8 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
           and contract_log.consensus_timestamp >= $1 and contract_log.consensus_timestamp <= $2
           and not exists (
             select 1 from contract_result cr
-            where cr.consensus_timestamp = contract_log.consensus_timestamp)
+            where cr.contract_id = coalesce(contract_log.root_contract_id, contract_log.contract_id)
+            and cr.consensus_timestamp = contract_log.consensus_timestamp)
         order by consensus_timestamp, index
       ) synth
       left join entity e on e.id = synth.contract_id)
