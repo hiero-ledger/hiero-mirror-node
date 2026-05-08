@@ -61,6 +61,9 @@ public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
      */
     @Override
     public void commit() {
+        if (!ContractCallContext.isInitialized()) {
+            return;
+        }
         final var writeCache = ContractCallContext.get().getWriteCacheState(getStateId());
         writeCache.forEach((rawKey, rawValue) -> {
             final K key = (K) rawKey;
@@ -70,11 +73,46 @@ public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
                 putIntoDataSource(key, (V) rawValue);
             }
         });
+        writeCache.clear();
     }
 
     @Override
     public long sizeOfDataSource() {
         return delegate.size();
+    }
+
+    /**
+     * Deprecated size() override to compute the logical size while taking into account the
+     * underlying delegate (backing store) and any per-request write-cache modifications.
+     *
+     * The base implementation of {@code size()} in {@link com.swirlds.state.spi.WritableKVStateBase}
+     * relies on {@link #readFromDataSource(Object)} to detect presence in the backing store.
+     * However, {@link #readFromDataSource(Object)} for this class consults the shared Caffeine
+     * store first which can make the presence check inaccurate for computing additions/removals
+     * against the true backing store. Therefore, override {@code size()} to consult the delegate
+     * directly when deciding whether a key exists in the backing storage.
+     */
+    @SuppressWarnings("deprecation")
+    @Override
+    public long size() {
+        final long sizeOfBackingMap = delegate.size();
+        int numAdditions = 0;
+        int numRemovals = 0;
+
+        final var writeCache = ContractCallContext.get().getWriteCacheState(getStateId());
+        for (final var mod : writeCache.entrySet()) {
+            final K key = (K) mod.getKey();
+            final Object rawValue = mod.getValue();
+            boolean isPresentInBackingMap = delegate.get(key) != null;
+            boolean isRemovedInMod = rawValue == null;
+
+            if (isPresentInBackingMap && isRemovedInMod) {
+                numRemovals++;
+            } else if (!isPresentInBackingMap && !isRemovedInMod) {
+                numAdditions++;
+            }
+        }
+        return sizeOfBackingMap + numAdditions - numRemovals;
     }
 
     @Override
