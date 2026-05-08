@@ -19,7 +19,7 @@ spec:
         - --fail-with-body
         - --no-progress-meter
         - --retry
-        - "15"
+        - "20"
         - --retry-all-errors
         - --retry-delay
         - "5"
