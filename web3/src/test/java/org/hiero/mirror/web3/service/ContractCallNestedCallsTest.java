@@ -435,8 +435,6 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         return FunctionReturnDecoder.decode(hexResult, typeRefs);
     }
 
-    // decodeFirst removed to keep a single decoder method (decodeResult)
-
     private KeyValue getKeyValueForType(final KeyValueType keyValueType, String contractAddress) {
         return switch (keyValueType) {
             case INHERIT_ACCOUNT_KEY ->
