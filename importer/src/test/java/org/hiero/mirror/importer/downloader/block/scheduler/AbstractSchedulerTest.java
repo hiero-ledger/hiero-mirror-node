@@ -99,7 +99,7 @@ abstract class AbstractSchedulerTest {
     protected void setLatency(final ScheduledBlockNode scheduled, final long latency) {
         final var node = scheduled.blockNode();
         for (int i = 0; i < 5; i++) {
-            node.recordLatency(latency);
+            node.getLatency().record(latency);
         }
     }
 

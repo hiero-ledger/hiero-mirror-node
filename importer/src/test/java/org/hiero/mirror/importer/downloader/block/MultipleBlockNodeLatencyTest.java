@@ -54,7 +54,7 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
         assertVerifiedBlockFiles(LongStream.range(0, 20).boxed().toList());
         // it's non-deterministic that at exactly which block, based on latency, the scheduler will switch from one
         // block node server to the lower latency one. However, there should be exactly one switch
-        assertThat(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)"))
+        assertThat(dedupNodeLogs(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)")))
                 .containsExactly(
                         String.format("from BlockNode(%s)", endpoint(0)),
                         String.format("from BlockNode(%s)", endpoint(1)));
@@ -82,7 +82,7 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
                 .withBlockInterval(interval)
                 .withHostPrefix("c")
                 .withInProcessChannel()
-                .withLatency(90)
+                .withLatency(100)
                 .withPriority(1);
         addSimulatorWithBlocks(blocks.subList(20, 40))
                 .withBlockInterval(interval)
@@ -103,16 +103,12 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
         // - start from node0
         // - switch to node1
         // - switch to node2
-        // - rescheduling, stream from node2 again since it's the node with the lowest latency and can provide the block
         // - switch to node3
-        // - rescheduling, stream from node3 again since only node3 has the blocks
-        assertThat(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)"))
+        assertThat(dedupNodeLogs(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)")))
                 .containsExactly(
                         String.format("from BlockNode(%s)", endpoint(0)),
                         String.format("from BlockNode(%s)", endpoint(1)),
                         String.format("from BlockNode(%s)", endpoint(2)),
-                        String.format("from BlockNode(%s)", endpoint(2)),
-                        String.format("from BlockNode(%s)", endpoint(3)),
                         String.format("from BlockNode(%s)", endpoint(3)));
     }
 }

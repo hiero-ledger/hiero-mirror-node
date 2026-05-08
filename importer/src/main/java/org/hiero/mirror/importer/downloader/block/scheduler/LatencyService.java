@@ -108,6 +108,7 @@ public final class LatencyService implements AutoCloseable {
         private final BlockNode node;
 
         private long lastMeasuredBlockNumber = -1;
+        private int skipped = 0;
 
         @Override
         public void run() {
@@ -118,9 +119,17 @@ public final class LatencyService implements AutoCloseable {
 
             try {
                 final long nextBlockNumber = cutoverService.getNextBlockNumber();
-                if (nextBlockNumber < 0
-                        || nextBlockNumber == lastMeasuredBlockNumber
-                        || !node.getBlockRange().contains(nextBlockNumber)) {
+                if (nextBlockNumber < 0 || nextBlockNumber == lastMeasuredBlockNumber) {
+                    // Don't stream what's already streamed, since that'll incorrectly increase the latency
+                    return;
+                }
+
+                if (!node.getBlockRange().contains(nextBlockNumber)) {
+                    if (++skipped >= 3) {
+                        // Mark the latency stale in case at least 3 times in a row the node doesn't have the block
+                        node.getLatency().markStale();
+                    }
+
                     return;
                 }
 
@@ -128,6 +137,7 @@ public final class LatencyService implements AutoCloseable {
                 final var timeout = latencyServiceProperties.getTimeout();
                 node.streamBlocks(nextBlockNumber, nextBlockNumber, this::measureLatency, timeout);
                 lastMeasuredBlockNumber = nextBlockNumber;
+                skipped = 0;
             } catch (Exception ex) {
                 // ignore
             } finally {
@@ -140,7 +150,7 @@ public final class LatencyService implements AutoCloseable {
 
         private boolean measureLatency(final BlockStream blockStream, final String blockNode) {
             final var blockFile = blockStreamReader.read(blockStream);
-            node.recordLatency(Utils.getLatency(blockFile, blockStream));
+            node.getLatency().record(Utils.getLatency(blockFile, blockStream));
             return true;
         }
     }

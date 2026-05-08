@@ -34,6 +34,7 @@ import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.importer.downloader.block.scheduler.Latency;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.util.Utility;
@@ -58,8 +59,10 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private final ManagedChannel channel;
     private final AtomicInteger errors = new AtomicInteger();
     private final Consumer<BlockingClientCall<?, ?>> grpcBufferDisposer;
-    private final Latency latency = new Latency();
     private final String name;
+
+    @Getter
+    private final Latency latency = new Latency();
 
     @Getter
     private final BlockNodeProperties properties;
@@ -116,14 +119,6 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             log.error("Failed to get server status for {}", this, ex);
             return EMPTY_BLOCK_RANGE;
         }
-    }
-
-    public double getLatency() {
-        return latency.getAverage();
-    }
-
-    public int getPriority() {
-        return properties.getPriority();
     }
 
     public void streamBlocks(
@@ -193,10 +188,6 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     @Override
     public int compareTo(final BlockNode other) {
         return COMPARATOR.compare(this, other);
-    }
-
-    public synchronized void recordLatency(long latency) {
-        this.latency.record(latency);
     }
 
     @Override

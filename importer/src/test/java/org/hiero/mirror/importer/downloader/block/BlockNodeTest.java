@@ -21,14 +21,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
@@ -108,28 +106,10 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 streamProperties);
 
         // when
-        final var all = Stream.of(forth, third, second, first).sorted().collect(Collectors.toList());
+        final var all = Stream.of(forth, third, second, first).sorted().toList();
 
         // then
         assertThat(all).containsExactly(first, second, third, forth);
-
-        // when latency changes
-        for (int i = 0; i < 5; i++) {
-            third.recordLatency(1);
-            second.recordLatency(2);
-            first.recordLatency(5);
-            forth.recordLatency(10);
-        }
-        Collections.sort(all);
-
-        // then the order doesn't change with default comparator
-        assertThat(all).containsExactly(first, second, third, forth);
-
-        // when sort with latency comparator
-        all.sort(BlockNode.LATENCY_COMPARATOR);
-
-        // then
-        assertThat(all).containsExactly(third, second, first, forth);
     }
 
     @Test

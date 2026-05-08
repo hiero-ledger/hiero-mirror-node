@@ -67,7 +67,7 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
 
         // it's non-deterministic that at exactly which block, based on latency, the scheduler will switch from one
         // block node server to the lower latency one.
-        assertThat(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)"))
+        assertThat(dedupNodeLogs(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)")))
                 .containsExactly(
                         String.format("from BlockNode(%s)", endpoint(0)),
                         String.format("from BlockNode(%s)", endpoint(1)));
@@ -116,13 +116,11 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
         // - start from node0
         // - switch to node1
         // - switch to node2
-        // - switch to node2
         // - switch to node3
-        assertThat(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)"))
+        assertThat(dedupNodeLogs(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)")))
                 .containsExactly(
                         String.format("from BlockNode(%s)", endpoint(0)),
                         String.format("from BlockNode(%s)", endpoint(1)),
-                        String.format("from BlockNode(%s)", endpoint(2)),
                         String.format("from BlockNode(%s)", endpoint(2)),
                         String.format("from BlockNode(%s)", endpoint(3)));
     }

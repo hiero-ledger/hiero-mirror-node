@@ -2,9 +2,10 @@
 
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
-import com.google.common.collect.Lists;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -71,20 +72,21 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
             return false;
         }
 
-        final long latency = Utils.getLatency(blockFile, blockStream);
         final var node = Objects.requireNonNull(current.get());
-        node.recordLatency(latency);
+        final var latency = node.getLatency();
+        latency.record(Utils.getLatency(blockFile, blockStream));
 
         if (System.currentTimeMillis() - lastScheduledTime.get()
                 < schedulerProperties.getMinRescheduleInterval().toMillis()) {
             return false;
         }
 
-        final double updatedLatency = node.getLatency();
+        final double average = latency.getAverage();
         final long threshold =
                 schedulerProperties.getRescheduleLatencyThreshold().toMillis();
         for (var candidate : candidates) {
-            if (updatedLatency >= candidate.getLatency() + threshold) {
+            final var candidateAverage = candidate.getLatency().getAverage();
+            if (average - candidateAverage >= threshold) {
                 return true;
             }
         }
@@ -97,13 +99,16 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
     private Collection<BlockNode> getCandidates() {
         final var iter = getNodeGroupIterator();
         final var active = current.get();
+        final var candidates = new ArrayList<BlockNode>();
         while (iter.hasNext()) {
             var node = iter.next();
             if (node == active) {
-                break;
+                continue;
             }
+
+            candidates.add(node);
         }
 
-        return Lists.newArrayList(iter);
+        return Collections.unmodifiableCollection(candidates);
     }
 }

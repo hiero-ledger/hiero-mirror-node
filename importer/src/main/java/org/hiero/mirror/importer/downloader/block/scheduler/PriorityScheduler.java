@@ -28,7 +28,7 @@ final class PriorityScheduler extends AbstractScheduler {
     @Override
     protected void setNodes(final List<BlockNode> newNodes) {
         Collections.sort(newNodes);
-        this.nodes.set(List.copyOf(newNodes));
+        this.nodes.set(Collections.unmodifiableList(newNodes));
     }
 
     @Override

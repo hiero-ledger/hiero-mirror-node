@@ -45,7 +45,8 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
             return Collections.emptyIterator();
         }
 
-        final var group = Objects.requireNonNull(priorityGroups.get()).get(blockNode.getPriority());
+        final int priority = blockNode.getProperties().getPriority();
+        final var group = Objects.requireNonNull(priorityGroups.get()).get(priority);
         return group != null ? group.getIterator() : Collections.emptyIterator();
     }
 
@@ -81,10 +82,8 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
     protected void setNodes(final List<BlockNode> blockNodes) {
         final var nodeGroups = new TreeMap<Integer, PriorityGroup>();
         for (final var blockNode : blockNodes) {
-            nodeGroups
-                    .computeIfAbsent(blockNode.getPriority(), PriorityGroup::new)
-                    .getNodes()
-                    .add(blockNode);
+            final int priority = blockNode.getProperties().getPriority();
+            nodeGroups.computeIfAbsent(priority, PriorityGroup::new).getNodes().add(blockNode);
         }
 
         priorityGroups.set(nodeGroups);

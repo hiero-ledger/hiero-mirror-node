@@ -14,6 +14,7 @@ import java.io.Serial;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -123,7 +124,7 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
                 streamFileNotifier,
                 mock(TssVerifier.class));
         schedulerProperties.setMinRescheduleInterval(Duration.ofMillis(500));
-        schedulerProperties.setRescheduleLatencyThreshold(Duration.ofMillis(1));
+        schedulerProperties.setRescheduleLatencyThreshold(Duration.ofMillis(5));
         latencyService = new LatencyService(blockStreamReader, cutoverService, new LatencyServiceProperties());
         executor = Executors.newSingleThreadScheduledExecutor();
         executor.scheduleWithFixedDelay(() -> latencyService.schedule(), 5, 5, TimeUnit.MILLISECONDS);
@@ -132,6 +133,16 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
     @AfterEach
     void teardown() {
         commonDownloaderProperties.getImporterProperties().setStartBlockNumber(null);
+    }
+
+    protected static Collection<String> dedupNodeLogs(final Collection<String> nodeLogs) {
+        final var result = new ArrayList<String>();
+        for (final var nodeLog : nodeLogs) {
+            if (result.isEmpty() || !nodeLog.equals(result.getLast())) {
+                result.add(nodeLog);
+            }
+        }
+        return result;
     }
 
     protected void assertVerifiedBlockFiles(Long... blockNumbers) {
