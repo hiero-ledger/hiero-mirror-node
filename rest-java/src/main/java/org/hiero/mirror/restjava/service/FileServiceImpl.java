@@ -79,11 +79,11 @@ final class FileServiceImpl implements FileService {
                                     return new SystemFile<>(fileData, parser.apply(fileData.getFileData()));
                                 } catch (Exception e) {
                                     log.warn(
-                                            "Attempt {} failed to load file {} at {}, falling back to previous file.",
+                                            "Attempt {} failed to load file {} at {}, falling back to previous file: {}",
                                             attempt.incrementAndGet(),
                                             entityId,
                                             fileData.getConsensusTimestamp(),
-                                            e);
+                                            e.getMessage());
                                     upperBound.set(fileData.getConsensusTimestamp() - 1);
                                     throw e;
                                 }

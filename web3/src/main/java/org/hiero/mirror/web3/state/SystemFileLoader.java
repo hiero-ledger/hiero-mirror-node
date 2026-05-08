@@ -182,11 +182,11 @@ public final class SystemFileLoader {
                             return File.newBuilder().contents(bytes).fileId(key).build();
                         } catch (ParseException e) {
                             log.warn(
-                                    "Failed to parse file data for fileId {} at {}, retry attempt {}. Exception: ",
+                                    "Attempt {} failed to load file {} at {}, falling back to previous file: {}",
+                                    attempt.incrementAndGet(),
                                     fileId,
                                     nanoSeconds.get(),
-                                    attempt.incrementAndGet(),
-                                    e);
+                                    e.getMessage());
                             nanoSeconds.set(fileData.getConsensusTimestamp() - 1);
                             throw new InvalidFileException(e);
                         }
