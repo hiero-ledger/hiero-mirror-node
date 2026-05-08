@@ -3508,8 +3508,7 @@ components:
           $ref: "#/components/schemas/TimestampNullable"
         description:
           description: A short description of the node
-          nullable: true
-          type: string
+          type: [string, "null"]
         registered_node_id:
           description: An identifier for the registered node
           format: int64
@@ -3563,15 +3562,13 @@ components:
         domain_name:
           description: The DNS domain name of the service
           example: "block1.alpha.com"
-          nullable: true
-          type: string
+          type: [string, "null"]
         general_service:
           $ref: "#/components/schemas/RegisteredGeneralServiceEndpoint"
         ip_address:
           description: The IP address of the service
           example: "191.91.239.79"
-          nullable: true
-          type: string
+          type: [string, "null"]
         mirror_node:
           $ref: "#/components/schemas/RegisteredMirrorNodeEndpoint"
         port:
@@ -4192,8 +4189,7 @@ components:
           description: The multiplier applied to the transaction fee when high-volume pricing was in effect per HIP-1313, scaled by 1000 (e.g. 1000 = 1x, 4000 = 4x). A value of 0 means high-volume pricing was not applied. Null for pre-HIP-1313 transactions.
           format: int64
           minimum: 0
-          nullable: true
-          type: integer
+          type: [integer, "null"]
         max_custom_fees:
           type: array
           items:
