@@ -45,7 +45,7 @@ dependencies {
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:sts")
     protobuf("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
-    runtimeOnly("com.github.luben:zstd-jni")
+    implementation("com.github.luben:zstd-jni")
     runtimeOnly("io.grpc:grpc-netty")
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("com.asarkar.grpc:grpc-test")
