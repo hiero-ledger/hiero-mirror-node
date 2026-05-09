@@ -3,7 +3,6 @@
 import ContractService from './contractService';
 import CryptoAllowanceService from './cryptoAllowanceService';
 import EntityService from './entityService';
-import FeeScheduleService from './feeScheduleService';
 import FileDataService from './fileDataService';
 import NftService from './nftService';
 import RecordFileService from './recordFileService';
@@ -16,7 +15,6 @@ export {
   ContractService,
   CryptoAllowanceService,
   EntityService,
-  FeeScheduleService,
   FileDataService,
   NftService,
   RecordFileService,

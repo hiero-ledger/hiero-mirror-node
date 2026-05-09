@@ -6,7 +6,6 @@ hiero:
       realm: 0
       shard: 0
     rest:
-      chainId: "0x0128"
       cache:
         entityId:
           maxAge: 1800
@@ -17,6 +16,7 @@ hiero:
           compressThreshold: 150
         token:
           maxSize: 100000
+      chainId: "0x0128"
       db:
         host: 127.0.0.1
         name: mirror_node

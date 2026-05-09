@@ -2,7 +2,6 @@
 
 import {fromBinary} from '@bufbuild/protobuf';
 import {CurrentAndNextFeeScheduleSchema, HederaFunctionality} from '../gen/services/basic_types_pb.js';
-import {ExchangeRateSetSchema} from '../gen/services/exchange_rate_pb.js';
 import {FileDecodeError} from '../errors';
 
 const FEE_DIVISOR_FACTOR = 1000n;
@@ -14,22 +13,26 @@ const FUNCTIONALITY_TO_TYPE = {
 };
 
 class FeeSchedule {
-  constructor(feeScheduleFile, exchangeRateFile) {
+  #feeSchedule;
+
+  constructor(feeScheduleFile) {
     let feeSchedule;
-    let exchangeRateSet;
 
     try {
       feeSchedule = fromBinary(CurrentAndNextFeeScheduleSchema, feeScheduleFile.file_data);
-      exchangeRateSet = fromBinary(ExchangeRateSetSchema, exchangeRateFile.file_data);
     } catch (error) {
       throw new FileDecodeError(error.message);
     }
 
-    const effectiveFeeSchedule = this.getEffectiveFeeSchedule(feeSchedule, feeScheduleFile.consensus_timestamp);
-    const effectiveExchangeRate = this.getEffectiveExchangeRate(exchangeRateSet, feeScheduleFile.consensus_timestamp);
-
-    this.fees = this.mapFees(effectiveFeeSchedule, effectiveExchangeRate);
+    this.#feeSchedule = feeSchedule;
+    this.fees = {};
     this.timestamp = feeScheduleFile.consensus_timestamp;
+  }
+
+  setExchangeRate(exchangeRate) {
+    const effectiveFeeSchedule = this.getEffectiveFeeSchedule(this.#feeSchedule, this.timestamp);
+    const effectiveExchangeRate = this.getEffectiveExchangeRate(exchangeRate, this.timestamp);
+    this.fees = this.mapFees(effectiveFeeSchedule, effectiveExchangeRate);
   }
 
   getEffectiveFeeSchedule(feeSchedules, refTimestampNanos) {
@@ -42,14 +45,13 @@ class FeeSchedule {
     return currentFeeSchedule;
   }
 
-  getEffectiveExchangeRate(exchangeRateSet, refTimestampNanos) {
-    const currentRate = exchangeRateSet.currentRate;
-    const currentRateExpirationTime = currentRate.expirationTime?.seconds;
+  getEffectiveExchangeRate(exchangeRate, refTimestampNanos) {
+    const currentRateExpirationTime = exchangeRate.current_expiration;
 
-    if (currentRateExpirationTime != null && refTimestampNanos > currentRateExpirationTime * 1_000_000_000n) {
-      return exchangeRateSet.nextRate;
+    if (currentRateExpirationTime != null && refTimestampNanos > BigInt(currentRateExpirationTime) * 1_000_000_000n) {
+      return {hbarEquiv: exchangeRate.next_hbar, centEquiv: exchangeRate.next_cent};
     }
-    return currentRate;
+    return {hbarEquiv: exchangeRate.current_hbar, centEquiv: exchangeRate.current_cent};
   }
 
   mapFees(feeSchedule, exchangeRate) {
@@ -91,7 +93,7 @@ class FeeSchedule {
   }
 
   getGasForType(type) {
-    return this.fees[type] ?? null;
+    return this.fees?.[type] ?? null;
   }
 
   static TRANSACTION_TYPES = {

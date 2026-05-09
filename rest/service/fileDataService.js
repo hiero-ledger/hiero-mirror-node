@@ -2,9 +2,11 @@
 
 import BaseService from './baseService';
 import config from '../config.js';
-import {ExchangeRate, FileData} from '../model';
+import {ExchangeRate, FeeSchedule, FileData} from '../model';
 import * as utils from '../utils';
 import EntityId from '../entityId';
+
+const CACHE_TTL_MS = 60 * 1000;
 
 /**
  * File data retrieval business logic
@@ -13,6 +15,9 @@ class FileDataService extends BaseService {
   // placeholders to support where filtering for inner and outer calls
   static filterInnerPlaceholder = '<filterInnerPlaceHolder>';
   static filterOuterPlaceholder = '<filterOuterPlaceHolder>';
+
+  #feeScheduleCache = null;
+  #feeScheduleCacheExpiry = 0;
 
   // retrieve the largest timestamp of the most recent create/update operation on the file
   // using this timestamp retrieve all recent file operations and combine contents for applicable file
@@ -91,6 +96,27 @@ class FileDataService extends BaseService {
     return this.fallbackRetry(EntityId.systemEntity.exchangeRateFile.getEncodedId(), filterQueries, ExchangeRate);
   };
 
+  getFeeSchedule = async (filterQueries) => {
+    const now = Date.now();
+    if (this.#feeScheduleCache && now < this.#feeScheduleCacheExpiry) {
+      return this.#feeScheduleCache;
+    }
+
+    const [exchangeRate, feeSchedule] = await Promise.all([
+      this.getExchangeRate(filterQueries),
+      this.fallbackRetry(EntityId.systemEntity.feeScheduleFile.getEncodedId(), filterQueries, FeeSchedule),
+    ]);
+
+    if (!feeSchedule || !exchangeRate) {
+      return null;
+    }
+
+    feeSchedule.setExchangeRate(exchangeRate);
+    this.#feeScheduleCache = feeSchedule;
+    this.#feeScheduleCacheExpiry = now + CACHE_TTL_MS;
+    return this.#feeScheduleCache;
+  };
+
   fallbackRetry = async (fileEntityId, filterQueries, resultConstructor) => {
     const whereQuery = filterQueries.whereQuery ?? [];
     const filters = {whereQuery};
@@ -99,7 +125,7 @@ class FileDataService extends BaseService {
     while (++attempts <= config.query.maxFileAttempts) {
       const row = await this.getLatestFileDataContents(fileEntityId, filters);
       try {
-        return row === null ? null : new resultConstructor(row);
+        return row === null ? null : resultConstructor ? new resultConstructor(row) : row;
       } catch (error) {
         logger.warn(
           `Attempt ${attempts} failed to load file ${fileEntityId} at ${row.consensus_timestamp}, falling back to previous file: ${error.message}`

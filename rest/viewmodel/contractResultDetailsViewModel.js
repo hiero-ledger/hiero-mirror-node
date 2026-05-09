@@ -144,12 +144,15 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
         this.function_parameters = utils.toHexStringNonQuantity(fileData.file_data);
       }
     } else {
-      // No ethereum transaction - use fee schedule gas price for ContractCall/ContractCreate
+      // No ethereum transaction
+    }
+
+    // Apply defaults for non-ethereum transactions
+    if (this.gas_price == null) {
       if (gasPriceFromFeeSchedule != null) {
         this.gas_price = utils.toHexStringQuantity(gasPriceFromFeeSchedule);
       }
       if (!convertToHbar && !isNil(contractResult.amount)) {
-        // ethTransaction is null but caller wants weibar; convert tinybar to weibar
         this.amount = BigInt(contractResult.amount) * WEIBARS_TO_TINYBARS;
       }
     }
