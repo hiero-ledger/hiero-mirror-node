@@ -5,11 +5,15 @@ package org.hiero.mirror.importer.downloader.block;
 import com.github.luben.zstd.ZstdInputStream;
 import com.github.luben.zstd.ZstdOutputStream;
 import io.grpc.Codec;
+import jakarta.inject.Named;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import lombok.RequiredArgsConstructor;
 
-class ZstdCodec implements Codec {
+@Named
+@RequiredArgsConstructor
+final class ZstdCodec implements Codec {
 
     @Override
     public String getMessageEncoding() {
