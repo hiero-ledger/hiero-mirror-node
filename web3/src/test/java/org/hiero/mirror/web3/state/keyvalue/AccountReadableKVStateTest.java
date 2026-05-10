@@ -307,6 +307,25 @@ class AccountReadableKVStateTest {
     }
 
     @Test
+    void delegationAddressMatchesEntityField() {
+        final var rawDelegationAddress = "0xabcdefabcdefabcdefbabcdefabcdefabcdef01".getBytes();
+        entity.setDelegationAddress(rawDelegationAddress);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
+                .returns(Bytes.wrap(rawDelegationAddress), Account::delegationAddress));
+    }
+
+    @Test
+    void delegationAddressIsEmptyWhenNotSet() {
+        entity.setDelegationAddress(null);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account).returns(Bytes.EMPTY, Account::delegationAddress));
+    }
+
+    @Test
     void whenExpirationTimestampIsNullThenExpiryIsBasedOnCreatedAndRenewTimestamps() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
