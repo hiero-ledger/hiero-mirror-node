@@ -108,6 +108,7 @@ import java.util.function.Supplier;
 public record Account(
         @Nullable AccountID accountId,
         @Nonnull Bytes alias,
+        @Nonnull Bytes delegationAddress,
         @Nullable Key key,
         long expirationSecond,
         Supplier<Long> tinybarBalanceSupplier,
@@ -157,6 +158,7 @@ public record Account(
     public Account(
             AccountID accountId,
             Bytes alias,
+            Bytes delegationAddress,
             Key key,
             long expirationSecond,
             long tinybarBalance,
@@ -195,6 +197,7 @@ public record Account(
         this(
                 accountId,
                 alias,
+                delegationAddress,
                 key,
                 expirationSecond,
                 () -> tinybarBalance,
@@ -253,6 +256,9 @@ public record Account(
         }
         if (!alias.equals(DEFAULT.alias)) {
             result = 31 * result + alias.hashCode();
+        }
+        if (!delegationAddress.equals(DEFAULT.delegationAddress)) {
+            result = 31 * result + delegationAddress.hashCode();
         }
         if (key != null && !key.equals(DEFAULT.key)) {
             result = 31 * result + key.hashCode();
@@ -411,6 +417,9 @@ public record Account(
             return false;
         }
         if (!alias.equals(thatObj.alias)) {
+            return false;
+        }
+        if (!delegationAddress.equals(thatObj.delegationAddress)) {
             return false;
         }
         if (key == null && thatObj.key != null) {
@@ -909,6 +918,7 @@ public record Account(
         return new Builder(
                 accountId,
                 alias,
+                delegationAddress,
                 key,
                 expirationSecond,
                 tinybarBalanceSupplier,
@@ -1073,6 +1083,9 @@ public record Account(
         @Nonnull
         private Bytes alias = Bytes.EMPTY;
 
+        @Nonnull
+        private Bytes delegationAddress = Bytes.EMPTY;
+
         @Nullable
         private Key key = null;
 
@@ -1221,6 +1234,7 @@ public record Account(
         public Builder(
                 AccountID accountId,
                 Bytes alias,
+                Bytes delegationAddress,
                 Key key,
                 long expirationSecond,
                 Supplier<Long> tinybarBalanceSupplier,
@@ -1258,6 +1272,7 @@ public record Account(
                 long numberLambdaStorageSlots) {
             this.accountId = accountId;
             this.alias = alias != null ? alias : Bytes.EMPTY;
+            this.delegationAddress = delegationAddress != null ? delegationAddress : Bytes.EMPTY;
             this.key = key;
             this.expirationSecond = expirationSecond;
             this.tinybarBalanceSupplier = tinybarBalanceSupplier;
@@ -1308,6 +1323,7 @@ public record Account(
             return new Account(
                     accountId,
                     alias,
+                    delegationAddress,
                     key,
                     expirationSecond,
                     tinybarBalanceSupplier,
@@ -1375,6 +1391,17 @@ public record Account(
          */
         public Builder alias(@Nonnull Bytes alias) {
             this.alias = alias;
+            return this;
+        }
+
+        /**
+         * <b>(2a)</b> The delegation address for this account, if any.
+         *
+         * @param delegationAddress value to set
+         * @return builder to continue building with
+         */
+        public Builder delegationAddress(@Nonnull Bytes delegationAddress) {
+            this.delegationAddress = delegationAddress;
             return this;
         }
 

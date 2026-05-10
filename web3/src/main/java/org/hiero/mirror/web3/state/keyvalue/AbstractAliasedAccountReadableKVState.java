@@ -83,9 +83,12 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
         }
         final boolean isSmartContract = CONTRACT.equals(entity.getType());
 
+        byte[] delegationAddress = entity.getDelegationAddress() != null ? entity.getDelegationAddress() : new byte[0];
+
         return Account.newBuilder()
                 .accountId(EntityIdUtils.toAccountId(entity.toEntityId()))
                 .alias(Bytes.wrap(alias))
+                .delegationAddress(Bytes.wrap(delegationAddress))
                 .approveForAllNftAllowances(getApproveForAllNfts(entity.getId(), timestamp))
                 .autoRenewAccountId(toAccountId(entity.getAutoRenewAccountId()))
                 .autoRenewSeconds(Objects.requireNonNullElse(entity.getAutoRenewPeriod(), DEFAULT_AUTO_RENEW_PERIOD))

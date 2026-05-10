@@ -46,6 +46,7 @@ class AccountTest {
     static {
         final var accountIdList = AccountIDTest.ARGUMENTS;
         final var aliasList = BYTES_TESTS_LIST;
+        final var delegationAddressList = BYTES_TESTS_LIST;
         final var keyList = KeyTest.ARGUMENTS;
         final var expirationSecondList = LONG_TESTS_LIST;
         final var tinybarBalanceList = LONG_TESTS_LIST;
@@ -54,7 +55,7 @@ class AccountTest {
         final var stakedToMeList = LONG_TESTS_LIST;
         final var stakePeriodStartList = LONG_TESTS_LIST;
         final var stakedIdList = Stream.of(
-                        List.of(new OneOf<>(Account.StakedIdOneOfType.UNSET, null)),
+                        List.<OneOf<Account.StakedIdOneOfType>>of(new OneOf<>(Account.StakedIdOneOfType.UNSET, null)),
                         AccountIDTest.ARGUMENTS.stream()
                                 .map(value -> new OneOf<>(Account.StakedIdOneOfType.STAKED_ACCOUNT_ID, value))
                                 .toList(),
@@ -137,6 +138,7 @@ class AccountTest {
                 .mapToObj(i -> new Account(
                         accountIdList.get(Math.min(i, accountIdList.size() - 1)),
                         aliasList.get(Math.min(i, aliasList.size() - 1)),
+                        delegationAddressList.get(Math.min(i, delegationAddressList.size() - 1)),
                         keyList.get(Math.min(i, keyList.size() - 1)),
                         expirationSecondList.get(Math.min(i, expirationSecondList.size() - 1)),
                         tinybarBalanceList.get(Math.min(i, tinybarBalanceList.size() - 1)),
