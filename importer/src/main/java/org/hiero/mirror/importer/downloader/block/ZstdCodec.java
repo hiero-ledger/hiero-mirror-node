@@ -9,10 +9,8 @@ import jakarta.inject.Named;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import lombok.RequiredArgsConstructor;
 
 @Named
-@RequiredArgsConstructor
 final class ZstdCodec implements Codec {
 
     @Override
