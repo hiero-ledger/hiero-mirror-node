@@ -14,7 +14,7 @@ const metadata =
   'eee8fa2d815e9d9c0d2505ab0000000000000000000000000000000000000000';
 const runMode = __ENV.RUN_WITH_VARIABLES;
 const selector = '0x0c0295d4'; //mintTokenExternal
-const testName = 'estimateMintNft';
+const testName = 'contractCallEstimateMintNft';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =

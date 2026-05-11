@@ -11,7 +11,7 @@ const getUrl = (testParameters) =>
   `/accounts/${testParameters['DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_SPENDER']}/allowances/nfts?owner=false&limit=${testParameters['DEFAULT_LIMIT']}`;
 
 const {options, run, setup} = new RestJavaTestScenarioBuilder()
-  .name('accountsNftAllowanceSpenderResults') // use unique scenario name among all tests
+  .name('accountsNftAllowanceSpender') // use unique scenario name among all tests
   .tags({url: urlTag})
   .request((testParameters) => {
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;
