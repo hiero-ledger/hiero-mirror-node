@@ -3,9 +3,6 @@
 package org.hiero.mirror.common.domain.contract;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serializable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -13,37 +10,32 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Entity
-@IdClass(ContractLog.Id.class)
+@Table("contract_log")
 @NoArgsConstructor
 public class ContractLog implements Persistable<ContractLog.Id> {
 
     @ToString.Exclude
     private byte[] bloom;
 
-    @jakarta.persistence.Id
-    private long consensusTimestamp;
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId contractId;
 
     @ToString.Exclude
     private byte[] data;
 
-    @jakarta.persistence.Id
-    private int index;
-
-    @Convert(converter = EntityIdConverter.class)
     private EntityId rootContractId;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
     private byte[] topic0;
@@ -60,12 +52,31 @@ public class ContractLog implements Persistable<ContractLog.Id> {
 
     private boolean synthetic;
 
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setConsensusTimestamp(consensusTimestamp);
+    }
+
+    public void setIndex(int index) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setIndex(index);
+    }
+
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public int getIndex() {
+        return id != null ? id.getIndex() : 0;
+    }
+
     @Override
     @JsonIgnore
     public Id getId() {
-        Id id = new Id();
-        id.setConsensusTimestamp(consensusTimestamp);
-        id.setIndex(index);
         return id;
     }
 
@@ -82,5 +93,23 @@ public class ContractLog implements Persistable<ContractLog.Id> {
         private static final long serialVersionUID = -6192177810161178246L;
         private long consensusTimestamp;
         private int index;
+    }
+
+    public static class ContractLogBuilder {
+        public ContractLogBuilder consensusTimestamp(long consensusTimestamp) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public ContractLogBuilder index(int index) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setIndex(index);
+            return this;
+        }
     }
 }

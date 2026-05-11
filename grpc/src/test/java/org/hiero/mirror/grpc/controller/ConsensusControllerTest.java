@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.grpc.GrpcApplication;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.domain.ReactiveDomainBuilder;
 import org.hiero.mirror.grpc.listener.ListenerProperties;
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.grpc.client.ImportGrpcClients;
@@ -42,6 +44,7 @@ import org.springframework.grpc.client.ImportGrpcClients;
 @ExtendWith(OutputCaptureExtension.class)
 @ImportGrpcClients(types = {ConsensusServiceGrpc.ConsensusServiceBlockingStub.class})
 @RequiredArgsConstructor
+@SpringBootTest(classes = GrpcApplication.class)
 class ConsensusControllerTest extends GrpcIntegrationTest {
 
     private final long future = DomainUtils.convertToNanosMax(Instant.now().plusSeconds(10L));

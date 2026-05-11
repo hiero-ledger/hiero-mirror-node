@@ -4,51 +4,51 @@ package org.hiero.mirror.common.domain.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import jakarta.persistence.Convert;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.MappedSuperclass;
 import java.io.Serial;
 import java.io.Serializable;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
-@IdClass(AbstractCryptoAllowance.Id.class)
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public abstract class AbstractCryptoAllowance implements FungibleAllowance {
+public abstract class AbstractCryptoAllowance implements FungibleAllowance, Persistable<AbstractCryptoAllowance.Id> {
 
     @UpsertColumn(coalesce = "case when {0} >= 0 then {0} else coalesce(e_{0}, 0) + coalesce({0}, 0) end")
     private long amount;
 
     private Long amountGranted;
 
-    @jakarta.persistence.Id
-    private long owner;
-
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
-
-    @jakarta.persistence.Id
-    private long spender;
 
     private Range<Long> timestampRange;
 
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
+
     @JsonIgnore
+    @Override
     public Id getId() {
-        Id id = new Id();
-        id.setOwner(owner);
-        id.setSpender(spender);
         return id;
     }
 
+    @JsonIgnore
+    @Override
+    public boolean isNew() {
+        return true;
+    }
+
     @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Id implements Serializable {
 
         @Serial
@@ -56,5 +56,59 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance {
 
         private long owner;
         private long spender;
+    }
+
+    public long getOwner() {
+        return id != null ? id.getOwner() : 0L;
+    }
+
+    public long getSpender() {
+        return id != null ? id.getSpender() : 0L;
+    }
+
+    public void setOwner(long owner) {
+        initId();
+        id.setOwner(owner);
+    }
+
+    public void setSpender(long spender) {
+        initId();
+        id.setSpender(spender);
+    }
+
+    private void initId() {
+        if (id == null) {
+            id = new Id();
+        }
+    }
+
+    /**
+     *  Allows using
+     *  CryptoAllowance.builder()
+     *       .owner(entityId.getId())
+     *       .spender(payerAccount.getId())
+     *       ...
+     *   instead of
+     *   CryptoAllowance.builder()
+     *       .id(new AbstractCryptoAllowance.Id(ownerValue, spenderValue))
+     *       ...
+     */
+    public abstract static class AbstractCryptoAllowanceBuilder<
+            C extends AbstractCryptoAllowance, B extends AbstractCryptoAllowanceBuilder<C, B>> {
+        public B owner(long owner) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setOwner(owner);
+            return self();
+        }
+
+        public B spender(long spender) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setSpender(spender);
+            return self();
+        }
     }
 }

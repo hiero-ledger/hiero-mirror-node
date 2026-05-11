@@ -23,7 +23,6 @@ import com.hederahashgraph.api.proto.java.SignaturePair;
 import com.hederahashgraph.api.proto.java.ThresholdKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionID;
-import jakarta.persistence.EntityManager;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.KeyPairGenerator;
@@ -124,8 +123,8 @@ import org.hiero.mirror.common.domain.topic.TopicMessageLookup;
 import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
+import org.hiero.mirror.common.domain.transaction.ErrataType;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
-import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
 import org.hiero.mirror.common.domain.transaction.LiveHash;
 import org.hiero.mirror.common.domain.transaction.NetworkFreeze;
 import org.hiero.mirror.common.domain.transaction.Prng;
@@ -142,6 +141,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
+import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionOperations;
 
@@ -161,7 +161,7 @@ public class DomainBuilder {
     }
 
     private final CommonProperties commonProperties;
-    private final EntityManager entityManager;
+    private final JdbcAggregateTemplate jdbcAggregateTemplate;
     private final TransactionOperations transactionOperations;
     private final AtomicLong num = new AtomicLong(0L);
     private final AtomicInteger transactionIndex = new AtomicInteger(0);
@@ -1197,15 +1197,11 @@ public class DomainBuilder {
                 .congestionPricingMultiplier(id())
                 .consensusTimestamp(timestamp())
                 .entityId(entityId())
+                .errata(ErrataType.INSERT)
                 .highVolume(false)
                 .highVolumePricingMultiplier(1L)
                 .index(transactionIndex())
                 .initialBalance(10000000L)
-                .itemizedTransfer(List.of(ItemizedTransfer.builder()
-                        .amount(100L)
-                        .entityId(entityId())
-                        .isApproval(false)
-                        .build()))
                 .maxCustomFees(new byte[][] {bytes(6), bytes(8)})
                 .maxFee(100000000L)
                 .memo(bytes(10))
@@ -1499,11 +1495,12 @@ public class DomainBuilder {
         public T persist() {
             T entity = get();
 
-            if (entityManager == null) {
-                throw new IllegalStateException("Unable to persist entity without an EntityManager");
+            if (jdbcAggregateTemplate == null || transactionOperations == null) {
+                throw new IllegalStateException(
+                        "Unable to persist entity without JdbcAggregateTemplate and TransactionOperations");
             }
 
-            transactionOperations.executeWithoutResult(t -> entityManager.persist(entity));
+            transactionOperations.executeWithoutResult(t -> jdbcAggregateTemplate.insert(entity));
             log.trace("Inserted {}", entity);
             return entity;
         }

@@ -8,7 +8,6 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import jakarta.inject.Named;
-import jakarta.persistence.EntityNotFoundException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.AccessLevel;
@@ -88,9 +87,9 @@ final class FileServiceImpl implements FileService {
                                     throw e;
                                 }
                             }))
-                    .orElseThrow(() -> new EntityNotFoundException("File %s not found".formatted(entityId)));
+                    .orElseThrow(() -> new RuntimeException("File %s not found".formatted(entityId)));
         } catch (RetryException e) {
-            throw new EntityNotFoundException("File %s not found".formatted(entityId), e);
+            throw new RuntimeException("File %s not found".formatted(entityId), e);
         }
     }
 }

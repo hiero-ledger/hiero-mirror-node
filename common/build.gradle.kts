@@ -10,7 +10,9 @@ configurations.all {
 
 dependencies {
     val testClasses by configurations.registering
-    annotationProcessor("jakarta.persistence:jakarta.persistence-api")
+    api("org.postgresql:postgresql")
+    api("org.springframework.data:spring-data-relational")
+    api("org.springframework.boot:spring-boot-starter-data-jdbc")
     api("com.fasterxml.jackson.core:jackson-databind")
     api("com.fasterxml.jackson.dataformat:jackson-dataformat-csv")
     api("com.github.ben-manes.caffeine:caffeine")
@@ -18,7 +20,6 @@ dependencies {
     api("com.google.protobuf:protobuf-java")
     api("com.hedera.hashgraph:hedera-protobuf-java-api") { isTransitive = false }
     api("commons-codec:commons-codec")
-    api("io.hypersistence:hypersistence-utils-hibernate-71")
     api("jakarta.servlet:jakarta.servlet-api")
     api("org.apache.commons:commons-lang3")
     api("org.apache.tuweni:tuweni-bytes")
@@ -26,7 +27,6 @@ dependencies {
     api("org.bouncycastle:bcprov-jdk18on")
     api("org.slf4j:jcl-over-slf4j")
     api("org.springframework.boot:spring-boot-jackson2")
-    api("org.springframework.boot:spring-boot-starter-data-jpa")
     api("org.springframework.boot:spring-boot-starter-micrometer-metrics")
     api("org.springframework.boot:spring-boot-starter-validation")
     testImplementation("jakarta.inject:jakarta.inject-api")

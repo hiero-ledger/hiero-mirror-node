@@ -4,28 +4,26 @@ package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.Transient;
 import java.util.Collection;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.StreamType;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.util.Version;
 
 @Builder(toBuilder = true)
 @Data
-@Entity
+@Table("record_file")
 @AllArgsConstructor
 @NoArgsConstructor
 public class RecordFile implements StreamFile<RecordItem> {
@@ -48,7 +46,7 @@ public class RecordFile implements StreamFile<RecordItem> {
 
     private Long count;
 
-    @Enumerated
+    // JDBC: Handled by global DigestAlgorithm Reading/Writing converters
     private DigestAlgorithm digestAlgorithm;
 
     @ToString.Exclude
@@ -60,11 +58,6 @@ public class RecordFile implements StreamFile<RecordItem> {
     private Integer hapiVersionMajor;
     private Integer hapiVersionMinor;
     private Integer hapiVersionPatch;
-
-    @Getter(lazy = true)
-    @JsonIgnore
-    @Transient
-    private final Version hapiVersion = hapiVersion();
 
     @ToString.Exclude
     private String hash;
@@ -92,7 +85,7 @@ public class RecordFile implements StreamFile<RecordItem> {
 
     private String name;
 
-    @Column(name = "prev_hash")
+    @Column("prev_hash")
     @JsonProperty("prev_hash")
     @ToString.Exclude
     private String previousHash;
@@ -124,6 +117,14 @@ public class RecordFile implements StreamFile<RecordItem> {
     @ToString.Exclude
     private byte[] wrappedRecordBlockHash;
 
+    @JsonIgnore
+    public Version getHapiVersion() {
+        if (hapiVersionMajor == null || hapiVersionMinor == null || hapiVersionPatch == null) {
+            return HAPI_VERSION_NOT_SET;
+        }
+        return new Version(hapiVersionMajor, hapiVersionMinor, hapiVersionPatch);
+    }
+
     @Override
     public RecordFile clear() {
         StreamFile.super.clear();
@@ -146,13 +147,5 @@ public class RecordFile implements StreamFile<RecordItem> {
     @JsonIgnore
     public boolean isEmpty() {
         return this == EMPTY;
-    }
-
-    private Version hapiVersion() {
-        if (hapiVersionMajor == null || hapiVersionMinor == null || hapiVersionPatch == null) {
-            return HAPI_VERSION_NOT_SET;
-        }
-
-        return new Version(hapiVersionMajor, hapiVersionMinor, hapiVersionPatch);
     }
 }

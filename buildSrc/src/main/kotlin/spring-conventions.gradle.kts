@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import org.springframework.boot.gradle.tasks.aot.ProcessAot
 import org.springframework.boot.gradle.tasks.run.BootRun
 
 plugins {
@@ -14,6 +15,18 @@ if (project.name != "graphql") {
     apply(plugin = "org.graalvm.buildtools.native")
     // This slows down tests too much to keep enabled
     tasks.named("processTestAot") { enabled = false }
+}
+
+// Spring Data AOT walks persistent types with ReflectionUtils; JDK internals (Throwable.backtrace,
+// FilterInputStream.in,
+// Reference.referent, etc.) require explicit opens on Java 16+ when third-party types subclass JDK
+// classes (protobuf).
+tasks.withType<ProcessAot>().configureEach {
+    jvmArgs(
+        "--add-opens=java.base/java.lang=ALL-UNNAMED",
+        "--add-opens=java.base/java.lang.ref=ALL-UNNAMED",
+        "--add-opens=java.base/java.io=ALL-UNNAMED",
+    )
 }
 
 gitProperties { dotGitDirectory = rootDir.resolve(".git") }

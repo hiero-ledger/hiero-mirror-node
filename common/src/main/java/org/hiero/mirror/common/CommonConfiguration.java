@@ -4,10 +4,23 @@ package org.hiero.mirror.common;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import java.util.List;
 import javax.sql.DataSource;
-import org.hibernate.cfg.AvailableSettings;
 import org.hiero.mirror.common.config.CommonRuntimeHints;
-import org.hiero.mirror.common.converter.CustomJsonFormatMapper;
+import org.hiero.mirror.common.converter.ByteArrayArrayJdbcConverters;
+import org.hiero.mirror.common.converter.DigestAlgorithmJdbcConverters;
+import org.hiero.mirror.common.converter.EntityIdToLongConverter;
+import org.hiero.mirror.common.converter.JsonbReadingConverters;
+import org.hiero.mirror.common.converter.JsonbWritingConverters;
+import org.hiero.mirror.common.converter.LongArrayJdbcConverters;
+import org.hiero.mirror.common.converter.LongToEntityIdConverter;
+import org.hiero.mirror.common.converter.PGobjectToRangeReadingConverter;
+import org.hiero.mirror.common.converter.PostgresAirdropStateJdbcConverters;
+import org.hiero.mirror.common.converter.PostgresEntityTypeJdbcConverters;
+import org.hiero.mirror.common.converter.PostgresErrataTypeJdbcConverters;
+import org.hiero.mirror.common.converter.PostgresHookJdbcConverters;
+import org.hiero.mirror.common.converter.RangeToPGobjectWritingConverter;
+import org.hiero.mirror.common.converter.ShortArrayJdbcConverters;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.util.DatabaseWaiter;
 import org.hiero.mirror.common.util.SpelHelper;
@@ -16,35 +29,25 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.boot.jdbc.autoconfigure.JdbcConnectionDetails;
-import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration;
+import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 
 @Configuration(proxyBeanMethods = false)
 @ConfigurationPropertiesScan("org.hiero.mirror")
 @EnableConfigurationProperties(CommonProperties.class)
-@EntityScan("org.hiero.mirror.common.domain")
+@EnableJdbcRepositories("org.hiero.mirror.common.repository") // Replaces JPA Repository scanning
 @ImportRuntimeHints(CommonRuntimeHints.class)
-public final class CommonConfiguration {
+public final class CommonConfiguration extends AbstractJdbcConfiguration {
+
     @Bean
     SystemEntity systemEntity(CommonProperties commonProperties) {
         return new SystemEntity(commonProperties);
-    }
-
-    @Bean
-    HibernatePropertiesCustomizer hibernatePropertiesCustomizer() {
-        return p -> {
-            // Ensure Criteria API queries use bind parameters and not literals
-            p.put("hibernate.criteria.literal_handling_mode", "BIND");
-            p.put(AvailableSettings.GENERATE_STATISTICS, true);
-            p.put(AvailableSettings.HBM2DDL_AUTO, "none");
-            p.put(AvailableSettings.JSON_FORMAT_MAPPER, new CustomJsonFormatMapper());
-        };
     }
 
     @Bean
@@ -92,5 +95,58 @@ public final class CommonConfiguration {
         config.setPassword(password);
 
         return new HikariDataSource(config);
+    }
+
+    @Override
+    protected List<?> userConverters() {
+        return List.of(
+                new ByteArrayArrayJdbcConverters.ByteArrayArrayToPGobject(),
+                new ByteArrayArrayJdbcConverters.PGobjectToByteArrayArray(),
+                new EntityIdToLongConverter(),
+                new LongToEntityIdConverter(),
+                new DigestAlgorithmJdbcConverters.DigestAlgorithmToJdbcValue(),
+                new DigestAlgorithmJdbcConverters.IntegerToDigestAlgorithm(),
+                new LongArrayJdbcConverters.AssociatedRegisteredNodeIdsToLongArray(),
+                new LongArrayJdbcConverters.SqlArrayToAssociatedRegisteredNodeIds(),
+                new LongArrayJdbcConverters.SqlArrayToLongList(),
+                new LongArrayJdbcConverters.SqlArrayToLongArray(),
+                new ShortArrayJdbcConverters.RegisteredNodeTypesHolderToShortArray(),
+                new ShortArrayJdbcConverters.SqlArrayToRegisteredNodeTypesHolder(),
+                new PostgresAirdropStateJdbcConverters.PostgresAirdropStateToPGobject(),
+                new PostgresAirdropStateJdbcConverters.PGobjectToPostgresAirdropState(),
+                new PostgresEntityTypeJdbcConverters.EntityTypeToJdbcValue(),
+                new PostgresEntityTypeJdbcConverters.PGobjectToEntityType(),
+                new PostgresEntityTypeJdbcConverters.StringToEntityType(),
+                new PostgresErrataTypeJdbcConverters.ErrataTypeToJdbcValue(),
+                new PostgresErrataTypeJdbcConverters.PGobjectToErrataType(),
+                new PostgresErrataTypeJdbcConverters.StringToErrataType(),
+                new PostgresHookJdbcConverters.HookExtensionPointToJdbcValue(),
+                new PostgresHookJdbcConverters.PGobjectToHookExtensionPoint(),
+                new PostgresHookJdbcConverters.StringToHookExtensionPoint(),
+                new PostgresHookJdbcConverters.HookTypeToJdbcValue(),
+                new PostgresHookJdbcConverters.PGobjectToHookType(),
+                new PostgresHookJdbcConverters.StringToHookType(),
+                new RangeToPGobjectWritingConverter(),
+                new PGobjectToRangeReadingConverter(),
+                new JsonbWritingConverters.FixedFeesHolderToJsonb(),
+                new JsonbWritingConverters.FractionalFeesHolderToJsonb(),
+                new JsonbWritingConverters.RoyaltyFeesHolderToJsonb(),
+                new JsonbReadingConverters.PgobjectToFixedFeesHolder(),
+                new JsonbReadingConverters.StringToFixedFeesHolder(),
+                new JsonbReadingConverters.PgobjectToFractionalFeesHolder(),
+                new JsonbReadingConverters.StringToFractionalFeesHolder(),
+                new JsonbReadingConverters.PgobjectToRoyaltyFeesHolder(),
+                new JsonbReadingConverters.StringToRoyaltyFeesHolder(),
+                new JsonbWritingConverters.RegisteredServiceEndpointList(),
+                new JsonbWritingConverters.ServiceEndpointsHolderToJsonb(),
+                new JsonbReadingConverters.PgobjectToRegisteredServiceEndpointList(),
+                new JsonbReadingConverters.PgobjectToServiceEndpointsHolder(),
+                new JsonbReadingConverters.StringToRegisteredServiceEndpointList(),
+                new JsonbReadingConverters.SqlArrayToShortList(),
+                new JsonbWritingConverters.ItemizedTransferList(),
+                new JsonbWritingConverters.NftTransferList(),
+                new JsonbWritingConverters.AuthorizationList(),
+                new JsonbWritingConverters.LedgerNodeContributionList(),
+                new JsonbWritingConverters.ServiceEndpointSingle());
     }
 }

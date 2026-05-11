@@ -13,7 +13,6 @@ import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.ScheduleID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TopicID;
-import jakarta.persistence.Transient;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Comparator;
@@ -22,6 +21,7 @@ import java.util.Objects;
 import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.exception.InvalidEntityException;
+import org.springframework.data.annotation.Transient;
 
 /**
  * Common encapsulation for a Hedera entity identifier.
@@ -60,18 +60,6 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
         this.id = id;
     }
 
-    /**
-     * Encodes given shard, realm, num into an 8 bytes long.
-     * <p/>
-     * Used for encoding to make it easy to encode/decode using mathematical
-     * operations too. That's because JavaScript's support for bitwise operations is very limited (truncates numbers to
-     * 32 bits internally before bitwise operation).
-     * <p/>
-     * Format: <br/> First 10 bits are for shard, followed by 16 bits for realm,
-     * and then 38 bits for entity num. <br/> This encoding will support following ranges: <br/> shard: 0 - 1023 <br/>
-     * realm: 0 - 65535 <br/> num: 0 - 274877906943 <br/> Placing entity num in the end has the advantage that encoded ids
-     * <= 274877906943 will also be human-readable.
-     */
     private static long encode(long shard, long realm, long num) {
         if (shard > SHARD_MASK || shard < 0 || realm > REALM_MASK || realm < 0 || num > NUM_MASK || num < 0) {
             throw new InvalidEntityException("Invalid entity ID: " + shard + "." + realm + "." + num);
@@ -182,16 +170,6 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
                 .build();
     }
 
-    public Entity toEntity() {
-        Entity entity = new Entity();
-        entity.setId(id);
-        entity.setNum(getNum());
-        entity.setRealm(getRealm());
-        entity.setShard(getShard());
-        entity.setTimestampRange(DEFAULT_RANGE);
-        return entity;
-    }
-
     public FileID toFileID() {
         return FileID.newBuilder()
                 .setShardNum(getShard())
@@ -232,5 +210,14 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
     @Override
     public String toString() {
         return getShard() + DOT + getRealm() + DOT + getNum();
+    }
+
+    public Entity toEntity() {
+        return Entity.builder()
+                .id(id)
+                .shard(getShard())
+                .realm(getRealm())
+                .num(getNum())
+                .build();
     }
 }

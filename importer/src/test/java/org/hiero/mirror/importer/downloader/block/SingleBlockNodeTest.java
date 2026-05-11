@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.downloader.block;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -86,7 +85,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
         var block0 = blocks.getFirst();
         var itemsWithoutHeader = block0.getBlockItemsList().stream()
-                .filter(it -> it.getItemCase() != BlockItem.ItemCase.BLOCK_HEADER)
+                .filter(it -> it.getItemCase() != ItemCase.BLOCK_HEADER)
                 .toList();
         var block0WithoutHeader =
                 BlockItemSet.newBuilder().addAllBlockItems(itemsWithoutHeader).build();

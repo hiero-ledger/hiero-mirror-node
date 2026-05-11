@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import jakarta.persistence.Id;
 import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.Data;
@@ -19,7 +18,9 @@ import org.hiero.mirror.common.domain.token.CustomFee;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
@@ -103,7 +104,7 @@ class EntityMetadataRegistryTest extends ImporterIntegrationTest {
 
     @Test
     void notEntity() {
-        assertThatThrownBy(() -> registry.lookup(NonEntity.class)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> registry.lookup(NonEntity.class)).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -137,7 +138,7 @@ class EntityMetadataRegistryTest extends ImporterIntegrationTest {
     private static class NonEntity {}
 
     @Data
-    @jakarta.persistence.Entity
+    @Table("non_existing")
     @Upsertable
     private static class NonExisting implements Persistable<Integer> {
         @Id

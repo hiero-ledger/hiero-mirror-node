@@ -3,8 +3,6 @@
 package org.hiero.mirror.common.domain.hook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
@@ -15,28 +13,21 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Data
-@Entity
-@IdClass(HookStorageChange.Id.class)
+@Table("hook_storage_change")
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor
+@Builder(toBuilder = true)
 public class HookStorageChange implements Persistable<HookStorageChange.Id> {
-
-    @jakarta.persistence.Id
-    private long consensusTimestamp;
 
     private boolean deleted;
 
-    @jakarta.persistence.Id
-    private long hookId;
-
-    @jakarta.persistence.Id
-    @ToString.Exclude
-    private byte[] key;
-
-    @jakarta.persistence.Id
-    private long ownerId;
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
     @ToString.Exclude
     private byte[] valueRead;
@@ -44,27 +35,60 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     @ToString.Exclude
     private byte[] valueWritten;
 
-    @Builder(toBuilder = true)
-    private HookStorageChange(
-            long consensusTimestamp, long hookId, byte[] key, long ownerId, byte[] valueRead, byte[] valueWritten) {
-        this.consensusTimestamp = consensusTimestamp;
-        this.hookId = hookId;
-        this.key = key;
-        this.ownerId = ownerId;
-        this.valueRead = DomainUtils.trim(valueRead);
-        this.valueWritten = DomainUtils.trim(valueWritten);
-        this.deleted = this.valueWritten != null && this.valueWritten.length == 0;
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setConsensusTimestamp(consensusTimestamp);
+    }
+
+    public long getHookId() {
+        return id != null ? id.getHookId() : 0L;
+    }
+
+    public void setHookId(long hookId) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setHookId(hookId);
+    }
+
+    public byte[] getKey() {
+        return id != null ? id.getKey() : null;
+    }
+
+    public void setKey(byte[] key) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setKey(key);
+    }
+
+    public long getOwnerId() {
+        return id != null ? id.getOwnerId() : 0L;
+    }
+
+    public void setOwnerId(long ownerId) {
+        if (id == null) {
+            id = new Id();
+        }
+        id.setOwnerId(ownerId);
     }
 
     @Override
     @JsonIgnore
     public Id getId() {
-        Id id = new Id();
-        id.setConsensusTimestamp(consensusTimestamp);
-        id.setHookId(hookId);
-        id.setKey(key);
-        id.setOwnerId(ownerId);
         return id;
+    }
+
+    @JsonIgnore
+    @Override
+    public boolean isNew() {
+        return true;
     }
 
     public void setValueRead(byte[] valueRead) {
@@ -76,12 +100,6 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         this.deleted = this.valueWritten != null && this.valueWritten.length == 0;
     }
 
-    @JsonIgnore
-    @Override
-    public boolean isNew() {
-        return true;
-    }
-
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
@@ -91,7 +109,55 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
 
         private long consensusTimestamp;
         private long hookId;
+
+        @ToString.Exclude
         private byte[] key;
+
         private long ownerId;
+    }
+
+    public static class HookStorageChangeBuilder {
+        public HookStorageChangeBuilder consensusTimestamp(long consensusTimestamp) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public HookStorageChangeBuilder hookId(long hookId) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setHookId(hookId);
+            return this;
+        }
+
+        public HookStorageChangeBuilder key(byte[] key) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setKey(key);
+            return this;
+        }
+
+        public HookStorageChangeBuilder ownerId(long ownerId) {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setOwnerId(ownerId);
+            return this;
+        }
+
+        public HookStorageChangeBuilder valueRead(byte[] valueRead) {
+            this.valueRead = DomainUtils.trim(valueRead);
+            return this;
+        }
+
+        public HookStorageChangeBuilder valueWritten(byte[] valueWritten) {
+            this.valueWritten = DomainUtils.trim(valueWritten);
+            this.deleted = this.valueWritten != null && this.valueWritten.length == 0;
+            return this;
+        }
     }
 }

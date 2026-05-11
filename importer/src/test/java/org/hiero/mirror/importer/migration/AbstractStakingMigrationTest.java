@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.migration;
 
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.util.Arrays;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -10,6 +9,7 @@ import lombok.Builder;
 import lombok.Data;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityHistory;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.repository.RecordFileMigrationTest;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -42,7 +42,7 @@ abstract class AbstractStakingMigrationTest extends RecordFileMigrationTest {
                 entity.getShard(),
                 entity.getStakedNodeId(),
                 entity.getStakePeriodStart(),
-                PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()),
+                RangeUtils.rangeToString(entity.getTimestampRange()),
                 entity.getType().toString());
     }
 
@@ -59,7 +59,7 @@ abstract class AbstractStakingMigrationTest extends RecordFileMigrationTest {
                 entityHistory.getShard(),
                 entityHistory.getStakedNodeId(),
                 entityHistory.getStakePeriodStart(),
-                PostgreSQLGuavaRangeType.INSTANCE.asString(entityHistory.getTimestampRange()),
+                RangeUtils.rangeToString(entityHistory.getTimestampRange()),
                 entityHistory.getType().toString());
     }
 

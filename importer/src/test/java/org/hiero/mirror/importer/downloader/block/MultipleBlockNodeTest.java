@@ -156,7 +156,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         final var nodeAPort = String.valueOf(nodeAProperties.getPort());
         final var nodeBPort = String.valueOf(nodeBProperties.getPort());
 
-        assertThat(nodeLogs).containsExactly("Start streaming block 0 from BlockNode(localhost:" + nodeAPort + ") ");
+        assertThat(nodeLogs).containsExactly("Start streaming block 0 from BlockNode(localhost:" + nodeAPort + ")");
         assertThat(nodeLogs).doesNotContain(nodeBPort);
     }
 
@@ -203,8 +203,8 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         final var nodeLogs = findAllMatches(logs, "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\) ?");
         assertThat(nodeLogs)
                 .containsExactly(
-                        "Start streaming block 0 from BlockNode(localhost:" + nodeAPort + ") ",
-                        "Start streaming block 1 from BlockNode(localhost:" + nodeCPort + ") ");
+                        "Start streaming block 0 from BlockNode(localhost:" + nodeAPort + ")",
+                        "Start streaming block 1 from BlockNode(localhost:" + nodeCPort + ")");
         assertThat(nodeLogs).doesNotContain(nodeBPort);
         assertVerifiedBlockFiles(0L, 1L, 2L);
     }
@@ -239,8 +239,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
             final var nodeAPort = String.valueOf(nodeAProperties.getPort());
 
-            assertThat(nodeLogs)
-                    .containsExactly("Start streaming block 5 from BlockNode(localhost:" + nodeAPort + ") ");
+            assertThat(nodeLogs).containsExactly("Start streaming block 5 from BlockNode(localhost:" + nodeAPort + ")");
 
         } finally {
             properties.setStartBlockNumber(initialStartBlockNumber);
@@ -289,9 +288,9 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
         assertThat(nodeLogs)
                 .containsExactly(
-                        "Start streaming block 0 from BlockNode(localhost:" + nodeAPort + ") ",
-                        "Start streaming block 1 from BlockNode(localhost:" + nodeBPort + ") ",
-                        "Start streaming block 2 from BlockNode(localhost:" + nodeCPort + ") ");
+                        "Start streaming block 0 from BlockNode(localhost:" + nodeAPort + ")",
+                        "Start streaming block 1 from BlockNode(localhost:" + nodeBPort + ")",
+                        "Start streaming block 2 from BlockNode(localhost:" + nodeCPort + ")");
     }
 
     @Test
@@ -339,9 +338,9 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
         assertThat(nodeLogs)
                 .containsExactly(
-                        "Start streaming block 0 from BlockNode(localhost:" + nodeAPort + ") ",
-                        "Start streaming block 1 from BlockNode(localhost:" + nodeBPort + ") ",
-                        "Start streaming block 2 from BlockNode(localhost:" + nodeCPort + ") ");
+                        "Start streaming block 0 from BlockNode(localhost:" + nodeAPort + ")",
+                        "Start streaming block 1 from BlockNode(localhost:" + nodeBPort + ")",
+                        "Start streaming block 2 from BlockNode(localhost:" + nodeCPort + ")");
     }
 
     @Test
@@ -402,17 +401,17 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                         "Marking connection to BlockNode(localhost:" + nodeAPort + ") as inactive after 3 attempts");
         assertThat(nodeLogs)
                 .containsExactly(
-                        "Start streaming block 0 from BlockNode(localhost:" + nodeAPort + ") ",
-                        "Start streaming block 1 from BlockNode(localhost:" + nodeAPort + ") ",
-                        "Start streaming block 1 from BlockNode(localhost:" + nodeAPort + ") ",
-                        "Start streaming block 1 from BlockNode(localhost:" + nodeBPort + ") ");
+                        "Start streaming block 0 from BlockNode(localhost:" + nodeAPort + ")",
+                        "Start streaming block 1 from BlockNode(localhost:" + nodeAPort + ")",
+                        "Start streaming block 1 from BlockNode(localhost:" + nodeAPort + ")",
+                        "Start streaming block 1 from BlockNode(localhost:" + nodeBPort + ")");
     }
 
     private Collection<String> findAllMatches(String message, String pattern) {
         var matcher = Pattern.compile(pattern).matcher(message);
         var result = new ArrayList<String>();
         while (matcher.find()) {
-            result.add(matcher.group());
+            result.add(matcher.group().trim());
         }
         return result;
     }

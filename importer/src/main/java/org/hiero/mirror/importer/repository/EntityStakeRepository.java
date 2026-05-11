@@ -4,18 +4,18 @@ package org.hiero.mirror.importer.repository;
 
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityStake;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Modifying;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.transaction.annotation.Transactional;
 
 public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>, EntityStakeRepositoryCustom {
 
-    @Query(value = "select endStakePeriod from EntityStake where id = ?1")
+    @Query("select end_stake_period from entity_stake where id = :stakingRewardAccount")
     Optional<Long> getEndStakePeriod(long stakingRewardAccount);
 
     @Modifying
-    @Query(value = "lock table entity_stake in share row exclusive mode nowait", nativeQuery = true)
+    @Query("lock table entity_stake in share row exclusive mode nowait")
     @Transactional
     void lockFromConcurrentUpdates();
 
@@ -23,9 +23,9 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
             with last_epoch_day as (
               select coalesce((select epoch_day from node_stake order by consensus_timestamp desc limit 1), -1) as epoch_day
             ), entity_stake_info as (
-              select coalesce((select end_stake_period from entity_stake where id = ?1), -1) as end_stake_period
+              select coalesce((select end_stake_period from entity_stake where id = :stakingRewardAccount), -1) as end_stake_period
             ), staking_reward_account as (
-              select (select id from entity where id = ?1) as account_id
+              select (select id from entity where id = :stakingRewardAccount) as account_id
             )
             select case when account_id is null then true
                         when (select epoch_day from last_epoch_day)
@@ -33,7 +33,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
                         else false
                    end
             from staking_reward_account
-            """, nativeQuery = true)
+            """)
     boolean updated(long stakingRewardAccount);
 
     /**
@@ -70,14 +70,14 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
               select epoch_day, consensus_timestamp
               from node_stake
               where epoch_day >= coalesce(
-                (select end_stake_period + 1 from entity_stake where id = ?1),
+                (select end_stake_period + 1 from entity_stake where id = :stakingRewardAccount),
                 (
                   select epoch_day
                   from node_stake
                   where consensus_timestamp > (
-                    select lower(timestamp_range) as timestamp from entity where id = ?1
+                    select lower(timestamp_range) as timestamp from entity where id = :stakingRewardAccount
                     union all
-                    select lower(timestamp_range) as timestamp from entity_history where id = ?1
+                    select lower(timestamp_range) as timestamp from entity_history where id = :stakingRewardAccount
                     order by timestamp
                     limit 1
                   )
@@ -136,7 +136,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
               left join ending_period_stake_state on entity_id = ess.id
               left join proxy_staking ps on ps.staked_account_id = ess.id,
               ending_period ep
-            where ess.id = ?1 or ess.staked_node_id <> -1;
+            where ess.id = :stakingRewardAccount or ess.staked_node_id <> -1;
 
             create index if not exists entity_stake_temp__id on entity_stake_temp (id);
 
@@ -188,7 +188,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
               staked_to_me = excluded.staked_to_me,
               stake_total_start = excluded.stake_total_start,
               timestamp_range = excluded.timestamp_range;
-            """, nativeQuery = true)
+            """)
     @Transactional
     void updateEntityStake(long stakingRewardAccount);
 }

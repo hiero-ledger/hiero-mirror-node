@@ -182,8 +182,8 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
         final var contract =
                 testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(contractBalance));
 
-        testWeb3jService.setSender(Address.wrap(org.apache.tuweni.bytes.Bytes.wrap(lowBalancePayer.getEvmAddress()))
-                .toHexString());
+        testWeb3jService.setSender(
+                Address.wrap(Bytes.wrap(lowBalancePayer.getEvmAddress())).toHexString());
 
         final var functionCall = contract.call_getAddressThisBalance();
         final var result = functionCall.send();

@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
-import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalance.Id;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityStake;
@@ -125,53 +124,44 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         var balanceTimestamp = new AtomicLong(latestBalanceTimestamp);
         domainBuilder
                 .accountBalance()
-                .customize(ab ->
-                        ab.balance(50000L).id(new AccountBalance.Id(balanceTimestamp.get(), treasury.toEntityId())))
+                .customize(ab -> ab.balance(50000L).id(new Id(balanceTimestamp.get(), treasury.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(
-                        ab -> ab.balance(100L).id(new AccountBalance.Id(balanceTimestamp.get(), account1.toEntityId())))
+                .customize(ab -> ab.balance(100L).id(new Id(balanceTimestamp.get(), account1.toEntityId())))
                 .persist();
         // Balance info at the beginning of the month, note balance info of account2, account4, and contract is deduped
         balanceTimestamp.addAndGet(-ONE_MONTH + 1);
         domainBuilder
                 .accountBalance()
-                .customize(ab ->
-                        ab.balance(50000L).id(new AccountBalance.Id(balanceTimestamp.get(), treasury.toEntityId())))
+                .customize(ab -> ab.balance(50000L).id(new Id(balanceTimestamp.get(), treasury.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(
-                        ab -> ab.balance(80L).id(new AccountBalance.Id(balanceTimestamp.get(), account1.toEntityId())))
+                .customize(ab -> ab.balance(80L).id(new Id(balanceTimestamp.get(), account1.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(
-                        ab -> ab.balance(200L).id(new AccountBalance.Id(balanceTimestamp.get(), account2.toEntityId())))
+                .customize(ab -> ab.balance(200L).id(new Id(balanceTimestamp.get(), account2.toEntityId())))
                 .persist();
 
         domainBuilder
                 .accountBalance()
-                .customize(
-                        ab -> ab.balance(400L).id(new AccountBalance.Id(balanceTimestamp.get(), account4.toEntityId())))
+                .customize(ab -> ab.balance(400L).id(new Id(balanceTimestamp.get(), account4.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(
-                        ab -> ab.balance(500L).id(new AccountBalance.Id(balanceTimestamp.get(), contract.toEntityId())))
+                .customize(ab -> ab.balance(500L).id(new Id(balanceTimestamp.get(), contract.toEntityId())))
                 .persist();
         // Last balance snapshot in the previous month, note the timestamp is chosen to test one-off issue
         balanceTimestamp.addAndGet(-1);
         domainBuilder
                 .accountBalance()
-                .customize(ab ->
-                        ab.balance(50000L).id(new AccountBalance.Id(balanceTimestamp.get(), treasury.toEntityId())))
+                .customize(ab -> ab.balance(50000L).id(new Id(balanceTimestamp.get(), treasury.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(
-                        ab -> ab.balance(199L).id(new AccountBalance.Id(balanceTimestamp.get(), account2.toEntityId())))
+                .customize(ab -> ab.balance(199L).id(new Id(balanceTimestamp.get(), account2.toEntityId())))
                 .persist();
 
         persistCryptoTransfer(20L, latestBalanceTimestamp, account1.getId());
@@ -243,11 +233,11 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         long balanceTimestamp = timestamp - 1000L;
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(balanceTimestamp, systemEntity.treasuryAccount())))
+                .customize(ab -> ab.id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(balanceTimestamp, domainBuilder.entityId())))
+                .customize(ab -> ab.id(new Id(balanceTimestamp, domainBuilder.entityId())))
                 .persist();
 
         transactionOperations.executeWithoutResult(s -> {
@@ -292,11 +282,11 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.balance(100L).id(new AccountBalance.Id(balanceTimestamp, account.toEntityId())))
+                .customize(ab -> ab.balance(100L).id(new Id(balanceTimestamp, account.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.balance(200L).id(new AccountBalance.Id(balanceTimestamp, treasury.toEntityId())))
+                .customize(ab -> ab.balance(200L).id(new Id(balanceTimestamp, treasury.toEntityId())))
                 .persist();
 
         transactionOperations.executeWithoutResult(s -> {
@@ -601,49 +591,45 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         long previousBalanceTimestamp = balanceTimestamp - 1000L;
         domainBuilder
                 .accountBalance()
-                .customize(ab ->
-                        ab.balance(5000L).id(new AccountBalance.Id(balanceTimestamp, systemEntity.treasuryAccount())))
+                .customize(ab -> ab.balance(5000L).id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.balance(100L).id(new AccountBalance.Id(balanceTimestamp, entity1.toEntityId())))
+                .customize(ab -> ab.balance(100L).id(new Id(balanceTimestamp, entity1.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.balance(200L).id(new AccountBalance.Id(balanceTimestamp, entity2.toEntityId())))
+                .customize(ab -> ab.balance(200L).id(new Id(balanceTimestamp, entity2.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.balance(300L).id(new AccountBalance.Id(balanceTimestamp, entity3.toEntityId())))
+                .customize(ab -> ab.balance(300L).id(new Id(balanceTimestamp, entity3.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.balance(400L).id(new AccountBalance.Id(balanceTimestamp, entity4.toEntityId())))
+                .customize(ab -> ab.balance(400L).id(new Id(balanceTimestamp, entity4.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.balance(500L).id(new AccountBalance.Id(balanceTimestamp, entity5.toEntityId())))
+                .customize(ab -> ab.balance(500L).id(new Id(balanceTimestamp, entity5.toEntityId())))
                 .persist();
         // Deduped
         domainBuilder
                 .accountBalance()
-                .customize(ab ->
-                        ab.balance(600L).id(new AccountBalance.Id(previousBalanceTimestamp, entity6.toEntityId())))
-                .persist();
-        domainBuilder
-                .accountBalance()
-                .customize(ab -> ab.balance(stakingRewardAccountId)
-                        .id(new AccountBalance.Id(previousBalanceTimestamp, entity8.toEntityId())))
+                .customize(ab -> ab.balance(600L).id(new Id(previousBalanceTimestamp, entity6.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
                 .customize(ab ->
-                        ab.balance(900L).id(new AccountBalance.Id(previousBalanceTimestamp, entity9.toEntityId())))
+                        ab.balance(stakingRewardAccountId).id(new Id(previousBalanceTimestamp, entity8.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab ->
-                        ab.balance(1000L).id(new AccountBalance.Id(previousBalanceTimestamp, entity10.toEntityId())))
+                .customize(ab -> ab.balance(900L).id(new Id(previousBalanceTimestamp, entity9.toEntityId())))
+                .persist();
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.balance(1000L).id(new Id(previousBalanceTimestamp, entity10.toEntityId())))
                 .persist();
 
         // existing entity stake, note entity4 has been deleted, its existing entity stake will no longer update
@@ -698,7 +684,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         // Treasury account balance
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(balanceTimestamp, systemEntity.treasuryAccount())))
+                .customize(ab -> ab.id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
                 .persist();
         var account = domainBuilder
                 .entity(domainBuilder.id(), nodeStake.getConsensusTimestamp() - 20)
@@ -706,22 +692,19 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.balance(500L).id(new AccountBalance.Id(balanceTimestamp, account.toEntityId())))
+                .customize(ab -> ab.balance(500L).id(new Id(balanceTimestamp, account.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab ->
-                        ab.balance(5000L).id(new AccountBalance.Id(previousBalanceTimestamp, account.toEntityId())))
+                .customize(ab -> ab.balance(5000L).id(new Id(previousBalanceTimestamp, account.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(ab ->
-                        ab.balance(0L).id(new AccountBalance.Id(balanceTimestamp, declineRewardAccount.toEntityId())))
+                .customize(ab -> ab.balance(0L).id(new Id(balanceTimestamp, declineRewardAccount.toEntityId())))
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(
-                        ab -> ab.balance(5L).id(new AccountBalance.Id(previousBalanceTimestamp, contract.toEntityId())))
+                .customize(ab -> ab.balance(5L).id(new Id(previousBalanceTimestamp, contract.toEntityId())))
                 .persist();
         var expectedEntityStakes = List.of(
                 fromEntity(contract, nodeStake, 0L, 5L),
@@ -810,8 +793,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
         domainBuilder
                 .accountBalance()
-                .customize(
-                        ab -> ab.id(new AccountBalance.Id(nodeStakeTimestamp - 1000, systemEntity.treasuryAccount())))
+                .customize(ab -> ab.id(new Id(nodeStakeTimestamp - 1000, systemEntity.treasuryAccount())))
                 .persist();
         // The following two are old NodeStake, which shouldn't be used in pending reward calculation
         domainBuilder

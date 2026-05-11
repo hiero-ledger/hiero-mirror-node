@@ -3,18 +3,15 @@
 package org.hiero.mirror.common.domain.topic;
 
 import com.google.common.collect.Range;
-import jakarta.persistence.Column;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.Id;
 
 @Data
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @ToString(onlyExplicitlyIncluded = true)
@@ -23,7 +20,6 @@ public abstract class AbstractTopic implements History {
 
     private byte[] adminKey;
 
-    @Column(updatable = false)
     @ToString.Include
     private Long createdTimestamp;
 
@@ -37,6 +33,7 @@ public abstract class AbstractTopic implements History {
 
     private byte[] submitKey;
 
+    // Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     @ToString.Include
     private Range<Long> timestampRange;
 }

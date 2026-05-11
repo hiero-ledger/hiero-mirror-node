@@ -667,7 +667,7 @@ public final class RecordItemBuilder {
                 .receipt(r -> r.setAccountID(builder.getAccountIDToUpdate()));
     }
 
-    public CustomFee.Builder customFee(CustomFee.FeeCase feeCase) {
+    public CustomFee.Builder customFee(FeeCase feeCase) {
         var accountId = accountId();
         var customFee =
                 CustomFee.newBuilder().setFeeCollectorAccountId(accountId).setAllCollectorsAreExempt(false);

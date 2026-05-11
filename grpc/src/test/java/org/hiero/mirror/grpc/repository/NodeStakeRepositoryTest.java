@@ -60,9 +60,9 @@ class NodeStakeRepositoryTest extends GrpcIntegrationTest {
         assertThat(nodeStakeRepository.findAllStakeByConsensusTimestamp(consensusTimestamp))
                 .as("Latest timestamp 0 stakes")
                 .containsAllEntriesOf(Map.of(
-                        nodeStakeZeroZero.getNodeId(),
+                        nodeStakeZeroZero.getId().getNodeId(),
                         nodeStakeZeroZero.getStake(),
-                        nodeStakeZeroOne.getNodeId(),
+                        nodeStakeZeroOne.getId().getNodeId(),
                         nodeStakeZeroOne.getStake()));
 
         // Clear cache and load the next day's node stake info
@@ -75,10 +75,27 @@ class NodeStakeRepositoryTest extends GrpcIntegrationTest {
         assertThat(nodeStakeRepository.findAllStakeByConsensusTimestamp(consensusTimestamp))
                 .as("Latest timestamp 1 stakes")
                 .containsAllEntriesOf(Map.of(
-                        nodeStakeOneZero.getNodeId(),
+                        nodeStakeOneZero.getId().getNodeId(),
                         nodeStakeOneZero.getStake(),
-                        nodeStakeOneOne.getNodeId(),
+                        nodeStakeOneOne.getId().getNodeId(),
                         nodeStakeOneOne.getStake()));
+    }
+
+    @Test
+    void findAllStakeByConsensusTimestampCachesByArgument() {
+        final long consensusTimestamp = 10L;
+        nodeStake(consensusTimestamp, 1L, 100L);
+
+        final var first = nodeStakeRepository.findAllStakeByConsensusTimestamp(consensusTimestamp);
+        assertThat(first).containsAllEntriesOf(Map.of(1L, 100L));
+
+        // Remove the backing data
+        nodeStakeRepository.deleteAll();
+        assertThat(nodeStakeRepository.findAllByConsensusTimestamp(consensusTimestamp))
+                .isEmpty();
+
+        final var second = nodeStakeRepository.findAllStakeByConsensusTimestamp(consensusTimestamp);
+        assertThat(second).isEqualTo(first);
     }
 
     private NodeStake nodeStake(long consensusTimestamp, long nodeId, long stake) {

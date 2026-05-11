@@ -3,59 +3,98 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
+import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
+@Builder(toBuilder = true)
 @Data
-@Entity
-@IdClass(StakingRewardTransfer.Id.class)
+@Table("staking_reward_transfer")
 @NoArgsConstructor
 public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.Id> {
 
-    @jakarta.persistence.Id
-    private long accountId;
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
     private long amount;
 
-    @jakarta.persistence.Id
-    private long consensusTimestamp;
-
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
+
+    public static class StakingRewardTransferBuilder {
+        public StakingRewardTransferBuilder accountId(long accountId) {
+            initId();
+            this.id.setAccountId(accountId);
+            return this;
+        }
+
+        public StakingRewardTransferBuilder consensusTimestamp(long consensusTimestamp) {
+            initId();
+            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        private void initId() {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+        }
+    }
+
+    public long getAccountId() {
+        return id != null ? id.getAccountId() : 0L;
+    }
+
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public void setAccountId(long accountId) {
+        initId();
+        id.setAccountId(accountId);
+    }
+
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        initId();
+        id.setConsensusTimestamp(consensusTimestamp);
+    }
+
+    private void initId() {
+        if (id == null) {
+            id = new Id();
+        }
+    }
 
     @JsonIgnore
     @Override
     public Id getId() {
-        Id id = new Id();
-        id.setAccountId(accountId);
-        id.setConsensusTimestamp(consensusTimestamp);
         return id;
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true;
     }
 
+    @AllArgsConstructor
     @Data
+    @NoArgsConstructor
     public static class Id implements Serializable {
+
+        @Serial
         private static final long serialVersionUID = 1129458229846263861L;
 
         private long accountId;
-
         private long consensusTimestamp;
     }
 }

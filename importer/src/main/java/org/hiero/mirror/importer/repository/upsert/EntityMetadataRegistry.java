@@ -5,14 +5,8 @@ package org.hiero.mirror.importer.repository.upsert;
 import static org.hiero.mirror.importer.util.Utility.toSnakeCase;
 
 import jakarta.inject.Named;
-import jakarta.persistence.Column;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.Table;
-import jakarta.persistence.metamodel.Attribute;
-import jakarta.persistence.metamodel.EmbeddableType;
-import jakarta.persistence.metamodel.EntityType;
-import jakarta.persistence.metamodel.SingularAttribute;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -24,12 +18,16 @@ import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.hibernate.metamodel.model.domain.SingularPersistentAttribute;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.exception.FieldInaccessibleException;
 import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.jdbc.core.JdbcOperations;
 
 @CustomLog
@@ -38,7 +36,6 @@ import org.springframework.jdbc.core.JdbcOperations;
 public final class EntityMetadataRegistry {
 
     private final DBProperties dbProperties;
-    private final EntityManager entityManager;
     private final Map<Class<?>, EntityMetadata> domainEntityMetadata = new ConcurrentHashMap<>();
     private final JdbcOperations jdbcOperations;
 
@@ -53,43 +50,59 @@ public final class EntityMetadataRegistry {
             throw new UnsupportedOperationException("Class is not annotated with @Upsertable: " + domainClass);
         }
 
-        EntityType<?> entityType = entityManager.getMetamodel().entity(domainClass);
         Table table = AnnotationUtils.findAnnotation(domainClass, Table.class);
-        String tableName = table != null ? table.name() : toSnakeCase(entityType.getName());
-        Set<String> idAttributes = getIdAttributes(entityType);
+        String tableName = (table != null && StringUtils.isNotBlank(table.value()))
+                ? table.value()
+                : toSnakeCase(domainClass.getSimpleName());
         Set<ColumnMetadata> columnMetadata = new TreeSet<>();
 
         Map<String, InformationSchemaColumns> schema = getColumnSchema(tableName);
 
-        for (Attribute<?, ?> attribute : entityType.getAttributes()) {
-            boolean id = idAttributes.contains(attribute.getName());
-
-            if (attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.EMBEDDED) {
-                var persistentAttribute = (SingularPersistentAttribute) attribute;
-                var embeddableType = (EmbeddableType<?>) persistentAttribute.getType();
-                embeddableType
-                        .getDeclaredSingularAttributes()
-                        .forEach(a -> columnMetadata.add(columnMetadata(schema, a, id)));
-            } else {
-                columnMetadata.add(columnMetadata(schema, attribute, id));
-            }
-        }
+        collectColumns(schema, domainClass, false, columnMetadata);
 
         var entityMetadata = new EntityMetadata(tableName, upsertable, columnMetadata);
         log.debug("Creating {}", entityMetadata);
         return entityMetadata;
     }
 
-    @SuppressWarnings("java:S4276")
-    private ColumnMetadata columnMetadata(
-            Map<String, InformationSchemaColumns> schema, Attribute<?, ?> attribute, boolean id) {
-        String name = attribute.getName();
-        Field field = (Field) attribute.getJavaMember();
+    private void collectColumns(
+            Map<String, InformationSchemaColumns> schema,
+            Class<?> domainClass,
+            boolean idFromParent,
+            Set<ColumnMetadata> out) {
+        if (domainClass == null || domainClass == Object.class) {
+            return;
+        }
+
+        // Superclass fields first so subclass can override ordering deterministically
+        collectColumns(schema, domainClass.getSuperclass(), idFromParent, out);
+
+        for (Field field : domainClass.getDeclaredFields()) {
+            if (Modifier.isStatic(field.getModifiers())
+                    || Modifier.isTransient(field.getModifiers())
+                    || field.isAnnotationPresent(Transient.class)) {
+                continue;
+            }
+
+            boolean id = idFromParent || field.isAnnotationPresent(Id.class);
+
+            var embedded = field.getAnnotation(Embedded.class);
+            if (embedded != null) {
+                collectColumns(schema, field.getType(), id, out);
+                continue;
+            }
+
+            out.add(columnMetadata(schema, field, id));
+        }
+    }
+
+    private ColumnMetadata columnMetadata(Map<String, InformationSchemaColumns> schema, Field field, boolean id) {
         Column column = field.getAnnotation(Column.class);
         UpsertColumn upsertColumn = field.getAnnotation(UpsertColumn.class);
-        String columnName = column != null && StringUtils.isNotBlank(column.name())
-                ? toSnakeCase(column.name())
-                : toSnakeCase(name);
+
+        String columnName = (column != null && StringUtils.isNotBlank(column.value()))
+                ? toSnakeCase(column.value())
+                : toSnakeCase(field.getName());
 
         InformationSchemaColumns columnSchema = schema.get(columnName);
 
@@ -99,7 +112,7 @@ public final class EntityMetadataRegistry {
 
         var getter = getter(field);
         var setter = setter(field);
-        boolean updatable = !id && (column == null || column.updatable());
+        boolean updatable = !id;
         return new ColumnMetadata(
                 columnSchema.getColumnDefault(),
                 getter,
@@ -107,7 +120,7 @@ public final class EntityMetadataRegistry {
                 columnName,
                 columnSchema.isNullable(),
                 setter,
-                attribute.getJavaType(),
+                field.getType(),
                 updatable,
                 upsertColumn);
     }
@@ -140,24 +153,6 @@ public final class EntityMetadataRegistry {
         }
 
         return schema;
-    }
-
-    private Set<String> getIdAttributes(EntityType<?> entityType) {
-        try {
-            return entityType.getIdClassAttributes().stream()
-                    .map(SingularAttribute::getName)
-                    .collect(Collectors.toSet());
-        } catch (IllegalArgumentException e) {
-            SingularAttribute<?, ?> idAttribute = entityType.getId(Object.class);
-
-            var attributeType = idAttribute.getPersistentAttributeType();
-            if (attributeType != Attribute.PersistentAttributeType.BASIC
-                    && attributeType != Attribute.PersistentAttributeType.EMBEDDED) {
-                throw new UnsupportedOperationException("Unsupported ID attribute " + entityType.getName());
-            }
-
-            return Set.of(idAttribute.getName());
-        }
     }
 
     private Function<Object, Object> getter(Field field) {

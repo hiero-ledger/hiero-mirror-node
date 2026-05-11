@@ -3,30 +3,30 @@
 package org.hiero.mirror.common.converter;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.common.collect.Range;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.io.IOException;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
 
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
-@SuppressWarnings({"java:S6548", "unchecked"}) // Singletons are fine
-public class RangeToStringSerializer extends JsonSerializer<Range<?>> {
+public class RangeToStringSerializer extends StdSerializer<Range<Long>> {
 
+    private static final long serialVersionUID = -2404098939768685161L;
     public static final RangeToStringSerializer INSTANCE = new RangeToStringSerializer();
-    private static final Class<?> HANDLED_TYPE = Range.class;
 
-    @Override
-    public void serialize(Range<?> range, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-        if (range != null) {
-            gen.writeString(PostgreSQLGuavaRangeType.INSTANCE.asString(range));
-        }
+    public RangeToStringSerializer() {
+        super(Range.class, false);
     }
 
     @Override
-    public Class<Range<?>> handledType() {
-        return (Class<Range<?>>) HANDLED_TYPE;
+    public void serialize(Range<Long> range, JsonGenerator gen, SerializerProvider provider) throws IOException {
+        if (range == null || range.isEmpty()) {
+            gen.writeNull();
+            return;
+        }
+
+        String lower = range.hasLowerBound() ? range.lowerEndpoint().toString() : "";
+        String upper = range.hasUpperBound() ? range.upperEndpoint().toString() : "";
+
+        gen.writeString(String.format("[%s,%s)", lower, upper));
     }
 }

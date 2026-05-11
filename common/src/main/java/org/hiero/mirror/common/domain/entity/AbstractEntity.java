@@ -2,32 +2,25 @@
 
 package org.hiero.mirror.common.domain.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
 import java.sql.Date;
 import java.util.concurrent.TimeUnit;
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.Nullable;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 
 @Data
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
@@ -40,7 +33,6 @@ public abstract class AbstractEntity implements History {
 
     private static final String CLEAR_PUBLIC_KEY = StringUtils.EMPTY;
 
-    @Column(updatable = false)
     @ToString.Exclude
     private byte[] alias;
 
@@ -56,7 +48,6 @@ public abstract class AbstractEntity implements History {
 
     private Long balanceTimestamp;
 
-    @Column(updatable = false)
     private Long createdTimestamp;
 
     private Boolean declineReward;
@@ -72,7 +63,6 @@ public abstract class AbstractEntity implements History {
                             end""")
     private Long ethereumNonce;
 
-    @Column(updatable = false)
     @ToString.Exclude
     private byte[] evmAddress;
 
@@ -81,22 +71,21 @@ public abstract class AbstractEntity implements History {
     @Id
     private Long id;
 
+    @Setter(AccessLevel.NONE)
     @ToString.Exclude
     private byte[] key;
 
     private Integer maxAutomaticTokenAssociations;
 
+    @Setter(AccessLevel.NONE)
     private String memo;
 
-    @Column(updatable = false)
     private Long num;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId obtainerId;
 
     private Boolean permanentRemoval;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId proxyAccountId;
 
     @ToString.Exclude
@@ -106,12 +95,10 @@ public abstract class AbstractEntity implements History {
                             end""")
     private String publicKey;
 
-    @Column(updatable = false)
     private Long realm;
 
     private Boolean receiverSigRequired;
 
-    @Column(updatable = false)
     private Long shard;
 
     private Long stakedAccountId;
@@ -122,54 +109,19 @@ public abstract class AbstractEntity implements History {
 
     private Range<Long> timestampRange;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    private EntityType type;
+    @Column("type")
+    private EntityType entityType;
 
-    public void addBalance(Long balance) {
-        if (balance == null) {
-            return;
-        }
-
-        if (this.balance == null) {
-            this.balance = balance;
-        } else {
-            this.balance += balance;
-        }
+    public EntityType getType() {
+        return entityType;
     }
 
-    /**
-     * Sets the entity's key. Note publicKey is extracted from the key as a side effect. A null key indicates there
-     * is no key / public key change and publicKey is set to null as well. For an empty key or unparsable key, publicKey
-     * is set to the sentinel value, an empty string, and the upsert SQL will clear the public_key column by setting it
-     * to null.
-     *
-     * @param key - The protobuf key bytes
-     */
-    public void setKey(byte[] key) {
-        this.key = key;
-        publicKey = getPublicKey(key);
-    }
-
-    public void setMemo(String memo) {
-        this.memo = DomainUtils.sanitize(memo);
+    public void setType(EntityType type) {
+        this.entityType = type;
     }
 
     public EntityId toEntityId() {
-        return EntityId.of(shard, realm, num);
-    }
-
-    @JsonIgnore
-    public long getEffectiveExpiration() {
-        if (expirationTimestamp != null) {
-            return expirationTimestamp;
-        }
-
-        if (createdTimestamp != null && autoRenewPeriod != null) {
-            return createdTimestamp + TimeUnit.SECONDS.toNanos(autoRenewPeriod);
-        }
-
-        return DEFAULT_EXPIRY_TIMESTAMP;
+        return id == null ? EntityId.EMPTY : EntityId.of(id);
     }
 
     private static String getPublicKey(@Nullable byte[] protobufKey) {
@@ -181,8 +133,25 @@ public abstract class AbstractEntity implements History {
         return publicKey != null ? publicKey : CLEAR_PUBLIC_KEY;
     }
 
+    public void setMemo(String memo) {
+        this.memo = DomainUtils.sanitize(memo);
+    }
+
+    public void setKey(byte[] key) {
+        this.key = key;
+        this.publicKey = getPublicKey(key);
+    }
+
+    public void addBalance(Long delta) {
+        if (balance == null && delta == null) {
+            return;
+        }
+        long base = balance != null ? balance : 0L;
+        long d = delta != null ? delta : 0L;
+        setBalance(base + d);
+    }
+
     @SuppressWarnings("java:S1610")
-    // Necessary since Lombok doesn't use our setters for builders
     public abstract static class AbstractEntityBuilder<
             C extends AbstractEntity, B extends AbstractEntityBuilder<C, B>> {
         public B key(byte[] key) {
@@ -193,6 +162,11 @@ public abstract class AbstractEntity implements History {
 
         public B memo(String memo) {
             this.memo = DomainUtils.sanitize(memo);
+            return self();
+        }
+
+        public B type(EntityType entityType) {
+            this.entityType = entityType;
             return self();
         }
     }

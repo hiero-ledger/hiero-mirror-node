@@ -4,11 +4,6 @@ package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
@@ -17,20 +12,18 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.NftTransfer;
-import org.jspecify.annotations.NonNull;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Entity
+@Table("transaction")
 @NoArgsConstructor
 public class Transaction implements Persistable<Long> {
 
@@ -44,11 +37,8 @@ public class Transaction implements Persistable<Long> {
     @Id
     private Long consensusTimestamp;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId entityId;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private ErrataType errata;
 
     private Boolean highVolume;
@@ -57,14 +47,12 @@ public class Transaction implements Persistable<Long> {
 
     private Integer index;
 
-    // Repeated sequence of payer_account_id, valid_start_ns
     @JsonSerialize(using = ListToStringSerializer.class)
     private List<Long> innerTransactions;
 
     private Long initialBalance;
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
-    @JdbcTypeCode(SqlTypes.JSON)
     private List<ItemizedTransfer> itemizedTransfer;
 
     @ToString.Exclude
@@ -76,17 +64,14 @@ public class Transaction implements Persistable<Long> {
     private byte[] memo;
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
-    @JdbcTypeCode(SqlTypes.JSON)
     private List<NftTransfer> nftTransfer;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId nodeAccountId;
 
     private Integer nonce;
 
     private Long parentConsensusTimestamp;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
     private Integer result;
@@ -108,20 +93,44 @@ public class Transaction implements Persistable<Long> {
 
     private Long validStartNs;
 
-    public void addItemizedTransfer(@NonNull ItemizedTransfer itemizedTransfer) {
+    public void addItemizedTransfer(ItemizedTransfer itemizedTransfer) {
+        if (itemizedTransfer == null) {
+            return;
+        }
         if (this.itemizedTransfer == null) {
             this.itemizedTransfer = new ArrayList<>();
+        } else if (!(this.itemizedTransfer instanceof ArrayList)) {
+            this.itemizedTransfer = new ArrayList<>(this.itemizedTransfer);
         }
-
         this.itemizedTransfer.add(itemizedTransfer);
     }
 
-    public void addNftTransfer(@NonNull NftTransfer nftTransfer) {
+    public void addNftTransfer(NftTransfer nftTransfer) {
+        if (nftTransfer == null) {
+            return;
+        }
         if (this.nftTransfer == null) {
             this.nftTransfer = new ArrayList<>();
+        } else if (!(this.nftTransfer instanceof ArrayList)) {
+            this.nftTransfer = new ArrayList<>(this.nftTransfer);
         }
-
         this.nftTransfer.add(nftTransfer);
+    }
+
+    public void addInnerTransaction(Transaction innerTransaction) {
+        if (type == null || !type.equals(TransactionType.ATOMIC_BATCH.getProtoId())) {
+            throw new IllegalStateException("Inner transactions can only be added to atomic batch transaction");
+        }
+        if (innerTransaction == null) {
+            return;
+        }
+        if (innerTransactions == null) {
+            innerTransactions = new ArrayList<>();
+        } else if (!(innerTransactions instanceof ArrayList)) {
+            innerTransactions = new ArrayList<>(innerTransactions);
+        }
+        innerTransactions.add(innerTransaction.getPayerAccountId().getId());
+        innerTransactions.add(innerTransaction.getValidStartNs());
     }
 
     @JsonIgnore
@@ -133,27 +142,14 @@ public class Transaction implements Persistable<Long> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
-    }
-
-    public void addInnerTransaction(Transaction transaction) {
-        if (this.type != TransactionType.ATOMIC_BATCH.getProtoId()) {
-            throw new IllegalStateException("Inner transactions can only be added to atomic batch transaction");
-        }
-
-        if (innerTransactions == null) {
-            innerTransactions = new ArrayList<>();
-        }
-
-        innerTransactions.add(transaction.getPayerAccountId().getId());
-        innerTransactions.add(transaction.getValidStartNs());
+        return true;
     }
 
     public TransactionHash toTransactionHash() {
         return TransactionHash.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .hash(transactionHash)
-                .payerAccountId(payerAccountId.getId())
+                .payerAccountId(payerAccountId != null ? payerAccountId.getId() : 0L)
                 .build();
     }
 }

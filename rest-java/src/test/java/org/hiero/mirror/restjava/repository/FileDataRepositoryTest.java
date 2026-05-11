@@ -9,17 +9,21 @@ import static org.hiero.mirror.common.domain.transaction.TransactionType.FILEUPD
 
 import com.google.common.primitives.Bytes;
 import java.util.Arrays;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
-import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
 final class FileDataRepositoryTest extends RestJavaIntegrationTest {
+
+    /** Guaranteed not to match persisted {@link #entityId} rows in file_data. */
+    private static final long NONEXISTENT_ENTITY_ID = 9_876_543_210L;
 
     private final FileDataRepository fileDataRepository;
     private EntityId entityId;
@@ -61,13 +65,13 @@ final class FileDataRepositoryTest extends RestJavaIntegrationTest {
     void getFileAtTimestampWrongEntity() {
         // given
         fileData(FILECREATE, 100);
-        final var wrongId = domainBuilder.entityId().getId();
 
         // when
-        final var actual = fileDataRepository.getFileAtTimestamp(wrongId, 0L, Long.MAX_VALUE);
+        final var actual = fileDataRepository.getFileAtTimestamp(NONEXISTENT_ENTITY_ID, 0L, Long.MAX_VALUE);
 
-        // then
-        assertThat(actual).isEmpty();
+        // then — aggregate queries can yield one NULL-filled row instead of zero rows
+        assertThat(actual.flatMap(fd -> Optional.ofNullable(fd.getConsensusTimestamp())))
+                .isEmpty();
     }
 
     @Test
@@ -79,10 +83,9 @@ final class FileDataRepositoryTest extends RestJavaIntegrationTest {
     void getLatestTimestampWrongEntity() {
         // given
         fileData(FILECREATE, 100);
-        final var wrongId = domainBuilder.entityId().getId();
 
         // when
-        final var actual = fileDataRepository.getLatestTimestamp(wrongId);
+        final var actual = fileDataRepository.getLatestTimestamp(NONEXISTENT_ENTITY_ID);
 
         // then
         assertThat(actual).isEmpty();
@@ -130,7 +133,8 @@ final class FileDataRepositoryTest extends RestJavaIntegrationTest {
                     .get()
                     .isEqualTo(expected);
         } else {
-            assertThat(fileDataRepository.getFileAtTimestamp(entityId.getId(), lower, upper))
+            final var opt = fileDataRepository.getFileAtTimestamp(entityId.getId(), lower, upper);
+            assertThat(opt.flatMap(fd -> Optional.ofNullable(fd.getConsensusTimestamp())))
                     .isEmpty();
         }
     }

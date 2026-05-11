@@ -3,7 +3,6 @@
 package org.hiero.mirror.restjava.service;
 
 import jakarta.inject.Named;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.Topic;
@@ -17,6 +16,6 @@ final class TopicServiceImpl implements TopicService {
 
     @Override
     public Topic findById(EntityId id) {
-        return topicRepository.findById(id.getId()).orElseThrow(() -> new EntityNotFoundException("Topic not found"));
+        return topicRepository.findById(id.getId()).orElseThrow(() -> new RuntimeException("Topic not found"));
     }
 }

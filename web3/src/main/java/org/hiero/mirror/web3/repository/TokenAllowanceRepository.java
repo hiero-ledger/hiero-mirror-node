@@ -7,14 +7,13 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_TOKEN
 
 import java.util.List;
 import java.util.Optional;
-import org.hiero.mirror.common.domain.entity.AbstractTokenAllowance;
 import org.hiero.mirror.common.domain.entity.AbstractTokenAllowance.Id;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
-public interface TokenAllowanceRepository extends CrudRepository<TokenAllowance, AbstractTokenAllowance.Id> {
+public interface TokenAllowanceRepository extends CrudRepository<TokenAllowance, Id> {
 
     @Override
     @Cacheable(cacheNames = CACHE_NAME_TOKEN_ALLOWANCE, cacheManager = CACHE_MANAGER_TOKEN, unless = "#result == null")

@@ -2,38 +2,57 @@
 
 package org.hiero.mirror.common.converter;
 
-import static org.hiero.mirror.common.converter.RangeToStringSerializer.INSTANCE;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.collect.Range;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class RangeToStringSerializerTest {
 
+    private final RangeToStringSerializer serializer = new RangeToStringSerializer();
+
     @Mock
     private JsonGenerator jsonGenerator;
 
+    static java.util.stream.Stream<Arguments> rangesAndExpectedJsonStrings() {
+        return java.util.stream.Stream.of(
+                Arguments.of(Range.closedOpen(0L, 1L), "[0,1)"),
+                Arguments.of(Range.closed(0L, 1L), "[0,1)"),
+                Arguments.of(Range.open(0L, 1L), "[0,1)"),
+                Arguments.of(Range.openClosed(0L, 1L), "[0,1)"),
+                Arguments.of(Range.closedOpen(0L, 2L), "[0,2)"),
+                Arguments.of(Range.atLeast(0L), "[0,)"),
+                Arguments.of(Range.lessThan(1L), "[,1)"));
+    }
+
     @ParameterizedTest
-    @ValueSource(strings = {"[0,1]", "[0,1)", "(0,1]", "(0,1)", "[0,)", "(,1]", "empty"})
-    void serialize(String text) throws IOException {
-        Range<Long> range = PostgreSQLGuavaRangeType.longRange(text);
-        INSTANCE.serialize(range, jsonGenerator, null);
-        Mockito.verify(jsonGenerator).writeString(text);
+    @MethodSource("rangesAndExpectedJsonStrings")
+    void serialize(Range<Long> range, String expectedText) throws IOException {
+        serializer.serialize(range, jsonGenerator, null);
+        verify(jsonGenerator).writeString(expectedText);
     }
 
     @Test
     void serializeNull() throws IOException {
-        INSTANCE.serialize(null, jsonGenerator, null);
-        Mockito.verify(jsonGenerator, Mockito.never()).writeString(ArgumentMatchers.anyString());
+        serializer.serialize(null, jsonGenerator, null);
+        verify(jsonGenerator).writeNull();
+        verify(jsonGenerator, never()).writeString(ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void serializeEmptyRange() throws IOException {
+        serializer.serialize(Range.closedOpen(1L, 1L), jsonGenerator, null);
+        verify(jsonGenerator).writeNull();
     }
 }

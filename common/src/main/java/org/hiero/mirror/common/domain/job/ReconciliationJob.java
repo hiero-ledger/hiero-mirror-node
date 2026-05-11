@@ -2,19 +2,19 @@
 
 package org.hiero.mirror.common.domain.job;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@Entity
+@Table
 @NoArgsConstructor
 public class ReconciliationJob {
 

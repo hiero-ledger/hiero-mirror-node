@@ -9,15 +9,18 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import io.hypersistence.utils.hibernate.type.util.JsonConfiguration;
 import java.io.IOException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S6548")
 public class ObjectToStringSerializer extends JsonSerializer<Object> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ObjectToStringSerializer.class);
 
     public static final ObjectToStringSerializer INSTANCE = new ObjectToStringSerializer();
     public static final ObjectMapper OBJECT_MAPPER;
@@ -31,9 +34,6 @@ public class ObjectToStringSerializer extends JsonSerializer<Object> {
                 .registerModule(module)
                 .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
                 .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
-
-        // Configure hyperpersistence utils so that JsonBinaryType uses the same object mapper
-        JsonConfiguration.INSTANCE.getObjectMapperWrapper().setObjectMapper(OBJECT_MAPPER);
     }
 
     public static void init() {

@@ -6,7 +6,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.restjava.RestJavaIntegrationTest;
+import org.hiero.mirror.RestJavaIntegrationTest;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor

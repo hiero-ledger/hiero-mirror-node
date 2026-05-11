@@ -2,21 +2,29 @@
 
 package org.hiero.mirror.restjava.mapper;
 
-import static org.hiero.mirror.restjava.mapper.CommonMapper.QUALIFIER_TIMESTAMP;
-
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.token.CustomFee;
-import org.hiero.mirror.rest.model.Topic;
+import org.hiero.mirror.common.domain.topic.Topic;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 @Mapper(config = MapperConfiguration.class, uses = CustomFeeMapper.class)
 public interface TopicMapper {
 
-    @Mapping(source = "customFee", target = "customFees")
-    @Mapping(source = "entity.autoRenewAccountId", target = "autoRenewAccount")
-    @Mapping(source = "entity.createdTimestamp", target = "createdTimestamp", qualifiedByName = QUALIFIER_TIMESTAMP)
-    @Mapping(source = "entity.id", target = "topicId")
-    @Mapping(source = "entity.timestampRange", target = "timestamp")
-    Topic map(CustomFee customFee, Entity entity, org.hiero.mirror.common.domain.topic.Topic topic);
+    @Mapping(target = "topicId", source = "topic.id")
+    @Mapping(target = "timestamp", source = "topic.timestampRange")
+    @Mapping(
+            target = "createdTimestamp",
+            source = "topic.createdTimestamp",
+            qualifiedByName = CommonMapper.QUALIFIER_TIMESTAMP)
+    @Mapping(target = "adminKey", source = "topic.adminKey")
+    @Mapping(target = "submitKey", source = "topic.submitKey")
+    @Mapping(target = "feeScheduleKey", source = "topic.feeScheduleKey")
+    @Mapping(target = "feeExemptKeyList", source = "topic.feeExemptKeyList")
+    @Mapping(target = "memo", source = "entity.memo", defaultValue = "")
+    @Mapping(target = "deleted", source = "entity.deleted")
+    @Mapping(target = "autoRenewAccount", source = "entity.autoRenewAccountId")
+    @Mapping(target = "autoRenewPeriod", source = "entity.autoRenewPeriod")
+    @Mapping(target = "customFees", source = "customFee")
+    org.hiero.mirror.rest.model.Topic map(CustomFee customFee, Entity entity, Topic topic);
 }

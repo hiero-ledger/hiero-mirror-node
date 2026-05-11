@@ -2,25 +2,22 @@
 
 package org.hiero.mirror.common.domain.node;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.Range;
-import jakarta.persistence.Column;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
 import java.util.List;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 
 @Data
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
@@ -29,7 +26,6 @@ public abstract class AbstractRegisteredNode implements History {
     @ToString.Exclude
     private byte[] adminKey;
 
-    @Column(updatable = false)
     private Long createdTimestamp;
 
     private boolean deleted;
@@ -39,12 +35,45 @@ public abstract class AbstractRegisteredNode implements History {
     @Id
     private Long registeredNodeId;
 
-    @JsonSerialize(using = ObjectToStringSerializer.class)
-    @JdbcTypeCode(SqlTypes.JSON)
-    private List<RegisteredServiceEndpoint> serviceEndpoints;
+    @JsonIgnore
+    @Column("service_endpoints")
+    private ServiceEndpointsHolder serviceEndpointsColumn;
 
     private Range<Long> timestampRange;
 
+    @JsonIgnore
+    @Column("type")
+    private RegisteredNodeTypesHolder typeColumn;
+
     @JsonSerialize(using = ListToStringSerializer.class)
-    private List<Short> type;
+    public List<Short> getType() {
+        return typeColumn == null ? null : typeColumn.types();
+    }
+
+    public void setType(List<Short> value) {
+        this.typeColumn = RegisteredNodeTypesHolder.of(value);
+    }
+
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<RegisteredServiceEndpoint> getServiceEndpoints() {
+        return serviceEndpointsColumn == null ? null : serviceEndpointsColumn.items();
+    }
+
+    public void setServiceEndpoints(List<RegisteredServiceEndpoint> value) {
+        this.serviceEndpointsColumn = ServiceEndpointsHolder.of(value);
+    }
+
+    public abstract static class AbstractRegisteredNodeBuilder<
+            C extends AbstractRegisteredNode, B extends AbstractRegisteredNodeBuilder<C, B>> {
+
+        public B serviceEndpoints(List<RegisteredServiceEndpoint> endpoints) {
+            this.serviceEndpointsColumn = ServiceEndpointsHolder.of(endpoints);
+            return self();
+        }
+
+        public B type(List<Short> types) {
+            this.typeColumn = RegisteredNodeTypesHolder.of(types);
+            return self();
+        }
+    }
 }
