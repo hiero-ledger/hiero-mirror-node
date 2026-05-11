@@ -72,8 +72,10 @@ class LoggingFilter extends OncePerRequestFilter {
             log.debug(LOG_FORMAT, params);
         } else if (status >= HttpStatus.INTERNAL_SERVER_ERROR.value()) {
             log.warn(LOG_FORMAT, params);
-        } else {
+        } else if (log.isInfoEnabled()) {
             log.info(LOG_FORMAT, params);
+        } else {
+            log.debug(LOG_FORMAT, params); // params are more verbose if debug enabled
         }
     }
 
@@ -102,7 +104,9 @@ class LoggingFilter extends OncePerRequestFilter {
         }
 
         // Truncate log message size unless it's a 5xx error
-        if (content.length() > maxPayloadLogSize && status < HttpStatus.INTERNAL_SERVER_ERROR.value()) {
+        if (log.isInfoEnabled()
+                && content.length() > maxPayloadLogSize
+                && status < HttpStatus.INTERNAL_SERVER_ERROR.value()) {
             content = reorderFields(content);
             content = StringUtils.substring(content, 0, maxPayloadLogSize);
         }
