@@ -216,32 +216,37 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         coalesce(e.evm_address,'') as evm_address
       from contract_result cr
       left join entity e on e.id = cr.contract_id
-      where cr.transaction_nonce = 0)
+      where cr.transaction_nonce = 0
+      order by cr.consensus_timestamp desc
+      limit $1)
       union all
       (select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
-        synth.consensus_timestamp, synth.contract_id,
+        synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
         null::bytea as failed_initcode, decode('', 'hex') as function_parameters,
         null::bytea as function_result, null::bigint as gas_consumed, 0::bigint as gas_limit,
-        null::bigint as gas_used, synth.payer_account_id, null::bigint as sender_id,
-        synth.transaction_hash, synth.transaction_index, 0::integer as transaction_nonce,
+        null::bigint as gas_used, synth_raw.payer_account_id, null::bigint as sender_id,
+        synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
         22::smallint as transaction_result,
-        coalesce(e.evm_address,'') as evm_address
+        coalesce(e.evm_address, '') as evm_address
       from (
-        select distinct on (consensus_timestamp)
-          consensus_timestamp,
-          coalesce(root_contract_id, contract_id) as contract_id,
-          transaction_hash, transaction_index, payer_account_id
-        from contract_log
-        where synthetic = true
+        select distinct on (cl.consensus_timestamp)
+          cl.consensus_timestamp,
+          coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
+          cl.transaction_hash, cl.transaction_index, cl.payer_account_id, cl.index
+        from contract_log cl
+        where cl.synthetic = true
           and not exists (
-            select 1 from contract_result cr
-            where cr.contract_id = coalesce(contract_log.root_contract_id, contract_log.contract_id)
-            and cr.consensus_timestamp = contract_log.consensus_timestamp)
-        order by consensus_timestamp, index
-      ) synth
-      left join entity e on e.id = synth.contract_id)
+            select 1
+            from contract_result cr
+            where cr.contract_id = cl.contract_id
+              and cr.consensus_timestamp = cl.consensus_timestamp
+          )
+        order by cl.consensus_timestamp desc, cl.index desc
+        limit $1
+      ) synth_raw
+      left join entity e on e.id = synth_raw.contract_id)
       order by consensus_timestamp desc
       limit $1
     `;
@@ -267,33 +272,38 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         coalesce(e.evm_address,'') as evm_address
       from contract_result cr
       left join entity e on e.id = cr.contract_id
-      where cr.transaction_nonce = 0 and cr.consensus_timestamp >= $1 and cr.consensus_timestamp <= $2)
+      where cr.transaction_nonce = 0 and cr.consensus_timestamp >= $1 and cr.consensus_timestamp <= $2
+      order by cr.consensus_timestamp asc
+      limit $3)
       union all
       (select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
-        synth.consensus_timestamp, synth.contract_id,
+        synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
         null::bytea as failed_initcode, decode('', 'hex') as function_parameters,
         null::bytea as function_result, null::bigint as gas_consumed, 0::bigint as gas_limit,
-        null::bigint as gas_used, synth.payer_account_id, null::bigint as sender_id,
-        synth.transaction_hash, synth.transaction_index, 0::integer as transaction_nonce,
+        null::bigint as gas_used, synth_raw.payer_account_id, null::bigint as sender_id,
+        synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
         22::smallint as transaction_result,
-        coalesce(e.evm_address,'') as evm_address
+        coalesce(e.evm_address, '') as evm_address
       from (
-        select distinct on (consensus_timestamp)
-          consensus_timestamp,
-          coalesce(root_contract_id, contract_id) as contract_id,
-          transaction_hash, transaction_index, payer_account_id
-        from contract_log
-        where synthetic = true
-          and contract_log.consensus_timestamp >= $1 and contract_log.consensus_timestamp <= $2
+        select distinct on (cl.consensus_timestamp)
+          cl.consensus_timestamp,
+          coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
+          cl.transaction_hash, cl.transaction_index, cl.payer_account_id, cl.index
+        from contract_log cl
+        where cl.synthetic = true
+          and cl.consensus_timestamp >= $1 and cl.consensus_timestamp <= $2
           and not exists (
-            select 1 from contract_result cr
-            where cr.contract_id = coalesce(contract_log.root_contract_id, contract_log.contract_id)
-            and cr.consensus_timestamp = contract_log.consensus_timestamp)
-        order by consensus_timestamp, index
-      ) synth
-      left join entity e on e.id = synth.contract_id)
+            select 1
+            from contract_result cr
+            where cr.contract_id = cl.contract_id
+              and cr.consensus_timestamp = cl.consensus_timestamp
+          )
+        order by cl.consensus_timestamp asc, cl.index asc
+        limit $3
+      ) synth_raw
+      left join entity e on e.id = synth_raw.contract_id)
       order by consensus_timestamp asc
       limit $3
     `;

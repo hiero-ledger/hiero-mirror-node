@@ -82,30 +82,6 @@ class ContractService extends BaseService {
       on ${Entity.getFullName(Entity.ID)} = ${ContractResult.getFullName(ContractResult.CONTRACT_ID)}
    `;
 
-  static syntheticContractLogsScanQueryPrefix = `
-    select distinct on (${ContractLog.CONSENSUS_TIMESTAMP})
-      ${ContractLog.CONSENSUS_TIMESTAMP},
-      coalesce(${ContractLog.ROOT_CONTRACT_ID}, ${ContractLog.CONTRACT_ID}) as ${ContractResult.CONTRACT_ID},
-      ${ContractLog.TRANSACTION_HASH},
-      ${ContractLog.TRANSACTION_INDEX},
-      ${ContractLog.PAYER_ACCOUNT_ID}
-    from ${ContractLog.tableName}
-    where ${ContractLog.SYNTHETIC} = true
-  `;
-
-  static syntheticContractLogsScanQuerySuffix = `
-    and not exists (
-      select 1 from ${ContractResult.tableName} ${ContractResult.tableAlias}
-      where ${ContractResult.getFullName(ContractResult.CONTRACT_ID)} = coalesce(${ContractLog.tableName}.${
-    ContractLog.ROOT_CONTRACT_ID
-  }, ${ContractLog.tableName}.${ContractLog.CONTRACT_ID})
-      and ${ContractResult.getFullName(ContractResult.CONSENSUS_TIMESTAMP)} = ${ContractLog.tableName}.${
-    ContractLog.CONSENSUS_TIMESTAMP
-  }
-    )
-    order by ${ContractLog.CONSENSUS_TIMESTAMP}, ${ContractLog.INDEX}
-  `;
-
   static contractStateChangesQuery = `
     with ${ContractService.entityCTE}
     select ${ContractStateChange.CONSENSUS_TIMESTAMP},
@@ -245,13 +221,12 @@ class ContractService extends BaseService {
       const contractResultAlias = `${ContractResult.tableAlias}.`;
       const contractResultWhereClause = whereConditions.length > 0 ? `where ${whereConditions.join(' and ')}` : '';
 
-      // Timestamp conditions are pushed into the inner scan for index efficiency; nonce is skipped (always 0 for synthetic rows).
       const innerConditions = whereConditions
         .filter((c) => c.includes(`${contractResultAlias}${ContractResult.CONSENSUS_TIMESTAMP}`))
         .map((c) =>
           c.replaceAll(
             `${contractResultAlias}${ContractResult.CONSENSUS_TIMESTAMP}`,
-            `${ContractLog.tableName}.${ContractLog.CONSENSUS_TIMESTAMP}`
+            `${ContractLog.tableAlias}.${ContractLog.CONSENSUS_TIMESTAMP}`
           )
         );
       const outerConditions = whereConditions
@@ -266,6 +241,8 @@ class ContractService extends BaseService {
           ${ContractService.contractResultsWithEvmAddressQuery}
           ${ContractService.joinContractResultWithEvmAddress}
           ${contractResultWhereClause}
+          order by ${ContractResult.getFullName(ContractResult.CONSENSUS_TIMESTAMP)} ${order}
+          ${limitClause}
         )
         union all
         (
@@ -273,8 +250,8 @@ class ContractService extends BaseService {
             null::bigint as ${ContractResult.AMOUNT},
             null::bytea as ${ContractResult.BLOOM},
             null::bytea as ${ContractResult.CALL_RESULT},
-            synth.${ContractResult.CONSENSUS_TIMESTAMP},
-            synth.${ContractResult.CONTRACT_ID},
+            synth_raw.${ContractResult.CONSENSUS_TIMESTAMP},
+            synth_raw.${ContractResult.CONTRACT_ID},
             null::bigint[] as ${ContractResult.CREATED_CONTRACT_IDS},
             null::text as ${ContractResult.ERROR_MESSAGE},
             null::bytea as ${ContractResult.FAILED_INITCODE},
@@ -283,20 +260,42 @@ class ContractService extends BaseService {
             null::bigint as ${ContractResult.GAS_CONSUMED},
             0::bigint as ${ContractResult.GAS_LIMIT},
             null::bigint as ${ContractResult.GAS_USED},
-            synth.${ContractResult.PAYER_ACCOUNT_ID},
+            synth_raw.${ContractResult.PAYER_ACCOUNT_ID},
             null::bigint as ${ContractResult.SENDER_ID},
-            synth.${ContractResult.TRANSACTION_HASH},
-            synth.${ContractResult.TRANSACTION_INDEX},
+            synth_raw.${ContractResult.TRANSACTION_HASH},
+            synth_raw.${ContractResult.TRANSACTION_INDEX},
             0::integer as ${ContractResult.TRANSACTION_NONCE},
             ${successTransactionResult}::smallint as ${ContractResult.TRANSACTION_RESULT},
-            coalesce(${Entity.getFullName(Entity.EVM_ADDRESS)},'') as ${Entity.EVM_ADDRESS}
+            coalesce(${Entity.getFullName(Entity.EVM_ADDRESS)}, '') as ${Entity.EVM_ADDRESS}
           from (
-            ${ContractService.syntheticContractLogsScanQueryPrefix}
-            ${innerTimestampClause}
-            ${ContractService.syntheticContractLogsScanQuerySuffix}
-          ) synth
+            select distinct on (${ContractLog.tableAlias}.${ContractLog.CONSENSUS_TIMESTAMP})
+              ${ContractLog.tableAlias}.${ContractLog.CONSENSUS_TIMESTAMP},
+              coalesce(${ContractLog.tableAlias}.${ContractLog.ROOT_CONTRACT_ID}, ${ContractLog.tableAlias}.${
+        ContractLog.CONTRACT_ID
+      }) as ${ContractResult.CONTRACT_ID},
+              ${ContractLog.tableAlias}.${ContractLog.TRANSACTION_HASH},
+              ${ContractLog.tableAlias}.${ContractLog.TRANSACTION_INDEX},
+              ${ContractLog.tableAlias}.${ContractLog.PAYER_ACCOUNT_ID},
+              ${ContractLog.tableAlias}.${ContractLog.INDEX}
+            from ${ContractLog.tableName} ${ContractLog.tableAlias}
+            where ${ContractLog.tableAlias}.${ContractLog.SYNTHETIC} = true
+              ${innerTimestampClause}
+              and not exists (
+                select 1
+                from ${ContractResult.tableName} ${ContractResult.tableAlias}
+                where ${ContractResult.getFullName(ContractResult.CONTRACT_ID)} = ${ContractLog.tableAlias}.${
+        ContractLog.CONTRACT_ID
+      }
+                  and ${ContractResult.getFullName(ContractResult.CONSENSUS_TIMESTAMP)} = ${ContractLog.tableAlias}.${
+        ContractLog.CONSENSUS_TIMESTAMP
+      }
+              )
+            order by ${ContractLog.tableAlias}.${ContractLog.CONSENSUS_TIMESTAMP} ${order},
+                     ${ContractLog.tableAlias}.${ContractLog.INDEX} ${order}
+            ${limitClause}
+          ) synth_raw
           left join ${Entity.tableName} ${Entity.tableAlias}
-            on ${Entity.getFullName(Entity.ID)} = synth.${ContractResult.CONTRACT_ID}
+            on ${Entity.getFullName(Entity.ID)} = synth_raw.${ContractResult.CONTRACT_ID}
           ${syntheticOuterWhereClause}
         )
         ${orderClause}
