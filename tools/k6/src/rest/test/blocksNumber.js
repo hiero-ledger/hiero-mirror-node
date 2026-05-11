@@ -9,7 +9,7 @@ const urlTag = '/blocks/{number}';
 const getUrl = (testParameters) => `/blocks/${testParameters['DEFAULT_BLOCK_NUMBER']}`;
 
 const {options, run, setup} = new RestTestScenarioBuilder()
-  .name('blockNumber') // use unique scenario name among all tests
+  .name('blocksNumber') // use unique scenario name among all tests
   .tags({url: urlTag})
   .request((testParameters) => {
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;

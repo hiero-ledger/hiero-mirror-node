@@ -62,11 +62,9 @@ public class ContractResult implements Persistable<Long> {
 
     private Long gasUsed;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId senderId;
 

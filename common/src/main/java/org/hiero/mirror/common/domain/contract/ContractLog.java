@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.contract;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Transient;
@@ -14,6 +15,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.data.domain.Persistable;
@@ -33,6 +35,7 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     @jakarta.persistence.Id
     private long consensusTimestamp;
 
+    @Convert(converter = EntityIdConverter.class)
     private EntityId contractId;
 
     @ToString.Exclude
@@ -41,8 +44,10 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     @jakarta.persistence.Id
     private int index;
 
+    @Convert(converter = EntityIdConverter.class)
     private EntityId rootContractId;
 
+    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
     private byte[] topic0;

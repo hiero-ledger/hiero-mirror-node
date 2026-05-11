@@ -3,7 +3,7 @@
 ############################
 # Builder (multi-arch)
 ############################
-FROM --platform=$BUILDPLATFORM golang:1.26.0-alpine3.23 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26.2-alpine3.23 AS builder
 
 WORKDIR /src
 

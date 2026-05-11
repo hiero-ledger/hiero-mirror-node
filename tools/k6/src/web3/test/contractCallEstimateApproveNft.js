@@ -9,7 +9,7 @@ const token = __ENV.NON_FUNGIBLE_TOKEN_ADDRESS;
 const spender = __ENV.SPENDER_ADDRESS;
 const serialNumber = __ENV.SERIAL_NUMBER;
 const runMode = __ENV.RUN_WITH_VARIABLES;
-const testName = 'estimateApproveNft';
+const testName = 'contractCallEstimateApproveNft';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =
