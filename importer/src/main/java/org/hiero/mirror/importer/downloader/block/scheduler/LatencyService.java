@@ -138,7 +138,7 @@ public final class LatencyService implements AutoCloseable {
                 node.streamBlocks(nextBlockNumber, nextBlockNumber, this::measureLatency, timeout);
                 lastMeasuredBlockNumber = nextBlockNumber;
                 skipped = 0;
-            } catch (Exception ex) {
+            } catch (final Exception ex) {
                 // ignore
             } finally {
                 if (bornGeneration == generation.get()) {

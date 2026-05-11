@@ -15,7 +15,7 @@ public final class Latency implements Comparable<Latency> {
     // A smoothing factor of 0.3 gives faster reaction and is also noisier
     private static final double SMOOTHING_FACTOR = 0.3;
 
-    private double average;
+    private volatile double average;
     private boolean initialized;
     private final AtomicBoolean stale = new AtomicBoolean(false);
 
