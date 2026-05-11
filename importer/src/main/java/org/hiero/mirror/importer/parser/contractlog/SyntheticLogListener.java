@@ -97,25 +97,17 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
 
         final var aggregatedBloom = aggregateRecordFileBloom(recordFile, contractResults);
 
-        if (aggregatedBloom.toArrayUnsafe().length == LogsBloomFilter.BYTE_SIZE) {
-            recordFile.setLogsBloom(aggregatedBloom.toArrayUnsafe());
+        if (aggregatedBloom.length == LogsBloomFilter.BYTE_SIZE) {
+            recordFile.setLogsBloom(aggregatedBloom);
         }
     }
 
-    private LogsBloomFilter aggregateRecordFileBloom(
+    private byte[] aggregateRecordFileBloom(
             final RecordFile recordFile, final Collection<ContractResult> contractResults) {
-        final var aggregatedBloom = new LogsBloomFilter();
-
-        final var existingBloom = recordFile.getLogsBloom();
-        if (existingBloom != null && !Arrays.equals(existingBloom, new byte[LogsBloomFilter.BYTE_SIZE])) {
-            aggregatedBloom.or(existingBloom);
-        }
+        var aggregatedBloom = recordFile.getLogsBloom();
 
         for (final var contractResult : contractResults) {
-            final var syntheticBloom = contractResult.getBloom();
-            if (syntheticBloom != null && syntheticBloom.length == LogsBloomFilter.BYTE_SIZE) {
-                aggregatedBloom.or(syntheticBloom);
-            }
+            aggregatedBloom = LogsBloomFilter.or(aggregatedBloom, contractResult.getBloom());
         }
 
         return aggregatedBloom;
