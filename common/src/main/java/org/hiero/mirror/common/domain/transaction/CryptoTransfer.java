@@ -70,6 +70,27 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
         return id != null ? id.getEntityId() : 0L;
     }
 
+    public void setAmount(long amount) {
+        initId();
+        id.setAmount(amount);
+    }
+
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        initId();
+        id.setConsensusTimestamp(consensusTimestamp);
+    }
+
+    public void setEntityId(long entityId) {
+        initId();
+        id.setEntityId(entityId);
+    }
+
+    private void initId() {
+        if (id == null) {
+            id = new Id();
+        }
+    }
+
     @JsonIgnore
     @Override
     public Id getId() {

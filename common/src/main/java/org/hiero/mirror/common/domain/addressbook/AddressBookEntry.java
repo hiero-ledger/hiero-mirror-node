@@ -59,7 +59,7 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
     @Builder.Default
     @EqualsAndHashCode.Exclude
     @JsonIgnore
-    @MappedCollection(idColumn = "consensus_timestamp")
+    @MappedCollection(idColumn = "consensus_timestamp", keyColumn = "node_id")
     private Set<AddressBookServiceEndpoint> serviceEndpoints = new HashSet<>();
 
     private Long stake;

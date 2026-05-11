@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.Builder;
@@ -17,6 +16,7 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityHistory;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
@@ -155,7 +155,7 @@ class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
                 entity.getRealm(),
                 entity.getShard(),
                 entity.getCreatedTimestamp(),
-                PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()),
+                RangeUtils.rangeToString(entity.getTimestampRange()),
                 entity.getType().name(),
                 entity.getKey(),
                 entity.getPublicKey());
@@ -169,7 +169,7 @@ class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
                 entity.getRealm(),
                 entity.getShard(),
                 entity.getCreatedTimestamp(),
-                PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()),
+                RangeUtils.rangeToString(entity.getTimestampRange()),
                 entity.getType().name(),
                 entity.getKey(),
                 entity.getPublicKey());

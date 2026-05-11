@@ -29,13 +29,12 @@ import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityRecordItemListener;
 import org.hiero.mirror.importer.reader.ValidatedDataInputStream;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
-import org.hiero.mirror.importer.repository.TokenTransferRepository;
-import org.hiero.mirror.importer.repository.TransactionRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.transaction.support.TransactionOperations;
@@ -62,9 +61,7 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
     private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final ImporterProperties importerProperties;
     private final ObjectProvider<RecordStreamFileListener> recordStreamFileListenerProvider;
-    private final ObjectProvider<TokenTransferRepository> tokenTransferRepositoryProvider;
     private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
-    private final ObjectProvider<TransactionRepository> transactionRepositoryProvider;
     private final Set<Long> timestamps = new HashSet<>();
 
     @SuppressWarnings("java:S107")
@@ -75,9 +72,7 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
             ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties,
             ObjectProvider<RecordStreamFileListener> recordStreamFileListenerProvider,
-            ObjectProvider<TokenTransferRepository> tokenTransferRepositoryProvider,
-            ObjectProvider<TransactionOperations> transactionOperationsProvider,
-            ObjectProvider<TransactionRepository> transactionRepositoryProvider) {
+            ObjectProvider<TransactionOperations> transactionOperationsProvider) {
         super(importerProperties.getMigration());
         this.accountBalanceFileRepositoryProvider = accountBalanceFileRepositoryProvider;
         this.entityRecordItemListenerProvider = entityRecordItemListenerProvider;
@@ -85,9 +80,7 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
         this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.importerProperties = importerProperties;
         this.recordStreamFileListenerProvider = recordStreamFileListenerProvider;
-        this.tokenTransferRepositoryProvider = tokenTransferRepositoryProvider;
         this.transactionOperationsProvider = transactionOperationsProvider;
-        this.transactionRepositoryProvider = transactionRepositoryProvider;
     }
 
     @Override
@@ -211,11 +204,7 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
                 long timestamp = recordItem.getConsensusTimestamp();
                 boolean inRange = dateRangeFilter.filter(timestamp);
 
-                if (transactionRepositoryProvider
-                                .getObject()
-                                .findById(timestamp)
-                                .isEmpty()
-                        && inRange) {
+                if (!transactionExists(timestamp) && inRange) {
                     entityRecordItemListenerProvider.getObject().onItem(recordItem);
                     consensusTimestamps.add(timestamp);
                     log.info("Processed errata {} successfully", name);
@@ -256,13 +245,8 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
                 var accountId = EntityId.of(aa.getAccountID());
                 var id = new TokenTransfer.Id(recordItem.getConsensusTimestamp(), tokenId, accountId);
 
-                if (tokenTransferRepositoryProvider.getObject().findById(id).isEmpty()) {
-                    TokenTransfer tokenTransfer = new TokenTransfer();
-                    tokenTransfer.setAmount(aa.getAmount());
-                    tokenTransfer.setId(id);
-                    tokenTransfer.setIsApproval(false);
-                    tokenTransfer.setPayerAccountId(recordItem.getPayerAccountId());
-                    tokenTransferRepositoryProvider.getObject().save(tokenTransfer);
+                if (!tokenTransferExists(id)) {
+                    insertTokenTransfer(recordItem, id, aa.getAmount());
                     count.incrementAndGet();
                 }
             });
@@ -308,5 +292,37 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
     private boolean shouldApplyFixedTimeOffset(long consensusTimestamp) {
         return consensusTimestamp >= FIRST_ACCOUNT_BALANCE_FILE_TIMESTAMP
                 && consensusTimestamp <= LAST_ACCOUNT_BALANCE_FILE_TIMESTAMP;
+    }
+
+    private boolean transactionExists(long consensusTimestamp) {
+        final JdbcOperations jdbcOperations = jdbcOperationsProvider.getObject().getJdbcOperations();
+        Boolean exists = jdbcOperations.queryForObject(
+                "select exists(select 1 from transaction where consensus_timestamp = ?)",
+                Boolean.class,
+                consensusTimestamp);
+        return Boolean.TRUE.equals(exists);
+    }
+
+    private boolean tokenTransferExists(TokenTransfer.Id id) {
+        final JdbcOperations jdbcOperations = jdbcOperationsProvider.getObject().getJdbcOperations();
+        Boolean exists = jdbcOperations.queryForObject(
+                "select exists(select 1 from token_transfer where consensus_timestamp = ? and token_id = ? and account_id = ?)",
+                Boolean.class,
+                id.getConsensusTimestamp(),
+                id.getTokenId().getId(),
+                id.getAccountId().getId());
+        return Boolean.TRUE.equals(exists);
+    }
+
+    private void insertTokenTransfer(RecordItem recordItem, TokenTransfer.Id id, long amount) {
+        final JdbcOperations jdbcOperations = jdbcOperationsProvider.getObject().getJdbcOperations();
+        jdbcOperations.update(
+                "insert into token_transfer (account_id, amount, consensus_timestamp, is_approval, payer_account_id, token_id) values (?, ?, ?, ?, ?, ?)",
+                id.getAccountId().getId(),
+                amount,
+                id.getConsensusTimestamp(),
+                false,
+                recordItem.getPayerAccountId().getId(),
+                id.getTokenId().getId());
     }
 }

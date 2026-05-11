@@ -57,6 +57,32 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
         return id != null ? id.getTokenId() : 0L;
     }
 
+    public void setReceiverAccountId(long receiverAccountId) {
+        initId();
+        id.setReceiverAccountId(receiverAccountId);
+    }
+
+    public void setSenderAccountId(long senderAccountId) {
+        initId();
+        id.setSenderAccountId(senderAccountId);
+    }
+
+    public void setSerialNumber(long serialNumber) {
+        initId();
+        id.setSerialNumber(serialNumber);
+    }
+
+    public void setTokenId(long tokenId) {
+        initId();
+        id.setTokenId(tokenId);
+    }
+
+    private void initId() {
+        if (id == null) {
+            id = new Id();
+        }
+    }
+
     @JsonIgnore
     @Override
     public Id getId() {

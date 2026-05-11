@@ -55,6 +55,14 @@ public class NodeStake implements Persistable<NodeStake.Id> {
         id.setNodeId(nodeId);
     }
 
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public long getNodeId() {
+        return id != null ? id.getNodeId() : 0L;
+    }
+
     @JsonIgnore
     @Override
     public Id getId() {

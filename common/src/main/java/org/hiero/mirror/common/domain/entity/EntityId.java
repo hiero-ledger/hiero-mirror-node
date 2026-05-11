@@ -211,4 +211,13 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
     public String toString() {
         return getShard() + DOT + getRealm() + DOT + getNum();
     }
+
+    public Entity toEntity() {
+        return Entity.builder()
+                .id(id)
+                .shard(getShard())
+                .realm(getRealm())
+                .num(getNum())
+                .build();
+    }
 }

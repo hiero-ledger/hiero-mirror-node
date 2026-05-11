@@ -68,6 +68,22 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
         return id != null ? id.getConsensusTimestamp() : 0L;
     }
 
+    public void setCollectorAccountId(long collectorAccountId) {
+        initId();
+        id.setCollectorAccountId(collectorAccountId);
+    }
+
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        initId();
+        id.setConsensusTimestamp(consensusTimestamp);
+    }
+
+    private void initId() {
+        if (id == null) {
+            id = new Id();
+        }
+    }
+
     @JsonIgnore
     @Override
     public Id getId() {

@@ -95,7 +95,12 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
     protected void finalize(final RecordFile recordFile) {
         final long consensusEnd = recordFile.getConsensusEnd();
         for (final var sidecar : recordFile.getSidecars()) {
-            sidecar.setConsensusEnd(consensusEnd);
+            var id = sidecar.getId();
+            if (id == null) {
+                id = new SidecarFile.Id();
+            }
+            id.setConsensusEnd(consensusEnd);
+            sidecar.setId(id);
         }
     }
 

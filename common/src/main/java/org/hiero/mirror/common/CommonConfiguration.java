@@ -8,6 +8,7 @@ import java.util.List;
 import javax.sql.DataSource;
 import org.hiero.mirror.common.config.CommonRuntimeHints;
 import org.hiero.mirror.common.converter.ByteArrayArrayJdbcConverters;
+import org.hiero.mirror.common.converter.DigestAlgorithmJdbcConverters;
 import org.hiero.mirror.common.converter.EntityIdToLongConverter;
 import org.hiero.mirror.common.converter.JsonbReadingConverters;
 import org.hiero.mirror.common.converter.JsonbWritingConverters;
@@ -103,6 +104,8 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new ByteArrayArrayJdbcConverters.PGobjectToByteArrayArray(),
                 new EntityIdToLongConverter(),
                 new LongToEntityIdConverter(),
+                new DigestAlgorithmJdbcConverters.DigestAlgorithmToJdbcValue(),
+                new DigestAlgorithmJdbcConverters.IntegerToDigestAlgorithm(),
                 new LongArrayJdbcConverters.AssociatedRegisteredNodeIdsToLongArray(),
                 new LongArrayJdbcConverters.SqlArrayToAssociatedRegisteredNodeIds(),
                 new LongArrayJdbcConverters.SqlArrayToLongList(),

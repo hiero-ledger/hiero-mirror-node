@@ -58,6 +58,22 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
         return id != null ? id.getConsensusTimestamp() : 0L;
     }
 
+    public void setAccountId(long accountId) {
+        initId();
+        id.setAccountId(accountId);
+    }
+
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        initId();
+        id.setConsensusTimestamp(consensusTimestamp);
+    }
+
+    private void initId() {
+        if (id == null) {
+            id = new Id();
+        }
+    }
+
     @JsonIgnore
     @Override
     public Id getId() {

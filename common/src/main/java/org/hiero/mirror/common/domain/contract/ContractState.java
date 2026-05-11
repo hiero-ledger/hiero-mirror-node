@@ -50,6 +50,14 @@ public class ContractState {
         id.setSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
     }
 
+    public long getContractId() {
+        return id != null ? id.getContractId() : 0L;
+    }
+
+    public byte[] getSlot() {
+        return id != null ? id.getSlot() : null;
+    }
+
     @JsonIgnore
     public Id getId() {
         return id;

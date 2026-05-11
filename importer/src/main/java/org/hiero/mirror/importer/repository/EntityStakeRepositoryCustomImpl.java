@@ -8,7 +8,6 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -110,7 +109,6 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
     private final JdbcTemplate jdbcTemplate;
     private final SystemEntity systemEntity;
 
-    @Modifying
     @Override
     @Transactional
     public void createEntityStateStart(long stakingRewardAccount) {

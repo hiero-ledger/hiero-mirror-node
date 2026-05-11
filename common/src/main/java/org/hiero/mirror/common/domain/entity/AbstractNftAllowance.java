@@ -43,6 +43,27 @@ public abstract class AbstractNftAllowance implements History, Persistable<Abstr
         return id != null ? id.getTokenId() : 0L;
     }
 
+    public void setOwner(long owner) {
+        initId();
+        id.setOwner(owner);
+    }
+
+    public void setSpender(long spender) {
+        initId();
+        id.setSpender(spender);
+    }
+
+    public void setTokenId(long tokenId) {
+        initId();
+        id.setTokenId(tokenId);
+    }
+
+    private void initId() {
+        if (id == null) {
+            id = new Id();
+        }
+    }
+
     @JsonIgnore
     @Override
     public Id getId() {

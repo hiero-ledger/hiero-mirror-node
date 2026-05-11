@@ -27,6 +27,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.crypto.digests.KeccakDigest;
 import org.bouncycastle.crypto.ec.CustomNamedCurves;
 import org.bouncycastle.crypto.params.ECDomainParameters;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.slf4j.helpers.MessageFormatter;
@@ -199,6 +201,19 @@ public class Utility {
             return text;
         }
         return CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, text);
+    }
+
+    public static Entity toEntity(EntityId entityId) {
+        if (entityId == null) {
+            return null;
+        }
+
+        return Entity.builder()
+                .id(entityId.getId())
+                .shard(entityId.getShard())
+                .realm(entityId.getRealm())
+                .num(entityId.getNum())
+                .build();
     }
 
     /**

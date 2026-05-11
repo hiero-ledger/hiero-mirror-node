@@ -112,6 +112,18 @@ public abstract class AbstractEntity implements History {
     @Column("type")
     private EntityType entityType;
 
+    public EntityType getType() {
+        return entityType;
+    }
+
+    public void setType(EntityType type) {
+        this.entityType = type;
+    }
+
+    public EntityId toEntityId() {
+        return id == null ? EntityId.EMPTY : EntityId.of(id);
+    }
+
     private static String getPublicKey(@Nullable byte[] protobufKey) {
         if (protobufKey == null) {
             return null;

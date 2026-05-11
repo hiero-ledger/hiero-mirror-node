@@ -62,6 +62,22 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
         return id != null ? id.getPublicKeyPrefix() : null;
     }
 
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        initId();
+        id.setConsensusTimestamp(consensusTimestamp);
+    }
+
+    public void setPublicKeyPrefix(byte[] publicKeyPrefix) {
+        initId();
+        id.setPublicKeyPrefix(publicKeyPrefix);
+    }
+
+    private void initId() {
+        if (id == null) {
+            id = new Id();
+        }
+    }
+
     @Override
     @JsonIgnore
     public Id getId() {

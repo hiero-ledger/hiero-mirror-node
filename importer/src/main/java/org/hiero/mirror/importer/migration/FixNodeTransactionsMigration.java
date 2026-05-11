@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.migration;
 
 import com.hederahashgraph.api.proto.java.TransactionRecord;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import jakarta.inject.Named;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -16,6 +15,7 @@ import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.parser.record.transactionhandler.AbstractNodeTransactionHandler;
@@ -99,7 +99,7 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
             ps.setObject(2, node.getCreatedTimestamp(), java.sql.Types.BIGINT);
             ps.setBoolean(3, node.isDeleted());
             ps.setBytes(4, node.getAdminKey());
-            ps.setString(5, PostgreSQLGuavaRangeType.INSTANCE.asString(node.getTimestampRange()));
+            ps.setString(5, RangeUtils.rangeToString(node.getTimestampRange()));
         };
 
         final var jdbcOperations = jdbcOperationsProvider.getObject();

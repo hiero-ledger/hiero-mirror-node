@@ -3,8 +3,8 @@
 package org.hiero.mirror.importer.repository;
 
 import org.hiero.mirror.common.domain.balance.TokenBalance;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Modifying;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,7 +13,7 @@ public interface TokenBalanceRepository
 
     @Modifying
     @Override
-    @Query(nativeQuery = true, value = """
+    @Query("""
         insert into token_balance (account_id, balance, consensus_timestamp, token_id)
         select account_id, balance, :consensusTimestamp, token_id
         from token_account
@@ -31,7 +31,7 @@ public interface TokenBalanceRepository
 
     @Override
     @Modifying
-    @Query(nativeQuery = true, value = """
+    @Query("""
         insert into token_balance (account_id, balance, consensus_timestamp, token_id)
         select account_id, balance, :consensusTimestamp, token_id
         from token_account

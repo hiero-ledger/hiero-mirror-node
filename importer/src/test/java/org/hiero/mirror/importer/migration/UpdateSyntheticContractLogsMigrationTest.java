@@ -16,6 +16,7 @@ import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
@@ -138,8 +139,7 @@ final class UpdateSyntheticContractLogsMigrationTest extends ImporterIntegration
                 entity.getRealm(),
                 entity.getShard(),
                 entity.getCreatedTimestamp(),
-                io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType.INSTANCE.asString(
-                        entity.getTimestampRange()),
+                RangeUtils.rangeToString(entity.getTimestampRange()),
                 entity.getType().name(),
                 entity.getEvmAddress(),
                 entity.getAlias());

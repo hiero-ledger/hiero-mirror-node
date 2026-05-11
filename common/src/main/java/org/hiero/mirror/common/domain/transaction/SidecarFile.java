@@ -94,6 +94,22 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
         return id != null ? id.getIndex() : 0;
     }
 
+    public void setConsensusEnd(long consensusEnd) {
+        initId();
+        id.setConsensusEnd(consensusEnd);
+    }
+
+    public void setIndex(int index) {
+        initId();
+        id.setIndex(index);
+    }
+
+    private void initId() {
+        if (id == null) {
+            id = new Id();
+        }
+    }
+
     @JsonIgnore
     @Override
     public Id getId() {
@@ -115,7 +131,7 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
 
         private long consensusEnd;
 
-        @Column("id") // Maintains mapping: Java 'index' -> DB 'id'
+        @Column("id")
         @JsonProperty("id")
         private int index;
     }

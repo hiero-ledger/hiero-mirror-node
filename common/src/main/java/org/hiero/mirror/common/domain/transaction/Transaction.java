@@ -144,4 +144,12 @@ public class Transaction implements Persistable<Long> {
     public boolean isNew() {
         return true;
     }
+
+    public TransactionHash toTransactionHash() {
+        return TransactionHash.builder()
+                .consensusTimestamp(consensusTimestamp)
+                .hash(transactionHash)
+                .payerAccountId(payerAccountId != null ? payerAccountId.getId() : 0L)
+                .build();
+    }
 }

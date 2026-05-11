@@ -21,7 +21,6 @@ import org.springframework.boot.flyway.autoconfigure.FlywayConfigurationCustomiz
 import org.springframework.boot.flyway.autoconfigure.FlywayDataSource;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.boot.jdbc.autoconfigure.JdbcConnectionDetails;
-import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.resilience.annotation.EnableResilientMethods;
@@ -31,7 +30,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @Configuration(proxyBeanMethods = false)
 @EnableAsync
 @EnableResilientMethods
-@EntityScan("org.hiero.mirror.importer.repository.upsert")
 @CustomLog
 @RequiredArgsConstructor
 @AutoConfigureBefore(FlywayAutoConfiguration.class) // Since this configuration creates FlywayConfigurationCustomizer
@@ -54,21 +52,25 @@ class ImporterConfiguration {
         hikariConfig.copyStateTo(flywayHikariConfig);
 
         var jdbcUrl = dataSourceProperties.determineUrl();
+        var username = dbProperties.getOwner();
+        var password = dbProperties.getOwnerPassword();
 
         if (connectionDetails != null) {
             jdbcUrl = connectionDetails.getJdbcUrl();
+            username = connectionDetails.getUsername();
+            password = connectionDetails.getPassword();
         }
 
         flywayHikariConfig.setJdbcUrl(jdbcUrl);
         flywayHikariConfig.setIdleTimeout(60000);
         flywayHikariConfig.setMinimumIdle(0);
         flywayHikariConfig.setMaximumPoolSize(10);
-        flywayHikariConfig.setPassword(dbProperties.getOwnerPassword());
+        flywayHikariConfig.setPassword(password);
         flywayHikariConfig.setPoolName(hikariConfig.getPoolName() + "_flyway");
-        flywayHikariConfig.setUsername(dbProperties.getOwner());
+        flywayHikariConfig.setUsername(username);
         flywayHikariConfig.setInitializationFailTimeout(-1);
 
-        dbWaiter.waitForDatabase(jdbcUrl, dbProperties.getOwner(), dbProperties.getOwnerPassword());
+        dbWaiter.waitForDatabase(jdbcUrl, username, password);
 
         return new HikariDataSource(flywayHikariConfig);
     }

@@ -58,6 +58,30 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance, Pers
         private long spender;
     }
 
+    public long getOwner() {
+        return id != null ? id.getOwner() : 0L;
+    }
+
+    public long getSpender() {
+        return id != null ? id.getSpender() : 0L;
+    }
+
+    public void setOwner(long owner) {
+        initId();
+        id.setOwner(owner);
+    }
+
+    public void setSpender(long spender) {
+        initId();
+        id.setSpender(spender);
+    }
+
+    private void initId() {
+        if (id == null) {
+            id = new Id();
+        }
+    }
+
     /**
      *  Allows using
      *  CryptoAllowance.builder()

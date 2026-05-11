@@ -11,6 +11,7 @@ import java.io.IOException;
 public class RangeToStringSerializer extends StdSerializer<Range<Long>> {
 
     private static final long serialVersionUID = -2404098939768685161L;
+    public static final RangeToStringSerializer INSTANCE = new RangeToStringSerializer();
 
     public RangeToStringSerializer() {
         super(Range.class, false);

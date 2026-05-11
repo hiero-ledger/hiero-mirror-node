@@ -66,6 +66,14 @@ public class ContractLog implements Persistable<ContractLog.Id> {
         id.setIndex(index);
     }
 
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public int getIndex() {
+        return id != null ? id.getIndex() : 0;
+    }
+
     @Override
     @JsonIgnore
     public Id getId() {

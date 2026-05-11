@@ -56,6 +56,22 @@ public abstract class AbstractNft implements History, Persistable<AbstractNft.Id
         return id != null ? id.getTokenId() : 0L;
     }
 
+    public void setSerialNumber(long serialNumber) {
+        initId();
+        id.setSerialNumber(serialNumber);
+    }
+
+    public void setTokenId(long tokenId) {
+        initId();
+        id.setTokenId(tokenId);
+    }
+
+    private void initId() {
+        if (id == null) {
+            id = new Id();
+        }
+    }
+
     public static boolean shouldKeepSpender(Long spender) {
         return spender != null && spender == RETAIN_SPENDER;
     }

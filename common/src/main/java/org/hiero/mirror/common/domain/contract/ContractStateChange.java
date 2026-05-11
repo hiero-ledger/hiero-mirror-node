@@ -65,6 +65,18 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
         id.setSlot(slot);
     }
 
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public long getContractId() {
+        return id != null ? id.getContractId() : 0L;
+    }
+
+    public byte[] getSlot() {
+        return id != null ? id.getSlot() : null;
+    }
+
     @Override
     @JsonIgnore
     public Id getId() {

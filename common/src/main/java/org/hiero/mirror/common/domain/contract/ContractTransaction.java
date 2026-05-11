@@ -52,6 +52,14 @@ public class ContractTransaction implements Persistable<ContractTransaction.Id> 
         }
     }
 
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public long getEntityId() {
+        return id != null ? id.getEntityId() : 0L;
+    }
+
     @Override
     @JsonIgnore
     public Id getId() {

@@ -38,6 +38,57 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
         return true;
     }
 
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        initId();
+        id.setConsensusTimestamp(consensusTimestamp);
+    }
+
+    public void setIpAddressV4(String ipAddressV4) {
+        initId();
+        id.setIpAddressV4(ipAddressV4);
+    }
+
+    public void setNodeId(long nodeId) {
+        initId();
+        id.setNodeId(nodeId);
+    }
+
+    public void setPort(Integer port) {
+        initId();
+        id.setPort(port);
+    }
+
+    public void setDomainName(String domainName) {
+        initId();
+        id.setDomainName(domainName);
+    }
+
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public String getIpAddressV4() {
+        return id != null ? id.getIpAddressV4() : null;
+    }
+
+    public long getNodeId() {
+        return id != null ? id.getNodeId() : 0L;
+    }
+
+    public Integer getPort() {
+        return id != null ? id.getPort() : null;
+    }
+
+    public String getDomainName() {
+        return id != null ? id.getDomainName() : null;
+    }
+
+    private void initId() {
+        if (id == null) {
+            id = new Id();
+        }
+    }
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
