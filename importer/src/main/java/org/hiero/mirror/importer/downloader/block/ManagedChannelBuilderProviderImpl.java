@@ -2,11 +2,16 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import io.grpc.DecompressorRegistry;
 import io.grpc.ManagedChannelBuilder;
 import jakarta.inject.Named;
+import lombok.RequiredArgsConstructor;
 
 @Named
+@RequiredArgsConstructor
 final class ManagedChannelBuilderProviderImpl implements ManagedChannelBuilderProvider {
+
+    private final ZstdCodec zstdCodec;
 
     @Override
     public ManagedChannelBuilder<?> get(final String host, final int port, final boolean useTls) {
@@ -17,6 +22,7 @@ final class ManagedChannelBuilderProviderImpl implements ManagedChannelBuilderPr
             builder.usePlaintext();
         }
 
+        builder.decompressorRegistry(DecompressorRegistry.getDefaultInstance().with(zstdCodec, true));
         return builder;
     }
 }

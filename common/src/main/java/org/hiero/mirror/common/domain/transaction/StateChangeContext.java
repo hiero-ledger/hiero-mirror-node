@@ -320,11 +320,11 @@ public final class StateChangeContext {
     }
 
     private void processRegisteredNodeChange(final MapUpdateChange mapUpdate) {
-        if (!mapUpdate.getKey().hasNodeIdKey()) {
+        if (!mapUpdate.getKey().hasEntityNumberKey()) {
             return;
         }
 
-        registeredNodeIds.add(mapUpdate.getKey().getNodeIdKey().getId());
+        registeredNodeIds.add(mapUpdate.getKey().getEntityNumberKey().getValue());
     }
 
     private void processTokenStateChange(MapUpdateChange mapUpdate) {
