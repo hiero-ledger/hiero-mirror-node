@@ -9,6 +9,7 @@ import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import jakarta.inject.Named;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.AccessLevel;
@@ -36,6 +37,8 @@ final class FileServiceImpl implements FileService {
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
+            .delay(Duration.ofMillis(10L))
+            .maxDelay(Duration.ofMillis(50L))
             .maxRetries(queryProperties.getMaxFileAttempts() - 1)
             .predicate(e -> e instanceof InvalidProtocolBufferException
                     || e instanceof ParseException

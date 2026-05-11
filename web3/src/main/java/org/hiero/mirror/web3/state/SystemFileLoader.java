@@ -23,6 +23,7 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
 import jakarta.inject.Named;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -70,6 +71,8 @@ public final class SystemFileLoader {
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
+            .delay(Duration.ofMillis(10L))
+            .maxDelay(Duration.ofMillis(50L))
             .maxRetries(properties.getMaxFileAttempts() - 1)
             .predicate(e -> e instanceof InvalidFileException)
             .build());
