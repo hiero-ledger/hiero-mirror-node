@@ -24,7 +24,8 @@ final class RegisteredNodeCreateTransformer extends AbstractBlockTransactionTran
         receiptBuilder.setRegisteredNodeId(blockTransaction
                 .getStateChangeContext()
                 .getNewRegisteredNodeId()
-                .orElseThrow());
+                // Fallback to an invalid registered node id
+                .orElse(-1L));
     }
 
     @Override
