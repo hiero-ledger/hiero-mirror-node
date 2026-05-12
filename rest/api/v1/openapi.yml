@@ -581,8 +581,6 @@ paths:
                 $ref: "#/components/schemas/ContractResultsResponse"
         400:
           $ref: "#/components/responses/InvalidParameterError"
-        404:
-          $ref: "#/components/responses/NotFoundError"
       tags:
         - contracts
   /api/v1/contracts/{contractIdOrAddress}/state:
@@ -605,8 +603,6 @@ paths:
                 $ref: "#/components/schemas/ContractStateResponse"
         400:
           $ref: "#/components/responses/InvalidParameterError"
-        404:
-          $ref: "#/components/responses/NotFoundError"
       tags:
         - contracts
   /api/v1/contracts/{contractIdOrAddress}/results/{timestamp}:
@@ -810,8 +806,6 @@ paths:
                 $ref: "#/components/schemas/ContractLogsResponse"
         400:
           $ref: "#/components/responses/InvalidParameterError"
-        404:
-          $ref: "#/components/responses/NotFoundError"
       tags:
         - contracts
   /api/v1/contracts/results/logs:

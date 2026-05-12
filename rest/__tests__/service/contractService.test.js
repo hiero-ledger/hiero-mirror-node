@@ -2,7 +2,6 @@
 
 import _ from 'lodash';
 
-import {NotFoundError} from '../../errors';
 import {ContractService} from '../../service';
 import {assertSqlQueryEqual} from '../testutils';
 import integrationDomainOps from '../integrationDomainOps';
@@ -996,9 +995,7 @@ describe('ContractService.getContractStateChangesByTimestamps tests', () => {
 describe('ContractService.getContractIdByEvmAddress tests', () => {
   test('No match', async () => {
     const evmAddressFilter = {shard: 0, realm: 0, create2_evm_address: 'deadbeaf'};
-    await expect(() => ContractService.getContractIdByEvmAddress(evmAddressFilter)).rejects.toThrow(
-      new NotFoundError(`No contract with the given evm address 0xdeadbeaf has been found.`)
-    );
+    expect(await ContractService.getContractIdByEvmAddress(evmAddressFilter)).toBeNull();
   });
 
   test('Multiple rows match', async () => {
