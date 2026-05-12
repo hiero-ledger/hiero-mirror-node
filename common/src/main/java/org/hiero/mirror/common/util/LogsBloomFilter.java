@@ -56,7 +56,7 @@ public final class LogsBloomFilter {
             return target;
         }
 
-        if (source == null || target == null || source.length != target.length) {
+        if (source == null || target == null || source.length > target.length) {
             throw new IllegalArgumentException("Invalid parameter");
         }
 
@@ -113,7 +113,7 @@ public final class LogsBloomFilter {
     }
 
     public void or(final byte[] other) {
-        if (other == null || other.length != getData().length) {
+        if (other == null || other.length > getData().length) {
             throw new IllegalArgumentException("Invalid parameter");
         }
 
