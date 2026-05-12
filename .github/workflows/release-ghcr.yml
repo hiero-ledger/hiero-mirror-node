@@ -31,9 +31,6 @@ jobs:
         architecture:
           - amd64
           - arm64
-        exclude:
-          - architecture: arm64
-            project: web3 # Temporarily disable it since web3j-solidity-gradle-plugin doesn't support linux/arm64 yet
         include:
           - architecture: amd64
             runner: ubuntu-latest
@@ -121,8 +118,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
 
-      - name: Optional arm64 tag
-        if: matrix.project != 'web3'
+      - name: Tag arm64
         run: echo "ARM64_TAG=${{env.IMAGE}}:${{env.VERSION}}-arm64" >> $GITHUB_ENV
 
       - name: Create Manifest
