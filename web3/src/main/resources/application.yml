@@ -11,9 +11,6 @@ hiero:
         sslMode: DISABLE
         statementTimeout: 2000
         username: mirror_web3
-      opcode:
-        tracer:
-          enabled: false
 logging:
   level:
     root: warn

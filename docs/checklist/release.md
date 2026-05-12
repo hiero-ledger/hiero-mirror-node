@@ -75,10 +75,12 @@ A GA tag will trigger an automatic deployment to NA. Upon success, a PR for EU w
 - [ ] Deployed NA
 - [ ] Helm Controller logs show successful reconciliation check NA
 - [ ] Helm release status is healthy NA
+- [ ] Load balancer is healthy NA
 - [ ] Approve and merge automated PR to bump versions on `testnet-eu`
 - [ ] Deployed EU
 - [ ] Helm Controller logs show successful reconciliation check EU
 - [ ] Helm release status is healthy EU
+- [ ] Load balancer is healthy EU
 
 ### Pre-Production
 
@@ -100,10 +102,12 @@ EU will automatically get created.
 - [ ] Deployed NA
 - [ ] Helm Controller logs show successful reconciliation check NA
 - [ ] Helm release status is healthy NA
+- [ ] Load balancer is healthy NA
 - [ ] Approve and merge automated PR to bump versions on `mainnet-eu`
 - [ ] Deployed EU
 - [ ] Helm Controller logs show successful reconciliation check EU
 - [ ] Helm release status is healthy EU
+- [ ] Load balancer is healthy EU
 
 ## Post Release
 
