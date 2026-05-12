@@ -89,6 +89,9 @@ class CryptoCreateTransactionHandler extends AbstractEntityCrudTransactionHandle
         entity.setMaxAutomaticTokenAssociations(transactionBody.getMaxAutomaticTokenAssociations());
         entity.setMemo(transactionBody.getMemo());
         entity.setReceiverSigRequired(transactionBody.getReceiverSigRequired());
+        if (!transactionBody.getDelegationAddress().isEmpty()) {
+            entity.setDelegationAddress(DomainUtils.toBytes(transactionBody.getDelegationAddress()));
+        }
 
         updateStakingInfo(recordItem, entity);
         entityListener.onEntity(entity);

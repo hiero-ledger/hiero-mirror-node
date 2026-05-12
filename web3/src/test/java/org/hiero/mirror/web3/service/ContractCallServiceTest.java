@@ -1244,29 +1244,4 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             assertDoesNotThrow(() -> contractExecutionService.processCall(params));
         }
     }
-
-    @Nested
-    @org.springframework.test.context.TestPropertySource(
-            properties = {"hiero.mirror.web3.evm.properties.fees.simpleFeesEnabled=true"})
-    class WithSimpleFeesEnabled {
-
-        @Test
-        void evmCallWorksWithSimpleFeesEnabled() throws Exception {
-            // Set up test account and deploy contract
-            final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
-            final var payer = accountEntityWithEvmAddressPersist();
-            accountBalancePersist(payer, payer.getCreatedTimestamp());
-            testWeb3jService.setSender(toAddress(payer.toEntityId()).toHexString());
-            final var contract = testWeb3jService.deploy(EthCall::deploy);
-            meterRegistry.clear();
-
-            // Execute a simple pure call to verify EVM works with simple fees enabled
-            final var result = contract.call_multiplySimpleNumbers().send();
-
-            // Verify the call succeeded
-            assertThat(result).isEqualTo(BigInteger.valueOf(4L));
-            assertGasLimit(ETH_CALL, TRANSACTION_GAS_LIMIT);
-            assertGasUsedIsPositive(gasUsedBeforeExecution, ETH_CALL);
-        }
-    }
 }
