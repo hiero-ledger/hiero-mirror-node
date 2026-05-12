@@ -558,6 +558,98 @@ class SyntheticLogListenerTest {
                 mergeLogBloomIntoContractResultBloom(cr2Bloom, contractLog2.getBloom()), contractResult2.getBloom());
     }
 
+    @Test
+    void recordFileBloomAggregatesContractResultsWithoutMutatingContractResultBlooms() {
+        var recordFileAddress = domainBuilder.evmAddress();
+        var recordFileBloomFilter = new LogsBloomFilter();
+        recordFileBloomFilter.insertAddress(recordFileAddress);
+        var recordFileBloom = recordFileBloomFilter.toArrayUnsafe();
+
+        var cr1Address = domainBuilder.evmAddress();
+        var cr1BloomFilter = new LogsBloomFilter();
+        cr1BloomFilter.insertAddress(cr1Address);
+        var cr1Bloom = cr1BloomFilter.toArrayUnsafe();
+
+        var cr2Address = domainBuilder.evmAddress();
+        var cr2BloomFilter = new LogsBloomFilter();
+        cr2BloomFilter.insertAddress(cr2Address);
+        var cr2Bloom = cr2BloomFilter.toArrayUnsafe();
+
+        var cr3Address = domainBuilder.evmAddress();
+        var cr3BloomFilter = new LogsBloomFilter();
+        cr3BloomFilter.insertAddress(cr3Address);
+        var cr3Bloom = cr3BloomFilter.toArrayUnsafe();
+
+        var ts1 = domainBuilder.timestamp();
+        var contractResult1 = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(ts1)
+                        .contractId(CONTRACT_ENTITY.getId())
+                        .payerAccountId(domainBuilder.entityId())
+                        .bloom(cr1Bloom))
+                .get();
+
+        var ts2 = domainBuilder.timestamp();
+        var contractResult2 = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(ts2)
+                        .contractId(CONTRACT_ENTITY.getId())
+                        .payerAccountId(domainBuilder.entityId())
+                        .bloom(cr2Bloom))
+                .get();
+
+        var ts3 = domainBuilder.timestamp();
+        var contractResult3 = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(ts3)
+                        .contractId(CONTRACT_ENTITY.getId())
+                        .payerAccountId(domainBuilder.entityId())
+                        .bloom(cr3Bloom))
+                .get();
+
+        var recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.logsBloom(recordFileBloom))
+                .get();
+        parserContext.add(recordFile);
+
+        var contractLog1 =
+                syntheticTransferLogWithRecordItem(LONG_ZERO_1, LONG_ZERO_2, CONTRACT_ENTITY, contractResult1, ts1);
+        var contractLog2 =
+                syntheticTransferLogWithRecordItem(LONG_ZERO_2, LONG_ZERO_3, CONTRACT_ENTITY, contractResult2, ts2);
+        var contractLog3 =
+                syntheticTransferLogWithRecordItem(LONG_ZERO_1, LONG_ZERO_3, CONTRACT_ENTITY, contractResult3, ts3);
+
+        final var mappings = List.of(
+                evmMap(EVM_1, ENTITY_1),
+                evmMap(EVM_2, ENTITY_2),
+                evmMap(EVM_3, ENTITY_3),
+                evmMap(CONTRACT_EVM, CONTRACT_ENTITY));
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(mappings);
+
+        var cr1BloomBefore = contractResult1.getBloom().clone();
+        var cr2BloomBefore = contractResult2.getBloom().clone();
+        var cr3BloomBefore = contractResult3.getBloom().clone();
+        var recordFileBloomBefore = recordFile.getLogsBloom().clone();
+
+        listener.onContractLog(contractLog1);
+        listener.onContractLog(contractLog2);
+        listener.onContractLog(contractLog3);
+
+        listener.onEnd(recordFile);
+
+        var expectedRecordBloom = new LogsBloomFilter();
+        expectedRecordBloom.or(recordFileBloomBefore);
+        expectedRecordBloom.or(cr1BloomBefore);
+        expectedRecordBloom.or(cr2BloomBefore);
+        expectedRecordBloom.or(cr3BloomBefore);
+        assertArrayEquals(expectedRecordBloom.toArrayUnsafe(), recordFile.getLogsBloom());
+
+        assertArrayEquals(cr1BloomBefore, contractResult1.getBloom());
+        assertArrayEquals(cr2BloomBefore, contractResult2.getBloom());
+        assertArrayEquals(cr3BloomBefore, contractResult3.getBloom());
+    }
+
     private ContractLog syntheticTransferLogWithRecordItem(
             final byte[] topic1,
             final byte[] topic2,
