@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {fromBinary} from '@bufbuild/protobuf';
+import isNumber from 'lodash/isNumber';
 import {CurrentAndNextFeeScheduleSchema, HederaFunctionality} from '../gen/services/basic_types_pb.js';
 import {FileDecodeError} from '../errors';
+import {bigIntMax} from '../utils';
 
 const FEE_DIVISOR_FACTOR = 1000n;
 
@@ -83,13 +85,17 @@ class FeeSchedule {
   }
 
   convertGasPriceToTinyBars(gasPrice, hbars, cents) {
-    if (cents === 0 || cents == null) {
+    if (!isNumber(gasPrice) || !isNumber(hbars) || !isNumber(cents)) {
       return null;
     }
 
-    const gasInTinyCents = BigInt(gasPrice) / FEE_DIVISOR_FACTOR;
-    const gasInTinyBars = (gasInTinyCents * BigInt(hbars)) / BigInt(cents);
-    return gasInTinyBars < 1n ? 1n : gasInTinyBars;
+    cents = BigInt(cents);
+    if (cents === 0n) {
+      return null;
+    }
+
+    const fee = (BigInt(gasPrice) * BigInt(hbars)) / (cents * FEE_DIVISOR_FACTOR);
+    return bigIntMax(fee, 1n);
   }
 
   getGasForType(type) {
