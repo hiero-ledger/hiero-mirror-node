@@ -60,7 +60,7 @@ public final class LogsBloomFilter {
             throw new IllegalArgumentException("Invalid parameter");
         }
 
-        for (int i = 0; i < target.length; i++) {
+        for (int i = 0; i < source.length; i++) {
             target[i] |= source[i];
         }
 
