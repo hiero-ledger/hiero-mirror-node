@@ -10,9 +10,9 @@ import org.springframework.graphql.data.GraphQlRepository;
 
 @GraphQlRepository
 public interface EntityRepository extends CrudRepository<Entity, Long> {
-    @Query(value = "select * from entity where alias = ?1 and deleted is not true")
+    @Query(value = "select * from entity where alias = :alias and deleted is not true")
     Optional<Entity> findByAlias(byte[] alias);
 
-    @Query(value = "select * from entity where evm_address = ?1 and deleted is not true")
+    @Query(value = "select * from entity where evm_address = :evmAddress and deleted is not true")
     Optional<Entity> findByEvmAddress(byte[] evmAddress);
 }
