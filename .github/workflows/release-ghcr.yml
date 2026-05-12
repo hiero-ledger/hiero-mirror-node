@@ -118,12 +118,9 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
 
-      - name: Tag arm64
-        run: echo "ARM64_TAG=${{env.IMAGE}}:${{env.VERSION}}-arm64" >> $GITHUB_ENV
-
       - name: Create Manifest
         run: |
-          docker buildx imagetools create --tag ${{env.IMAGE}}:${{env.VERSION}} ${{env.IMAGE}}:${{env.VERSION}}-amd64 ${{env.ARM64_TAG}} --metadata-file ./manifest.json
+          docker buildx imagetools create --tag ${{env.IMAGE}}:${{env.VERSION}} ${{env.IMAGE}}:${{env.VERSION}}-amd64 ${{env.IMAGE}}:${{env.VERSION}}-arm64 --metadata-file ./manifest.json
           echo "DIGEST=$(jq '."containerimage.descriptor".digest' -r ./manifest.json)" >> $GITHUB_ENV
 
       - name: Sign Image
