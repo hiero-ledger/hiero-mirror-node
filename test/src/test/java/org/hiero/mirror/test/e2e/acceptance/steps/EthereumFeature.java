@@ -189,6 +189,10 @@ public class EthereumFeature extends AbstractEstimateFeature {
         // quickly out of sync on EVM bumps and this would be hard to maintain and there is already a
         // stricter validation in the web3 module.
         assertThat(opcodes.getOpcodes()).isNotEmpty();
+
+        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
+            System.out.println("TRANSACTION_ID=" + txId);
+        }
     }
 
     @And("I set lower deviation to {int}% and upper deviation to {int}%")

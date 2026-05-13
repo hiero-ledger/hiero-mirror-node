@@ -18,7 +18,7 @@ public abstract class BaseContractFeature extends AbstractFeature {
     private final List<String> childContracts = new ArrayList<>();
 
     @Autowired
-    private AcceptanceTestProperties acceptanceTestProperties;
+    protected AcceptanceTestProperties acceptanceTestProperties;
 
     protected ContractResponse verifyContractFromMirror(boolean isDeleted) {
         var mirrorContract =
@@ -97,12 +97,8 @@ public abstract class BaseContractFeature extends AbstractFeature {
     }
 
     protected String verifyContractExecutionResultsByTransactionId() {
-        final var transactionId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
-        final var contractResult = mirrorClient.getContractResultByTransactionId(transactionId);
-
-        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
-            System.out.println("TRANSACTION_ID=" + transactionId);
-        }
+        final var contractResult = mirrorClient.getContractResultByTransactionId(
+                networkTransactionResponse.getTransactionIdStringNoCheckSum());
 
         verifyContractExecutionResults(contractResult);
         assertThat(contractResult.getBlockHash()).isNotBlank();
