@@ -4,7 +4,7 @@ package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
-import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.aggregateExpectedContractResultBloomForTest;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.aggregateExpectedContractResultBloom;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 import com.google.common.primitives.Longs;
@@ -240,7 +240,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
         });
 
         assertArrayEquals(
-                aggregateExpectedContractResultBloomForTest(rfBloomBefore, contractResult), recordFile.getLogsBloom());
+                aggregateExpectedContractResultBloom(rfBloomBefore, contractResult), recordFile.getLogsBloom());
     }
 
     @Test
@@ -295,7 +295,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
         });
 
         assertArrayEquals(
-                aggregateExpectedContractResultBloomForTest(rfBloomBefore, contractResult), recordFile.getLogsBloom());
+                aggregateExpectedContractResultBloom(rfBloomBefore, contractResult), recordFile.getLogsBloom());
     }
 
     @Test
@@ -372,7 +372,7 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
         });
 
         assertArrayEquals(
-                aggregateExpectedContractResultBloomForTest(rfBloomBefore, contractResult), recordFile.getLogsBloom());
+                aggregateExpectedContractResultBloom(rfBloomBefore, contractResult), recordFile.getLogsBloom());
     }
 
     @Test

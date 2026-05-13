@@ -5,14 +5,13 @@ package org.hiero.mirror.importer.parser.contractlog;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
 import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
 import static org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogServiceImpl.CONTRACT_LOG_MARKER;
-import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.aggregateExpectedContractResultBloomForTest;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.aggregateExpectedContractResultBloom;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.mockito.Mockito.*;
 
 import com.google.common.primitives.Longs;
 import java.util.*;
 import java.util.function.BinaryOperator;
-import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -397,7 +396,7 @@ class SyntheticLogListenerTest {
         listener.onEnd(recordFile);
 
         assertArrayEquals(
-                aggregateExpectedContractResultBloomForTest(rfBloomBefore, contractResult), recordFile.getLogsBloom());
+                aggregateExpectedContractResultBloom(rfBloomBefore, contractResult), recordFile.getLogsBloom());
     }
 
     @Test
@@ -431,7 +430,7 @@ class SyntheticLogListenerTest {
         listener.onEnd(recordFile);
 
         assertArrayEquals(
-                aggregateExpectedContractResultBloomForTest(rfBloomBefore, contractResult), recordFile.getLogsBloom());
+                aggregateExpectedContractResultBloom(rfBloomBefore, contractResult), recordFile.getLogsBloom());
     }
 
     @Test
@@ -480,15 +479,15 @@ class SyntheticLogListenerTest {
         listener.onEnd(recordFile);
 
         assertArrayEquals(
-                aggregateExpectedContractResultBloomForTest(rfBloomBefore, contractResult), recordFile.getLogsBloom());
+                aggregateExpectedContractResultBloom(rfBloomBefore, contractResult), recordFile.getLogsBloom());
     }
 
     @Test
     void recordFileBloomAggregatesMultipleLogsEachWithItsOwnContractResult() {
         var existingAddress = domainBuilder.evmAddress();
-        var existingBloomFilter = new LogsBloomFilter();
-        existingBloomFilter.insertAddress(existingAddress);
-        var existingBloom = existingBloomFilter.toArrayUnsafe();
+        var cr1BloomFilter = new LogsBloomFilter();
+        cr1BloomFilter.insertAddress(existingAddress);
+        var cr1Bloom = cr1BloomFilter.toArrayUnsafe();
 
         var consensusTimestamp1 = domainBuilder.timestamp();
         var contractResult1 = domainBuilder
@@ -496,7 +495,7 @@ class SyntheticLogListenerTest {
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp1)
                         .contractId(CONTRACT_ENTITY.getId())
                         .payerAccountId(domainBuilder.entityId())
-                        .bloom(existingBloom))
+                        .bloom(cr1Bloom))
                 .get();
 
         var cr2BloomAddress = domainBuilder.evmAddress();
@@ -515,7 +514,7 @@ class SyntheticLogListenerTest {
 
         var recordFile = domainBuilder
                 .recordFile()
-                .customize(r -> r.logsBloom(existingBloom))
+                .customize(r -> r.logsBloom(cr1Bloom.clone()))
                 .get();
         parserContext.add(recordFile);
 
@@ -541,19 +540,17 @@ class SyntheticLogListenerTest {
         listener.onContractLog(contractLog1);
         listener.onContractLog(contractLog2);
 
-        byte[] rfBloomBefore =
+        var rfBloomBefore =
                 recordFile.getLogsBloom() != null ? recordFile.getLogsBloom().clone() : null;
 
         listener.onEnd(recordFile);
 
-        byte[] expectedAfterFirst = aggregateExpectedContractResultBloomForTest(rfBloomBefore, contractResult1);
-        assertArrayEquals(
-                aggregateExpectedContractResultBloomForTest(expectedAfterFirst, contractResult2),
-                recordFile.getLogsBloom());
+        var expectedAfterFirst = aggregateExpectedContractResultBloom(rfBloomBefore, contractResult1);
+        var expectedAfterSecond = aggregateExpectedContractResultBloom(expectedAfterFirst, contractResult2);
+        assertArrayEquals(expectedAfterSecond, recordFile.getLogsBloom());
 
         assertArrayEquals(
-                mergeLogBloomIntoContractResultBloom(existingBloom, contractLog1.getBloom()),
-                contractResult1.getBloom());
+                mergeLogBloomIntoContractResultBloom(cr1Bloom, contractLog1.getBloom()), contractResult1.getBloom());
         assertArrayEquals(
                 mergeLogBloomIntoContractResultBloom(cr2Bloom, contractLog2.getBloom()), contractResult2.getBloom());
     }
@@ -704,8 +701,7 @@ class SyntheticLogListenerTest {
     private byte[] mergeLogBloomIntoContractResultBloom(
             final byte[] existingContractResultBloom, final byte[] syntheticLogBloom) {
         final var bloomFilter = new LogsBloomFilter();
-        if (existingContractResultBloom != null
-                && !Arrays.equals(ArrayUtils.EMPTY_BYTE_ARRAY, existingContractResultBloom)) {
+        if (existingContractResultBloom != null) {
             bloomFilter.or(existingContractResultBloom);
         }
         bloomFilter.or(syntheticLogBloom);

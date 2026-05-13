@@ -10,7 +10,7 @@ import org.hiero.mirror.common.util.LogsBloomFilter;
 @UtilityClass
 public class SyntheticLogTestUtils {
 
-    static byte[] aggregateExpectedContractResultBloomForTest(
+    static byte[] aggregateExpectedContractResultBloom(
             final byte[] recordFileLogsBloom, final ContractResult contractResult) {
         final var aggregatedBloom = new LogsBloomFilter();
         if (recordFileLogsBloom != null && !Arrays.equals(recordFileLogsBloom, new byte[LogsBloomFilter.BYTE_SIZE])) {

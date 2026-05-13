@@ -104,7 +104,8 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
 
     private byte[] aggregateRecordFileBloom(
             final RecordFile recordFile, final Collection<ContractResult> contractResults) {
-        var aggregatedBloom = recordFile.getLogsBloom();
+        var aggregatedBloom =
+                recordFile.getLogsBloom() != null ? recordFile.getLogsBloom() : new byte[LogsBloomFilter.BYTE_SIZE];
 
         for (final var contractResult : contractResults) {
             aggregatedBloom = LogsBloomFilter.or(contractResult.getBloom(), aggregatedBloom);
