@@ -35,8 +35,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-@NullUnmarked
 @ExtendWith(MockitoExtension.class)
+@NullUnmarked
 final class CutoverServiceTest {
 
     private static final Duration CUTOVER_THRESHOLD = Duration.ofMillis(200);
@@ -44,6 +44,7 @@ final class CutoverServiceTest {
     private BlockProperties blockProperties;
     private CutoverProperties cutoverProperties;
     private CutoverService cutoverService;
+    private ImporterProperties importerProperties;
     private RecordDownloaderProperties recordDownloaderProperties;
 
     @Mock
@@ -57,7 +58,7 @@ final class CutoverServiceTest {
 
     @BeforeEach
     void setup() {
-        final var importerProperties = new ImporterProperties();
+        importerProperties = new ImporterProperties();
         importerProperties.setNetwork(ImporterProperties.HederaNetwork.MAINNET);
         blockProperties = new BlockProperties(importerProperties);
         cutoverProperties = new CutoverProperties();
@@ -86,6 +87,28 @@ final class CutoverServiceTest {
                 .get()
                 .isEqualTo(recordFile)
                 .isNotSameAs(recordFile);
+    }
+
+    @ParameterizedTest
+    @CsvSource({", 0", "1, 1"})
+    void getNextBlockNumberWithEmptyDb(Long startBlockNumber, long expected) {
+        // given
+        importerProperties.setStartBlockNumber(startBlockNumber);
+        doReturn(Optional.empty()).when(recordFileRepository).findLatest();
+
+        // when, then
+        assertThat(cutoverService.getNextBlockNumber()).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({",", "1"})
+    void getNextBlockNumberWithDataInDb(Long startBlockNumber) {
+        // given
+        importerProperties.setStartBlockNumber(startBlockNumber);
+        doReturn(Optional.of(recordFile(10, false))).when(recordFileRepository).findLatest();
+
+        // when, then
+        assertThat(cutoverService.getNextBlockNumber()).isEqualTo(11L);
     }
 
     @Test
