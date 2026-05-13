@@ -11,7 +11,6 @@ import java.util.Collections;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
-import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -35,8 +34,6 @@ public final class BlockProperties {
     private Duration frequency = Duration.ofMillis(100L);
 
     private Path initialLedgerIdPublication;
-
-    private Ledger ledger;
 
     @NotNull
     @Valid

@@ -22,9 +22,7 @@ import lombok.SneakyThrows;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
-import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestUtils;
-import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.exception.SignatureVerificationException;
 import org.hiero.mirror.importer.repository.LedgerRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,7 +37,6 @@ final class TssVerifierTest {
     private static final TssTestArtifact TEST_ARTIFACT = loadTssTestArtifact();
     private static final byte[] WRAPS_VERIFICATION_KEY = WRAPSVerificationKey.getDefaultKey();
 
-    private BlockProperties blockProperties;
     private TssVerifier tssVerifier;
 
     @Mock
@@ -47,8 +44,7 @@ final class TssVerifierTest {
 
     @BeforeEach
     void setup() {
-        blockProperties = new BlockProperties(new ImporterProperties());
-        tssVerifier = new TssVerifierImpl(blockProperties, ledgerRepository);
+        tssVerifier = new TssVerifierImpl(ledgerRepository);
     }
 
     @Test
@@ -76,25 +72,6 @@ final class TssVerifierTest {
         assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithSchnorr))
                 .doesNotThrowAnyException();
         verify(ledgerRepository, never()).findTopByOrderByConsensusTimestampDesc();
-    }
-
-    @Test
-    void verifyWithLedgerFromConfig() {
-        // given
-        final var ledger = Ledger.builder()
-                .historyProofVerificationKey(WRAPS_VERIFICATION_KEY)
-                .ledgerId(TEST_ARTIFACT.ledgerId())
-                .nodeContributions(TEST_ARTIFACT.nodeContributions())
-                .build();
-        blockProperties.setLedger(ledger);
-        when(ledgerRepository.findTopByOrderByConsensusTimestampDesc()).thenReturn(Optional.empty());
-
-        // when, then
-        assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))
-                .doesNotThrowAnyException();
-        assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithSchnorr))
-                .doesNotThrowAnyException();
-        verify(ledgerRepository).findTopByOrderByConsensusTimestampDesc();
     }
 
     @Test

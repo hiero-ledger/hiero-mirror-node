@@ -29,6 +29,7 @@ final class NetworkLedgerLoader {
     private static final String CLASSPATH_LOCATION_PREFIX = "classpath:/networkledger/";
     private static final Set<String> BUNDLED_NETWORKS = Set.of(HederaNetwork.MAINNET, HederaNetwork.TESTNET);
 
+    private final TssVerifier tssVerifier;
     private final BlockProperties blockProperties;
     private final ImporterProperties importerProperties;
     private final LedgerIdPublicationTransactionParser ledgerIdPublicationTransactionParser;
@@ -39,7 +40,7 @@ final class NetworkLedgerLoader {
         final var path = blockProperties.getInitialLedgerIdPublication();
         final var loaded = path != null ? loadFromPath(path) : loadFromClasspath();
         if (loaded != null) {
-            blockProperties.setLedger(loaded);
+            tssVerifier.setLedger(loaded);
         }
     }
 

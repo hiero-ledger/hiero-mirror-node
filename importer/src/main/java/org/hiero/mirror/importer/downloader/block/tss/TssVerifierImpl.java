@@ -12,7 +12,6 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.tss.Ledger;
-import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.exception.SignatureVerificationException;
 import org.hiero.mirror.importer.repository.LedgerRepository;
 import org.jspecify.annotations.NullMarked;
@@ -25,7 +24,6 @@ final class TssVerifierImpl implements TssVerifier {
 
     private static final Ledger EMPTY = new Ledger();
 
-    private final BlockProperties blockProperties;
     private final AtomicReference<Optional<Ledger>> ledger = new AtomicReference<>(Optional.empty());
     private final LedgerRepository ledgerRepository;
 
@@ -51,7 +49,6 @@ final class TssVerifierImpl implements TssVerifier {
                 .or(() -> {
                     final var saved = ledgerRepository
                             .findTopByOrderByConsensusTimestampDesc()
-                            .or(() -> Optional.ofNullable(blockProperties.getLedger()))
                             .map(l -> {
                                 onLedgerSet(l);
                                 return l;

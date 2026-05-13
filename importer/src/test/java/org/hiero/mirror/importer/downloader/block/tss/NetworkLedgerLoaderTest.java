@@ -5,6 +5,9 @@ package org.hiero.mirror.importer.downloader.block.tss;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
@@ -14,6 +17,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
+import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.ImporterProperties.HederaNetwork;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
@@ -22,6 +26,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ByteArrayResource;
@@ -41,6 +46,9 @@ final class NetworkLedgerLoaderTest {
 
     @Mock
     private ResourceLoader resourceLoader;
+
+    @Mock
+    private TssVerifier tssVerifier;
 
     private ImporterProperties importerProperties;
     private BlockProperties blockProperties;
@@ -63,7 +71,11 @@ final class NetworkLedgerLoaderTest {
         importerProperties = new ImporterProperties();
         blockProperties = new BlockProperties(importerProperties);
         loader = new NetworkLedgerLoader(
-                blockProperties, importerProperties, new LedgerIdPublicationTransactionParser(), resourceLoader);
+                tssVerifier,
+                blockProperties,
+                importerProperties,
+                new LedgerIdPublicationTransactionParser(),
+                resourceLoader);
     }
 
     @Test
@@ -119,7 +131,7 @@ final class NetworkLedgerLoaderTest {
 
         loader.load();
 
-        assertThat(blockProperties.getLedger()).isNull();
+        verify(tssVerifier, never()).setLedger(any());
     }
 
     @Test
@@ -128,7 +140,7 @@ final class NetworkLedgerLoaderTest {
 
         loader.load();
 
-        assertThat(blockProperties.getLedger()).isNull();
+        verify(tssVerifier, never()).setLedger(any());
     }
 
     @Test
@@ -139,7 +151,7 @@ final class NetworkLedgerLoaderTest {
 
         loader.load();
 
-        assertThat(blockProperties.getLedger()).isNull();
+        verify(tssVerifier, never()).setLedger(any());
     }
 
     @Test
@@ -204,16 +216,21 @@ final class NetworkLedgerLoaderTest {
         Files.write(LEDGER_ID_FIXTURE_PATH, ledgerBody.toByteArray());
     }
 
+    private Ledger capturedLedger() {
+        var captor = ArgumentCaptor.forClass(Ledger.class);
+        verify(tssVerifier).setLedger(captor.capture());
+        return captor.getValue();
+    }
+
     private void assertFixtureLedgerLoaded() {
-        var ledger = blockProperties.getLedger();
-        assertThat(ledger).isNotNull();
+        var ledger = capturedLedger();
         assertThat(ledger.getLedgerId()).isNotEmpty();
         assertThat(ledger.getHistoryProofVerificationKey()).isNotEmpty();
         assertThat(ledger.getNodeContributions()).isNotEmpty();
     }
 
     private void assertLedgerMatches(LedgerIdPublicationTransactionBody body) {
-        var ledger = blockProperties.getLedger();
+        var ledger = capturedLedger();
         assertThat(ledger).isNotNull();
         assertThat(ledger.getLedgerId()).isEqualTo(toBytes(body.getLedgerId()));
         assertThat(ledger.getHistoryProofVerificationKey()).isEqualTo(toBytes(body.getHistoryProofVerificationKey()));
