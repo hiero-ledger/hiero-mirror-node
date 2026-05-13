@@ -336,6 +336,7 @@ stackgres:
       citus.max_shared_pool_size: "850"
       citus.node_conninfo: "sslmode=disable"  # Disable SSL to work around issue 9143
       full_page_writes: "true"  # Required for replication to work in recovery scenarios
+      jit: "off" # cost is largely inflated in pg18 + citus 14. Jit being enabled is not beneficial for our workload
       log_checkpoints: "true"
       log_timezone: "Etc/UTC"
       maintenance_work_mem: "256MB"
@@ -383,7 +384,7 @@ stackgres:
   enabled: false
   extensions:
     - name: citus
-      version: "12.1-1"
+      version: "14.0.0"
     - name: btree_gist
       version: stable
     - name: pg_trgm
@@ -392,18 +393,20 @@ stackgres:
   observability:
     enableMetricsExporter: true
   podAntiAffinity: true
-  postgresVersion: "16.2"
+  postgresVersion: "18.3"
   priorityClassName: system-cluster-critical  # This fails on Helm 4 without a default. values-prod.yaml overrides it.
   replication:
     initialization:
       mode: FromReplica
     mode: sync-all
+  terminationGracePeriodGracePeriodSeconds: 600
   worker:
     config:
       autovacuum_max_workers: "2"
       checkpoint_timeout: "1800"
       citus.node_conninfo: "sslmode=disable"  # Disable SSL to work around issue 9143
       full_page_writes: "false"  # Not required for ZFS and Enabling this causes hash indexes to have spikes in write performance.
+      jit: "off" # cost is largely inflated in pg18 + citus 14. Jit being enabled is not beneficial for our workload
       log_checkpoints: "true"
       log_timezone: "Etc/UTC"
       maintenance_work_mem: "256MB"

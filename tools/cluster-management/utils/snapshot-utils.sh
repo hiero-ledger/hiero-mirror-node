@@ -6,6 +6,8 @@ set -euo pipefail
 
 source ./utils/utils.sh
 
+requireCommand gcloud
+
 normalizeGceSnapshotName() {
   local s="$1" max=63
 
