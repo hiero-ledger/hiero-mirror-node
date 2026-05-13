@@ -23,7 +23,7 @@ public class Web3Properties implements ApiProperties {
 
     private OpcodeTracerProperties opcodeTracer = new OpcodeTracerProperties();
 
-    private boolean simpleFees = false;
+    private boolean simpleFees = true;
 
     public String getBaseUrl() {
         if (baseUrl != null && !baseUrl.endsWith(URL_PREFIX)) {
@@ -35,6 +35,6 @@ public class Web3Properties implements ApiProperties {
     @Data
     public static class OpcodeTracerProperties {
 
-        private boolean enabled;
+        private boolean enabled = true;
     }
 }

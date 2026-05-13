@@ -21,7 +21,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties("hiero.mirror.importer.block")
 @Data
 @Validated
-public class BlockProperties {
+public final class BlockProperties {
 
     private final ImporterProperties importerProperties;
 

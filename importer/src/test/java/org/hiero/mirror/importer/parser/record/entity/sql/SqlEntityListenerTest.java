@@ -8,6 +8,7 @@ import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.esaulpaugh.headlong.abi.Address;
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.Key;
@@ -1097,6 +1098,8 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         var entityDelete = entityCreate.toEntityId().toEntity();
         entityDelete.setAlias(entityCreate.getAlias());
+        entityDelete.setDelegationAddress(Address.toChecksumAddress("0x0000000000000000000000000000000000000000")
+                .getBytes());
         entityDelete.setDeleted(true);
         entityDelete.setTimestampLower(entityCreate.getTimestampLower() + 2);
         entityDelete.setType(ACCOUNT);

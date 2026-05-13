@@ -31,6 +31,7 @@ import * as contractsIdResults from './contractsIdResults.js';
 import * as contractsIdResultsLogs from './contractsIdResultsLogs.js';
 import * as contractsIdResultsTimestamp from './contractsIdResultsTimestamp.js';
 import * as contractsIdState from './contractsIdState.js';
+import * as contractsIdStateTimestamp from './contractsIdStateTimestamp.js';
 import * as contractsResults from './contractsResult.js';
 import * as contractsResultsId from './contractsResultsId.js';
 import * as contractsResultsIdActions from './contractsResultsIdActions.js';
@@ -91,6 +92,7 @@ const tests = {
   contractsIdResultsLogs,
   contractsIdResultsTimestamp,
   contractsIdState,
+  contractsIdStateTimestamp,
   contractsResults,
   contractsResultsId,
   contractsResultsIdActions,

@@ -9,6 +9,8 @@ import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 
 public interface CutoverService extends StreamFileNotifier {
 
+    long GENESIS_BLOCK_NUMBER = 0;
+
     /**
      * Given the recordstream to blockstream cutover configuration, conditionally run the {@code task} to get
      * {@code streamType} stream.
@@ -17,6 +19,8 @@ public interface CutoverService extends StreamFileNotifier {
      * @param task The task to get the stream
      */
     void get(StreamType streamType, Runnable task);
+
+    long getNextBlockNumber();
 
     Optional<RecordFile> getLastRecordFile();
 }

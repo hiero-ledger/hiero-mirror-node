@@ -379,8 +379,7 @@ final class StateChangeContextTest {
         final var registeredNodeStateChanges = LongStream.range(1, 3)
                 .boxed()
                 .map(id -> MapUpdateChange.newBuilder()
-                        .setKey(MapChangeKey.newBuilder()
-                                .setNodeIdKey(NodeId.newBuilder().setId(id)))
+                        .setKey(MapChangeKey.newBuilder().setEntityNumberKey(UInt64Value.of(id)))
                         .setValue(MapChangeValue.newBuilder()
                                 .setRegisteredNodeValue(
                                         RegisteredNode.newBuilder().setRegisteredNodeId(id)))

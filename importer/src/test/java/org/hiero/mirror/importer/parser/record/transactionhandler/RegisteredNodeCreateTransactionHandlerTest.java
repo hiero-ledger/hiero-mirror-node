@@ -114,6 +114,25 @@ final class RegisteredNodeCreateTransactionHandlerTest extends AbstractTransacti
     }
 
     @Test
+    void updateTransactionInvalidRegisteredNodeId() {
+        // given
+        final var recordItem = recordItemBuilder
+                .registeredNodeCreate()
+                .receipt(r -> r.setRegisteredNodeId(-1))
+                .build();
+        final var transaction = domainBuilder.transaction().get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verifyNoInteractions(entityListener);
+        verifyNoInteractions(applicationEventPublisher);
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
     void updateTransactionWithNoServiceEndpointsDoesNotPublishEvent() {
         // given
         final var recordItem = recordItemBuilder
