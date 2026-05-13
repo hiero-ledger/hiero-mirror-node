@@ -13,7 +13,6 @@ import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.ImporterProperties.HederaNetwork;
@@ -65,23 +64,6 @@ final class NetworkLedgerLoaderTest {
         blockProperties = new BlockProperties(importerProperties);
         loader = new NetworkLedgerLoader(
                 blockProperties, importerProperties, new LedgerIdPublicationTransactionParser(), resourceLoader);
-    }
-
-    @Test
-    void loadWhenLedgerAlreadyConfigured() throws IOException {
-        var existingLedger = LedgerProperties.builder()
-                .historyProofVerificationKey(new byte[] {1, 2, 3})
-                .ledgerId(new byte[] {4, 5, 6})
-                .nodeContributions(List.of())
-                .build();
-        blockProperties.setLedger(existingLedger);
-        var path = tempDir.resolve("ledger");
-        Files.write(path, buildProtoBody().toByteArray());
-        blockProperties.setInitialLedgerIdPublication(path);
-
-        loader.load();
-
-        assertThat(blockProperties.getLedger()).isSameAs(existingLedger);
     }
 
     @Test

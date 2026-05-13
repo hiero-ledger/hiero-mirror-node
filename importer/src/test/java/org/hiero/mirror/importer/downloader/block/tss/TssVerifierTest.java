@@ -81,12 +81,12 @@ final class TssVerifierTest {
     @Test
     void verifyWithLedgerFromConfig() {
         // given
-        final var ledgerProperties = LedgerProperties.builder()
+        final var ledger = Ledger.builder()
                 .historyProofVerificationKey(WRAPS_VERIFICATION_KEY)
                 .ledgerId(TEST_ARTIFACT.ledgerId())
                 .nodeContributions(TEST_ARTIFACT.nodeContributions())
                 .build();
-        blockProperties.setLedger(ledgerProperties);
+        blockProperties.setLedger(ledger);
         when(ledgerRepository.findTopByOrderByConsensusTimestampDesc()).thenReturn(Optional.empty());
 
         // when, then

@@ -30,12 +30,6 @@ final class TssVerifierImpl implements TssVerifier {
     private final LedgerRepository ledgerRepository;
 
     @Override
-    public void setLedger(final Ledger ledger) {
-        onLedgerSet(ledger);
-        this.ledger.set(Optional.of(ledger));
-    }
-
-    @Override
     public void verify(final long blockNumber, final byte[] message, final byte[] signature) {
         final var ledgerId = getLedger().getLedgerId();
         if (!TSS.verifyTSS(ledgerId, signature, message)) {
@@ -57,8 +51,7 @@ final class TssVerifierImpl implements TssVerifier {
                 .or(() -> {
                     final var saved = ledgerRepository
                             .findTopByOrderByConsensusTimestampDesc()
-                            .or(() -> Optional.ofNullable(blockProperties.getLedger())
-                                    .map(LedgerProperties::toLedger))
+                            .or(() -> Optional.ofNullable(blockProperties.getLedger()))
                             .map(l -> {
                                 onLedgerSet(l);
                                 return l;
@@ -70,6 +63,12 @@ final class TssVerifierImpl implements TssVerifier {
                 .filter(l -> l != EMPTY)
                 .orElseThrow(() -> new IllegalStateException(
                         "Ledger id, history proof verification key and node contributions not found"));
+    }
+
+    @Override
+    public void setLedger(final Ledger ledger) {
+        onLedgerSet(ledger);
+        this.ledger.set(Optional.of(ledger));
     }
 
     private void onLedgerSet(final Ledger ledger) {

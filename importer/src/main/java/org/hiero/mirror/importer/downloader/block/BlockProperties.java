@@ -11,8 +11,8 @@ import java.util.Collections;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
+import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.downloader.block.tss.LedgerProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
@@ -36,8 +36,7 @@ public final class BlockProperties {
 
     private Path initialLedgerIdPublication;
 
-    @Valid
-    private LedgerProperties ledger;
+    private Ledger ledger;
 
     @NotNull
     @Valid
