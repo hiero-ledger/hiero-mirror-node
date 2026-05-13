@@ -209,6 +209,11 @@ jobs:
             | jq -r '.[] | select (.chart | test("hedera-mirror-.*")) | .app_version')
           echo "Installed hedera-mirror chart version $APP_VERSION"
 
+      - name: Run REST monitor test
+        run: |
+          helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
+            --filter name="${HELM_RELEASE_NAME}-rest-monitor-test" --timeout 5m
+
       - name: Run acceptance tests
         run: |
           helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \

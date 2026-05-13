@@ -821,7 +821,8 @@ public final class BlockStreamReaderTest {
             bytes = TestUtils.zstd(block.toByteArray());
         }
 
-        return new BlockStream(block.getItemsList(), bytes, filename, TestUtils.id());
+        long blockCompleteTime = System.currentTimeMillis();
+        return new BlockStream(block.getItemsList(), blockCompleteTime, bytes, filename, blockCompleteTime - 1000);
     }
 
     @SneakyThrows
