@@ -39,6 +39,9 @@ const entityId111169 = EntityId.parseString('111169');
 const entityId111276 = EntityId.parseString('111276');
 const entityId111481 = EntityId.parseString('111481');
 const entityId111482 = EntityId.parseString('111482');
+const entityId222001 = EntityId.parseString('0.0.222001');
+const entityId222002 = EntityId.parseString('0.0.222002');
+const entityId222003 = EntityId.parseString('0.0.222003');
 
 describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
   test('Verify simple query', async () => {
@@ -1117,6 +1120,67 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
       create2_evm_address: evmAddress,
     });
     expect(contractId.toString()).toEqual(`${entityId111169.getEncodedId()}`);
+  });
+
+  describe('ACCOUNT entities (contractIdByEvmAddressQuery includes ACCOUNT type)', () => {
+    test('One ACCOUNT row match', async () => {
+      const evmAddress = '11aabbcc00000000000000000000000000feedface';
+      await integrationDomainOps.addAccount({
+        num: entityId222001.num,
+        evm_address: evmAddress,
+      });
+
+      const contractId = await ContractService.getContractIdByEvmAddress({
+        create2_evm_address: evmAddress,
+      });
+      expect(contractId.toString()).toEqual(`${entityId222001.getEncodedId()}`);
+    });
+
+    test('Multiple ACCOUNT rows match same evm_address', async () => {
+      const evmAddress = '22bbccdd00000000000000000000000000deadface';
+      await integrationDomainOps.addAccount({
+        num: entityId222001.num,
+        evm_address: evmAddress,
+      });
+      await integrationDomainOps.addAccount({
+        num: entityId222002.num,
+        evm_address: evmAddress,
+      });
+
+      await expect(() => ContractService.getContractIdByEvmAddress({create2_evm_address: evmAddress})).rejects.toThrow(
+        new Error(`More than one contract with the evm address 0x${evmAddress} have been found.`)
+      );
+    });
+
+    test('Deleted ACCOUNT is not matched', async () => {
+      const evmAddress = '33ccddee00000000000000000000000000beefface';
+      await integrationDomainOps.addAccount({
+        num: entityId222003.num,
+        evm_address: evmAddress,
+        deleted: true,
+      });
+
+      expect(await ContractService.getContractIdByEvmAddress({create2_evm_address: evmAddress})).toBeNull();
+    });
+
+    test('Two ACCOUNT rows same evm_address but one deleted returns active id', async () => {
+      const evmAddress = '44ddeeff00000000000000000000000000cafef00d';
+      await integrationDomainOps.addAccount({
+        num: entityId222001.num,
+        evm_address: evmAddress,
+        deleted: true,
+      });
+      await integrationDomainOps.addAccount({
+        num: entityId222002.num,
+        evm_address: evmAddress,
+        deleted: false,
+      });
+
+      const contractId = await ContractService.getContractIdByEvmAddress({
+        create2_evm_address: evmAddress,
+      });
+      expect(contractId.toString()).toEqual(`${entityId222002.getEncodedId()}`);
+    });
   });
 });
 

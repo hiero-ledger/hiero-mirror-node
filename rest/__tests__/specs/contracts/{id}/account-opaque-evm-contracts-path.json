@@ -1,0 +1,140 @@
+{
+  "description": "ACCOUNT entity resolved by opaque EVM on /contracts/{id}/results, /state, and /results/logs (same as numeric id)",
+  "setup": {
+    "accounts": [
+      {
+        "num": 9101,
+        "evm_address": "01beefdead0000000000000000000000abcd1234"
+      },
+      {
+        "num": 9202
+      }
+    ],
+    "recordFiles": [
+      {
+        "index": 1,
+        "consensus_start": 1639010141000000000,
+        "consensus_end": 1639010141500000000,
+        "hash": "fbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1a"
+      }
+    ],
+    "contractresults": [
+      {
+        "amount": 30,
+        "bloom": [3, 3],
+        "call_result": [4, 4],
+        "consensus_timestamp": "987654000123456",
+        "contract_id": 9101,
+        "created_contract_ids": [],
+        "gas_used": 10,
+        "sender_id": 9202,
+        "transaction_nonce": 0
+      }
+    ],
+    "contractStates": [
+      {
+        "created_timestamp": "1676540001234390005",
+        "modified_timestamp": "1676540001234390005",
+        "contract_id": 9101,
+        "slot": "0000000000000000000000000000000000000000000000000000000000000001",
+        "value": "10"
+      }
+    ],
+    "contractlogs": [
+      {
+        "consensus_timestamp": 1639010141000000000,
+        "contract_id": 9101,
+        "index": 0,
+        "transaction_hash": "0x9db63968721fc76815d11b0b97734669bf88ae3810e07c199924553f0548eb98",
+        "transaction_index": 1
+      }
+    ]
+  },
+  "tests": [
+    {
+      "urls": [
+        "/api/v1/contracts/0x01beefdead0000000000000000000000abcd1234/results",
+        "/api/v1/contracts/0.0.9101/results"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "results": [
+          {
+            "address": "0x01beefdead0000000000000000000000abcd1234",
+            "amount": 30,
+            "bloom": "0x0303",
+            "call_result": "0x0404",
+            "contract_id": "0.0.9101",
+            "created_contract_ids": [],
+            "error_message": null,
+            "from": "0x00000000000000000000000000000000000023f2",
+            "function_parameters": "0x010102020303",
+            "gas_consumed": null,
+            "gas_limit": 1000,
+            "gas_used": 10,
+            "hash": "0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+            "timestamp": "987654.000123456",
+            "to": "0x000000000000000000000000000000000000238d"
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
+    },
+    {
+      "urls": [
+        "/api/v1/contracts/0x01beefdead0000000000000000000000abcd1234/state",
+        "/api/v1/contracts/0.0.9101/state"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "state": [
+          {
+            "address": "0x01beefdead0000000000000000000000abcd1234",
+            "contract_id": "0.0.9101",
+            "timestamp": "1676540001.234390005",
+            "slot": "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000010"
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
+    },
+    {
+      "urls": [
+        "/api/v1/contracts/0x01beefdead0000000000000000000000abcd1234/results/logs",
+        "/api/v1/contracts/0.0.9101/results/logs"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "logs": [
+          {
+            "address": "0x01beefdead0000000000000000000000abcd1234",
+            "bloom": "0x0123",
+            "contract_id": "0.0.9101",
+            "data": "0x0000000000000000000000000000000000000000000000000000000000000123",
+            "index": 0,
+            "root_contract_id": null,
+            "timestamp": "1639010141.000000000",
+            "topics": [
+              "0x97c1fc0a6ed5551bc831571325e9bdb365d06803100dc20648640ba24ce69750",
+              "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+              "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+              "0xe8d47b56e8cdfa95f871b19d4f50a857217c44a95502b0811a350fec1500dd67"
+            ],
+            "transaction_hash": "0x9db63968721fc76815d11b0b97734669bf88ae3810e07c199924553f0548eb98",
+            "transaction_index": 1,
+            "block_hash": "0xfbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1a",
+            "block_number": 1
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
+    }
+  ]
+}
