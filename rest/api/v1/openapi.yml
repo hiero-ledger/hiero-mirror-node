@@ -4720,7 +4720,10 @@ components:
       name: contractIdOrAddress
       in: path
       required: true
-      description: The ID or hex encoded EVM address (with or without 0x prefix) associated with this contract.
+      description:
+        Contract or account identifier in format shard.realm.num, realm.num, encoded entity id, or a
+        20-byte EVM address (with or without 0x prefix). EVM addresses are resolved via the entity
+        table for ACCOUNT and CONTRACT types only.
       schema:
         pattern: ^(\d{1,10}\.){0,2}(\d{1,10}|(0x)?[A-Fa-f0-9]{40})$
         type: string

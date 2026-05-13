@@ -467,7 +467,7 @@ class ContractService extends BaseService {
   async computeContractIdFromString(contractIdValue) {
     const contractIdParts = EntityId.computeContractIdPartsFromContractIdValue(contractIdValue);
 
-    if (contractIdParts.hasOwnProperty('create2_evm_address')) {
+    if (contractIdParts.create2_evm_address) {
       return this.getContractIdByEvmAddress(contractIdParts);
     }
 
