@@ -127,7 +127,7 @@ function runBufGenerate() {
     '.bin',
     process.platform === 'win32' ? 'buf.cmd' : 'buf',
   );
-  const result = spawnSync(bufBin, ['generate'], {cwd: restDir, stdio: 'inherit', shell: true});
+  const result = spawnSync(bufBin, ['generate'], {cwd: restDir, stdio: 'inherit'});
   if (result.error) {
     console.error(result.error);
     return 1;

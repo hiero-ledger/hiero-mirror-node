@@ -147,7 +147,7 @@ class ContractService extends BaseService {
     select ${Entity.ID}
     from ${Entity.tableName} ${Entity.tableAlias}
     where ${Entity.DELETED} <> true and
-      ${Entity.TYPE} = 'CONTRACT' and
+      ${Entity.TYPE} in ('ACCOUNT', 'CONTRACT') and
       ${Entity.EVM_ADDRESS} = $1`;
 
   static contractActionsByConsensusTimestampQuery = `
@@ -455,11 +455,13 @@ class ContractService extends BaseService {
       Buffer.from(create2EvmAddress, 'hex'),
     ]);
     if (rows.length === 0) {
-      throw new NotFoundError(`No contract with the given evm address 0x${create2EvmAddress} has been found.`);
+      throw new NotFoundError(
+        `No contract or account with the given evm address 0x${create2EvmAddress} has been found.`
+      );
     }
     // since evm_address is not a unique index, it is important to make this check.
     if (rows.length > 1) {
-      throw new Error(`More than one contract with the evm address 0x${create2EvmAddress} have been found.`);
+      throw new Error(`More than one contract or account with the evm address 0x${create2EvmAddress} have been found.`);
     }
 
     return rows[0].id;
