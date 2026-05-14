@@ -55,7 +55,22 @@ final class RuntimeHintsConfiguration {
 
             registerVelocityHints(hints, loader);
 
-            registerResourcePatterns(hints, "db/migration/common/**", "db/migration/v1/**", "db/migration/v2/**");
+            registerResourcePatterns(
+                    hints,
+                    "addressbook/**",
+                    "accountInfo.txt.gz",
+                    "accountInfoContracts.txt",
+                    "com/hedera/nativelib/wraps/**",
+                    "com/hedera/nativelib/hints/**",
+                    "db/migration/common/**",
+                    "db/migration/v1/**",
+                    "db/migration/v2/**",
+                    "errata/**",
+                    // zstd native libraries
+                    "linux/aarch64/libzstd-jni-*.so",
+                    "linux/amd64/libzstd-jni-*.so",
+                    "win/aarch64/libzstd-jni-*.dll",
+                    "win/amd64/libzstd-jni-*.dll");
         }
 
         private void registerVelocityHints(RuntimeHints hints, ClassLoader loader) {

@@ -6,6 +6,7 @@ import static org.apache.commons.lang3.StringUtils.countMatches;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.importer.TestUtils.S3_PROXY_PORT;
+import static org.hiero.mirror.importer.TestUtils.findAllMatches;
 import static org.hiero.mirror.importer.TestUtils.generateRandomByteArray;
 import static org.hiero.mirror.importer.TestUtils.zstd;
 import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_BLOCK_FILES;
@@ -32,10 +33,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Optional;
-import java.util.regex.Pattern;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -51,6 +49,9 @@ import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
 import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverServiceImpl;
 import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
@@ -148,8 +149,11 @@ final class BlockFileSourceTest {
                 })
                 .when(blockFileTransformer)
                 .transform(any(BlockFile.class));
-        cutoverService =
-                new CutoverServiceImpl(properties, mock(RecordDownloaderProperties.class), recordFileRepository);
+        cutoverService = new CutoverServiceImpl(
+                properties,
+                mock(CutoverProperties.class),
+                mock(RecordDownloaderProperties.class),
+                recordFileRepository);
         blockStreamVerifier = spy(new BlockStreamVerifier(
                 blockFileTransformer,
                 mock(BlockStateProofHasher.class),
@@ -518,14 +522,5 @@ final class BlockFileSourceTest {
         assertThat(actualFile).isFile();
         final byte[] actual = FileUtils.readFileToByteArray(actualFile);
         assertThat(actual).isEqualTo(expected);
-    }
-
-    private Collection<String> findAllMatches(String message, String pattern) {
-        var matcher = Pattern.compile(pattern).matcher(message);
-        var result = new ArrayList<String>();
-        while (matcher.find()) {
-            result.add(matcher.group());
-        }
-        return result;
     }
 }

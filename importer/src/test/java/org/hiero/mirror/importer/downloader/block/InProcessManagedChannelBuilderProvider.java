@@ -5,7 +5,7 @@ package org.hiero.mirror.importer.downloader.block;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.inprocess.InProcessChannelBuilder;
 
-class InProcessManagedChannelBuilderProvider implements ManagedChannelBuilderProvider {
+public final class InProcessManagedChannelBuilderProvider implements ManagedChannelBuilderProvider {
 
     public static final InProcessManagedChannelBuilderProvider INSTANCE = new InProcessManagedChannelBuilderProvider();
 

@@ -11,7 +11,7 @@ const getUrl = (testParameters) =>
   `/accounts/${testParameters['DEFAULT_OWNER_ID']}/hooks/${testParameters['DEFAULT_HOOK_ID']}/storage?limit=${testParameters['DEFAULT_LIMIT']}&order=asc`;
 
 const {options, run, setup} = new RestJavaTestScenarioBuilder()
-  .name('hookStorageResults') // use unique scenario name among all tests
+  .name('hookStorage') // use unique scenario name among all tests
   .tags({url: urlTag})
   .request((testParameters) => {
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;

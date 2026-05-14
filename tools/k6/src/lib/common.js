@@ -2,10 +2,11 @@
 
 import {check} from 'k6';
 import {scenario as k6Scenario} from 'k6/execution';
-import {Gauge} from 'k6/metrics';
+import {Gauge, Trend} from 'k6/metrics';
 import './parameters.js';
 
 const SCENARIO_DURATION_METRIC_NAME = 'scenario_duration';
+const requestsDurationTrend = new Trend('requests', true);
 
 const options = {
   thresholds: {
@@ -53,7 +54,9 @@ function getOptionsWithScenario(name, scenario, tags = {}) {
   const sourceScenario = scenario ? Object.assign({}, scenario, scenarioCommon) : scenarioDefaults;
   return Object.assign({}, options, {
     scenarios: {
-      [name]: Object.assign({}, sourceScenario, {tags}),
+      [name]: Object.assign({}, sourceScenario, {
+        tags: Object.assign({namespace: __ENV.NAMESPACE, vus: __ENV.DEFAULT_VUS}, tags),
+      }),
     },
   });
 }
@@ -339,7 +342,8 @@ class TestScenarioBuilder {
 
       if (!that._shouldSkip) {
         const response = that._request(testParameters);
-        check(response, that._checks);
+        const passed = check(response, that._checks);
+        requestsDurationTrend.add(response.timings.duration, {passed: String(passed)});
       } else {
         // fallback
         const response = that._fallbackRequest(testParameters);
@@ -443,9 +447,10 @@ class MultiIdScenarioBuilder {
       const scenarioDef = combinedOptions.scenarios[active];
       const url = (scenarioDef && scenarioDef.tags && scenarioDef.tags.url) || '';
       const response = that._request(url);
-      check(response, {
+      const passed = check(response, {
         [that._checkName]: (r) => that._checkFunc(r),
       });
+      requestsDurationTrend.add(response.timings.duration, {passed: String(passed)});
     }
 
     return {options: combinedOptions, run};

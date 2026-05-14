@@ -166,7 +166,6 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -539,6 +538,7 @@ public final class RecordItemBuilder {
                 .setAlias(bytes(20))
                 .setAutoRenewPeriod(duration(30))
                 .setDeclineReward(true)
+                .setDelegationAddress(bytes(20))
                 .setInitialBalance(10_000_000_000_000L)
                 .setKey(key())
                 .setMaxAutomaticTokenAssociations(2)
@@ -658,6 +658,7 @@ public final class RecordItemBuilder {
                 .setAutoRenewPeriod(duration(30))
                 .setAccountIDToUpdate(accountId)
                 .setDeclineReward(BoolValue.of(true))
+                .setDelegationAddress(bytes(20))
                 .setKey(key())
                 .setProxyAccountID(accountId())
                 .setReceiverSigRequired(false)
@@ -908,12 +909,13 @@ public final class RecordItemBuilder {
                         .setPort(port())
                         .setRequiresTls(true)
                         .setBlockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.newBuilder()
-                                .setEndpointApi(STATUS)))
+                                .addEndpointApi(STATUS)
+                                .addEndpointApi(SUBSCRIBE_STREAM)))
                 .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
                         .setIpAddress(bytes(16))
                         .setPort(port())
                         .setBlockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.newBuilder()
-                                .setEndpointApi(SUBSCRIBE_STREAM)))
+                                .addEndpointApi(SUBSCRIBE_STREAM)))
                 .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
                         .setDomainName(text(8))
                         .setPort(port())
@@ -937,7 +939,7 @@ public final class RecordItemBuilder {
                         .setPort(port())
                         .setRequiresTls(true)
                         .setBlockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.newBuilder()
-                                .setEndpointApi(STATUS)))
+                                .addEndpointApi(STATUS)))
                 .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
                         .setDomainName(text(8))
                         .setPort(port())
@@ -1701,8 +1703,6 @@ public final class RecordItemBuilder {
             transactionRecord.clearTransactionID().clearConsensusTimestamp();
             transactionBodyWrapper.clearTransactionID();
 
-            var contractLogs = parseContractLogs(transactionRecordInstance);
-
             if (contractTransactionPredicate != null) {
                 recordItemBuilder.contractTransactionPredicate(contractTransactionPredicate);
             }
@@ -1718,20 +1718,7 @@ public final class RecordItemBuilder {
                     .transactionRecord(transactionRecordInstance)
                     .transaction(transaction)
                     .sidecarRecords(sidecars)
-                    .contractLogs(contractLogs)
                     .build();
-        }
-
-        private List<ContractLoginfo> parseContractLogs(TransactionRecord record) {
-            if (record.hasContractCallResult()) {
-                return new ArrayList<>(transactionRecord.getContractCallResult().getLogInfoList().stream()
-                        .toList());
-            }
-            if (record.hasContractCreateResult()) {
-                return new ArrayList<>(transactionRecord.getContractCreateResult().getLogInfoList().stream()
-                        .toList());
-            }
-            return Collections.emptyList();
         }
 
         public Builder<T> clearIncrementer() {

@@ -6,6 +6,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.validation.HexValidator;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.junit.jupiter.api.Test;
 
@@ -15,8 +16,8 @@ class RecordFileServiceTest extends Web3IntegrationTest {
 
     @Test
     void testFindByTimestamp() {
-        var timestamp = domainBuilder.timestamp();
-        var recordFile = domainBuilder
+        final var timestamp = domainBuilder.timestamp();
+        final var recordFile = domainBuilder
                 .recordFile()
                 .customize(e -> e.consensusEnd(timestamp))
                 .persist();
@@ -37,7 +38,7 @@ class RecordFileServiceTest extends Web3IntegrationTest {
         domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         domainBuilder.recordFile().customize(f -> f.index(1L)).persist();
         domainBuilder.recordFile().customize(f -> f.index(2L)).persist();
-        var recordFileLatest =
+        final var recordFileLatest =
                 domainBuilder.recordFile().customize(f -> f.index(3L)).persist();
         assertThat(recordFileService.findByBlockType(BlockType.LATEST)).contains(recordFileLatest);
     }
@@ -46,9 +47,10 @@ class RecordFileServiceTest extends Web3IntegrationTest {
     void testFindByBlockTypeIndex() {
         domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         domainBuilder.recordFile().customize(f -> f.index(1L)).persist();
-        var recordFile = domainBuilder.recordFile().customize(f -> f.index(2L)).persist();
+        final var recordFile =
+                domainBuilder.recordFile().customize(f -> f.index(2L)).persist();
         domainBuilder.recordFile().customize(f -> f.index(3L)).persist();
-        var blockType = BlockType.of(recordFile.getIndex().toString());
+        final var blockType = BlockType.of(recordFile.getIndex().toString());
         assertThat(recordFileService.findByBlockType(blockType)).contains(recordFile);
     }
 
@@ -60,6 +62,29 @@ class RecordFileServiceTest extends Web3IntegrationTest {
         final var recordFileLatest =
                 domainBuilder.recordFile().customize(f -> f.index(3L)).persist();
         final var blockType = BlockType.of(String.valueOf(recordFileLatest.getIndex() + 1L));
+        assertThat(recordFileService.findByBlockType(blockType)).isEmpty();
+    }
+
+    @Test
+    void testFindByBlockTypeFullRecordFileHash() {
+        final var recordFile = domainBuilder.recordFile().persist();
+        final var blockType = BlockType.of(HexValidator.HEX_PREFIX + recordFile.getHash());
+        assertThat(recordFileService.findByBlockType(blockType)).contains(recordFile);
+    }
+
+    @Test
+    void testFindByBlockTypeShortRecordFileHash() {
+        final var recordFile = domainBuilder.recordFile().persist();
+        final var shortHash = recordFile.getHash().substring(0, 64);
+        final var blockType = BlockType.of(HexValidator.HEX_PREFIX + shortHash);
+        assertThat(recordFileService.findByBlockType(blockType)).contains(recordFile);
+    }
+
+    @Test
+    void testFindByBlockTypeByRecordFileHashNotFound() {
+        domainBuilder.recordFile().persist();
+        final var differentHash = HexValidator.HEX_PREFIX + "a".repeat(96);
+        final var blockType = BlockType.of(differentHash);
         assertThat(recordFileService.findByBlockType(blockType)).isEmpty();
     }
 }

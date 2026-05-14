@@ -8,6 +8,9 @@ concurrency:
 on:
   workflow_call:
     inputs:
+      require_clean_target:
+        default: true
+        type: boolean
       restore:
         default: true
         type: boolean
@@ -67,6 +70,11 @@ on:
         required: true
   workflow_dispatch:
     inputs:
+      require_clean_target:
+        default: true
+        description: "Require target to be in torn down state"
+        type: boolean
+        required: false
       restore:
         default: true
         description: "Restore the target cluster from the source"
@@ -160,7 +168,7 @@ jobs:
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
         with:
           egress-policy: audit
 
@@ -248,12 +256,12 @@ jobs:
 
       - name: Setup Testkube CLI
         if: ${{ inputs.run_k6_test == true }}
-        uses: kubeshop/setup-testkube@e06cc069575f7cd2a67403c7da0a48229371a1db # v1.0.11
+        uses: kubeshop/setup-testkube@3deb6ba0cd26e0d890e278d59f996bd30d58b567 # v1.0.12
         with:
           version: v2.3.0
 
       - name: Setup Flux CLI
-        uses: fluxcd/flux2/action@5adad89dcce7b79f20274ae8e112bcec7bd46764 # v2.8.5
+        uses: fluxcd/flux2/action@04acaec6161ac4fb1a82ffafa88901c03271d34f # v2.8.6
         with:
           version: v2.3.0
 
@@ -261,6 +269,7 @@ jobs:
         env:
           AUTO_CONFIRM: "true"
           DEFAULT_POOL_NAME: ${{ inputs.target_default_pool }}
+          REQUIRE_CLEAN_TARGET: ${{ inputs.require_clean_target }}
           SNAPSHOT_ID: ${{ inputs.use_static_snapshot && (inputs.staging_snapshot_id || vars.STAGING_SNAPSHOT_ID) || '' }}
           USE_STATIC_SNAPSHOT: ${{ inputs.use_static_snapshot }}
         run: |

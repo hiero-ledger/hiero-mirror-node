@@ -21,12 +21,14 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.util.Utility;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -130,35 +132,6 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .returns(null, Entity::getStakePeriodStart));
     }
 
-    private void assertCryptoUpdate(long timestamp, Consumer<Entity> extraAssert) {
-        verify(entityListener, times(1))
-                .onEntity(assertArg(t -> assertAll(
-                        () -> assertThat(t)
-                                .isNotNull()
-                                .returns(Range.atLeast(timestamp), Entity::getTimestampRange)
-                                .returns(ACCOUNT, Entity::getType),
-                        () -> extraAssert.accept(t))));
-    }
-
-    @SuppressWarnings("deprecation")
-    private Map<Long, EntityTransaction> getExpectedEntityTransactions(RecordItem recordItem, Transaction transaction) {
-        var body = recordItem.getTransactionBody().getCryptoUpdateAccount();
-        return getExpectedEntityTransactions(
-                recordItem, transaction, EntityId.of(body.getStakedAccountId()), EntityId.of(body.getProxyAccountID()));
-    }
-
-    private void setupForCryptoUpdateTransactionTest(RecordItem recordItem, Consumer<Entity> extraAssertions) {
-        var timestamp = recordItem.getConsensusTimestamp();
-        var transaction = domainBuilder
-                .transaction()
-                .customize(t -> t.consensusTimestamp(timestamp))
-                .get();
-        getTransactionHandler().updateTransaction(transaction, recordItem);
-        assertCryptoUpdate(timestamp, extraAssertions);
-        assertThat(recordItem.getEntityTransactions())
-                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
-    }
-
     @Test
     void evmHookHandlerCalledWithHookCreationDetails() {
         // given
@@ -251,6 +224,47 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
 
         // then
         verify(evmHookHandler).process(eq(recordItem), anyLong(), eq(List.of()), eq(List.of()));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"a94f5374fce5edbc8e2a8697c15331677e6ebf0b", "0000000000000000000000000000000000000000"})
+    void updateTransactionDelegationAddressSetToNewValue(String delegationAddress) {
+        final var delegationAddressBytes = Hex.decode(delegationAddress);
+        RecordItem recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(body -> body.setDelegationAddress(DomainUtils.fromBytes(delegationAddressBytes)))
+                .build();
+        setupForCryptoUpdateTransactionTest(
+                recordItem, t -> assertThat(t).returns(delegationAddressBytes, Entity::getDelegationAddress));
+    }
+
+    private void assertCryptoUpdate(long timestamp, Consumer<Entity> extraAssert) {
+        verify(entityListener, times(1))
+                .onEntity(assertArg(t -> assertAll(
+                        () -> assertThat(t)
+                                .isNotNull()
+                                .returns(Range.atLeast(timestamp), Entity::getTimestampRange)
+                                .returns(ACCOUNT, Entity::getType),
+                        () -> extraAssert.accept(t))));
+    }
+
+    @SuppressWarnings("deprecation")
+    private Map<Long, EntityTransaction> getExpectedEntityTransactions(RecordItem recordItem, Transaction transaction) {
+        var body = recordItem.getTransactionBody().getCryptoUpdateAccount();
+        return getExpectedEntityTransactions(
+                recordItem, transaction, EntityId.of(body.getStakedAccountId()), EntityId.of(body.getProxyAccountID()));
+    }
+
+    private void setupForCryptoUpdateTransactionTest(RecordItem recordItem, Consumer<Entity> extraAssertions) {
+        var timestamp = recordItem.getConsensusTimestamp();
+        var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp))
+                .get();
+        getTransactionHandler().updateTransaction(transaction, recordItem);
+        assertCryptoUpdate(timestamp, extraAssertions);
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }
 
     private Transaction transaction(RecordItem recordItem) {

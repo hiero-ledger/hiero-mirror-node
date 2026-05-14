@@ -666,38 +666,6 @@ describe('utils validateAndParseFilters nonce key tests', () => {
   verifyValidAndInvalidFilters(invalidFilters, filters);
 });
 
-describe('utils validateAndParseFilters address book file id tests', () => {
-  const key = constants.filterKeys.FILE_ID;
-  const invalidFilters = [
-    // erroneous data
-    utils.buildComparatorFilter(key, 'lt:-1'),
-    utils.buildComparatorFilter(key, '123'),
-    utils.buildComparatorFilter(key, '101102'),
-    utils.buildComparatorFilter(key, '1.2.3'),
-    utils.buildComparatorFilter(key, '0.0.2000'),
-    utils.buildComparatorFilter(key, 'eq:1234567890'),
-    utils.buildComparatorFilter(key, 'gt:100'),
-    utils.buildComparatorFilter(key, 'gte:101'),
-    utils.buildComparatorFilter(key, 'lt:103'),
-    utils.buildComparatorFilter(key, 'lte:102'),
-    // invalid format
-    utils.buildComparatorFilter(key, 'lt:0.1.23456789012345'),
-  ];
-
-  const filters = [
-    utils.buildComparatorFilter(key, '101'),
-    utils.buildComparatorFilter(key, `${realm}.101`),
-    utils.buildComparatorFilter(key, `${shard}.${realm}.101`),
-    utils.buildComparatorFilter(key, '102'),
-    utils.buildComparatorFilter(key, `${realm}.102`),
-    utils.buildComparatorFilter(key, `${shard}.${realm}.102`),
-    utils.buildComparatorFilter(key, 'eq:101'),
-    utils.buildComparatorFilter(key, 'eq:102'),
-  ];
-
-  verifyValidAndInvalidFilters(invalidFilters, filters);
-});
-
 describe('validateAndParseFilters slot', () => {
   const key = constants.filterKeys.SLOT;
   const invalidFilters = [
@@ -745,10 +713,8 @@ const acceptedParameters = new Set([
   constants.filterKeys.ACCOUNT_PUBLICKEY,
   constants.filterKeys.ENCODING,
   constants.filterKeys.ENTITY_PUBLICKEY,
-  constants.filterKeys.FILE_ID,
   constants.filterKeys.FROM,
   constants.filterKeys.LIMIT,
-  constants.filterKeys.NODE_ID,
   constants.filterKeys.NONCE,
   constants.filterKeys.ORDER,
   constants.filterKeys.RESULT,

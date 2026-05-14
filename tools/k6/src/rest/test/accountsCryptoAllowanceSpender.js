@@ -11,7 +11,7 @@ const getUrl = (testParameters) =>
   `/accounts/${testParameters['DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE']}/allowances/crypto?spender.id=${testParameters['DEFAULT_SPENDER_ID_CRYPTO_ALLOWANCE']}`;
 
 const {options, run, setup} = new RestTestScenarioBuilder()
-  .name('accountCryptoAllowancesResultsSpender') // use unique scenario name among all tests
+  .name('accountsCryptoAllowanceSpender') // use unique scenario name among all tests
   .tags({url: urlTag})
   .request((testParameters) => {
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;

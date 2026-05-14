@@ -47,11 +47,10 @@ them up to date. The image must be published as an OCI image for the required ma
 To republish postgresql-repmgr, run the following steps manually whenever it needs to change:
 
 ```shell
-export PG_VERSION=17.6.0-debian-12-r2
+export PG_VERSION=18.3.0-debian-12-r14
 git clone https://github.com/bitnami/containers.git
-cd containers/bitnami/postgresql-repmgr/17/debian-12
+cd containers/bitnami/postgresql-repmgr/18/debian-12
 docker buildx build . -t gcr.io/mirror-node-public/hedera-mirror-node/postgresql-repmgr:${PG_VERSION} --push --provenance false --platform linux/amd64 --annotation "manifest,manifest-descriptor:com.googleapis.cloudmarketplace.product.service.name=services/hedera-mirror-node-mirror-node-public.cloudpartnerservices.goog"
-docker manifest inspect gcr.io/mirror-node-public/hedera-mirror-node/postgresql-repmgr:${PG_VERSION} | grep "vnd.oci.image"
 sed "s/postgresql_tag=.*/postgresql_tag=\"${PG_VERSION}\"/" release.sh
 ```
 

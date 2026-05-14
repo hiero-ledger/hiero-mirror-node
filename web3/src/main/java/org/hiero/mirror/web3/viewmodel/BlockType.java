@@ -3,16 +3,41 @@
 package org.hiero.mirror.web3.viewmodel;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.Locale;
+import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.Strings;
 
+/**
+ * BlockType represents a way to identify a specific block in the chain. Can be one of:
+ *  - block tag ("earliest", "latest", "safe", "pending", "finalized")
+ *  - block number (decimal or hex string)
+ *  - block hash (hex string of length 64 or 96, with or without 0x prefix)
+ */
 public record BlockType(String name, long number) {
+
+    private static final Pattern BLOCK_PATTERN = Pattern.compile("^(?:" + "(earliest|finalized|latest|pending|safe)"
+            + "|(\\d{1,20})"
+            + "|0x([0-9a-f]{64}|[0-9a-f]{96})"
+            + "|0x([0-9a-f]{1,16})"
+            + ")$");
+
+    private static final int GROUP_TAG = 1;
+    private static final int GROUP_DECIMAL = 2;
+    private static final int GROUP_HASH = 3;
+    private static final int GROUP_HEX_NUM = 4;
 
     public static final BlockType EARLIEST = new BlockType("earliest", 0L);
     public static final BlockType LATEST = new BlockType("latest", Long.MAX_VALUE);
 
-    private static final String HEX_PREFIX = "0x";
-    private static final String NEGATIVE_NUMBER_PREFIX = "-";
+    /**
+     * Value for number when blockType represents a block hash,
+     * name holds the normalized hex string (0x prefix + lowercase hex digits).
+     */
+    public static final long BLOCK_HASH_SENTINEL = -1L;
+
+    public boolean isHash() {
+        return number == BLOCK_HASH_SENTINEL;
+    }
 
     @JsonCreator
     public static BlockType of(final String value) {
@@ -20,43 +45,52 @@ public record BlockType(String name, long number) {
             return LATEST;
         }
 
-        final String blockTypeName = value.toLowerCase();
-        switch (blockTypeName) {
-            case "earliest" -> {
-                return EARLIEST;
-            }
-            case "latest", "safe", "pending", "finalized" -> {
-                return LATEST;
-            }
-            default -> {
-                return extractNumericBlock(value);
-            }
-        }
-    }
-
-    private static BlockType extractNumericBlock(String value) {
-        int radix = 10;
-        var cleanedValue = value;
-
-        if (value.startsWith(HEX_PREFIX)) {
-            radix = 16;
-            cleanedValue = Strings.CS.removeStart(value, HEX_PREFIX);
-        }
-
-        if (cleanedValue.contains(NEGATIVE_NUMBER_PREFIX)) {
+        final var blockTypeValue = value.toLowerCase(Locale.ROOT);
+        final var matcher = BLOCK_PATTERN.matcher(blockTypeValue);
+        if (!matcher.matches()) {
             throw new IllegalArgumentException("Invalid block value: " + value);
         }
 
-        try {
-            long blockNumber = Long.parseLong(cleanedValue, radix);
-            return new BlockType(value, blockNumber);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid block value: " + value, e);
+        final var tag = matcher.group(GROUP_TAG);
+        if (tag != null) {
+            return blockTypeForTag(tag);
         }
+
+        final var decimal = matcher.group(GROUP_DECIMAL);
+        if (decimal != null) {
+            try {
+                return new BlockType(value, Long.parseLong(decimal, 10));
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Decimal value out of range for block: " + value, e);
+            }
+        }
+
+        var hash = matcher.group(GROUP_HASH);
+        if (hash != null) {
+            return new BlockType(hash, BLOCK_HASH_SENTINEL);
+        }
+
+        final var hexNum = matcher.group(GROUP_HEX_NUM);
+        if (hexNum != null) {
+            try {
+                return new BlockType(hexNum, Long.parseLong(hexNum, 16));
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Hex value out of range for block: " + value, e);
+            }
+        }
+        throw new IllegalArgumentException("Invalid block value: " + value);
+    }
+
+    private static BlockType blockTypeForTag(String tag) {
+        return switch (tag) {
+            case "earliest" -> EARLIEST;
+            case "finalized", "latest", "pending", "safe" -> LATEST;
+            default -> throw new IllegalStateException("Unexpected block tag: " + tag);
+        };
     }
 
     public String toString() {
-        if (this == EARLIEST || this == LATEST) {
+        if (this == EARLIEST || this == LATEST || isHash()) {
             return name;
         }
 
