@@ -23,6 +23,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.web3.service.AbstractContractCallServiceTest.KeyType;
 import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls;
@@ -93,9 +94,8 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
         // Then
-        assertThat((KeyValue)
-                        decodeResult(executionResult.result(), KeyValue.class).get(0))
-                .isEqualTo(keyValue);
+        final KeyValue decodedKeyValue = decodeFirst(executionResult.result(), KeyValue.class);
+        assertThat(decodedKeyValue).isEqualTo(keyValue);
     }
 
     @ParameterizedTest
@@ -146,9 +146,8 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
         // Then
-        assertThat((KeyValue)
-                        decodeResult(executionResult.result(), KeyValue.class).get(0))
-                .isEqualTo(keyValue);
+        final KeyValue decodedKeyValue = decodeFirst(executionResult.result(), KeyValue.class);
+        assertThat(decodedKeyValue).isEqualTo(keyValue);
     }
 
     @ParameterizedTest
@@ -424,6 +423,11 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         assertThat(result.getValue1()).isNotEqualTo(result.getValue2());
         // verify that contract balances are different
         assertThat(result.getValue3()).isNotEqualTo(result.getValue4());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Type> T decodeFirst(final String hexResult, final Class<T> type) {
+        return (T) decodeResult(hexResult, type).get(0);
     }
 
     @SuppressWarnings("unchecked")

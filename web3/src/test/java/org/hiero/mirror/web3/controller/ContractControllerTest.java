@@ -101,7 +101,6 @@ class ContractControllerTest {
     @BeforeEach
     void setUp() {
         throttleManager.throttle(any(ContractCallRequest.class));
-        given(service.processCall(any())).willReturn("0x");
     }
 
     @SneakyThrows
