@@ -19,7 +19,6 @@ TARGET_CITUS_VERSION="${TARGET_CITUS_VERSION:?TARGET_CITUS_VERSION is required, 
 EXPECTED_CITUS_EXTVERSION="${EXPECTED_CITUS_EXTVERSION:?EXPECTED_CITUS_EXTVERSION is required, e.g. 14.0-1}"
 
 DATABASE_NAME="${DATABASE_NAME:-mirror_node}"
-DB_USER="${DB_USER:-postgres}"
 RUN_VALIDATION="${RUN_VALIDATION:-true}"
 STACKGRES_CLUSTER_LABEL="${STACKGRES_CLUSTER_LABEL:-app=StackGresShardedCluster}"
 
@@ -36,7 +35,7 @@ function validateCitusUpgradeTarget() {
   fi
 
   currentVersion="$(kubectl exec -n "${TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}-citus-coord-0" -c postgres-util -- \
-    psql -U "${DB_USER}" -d "${DATABASE_NAME}" -Atc "SELECT extversion FROM pg_extension WHERE extname = 'citus';" | xargs)"
+    psql -U postgres -d "${DATABASE_NAME}" -Atc "SELECT extversion FROM pg_extension WHERE extname = 'citus';" | xargs)"
 
   if [[ -z "${currentVersion}" ]]; then
     log "Unable to determine current Citus extension version"
@@ -54,7 +53,7 @@ function validateCitusUpgradeTarget() {
   fi
 
   log "Validated Citus extension upgrade: ${currentVersion} -> ${EXPECTED_CITUS_EXTVERSION}"
-  log "StackGres Citus package version target: ${TARGET_CITUS_VERSION}"
+  log "Stackgres Citus package version target: ${TARGET_CITUS_VERSION}"
 }
 
 function getSgClusters() {
@@ -96,7 +95,7 @@ function patchShardedClusterCitusVersion() {
     exit 1
   fi
 
-  kubectl get sgshardedcluster "${TARGET_SHARDED_CLUSTER}" -n "${TARGET_NAMESPACE}" -o json \
+  until kubectl get sgshardedcluster "${TARGET_SHARDED_CLUSTER}" -n "${TARGET_NAMESPACE}" -o json \
     | jq --arg citusVersion "${TARGET_CITUS_VERSION}" '
         .spec.postgres.extensions |= map(
           if .name == "citus" then
@@ -106,7 +105,37 @@ function patchShardedClusterCitusVersion() {
           end
         )
       ' \
-    | kubectl replace -f -
+    | kubectl replace -f -; do
+    log "Failed to patch SGShardedCluster. Retryin ..."
+    sleep 10
+  done
+
+  log "Successfully patched SGShardedCluster Citus package version"
+
+  log "Waiting for all SGClusters to show Citus package version ${TARGET_CITUS_VERSION}"
+
+  while true; do
+    local invalidClusters
+    invalidClusters="$(
+      kubectl get sgcluster -n "${TARGET_NAMESPACE}" -o json \
+        | jq -r --arg shardedCluster "${TARGET_SHARDED_CLUSTER}" --arg citusVersion "${TARGET_CITUS_VERSION}" '
+            .items[]
+            | select((.metadata.labels["stackgres.io/shardedcluster-name"] == $shardedCluster))
+            | select(
+                ([.spec.postgres.extensions[]? | select(.name == "citus" and .version == $citusVersion)] | length) == 0
+              )
+            | .metadata.name
+          '
+    )"
+
+    if [[ -z "${invalidClusters}" ]]; then
+      log "All SGClusters have Citus package version ${TARGET_CITUS_VERSION}"
+      return 0
+    fi
+
+    log "Waiting for SGClusters to update Citus package version: ${invalidClusters//$'\n'/, }"
+    sleep 10
+  done
 }
 
 function waitForClusterPrimary() {
@@ -152,7 +181,7 @@ function updateCitusExtensionOnPod() {
   while true; do
     if kubectl exec -n "${TARGET_NAMESPACE}" "${pod}" -c postgres-util -- \
       psql -v ON_ERROR_STOP=1 \
-        -U "${DB_USER}" \
+        -U postgres \
         -d "${DATABASE_NAME}" \
         -c "SET lock_timeout = '30s'; SET statement_timeout = '10min'; ALTER EXTENSION citus UPDATE;"; then
       return 0
@@ -172,7 +201,7 @@ function waitForCitusVersionOnPod() {
   while true; do
     version="$(kubectl exec -n "${TARGET_NAMESPACE}" "${pod}" -c postgres-util -- \
       psql -v ON_ERROR_STOP=1 \
-        -U "${DB_USER}" \
+        -U postgres \
         -d "${DATABASE_NAME}" \
         -Atc "SELECT extversion FROM pg_extension WHERE extname = 'citus';" \
       2>/dev/null | xargs || true)"
@@ -211,7 +240,7 @@ function upgradeCitusVersion() {
   log "Starting Citus extension upgrade"
   log "Namespace: ${TARGET_NAMESPACE}"
   log "Sharded cluster: ${TARGET_SHARDED_CLUSTER}"
-  log "StackGres Citus package version: ${TARGET_CITUS_VERSION}"
+  log "Stackgres Citus package version: ${TARGET_CITUS_VERSION}"
   log "Expected Citus SQL extension version: ${EXPECTED_CITUS_EXTVERSION}"
   doContinue
 
@@ -219,8 +248,8 @@ function upgradeCitusVersion() {
 
   unrouteTraffic "${TARGET_NAMESPACE}"
 
-  pauseCitus "${TARGET_NAMESPACE}"
   patchShardedClusterCitusVersion
+  pauseCitus "${TARGET_NAMESPACE}"
   updateEachCluster
 
   routeTraffic "${TARGET_NAMESPACE}"

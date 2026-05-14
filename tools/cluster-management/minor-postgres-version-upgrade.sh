@@ -11,9 +11,6 @@ SGDBOPS_NAME="${SGDBOPS_NAME:-stackgres-upgrade}"
 TARGET_NAMESPACE="${TARGET_NAMESPACE:?TARGET_NAMESPACE is required}"
 TARGET_SHARDED_CLUSTER="${TARGET_SHARDED_CLUSTER:-${HELM_RELEASE_NAME}-citus}"
 TARGET_POSTGRES_VERSION="${TARGET_POSTGRES_VERSION:?TARGET_POSTGRES_VERSION is required, e.g. 16.13}"
-UPGRADE_COMMON_CHART="${UPGRADE_COMMON_CHART:-false}"
-
-#TODO maybe remove this and expect common to be deployed already (already removed function but need to include this in .md)
 
 function patchPostgresVersion() {
   log "Patching SGShardedCluster ${TARGET_SHARDED_CLUSTER} to Postgres ${TARGET_POSTGRES_VERSION}"
@@ -207,12 +204,13 @@ function validatePostgresUpgrade() {
 }
 
 function upgradePostgresMinorVersion() {
-  log "Starting minor Postgres upgrade for ${TARGET_SHARDED_CLUSTER} in ${TARGET_NAMESPACE}"
+  log "Starting minor Postgres upgrade of ${TARGET_SHARDED_CLUSTER} in ${TARGET_NAMESPACE} for context  $(kubectl config current-context)"
   log "Target Postgres version: ${TARGET_POSTGRES_VERSION}"
+  doContinue
 
   validateMinorUpgradeTarget
 
-  unrouteTraffic "TARGET_NAMESPACE"
+  unrouteTraffic "${TARGET_NAMESPACE}"
   patchPostgresVersion
 
   createSecurityUpgradeDbOps

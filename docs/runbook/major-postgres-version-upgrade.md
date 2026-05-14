@@ -6,7 +6,7 @@ Need to upgrade the major PostgreSQL version for a StackGres Citus cluster while
 
 ## Prerequisites
 
-- Have `kubectl`, `jq`, and `yq` installed
+- Have `kubectl` and `jq` installed
 - The kubectl context is set to the cluster you want to upgrade
 - Configure the default namespace to be namespace of targeted cluster i.e `kubectl config set-context --current --namespace=mainnet-citus`
 - Common chart with StackGres containing the target PostgreSQL and Citus versions is already deployed
@@ -43,17 +43,37 @@ kubectl patch sgshardedcluster.stackgres.io mirror-citus \
       }
     }
   }'
+
+cat <<EOF | kubectl apply -f -
+apiVersion: stackgres.io/v1
+kind: SGShardedDbOps
+metadata:
+  name: restart-mirror-citus
+spec:
+  sgShardedCluster: mirror-citus
+  op: restart
+EOF
+
+kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod -l job-name=restart-mirror-citus --timeout=-1
+
+kubectl delete sgshardeddbops.stackgres.io restart-mirror-citus
+
+kubectl get pods -l app=StackGresCluster -o yaml | grep terminationGracePeriodSeconds
 ```
 
 ### 3. Scale Down Database Clients
 
 Scale all database clients to zero replicas:
 
-- importer
-- REST APIs
-- gRPC
-- monitor
-- web3
+```bash
+kubectl scale deployment mirror-restjava --replicas=0
+kubectl scale deployment mirror-rest --replicas=0
+kubectl scale deployment mirror-web3 --replicas=0
+kubectl scale deployment mirror-grpc --replicas=0
+kubectl scale deployment mirror-rest-monitor --replicas=0
+kubectl scale deployment mirror-monitor --replicas=0
+kubectl scale deployment mirror-importer --replicas=0
+```
 
 ### 4. Capture Baseline Validation Queries
 
@@ -101,6 +121,11 @@ kubectl get sgpgconfigs.stackgres.io mirror-citus-worker \
   )
   | .metadata.name = .metadata.name + "-18"
   | .spec.postgresVersion = "18"
+  | .spec["postgresql.conf"].shared_preload_libraries =
+      (if ((.spec["postgresql.conf"].shared_preload_libraries // "") | test("\\bcitus\\b"))
+       then .spec["postgresql.conf"].shared_preload_libraries
+       else "citus, " + (.spec["postgresql.conf"].shared_preload_libraries // "")
+       end)
 ' \
 | kubectl apply -f -
 ```
@@ -142,7 +167,8 @@ kubectl patch sgclusters.stackgres.io mirror-citus-shard2 \
 
 ## 10. Run Major Version Upgrade For All Workers (can run in parallel)
 
-```yaml
+```bash
+cat <<EOF | kubectl apply -f -
 apiVersion: stackgres.io/v1
 kind: SGDbOps
 metadata:
@@ -158,7 +184,7 @@ spec:
       - name: citus
         version: "14.0.0"
       - name: citus_columnar
-        version: 14.0.0
+        version: "14.0.0"
       - name: btree_gist
         version: stable
       - name: pg_trgm
@@ -180,7 +206,7 @@ spec:
       - name: citus
         version: "14.0.0"
       - name: citus_columnar
-        version: 14.0.0
+        version: "14.0.0"
       - name: btree_gist
         version: stable
       - name: pg_trgm
@@ -202,12 +228,13 @@ spec:
       - name: citus
         version: "14.0.0"
       - name: citus_columnar
-        version: 14.0.0
+        version: "14.0.0"
       - name: btree_gist
         version: stable
       - name: pg_trgm
         version: "1.6"
   sgCluster: mirror-citus-shard2
+EOF
 ```
 
 ## 11. Monitor Upgrade Pods
@@ -221,7 +248,13 @@ Watch upgrade pods for failures or stale PostgreSQL version metadata.
 + IS_STATEFULSET_UPDATED=false
 ```
 
-If this error is observed, you will need to patch the `SGCluster` status manually
+If this error is observed, you will need to patch the `SGCluster` status manually using
+
+```bash
+kubectl patch sgclusters.stackgres.io mirror-citus-shard0 \
+--type='merge' \
+-p '{"status":{"postgresVersion":"18.3"}}'
+```
 
 ## 12. Run citus_finish_pg_upgrade() After All Upgrade Pods Complete
 
@@ -309,7 +342,8 @@ kubectl patch sgclusters.stackgres.io mirror-citus-coord \
 
 Create and apply an SGDbOps resource for the coordinator.
 
-```yaml
+```bash
+cat <<EOF | kubectl apply -f -
 apiVersion: stackgres.io/v1
 kind: SGDbOps
 metadata:
@@ -327,12 +361,13 @@ spec:
       - name: citus
         version: "14.0.0"
       - name: citus_columnar
-        version: 14.0.0
+        version: "14.0.0"
       - name: btree_gist
         version: stable
       - name: pg_trgm
         version: "1.6"
   sgCluster: mirror-citus-coord
+  EOF
 ```
 
 ## 20. Monitor Coordinator Upgrade Pod
@@ -346,9 +381,17 @@ Watch upgrade pods for failures or stale PostgreSQL version metadata.
 + IS_STATEFULSET_UPDATED=false
 ```
 
-If this error is observed, you will need to patch the `SGCluster` status manually
+If this error is observed, you will need to patch the `SGCluster` status manually using
+
+```bash
+kubectl patch sgclusters.stackgres.io mirror-citus-coord \
+--type='merge' \
+-p '{"status":{"postgresVersion":"18.3"}}'
+```
 
 ## 21. Run citus_finish_pg_upgrade() on Coordinator
+
+Wait for the coordinator replica to finish being created and run:
 
 ```bash
 kubectl exec -it mirror-citus-coord-0 -c postgres-util -- \
@@ -396,28 +439,59 @@ kubectl annotate sgclusters.stackgres.io \
   --overwrite
 ```
 
-## 24. Restart Coordinator
-
-Restart the coordinator StatefulSet.
-
-## 25. Delete Temporary SGPostgresConfigs
+## 24. Delete Temporary SGPostgresConfigs
 
 ```bash
 kubectl delete sgpgconfigs.stackgres.io --all
 ```
 
-## 26. Validate Data Integrity
+## 25. Validate Data Integrity
 
 Re-run the validation queries and confirm data integrity.
 
-## 27. Deploy Updated Helm Chart
-
-Deploy the updated chart with the new PostgreSQL and Citus versions.
-
-## 28. Edit the `SGShardedCluster` resource
+## 26. Edit the `SGShardedCluster` resource
 
 Update all postgres versions to match the upgraded version. This includes updating all extensions in the status section
 
-## 29. Verify Operator Logs
+```bash
+kubectl get sgshardedcluster mirror-citus -o json \
+| jq '
+  .status.postgresVersion = "18.3"
+  | .status.extensions |= map(
+      if .name == "citus" or .name == "citus_columnar" then
+        .postgresVersion = "18"
+      else
+        .postgresVersion = "18.3"
+      end
+    )
+' \
+| kubectl replace -f -
+```
+
+## 27. Deploy Updated Helm Chart
+
+Deploy the updated chart with the new PostgreSQL and Citus versions. Should disable acceptance and monitor
+
+## 28. Verify Operator Logs
 
 Ensure StackGres operator pod is not logging any errors. There will be some errors in the logs at various steps of the upgrade but there should be no new errors after previous step
+
+## 29. Restart Coordinator
+
+Restart the coordinator
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: stackgres.io/v1
+kind: SGDbOps
+metadata:
+  name: restart-mirror-citus-coord
+spec:
+  op: restart
+  sgCluster: mirror-citus-coord
+EOF
+```
+
+## 29. Deploy Final Helm Release
+
+Enable acceptance tests and monitor and upgrade helm release
