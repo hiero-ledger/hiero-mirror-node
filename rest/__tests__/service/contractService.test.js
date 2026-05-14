@@ -1059,7 +1059,7 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
 
     const evmAddressFilter = {create2_evm_address: evmAddress};
     await expect(() => ContractService.getContractIdByEvmAddress(evmAddressFilter)).rejects.toThrow(
-      new Error(`More than one contract with the evm address 0x${evmAddress} have been found.`)
+      new Error(`More than one contract or account with the evm address 0x${evmAddress} have been found.`)
     );
   });
 
@@ -1148,7 +1148,7 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
       });
 
       await expect(() => ContractService.getContractIdByEvmAddress({create2_evm_address: evmAddress})).rejects.toThrow(
-        new Error(`More than one contract with the evm address 0x${evmAddress} have been found.`)
+        new Error(`More than one contract or account with the evm address 0x${evmAddress} have been found.`)
       );
     });
 

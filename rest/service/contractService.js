@@ -458,7 +458,7 @@ class ContractService extends BaseService {
     }
     // since evm_address is not a unique index, it is important to make this check.
     if (rows.length > 1) {
-      throw new Error(`More than one contract with the evm address 0x${create2EvmAddress} have been found.`);
+      throw new Error(`More than one contract or account with the evm address 0x${create2EvmAddress} have been found.`);
     }
 
     return rows[0].id;
