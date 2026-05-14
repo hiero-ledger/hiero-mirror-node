@@ -730,7 +730,7 @@ function unpauseCitus() {
   if [[ -z "${citusPods}" ]]; then
     log "Starting citus cluster in namespace ${namespace}"
     if [[ "${reinitializeCitus}" == "true" ]]; then
-      kubectl annotate endpoints -n "${namespace}" -l 'stackgres.io/cluster=true' initialize- --overwrite
+      kubectl delete endpoints -n "${namespace}" -l 'stackgres.io/cluster=true' --ignore-not-found
     fi
     kubectl annotate sgclusters.stackgres.io -n "${namespace}" --all stackgres.io/reconciliation-pause- --overwrite
 
