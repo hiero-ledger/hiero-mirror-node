@@ -2,10 +2,12 @@
 
 package org.hiero.mirror.web3.service.model;
 
+import java.util.Map;
 import lombok.Builder;
 import lombok.Value;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
 import org.hiero.mirror.web3.viewmodel.BlockType;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hyperledger.besu.datatypes.Address;
 
 @Value
@@ -20,6 +22,9 @@ public class ContractExecutionParameters implements CallServiceParameters {
     private final boolean isStatic;
     private final Address receiver;
     private final Address sender;
+    /** Per-address state overrides; may be null when no overrides are requested. */
+    private final Map<String, StateOverride> stateOverride;
+
     private final TracerType tracerType = TracerType.OPERATION;
     private final long value;
 

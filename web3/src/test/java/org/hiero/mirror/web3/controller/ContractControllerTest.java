@@ -44,6 +44,7 @@ import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls;
 import org.hiero.mirror.web3.web3j.generated.ERCTestContractHistorical;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
@@ -539,6 +540,98 @@ class ContractControllerTest {
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(content().string(convert(new GenericErrorResponse("Service Unavailable"))));
         assertThat(capturedOutput.getOut()).contains("503 Query timeout");
+    }
+
+    // ── State override tests ──────────────────────────────────────────────────
+
+    @Test
+    void callWithStateOverrideBalance() throws Exception {
+        final var override = new StateOverride();
+        override.setBalance("0xde0b6b3a7640000"); // 1 HBAR in tinybars hex
+        final var request = request();
+        request.setStateOverride(Map.of("0x00000000000000000000000000000000000004e2", override));
+
+        contractCall(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void callWithStateOverrideNonce() throws Exception {
+        final var override = new StateOverride();
+        override.setNonce(42L);
+        final var request = request();
+        request.setStateOverride(Map.of("0x00000000000000000000000000000000000004e2", override));
+
+        contractCall(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void callWithStateOverrideCode() throws Exception {
+        final var override = new StateOverride();
+        override.setCode("0x6080604052");
+        final var request = request();
+        request.setStateOverride(Map.of("0x00000000000000000000000000000000000004e4", override));
+
+        contractCall(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void callWithStateOverrideStateDiff() throws Exception {
+        final var override = new StateOverride();
+        override.setStateDiff(Map.of(
+                "0x0000000000000000000000000000000000000000000000000000000000000001",
+                "0x0000000000000000000000000000000000000000000000000000000000000064"));
+        final var request = request();
+        request.setStateOverride(Map.of("0x00000000000000000000000000000000000004e4", override));
+
+        contractCall(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void callWithStateOverrideFullState() throws Exception {
+        final var override = new StateOverride();
+        override.setState(Map.of(
+                "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "0x00000000000000000000000000000000000000000000000000000000deadbeef"));
+        final var request = request();
+        request.setStateOverride(Map.of("0x00000000000000000000000000000000000004e4", override));
+
+        contractCall(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void callWithStateOverrideMutuallyExclusiveStateAndStateDiff() throws Exception {
+        final var override = new StateOverride();
+        override.setState(Map.of("0x01", "0x01"));
+        override.setStateDiff(Map.of("0x02", "0x02"));
+        final var request = request();
+        request.setStateOverride(Map.of("0x00000000000000000000000000000000000004e4", override));
+
+        contractCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("state and stateDiff are mutually exclusive")));
+    }
+
+    @Test
+    void callWithStateOverrideInvalidAddressKey() throws Exception {
+        final var override = new StateOverride();
+        override.setBalance("0x1");
+        final var request = request();
+        // Key is too short (not 40 hex chars)
+        request.setStateOverride(Map.of("0x1234", override));
+
+        contractCall(request).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void callWithStateOverrideInvalidNonce() throws Exception {
+        final var request = request();
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"to\": \"0x00000000000000000000000000000000000004e4\","
+                                + "\"stateOverride\": {\"0x00000000000000000000000000000000000004e2\":"
+                                + "{\"nonce\": -1}}}"))
+                .andExpect(status().isBadRequest());
     }
 
     private ContractCallRequest request() {

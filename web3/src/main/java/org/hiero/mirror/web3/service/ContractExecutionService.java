@@ -6,7 +6,9 @@ import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -16,6 +18,7 @@ import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 
 @CustomLog
 @Named
@@ -61,6 +64,11 @@ public class ContractExecutionService extends ContractCallService {
             try {
                 updateGasLimitMetric(params);
 
+                if (params.getStateOverride() != null
+                        && !params.getStateOverride().isEmpty()) {
+                    ctx.setStateOverrides(normalizeOverrideKeys(params.getStateOverride()));
+                }
+
                 Bytes result;
                 if (params.isEstimate()) {
                     result = estimateGas(params, ctx);
@@ -79,6 +87,21 @@ public class ContractExecutionService extends ContractCallService {
 
             return new ContractExecutionResult(stringResult, gasUsed);
         });
+    }
+
+    /**
+     * Normalizes state-override map keys to lowercase {@code 0x}-prefixed form so that lookups in the
+     * state layer are case-insensitive and consistently prefixed.
+     */
+    private static Map<String, StateOverride> normalizeOverrideKeys(Map<String, StateOverride> raw) {
+        return raw.entrySet().stream()
+                .collect(Collectors.toMap(e -> normalizeAddress(e.getKey()), Map.Entry::getValue, (a, b) -> b));
+    }
+
+    static String normalizeAddress(String address) {
+        if (address == null) return null;
+        final String hex = address.startsWith("0x") || address.startsWith("0X") ? address.substring(2) : address;
+        return "0x" + hex.toLowerCase();
     }
 
     /**

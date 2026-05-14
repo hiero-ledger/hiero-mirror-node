@@ -15,6 +15,7 @@ import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractRepository;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.jspecify.annotations.NonNull;
@@ -37,13 +38,51 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
 
     @Override
     protected Bytecode readFromDataSource(@NonNull ContractID contractID) {
-        final var entityId = toEntityId(contractID);
+        // Check code override first so it takes precedence over DB bytecode.
+        final var ctx = ContractCallContext.get();
+        final var stateOverrides = ctx.getStateOverrides();
+        if (!stateOverrides.isEmpty()) {
+            final var evmAddr = contractIdToEvmAddressHex(contractID);
+            if (evmAddr != null) {
+                final var override = stateOverrides.get(evmAddr);
+                if (override != null && override.getCode() != null) {
+                    return new Bytecode(Bytes.wrap(hexStringToBytes(override.getCode())));
+                }
+            }
+        }
 
+        final var entityId = toEntityId(contractID);
         return contractRepository
                 .findRuntimeBytecode(entityId.getId())
                 .map(Bytes::wrap)
                 .map(Bytecode::new)
                 .orElse(null);
+    }
+
+    /**
+     * Returns the normalized ({@code 0x}-prefixed, lowercase) EVM address for the given {@link ContractID}.
+     */
+    static String contractIdToEvmAddressHex(@NonNull ContractID contractID) {
+        if (contractID.hasEvmAddress() && contractID.evmAddress().length() == 20) {
+            return "0x" + contractID.evmAddress().toHex().toLowerCase();
+        } else if (contractID.hasContractNum()) {
+            return "0x" + String.format("%040x", contractID.contractNum());
+        }
+        return null;
+    }
+
+    /** Decodes a hex string (with or without {@code 0x} prefix) to a byte array. */
+    static byte[] hexStringToBytes(@NonNull String hex) {
+        final String h = hex.startsWith("0x") || hex.startsWith("0X") ? hex.substring(2) : hex;
+        if (h.isEmpty()) {
+            return new byte[0];
+        }
+        final String padded = h.length() % 2 == 0 ? h : "0" + h;
+        final byte[] bytes = new byte[padded.length() / 2];
+        for (int i = 0; i < bytes.length; i++) {
+            bytes[i] = (byte) Integer.parseInt(padded, i * 2, i * 2 + 2, 16);
+        }
+        return bytes;
     }
 
     private EntityId toEntityId(@NonNull final ContractID contractID) {

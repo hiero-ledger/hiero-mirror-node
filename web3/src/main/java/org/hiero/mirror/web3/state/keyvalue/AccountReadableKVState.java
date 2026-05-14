@@ -11,6 +11,7 @@ import com.hedera.hapi.node.state.token.Account;
 import com.hedera.node.app.service.token.TokenService;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
+import java.math.BigInteger;
 import java.util.Optional;
 import java.util.Set;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -81,19 +82,93 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
         }
 
         final var timestamp = ContractCallContext.get().getTimestamp();
-        return commonEntityAccessor
+        final var account = commonEntityAccessor
                 .get(key, timestamp)
                 .filter(entity -> entity.getType() == ACCOUNT || entity.getType() == CONTRACT)
                 .map(entity -> {
-                    final var account = accountFromEntity(entity, timestamp);
+                    final var acc = accountFromEntity(entity, timestamp);
                     // Associate the account alias with this entity in the cache, if any.
-                    if (account.alias().length() > 0) {
-                        aliasedAccountCacheManager.putAccountAlias(account.alias(), key);
+                    if (acc.alias().length() > 0) {
+                        aliasedAccountCacheManager.putAccountAlias(acc.alias(), key);
                     }
-                    return account;
+                    return acc;
                 })
                 .or(() -> getDummySystemAccountIfApplicable(key))
                 .orElse(null);
+
+        return applyAccountStateOverride(key, account);
+    }
+
+    /**
+     * Applies {@code balance} and {@code nonce} state overrides (if any) to the account fetched from the DB.
+     * When the account does not exist in the DB but an override is present, a synthetic account is created so
+     * that the EVM can execute against the overridden state.
+     */
+    private Account applyAccountStateOverride(@NonNull AccountID key, Account account) {
+        final var overrides = ContractCallContext.get().getStateOverrides();
+        if (overrides.isEmpty()) {
+            return account;
+        }
+
+        final var evmAddr = accountIdToEvmAddressHex(key);
+        if (evmAddr == null) {
+            return account;
+        }
+
+        final var override = overrides.get(evmAddr);
+        if (override == null || (override.getBalance() == null && override.getNonce() == null)) {
+            return account;
+        }
+
+        if (account == null) {
+            // Create a minimal synthetic account so the EVM can use the overridden state.
+            return Account.newBuilder()
+                    .accountId(key)
+                    .key(getDefaultKey())
+                    .tinybarBalance(override.getBalance() != null ? parseHexBalance(override.getBalance()) : 0L)
+                    .ethereumNonce(override.getNonce() != null ? override.getNonce() : 0L)
+                    .build();
+        }
+
+        final var builder = account.copyBuilder();
+        if (override.getBalance() != null) {
+            builder.tinybarBalance(parseHexBalance(override.getBalance()));
+        }
+        if (override.getNonce() != null) {
+            builder.ethereumNonce(override.getNonce());
+        }
+        return builder.build();
+    }
+
+    /**
+     * Returns the normalized ({@code 0x}-prefixed, lowercase) EVM address for the given {@link AccountID}.
+     * <ul>
+     *   <li>If the ID has an alias that is exactly 20 bytes it IS the EVM address.</li>
+     *   <li>Otherwise the long-zero address is derived from the account number.</li>
+     * </ul>
+     */
+    private static String accountIdToEvmAddressHex(@NonNull AccountID key) {
+        if (key.hasAlias() && key.alias().length() == 20) {
+            return "0x" + key.alias().toHex().toLowerCase();
+        } else if (key.hasAccountNum()) {
+            return "0x" + String.format("%040x", key.accountNum());
+        }
+        return null;
+    }
+
+    /** Parses a hex-encoded balance string (with or without {@code 0x} prefix) into tinybars, clamped to {@link Long#MAX_VALUE}. */
+    private static long parseHexBalance(@NonNull String hexBalance) {
+        final String hex =
+                hexBalance.startsWith("0x") || hexBalance.startsWith("0X") ? hexBalance.substring(2) : hexBalance;
+        if (hex.isEmpty()) {
+            return 0L;
+        }
+        try {
+            final var bigInt = new BigInteger(hex, 16);
+            return bigInt.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0 ? Long.MAX_VALUE : bigInt.longValue();
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
     }
 
     /**
