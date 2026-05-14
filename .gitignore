@@ -170,3 +170,7 @@ rest/monitoring/config/serverlist.json
 report-*.csv
 
 web3/src/testHistorical/solidity/openzeppelin
+
+# AI
+.claude/settings.local.json
+.claude/worktrees

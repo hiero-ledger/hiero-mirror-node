@@ -152,6 +152,8 @@ if (!isTestEnv()) {
       throw err;
     }
 
+    server.headersTimeout = config.response.headers.timeout;
+    server.keepAliveTimeout = config.response.keepAliveTimeout;
     logger.info(`Server running on port: ${port}`);
   });
 

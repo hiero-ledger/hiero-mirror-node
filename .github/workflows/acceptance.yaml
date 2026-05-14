@@ -174,13 +174,8 @@ jobs:
             env:
               HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
-              HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
-              HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_SIMPLEFEES: "false"
               HIERO_MIRROR_TEST_ACCEPTANCE_SKIPENTITIESCLEANUP: "true"
             enabled: true
-          web3:
-            env:
-              HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
           EOF
 
           solo init
@@ -214,6 +209,11 @@ jobs:
             | jq -r '.[] | select (.chart | test("hedera-mirror-.*")) | .app_version')
           echo "Installed hedera-mirror chart version $APP_VERSION"
 
+      - name: Run REST monitor test
+        run: |
+          helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
+            --filter name="${HELM_RELEASE_NAME}-rest-monitor-test" --timeout 5m
+
       - name: Run acceptance tests
         run: |
           helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
@@ -222,10 +222,11 @@ jobs:
       - name: Run k6 tests
         if: ${{ matrix.stream-type != 'BLOCK' }}
         env:
-          BASE_URL: "http://127.0.0.1:8081"
+          BASE_URL: "http://127.0.0.1:38081"
           DEFAULT_DURATION: "3s"
           DEFAULT_GRACEFUL_STOP: "1s"
           DEFAULT_VUS: 2
+          RUN_OPCODE_TESTS: "true"
         uses: ./.github/actions/k6
 
       - name: Show Pod Logs on Failure

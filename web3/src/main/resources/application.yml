@@ -11,9 +11,6 @@ hiero:
         sslMode: DISABLE
         statementTimeout: 2000
         username: mirror_web3
-      opcode:
-        tracer:
-          enabled: false
 logging:
   level:
     root: warn
@@ -51,6 +48,7 @@ server:
   shutdown: graceful
   tomcat:
     connection-timeout: 3s
+    keep-alive-timeout: 620s
     max-http-form-post-size: 1MB
     max-swallow-size: 1MB
 spring:

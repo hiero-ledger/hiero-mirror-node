@@ -20,12 +20,14 @@ extra.apply {
     set("blockNodeVersion", "0.32.0")
     set("consensusNodeVersion", "0.73.0")
     set("grpcVersion", "1.81.0")
-    set("jooq.version", "3.21.2") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.21.3") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
+    set("netty.version", "4.2.13.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.13.0")
     set("postgresql.version", "42.7.11") // Temporary until next Spring Boot
     set("protobufVersion", "4.34.1")
     set("springGrpcVersion", "1.0.3")
+    set("tomcat.version", "11.0.22") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
 
@@ -53,7 +55,7 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.7.11")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.8.1")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
@@ -83,11 +85,11 @@ dependencies {
         api("org.hyperledger.besu:evm:$besuVersion")
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
-        api("org.msgpack:jackson-dataformat-msgpack:0.9.11")
+        api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.44.0")
+        api("software.amazon.awssdk:bom:2.44.4")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

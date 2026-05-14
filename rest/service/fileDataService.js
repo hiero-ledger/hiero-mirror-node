@@ -102,7 +102,7 @@ class FileDataService extends BaseService {
         return row === null ? null : new resultConstructor(row);
       } catch (error) {
         logger.warn(
-          `Failed to load file data for file id ${fileEntityId} at ${row.consensus_timestamp}, failing back to previous file. Attempt ${attempts}. Error: ${error}`
+          `Attempt ${attempts} failed to load file ${fileEntityId} at ${row.consensus_timestamp}, falling back to previous file: ${error.message}`
         );
 
         filters.whereQuery = [

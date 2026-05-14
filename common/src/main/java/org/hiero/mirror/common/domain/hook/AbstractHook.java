@@ -45,7 +45,6 @@ public abstract class AbstractHook implements History {
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_COALESCE)
     private byte[] adminKey;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_COALESCE)
     private EntityId contractId;

@@ -75,6 +75,16 @@ public final class CutoverServiceImpl implements CutoverService {
     }
 
     @Override
+    public long getNextBlockNumber() {
+        return getLastRecordFile()
+                .map(RecordFile::getIndex)
+                .map(v -> v + 1)
+                .or(() -> Optional.ofNullable(
+                        blockProperties.getImporterProperties().getStartBlockNumber()))
+                .orElse(GENESIS_BLOCK_NUMBER);
+    }
+
+    @Override
     public Optional<RecordFile> getLastRecordFile() {
         return Objects.requireNonNull(lastRecordFile.get())
                 .or(() -> {
