@@ -5,8 +5,10 @@ package org.hiero.mirror.importer.parser.contractlog;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogServiceImpl.HAPI_SYNTHETIC_LOG_VERSION;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.AccountAmount;
@@ -19,17 +21,21 @@ import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TokenType;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
 import java.util.Arrays;
+import java.util.Random;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.RecordItemBuilder.TransferType;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.contract.ContractLog;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,6 +61,9 @@ final class SyntheticContractLogServiceImplTest {
     @Mock
     private EntityListener entityListener;
 
+    @Mock
+    private ParserContext parserContext;
+
     @Captor
     private ArgumentCaptor<ContractLog> contractLogCaptor;
 
@@ -67,7 +76,8 @@ final class SyntheticContractLogServiceImplTest {
 
     @BeforeEach
     void beforeEach() {
-        syntheticContractLogService = new SyntheticContractLogServiceImpl(entityListener, entityProperties);
+        syntheticContractLogService =
+                new SyntheticContractLogServiceImpl(parserContext, entityListener, entityProperties);
         recordItem = recordItemBuilder.tokenMint(TokenType.FUNGIBLE_COMMON).build();
 
         TokenID tokenId = recordItem.getTransactionBody().getTokenMint().getToken();
@@ -287,6 +297,18 @@ final class SyntheticContractLogServiceImplTest {
                 .build();
         long parentTimestamp = parentRecordItem.getConsensusTimestamp();
 
+        var existingBloomFilter = new LogsBloomFilter();
+        var randomAddress = new byte[20];
+        new Random().nextBytes(randomAddress);
+        existingBloomFilter.insertAddress(randomAddress);
+        byte[] existingBloom = existingBloomFilter.toArrayUnsafe();
+
+        var contractResult = new ContractResult();
+        contractResult.setConsensusTimestamp(parentTimestamp);
+        contractResult.setBloom(existingBloom);
+
+        when(parserContext.get(eq(ContractResult.class), eq(parentTimestamp))).thenReturn(contractResult);
+
         recordItem = recordItemBuilder
                 .contractCall()
                 .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
@@ -300,10 +322,29 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
 
+        verify(parserContext).get(eq(ContractResult.class), eq(parentTimestamp));
         verify(entityListener).onContractLog(contractLogCaptor.capture());
         var capturedLog = contractLogCaptor.getValue();
 
         assertThat(capturedLog.getConsensusTimestamp()).isEqualTo(parentTimestamp);
+        assertThat(capturedLog.getContractResult()).isSameAs(contractResult);
+
+        // Simulate SyntheticLogListener replacing the marker bloom with the computed log bloom; ContractLog.setBloom
+        // merges that into the parent's ContractResult (same behavior as end-of-record processing).
+        var syntheticLogBloom = new LogsBloomFilter();
+        syntheticLogBloom.insertAddress(DomainUtils.toEvmAddress(capturedLog.getContractId()));
+        syntheticLogBloom.insertTopic(capturedLog.getTopic0());
+        syntheticLogBloom.insertTopic(capturedLog.getTopic1());
+        syntheticLogBloom.insertTopic(capturedLog.getTopic2());
+        syntheticLogBloom.insertTopic(capturedLog.getTopic3());
+        byte[] singleLogBloom = syntheticLogBloom.toArrayUnsafe();
+
+        capturedLog.setBloom(singleLogBloom);
+
+        var expectedMergedBloom = new LogsBloomFilter();
+        expectedMergedBloom.or(existingBloom);
+        expectedMergedBloom.or(singleLogBloom);
+        assertThat(contractResult.getBloom()).isEqualTo(expectedMergedBloom.toArrayUnsafe());
     }
 
     @Test

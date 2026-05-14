@@ -226,6 +226,7 @@ jobs:
           DEFAULT_DURATION: "3s"
           DEFAULT_GRACEFUL_STOP: "1s"
           DEFAULT_VUS: 2
+          RUN_OPCODE_TESTS: "true"
         uses: ./.github/actions/k6
 
       - name: Show Pod Logs on Failure

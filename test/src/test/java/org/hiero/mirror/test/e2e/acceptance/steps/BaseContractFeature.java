@@ -18,7 +18,7 @@ public abstract class BaseContractFeature extends AbstractFeature {
     private final List<String> childContracts = new ArrayList<>();
 
     @Autowired
-    private AcceptanceTestProperties acceptanceTestProperties;
+    protected AcceptanceTestProperties acceptanceTestProperties;
 
     protected ContractResponse verifyContractFromMirror(boolean isDeleted) {
         var mirrorContract =
