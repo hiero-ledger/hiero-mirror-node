@@ -17,9 +17,6 @@ hiero:
           350: 0.66.0
           400: 0.67.0
         network: OTHER
-      opcode:
-        tracer:
-          enabled: true
       requestTimeout: 60s
 spring:
   test:

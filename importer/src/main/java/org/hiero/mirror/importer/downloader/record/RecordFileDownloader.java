@@ -9,14 +9,13 @@ import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.SidecarFile;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.domain.StreamFileData;
@@ -24,8 +23,7 @@ import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.Downloader;
 import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
-import org.hiero.mirror.importer.downloader.block.BlockDownloaderProperties;
-import org.hiero.mirror.importer.downloader.block.CutoverService;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
@@ -46,7 +44,6 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
     private final CutoverService cutoverService;
     private final SidecarFileReader sidecarFileReader;
     private final SidecarProperties sidecarProperties;
-    private final BlockDownloaderProperties blockDownloaderProperties;
 
     @SuppressWarnings("java:S107")
     public RecordFileDownloader(
@@ -62,8 +59,7 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
             SignatureFileReader signatureFileReader,
             StreamFileNotifier streamFileNotifier,
             StreamFileProvider streamFileProvider,
-            RecordFileReader streamFileReader,
-            BlockDownloaderProperties blockDownloaderProperties) {
+            RecordFileReader streamFileReader) {
         super(
                 consensusNodeService,
                 downloaderProperties,
@@ -78,26 +74,27 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
         this.cutoverService = cutoverService;
         this.sidecarFileReader = sidecarFileReader;
         this.sidecarProperties = sidecarProperties;
-        this.blockDownloaderProperties = blockDownloaderProperties;
     }
 
     @Override
     @Scheduled(fixedDelayString = "#{@recordDownloaderProperties.getFrequency().toMillis()}")
     public void download() {
-        if (!blockDownloaderProperties.isEnabled()) {
+        cutoverService.get(StreamType.RECORD, () -> {
+            // Sync the lastStreamFile with CutoverService
+            cutoverService.getLastRecordFile().ifPresent(rf -> lastStreamFile.set(Optional.of(rf)));
             downloadNextBatch();
-        }
+        });
     }
 
     @Override
-    protected void onVerified(StreamFileData streamFileData, RecordFile recordFile, ConsensusNode node) {
-        downloadSidecars(streamFileData.getStreamFilename(), recordFile, node);
-        super.onVerified(streamFileData, recordFile, node);
+    protected void onVerified(StreamFileData streamFileData, RecordFile recordFile) {
+        downloadSidecars(streamFileData.getStreamFilename(), recordFile);
+        super.onVerified(streamFileData, recordFile);
     }
 
     @Override
     protected boolean shouldDownload() {
-        return cutoverService.isActive(StreamType.RECORD);
+        return true;
     }
 
     @Override
@@ -109,16 +106,14 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
         }
     }
 
-    private void downloadSidecars(StreamFilename recordFilename, RecordFile recordFile, ConsensusNode node) {
+    private void downloadSidecars(StreamFilename recordFilename, RecordFile recordFile) {
         // do nothing if both writing files and parsing sidecars options are disabled, or sidecars are empty
         if (!downloaderProperties.isWriteFiles() && !sidecarProperties.isEnabled()
                 || recordFile.getSidecars().isEmpty()) {
             return;
         }
 
-        var acceptedTypes =
-                sidecarProperties.getTypes().stream().map(Enum::ordinal).collect(Collectors.toSet());
-
+        var acceptedTypes = sidecarProperties.getTypeOrdinals();
         var records = Flux.fromIterable(recordFile.getSidecars())
                 .filter(sidecar ->
                         acceptedTypes.isEmpty() || sidecar.getTypes().stream().anyMatch(acceptedTypes::contains))

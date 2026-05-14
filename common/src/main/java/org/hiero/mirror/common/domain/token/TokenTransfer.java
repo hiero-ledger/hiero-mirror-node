@@ -60,11 +60,9 @@ public class TokenTransfer implements Persistable<TokenTransfer.Id> {
 
         private long consensusTimestamp;
 
-        // Specify converter explicitly so translation works with native image
         @Convert(converter = EntityIdConverter.class)
         private EntityId tokenId;
 
-        // Specify converter explicitly so translation works with native image
         @Convert(converter = EntityIdConverter.class)
         private EntityId accountId;
     }

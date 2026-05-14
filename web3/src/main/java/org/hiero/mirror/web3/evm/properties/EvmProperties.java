@@ -61,6 +61,10 @@ public class EvmProperties {
     @NotNull
     private NavigableMap<Long, SemanticVersion> evmVersions = new TreeMap<>();
 
+    @Min(1)
+    private int maxFileAttempts = 12;
+
+    @NotNull
     @Min(21_000L)
     private long maxGasLimit = 15_000_000L;
 

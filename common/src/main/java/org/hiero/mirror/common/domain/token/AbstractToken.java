@@ -94,7 +94,6 @@ public class AbstractToken implements History {
     @UpsertColumn(coalesce = "case when {0} >= 0 then {0} else e_{0} + coalesce({0}, {1}) end")
     private Long totalSupply; // Increment with initialSupply and mint amounts, decrement with burn amount
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId treasuryAccountId;
 

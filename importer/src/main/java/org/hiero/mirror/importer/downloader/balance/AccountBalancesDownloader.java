@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.domain.StreamFileData;
@@ -61,8 +60,8 @@ public class AccountBalancesDownloader extends Downloader<AccountBalanceFile, Ac
     }
 
     @Override
-    protected void onVerified(StreamFileData streamFileData, AccountBalanceFile streamFile, ConsensusNode node) {
-        super.onVerified(streamFileData, streamFile, node);
+    protected void onVerified(StreamFileData streamFileData, AccountBalanceFile streamFile) {
+        super.onVerified(streamFileData, streamFile);
         accountBalanceFileExists.set(true);
     }
 

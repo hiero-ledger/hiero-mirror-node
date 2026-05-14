@@ -11,11 +11,11 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.base.Suppliers;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import lombok.CustomLog;
@@ -39,7 +39,6 @@ public class ConfigurableTransactionGenerator implements TransactionGenerator {
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
             .build();
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final ExpressionConverter expressionConverter;
     private final MonitorProperties monitorProperties;
@@ -143,6 +142,6 @@ public class ConfigurableTransactionGenerator implements TransactionGenerator {
     }
 
     private boolean shouldGenerate(double expectedPercent) {
-        return RANDOM.nextDouble() < expectedPercent;
+        return ThreadLocalRandom.current().nextDouble() < expectedPercent;
     }
 }

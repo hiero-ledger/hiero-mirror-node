@@ -76,11 +76,15 @@
         "nodeAccountId": "0.0.3",
         "max_custom_fees": [
           {
-            "accountId": { "accountNum": 8 },
+            "accountId": {
+              "accountNum": 8
+            },
             "fees": [
               {
                 "amount": 1000,
-                "denominatingTokenId": { "tokenNum": 5100 }
+                "denominatingTokenId": {
+                  "tokenNum": 5100
+                }
               },
               {
                 "amount": 2000,
@@ -89,7 +93,9 @@
             ]
           },
           {
-            "accountId": { "accountNum": 10 },
+            "accountId": {
+              "accountNum": 10
+            },
             "fees": [
               {
                 "amount": 3000
@@ -174,6 +180,7 @@
             "consensus_timestamp": "1565779444.711927005",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_custom_fees": [
               {
                 "account_id": "0.0.8",
@@ -231,6 +238,7 @@
             "consensus_timestamp": "1565779444.711927004",
             "entity_id": "0.0.900",
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -272,6 +280,7 @@
             "consensus_timestamp": "1565779444.711927003",
             "entity_id": "0.0.8",
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -316,6 +325,7 @@
             "consensus_timestamp": "1565779444.711927001",
             "entity_id": "0.0.8",
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -357,6 +367,7 @@
             "consensus_timestamp": "1565779400.711927001",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -403,6 +414,7 @@
             "consensus_timestamp": "1565779333.711927001",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -444,6 +456,7 @@
             "consensus_timestamp": "1565779209.711927001",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -500,6 +513,7 @@
             "consensus_timestamp": "1565779500.711927001",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -546,6 +560,7 @@
             "consensus_timestamp": "1565779444.711927005",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_custom_fees": [
               {
                 "account_id": "0.0.8",
@@ -603,6 +618,7 @@
             "consensus_timestamp": "1565779444.711927004",
             "entity_id": "0.0.900",
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -644,6 +660,7 @@
             "consensus_timestamp": "1565779444.711927003",
             "entity_id": "0.0.8",
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -688,6 +705,7 @@
             "consensus_timestamp": "1565779444.711927001",
             "entity_id": "0.0.8",
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -729,6 +747,7 @@
             "consensus_timestamp": "1565779400.711927001",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -775,6 +794,7 @@
             "consensus_timestamp": "1565779333.711927001",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -816,6 +836,7 @@
             "consensus_timestamp": "1565779209.711927001",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -857,6 +878,7 @@
             "consensus_timestamp": "1565779111.711927001",
             "entity_id": null,
             "high_volume": false,
+            "high_volume_pricing_multiplier": 1,
             "max_custom_fees": [],
             "max_fee": "33",
             "memo_base64": null,

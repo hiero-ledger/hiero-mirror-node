@@ -3,9 +3,9 @@
 package org.hiero.mirror.monitor.util;
 
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -16,7 +16,6 @@ import org.apache.commons.lang3.StringUtils;
 public class Utility {
 
     private static final long MILLIS_OFFSET = Duration.ofMinutes(5L).toMillis();
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     /**
      * Parses bytes as a String expected to be in format ^\d+ .*$. The first part is the published timestamp in
@@ -54,10 +53,11 @@ public class Utility {
 
     public static byte[] generateMessage(int requestedMessageSize) {
         String message = System.currentTimeMillis() + " ";
+        final var random = ThreadLocalRandom.current();
 
         if (message.length() < requestedMessageSize) {
             int length = requestedMessageSize - message.length();
-            message += RandomStringUtils.random(length, 0, 0, true, false, null, RANDOM);
+            message += RandomStringUtils.random(length, 0, 0, true, false, null, random);
         }
 
         return message.getBytes(StandardCharsets.US_ASCII);

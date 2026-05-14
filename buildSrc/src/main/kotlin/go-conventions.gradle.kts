@@ -14,9 +14,17 @@ apply<GoPlugin>()
 
 val go = project.extensions.getByName<GoExtension>("go")
 
+val isWindows = go.os == "windows"
+val binaryName =
+    if (isWindows) {
+        "${layout.projectDirectory.asFile.name}.exe"
+    } else {
+        layout.projectDirectory.asFile.name
+    }
+
 val goBuild =
     tasks.register<Go>("goBuild") {
-        val binary = layout.buildDirectory.asFile.get().resolve(layout.projectDirectory.asFile.name)
+        val binary = layout.buildDirectory.asFile.get().resolve(binaryName)
         val ldFlags = "-w -s -X main.Version=${project.version}"
         environment["CGO_ENABLED"] = "true"
         args("build", "-ldflags", ldFlags, "-o", binary)
@@ -33,7 +41,7 @@ val goClean =
 val gitDiff =
     tasks.register<Exec>("gitDiff") {
         // Fail the build if go fix actually modified tracked files
-        commandLine("git", "diff", "--exit-code")
+        commandLine("git", "diff", "--exit-code", layout.projectDirectory)
     }
 
 tasks.register<Go>("fix") {
@@ -55,20 +63,24 @@ tasks.register<Go>("generate") {
 }
 
 tasks.register<Exec>("run") {
-    commandLine(layout.buildDirectory.asFile.get().resolve(layout.projectDirectory.asFile.name))
+    group = "application"
+    commandLine(layout.buildDirectory.asFile.get().resolve(binaryName))
     dependsOn(goBuild)
 }
 
 tasks.register<Go>("test") {
-    args(
-        "test",
-        "-coverpkg=${go.pkg}",
-        "-coverprofile=coverage.txt",
-        "-covermode=atomic",
-        "-race",
-        "-v",
-        go.pkg,
-    )
+    val testArgs =
+        mutableListOf(
+            "test",
+            "-coverpkg=${go.pkg}",
+            "-coverprofile=coverage.txt",
+            "-covermode=atomic",
+        )
+    if (!isWindows) {
+        testArgs.add("-race")
+    }
+    testArgs.addAll(listOf("-v", go.pkg))
+    args(testArgs)
     dependsOn("fix")
     val disableLogging = gradle.startParameter.logLevel >= LogLevel.LIFECYCLE
     doFirst {
@@ -93,5 +105,5 @@ listOf(tasks.dependencyCheckAggregate, tasks.dependencyCheckAnalyze).forEach {
 // Ensure the Gradle-installed Go is on PATH for nested tools that exec "go"
 tasks.withType<Go>().configureEach {
     val goBinDir = go.goBin.parentFile.absolutePath
-    environment("PATH", "${goBinDir}:${System.getenv("PATH")}")
+    environment("PATH", "${goBinDir}${File.pathSeparator}${System.getenv("PATH")}")
 }

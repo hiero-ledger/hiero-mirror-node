@@ -28,6 +28,7 @@ public final class RuntimeHintsHelper {
     public static final MemberCategory[] CONSTRUCTORS_AND_METHODS = {
         MemberCategory.INVOKE_DECLARED_CONSTRUCTORS, MemberCategory.INVOKE_DECLARED_METHODS
     };
+    public static final MemberCategory[] CONSTRUCTORS_ONLY = {MemberCategory.INVOKE_DECLARED_CONSTRUCTORS};
     public static final MemberCategory[] FIELDS_AND_METHODS = {
         MemberCategory.ACCESS_DECLARED_FIELDS, MemberCategory.INVOKE_DECLARED_METHODS
     };

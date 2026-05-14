@@ -67,7 +67,6 @@ public class AccountBalance implements Persistable<AccountBalance.Id>, StreamIte
 
         private long consensusTimestamp;
 
-        // Specify converter explicitly so translation works with native image
         @Convert(converter = EntityIdConverter.class)
         private EntityId accountId;
     }

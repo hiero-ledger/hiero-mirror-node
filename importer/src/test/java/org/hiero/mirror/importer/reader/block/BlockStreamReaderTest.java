@@ -45,6 +45,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 import org.hiero.mirror.importer.reader.block.record.CompositeRecordFileItemReader;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
@@ -126,7 +127,8 @@ public final class BlockStreamReaderTest {
                             "bytes", "loadStart", "items", "previousWrappedRecordBlockHash", "wrappedRecordBlockHash")
                     .build();
 
-    private final BlockStreamReader reader = new BlockStreamReaderImpl(new CompositeRecordFileItemReader());
+    private final BlockStreamReader reader =
+            new BlockStreamReaderImpl(new CompositeRecordFileItemReader(new SidecarProperties()));
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
 
     @ParameterizedTest(name = "{0}")
@@ -549,18 +551,19 @@ public final class BlockStreamReaderTest {
     @Test
     void noSignedTransactions() {
         // A standalone state changes block item, with consensus timestamp
-        var stateChanges = stateChanges();
-        var block = Block.newBuilder()
-                .addItems(blockHeader())
+        final var stateChanges = stateChanges();
+        final var blockHeader = blockHeader();
+        final var block = Block.newBuilder()
+                .addItems(blockHeader)
                 .addItems(roundHeader())
                 .addItems(eventHeader())
                 .addItems(stateChanges)
                 .addItems(blockFooter())
                 .addItems(blockProof())
                 .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
-        long timestamp =
-                DomainUtils.timestampInNanosMax(stateChanges.getStateChanges().getConsensusTimestamp());
+        final var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
+        final long timestamp =
+                DomainUtils.timestampInNanosMax(blockHeader.getBlockHeader().getBlockTimestamp());
         assertThat(reader.read(blockStream))
                 .returns(timestamp, BlockFile::getConsensusEnd)
                 .returns(timestamp, BlockFile::getConsensusStart)
@@ -818,7 +821,8 @@ public final class BlockStreamReaderTest {
             bytes = TestUtils.zstd(block.toByteArray());
         }
 
-        return new BlockStream(block.getItemsList(), bytes, filename, TestUtils.id());
+        long blockCompleteTime = System.currentTimeMillis();
+        return new BlockStream(block.getItemsList(), blockCompleteTime, bytes, filename, blockCompleteTime - 1000);
     }
 
     @SneakyThrows
