@@ -1042,7 +1042,13 @@ class ContractController extends BaseController {
 
     let gasPriceFromFeeSchedule = null;
     if (!ethTransaction) {
-      const feeSchedule = await FileDataService.getFeeSchedule({whereQuery: []});
+      const whereQuery = [
+        {
+          query: `${FileData.CONSENSUS_TIMESTAMP}${utils.opsMap.lte}`,
+          param: timestamp,
+        },
+      ];
+      const feeSchedule = await FileDataService.getFeeSchedule({whereQuery});
       gasPriceFromFeeSchedule = feeSchedule?.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL) ?? null;
     }
 
@@ -1110,24 +1116,35 @@ class ContractController extends BaseController {
       RecordFileService.getRecordFileBlockDetailsFromTimestampArray(timestamps),
     ]);
 
-    const feeSchedule = await FileDataService.getFeeSchedule({whereQuery: []});
-    const contractCallGas = feeSchedule?.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL) ?? null;
+    response.results = await Promise.all(
+      rows.map(async (row) => {
+        const ethTransaction = ethereumTransactionMap.get(row.consensusTimestamp);
 
-    response.results = rows.map((row) => {
-      const ethTransaction = ethereumTransactionMap.get(row.consensusTimestamp);
+        let gasPriceFromFeeSchedule = null;
+        if (!ethTransaction) {
+          const whereQuery = [
+            {
+              query: `${FileData.CONSENSUS_TIMESTAMP}${utils.opsMap.lte}`,
+              param: row.consensusTimestamp,
+            },
+          ];
+          const feeSchedule = await FileDataService.getFeeSchedule({whereQuery});
+          gasPriceFromFeeSchedule = feeSchedule?.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL) ?? null;
+        }
 
-      return new ContractResultDetailsViewModel(
-        row,
-        recordFileMap.get(row.consensusTimestamp),
-        ethTransaction,
-        null,
-        null,
-        null,
-        convertToHbar,
-        null,
-        !ethTransaction ? contractCallGas : null
-      );
-    });
+        return new ContractResultDetailsViewModel(
+          row,
+          recordFileMap.get(row.consensusTimestamp),
+          ethTransaction,
+          null,
+          null,
+          null,
+          convertToHbar,
+          null,
+          gasPriceFromFeeSchedule
+        );
+      })
+    );
 
     const isEnd = response.results.length !== limit;
     const lastRow = last(response.results);
@@ -1217,7 +1234,13 @@ class ContractController extends BaseController {
 
     let gasPriceFromFeeSchedule = null;
     if (!ethTransaction) {
-      const feeSchedule = await FileDataService.getFeeSchedule({whereQuery: []});
+      const whereQuery = [
+        {
+          query: `${FileData.CONSENSUS_TIMESTAMP}${utils.opsMap.lte}`,
+          param: transactionDetails.consensusTimestamp,
+        },
+      ];
+      const feeSchedule = await FileDataService.getFeeSchedule({whereQuery});
       gasPriceFromFeeSchedule = feeSchedule?.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL) ?? null;
     }
 

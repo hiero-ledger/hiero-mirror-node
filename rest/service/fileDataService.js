@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import quickLru from 'quick-lru';
+
 import BaseService from './baseService';
-import config from '../config.js';
+import config from '../config';
 import {ExchangeRate, FeeSchedule, FileData} from '../model';
 import * as utils from '../utils';
 import EntityId from '../entityId';
-
-const CACHE_TTL_MS = 60 * 1000;
 
 /**
  * File data retrieval business logic
@@ -16,8 +16,10 @@ class FileDataService extends BaseService {
   static filterInnerPlaceholder = '<filterInnerPlaceHolder>';
   static filterOuterPlaceholder = '<filterOuterPlaceHolder>';
 
-  #feeScheduleCache = null;
-  #feeScheduleCacheExpiry = 0;
+  #feeScheduleCache = new quickLru({
+    maxAge: config.cache.feeSchedule.maxAge,
+    maxSize: config.cache.feeSchedule.maxSize,
+  });
 
   // retrieve the largest timestamp of the most recent create/update operation on the file
   // using this timestamp retrieve all recent file operations and combine contents for applicable file
@@ -97,9 +99,11 @@ class FileDataService extends BaseService {
   };
 
   getFeeSchedule = async (filterQueries) => {
-    const now = Date.now();
-    if (this.#feeScheduleCache && now < this.#feeScheduleCacheExpiry) {
-      return this.#feeScheduleCache;
+    const key = this.#getFeeScheduleKey(filterQueries);
+
+    const cached = this.#feeScheduleCache.get(key);
+    if (cached) {
+      return cached;
     }
 
     const [exchangeRate, feeSchedule] = await Promise.all([
@@ -112,10 +116,19 @@ class FileDataService extends BaseService {
     }
 
     feeSchedule.setExchangeRate(exchangeRate);
-    this.#feeScheduleCache = feeSchedule;
-    this.#feeScheduleCacheExpiry = now + CACHE_TTL_MS;
-    return this.#feeScheduleCache;
+    this.#feeScheduleCache.set(key, feeSchedule);
+    return feeSchedule;
   };
+
+  #getFeeScheduleKey(filterQueries) {
+    const {whereQuery} = filterQueries;
+    for (const filter of whereQuery) {
+      if (filter.query.trim().startsWith(FileData.CONSENSUS_TIMESTAMP)) {
+        return Math.floor(Number(filter.param) / 1_000_000_000);
+      }
+    }
+    return 'latest';
+  }
 
   fallbackRetry = async (fileEntityId, filterQueries, resultConstructor) => {
     const whereQuery = filterQueries.whereQuery ?? [];

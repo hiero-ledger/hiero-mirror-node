@@ -14,6 +14,9 @@ hiero:
           enabled: false
           compress: true
           compressThreshold: 150
+        feeSchedule:
+          maxAge: 60000
+          maxSize: 1000
         token:
           maxSize: 100000
       chainId: "0x0128"

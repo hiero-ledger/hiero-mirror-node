@@ -31,7 +31,6 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
    * @param {ContractStateChange[]} contractStateChanges
    * @param {FileData} fileData
    * @param {boolean} convertToHbar - If true, convert weibar to tinybar; if false, return raw weibar
-   * @param {number|null} transactionType - The transaction type (ContractCall, ContractCreate, EthereumTransaction)
    * @param {BigInt|null} gasPriceFromFeeSchedule - Gas price from fee schedule for non-Ethereum transactions
    */
   constructor(
@@ -42,7 +41,6 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     contractStateChanges = null,
     fileData = null,
     convertToHbar = true,
-    transactionType = null,
     gasPriceFromFeeSchedule = null
   ) {
     super(contractResult);
@@ -143,8 +141,6 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       } else if (!contractResult.functionParameters.length && !isNil(fileData)) {
         this.function_parameters = utils.toHexStringNonQuantity(fileData.file_data);
       }
-    } else {
-      // No ethereum transaction
     }
 
     // Apply defaults for non-ethereum transactions

@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {FileData} from '../../model';
+import {create, toBinary} from '@bufbuild/protobuf';
+import {
+  FeeDataSchema,
+  FeeComponentsSchema,
+  TransactionFeeScheduleSchema,
+  FeeScheduleSchema,
+  CurrentAndNextFeeScheduleSchema,
+  HederaFunctionality,
+} from '../../gen/services/basic_types_pb.js';
+import {TimestampSecondsSchema} from '../../gen/services/timestamp_pb.js';
+import {FileData, FeeSchedule} from '../../model';
 import {FileDataService} from '../../service';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
@@ -8,35 +18,61 @@ import EntityId from '../../entityId';
 
 setupIntegrationTest();
 
-const entityId = EntityId.parseString('112');
-const files = [
+const exchangeRateEntityId = EntityId.parseString('112');
+const feeScheduleEntityId = EntityId.parseString('111');
+const exchangeRateFiles = [
   {
     consensus_timestamp: 1,
-    entity_id: entityId.toString(),
+    entity_id: exchangeRateEntityId.toString(),
     file_data: Buffer.from('0a1008b0ea0110cac1181a0608a0a1d09306121008b0ea0110e18e191a0608b0bdd09306', 'hex'),
     transaction_type: 17,
   },
   {
     consensus_timestamp: 2,
-    entity_id: entityId.toString(),
+    entity_id: exchangeRateEntityId.toString(),
     file_data: Buffer.from('0a1008b0ea0110f5f3191a06089085d09306121008b0ea0110cac1181a0608a0a1d09306', 'hex'),
     transaction_type: 16,
   },
   {
     consensus_timestamp: 3,
-    entity_id: entityId.toString(),
+    entity_id: exchangeRateEntityId.toString(),
     file_data: Buffer.from('0a1008b0ea0110e9c81a1a060880e9cf9306121008b0ea0110f5f3191a06089085d09306', 'hex'),
     transaction_type: 19,
   },
   {
     consensus_timestamp: 4,
-    entity_id: entityId.toString(),
+    entity_id: exchangeRateEntityId.toString(),
     file_data: Buffer.from('0a1008b0ea0110f9bb1b1a0608f0cccf9306121008b0ea0110e9c81a1a060880e9cf9306', 'hex'),
     transaction_type: 19,
   },
 ];
 
-const fileId = entityId.getEncodedId();
+const makeFeeScheduleFileData = (gas, expirySeconds) => {
+  const feeComponents = create(FeeComponentsSchema, {
+    gas,
+  });
+  const feeData = create(FeeDataSchema, {
+    servicedata: feeComponents,
+  });
+  const transactionFeeSchedule = create(TransactionFeeScheduleSchema, {
+    hederaFunctionality: HederaFunctionality.ContractCall,
+    fees: [feeData],
+  });
+  const feeSchedule = create(FeeScheduleSchema, {
+    transactionFeeSchedule: [transactionFeeSchedule],
+    expiryTime: create(TimestampSecondsSchema, {seconds: BigInt(expirySeconds)}),
+  });
+  return Buffer.from(
+    toBinary(
+      CurrentAndNextFeeScheduleSchema,
+      create(CurrentAndNextFeeScheduleSchema, {
+        currentFeeSchedule: feeSchedule,
+      })
+    )
+  );
+};
+
+const exchangeRateFileId = exchangeRateEntityId.getEncodedId();
 describe('FileDataService.getExchangeRate tests', () => {
   test('FileDataService.getExchangeRate - No match', async () => {
     await expect(FileDataService.getExchangeRate({whereQuery: []})).resolves.toBeNull();
@@ -63,13 +99,13 @@ describe('FileDataService.getExchangeRate tests', () => {
   };
 
   test('FileDataService.getExchangeRate - Row match w latest', async () => {
-    await integrationDomainOps.loadFileData(files);
+    await integrationDomainOps.loadFileData(exchangeRateFiles);
 
     await expect(FileDataService.getExchangeRate({whereQuery: []})).resolves.toMatchObject(expectedLatestFile);
   });
 
   test('FileDataService.getExchangeRate - Row match w previous latest', async () => {
-    await integrationDomainOps.loadFileData(files);
+    await integrationDomainOps.loadFileData(exchangeRateFiles);
 
     const where = [
       {
@@ -83,12 +119,12 @@ describe('FileDataService.getExchangeRate tests', () => {
 
 describe('FileDataService.getLatestFileDataContents tests', () => {
   test('FileDataService.getLatestFileDataContents - No match', async () => {
-    await expect(FileDataService.getLatestFileDataContents(fileId, {whereQuery: []})).resolves.toBeNull();
+    await expect(FileDataService.getLatestFileDataContents(exchangeRateFileId, {whereQuery: []})).resolves.toBeNull();
   });
 
   const expectedPreviousFile = {
     consensus_timestamp: 2,
-    file_data: Buffer.concat([files[0].file_data, files[1].file_data]),
+    file_data: Buffer.concat([exchangeRateFiles[0].file_data, exchangeRateFiles[1].file_data]),
   };
 
   const expectedLatestFile = {
@@ -97,14 +133,14 @@ describe('FileDataService.getLatestFileDataContents tests', () => {
   };
 
   test('FileDataService.getLatestFileDataContents - Row match w latest', async () => {
-    await integrationDomainOps.loadFileData(files);
-    await expect(FileDataService.getLatestFileDataContents(fileId, {whereQuery: []})).resolves.toMatchObject(
-      expectedLatestFile
-    );
+    await integrationDomainOps.loadFileData(exchangeRateFiles);
+    await expect(
+      FileDataService.getLatestFileDataContents(exchangeRateFileId, {whereQuery: []})
+    ).resolves.toMatchObject(expectedLatestFile);
   });
 
   test('FileDataService.getLatestFileDataContents - Row match w previous latest', async () => {
-    await integrationDomainOps.loadFileData(files);
+    await integrationDomainOps.loadFileData(exchangeRateFiles);
 
     const where = [
       {
@@ -112,8 +148,62 @@ describe('FileDataService.getLatestFileDataContents tests', () => {
         param: expectedPreviousFile.consensus_timestamp,
       },
     ];
-    await expect(FileDataService.getLatestFileDataContents(fileId, {whereQuery: where})).resolves.toMatchObject(
-      expectedPreviousFile
-    );
+    await expect(
+      FileDataService.getLatestFileDataContents(exchangeRateFileId, {whereQuery: where})
+    ).resolves.toMatchObject(expectedPreviousFile);
+  });
+});
+
+describe('FileDataService.getFeeSchedule tests', () => {
+  const previousGas = 123456;
+  const latestGas = 789012;
+
+  const previousExpiry = 2000000000;
+  const latestExpiry = 3000000000;
+
+  const previousFeeScheduleData = makeFeeScheduleFileData(previousGas, previousExpiry);
+  const latestFeeScheduleData = makeFeeScheduleFileData(latestGas, latestExpiry);
+
+  const feeScheduleFiles = [
+    {
+      consensus_timestamp: 1,
+      entity_id: feeScheduleEntityId.toString(),
+      file_data: previousFeeScheduleData,
+      transaction_type: 17,
+    },
+    {
+      consensus_timestamp: 3,
+      entity_id: feeScheduleEntityId.toString(),
+      file_data: latestFeeScheduleData,
+      transaction_type: 19,
+    },
+  ];
+
+  test('FileDataService.getFeeSchedule - No match', async () => {
+    await expect(FileDataService.getFeeSchedule({whereQuery: []})).resolves.toBeNull();
+  });
+
+  test('FileDataService.getFeeSchedule - Row match w latest', async () => {
+    await integrationDomainOps.loadFileData(feeScheduleFiles);
+    await integrationDomainOps.loadFileData(exchangeRateFiles);
+
+    const result = await FileDataService.getFeeSchedule({whereQuery: []});
+    expect(result).not.toBeNull();
+    expect(result.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL)).toBeGreaterThan(0n);
+  });
+
+  test('FileDataService.getFeeSchedule - Row match w previous latest', async () => {
+    await integrationDomainOps.loadFileData(feeScheduleFiles);
+    await integrationDomainOps.loadFileData(exchangeRateFiles);
+
+    const where = [
+      {
+        query: `${FileData.CONSENSUS_TIMESTAMP} <= `,
+        param: 2,
+      },
+    ];
+    const result = await FileDataService.getFeeSchedule({whereQuery: where});
+    expect(result).not.toBeNull();
+    expect(result.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL)).toBeGreaterThan(0n);
   });
 });
