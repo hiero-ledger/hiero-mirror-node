@@ -742,8 +742,7 @@ function patchCitusClusters() {
     shardedClusterName=$(echo "${pvcsInNamespace}" | jq -r '.[0].citusCluster.shardedClusterName')
 
     configureShardedClusterResource "${pvcsInNamespace}" "${shardedClusterName}" "${namespace}"
-    unpauseCitus "${namespace}" "true"
-    updateStackgresCreds "${shardedClusterName}" "${namespace}"
+    unpauseCitus "${namespace}" "true" "true"
     routeTraffic "${namespace}"
   done
 }

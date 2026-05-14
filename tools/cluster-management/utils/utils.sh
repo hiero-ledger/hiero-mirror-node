@@ -270,24 +270,22 @@ function readUserInput() {
 function getStackgresPrimaryLabels() {
   local namespace="${1}"
 
-  if [[ -n "${STACKGRES_MASTER_LABELS:-}" ]]; then
-    echo "${STACKGRES_MASTER_LABELS}"
-    return 0
-  fi
+  while true; do
+    if kubectl get pods -n "${namespace}" -l 'app=StackGresCluster,role=primary' \
+        --no-headers 2>/dev/null | grep -q .; then
+      echo "app=StackGresCluster,role=primary"
+      return 0
+    fi
 
-  if kubectl get pods -n "${namespace}" -l 'app=StackGresCluster,role=primary' \
-      --no-headers 2>/dev/null | grep -q .; then
-    echo "app=StackGresCluster,role=primary"
-    return 0
-  fi
+    if kubectl get pods -n "${namespace}" -l 'app=StackGresCluster,role=master' \
+        --no-headers 2>/dev/null | grep -q .; then
+      echo "app=StackGresCluster,role=master"
+      return 0
+    fi
 
-  if kubectl get pods -n "${namespace}" -l 'app=StackGresCluster,role=master' \
-      --no-headers 2>/dev/null | grep -q .; then
-    echo "app=StackGresCluster,role=master"
-    return 0
-  fi
-
-  fail "Unable to determine StackGres primary/master pod labels in namespace ${namespace}"
+    log "Unable to determine StackGres primary/master pod labels in namespace ${namespace}. Retrying ..."
+    sleep 10
+  done
 }
 
 function scaleDeployment() {
@@ -693,6 +691,7 @@ function waitForStatefulSetPodsStarted() {
 function waitForSGClusterReady() {
   local namespace="${1}"
   local cluster="${2}"
+  local updateCreds="${3:-false}"
   local expected
 
   log "Waiting for cluster ${cluster} pods to start"
@@ -701,6 +700,12 @@ function waitForSGClusterReady() {
 
   log "Resuming Patroni for ${cluster}"
   resumePatroni "${namespace}" "${cluster}"
+
+  if [[ "${updateCreds}" == "true" ]]; then
+    local pod="${cluster}-0"
+    waitForPodReady "${namespace}" "${pod}"
+    updateStackgresCreds "${HELM_RELEASE_NAME}-citus" "${namespace}" "${pod}"
+  fi
 
   expected="$(kubectl get sts "${cluster}" -n "${namespace}" -o jsonpath='{.spec.replicas}')"
   log "Waiting for ${expected} replicas in ${cluster}"
@@ -724,6 +729,7 @@ function waitForSGClusterReady() {
 function unpauseCitus() {
   local namespace="${1}"
   local reinitializeCitus="${2:-false}"
+  local updateCreds="${3:-false}"
   local citusPods
   citusPods=$(kubectl get pods -n "${namespace}" -l 'stackgres.io/cluster=true' -o 'jsonpath={.items[*].metadata.name}')
 
@@ -746,7 +752,7 @@ function unpauseCitus() {
 
     log "Waiting for all StackGresCluster pods to be ready"
     for sts in $(kubectl get sts -n "${namespace}" -l 'app=StackGresCluster' -o jsonpath='{.items[*].metadata.name}'); do
-      waitForSGClusterReady "${namespace}" "${sts}"
+      waitForSGClusterReady "${namespace}" "${sts}" "${reinitializeCitus}" "${updateCreds}"
     done
 
     patroniFailoverToFirstPod "${namespace}" # Ensure there is a marked primary
@@ -859,6 +865,7 @@ function resizeCitusNodePools() {
 function updateStackgresCreds() {
   local cluster="${1}"
   local namespace="${2}"
+  local primaryPod="${3}"
   local sgPasswords=$(kubectl get secret -n "${namespace}" "${cluster}" -o json |
     jq -r '.data')
   maskJsonValues "${sgPasswords}"
@@ -923,19 +930,14 @@ insert into pg_dist_authinfo(nodeid, rolename, authinfo)
 EOF
   )
 
-  local stackgresPrimaryLabels
-  stackgresPrimaryLabels="$(getStackgresPrimaryLabels "${namespace}")"
+  waitUntilOutOfRecovery "${namespace}" "${pod}"
 
-  log "Fixing passwords and pg_dist_authinfo for all pods in the cluster"
-  for pod in $(kubectl get pods -n "${namespace}" -l "${stackgresPrimaryLabels}" -o name); do
-    waitUntilOutOfRecovery "${namespace}" "${pod}"
-    log "Updating passwords and pg_dist_authinfo for ${pod}"
-    if ! kubectl exec -n "${namespace}" -i "${pod}" -c postgres-util -- \
-       psql -v ON_ERROR_STOP=1 -U "${superuserUsername}" -f - <<< "${sql}"; then
-       log "Failed to update passwords in pod ${pod}"
-       exit 1
-     fi
-  done
+  log "Updating passwords and pg_dist_authinfo for ${pod}"
+  if ! kubectl exec -n "${namespace}" -i "${pod}" -c postgres-util -- \
+     psql -v ON_ERROR_STOP=1 -U "${superuserUsername}" -f - <<< "${sql}"; then
+     log "Failed to update passwords in pod ${pod}"
+     exit 1
+   fi
 }
 
 function pauseClustersIfNeeded() {
