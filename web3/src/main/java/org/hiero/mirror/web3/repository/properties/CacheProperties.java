@@ -51,5 +51,5 @@ public class CacheProperties {
     private String tokenType = "expireAfterAccess=24h,maximumSize=100000,recordStats";
 
     @NotBlank
-    private String sharedWritableState = "maximumSize=100000,recordStats";
+    private String sharedWritableState = "expireAfterAccess=1h,maximumSize=100000,recordStats";
 }

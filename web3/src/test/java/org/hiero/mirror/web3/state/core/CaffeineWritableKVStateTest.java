@@ -132,6 +132,20 @@ class CaffeineWritableKVStateTest {
     }
 
     @Test
+    void sizeCountsModificationAgainstDelegateNotCaffeine() {
+        // key committed to Caffeine but absent from the delegate (backing store)
+        sharedStore.put(accountID, Optional.of(account));
+        when(delegate.get(accountID)).thenReturn(null);
+        when(delegate.size()).thenReturn(0L);
+
+        // same key modified again in the per-request write cache
+        subject.put(accountID, account);
+
+        // size() checks the delegate, not Caffeine: 0 (delegate) + 1 addition = 1
+        assertThat(subject.size()).isEqualTo(1L);
+    }
+
+    @Test
     void equalsSameInstance() {
         assertThat(subject).isEqualTo(subject);
     }

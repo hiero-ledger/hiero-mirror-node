@@ -10,18 +10,10 @@ import java.util.Optional;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.jspecify.annotations.NonNull;
 
-/**
- * A {@link WritableKVStateBase} backed by a long-lived Caffeine cache that persists committed state changes
- * across contract calls. Used when {@code hiero.mirror.web3.sharedWritableState=true}.
- *
- * <p>Read priority: per-request write cache → Caffeine shared store → DB-backed delegate.
- * Deletions are stored as {@link Optional#empty()} tombstones to prevent Caffeine null-value restrictions
- * from causing false DB fallthrough after a removal.
- */
 @SuppressWarnings({"unchecked", "deprecation"})
 public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
 
-    private final ReadableKVState<K, V> delegate;
+    private final ReadableKVState<K, V> readableBackingStore;
 
     // Optional.empty() is a tombstone indicating explicit removal
     private final Cache<K, Optional<V>> sharedStore;
@@ -29,10 +21,10 @@ public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
     public CaffeineWritableKVState(
             @NonNull final String serviceName,
             final int stateId,
-            @NonNull final ReadableKVState<K, V> delegate,
+            @NonNull final ReadableKVState<K, V> readableBackingStore,
             @NonNull final Cache<K, Optional<V>> sharedStore) {
         super(serviceName, stateId);
-        this.delegate = Objects.requireNonNull(delegate);
+        this.readableBackingStore = Objects.requireNonNull(readableBackingStore);
         this.sharedStore = Objects.requireNonNull(sharedStore);
     }
 
@@ -42,9 +34,10 @@ public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
         if (cached != null) {
             return cached.orElse(null); // Optional.empty() = tombstone → null (no DB fallthrough)
         }
-        return delegate.get(key);
+        return readableBackingStore.get(key);
     }
 
+    // Called only from commit(); writes directly to the shared store, bypassing the per-request cache.
     @Override
     protected void putIntoDataSource(@NonNull K key, @NonNull V value) {
         sharedStore.put(key, Optional.of(value));
@@ -78,24 +71,14 @@ public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
 
     @Override
     public long sizeOfDataSource() {
-        return delegate.size();
+        return readableBackingStore.size();
     }
 
-    /**
-     * Deprecated size() override to compute the logical size while taking into account the
-     * underlying delegate (backing store) and any per-request write-cache modifications.
-     *
-     * The base implementation of {@code size()} in {@link com.swirlds.state.spi.WritableKVStateBase}
-     * relies on {@link #readFromDataSource(Object)} to detect presence in the backing store.
-     * However, {@link #readFromDataSource(Object)} for this class consults the shared Caffeine
-     * store first which can make the presence check inaccurate for computing additions/removals
-     * against the true backing store. Therefore, override {@code size()} to consult the delegate
-     * directly when deciding whether a key exists in the backing storage.
-     */
+    // Bypasses readFromDataSource to avoid Caffeine skewing the backing-store presence check.
     @SuppressWarnings("deprecation")
     @Override
     public long size() {
-        final long sizeOfBackingMap = delegate.size();
+        final long sizeOfBackingMap = readableBackingStore.size();
         int numAdditions = 0;
         int numRemovals = 0;
 
@@ -103,7 +86,7 @@ public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
         for (final var mod : writeCache.entrySet()) {
             final K key = (K) mod.getKey();
             final Object rawValue = mod.getValue();
-            boolean isPresentInBackingMap = delegate.get(key) != null;
+            boolean isPresentInBackingMap = readableBackingStore.get(key) != null;
             boolean isRemovedInMod = rawValue == null;
 
             if (isPresentInBackingMap && isRemovedInMod) {
@@ -119,11 +102,12 @@ public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof CaffeineWritableKVState<?, ?> that)) return false;
-        return Objects.equals(getStateId(), that.getStateId()) && Objects.equals(delegate, that.delegate);
+        return Objects.equals(getStateId(), that.getStateId())
+                && Objects.equals(readableBackingStore, that.readableBackingStore);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getStateId(), delegate);
+        return Objects.hash(getStateId(), readableBackingStore);
     }
 }
