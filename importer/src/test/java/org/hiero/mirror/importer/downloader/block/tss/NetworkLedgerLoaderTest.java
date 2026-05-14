@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -18,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.tss.Ledger;
+import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.ImporterProperties.HederaNetwork;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
@@ -131,7 +133,7 @@ final class NetworkLedgerLoaderTest {
 
         loader.load();
 
-        verify(tssVerifier, never()).setLedger(any());
+        verify(tssVerifier, never()).setLedger(any(), eq(true));
     }
 
     @Test
@@ -140,7 +142,7 @@ final class NetworkLedgerLoaderTest {
 
         loader.load();
 
-        verify(tssVerifier, never()).setLedger(any());
+        verify(tssVerifier, never()).setLedger(any(), eq(true));
     }
 
     @Test
@@ -151,7 +153,7 @@ final class NetworkLedgerLoaderTest {
 
         loader.load();
 
-        verify(tssVerifier, never()).setLedger(any());
+        verify(tssVerifier, never()).setLedger(any(), eq(true));
     }
 
     @Test
@@ -218,7 +220,7 @@ final class NetworkLedgerLoaderTest {
 
     private Ledger capturedLedger() {
         var captor = ArgumentCaptor.forClass(Ledger.class);
-        verify(tssVerifier).setLedger(captor.capture());
+        verify(tssVerifier).setLedger(captor.capture(), eq(true));
         return captor.getValue();
     }
 
@@ -237,9 +239,10 @@ final class NetworkLedgerLoaderTest {
         assertThat(ledger.getNodeContributions()).hasSize(body.getNodeContributionsCount());
 
         var nc = body.getNodeContributions(0);
-        assertThat(ledger.getNodeContributions().get(0))
-                .returns(toBytes(nc.getHistoryProofKey()), c -> c.getHistoryProofKey())
-                .returns(nc.getNodeId(), c -> c.getNodeId())
-                .returns(nc.getWeight(), c -> c.getWeight());
+        assertThat(ledger.getNodeContributions())
+                .first()
+                .returns(toBytes(nc.getHistoryProofKey()), LedgerNodeContribution::getHistoryProofKey)
+                .returns(nc.getNodeId(), LedgerNodeContribution::getNodeId)
+                .returns(nc.getWeight(), LedgerNodeContribution::getWeight);
     }
 }

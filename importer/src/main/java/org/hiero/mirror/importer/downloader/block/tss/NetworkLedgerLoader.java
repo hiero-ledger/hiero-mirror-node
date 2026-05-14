@@ -40,11 +40,11 @@ final class NetworkLedgerLoader {
         final var path = blockProperties.getInitialLedgerIdPublication();
         final var loaded = path != null ? loadFromPath(path) : loadFromClasspath();
         if (loaded != null) {
-            tssVerifier.setLedger(loaded);
+            tssVerifier.setLedger(loaded, true);
         }
     }
 
-    private @Nullable Ledger loadFromPath(final Path path) {
+    private Ledger loadFromPath(final Path path) {
         final LedgerIdPublicationTransactionBody body;
         try (var in = Files.newInputStream(path)) {
             body = LedgerIdPublicationTransactionBody.parseFrom(in);
