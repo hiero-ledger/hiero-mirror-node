@@ -1,0 +1,39 @@
+{
+  "description": "ACCOUNT entity resolved by opaque EVM on /contracts/{id}/state (same as numeric id)",
+  "setup": {
+    "accounts": [
+      {
+        "num": 9101,
+        "evm_address": "01beefdead0000000000000000000000abcd1234"
+      }
+    ],
+    "contractStates": [
+      {
+        "created_timestamp": "1676540001234390005",
+        "modified_timestamp": "1676540001234390005",
+        "contract_id": 9101,
+        "slot": "0000000000000000000000000000000000000000000000000000000000000001",
+        "value": "10"
+      }
+    ]
+  },
+  "urls": [
+    "/api/v1/contracts/0x01beefdead0000000000000000000000abcd1234/state",
+    "/api/v1/contracts/0.0.9101/state"
+  ],
+  "responseStatus": 200,
+  "responseJson": {
+    "state": [
+      {
+        "address": "0x01beefdead0000000000000000000000abcd1234",
+        "contract_id": "0.0.9101",
+        "timestamp": "1676540001.234390005",
+        "slot": "0x0000000000000000000000000000000000000000000000000000000000000001",
+        "value": "0x0000000000000000000000000000000000000000000000000000000000000010"
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

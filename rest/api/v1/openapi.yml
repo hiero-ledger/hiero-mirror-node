@@ -581,8 +581,6 @@ paths:
                 $ref: "#/components/schemas/ContractResultsResponse"
         400:
           $ref: "#/components/responses/InvalidParameterError"
-        404:
-          $ref: "#/components/responses/NotFoundError"
       tags:
         - contracts
   /api/v1/contracts/{contractIdOrAddress}/state:
@@ -605,8 +603,6 @@ paths:
                 $ref: "#/components/schemas/ContractStateResponse"
         400:
           $ref: "#/components/responses/InvalidParameterError"
-        404:
-          $ref: "#/components/responses/NotFoundError"
       tags:
         - contracts
   /api/v1/contracts/{contractIdOrAddress}/results/{timestamp}:
@@ -810,8 +806,6 @@ paths:
                 $ref: "#/components/schemas/ContractLogsResponse"
         400:
           $ref: "#/components/responses/InvalidParameterError"
-        404:
-          $ref: "#/components/responses/NotFoundError"
       tags:
         - contracts
   /api/v1/contracts/results/logs:
@@ -1500,7 +1494,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Mirror Node REST API
-  version: 0.155.0-SNAPSHOT
+  version: 0.156.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -4015,6 +4009,7 @@ components:
         - CONTRACTCREATEINSTANCE
         - CONTRACTDELETEINSTANCE
         - CONTRACTUPDATEINSTANCE
+        - CRSPUBLICATION
         - CRYPTOADDLIVEHASH
         - CRYPTOAPPROVEALLOWANCE
         - CRYPTOCREATEACCOUNT
@@ -4029,8 +4024,15 @@ components:
         - FILEDELETE
         - FILEUPDATE
         - FREEZE
+        - HINTSKEYPUBLICATION
+        - HINTSPARTIALSIGNATURE
+        - HINTSPREPROCESSINGVOTE
+        - HISTORYPROOFKEYPUBLICATION
+        - HISTORYPROOFSIGNATURE
+        - HISTORYPROOFVOTE
         - HOOKSTORE
         - LEDGERIDPUBLICATION
+        - MIGRATIONROOTHASHVOTE
         - NODECREATE
         - NODEDELETE
         - NODESTAKEUPDATE
@@ -4041,6 +4043,7 @@ components:
         - SCHEDULECREATE
         - SCHEDULEDELETE
         - SCHEDULESIGN
+        - STATESIGNATURETRANSACTION
         - SYSTEMDELETE
         - SYSTEMUNDELETE
         - TOKENAIRDROP
@@ -4726,7 +4729,9 @@ components:
       name: contractIdOrAddress
       in: path
       required: true
-      description: The ID or hex encoded EVM address (with or without 0x prefix) associated with this contract.
+      description:
+        Contract or account identifier in format shard.realm.num, realm.num, num or a
+        20-byte EVM address (with or without 0x prefix).
       schema:
         pattern: ^(\d{1,10}\.){0,2}(\d{1,10}|(0x)?[A-Fa-f0-9]{40})$
         type: string

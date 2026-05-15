@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {jest} from '@jest/globals';
 import _ from 'lodash';
 
-import {NotFoundError} from '../../errors';
 import {ContractService} from '../../service';
 import {assertSqlQueryEqual} from '../testutils';
 import integrationDomainOps from '../integrationDomainOps';
@@ -39,6 +39,9 @@ const entityId111169 = EntityId.parseString('111169');
 const entityId111276 = EntityId.parseString('111276');
 const entityId111481 = EntityId.parseString('111481');
 const entityId111482 = EntityId.parseString('111482');
+const entityId222001 = EntityId.parseString('0.0.222001');
+const entityId222002 = EntityId.parseString('0.0.222002');
+const entityId222003 = EntityId.parseString('0.0.222003');
 
 describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
   test('Verify simple query', async () => {
@@ -1353,9 +1356,7 @@ describe('ContractService.getContractStateChangesByTimestamps tests', () => {
 describe('ContractService.getContractIdByEvmAddress tests', () => {
   test('No match', async () => {
     const evmAddressFilter = {shard: 0, realm: 0, create2_evm_address: 'deadbeaf'};
-    await expect(() => ContractService.getContractIdByEvmAddress(evmAddressFilter)).rejects.toThrow(
-      new NotFoundError(`No contract with the given evm address 0xdeadbeaf has been found.`)
-    );
+    expect(await ContractService.getContractIdByEvmAddress(evmAddressFilter)).toBeNull();
   });
 
   test('Multiple rows match', async () => {
@@ -1415,7 +1416,7 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
 
     const evmAddressFilter = {create2_evm_address: evmAddress};
     await expect(() => ContractService.getContractIdByEvmAddress(evmAddressFilter)).rejects.toThrow(
-      new Error(`More than one contract with the evm address 0x${evmAddress} have been found.`)
+      new Error(`More than one contract or account with the evm address 0x${evmAddress} have been found.`)
     );
   });
 
@@ -1476,6 +1477,143 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
       create2_evm_address: evmAddress,
     });
     expect(contractId.toString()).toEqual(`${entityId111169.getEncodedId()}`);
+  });
+
+  describe('ACCOUNT entities (contractIdByEvmAddressQuery includes ACCOUNT type)', () => {
+    test('One ACCOUNT row match', async () => {
+      const evmAddress = '11aabbcc00000000000000000000000000feedface';
+      await integrationDomainOps.addAccount({
+        num: entityId222001.num,
+        evm_address: evmAddress,
+      });
+
+      const contractId = await ContractService.getContractIdByEvmAddress({
+        create2_evm_address: evmAddress,
+      });
+      expect(contractId.toString()).toEqual(`${entityId222001.getEncodedId()}`);
+    });
+
+    test('Multiple ACCOUNT rows match same evm_address', async () => {
+      const evmAddress = '22bbccdd00000000000000000000000000deadface';
+      await integrationDomainOps.addAccount({
+        num: entityId222001.num,
+        evm_address: evmAddress,
+      });
+      await integrationDomainOps.addAccount({
+        num: entityId222002.num,
+        evm_address: evmAddress,
+      });
+
+      await expect(() => ContractService.getContractIdByEvmAddress({create2_evm_address: evmAddress})).rejects.toThrow(
+        new Error(`More than one contract or account with the evm address 0x${evmAddress} have been found.`)
+      );
+    });
+
+    test('Deleted ACCOUNT is not matched', async () => {
+      const evmAddress = '33ccddee00000000000000000000000000beefface';
+      await integrationDomainOps.addAccount({
+        num: entityId222003.num,
+        evm_address: evmAddress,
+        deleted: true,
+      });
+
+      expect(await ContractService.getContractIdByEvmAddress({create2_evm_address: evmAddress})).toBeNull();
+    });
+
+    test('Two ACCOUNT rows same evm_address but one deleted returns active id', async () => {
+      const evmAddress = '44ddeeff00000000000000000000000000cafef00d';
+      await integrationDomainOps.addAccount({
+        num: entityId222001.num,
+        evm_address: evmAddress,
+        deleted: true,
+      });
+      await integrationDomainOps.addAccount({
+        num: entityId222002.num,
+        evm_address: evmAddress,
+        deleted: false,
+      });
+
+      const contractId = await ContractService.getContractIdByEvmAddress({
+        create2_evm_address: evmAddress,
+      });
+      expect(contractId.toString()).toEqual(`${entityId222002.getEncodedId()}`);
+    });
+  });
+});
+
+const assertComputeContractIdResolvesWithoutEntityEvmLookup = async (contractIdParam, expectedEncodedId) => {
+  const spy = jest.spyOn(ContractService, 'getContractIdByEvmAddress');
+  await expect(ContractService.computeContractIdFromString(contractIdParam)).resolves.toEqual(expectedEncodedId);
+  expect(spy).not.toHaveBeenCalled();
+  spy.mockRestore();
+};
+
+describe('ContractService.computeContractIdFromString', () => {
+  describe('resolves without getContractIdByEvmAddress (no entity table lookup for id)', () => {
+    test('shard.realm.num', async () => {
+      await assertComputeContractIdResolvesWithoutEntityEvmLookup(
+        '0.0.500',
+        EntityId.parseString('0.0.500', {paramName: 'contractId'}).getEncodedId()
+      );
+    });
+
+    test('realm.num (default shard from config)', async () => {
+      await assertComputeContractIdResolvesWithoutEntityEvmLookup(
+        '500',
+        EntityId.parseString('500', {paramName: 'contractId'}).getEncodedId()
+      );
+    });
+
+    test('long-zero 20-byte address (12 zero bytes + entity num), stripped form as in path param', async () => {
+      await assertComputeContractIdResolvesWithoutEntityEvmLookup(
+        '000000000000000000000000000000000000000f',
+        EntityId.parseString('0.0.15', {paramName: 'contractId'}).getEncodedId()
+      );
+    });
+
+    test('long-zero address with 0x prefix (parseString strips prefix)', async () => {
+      await assertComputeContractIdResolvesWithoutEntityEvmLookup(
+        '0x000000000000000000000000000000000000000f',
+        EntityId.parseString('0.0.15', {paramName: 'contractId'}).getEncodedId()
+      );
+    });
+  });
+
+  describe('opaque / create2-style EVM address uses getContractIdByEvmAddress', () => {
+    test('bare 40-hex address', async () => {
+      const evm = '71eaa748d5252be68c1185588beca495459fdba4';
+      const spy = jest.spyOn(ContractService, 'getContractIdByEvmAddress').mockResolvedValue(99999n);
+      await expect(ContractService.computeContractIdFromString(evm)).resolves.toBe(99999n);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create2_evm_address: evm,
+        })
+      );
+      spy.mockRestore();
+    });
+
+    test('shard.realm.opaque form (0.0.<40 hex>)', async () => {
+      const evm = '71eaa748d5252be68c1185588beca495459fdba4';
+      const param = `0.0.${evm}`;
+      const spy = jest.spyOn(ContractService, 'getContractIdByEvmAddress').mockResolvedValue(88888n);
+      await expect(ContractService.computeContractIdFromString(param)).resolves.toBe(88888n);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create2_evm_address: evm,
+        })
+      );
+      spy.mockRestore();
+    });
+
+    test('returns null when entity lookup finds no row', async () => {
+      const evm = 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
+      const spy = jest.spyOn(ContractService, 'getContractIdByEvmAddress').mockResolvedValue(null);
+      await expect(ContractService.computeContractIdFromString(evm)).resolves.toBeNull();
+      expect(spy).toHaveBeenCalled();
+      spy.mockRestore();
+    });
   });
 });
 
