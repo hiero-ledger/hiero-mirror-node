@@ -5,6 +5,8 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.BYTECODE_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.entityIdFromContractId;
 import static org.hiero.mirror.common.util.DomainUtils.isLongZeroAddress;
+import static org.hiero.mirror.web3.state.Utils.contractIdToEvmAddressHex;
+import static org.hiero.mirror.web3.state.Utils.hexStringToBytes;
 
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.Bytecode;
@@ -57,32 +59,6 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
                 .map(Bytes::wrap)
                 .map(Bytecode::new)
                 .orElse(null);
-    }
-
-    /**
-     * Returns the normalized ({@code 0x}-prefixed, lowercase) EVM address for the given {@link ContractID}.
-     */
-    static String contractIdToEvmAddressHex(@NonNull ContractID contractID) {
-        if (contractID.hasEvmAddress() && contractID.evmAddress().length() == 20) {
-            return "0x" + contractID.evmAddress().toHex().toLowerCase();
-        } else if (contractID.hasContractNum()) {
-            return "0x" + String.format("%040x", contractID.contractNum());
-        }
-        return null;
-    }
-
-    /** Decodes a hex string (with or without {@code 0x} prefix) to a byte array. */
-    static byte[] hexStringToBytes(@NonNull String hex) {
-        final String h = hex.startsWith("0x") || hex.startsWith("0X") ? hex.substring(2) : hex;
-        if (h.isEmpty()) {
-            return new byte[0];
-        }
-        final String padded = h.length() % 2 == 0 ? h : "0" + h;
-        final byte[] bytes = new byte[padded.length() / 2];
-        for (int i = 0; i < bytes.length; i++) {
-            bytes[i] = (byte) Integer.parseInt(padded, i * 2, i * 2 + 2, 16);
-        }
-        return bytes;
     }
 
     private EntityId toEntityId(@NonNull final ContractID contractID) {

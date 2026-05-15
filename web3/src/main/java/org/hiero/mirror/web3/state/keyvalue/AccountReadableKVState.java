@@ -86,12 +86,12 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                 .get(key, timestamp)
                 .filter(entity -> entity.getType() == ACCOUNT || entity.getType() == CONTRACT)
                 .map(entity -> {
-                    final var acc = accountFromEntity(entity, timestamp);
+                    final var account = accountFromEntity(entity, timestamp);
                     // Associate the account alias with this entity in the cache, if any.
-                    if (acc.alias().length() > 0) {
-                        aliasedAccountCacheManager.putAccountAlias(acc.alias(), key);
+                    if (account.alias().length() > 0) {
+                        aliasedAccountCacheManager.putAccountAlias(account.alias(), key);
                     }
-                    return acc;
+                    return account;
                 })
                 .or(() -> getDummySystemAccountIfApplicable(key))
                 .orElse(null);
@@ -121,13 +121,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
         }
 
         if (account == null) {
-            // Create a minimal synthetic account so the EVM can use the overridden state.
-            return Account.newBuilder()
-                    .accountId(key)
-                    .key(getDefaultKey())
-                    .tinybarBalance(override.getBalance() != null ? parseHexBalance(override.getBalance()) : 0L)
-                    .ethereumNonce(override.getNonce() != null ? override.getNonce() : 0L)
-                    .build();
+            return null;
         }
 
         final var builder = account.copyBuilder();
@@ -135,7 +129,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             builder.tinybarBalance(parseHexBalance(override.getBalance()));
         }
         if (override.getNonce() != null) {
-            builder.ethereumNonce(override.getNonce());
+            builder.ethereumNonce(parseHexNonce(override.getNonce()));
         }
         return builder.build();
     }
@@ -158,14 +152,26 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
 
     /** Parses a hex-encoded balance string (with or without {@code 0x} prefix) into tinybars, clamped to {@link Long#MAX_VALUE}. */
     private static long parseHexBalance(@NonNull String hexBalance) {
-        final String hex =
-                hexBalance.startsWith("0x") || hexBalance.startsWith("0X") ? hexBalance.substring(2) : hexBalance;
+        var hex = hexBalance.startsWith("0x") || hexBalance.startsWith("0X") ? hexBalance.substring(2) : hexBalance;
         if (hex.isEmpty()) {
             return 0L;
         }
         try {
             final var bigInt = new BigInteger(hex, 16);
             return bigInt.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0 ? Long.MAX_VALUE : bigInt.longValue();
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
+    }
+
+    /** Parses a hex-encoded nonce string (with or without {@code 0x} prefix) into a long value. */
+    private static long parseHexNonce(@NonNull String hexNonce) {
+        var hex = hexNonce.startsWith("0x") || hexNonce.startsWith("0X") ? hexNonce.substring(2) : hexNonce;
+        if (hex.isEmpty()) {
+            return 0L;
+        }
+        try {
+            return new BigInteger(hex, 16).longValue();
         } catch (NumberFormatException e) {
             return 0L;
         }

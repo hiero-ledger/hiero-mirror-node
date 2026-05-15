@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.viewmodel;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.Min;
 import java.util.Map;
 import lombok.Data;
 import org.hiero.mirror.web3.validation.Hex;
@@ -21,9 +20,9 @@ public class StateOverride {
     @Hex
     private String balance;
 
-    /** Ethereum nonce override (non-negative). */
-    @Min(0)
-    private Long nonce;
+    /** Hex-encoded Ethereum nonce override. */
+    @Hex
+    private String nonce;
 
     /** Hex-encoded runtime bytecode override. */
     @Hex

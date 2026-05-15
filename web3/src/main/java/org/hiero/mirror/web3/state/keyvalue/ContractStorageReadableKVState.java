@@ -4,8 +4,8 @@ package org.hiero.mirror.web3.state.keyvalue;
 
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.STORAGE_STATE_ID;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
+import static org.hiero.mirror.web3.state.Utils.contractIdToEvmAddressHex;
 
-import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
 import com.hedera.node.app.service.contract.ContractService;
@@ -74,17 +74,10 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
     }
 
     /**
-     * Returns the normalized ({@code 0x}-prefixed, lowercase) EVM address for the given {@link ContractID}.
-     */
-    private static String contractIdToEvmAddressHex(@NonNull ContractID contractID) {
-        return ContractBytecodeReadableKVState.contractIdToEvmAddressHex(contractID);
-    }
-
-    /**
      * Normalizes a raw slot key byte array to a 64-character lowercase hex string (32 bytes, left-padded).
      */
     private static String normalizeSlot(byte[] slotBytes) {
-        final byte[] padded = leftPadBytes(slotBytes, Bytes32.SIZE);
+        var padded = leftPadBytes(slotBytes, Bytes32.SIZE);
         final StringBuilder sb = new StringBuilder(64);
         for (byte b : padded) {
             sb.append(String.format("%02x", b));
@@ -93,24 +86,16 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
     }
 
     /**
-     * Searches {@code storageMap} for an entry whose key normalizes to {@code normalizedSlot} (64-char hex).
-     * Returns the corresponding value hex string, or {@code null} if not found.
+     * Returns the value hex string for {@code normalizedSlot} from {@code storageMap}, or {@code null} if not found.
+     * Keys in {@code storageMap} are pre-normalized to 64-character hex by {@code ContractExecutionService}.
      */
     private static String findSlotInMap(@NonNull Map<String, String> storageMap, @NonNull String normalizedSlot) {
-        for (final var entry : storageMap.entrySet()) {
-            final var key = entry.getKey();
-            final byte[] keyBytes = ContractBytecodeReadableKVState.hexStringToBytes(key);
-            final String normalized = normalizeSlot(keyBytes);
-            if (normalized.equals(normalizedSlot)) {
-                return entry.getValue();
-            }
-        }
-        return null;
+        return storageMap.get(normalizedSlot);
     }
 
     /** Converts a hex value string to a {@link SlotValue} (32-byte left-padded). */
     private static SlotValue hexToSlotValue(@NonNull String hexValue) {
-        final byte[] valueBytes = ContractBytecodeReadableKVState.hexStringToBytes(hexValue);
+        var valueBytes = hexStringToBytes(hexValue);
         return new SlotValue(Bytes.wrap(leftPadBytes(valueBytes, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY);
     }
 

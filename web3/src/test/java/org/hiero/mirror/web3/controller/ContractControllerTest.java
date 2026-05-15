@@ -557,7 +557,7 @@ class ContractControllerTest {
     @Test
     void callWithStateOverrideNonce() throws Exception {
         final var override = new StateOverride();
-        override.setNonce(42L);
+        override.setNonce("0x2a");
         final var request = request();
         request.setStateOverride(Map.of("0x00000000000000000000000000000000000004e2", override));
 

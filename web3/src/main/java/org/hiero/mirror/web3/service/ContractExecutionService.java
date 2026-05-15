@@ -2,13 +2,16 @@
 
 package org.hiero.mirror.web3.service;
 
+import static org.hiero.mirror.web3.state.Utils.normalizeStorageSlot;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
+
 import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -90,18 +93,41 @@ public class ContractExecutionService extends ContractCallService {
     }
 
     /**
-     * Normalizes state-override map keys to lowercase {@code 0x}-prefixed form so that lookups in the
-     * state layer are case-insensitive and consistently prefixed.
+     * Normalizes state-override map keys to lowercase {@code 0x}-prefixed form and slot keys within each
+     * override to 64-character hex, so that all lookups in the state layer can use direct map access.
      */
     private static Map<String, StateOverride> normalizeOverrideKeys(Map<String, StateOverride> raw) {
-        return raw.entrySet().stream()
-                .collect(Collectors.toMap(e -> normalizeAddress(e.getKey()), Map.Entry::getValue, (a, b) -> b));
+        var result = new HashMap<String, StateOverride>(raw.size());
+        for (var entry : raw.entrySet()) {
+            normalizeSlotKeys(entry.getValue());
+            result.put(normalizeAddress(entry.getKey()), entry.getValue());
+        }
+        return result;
+    }
+
+    private static void normalizeSlotKeys(StateOverride override) {
+        if (override.getState() != null) {
+            override.setState(normalizeSlotMap(override.getState()));
+        }
+        if (override.getStateDiff() != null) {
+            override.setStateDiff(normalizeSlotMap(override.getStateDiff()));
+        }
+    }
+
+    private static Map<String, String> normalizeSlotMap(Map<String, String> map) {
+        var result = new HashMap<String, String>(map.size());
+        for (var entry : map.entrySet()) {
+            result.put(normalizeStorageSlot(entry.getKey()), entry.getValue());
+        }
+        return result;
     }
 
     static String normalizeAddress(String address) {
-        if (address == null) return null;
-        final String hex = address.startsWith("0x") || address.startsWith("0X") ? address.substring(2) : address;
-        return "0x" + hex.toLowerCase();
+        if (address == null) {
+            return null;
+        }
+        var hex = address.startsWith(HEX_PREFIX) || address.startsWith("0X") ? address.substring(2) : address;
+        return HEX_PREFIX + hex.toLowerCase();
     }
 
     /**
