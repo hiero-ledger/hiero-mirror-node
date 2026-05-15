@@ -111,7 +111,8 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
                 recordItemListener,
                 recordStreamFileListener,
                 dateRangeCalculator,
-                new ParserContext());
+                new ParserContext(),
+                diskSpaceService);
     }
 
     @Override

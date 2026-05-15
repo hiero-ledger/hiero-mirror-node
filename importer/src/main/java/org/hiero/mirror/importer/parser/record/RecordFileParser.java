@@ -24,6 +24,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
+import org.hiero.mirror.importer.db.DiskSpaceService;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -56,8 +57,9 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             RecordItemListener recordItemListener,
             RecordStreamFileListener recordStreamFileListener,
             DateRangeCalculator dateRangeCalculator,
-            ParserContext parserContext) {
-        super(meterRegistry, parserProperties, recordStreamFileListener, streamFileRepository);
+            ParserContext parserContext,
+            DiskSpaceService diskSpaceService) {
+        super(meterRegistry, parserProperties, recordStreamFileListener, streamFileRepository, diskSpaceService);
         this.applicationEventPublisher = applicationEventPublisher;
         this.recordItemListener = recordItemListener;
         this.dateRangeCalculator = dateRangeCalculator;
