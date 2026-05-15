@@ -200,7 +200,6 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
     assertSqlQueryEqual(query, expected);
     expect(params).toEqual([2, 10, 5]);
   });
-
 });
 
 describe('ContractService.getSyntheticContractResultsQuery tests', () => {

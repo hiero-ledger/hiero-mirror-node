@@ -276,7 +276,9 @@ class ContractService extends BaseService {
           select 1
           from ${ContractResult.tableName} ${ContractResult.tableAlias}
           where ${ContractResult.getFullName(ContractResult.CONTRACT_ID)} = ${clAlias}${ContractLog.CONTRACT_ID}
-            and ${ContractResult.getFullName(ContractResult.CONSENSUS_TIMESTAMP)} = ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP}
+            and ${ContractResult.getFullName(ContractResult.CONSENSUS_TIMESTAMP)} = ${clAlias}${
+        ContractLog.CONSENSUS_TIMESTAMP
+      }
         )`,
     ];
     const allConditions = [...baseConditions, ...mappedConditions];
@@ -310,7 +312,9 @@ class ContractService extends BaseService {
       from (
         select distinct on (${clAlias}${ContractLog.CONSENSUS_TIMESTAMP})
           ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP},
-          coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) as ${ContractResult.CONTRACT_ID},
+          coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) as ${
+      ContractResult.CONTRACT_ID
+    },
           ${clAlias}${ContractLog.TRANSACTION_HASH},
           ${clAlias}${ContractLog.TRANSACTION_INDEX},
           ${clAlias}${ContractLog.PAYER_ACCOUNT_ID},
