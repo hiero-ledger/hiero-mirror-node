@@ -60,6 +60,7 @@ import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
+import org.hiero.mirror.importer.db.DiskSpaceService;
 import org.hiero.mirror.importer.domain.ConsensusNodeStub;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
@@ -101,6 +102,9 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
 
     @Mock(strictness = LENIENT)
     protected ConsensusNodeService consensusNodeService;
+
+    @Mock(strictness = LENIENT)
+    protected DiskSpaceService diskSpaceService;
 
     @Mock
     protected StreamFileNotifier streamFileNotifier;
@@ -231,6 +235,7 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
 
     @SneakyThrows
     protected void beforeEach() {
+        when(diskSpaceService.hasEnoughSpace()).thenReturn(true);
         loadAddressBook("testnet");
         initProperties();
         s3AsyncClient = S3AsyncClient.builder()
