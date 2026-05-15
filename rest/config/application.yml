@@ -35,6 +35,7 @@ hiero:
         username: mirror_api
       log:
         level: info
+        sampleRate: 0.1
       metrics:
         enabled: true
         config:
@@ -53,6 +54,7 @@ hiero:
       port: 5551
       query:
         bindTimestampRange: false
+        maxFileAttempts: 12
         maxRecordFileCloseInterval: 10s
         maxRepeatedQueryParameters: 100
         maxScheduledTransactionConsensusTimestampRange: 89285m
@@ -108,7 +110,6 @@ hiero:
               { "cache-control": "public, max-age=600" }
             /api/v1/contracts/results/:transactionIdOrHash/actions:
               { "cache-control": "public, max-age=600" }
-            /api/v1/network/nodes: { "cache-control": "public, max-age=60" }
             /api/v1/schedules: { "cache-control": "public, max-age=10" }
             /api/v1/tokens: { "cache-control": "public, max-age=10" }
             /api/v1/tokens/:tokenId: { "cache-control": "public, max-age=5" }
@@ -119,7 +120,9 @@ hiero:
             /api/v1/transactions: { "cache-control": "public, max-age=2" }
             /api/v1/transactions/:transactionIdOrHash:
               { "cache-control": "public, max-age=600" }
+          timeout: 630000
         includeHostInLink: false
+        keepAliveTimeout: 620000
         limit:
           default: 25
           max: 100

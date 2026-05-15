@@ -41,20 +41,14 @@ import org.web3j.crypto.transaction.type.TransactionType;
 @RequiredArgsConstructor
 public class EthereumFeature extends AbstractEstimateFeature {
 
+    private static final BigDecimal INITIAL_BALANCE = BigDecimal.valueOf(1.0); // usd
     protected final EthereumClient ethereumClient;
-
     protected final AccountClient accountClient;
-
     private final Web3Properties web3Properties;
-
     protected AccountId ethereumSignerAccount;
     protected PrivateKey ethereumSignerPrivateKey;
     private String account;
-
     private byte[] childContractBytecodeFromParent;
-
-    private static final BigDecimal INITIAL_BALANCE = BigDecimal.valueOf(1.0); // usd
-
     private long estimatedGasForHollowAccountCreation;
 
     @Given("I successfully created a signer account with an EVM address alias")
@@ -151,7 +145,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
         // Estimate gas on the mirror node for a value transfer that will trigger hollow account creation
         var contractCallRequest = ModelBuilder.contractCallRequest()
                 .to(hollowAccountEvmAddress.toString())
-                .from(senderEvmAddress.toString())
+                .from(senderEvmAddress)
                 .data("0x") // Empty data for a pure value transfer
                 .estimate(true)
                 .value(value.longValue());
@@ -186,14 +180,19 @@ public class EthereumFeature extends AbstractEstimateFeature {
         if (!web3Properties.getOpcodeTracer().isEnabled()) {
             return;
         }
-        log.info("Opcode tracer is enabled -> verify contract results opcodes against web3.");
-        String txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
-        var opcodes = mirrorClient.getContractResultsOpcodes(txId);
+
+        final var txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
+        final var opcodes = mirrorClient.getContractResultsOpcodes(txId);
+
         assertThat(opcodes).isNotNull();
         // Just verify that a list of opcodes is returned as any other static resource might get
         // quickly out of sync on EVM bumps and this would be hard to maintain and there is already a
         // stricter validation in the web3 module.
         assertThat(opcodes.getOpcodes()).isNotEmpty();
+
+        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
+            System.out.println("TRANSACTION_ID=" + txId);
+        }
     }
 
     @And("I set lower deviation to {int}% and upper deviation to {int}%")

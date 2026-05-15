@@ -511,6 +511,14 @@ describe('computeContractIdPartsFromContractIdValue', () => {
       expected: {shard: '0', realm: '0', create2_evm_address: '71eaa748d5252be68c1185588beca495459fdba4'},
     },
     {
+      input: '000000000000000000000000000000000000000f',
+      expected: {shard, realm, num: '000000000000000000000000000000000000000f'},
+    },
+    {
+      input: '0x000000000000000000000000000000000000000f',
+      expected: {shard, realm, num: '000000000000000000000000000000000000000f'},
+    },
+    {
       input: '71eaa748d5252be68c1185588beca495459fdba4',
       expected: {shard: null, realm: null, create2_evm_address: '71eaa748d5252be68c1185588beca495459fdba4'},
     },

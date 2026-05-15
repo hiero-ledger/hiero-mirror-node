@@ -3,12 +3,12 @@ module mirrornode-bootstrap
 go 1.25.7
 
 require (
-	github.com/jackc/pgx/v5 v5.9.1
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/klauspost/pgzip v1.2.6
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/zeebo/blake3 v0.2.4
-	golang.org/x/text v0.35.0
+	golang.org/x/text v0.37.0
 )
 
 require (

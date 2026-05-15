@@ -51,6 +51,7 @@
           {
             "entity_id": "0.0.1135",
             "high_volume": false,
+            "high_volume_pricing_multiplier": null,
             "fractional_fees": [
               {
                 "collector_account_id": "0.0.8901",
@@ -65,6 +66,7 @@
           {
             "entity_id": "0.0.1135",
             "high_volume": false,
+            "high_volume_pricing_multiplier": null,
             "fixed_fees": [
               {
                 "amount": 12,

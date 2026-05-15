@@ -6,6 +6,7 @@ export const setEnvDefault = (name, defaultValue) => (__ENV[name] = __ENV[name] 
 
 // set up common default values
 setEnvDefault('BASE_URL', 'http://localhost');
+setEnvDefault('NAMESPACE', 'default');
 setEnvDefault('DEFAULT_DURATION', '120s');
 setEnvDefault('DEFAULT_GRACEFUL_STOP', '5s');
 setEnvDefault('DEFAULT_LIMIT', 100);

@@ -8,14 +8,20 @@ import com.hedera.services.stream.proto.RecordStreamItem;
 import java.io.IOException;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 
 final class RecordFileItemReaderV2 extends AbstractRecordFileItemReader {
 
     private static final byte PREV_HASH_MARKER = 0x01;
     private static final byte RECORD_MARKER = 0x02;
 
+    RecordFileItemReaderV2(final SidecarProperties sidecarProperties) {
+        super(sidecarProperties);
+    }
+
     @Override
     protected void finalize(final RecordFile recordFile) {
+        super.finalize(recordFile);
         recordFile.setHash(recordFile.getFileHash());
     }
 

@@ -122,6 +122,19 @@ public class AddressBookServiceImpl implements AddressBookService {
 
     @Cacheable
     @Override
+    public ConsensusNode getNode(final long nodeId) {
+        final var nodes = getNodes();
+        for (final var node : nodes) {
+            if (node.getNodeId() == nodeId) {
+                return node;
+            }
+        }
+
+        return null;
+    }
+
+    @Cacheable
+    @Override
     public Collection<ConsensusNode> getNodes() {
         var addressBook = getCurrent();
         var totalStake = new AtomicLong(0L);

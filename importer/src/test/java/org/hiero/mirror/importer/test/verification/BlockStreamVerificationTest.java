@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.test.verification;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimaps;
 import com.google.protobuf.ByteString;
@@ -12,6 +13,10 @@ import com.google.protobuf.GeneratedMessage;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.persistence.EntityManager;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -72,7 +77,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.transaction.support.TransactionOperations;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -114,7 +118,7 @@ final class BlockStreamVerificationTest {
     private final Stats stats = new Stats();
     private final StreamFileProvider streamFileProvider;
     private final TransactionRepository transactionRepository;
-    private final WebClient webClient;
+    private final ObjectMapper objectMapper;
 
     private RecordFile current;
     private boolean foundFirstTransaction;
@@ -425,17 +429,18 @@ final class BlockStreamVerificationTest {
         });
     }
 
+    @SneakyThrows
     private RecordItem getExpectedRecordItem(long consensusTimestamp) {
         if (current == null
                 || current.getConsensusStart() > consensusTimestamp
                 || current.getConsensusEnd() < consensusTimestamp) {
             if (recordFiles.isEmpty()) {
-                var response = webClient
-                        .get()
-                        .uri(BLOCKS_URI, DomainUtils.toTimestamp(consensusTimestamp))
-                        .retrieve()
-                        .bodyToMono(BlocksResponse.class)
-                        .block();
+                var path =
+                        BLOCKS_URI.replace("{timestamp}", String.valueOf(DomainUtils.toTimestamp(consensusTimestamp)));
+                var uri = URI.create(BASE_URLS.get(importerProperties.getNetwork()) + path);
+                var httpRequest = HttpRequest.newBuilder().uri(uri).GET().build();
+                var httpResponse = HttpClient.newHttpClient().send(httpRequest, HttpResponse.BodyHandlers.ofString());
+                var response = objectMapper.readValue(httpResponse.body(), BlocksResponse.class);
                 response.getBlocks().forEach(block -> recordFiles.add(block.getName()));
             }
 
@@ -601,13 +606,6 @@ final class BlockStreamVerificationTest {
                 EntityManager entityManager,
                 TransactionOperations transactionOperations) {
             return new DomainBuilder(commonProperties, entityManager, transactionOperations);
-        }
-
-        @Bean
-        WebClient webClient(ImporterProperties importerProperties, WebClient.Builder webClientBuilder) {
-            return webClientBuilder
-                    .baseUrl(BASE_URLS.get(importerProperties.getNetwork()))
-                    .build();
         }
     }
 

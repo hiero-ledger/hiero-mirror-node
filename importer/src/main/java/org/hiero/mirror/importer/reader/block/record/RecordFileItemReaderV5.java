@@ -8,8 +8,13 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 
 final class RecordFileItemReaderV5 extends AbstractRecordFileItemReader {
+
+    RecordFileItemReaderV5(final SidecarProperties sidecarProperties) {
+        super(sidecarProperties);
+    }
 
     private static final long HASH_OBJECT_CLASS_ID = 0xf422da83a251741eL;
     private static final int HASH_OBJECT_CLASS_VERSION = 1;

@@ -5,11 +5,11 @@ package org.hiero.mirror.monitor.subscribe.rest;
 import com.google.common.collect.Iterables;
 import com.hedera.hashgraph.sdk.TransactionId;
 import jakarta.inject.Named;
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -31,8 +31,6 @@ import reactor.util.retry.RetryBackoffSpec;
 @RequiredArgsConstructor
 @SuppressWarnings("unchecked")
 class RestSubscriber implements MirrorSubscriber {
-
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final RestApiClient restApiClient;
     private final SubscribeProperties subscribeProperties;
@@ -60,7 +58,7 @@ class RestSubscriber implements MirrorSubscriber {
             return false;
         }
 
-        return RANDOM.nextDouble() < properties.getSamplePercent();
+        return ThreadLocalRandom.current().nextDouble() < properties.getSamplePercent();
     }
 
     @Override

@@ -66,7 +66,7 @@ tasks.withType<JavaCompile>().configureEach {
         excludedPaths = ".*/build/generated/.*"
     }
     sourceCompatibility = "25"
-    targetCompatibility = "25"
+    targetCompatibility = java.sourceCompatibility.toString()
 }
 
 tasks.compileJava { options.compilerArgs.add("-Xlint:-serial") }

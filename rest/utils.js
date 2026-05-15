@@ -315,9 +315,6 @@ const filterValidityChecks = (param, op, val) => {
     case constants.filterKeys.ENTITY_PUBLICKEY:
       ret = isValidPublicKeyQuery(val);
       break;
-    case constants.filterKeys.FILE_ID:
-      ret = op === constants.queryParamOperators.eq && EntityId.systemEntity.isValidAddressBookFileId(val);
-      break;
     case constants.filterKeys.FROM:
       ret = EntityId.isValidEntityId(val, true, constants.EvmAddressType.NO_SHARD_REALM);
       break;
@@ -332,9 +329,6 @@ const filterValidityChecks = (param, op, val) => {
       break;
     case constants.filterKeys.LIMIT:
       ret = isPositiveLong(val);
-      break;
-    case constants.filterKeys.NODE_ID:
-      ret = isPositiveLong(val, true);
       break;
     case constants.filterKeys.NONCE:
       ret = op === constants.queryParamOperators.eq && isNonNegativeInt32(val);
@@ -1062,7 +1056,7 @@ const toUint256 = (val) => {
 const hexStrPattern = /^([0-9a-fA-F]{2})+$/;
 
 /**
- * Converts a value into hex string, the value can be a number, a bigint, a hex string, an array of numbers, or a Buffer
+ * Converts a value into hex string, the value can be a number, a bigint, a hex string, an array of numbers, a Buffer, or a Uint8Array
  * Logic conforms with ETH hex value encoding, therefore nill and empty return '0x'
  * @param {Object} value Value to be converted to hex string
  * @param {boolean} addPrefix Whether to add the '0x' prefix to the hex string
@@ -1081,6 +1075,8 @@ const toHexString = (value, addPrefix = false, padLength = undefined) => {
     encoded = Buffer.from(value).toString('hex');
   } else if (Buffer.isBuffer(value)) {
     encoded = value.toString('hex');
+  } else if (value instanceof Uint8Array) {
+    encoded = Buffer.from(value).toString('hex');
   } else {
     return constants.HEX_PREFIX;
   }
@@ -1381,10 +1377,6 @@ const formatComparator = (comparator) => {
           comparator.value = parseInt(comparator.value, 16);
         }
         break;
-      case constants.filterKeys.FILE_ID:
-        // Accepted forms: shard.realm.num or encoded ID string
-        comparator.value = EntityId.parseString(comparator.value).getEncodedId();
-        break;
       case constants.filterKeys.ENTITY_PUBLICKEY:
         comparator.value = parsePublicKey(comparator.value);
         break;
@@ -1403,7 +1395,6 @@ const formatComparator = (comparator) => {
       case constants.filterKeys.LIMIT:
         comparator.value = Math.min(Number(comparator.value), getEffectiveMaxLimit());
         break;
-      case constants.filterKeys.NODE_ID:
       case constants.filterKeys.NONCE:
         comparator.value = Number(comparator.value);
         break;

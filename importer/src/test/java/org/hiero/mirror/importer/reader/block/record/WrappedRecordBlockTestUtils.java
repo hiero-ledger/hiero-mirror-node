@@ -8,10 +8,12 @@ import java.util.Map;
 import java.util.TreeMap;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.SidecarFile;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 
@@ -80,6 +82,19 @@ public class WrappedRecordBlockTestUtils {
                             .name("2025-07-23T20_37_42.076472454Z.rcd")
                             .previousHash(
                                     "cbd7a318fb7d0a023632002926857a1511953f6e1a6d162df1fe8b57f97d21389094f7a2bb31edd9d9859cc38c561bdd")
+                            .sidecarCount(1)
+                            .sidecars(List.of(SidecarFile.builder()
+                                    .consensusEnd(1753303063721549000L)
+                                    .count(12)
+                                    .hashAlgorithm(DigestAlgorithm.SHA_384)
+                                    .hash(
+                                            Hex.decode(
+                                                    "e4cbf4516c964c8f9dbc5c46ee2956aa4cad468abfc74352f1146c7e40e81522e9528c943c9b9214faa43a6577d3d2f5"))
+                                    .index(1)
+                                    .name("2025-07-23T20_37_42.076472454Z_01.rcd")
+                                    .size(41037)
+                                    .types(List.of(1, 2))
+                                    .build()))
                             .size(32665)
                             .softwareVersionMajor(0)
                             .softwareVersionMinor(63)

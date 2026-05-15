@@ -41,12 +41,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
-    implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("software.amazon.awssdk:netty-nio-client")
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:sts")
     protobuf("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
-    runtimeOnly("com.github.luben:zstd-jni")
+    implementation("com.github.luben:zstd-jni")
     runtimeOnly("io.grpc:grpc-netty")
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("com.asarkar.grpc:grpc-test")
@@ -67,10 +66,11 @@ dependencies {
 }
 
 protobuf {
+    val grpcVersion: String by rootProject.extra
     val protobufVersion: String by rootProject.extra
 
     protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" }
-    plugins { id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java" } }
+    plugins { id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:$grpcVersion" } }
     generateProtoTasks {
         ofSourceSet("main").forEach { it.plugins { id("grpc") { option("@generated=omit") } } }
     }

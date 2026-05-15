@@ -44,7 +44,6 @@ public class Transaction implements Persistable<Long> {
     @Id
     private Long consensusTimestamp;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId entityId;
 
@@ -80,7 +79,6 @@ public class Transaction implements Persistable<Long> {
     @JdbcTypeCode(SqlTypes.JSON)
     private List<NftTransfer> nftTransfer;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId nodeAccountId;
 
@@ -88,7 +86,6 @@ public class Transaction implements Persistable<Long> {
 
     private Long parentConsensusTimestamp;
 
-    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 

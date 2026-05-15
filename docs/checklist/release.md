@@ -6,7 +6,7 @@ This checklist verifies a release is rolled out successfully.
 
 - [ ] Milestone created
 - [ ] Milestone field populated on relevant [issues](https://github.com/hiero-ledger/hiero-mirror-node/issues?q=is%3Aclosed+no%3Amilestone+sort%3Aupdated-desc)
-- [ ] Nothing open for [milestone](https://github.com/hiero-ledger/hiero-mirror-node/issues?q=is%3Aopen+sort%3Aupdated-desc+milestone%3A0.145.0)
+- [ ] Nothing open for [milestone](https://github.com/hiero-ledger/hiero-mirror-node/issues?q=is%3Aopen+sort%3Aupdated-desc+milestone%3A0.155.0)
 - [ ] GitHub checks for branch are passing
 - [ ] No breaking changes in API schema or behavior
 - [ ] No pre-release or snapshot dependencies present in build files
@@ -43,18 +43,18 @@ Deployed automatically on every tag.
 - [ ] Deployed
 - [ ] Helm Controller logs show successful reconciliation check
 - [ ] Helm release status is healthy
-- [ ] No abnormal exceptions in importer logs
-- [ ] REST API performance tests
-- [ ] REST Java API performance tests
-- [ ] Web3 API performance tests
-- [ ] Verify performance test results
+- [ ] REST API performance tests passing
+- [ ] REST Java API performance tests passing
+- [ ] Web3 API performance tests passing
 - [ ] Run the `Copy StackGres Citus Cluster` workflow to tear down the cluster
   - Uncheck `Restore the target cluster from the source`
   - Uncheck `Run k6 test`
   - Check `Tear down target cluster`
+- [ ] Create new static snapshot if necessary (long migration) and update github env var
 
 ## Generally Available
 
+- [ ] Verify native images run with latest RC tag
 - [ ] Tag release via manual invocation of `Release Automation` workflow with GA tag
 - [ ] Manager writes release notes and publishes GitHub release
 - [ ] Publish marketplace release
@@ -75,10 +75,12 @@ A GA tag will trigger an automatic deployment to NA. Upon success, a PR for EU w
 - [ ] Deployed NA
 - [ ] Helm Controller logs show successful reconciliation check NA
 - [ ] Helm release status is healthy NA
+- [ ] Load balancer is healthy NA
 - [ ] Approve and merge automated PR to bump versions on `testnet-eu`
 - [ ] Deployed EU
 - [ ] Helm Controller logs show successful reconciliation check EU
 - [ ] Helm release status is healthy EU
+- [ ] Load balancer is healthy EU
 
 ### Pre-Production
 
@@ -100,10 +102,12 @@ EU will automatically get created.
 - [ ] Deployed NA
 - [ ] Helm Controller logs show successful reconciliation check NA
 - [ ] Helm release status is healthy NA
+- [ ] Load balancer is healthy NA
 - [ ] Approve and merge automated PR to bump versions on `mainnet-eu`
 - [ ] Deployed EU
 - [ ] Helm Controller logs show successful reconciliation check EU
 - [ ] Helm release status is healthy EU
+- [ ] Load balancer is healthy EU
 
 ## Post Release
 

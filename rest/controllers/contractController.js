@@ -502,7 +502,7 @@ class ContractController extends BaseController {
     }
 
     const {filters: optimizedTimestampFilters, next} =
-      contractId === undefined ? await optimizeTimestampFilters(timestampFilters, order) : {filters: timestampFilters};
+      contractId == null ? await optimizeTimestampFilters(timestampFilters, order) : {filters: timestampFilters};
     if (timestampFilters.length !== 0 && optimizedTimestampFilters.length === 0) {
       return {skip: true};
     }
@@ -675,7 +675,7 @@ class ContractController extends BaseController {
 
       bounds.primary = new Bound(filterKeys.TIMESTAMP);
       bounds.primary.parse({key: filterKeys.TIMESTAMP, operator: utils.opsMap.eq, value: rows[0].consensus_timestamp});
-    } else if (contractId === undefined) {
+    } else if (contractId == null) {
       // Optimize timestamp filters only when there is no transaction hash and transaction id
       const {filters: timestampFilters, next} = await optimizeTimestampFilters(bounds.primary.getAllFilters(), order);
       bounds.primary = new Bound(filterKeys.TIMESTAMP);
@@ -868,6 +868,9 @@ class ContractController extends BaseController {
       },
     };
     res.locals[responseDataLabel] = response;
+    if (contractId == null) {
+      return;
+    }
     const {conditions, params, order, limit, skip} = await this.extractContractResultsByIdQuery(filters, contractId);
     if (skip) {
       return;
@@ -967,6 +970,15 @@ class ContractController extends BaseController {
       acceptedContractStateParameters
     );
     const contractId = await ContractService.computeContractIdFromString(contractIdParam);
+    if (contractId == null) {
+      res.locals[responseDataLabel] = {
+        state: [],
+        links: {
+          next: null,
+        },
+      };
+      return;
+    }
     const {conditions, order, limit, timestamp} = await this.extractContractStateByIdQuery(filters, contractId);
     const rows = await ContractService.getContractStateByIdAndFilters(conditions, order, limit, timestamp);
     const state = rows.map((row) => new ContractStateViewModel(row));
@@ -1015,6 +1027,10 @@ class ContractController extends BaseController {
 
     const [contractResults, ethTransactions, recordFile, contractLogs, contractStateChanges] =
       await this.getDetailedContractResults(contractDetails, contractId);
+
+    if (contractResults.length === 0) {
+      throw new NotFoundError();
+    }
 
     const ethTransaction = ethTransactions[0];
 

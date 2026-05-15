@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.hiero.mirror.importer.downloader.block.scheduler.Scheduler.EARLIEST_AVAILABLE_BLOCK_NUMBER;
+
 import com.hedera.hapi.block.stream.protoc.Block;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -15,6 +17,7 @@ import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
@@ -55,7 +58,7 @@ final class BlockFileSource extends AbstractBlockSource {
     }
 
     @Override
-    protected void doGet(final long blockNumber) {
+    protected void doGet(final long blockNumber, final Long endBlockNumber) {
         if (blockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER) {
             throw new IllegalStateException(
                     this.getClass().getSimpleName() + " doesn't support earliest available block number");
@@ -105,6 +108,7 @@ final class BlockFileSource extends AbstractBlockSource {
             final byte[] bytes = blockFileData.getBytes();
             return new BlockStream(
                     block.getItemsList(),
+                    System.currentTimeMillis(),
                     bytes,
                     blockFileData.getFilename(),
                     blockFileData.getStreamFilename().getTimestamp());

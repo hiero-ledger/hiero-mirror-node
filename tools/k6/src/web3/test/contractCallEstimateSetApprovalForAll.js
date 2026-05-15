@@ -9,7 +9,7 @@ const token = __ENV.NON_FUNGIBLE_TOKEN_ADDRESS;
 const account = __ENV.ACCOUNT_ADDRESS;
 const trueValue = __ENV.AMOUNT;
 const runMode = __ENV.RUN_WITH_VARIABLES;
-const testName = 'estimateSetApprovalForAll';
+const testName = 'contractCallEstimateSetApprovalForAll';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =
