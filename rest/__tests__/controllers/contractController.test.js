@@ -2,7 +2,7 @@
 
 import {Range} from 'pg-range';
 
-import {getResponseLimit} from '../../config';
+import config, {getResponseLimit} from '../../config';
 import * as constants from '../../constants';
 import contracts from '../../controllers/contractController';
 import {assertSqlQueryEqual} from '../testutils';
@@ -479,6 +479,16 @@ describe('extractContractResultsByIdQuery', () => {
         spec.expected
       );
     });
+  });
+
+  test('global endpoint - syntheticContractResults flag disabled → includeSynthetic false', async () => {
+    config.query.syntheticContractResults = false;
+    try {
+      const result = await contracts.extractContractResultsByIdQuery([], undefined);
+      expect(result.includeSynthetic).toBe(false);
+    } finally {
+      config.query.syntheticContractResults = true;
+    }
   });
 });
 

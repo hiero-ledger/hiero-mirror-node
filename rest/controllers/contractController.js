@@ -7,7 +7,7 @@ import range from 'lodash/range';
 
 import BaseController from './baseController';
 import Bound from './bound';
-import {getResponseLimit} from '../config';
+import config, {getResponseLimit} from '../config';
 import {
   filterKeys,
   httpStatusCodes,
@@ -532,7 +532,8 @@ class ContractController extends BaseController {
       conditions.push(`${ContractResult.getFullName(ContractResult.TRANSACTION_NONCE)} = 0`);
     }
 
-    const includeSynthetic = contractId === undefined && contractResultFromInValues.length === 0;
+    const includeSynthetic =
+      config.query.syntheticContractResults && contractId === undefined && contractResultFromInValues.length === 0;
 
     return {
       conditions,

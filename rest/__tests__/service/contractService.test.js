@@ -198,29 +198,19 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
     expect(params).toEqual([2, 10, 5]);
   });
 
-  test('Verify includeSynthetic - no timestamp conditions', async () => {
-    const [query, params] = ContractService.getContractResultsByIdAndFiltersQuery(
+});
+
+describe('ContractService.getSyntheticContractResultsQuery tests', () => {
+  test('No prior results, no extra conditions', () => {
+    const [query, params] = ContractService.getSyntheticContractResultsQuery(
+      [],
       ['cr.transaction_nonce = 0'],
       [],
       'desc',
-      10,
-      true
+      10
     );
     const expected = `
-      (select
-        cr.amount, cr.bloom, cr.call_result, cr.consensus_timestamp, cr.contract_id,
-        cr.created_contract_ids, cr.error_message, cr.failed_initcode, cr.function_parameters,
-        case when cr.sender_id is null then cr.function_result else '' end as function_result,
-        cr.gas_consumed, cr.gas_limit, cr.gas_used, cr.payer_account_id, cr.sender_id,
-        cr.transaction_hash, cr.transaction_index, cr.transaction_nonce, cr.transaction_result,
-        coalesce(e.evm_address,'') as evm_address
-      from contract_result cr
-      left join entity e on e.id = cr.contract_id
-      where cr.transaction_nonce = 0
-      order by cr.consensus_timestamp desc
-      limit $1)
-      union all
-      (select
+      select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
@@ -236,7 +226,8 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
           cl.transaction_hash, cl.transaction_index, cl.payer_account_id, cl.index
         from contract_log cl
-        where cl.synthetic = true
+        where (cl.root_contract_id is null or cl.root_contract_id = cl.contract_id)
+          and cl.synthetic is distinct from false
           and not exists (
             select 1
             from contract_result cr
@@ -246,37 +237,22 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         order by cl.consensus_timestamp desc, cl.index desc
         limit $1
       ) synth_raw
-      left join entity e on e.id = synth_raw.contract_id)
-      order by consensus_timestamp desc
-      limit $1
+      left join entity e on e.id = synth_raw.contract_id
     `;
     assertSqlQueryEqual(query, expected);
     expect(params).toEqual([10]);
   });
 
-  test('Verify includeSynthetic - with timestamp conditions', async () => {
-    const [query, params] = ContractService.getContractResultsByIdAndFiltersQuery(
+  test('No prior results, with timestamp conditions', () => {
+    const [query, params] = ContractService.getSyntheticContractResultsQuery(
+      [],
       ['cr.transaction_nonce = 0', 'cr.consensus_timestamp >= $1', 'cr.consensus_timestamp <= $2'],
       [1000, 2000],
-      'asc',
-      5,
-      true
+      'desc',
+      10
     );
     const expected = `
-      (select
-        cr.amount, cr.bloom, cr.call_result, cr.consensus_timestamp, cr.contract_id,
-        cr.created_contract_ids, cr.error_message, cr.failed_initcode, cr.function_parameters,
-        case when cr.sender_id is null then cr.function_result else '' end as function_result,
-        cr.gas_consumed, cr.gas_limit, cr.gas_used, cr.payer_account_id, cr.sender_id,
-        cr.transaction_hash, cr.transaction_index, cr.transaction_nonce, cr.transaction_result,
-        coalesce(e.evm_address,'') as evm_address
-      from contract_result cr
-      left join entity e on e.id = cr.contract_id
-      where cr.transaction_nonce = 0 and cr.consensus_timestamp >= $1 and cr.consensus_timestamp <= $2
-      order by cr.consensus_timestamp asc
-      limit $3)
-      union all
-      (select
+      select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
@@ -292,23 +268,78 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
           cl.transaction_hash, cl.transaction_index, cl.payer_account_id, cl.index
         from contract_log cl
-        where cl.synthetic = true
-          and cl.consensus_timestamp >= $1 and cl.consensus_timestamp <= $2
+        where (cl.root_contract_id is null or cl.root_contract_id = cl.contract_id)
+          and cl.synthetic is distinct from false
           and not exists (
             select 1
             from contract_result cr
             where cr.contract_id = cl.contract_id
               and cr.consensus_timestamp = cl.consensus_timestamp
           )
-        order by cl.consensus_timestamp asc, cl.index asc
+          and cl.consensus_timestamp >= $1 and cl.consensus_timestamp <= $2
+        order by cl.consensus_timestamp desc, cl.index desc
         limit $3
       ) synth_raw
-      left join entity e on e.id = synth_raw.contract_id)
-      order by consensus_timestamp asc
-      limit $3
+      left join entity e on e.id = synth_raw.contract_id
     `;
     assertSqlQueryEqual(query, expected);
-    expect(params).toEqual([1000, 2000, 5]);
+    expect(params).toEqual([1000, 2000, 10]);
+  });
+
+  test('Full page of prior results adds DESC timestamp bound', () => {
+    const [query, params] = ContractService.getSyntheticContractResultsQuery(
+      [{consensus_timestamp: '5'}],
+      ['cr.transaction_nonce = 0'],
+      [],
+      'desc',
+      1
+    );
+    const expected = `
+      select
+        null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
+        synth_raw.consensus_timestamp, synth_raw.contract_id,
+        null::bigint[] as created_contract_ids, null::text as error_message,
+        null::bytea as failed_initcode, decode('', 'hex') as function_parameters,
+        null::bytea as function_result, null::bigint as gas_consumed, 0::bigint as gas_limit,
+        null::bigint as gas_used, synth_raw.payer_account_id, null::bigint as sender_id,
+        synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
+        22::smallint as transaction_result,
+        coalesce(e.evm_address, '') as evm_address
+      from (
+        select distinct on (cl.consensus_timestamp)
+          cl.consensus_timestamp,
+          coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
+          cl.transaction_hash, cl.transaction_index, cl.payer_account_id, cl.index
+        from contract_log cl
+        where (cl.root_contract_id is null or cl.root_contract_id = cl.contract_id)
+          and cl.synthetic is distinct from false
+          and not exists (
+            select 1
+            from contract_result cr
+            where cr.contract_id = cl.contract_id
+              and cr.consensus_timestamp = cl.consensus_timestamp
+          )
+          and cl.consensus_timestamp >= $1
+        order by cl.consensus_timestamp desc, cl.index desc
+        limit $2
+      ) synth_raw
+      left join entity e on e.id = synth_raw.contract_id
+    `;
+    assertSqlQueryEqual(query, expected);
+    expect(params).toEqual(['5', 1]);
+  });
+
+  test('Transaction index condition is mapped to cl.transaction_index', () => {
+    const [query, params] = ContractService.getSyntheticContractResultsQuery(
+      [],
+      ['cr.transaction_nonce = 0', 'cr.transaction_index = $1'],
+      [3],
+      'asc',
+      10
+    );
+    expect(query).toContain('cl.transaction_index = $1');
+    expect(query).not.toContain('cr.transaction_index');
+    expect(params).toEqual([3, 10]);
   });
 });
 
@@ -368,7 +399,38 @@ describe('ContractService.getContractResultsByIdAndFilters - synthetic inclusion
     expect(response[1]).toMatchObject({consensusTimestamp: 20, gasLimit: 0}); // synthetic
   });
 
-  test('Non-synthetic log without contract_result does not appear', async () => {
+  test('Old-style synthetic log (synthetic null) with no contract_result appears in results', async () => {
+    // loadContractLogs with no synthetic field — defaults to null, simulating historical rows
+    await integrationDomainOps.loadContractLogs([
+      {
+        consensus_timestamp: 1,
+        contract_id: entityId2.num,
+        transaction_hash: Buffer.alloc(32, 0xdd),
+        transaction_index: 1,
+        payer_account_id: entityId500.num,
+      },
+    ]);
+
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['cr.transaction_nonce = 0'],
+      [],
+      'desc',
+      25,
+      true
+    );
+
+    expect(response).toHaveLength(1);
+    expect(response[0]).toMatchObject({
+      contractId: entityId2.getEncodedId(),
+      consensusTimestamp: 1,
+      gasLimit: 0,
+      transactionNonce: 0,
+    });
+  });
+
+  test('Explicitly non-synthetic log (synthetic=false) without contract_result does not appear', async () => {
+    // Simulates an orphaned EVM log: synthetic=false means it is an EVM log, not a HAPI transfer.
+    // The synthetic IS DISTINCT FROM false filter must exclude it even though NOT EXISTS would pass.
     await integrationDomainOps.loadContractLogs([
       {
         consensus_timestamp: 1,
@@ -386,6 +448,59 @@ describe('ContractService.getContractResultsByIdAndFilters - synthetic inclusion
     );
 
     expect(response).toHaveLength(0);
+  });
+
+  test('Log with matching contract_result does not appear as synthetic', async () => {
+    await integrationDomainOps.loadContractResults([
+      {
+        contract_id: entityId2.num,
+        consensus_timestamp: 5,
+        transaction_nonce: 0,
+      },
+    ]);
+    await integrationDomainOps.loadContractLogs([
+      {
+        consensus_timestamp: 5,
+        contract_id: entityId2.num,
+        transaction_hash: Buffer.alloc(32, 0xee),
+      },
+    ]);
+
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['cr.transaction_nonce = 0'],
+      [],
+      'desc',
+      25,
+      true
+    );
+
+    // Only the real contract_result should appear, no synthetic duplicate
+    expect(response).toHaveLength(1);
+    expect(response[0]).toMatchObject({gasLimit: 1000}); // real contract_result has gasLimit from fixture
+  });
+
+  test('Synthetic log with root_contract_id resolves to root contract', async () => {
+    await integrationDomainOps.addSyntheticContractLog({
+      // Production data: synthetic HAPI logs always have root_contract_id = contract_id.
+      // The coalesce(root_contract_id, contract_id) in the SELECT handles the null case identically.
+      consensus_timestamp: 10,
+      contract_id: entityId2.num,
+      root_contract_id: entityId2.num,
+      transaction_hash: Buffer.alloc(32, 0xff),
+      transaction_index: 0,
+      payer_account_id: entityId500.num,
+    });
+
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['cr.transaction_nonce = 0'],
+      [],
+      'desc',
+      25,
+      true
+    );
+
+    expect(response).toHaveLength(1);
+    expect(response[0].contractId).toEqual(entityId2.getEncodedId());
   });
 
   test('Synthetic log with matching contract_result is not duplicated', async () => {
