@@ -73,6 +73,9 @@ spec:
               memory: 10Gi
     testkube:
       enabled: true
+      prometheus:
+        enabled: true
+        serverUrl: https://prometheus-blocks-prod-us-central1.grafana.net/api/prom/push
       test:
         config:
           rest:
@@ -145,14 +148,9 @@ spec:
             TOKEN_ADDRESS: "0000000000000000000000000000000000000000000000000000000000429f74"
             TOKEN_FREEZE_KEY_ACCOUNT_ADDRESS: "000000000000000000000000000000000000000000000000000000000071acef"
             TRANSACTION_IDS: "0.0.5424774-1742856615-552495129,0.0.7750205-1743982286-329918491"
-        prometheus:
-          enabled: true
-          serverUrl: https://prometheus-blocks-prod-us-central1.grafana.net/api/prom/push
         targets:
           - namespace: mainnet-citus
             release: mirror
-      trigger:
-        enabled: true
     traefik:
       resources:
         limits:
