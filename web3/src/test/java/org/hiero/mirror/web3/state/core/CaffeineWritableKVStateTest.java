@@ -33,7 +33,7 @@ class CaffeineWritableKVStateTest {
     private CaffeineWritableKVState<AccountID, Account> subject;
 
     @Mock
-    private ReadableKVState<AccountID, Account> delegate;
+    private ReadableKVState<AccountID, Account> readableKVState;
 
     @Mock
     private AccountID accountID;
@@ -45,29 +45,29 @@ class CaffeineWritableKVStateTest {
     void setup() {
         sharedStore = Caffeine.newBuilder().maximumSize(100).build();
         subject = new CaffeineWritableKVState<>(
-                TokenService.NAME, AccountReadableKVState.STATE_ID, delegate, sharedStore);
+                TokenService.NAME, AccountReadableKVState.STATE_ID, readableKVState, sharedStore);
     }
 
     @Test
     void readFallsThroughToDelegateWhenCacheMiss() {
-        when(delegate.get(accountID)).thenReturn(account);
+        when(readableKVState.get(accountID)).thenReturn(account);
         assertThat(subject.readFromDataSource(accountID)).isEqualTo(account);
-        verify(delegate).get(accountID);
+        verify(readableKVState).get(accountID);
     }
 
     @Test
     void readFromCaffeineBeforeDelegateOnCacheHit() {
         sharedStore.put(accountID, Optional.of(account));
         assertThat(subject.readFromDataSource(accountID)).isEqualTo(account);
-        verify(delegate, never()).get(accountID);
+        verify(readableKVState, never()).get(accountID);
     }
 
     @Test
     void tombstoneReturnsNullWithoutDelegateFallthrough() {
         sharedStore.put(accountID, Optional.empty());
-        lenient().when(delegate.get(accountID)).thenReturn(account); // would return non-null if reached
+        lenient().when(readableKVState.get(accountID)).thenReturn(account); // would return non-null if reached
         assertThat(subject.readFromDataSource(accountID)).isNull();
-        verify(delegate, never()).get(accountID);
+        verify(readableKVState, never()).get(accountID);
     }
 
     @Test
@@ -123,25 +123,25 @@ class CaffeineWritableKVStateTest {
         // new request context sees the committed value via readFromDataSource
         final Account readBack = ContractCallContext.run(ctx -> subject.readFromDataSource(accountID));
         assertThat(readBack).isEqualTo(account);
-        verify(delegate, never()).get(accountID);
+        verify(readableKVState, never()).get(accountID);
     }
 
     @Test
     void sizeOfDataSourceDelegatesToReadableDelegate() {
-        assertThat(subject.sizeOfDataSource()).isEqualTo(delegate.size());
+        assertThat(subject.sizeOfDataSource()).isEqualTo(readableKVState.size());
     }
 
     @Test
     void sizeCountsModificationAgainstDelegateNotCaffeine() {
-        // key committed to Caffeine but absent from the delegate (backing store)
+        // key committed to Caffeine but absent from the readableKVState (backing store)
         sharedStore.put(accountID, Optional.of(account));
-        when(delegate.get(accountID)).thenReturn(null);
-        when(delegate.size()).thenReturn(0L);
+        when(readableKVState.get(accountID)).thenReturn(null);
+        when(readableKVState.size()).thenReturn(0L);
 
         // same key modified again in the per-request write cache
         subject.put(accountID, account);
 
-        // size() checks the delegate, not Caffeine: 0 (delegate) + 1 addition = 1
+        // size() checks the readableKVState, not Caffeine: 0 (readableKVState) + 1 addition = 1
         assertThat(subject.size()).isEqualTo(1L);
     }
 
@@ -163,21 +163,21 @@ class CaffeineWritableKVStateTest {
     @Test
     void equalsDifferentStateId() {
         final var other = new CaffeineWritableKVState<>(
-                TokenService.NAME, AliasesReadableKVState.STATE_ID, delegate, sharedStore);
+                TokenService.NAME, AliasesReadableKVState.STATE_ID, readableKVState, sharedStore);
         assertThat(subject).isNotEqualTo(other);
     }
 
     @Test
     void equalsSameStateIdSameDelegate() {
         final var other = new CaffeineWritableKVState<>(
-                TokenService.NAME, AccountReadableKVState.STATE_ID, delegate, sharedStore);
+                TokenService.NAME, AccountReadableKVState.STATE_ID, readableKVState, sharedStore);
         assertThat(subject).isEqualTo(other);
     }
 
     @Test
     void hashCodeConsistentWithEquals() {
         final var other = new CaffeineWritableKVState<>(
-                TokenService.NAME, AccountReadableKVState.STATE_ID, delegate, sharedStore);
+                TokenService.NAME, AccountReadableKVState.STATE_ID, readableKVState, sharedStore);
         assertThat(subject).hasSameHashCodeAs(other);
     }
 }

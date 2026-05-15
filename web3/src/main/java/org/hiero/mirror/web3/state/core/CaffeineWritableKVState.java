@@ -84,10 +84,10 @@ public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
 
         final var writeCache = ContractCallContext.get().getWriteCacheState(getStateId());
         for (final var mod : writeCache.entrySet()) {
-            final K key = (K) mod.getKey();
-            final Object rawValue = mod.getValue();
-            boolean isPresentInBackingMap = readableBackingStore.get(key) != null;
-            boolean isRemovedInMod = rawValue == null;
+            final var key = (K) mod.getKey();
+            final var rawValue = mod.getValue();
+            final var isPresentInBackingMap = readableBackingStore.get(key) != null;
+            final var isRemovedInMod = rawValue == null;
 
             if (isPresentInBackingMap && isRemovedInMod) {
                 numRemovals++;
@@ -103,11 +103,12 @@ public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
         if (this == o) return true;
         if (!(o instanceof CaffeineWritableKVState<?, ?> that)) return false;
         return Objects.equals(getStateId(), that.getStateId())
-                && Objects.equals(readableBackingStore, that.readableBackingStore);
+                && Objects.equals(readableBackingStore, that.readableBackingStore)
+                && Objects.equals(sharedStore, that.sharedStore);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getStateId(), readableBackingStore);
+        return Objects.hash(getStateId(), readableBackingStore, sharedStore);
     }
 }

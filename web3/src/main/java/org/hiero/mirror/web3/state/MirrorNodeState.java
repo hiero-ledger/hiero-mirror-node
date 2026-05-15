@@ -32,7 +32,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import org.hiero.base.crypto.Hash;
@@ -162,7 +161,7 @@ public class MirrorNodeState implements State {
     private <K, V> Object buildWritableKVState(
             final String serviceName, final int stateId, final ReadableKVState<K, V> readable) {
         if (web3Properties.isSharedWritableState()) {
-            final Cache<K, Optional<V>> store = sharedKvStores.computeIfAbsent(
+            final var store = sharedKvStores.computeIfAbsent(
                     stateId, id -> Caffeine.from(cacheProperties.getSharedWritableState())
                             .build());
             return new CaffeineWritableKVState<>(serviceName, stateId, readable, store);

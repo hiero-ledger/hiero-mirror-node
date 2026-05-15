@@ -36,6 +36,9 @@ public class CacheProperties {
     private String fee = "expireAfterWrite=60m,maximumSize=20,recordStats";
 
     @NotBlank
+    private String sharedWritableState = "expireAfterAccess=5m,maximumSize=100000,recordStats";
+
+    @NotBlank
     private String slotsPerContract = "expireAfterAccess=5m,maximumSize=1500";
 
     @NotBlank
@@ -49,7 +52,4 @@ public class CacheProperties {
 
     @NotBlank
     private String tokenType = "expireAfterAccess=24h,maximumSize=100000,recordStats";
-
-    @NotBlank
-    private String sharedWritableState = "expireAfterAccess=1h,maximumSize=100000,recordStats";
 }
