@@ -18,14 +18,11 @@
     },
     {
       "url": "/api/v1/contracts/0x5555555555555555555555555555555555555555/results",
-      "responseStatus": 404,
+      "responseStatus": 200,
       "responseJson": {
-        "_status": {
-          "messages": [
-            {
-              "message": "No contract with the given evm address 0x5555555555555555555555555555555555555555 has been found."
-            }
-          ]
+        "results": [],
+        "links": {
+          "next": null
         }
       }
     }

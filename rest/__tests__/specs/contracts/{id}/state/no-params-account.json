@@ -1,55 +1,55 @@
 {
-  "description": "Contract state api call for a contract",
+  "description": "Contract state api call for an account",
   "setup": {
     "entities": [
       {
-        "num": 5001,
-        "evm_address": "0x25fe26adc577cc89172e6156c9e24f7b9751b762",
-        "type": "CONTRACT"
+        "num": 5011,
+        "evm_address": "35fe26adc577cc89172e6156c9e24f7b9751b763",
+        "type": "ACCOUNT"
       }
     ],
     "contractStates": [
       {
         "created_timestamp": "1676540001234390005",
         "modified_timestamp": "1676540001234390005",
-        "contract_id": 5001,
+        "contract_id": 5011,
         "slot": "0000000000000000000000000000000000000000000000000000000000000001",
         "value": "10"
       },
       {
         "created_timestamp": "1676540001234390005",
         "modified_timestamp": "1676540001234390005",
-        "contract_id": 5001,
+        "contract_id": 5011,
         "slot": "0000000000000000000000000000000000000000000000000000000000000002",
         "value": ""
       }
     ]
   },
   "urls": [
-    "/api/v1/contracts/5001/state",
-    "/api/v1/contracts/0.0.5001/state",
-    "/api/v1/contracts/0.5001/state",
-    "/api/v1/contracts/5001/state",
-    "/api/v1/contracts/0000000000000000000000000000000000001389/state",
-    "/api/v1/contracts/0.0000000000000000000000000000000000001389/state",
-    "/api/v1/contracts/0.0.0000000000000000000000000000000000001389/state",
-    "/api/v1/contracts/0x0000000000000000000000000000000000001389/state",
-    "/api/v1/contracts/0x25fe26adc577cc89172e6156c9e24f7b9751b762/state",
-    "/api/v1/contracts/25fe26adc577cc89172e6156c9e24f7b9751b762/state"
+    "/api/v1/contracts/5011/state",
+    "/api/v1/contracts/0.0.5011/state",
+    "/api/v1/contracts/0.5011/state",
+    "/api/v1/contracts/5011/state",
+    "/api/v1/contracts/0000000000000000000000000000000000001393/state",
+    "/api/v1/contracts/0.0000000000000000000000000000000000001393/state",
+    "/api/v1/contracts/0.0.0000000000000000000000000000000000001393/state",
+    "/api/v1/contracts/0x0000000000000000000000000000000000001393/state",
+    "/api/v1/contracts/0x35fe26adc577cc89172e6156c9e24f7b9751b763/state",
+    "/api/v1/contracts/35fe26adc577cc89172e6156c9e24f7b9751b763/state"
   ],
   "responseStatus": 200,
   "responseJson": {
     "state": [
       {
-        "address": "0x25fe26adc577cc89172e6156c9e24f7b9751b762",
-        "contract_id": "0.0.5001",
+        "address": "0x35fe26adc577cc89172e6156c9e24f7b9751b763",
+        "contract_id": "0.0.5011",
         "timestamp": "1676540001.234390005",
         "slot": "0x0000000000000000000000000000000000000000000000000000000000000001",
         "value": "0x0000000000000000000000000000000000000000000000000000000000000010"
       },
       {
-        "address": "0x25fe26adc577cc89172e6156c9e24f7b9751b762",
-        "contract_id": "0.0.5001",
+        "address": "0x35fe26adc577cc89172e6156c9e24f7b9751b763",
+        "contract_id": "0.0.5011",
         "timestamp": "1676540001.234390005",
         "slot": "0x0000000000000000000000000000000000000000000000000000000000000002",
         "value": "0x0000000000000000000000000000000000000000000000000000000000000000"

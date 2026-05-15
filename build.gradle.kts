@@ -27,6 +27,7 @@ extra.apply {
     set("postgresql.version", "42.7.11") // Temporary until next Spring Boot
     set("protobufVersion", "4.34.1")
     set("springGrpcVersion", "1.0.3")
+    set("tomcat.version", "11.0.22") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
 

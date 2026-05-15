@@ -52,6 +52,11 @@ runs:
           echo "${k6}=${value}" >> $GITHUB_ENV
         done
 
+        # Collect TRANSACTION_ID=<id> lines printed by the acceptance tests,
+        # pick the first matching id and export as TRANSACTION_IDS
+        TRANSACTION_IDS=$(grep -oP '^TRANSACTION_ID=\K.+$' "$LOG_FILE" | head -n 1 || true)
+        echo "TRANSACTION_IDS=${TRANSACTION_IDS}" >> $GITHUB_ENV
+
     - name: Install k6
       uses: grafana/setup-k6-action@ffe7d7290dfa715e48c2ccc924d068444c94bde2 # v1
 
@@ -84,7 +89,7 @@ runs:
         RUN_COMPLEX_TESTS: "false"
         RUN_ESTIMATE_TESTS: "false"
         RUN_MODIFICATION_TESTS: "false"
-        RUN_OPCODE_TESTS: "false"
+        RUN_OPCODE_TESTS: ${{ env.RUN_OPCODE_TESTS || 'false' }}
         RUN_TRAFFIC_REPLAY: "false"
         RUN_WITH_VARIABLES: "true"
         SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
