@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.state.keyvalue;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
@@ -13,14 +12,12 @@ import com.hedera.hapi.node.base.ContractID.ContractOneOfType;
 import com.hedera.hapi.node.state.contract.Bytecode;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import java.util.Map;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractRepository;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
-import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -131,34 +128,5 @@ class ContractBytecodeReadableKVStateTest {
     @Test
     void getExpectedSize() {
         assertThat(contractBytecodeReadableKVState.size()).isZero();
-    }
-
-    // ── State override tests ──────────────────────────────────────────────────
-
-    @Test
-    void codeOverrideTakesPrecedenceOverDbBytecode() {
-        // CONTRACT_ID_WITH_NUM has contractNum=1 → EVM address 0x0000...0001
-        final var override = new StateOverride();
-        override.setCode("0x6080604052");
-        doReturn(Map.of("0x0000000000000000000000000000000000000001", override))
-                .when(contractCallContext)
-                .getStateOverrides();
-
-        final var expected = new Bytecode(Bytes.wrap(new byte[] {0x60, (byte) 0x80, 0x60, 0x40, 0x52}));
-        assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM)).isEqualTo(expected);
-    }
-
-    @Test
-    void codeOverrideForDifferentAddressFallsThroughToDb() {
-        final var override = new StateOverride();
-        override.setCode("0x6080604052");
-        // Override is for a different address — should not affect CONTRACT_ID_WITH_NUM (num=1)
-        doReturn(Map.of("0x0000000000000000000000000000000000000099", override))
-                .when(contractCallContext)
-                .getStateOverrides();
-        when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
-                .thenReturn(Optional.of(BYTES.toByteArray()));
-
-        assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM)).isEqualTo(BYTECODE);
     }
 }

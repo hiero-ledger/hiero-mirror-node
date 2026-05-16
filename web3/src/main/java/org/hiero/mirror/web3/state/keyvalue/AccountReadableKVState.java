@@ -86,12 +86,12 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                 .get(key, timestamp)
                 .filter(entity -> entity.getType() == ACCOUNT || entity.getType() == CONTRACT)
                 .map(entity -> {
-                    final var mapped = accountFromEntity(entity, timestamp);
+                    final var account = accountFromEntity(entity, timestamp);
                     // Associate the account alias with this entity in the cache, if any.
-                    if (mapped.alias().length() > 0) {
-                        aliasedAccountCacheManager.putAccountAlias(mapped.alias(), key);
+                    if (account.alias().length() > 0) {
+                        aliasedAccountCacheManager.putAccountAlias(account.alias(), key);
                     }
-                    return mapped;
+                    return account;
                 })
                 .or(() -> getDummySystemAccountIfApplicable(key))
                 .orElse(null);
@@ -120,15 +120,11 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             return account;
         }
 
-        final Account.Builder builder;
         if (account == null) {
-            // Address not in the DB: create a synthetic minimal account so the EVM can execute
-            // against the overridden state (matches eth_call behaviour for non-existent accounts).
-            builder = Account.newBuilder().accountId(key).key(getDefaultKey());
-        } else {
-            builder = account.copyBuilder();
+            return null;
         }
 
+        final var builder = account.copyBuilder();
         if (override.getBalance() != null) {
             builder.tinybarBalance(parseHexBalance(override.getBalance()));
         }
