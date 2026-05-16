@@ -7,6 +7,7 @@ import static org.hiero.mirror.web3.state.Utils.EMPTY_KEY_LIST;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -32,6 +33,7 @@ import com.hedera.services.utils.EntityIdUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.hiero.mirror.common.CommonProperties;
@@ -54,6 +56,7 @@ import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.repository.projections.TokenAccountAssociationsCount;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -668,5 +671,59 @@ class AccountReadableKVStateTest {
 
     private AccountID getAccountId(final Long num) {
         return new AccountID(0L, 0L, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, num));
+    }
+
+    // ── State override tests ──────────────────────────────────────────────────
+    // ACCOUNT_ID has accountNum=1252 (0x4e4), so its long-zero EVM address is:
+    private static final String ACCOUNT_EVM_ADDR = "0x00000000000000000000000000000000000004e4";
+
+    @Test
+    void balanceOverrideAppliedToExistingAccount() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.of(entity));
+        final var override = new StateOverride();
+        override.setBalance("0x64"); // 100 tinybars
+        doReturn(Map.of(ACCOUNT_EVM_ADDR, override)).when(contractCallContext).getStateOverrides();
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).returns(100L, Account::tinybarBalance);
+    }
+
+    @Test
+    void nonceOverrideAppliedToExistingAccount() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.of(entity));
+        final var override = new StateOverride();
+        override.setNonce("0x2a"); // 42
+        doReturn(Map.of(ACCOUNT_EVM_ADDR, override)).when(contractCallContext).getStateOverrides();
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).returns(42L, Account::ethereumNonce);
+    }
+
+    @Test
+    void balanceOverrideCreatesSyntheticAccountWhenMissingFromDb() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.empty());
+        final var override = new StateOverride();
+        override.setBalance("0x64"); // 100 tinybars
+        doReturn(Map.of(ACCOUNT_EVM_ADDR, override)).when(contractCallContext).getStateOverrides();
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .isNotNull()
+                .returns(ACCOUNT_ID, Account::accountId)
+                .returns(100L, Account::tinybarBalance);
+    }
+
+    @Test
+    void overrideForDifferentAddressDoesNotAffectAccount() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.of(entity));
+        final var override = new StateOverride();
+        override.setBalance("0x64");
+        // Override is for a different address — ACCOUNT_ID should be unaffected
+        doReturn(Map.of("0x0000000000000000000000000000000000000099", override))
+                .when(contractCallContext)
+                .getStateOverrides();
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).returns(BALANCE, Account::tinybarBalance);
     }
 }

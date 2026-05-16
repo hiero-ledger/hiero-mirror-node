@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.STORAGE_STATE_ID;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
 import static org.hiero.mirror.web3.state.Utils.contractIdToEvmAddressHex;
+import static org.hiero.mirror.web3.state.Utils.hexStringToBytes;
 
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
