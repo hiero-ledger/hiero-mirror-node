@@ -25,7 +25,7 @@ dependencies {
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.0")
     implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("org.cyclonedx:cyclonedx-gradle-plugin:3.2.4")
-    implementation("org.flywaydb:flyway-database-postgresql:12.6.0")
+    implementation("org.flywaydb:flyway-database-postgresql:12.6.1")
     implementation("org.graalvm.buildtools:native-gradle-plugin:1.1.0")
     implementation("org.gradle:test-retry-gradle-plugin:1.6.4")
     implementation("org.jooq:jooq-codegen-gradle:$jooqVersion")
