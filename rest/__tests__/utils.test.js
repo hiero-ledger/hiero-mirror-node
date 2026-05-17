@@ -1796,18 +1796,6 @@ describe('Utils getNextParamQueries', () => {
         ],
       },
       {
-        name: 'empty node id range',
-        args: [
-          constants.orderFilterValues.ASC,
-          {
-            [constants.filterKeys.NODE_ID]: ['gt:10', 'lte:35'],
-          },
-          {
-            [constants.filterKeys.NODE_ID]: '35',
-          },
-        ],
-      },
-      {
         name: 'empty schedule id range',
         args: [
           constants.orderFilterValues.ASC,

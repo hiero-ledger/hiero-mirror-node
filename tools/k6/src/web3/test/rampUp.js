@@ -8,7 +8,7 @@ const token = __ENV.TOKEN_ADDRESS;
 
 // call isToken to ramp up
 const {options, run} = new ContractCallTestScenarioBuilder()
-  .name('contractCallRampUp') // use unique scenario name among all tests
+  .name('rampUp') // use unique scenario name among all tests
   .args([token])
   .selector(selector)
   .scenario({

@@ -9,7 +9,7 @@ const token = __ENV.TOKEN_ADDRESS;
 const spender = __ENV.SPENDER_ADDRESS;
 const amount = __ENV.AMOUNT;
 const runMode = __ENV.RUN_WITH_VARIABLES;
-const testName = 'estimateERCApprove';
+const testName = 'contractCallEstimateERCApprove';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =

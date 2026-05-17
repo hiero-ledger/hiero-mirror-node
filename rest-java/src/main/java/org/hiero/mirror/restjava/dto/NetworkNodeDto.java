@@ -14,6 +14,7 @@ import org.jspecify.annotations.NullUnmarked;
 @NullUnmarked
 public record NetworkNodeDto(
         byte[] adminKey,
+        Long[] associatedRegisteredNodes,
         Boolean declineReward,
         String description,
         Long endConsensusTimestamp,
@@ -32,4 +33,12 @@ public record NetworkNodeDto(
         Long stakeNotRewarded,
         Long stakeRewarded,
         Long stakingPeriod,
-        Long startConsensusTimestamp) {}
+        Long startConsensusTimestamp) {
+
+    private static final Long[] EMPTY = {};
+
+    @Override
+    public Long[] associatedRegisteredNodes() {
+        return associatedRegisteredNodes != null ? associatedRegisteredNodes : EMPTY;
+    }
+}

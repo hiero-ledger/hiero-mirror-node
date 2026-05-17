@@ -26,6 +26,7 @@ import org.hiero.mirror.importer.domain.StreamFileSignature;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
@@ -153,7 +154,7 @@ final class BlockStreamVerifier {
         final var ledger = ledgerIdPublicationTransactionParser.parse(
                 transaction.getConsensusTimestamp(),
                 transaction.getTransactionBody().getLedgerIdPublication());
-        tssVerifier.setLedger(ledger);
+        tssVerifier.setLedger(ledger, false);
     }
 
     private void verifyBlockNumber(final BlockFile blockFile) {

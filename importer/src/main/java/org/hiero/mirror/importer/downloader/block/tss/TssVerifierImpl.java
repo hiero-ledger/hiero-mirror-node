@@ -12,10 +12,10 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.tss.Ledger;
-import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.exception.SignatureVerificationException;
 import org.hiero.mirror.importer.repository.LedgerRepository;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @CustomLog
 @Named
@@ -25,14 +25,22 @@ final class TssVerifierImpl implements TssVerifier {
 
     private static final Ledger EMPTY = new Ledger();
 
-    private final BlockProperties blockProperties;
     private final AtomicReference<Optional<Ledger>> ledger = new AtomicReference<>(Optional.empty());
     private final LedgerRepository ledgerRepository;
 
+    private volatile @Nullable Ledger ledgerConfig;
+    private volatile @Nullable Ledger ledgerOnChain;
+
     @Override
-    public void setLedger(final Ledger ledger) {
-        onLedgerSet(ledger);
-        this.ledger.set(Optional.of(ledger));
+    public void setLedger(final Ledger ledger, final boolean fromConfig) {
+        if (fromConfig) {
+            ledgerConfig = ledger;
+        } else {
+            ledgerOnChain = ledger;
+        }
+
+        // Clear the atomic reference to reload the ledger
+        this.ledger.set(Optional.empty());
     }
 
     @Override
@@ -55,17 +63,16 @@ final class TssVerifierImpl implements TssVerifier {
     private Ledger getLedger() {
         return Objects.requireNonNull(ledger.get())
                 .or(() -> {
-                    final var saved = ledgerRepository
-                            .findTopByOrderByConsensusTimestampDesc()
-                            .or(() -> Optional.ofNullable(blockProperties.getLedger())
-                                    .map(LedgerProperties::toLedger))
+                    final var resolved = Optional.ofNullable(ledgerOnChain)
+                            .or(ledgerRepository::findTopByOrderByConsensusTimestampDesc)
+                            .or(() -> Optional.ofNullable(ledgerConfig))
                             .map(l -> {
                                 onLedgerSet(l);
                                 return l;
                             })
                             .or(() -> Optional.of(EMPTY));
-                    ledger.compareAndSet(Optional.empty(), saved);
-                    return saved;
+                    ledger.compareAndSet(Optional.empty(), resolved);
+                    return resolved;
                 })
                 .filter(l -> l != EMPTY)
                 .orElseThrow(() -> new IllegalStateException(

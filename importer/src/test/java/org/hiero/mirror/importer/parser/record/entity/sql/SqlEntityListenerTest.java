@@ -8,6 +8,7 @@ import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.esaulpaugh.headlong.abi.Address;
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.Key;
@@ -43,6 +44,7 @@ import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -1096,6 +1098,8 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         var entityDelete = entityCreate.toEntityId().toEntity();
         entityDelete.setAlias(entityCreate.getAlias());
+        entityDelete.setDelegationAddress(Address.toChecksumAddress("0x0000000000000000000000000000000000000000")
+                .getBytes());
         entityDelete.setDeleted(true);
         entityDelete.setTimestampLower(entityCreate.getTimestampLower() + 2);
         entityDelete.setType(ACCOUNT);
@@ -2142,8 +2146,8 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .createdTimestamp(null)
                 .description("updated")
                 .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
-                        .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
-                                .endpointApi(RegisteredServiceEndpoint.BlockNodeApi.STATUS)
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApis(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
                                 .build())
                         .ipAddress("192.168.1.1")
                         .port(8080)

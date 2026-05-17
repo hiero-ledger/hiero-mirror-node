@@ -44,6 +44,9 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverServiceImpl;
 import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
@@ -90,7 +93,10 @@ final class BlockStreamVerifierTest {
     @BeforeEach
     void setup() {
         cutoverService = spy(new CutoverServiceImpl(
-                mock(BlockProperties.class), mock(RecordDownloaderProperties.class), recordFileRepository));
+                mock(BlockProperties.class),
+                mock(CutoverProperties.class),
+                mock(RecordDownloaderProperties.class),
+                recordFileRepository));
         verifier = new BlockStreamVerifier(
                 blockFileTransformer,
                 blockStateProofHasher,
@@ -142,7 +148,7 @@ final class BlockStreamVerifierTest {
         verifyNoInteractions(blockStateProofHasher);
         verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile)));
         verify(ledgerIdPublicationTransactionParser).parse(consensusTimestamp, ledgerIdPublicationTransactionBody);
-        verify(tssVerifier).setLedger(ledger);
+        verify(tssVerifier).setLedger(ledger, false);
         verify(tssVerifier).verify(eq(0L), any(), any());
         verify(recordFileRepository).findLatest();
         assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile.getIndex(), RecordFile::getIndex);

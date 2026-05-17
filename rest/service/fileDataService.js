@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import BaseService from './baseService';
+import config from '../config.js';
 import {ExchangeRate, FileData} from '../model';
 import * as utils from '../utils';
 import EntityId from '../entityId';
@@ -95,13 +96,13 @@ class FileDataService extends BaseService {
     const filters = {whereQuery};
 
     let attempts = 0;
-    while (++attempts <= 10) {
+    while (++attempts <= config.query.maxFileAttempts) {
       const row = await this.getLatestFileDataContents(fileEntityId, filters);
       try {
         return row === null ? null : new resultConstructor(row);
       } catch (error) {
         logger.warn(
-          `Failed to load file data for file id ${fileEntityId} at ${row.consensus_timestamp}, failing back to previous file. Attempt ${attempts}. Error: ${error}`
+          `Attempt ${attempts} failed to load file ${fileEntityId} at ${row.consensus_timestamp}, falling back to previous file: ${error.message}`
         );
 
         filters.whereQuery = [

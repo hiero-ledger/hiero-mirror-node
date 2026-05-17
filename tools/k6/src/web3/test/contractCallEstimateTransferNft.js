@@ -10,7 +10,7 @@ const token = __ENV.NON_FUNGIBLE_TOKEN_ADDRESS;
 const amount = __ENV.SERIAL_NUMBER;
 const runMode = __ENV.RUN_WITH_VARIABLES;
 const selector = '0xbafa6a91'; //transferNFTExternal
-const testName = 'estimateTransferNft';
+const testName = 'contractCallEstimateTransferNft';
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =

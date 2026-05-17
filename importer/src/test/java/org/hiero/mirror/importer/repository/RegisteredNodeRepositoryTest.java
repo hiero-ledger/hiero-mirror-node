@@ -10,6 +10,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 
@@ -21,8 +22,8 @@ final class RegisteredNodeRepositoryTest extends ImporterIntegrationTest {
     @Test
     void findRegisteredNodesByBlockNodeType() {
         final var blockNodeEndpoint = RegisteredServiceEndpoint.builder()
-                .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
-                        .endpointApi(RegisteredServiceEndpoint.BlockNodeApi.STATUS)
+                .blockNode(BlockNodeEndpoint.builder()
+                        .endpointApis(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
                         .build())
                 .ipAddress("192.168.1.1")
                 .port(50211)
@@ -44,8 +45,8 @@ final class RegisteredNodeRepositoryTest extends ImporterIntegrationTest {
             assertThat(endpoint.getPort()).isEqualTo(50211);
             assertThat(endpoint.isRequiresTls()).isTrue();
             assertThat(endpoint.getBlockNode()).isNotNull();
-            assertThat(endpoint.getBlockNode().getEndpointApi())
-                    .isEqualTo(RegisteredServiceEndpoint.BlockNodeApi.STATUS);
+            assertThat(endpoint.getBlockNode().getEndpointApis())
+                    .containsExactly(RegisteredServiceEndpoint.BlockNodeApi.STATUS);
         });
     }
 

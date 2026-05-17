@@ -13,7 +13,6 @@ import com.google.protobuf.UnsafeByteOperations;
 import com.hedera.services.stream.proto.HashObject;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
-import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.Timestamp;
@@ -44,6 +43,7 @@ import org.jspecify.annotations.Nullable;
 public class DomainUtils {
 
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+    public static final ByteString EMPTY_BYTE_STRING = ByteString.EMPTY;
     public static final int EVM_ADDRESS_LENGTH = 20;
     public static final long NANOS_PER_SECOND = 1_000_000_000L;
     public static final long TINYBARS_IN_ONE_HBAR = 100_000_000L;
@@ -257,7 +257,7 @@ public class DomainUtils {
             return null;
         }
 
-        if (ByteString.EMPTY.equals(byteString)) {
+        if (EMPTY_BYTE_STRING.equals(byteString)) {
             return Internal.EMPTY_BYTE_ARRAY;
         }
 
@@ -361,53 +361,6 @@ public class DomainUtils {
         final var trimmed = trim(value);
 
         return trimmed == value ? data : BytesValue.of(trimmed);
-    }
-
-    /**
-     * Compares a contract log's topics and data to the given byte arrays (trim-aware, no allocation).
-     */
-    public static boolean contractLogTopicsAndDataMatches(
-            ContractLoginfo log, byte[] topic0, byte[] topic1, byte[] topic2, byte[] topic3, byte[] data) {
-        var topicList = log.getTopicList();
-        int topicCount = topicList.size();
-        return trimmedByteStringEquals(topicCount > 0 ? topicList.get(0) : null, topic0)
-                && trimmedByteStringEquals(topicCount > 1 ? topicList.get(1) : null, topic1)
-                && trimmedByteStringEquals(topicCount > 2 ? topicList.get(2) : null, topic2)
-                && trimmedByteStringEquals(topicCount > 3 ? topicList.get(3) : null, topic3)
-                && trimmedByteStringEquals(log.getData(), data);
-    }
-
-    /**
-     * Compares ByteString to byte[] trim-aware (leading zeros in ByteString skipped), without allocating.
-     */
-    private static boolean trimmedByteStringEquals(ByteString bs, byte[] arr) {
-        if (bs == null && arr == null) {
-            return true;
-        } else if (bs == null || arr == null) {
-            return false;
-        }
-
-        if (bs.isEmpty()) {
-            return arr.length == 0;
-        }
-        int start = 0;
-        int n = bs.size();
-        while (start < n && bs.byteAt(start) == 0) {
-            start++;
-        }
-        int trimmedLen = n - start;
-        if (trimmedLen == 0) {
-            return arr.length == 0;
-        }
-        if (trimmedLen != arr.length) {
-            return false;
-        }
-        for (int i = 0; i < arr.length; i++) {
-            if (bs.byteAt(start + i) != arr[i]) {
-                return false;
-            }
-        }
-        return true;
     }
 
     public static byte[] toEvmAddress(ContractID contractId) {

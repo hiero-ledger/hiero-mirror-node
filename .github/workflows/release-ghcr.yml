@@ -31,9 +31,6 @@ jobs:
         architecture:
           - amd64
           - arm64
-        exclude:
-          - architecture: arm64
-            project: web3 # Temporarily disable it since web3j-solidity-gradle-plugin doesn't support linux/arm64 yet
         include:
           - architecture: amd64
             runner: ubuntu-latest
@@ -47,7 +44,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
         with:
           egress-policy: audit
 
@@ -64,7 +61,7 @@ jobs:
           java-version: 25
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v4
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v4
 
       - name: Install Skopeo
         run: sudo apt-get update && sudo apt-get install -y skopeo
@@ -98,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
         with:
           egress-policy: audit
 
@@ -109,7 +106,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gettext-base
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
       - name: Get Version
         run: echo "VERSION=$(grep -oP 'version=\K.+' gradle.properties)" >> $GITHUB_ENV
@@ -121,13 +118,9 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
 
-      - name: Optional arm64 tag
-        if: matrix.project != 'web3'
-        run: echo "ARM64_TAG=${{env.IMAGE}}:${{env.VERSION}}-arm64" >> $GITHUB_ENV
-
       - name: Create Manifest
         run: |
-          docker buildx imagetools create --tag ${{env.IMAGE}}:${{env.VERSION}} ${{env.IMAGE}}:${{env.VERSION}}-amd64 ${{env.ARM64_TAG}} --metadata-file ./manifest.json
+          docker buildx imagetools create --tag ${{env.IMAGE}}:${{env.VERSION}} ${{env.IMAGE}}:${{env.VERSION}}-amd64 ${{env.IMAGE}}:${{env.VERSION}}-arm64 --metadata-file ./manifest.json
           echo "DIGEST=$(jq '."containerimage.descriptor".digest' -r ./manifest.json)" >> $GITHUB_ENV
 
       - name: Sign Image

@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 
+import com.hedera.hapi.streams.CallOperationType;
 import com.hedera.hapi.streams.ContractAction;
 import com.hedera.hapi.streams.ContractActionType;
 import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
@@ -19,6 +20,7 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.TraceProperties;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation;
 import org.jspecify.annotations.NonNull;
@@ -84,6 +86,21 @@ public class MirrorOperationActionTracer implements ActionSidecarContentTracer {
                 frame.getInputData().toShortHexString(),
                 frame.getOutputData().toShortHexString(),
                 frame.getReturnData().toShortHexString());
+    }
+
+    @Override
+    public void tracePerOpcode(MessageFrame frame, long gas, ExceptionalHaltReason halt, Operation op) {
+        // NO-OP
+    }
+
+    @Override
+    public void traceSuspended(MessageFrame parent, MessageFrame child, CallOperationType opCall) {
+        // NO-OP
+    }
+
+    @Override
+    public void traceNotExecuting(MessageFrame child) {
+        // NO-OP
     }
 
     @Override

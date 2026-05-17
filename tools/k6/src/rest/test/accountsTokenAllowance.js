@@ -11,7 +11,7 @@ const getUrl = (testParameters) =>
   `/accounts/${testParameters['DEFAULT_ACCOUNT_ID_TOKEN_ALLOWANCE']}/allowances/tokens?limit=${testParameters['DEFAULT_LIMIT']}`;
 
 const {options, run, setup} = new RestTestScenarioBuilder()
-  .name('accountTokenAllowancesResults') // use unique scenario name among all tests
+  .name('accountsTokenAllowance') // use unique scenario name among all tests
   .tags({url: urlTag})
   .request((testParameters) => {
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;

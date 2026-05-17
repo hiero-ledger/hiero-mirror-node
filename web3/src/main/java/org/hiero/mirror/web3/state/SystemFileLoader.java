@@ -23,6 +23,7 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
 import jakarta.inject.Named;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -67,8 +68,12 @@ public final class SystemFileLoader {
     private final CacheManager defaultSystemFileCacheManager;
     private final V0490FileSchema fileSchema = new V0490FileSchema();
     private final File genesisNetworkProperties;
+
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
-            .maxRetries(9)
+            .delay(Duration.ofMillis(10L))
+            .maxDelay(Duration.ofMillis(50L))
+            .maxRetries(properties.getMaxFileAttempts() - 1)
             .predicate(e -> e instanceof InvalidFileException)
             .build());
 
@@ -162,12 +167,12 @@ public final class SystemFileLoader {
      * @return The parsed file data, or the default value if no valid data is found
      */
     private File loadWithRetry(final FileID key, final long currentTimestamp, SystemFile systemFile) {
-        AtomicLong nanoSeconds = new AtomicLong(currentTimestamp);
+        final var nanoSeconds = new AtomicLong(currentTimestamp);
         final var fileId = toEntityId(key).getId();
         final var attempt = new AtomicInteger(0);
 
         try {
-            return retryTemplate.execute(() -> fileDataRepository
+            return getRetryTemplate().execute(() -> fileDataRepository
                     .getFileAtTimestamp(fileId, nanoSeconds.get())
                     .filter(fileData -> ArrayUtils.isNotEmpty(fileData.getFileData()))
                     .map(fileData -> {
@@ -180,11 +185,11 @@ public final class SystemFileLoader {
                             return File.newBuilder().contents(bytes).fileId(key).build();
                         } catch (ParseException e) {
                             log.warn(
-                                    "Failed to parse file data for fileId {} at {}, retry attempt {}. Exception: ",
+                                    "Attempt {} failed to load file {} at {}, falling back to previous file: {}",
+                                    attempt.incrementAndGet(),
                                     fileId,
                                     nanoSeconds.get(),
-                                    attempt.incrementAndGet(),
-                                    e);
+                                    e.getMessage());
                             nanoSeconds.set(fileData.getConsensusTimestamp() - 1);
                             throw new InvalidFileException(e);
                         }

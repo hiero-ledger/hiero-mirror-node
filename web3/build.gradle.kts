@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import org.gradle.api.file.RegularFile
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Provider
 import org.web3j.gradle.plugin.GenerateContractWrappers
+import org.web3j.gradle.plugin.Web3jExtension
 import org.web3j.solidity.gradle.plugin.SolidityCompile
 
 description = "Mirror Node Web3"
 
 plugins {
     id("openapi-conventions")
-    id("org.web3j")
-    id("org.web3j.solidity")
+    id("org.web3j") apply false
+    id("org.web3j.solidity") apply false
     id("spring-conventions")
 }
 
@@ -25,6 +29,7 @@ dependencies {
         exclude(group = "io.prometheus")
         exclude(group = "org.assertj")
         exclude("org.junit")
+        exclude(group = "com.hedera.hashgraph", module = "consensus-pces-noop-impl")
     }
     implementation("com.hedera.hashgraph:app-service-entity-id-impl") {
         exclude(group = "io.netty")
@@ -46,26 +51,102 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("org.web3j:core")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 val web3jGeneratedPackageName = "org.hiero.mirror.web3.web3j.generated"
-
-web3j {
-    generateBoth = true
-    generatedPackageName = web3jGeneratedPackageName
-    useNativeJavaTypes = true
-}
-
 val historicalSolidityVersion = "0.8.7"
 
-// Define "testHistorical" source set needed for the test historical solidity contracts and web3j
-sourceSets.register("testHistorical") {
-    java { setSrcDirs(listOf("src/testHistorical/java", "src/testHistorical/solidity")) }
-    resources { setSrcDirs(listOf("src/testHistorical/resources")) }
-    compileClasspath += sourceSets["test"].output + configurations["testRuntimeClasspath"]
-    runtimeClasspath += sourceSets["test"].output + configurations["testRuntimeClasspath"]
-    solidity { version = historicalSolidityVersion }
+val requestedTasks = gradle.startParameter.taskNames
+
+val isNativeBuild =
+    requestedTasks.any {
+        it.contains("native", ignoreCase = true)
+        it.contains("bootBuildImage", ignoreCase = true)
+    }
+
+val isTestExecution =
+    !isNativeBuild &&
+        requestedTasks.any {
+            it.contains("test", ignoreCase = true)
+            it.contains("check", ignoreCase = true)
+            it.contains("build", ignoreCase = true)
+        }
+
+if (isTestExecution) {
+
+    pluginManager.apply("org.web3j")
+    pluginManager.apply("org.web3j.solidity")
+
+    extensions.configure<Web3jExtension>("web3j") {
+        generateBoth = true
+        generatedPackageName = web3jGeneratedPackageName
+        useNativeJavaTypes = true
+    }
+
+    sourceSets.register("testHistorical") {
+        java { setSrcDirs(listOf("src/testHistorical/java", "src/testHistorical/solidity")) }
+        resources { setSrcDirs(listOf("src/testHistorical/resources")) }
+        compileClasspath += sourceSets["test"].output + configurations["testRuntimeClasspath"]
+        runtimeClasspath += sourceSets["test"].output + configurations["testRuntimeClasspath"]
+    }
+
+    tasks.named("processTestResources") { dependsOn(tasks.withType<GenerateContractWrappers>()) }
+
+    tasks.withType<GenerateContractWrappers>().configureEach {
+        dependsOn(tasks.withType<SolidityCompile>())
+    }
+
+    tasks.named("extractSolidityImports") {
+        val preDefinedPackageJson = layout.projectDirectory.file("src/test/resources/package.json")
+
+        actions.clear()
+
+        doLast {
+            @Suppress("UNCHECKED_CAST")
+            val packageJson = property("packageJson") as Provider<RegularFile>
+            preDefinedPackageJson.asFile.copyTo(packageJson.get().asFile, overwrite = true)
+        }
+    }
+
+    val resolveSolidity = tasks.named("resolveSolidity")
+
+    tasks.named<SolidityCompile>("compileTestHistoricalSolidity") {
+        dependsOn(resolveSolidity)
+
+        group = "historical"
+        resolvedImports.set(
+            providers.provider {
+                val getAllImports =
+                    resolveSolidity.get().javaClass.methods.single { it.name == "getAllImports" }
+                val allImports = getAllImports.invoke(resolveSolidity.get()) as RegularFileProperty
+                allImports.get()
+            }
+        )
+
+        allowPaths = setOf("src/testHistorical/solidity/openzeppelin")
+        ignoreMissing = true
+        version = historicalSolidityVersion
+        source = fileTree("src/testHistorical/solidity") { include("*.sol") }
+    }
+
+    val moveTestHistoricalFiles =
+        tasks.register<Copy>("moveTestHistoricalFiles") {
+            description = "Move files from testHistorical to test"
+            group = "historical"
+
+            val baseDir = layout.buildDirectory.dir("generated/sources/web3j").get()
+            val subDir = "java/" + web3jGeneratedPackageName.replace('.', '/')
+            val srcDir = baseDir.dir("testHistorical").dir(subDir).asFile
+            val destDir = baseDir.dir("test").dir(subDir).asFile
+
+            from(srcDir) { include("**/*Historical.java") }
+            into(destDir)
+            dependsOn(tasks.withType<GenerateContractWrappers>())
+        }
+
+    tasks.named("compileTestJava") { dependsOn(moveTestHistoricalFiles) }
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -77,40 +158,3 @@ tasks.withType<JavaCompile>().configureEach {
 tasks.withType<JavaExec>().configureEach { jvmArgs = listOf("--enable-preview") }
 
 tasks.test { jvmArgs = listOf("--enable-preview") }
-
-tasks.processTestResources { dependsOn(tasks.withType<GenerateContractWrappers>()) }
-
-tasks.withType<GenerateContractWrappers> { dependsOn(tasks.withType<SolidityCompile>()) }
-
-tasks.extractSolidityImports {
-    val preDefinedPackageJson = layout.projectDirectory.file("src/test/resources/package.json")
-    actions
-        .clear() // instead of generating the package.json here, we provide our own predefined one
-    doLast { preDefinedPackageJson.asFile.copyTo(packageJson.get().asFile, overwrite = true) }
-}
-
-tasks.named<SolidityCompile>("compileTestHistoricalSolidity") {
-    group = "historical"
-    resolvedImports = tasks.resolveSolidity.flatMap { it.allImports }
-    allowPaths = setOf("src/testHistorical/solidity/openzeppelin")
-    ignoreMissing = true
-    version = historicalSolidityVersion
-    source = fileTree("src/testHistorical/solidity") { include("*.sol") }
-}
-
-val moveTestHistoricalFiles =
-    tasks.register<Copy>("moveTestHistoricalFiles") {
-        description = "Move files from testHistorical to test"
-        group = "historical"
-
-        val baseDir = layout.buildDirectory.dir("generated/sources/web3j").get()
-        val subDir = "java/" + web3jGeneratedPackageName.replace('.', '/')
-        val srcDir = baseDir.dir("testHistorical").dir(subDir).asFile
-        val destDir = baseDir.dir("test").dir(subDir).asFile
-
-        from(srcDir) { include("**/*Historical.java") }
-        into(destDir)
-        dependsOn(tasks.withType<GenerateContractWrappers>())
-    }
-
-tasks.compileTestJava { dependsOn(moveTestHistoricalFiles) }

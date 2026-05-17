@@ -74,6 +74,12 @@ class CryptoUpdateTransactionHandler extends AbstractEntityCrudTransactionHandle
             entity.setReceiverSigRequired(transactionBody.getReceiverSigRequired());
         }
 
+        // If the delegation address is the zero-address, it means that we have the delegation address
+        // cleared, and we need to persist it as the zero-address in the DB.
+        if (!transactionBody.getDelegationAddress().isEmpty()) {
+            entity.setDelegationAddress(DomainUtils.toBytes(transactionBody.getDelegationAddress()));
+        }
+
         updateStakingInfo(recordItem, entity);
         entity.setType(EntityType.ACCOUNT);
         entityListener.onEntity(entity);

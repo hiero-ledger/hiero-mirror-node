@@ -11,7 +11,7 @@ const getUrl = (testParameters) =>
   `/accounts/${testParameters['DEFAULT_ACCOUNT_ID_NFTS']}/nfts?limit=${testParameters['DEFAULT_LIMIT']}`;
 
 const {options, run, setup} = new RestTestScenarioBuilder()
-  .name('accountNftsResults') // use unique scenario name among all tests
+  .name('accountsNfts') // use unique scenario name among all tests
   .tags({url: urlTag})
   .request((testParameters) => {
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;
