@@ -184,7 +184,8 @@ public final class LocalStreamFileProvider extends AbstractStreamFileProvider {
 
     private StreamFileData toStreamFileData(File file) {
         var basePath = downloaderProperties.getImporterProperties().getStreamPath();
-        var filename = StreamFilename.from(basePath.relativize(file.toPath()).toString());
+        var filename = StreamFilename.from(
+                basePath.relativize(file.toPath()).toString().replace(File.separatorChar, '/'));
         return StreamFileData.from(basePath, filename);
     }
 }

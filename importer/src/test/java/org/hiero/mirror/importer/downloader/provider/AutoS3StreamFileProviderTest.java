@@ -10,6 +10,8 @@ import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import reactor.test.StepVerifier;
 
 /*
@@ -85,6 +87,7 @@ class AutoS3StreamFileProviderTest extends AbstractHip679S3StreamFileProviderTes
         getNotFound(createNodeIdFileCopier(), node);
     }
 
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Cannot restrict file system permissions on Windows")
     @SuppressWarnings("java:S2699")
     @Test
     void getErrorNodeId() {
@@ -113,6 +116,7 @@ class AutoS3StreamFileProviderTest extends AbstractHip679S3StreamFileProviderTes
         listNotFound(createNodeIdFileCopier(), node);
     }
 
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Cannot restrict file system permissions on Windows")
     @SuppressWarnings("java:S2699")
     @Test
     void listErrorNodeId() {

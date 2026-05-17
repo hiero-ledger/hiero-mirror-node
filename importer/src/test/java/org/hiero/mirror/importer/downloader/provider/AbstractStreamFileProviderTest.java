@@ -7,6 +7,7 @@ import static org.hiero.mirror.importer.domain.StreamFilename.SIDECAR_FOLDER;
 import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_BLOCK_FILES;
 
 import com.google.common.collect.Streams;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
@@ -40,6 +41,8 @@ import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.hiero.mirror.importer.reader.signature.ProtoSignatureFileReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
@@ -118,6 +121,7 @@ abstract class AbstractStreamFileProviderTest {
         getNotFound(createDefaultFileCopier(), node(3));
     }
 
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Cannot restrict file system permissions on Windows")
     @Test
     void getError() {
         getError(createDefaultFileCopier(), node(3));
@@ -286,6 +290,7 @@ abstract class AbstractStreamFileProviderTest {
         listNotFound(createDefaultFileCopier(), node);
     }
 
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Cannot restrict file system permissions on Windows")
     @Test
     void listError() {
         var node = node(3);
@@ -452,7 +457,8 @@ abstract class AbstractStreamFileProviderTest {
         // regex to match file path with either ACCOUNT_ID or NODE_ID path style
         String regex = String.format("^.*(%s|/\\d+/%d)/(.*/)?%s$", node.getNodeAccountId(), node.getNodeId(), filename);
         var pattern = Pattern.compile(regex);
-        PathMatcher pathMatcher = path -> pattern.matcher(path.toString()).matches();
+        PathMatcher pathMatcher = path -> pattern.matcher(path.toString().replace(File.separatorChar, '/'))
+                .matches();
         var visitor = AccumulatorPathVisitor.withLongCounters(
                 new PathMatcherFileFilter(pathMatcher), FileFilterUtils.trueFileFilter());
         Files.walkFileTree(dataPath, visitor);
