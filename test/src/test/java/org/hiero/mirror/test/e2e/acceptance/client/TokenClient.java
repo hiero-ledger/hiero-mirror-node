@@ -54,8 +54,8 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
-import org.identityconnectors.common.CollectionUtil;
 import org.springframework.core.retry.RetryTemplate;
+import org.springframework.util.CollectionUtils;
 
 @Named
 public class TokenClient extends AbstractNetworkClient {
@@ -222,7 +222,7 @@ public class TokenClient extends AbstractNetworkClient {
             transaction.setKycKey(adminKey);
         }
 
-        if ((!CollectionUtil.isEmpty(customFees) || tokenNameEnum.forceFeeScheduleKey) && adminKey != null) {
+        if ((!CollectionUtils.isEmpty(customFees) || tokenNameEnum.forceFeeScheduleKey) && adminKey != null) {
             transaction.setCustomFees(customFees).setFeeScheduleKey(adminKey);
         }
 
