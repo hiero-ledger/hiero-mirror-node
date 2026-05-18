@@ -1,7 +1,7 @@
 @contractbase @fullsuite @estimateprecompile @web3 @acceptance
 Feature: EstimateGas Contract Base Coverage Feature
 
-  Scenario Outline: Validate EstimateGas with precompile
+  Scenario: Validate EstimateGas with precompile
     Given I create estimate precompile contract with 0 balance
     Given I create erc test contract with 0 balance
     Given I get exchange rates
