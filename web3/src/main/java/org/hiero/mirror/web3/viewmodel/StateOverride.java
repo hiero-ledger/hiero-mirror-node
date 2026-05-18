@@ -33,14 +33,14 @@ public class StateOverride {
      * All existing storage for this address is discarded; only these slots exist.
      * Mutually exclusive with {@link #stateDiff}.
      */
-    private Map<String, String> state;
+    private Map<@Hex String, @Hex String> state;
 
     /**
      * Storage patch: maps hex storage slot to hex value.
      * Only the listed slots are overridden; all other slots fall through to the underlying state.
      * Mutually exclusive with {@link #state}.
      */
-    private Map<String, String> stateDiff;
+    private Map<@Hex String, @Hex String> stateDiff;
 
     @AssertTrue(message = "state and stateDiff are mutually exclusive")
     private boolean hasValidStorage() {

@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ACCOUNTS_STATE_ID;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.web3.state.Utils.parseHexNonce;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
@@ -159,19 +160,6 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
         try {
             final var bigInt = new BigInteger(hex, 16);
             return bigInt.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0 ? Long.MAX_VALUE : bigInt.longValue();
-        } catch (NumberFormatException e) {
-            return 0L;
-        }
-    }
-
-    /** Parses a hex-encoded nonce string (with or without {@code 0x} prefix) into a long value. */
-    private static long parseHexNonce(@NonNull String hexNonce) {
-        var hex = hexNonce.startsWith("0x") || hexNonce.startsWith("0X") ? hexNonce.substring(2) : hexNonce;
-        if (hex.isEmpty()) {
-            return 0L;
-        }
-        try {
-            return new BigInteger(hex, 16).longValue();
         } catch (NumberFormatException e) {
             return 0L;
         }

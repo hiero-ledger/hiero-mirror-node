@@ -7,10 +7,13 @@ import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.KeyList;
 import com.hedera.hapi.node.base.Timestamp;
+import com.hedera.hapi.node.state.contract.SlotValue;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import java.math.BigInteger;
 import java.time.Instant;
 import lombok.experimental.UtilityClass;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.NonNull;
@@ -77,8 +80,14 @@ public class Utils {
      * Normalizes a hex-encoded storage slot key to a 64-character lowercase hex string (32 bytes, left-padded, no {@code 0x} prefix).
      */
     public static String normalizeStorageSlot(@NonNull String hexSlot) {
-        var bytes = hexStringToBytes(hexSlot);
-        var padded = DomainUtils.leftPadBytes(bytes, 32);
+        return normalizeStorageSlot(hexStringToBytes(hexSlot));
+    }
+
+    /**
+     * Converts a raw slot key byte array to a 64-character lowercase hex string (32 bytes, left-padded, no {@code 0x} prefix).
+     */
+    public static String normalizeStorageSlot(byte[] slotBytes) {
+        var padded = DomainUtils.leftPadBytes(slotBytes, 32);
         var sb = new StringBuilder(64);
         for (byte b : padded) {
             sb.append(String.format("%02x", b));
@@ -98,6 +107,25 @@ public class Utils {
             bytes[i] = (byte) Integer.parseInt(padded, i * 2, i * 2 + 2, 16);
         }
         return bytes;
+    }
+
+    /** Parses a hex-encoded nonce string (with or without {@code 0x} prefix) into a long value. */
+    public static long parseHexNonce(@NonNull String hexNonce) {
+        var bytes = hexStringToBytes(hexNonce);
+        if (bytes.length == 0) {
+            return 0L;
+        }
+        try {
+            return new BigInteger(1, bytes).longValue();
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
+    }
+
+    /** Converts a hex value string to a {@link SlotValue} (32-byte left-padded). */
+    public static SlotValue hexToSlotValue(@NonNull String hexValue) {
+        var valueBytes = hexStringToBytes(hexValue);
+        return new SlotValue(Bytes.wrap(DomainUtils.leftPadBytes(valueBytes, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY);
     }
 
     public static FileID toFileID(final EntityId entityId) {
