@@ -18,7 +18,7 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.32.0")
-    set("consensusNodeVersion", "0.74.0-rc.3")
+    set("consensusNodeVersion", "0.74.0-rc.4")
     set("grpcVersion", "1.81.0")
     set("jooq.version", "3.21.3") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
@@ -59,12 +59,12 @@ dependencies {
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.71.0")
+        api("com.hedera.hashgraph:sdk:2.72.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
         api("io.cucumber:cucumber-bom:7.34.3")
-        api("io.fabric8:kubernetes-client-bom:7.6.1")
+        api("io.fabric8:kubernetes-client-bom:7.7.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.2")
@@ -89,7 +89,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.44.4")
+        api("software.amazon.awssdk:bom:2.44.7")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
