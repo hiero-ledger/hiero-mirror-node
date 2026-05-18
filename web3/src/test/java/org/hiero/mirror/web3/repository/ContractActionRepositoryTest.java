@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.repository;
 
+import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.OUTPUT;
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REVERT_REASON;
 import static com.hedera.services.stream.proto.ContractActionType.SYSTEM;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,7 +17,7 @@ class ContractActionRepositoryTest extends Web3IntegrationTest {
     private final ContractActionRepository contractActionRepository;
 
     @Test
-    void findAllByConsensusTimestampSuccessful() {
+    void findSystemActionsByConsensusTimestampReturnsAllSystemActionsOrderedByIndex() {
         final var timestamp = domainBuilder.timestamp();
         final var otherActions = List.of(
                 domainBuilder
@@ -27,22 +28,21 @@ class ContractActionRepositoryTest extends Web3IntegrationTest {
                         .contractAction()
                         .customize(action -> action.consensusTimestamp(timestamp))
                         .persist());
-        final var failedSystemActions = List.of(
-                domainBuilder
-                        .contractAction()
-                        .customize(action -> action.callType(SYSTEM.getNumber())
-                                .consensusTimestamp(timestamp)
-                                .resultDataType(REVERT_REASON.getNumber()))
-                        .persist(),
-                domainBuilder
-                        .contractAction()
-                        .customize(action -> action.callType(SYSTEM.getNumber())
-                                .consensusTimestamp(timestamp)
-                                .resultDataType(REVERT_REASON.getNumber()))
-                        .persist());
+        final var successSystemAction = domainBuilder
+                .contractAction()
+                .customize(action -> action.callType(SYSTEM.getNumber())
+                        .consensusTimestamp(timestamp)
+                        .resultDataType(OUTPUT.getNumber()))
+                .persist();
+        final var failedSystemAction = domainBuilder
+                .contractAction()
+                .customize(action -> action.callType(SYSTEM.getNumber())
+                        .consensusTimestamp(timestamp)
+                        .resultDataType(REVERT_REASON.getNumber()))
+                .persist();
 
-        assertThat(contractActionRepository.findFailedSystemActionsByConsensusTimestamp(timestamp))
-                .containsExactlyElementsOf(failedSystemActions)
+        assertThat(contractActionRepository.findSystemActionsByConsensusTimestamp(timestamp))
+                .containsExactly(successSystemAction, failedSystemAction)
                 .doesNotContainAnyElementsOf(otherActions);
     }
 }

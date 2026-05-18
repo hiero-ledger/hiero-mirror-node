@@ -25,6 +25,8 @@ public final class OpcodeContext {
 
     private List<Opcode> opcodes;
 
+    private int precompileActionIndex;
+
     private long gasRemaining;
 
     private RootProxyWorldUpdater rootProxyWorldUpdater;

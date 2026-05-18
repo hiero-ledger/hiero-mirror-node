@@ -129,18 +129,22 @@ public abstract class AbstractOpcodeTracer {
     }
 
     protected final String getRevertReasonFromContractActions(final ContractCallContext context) {
-        final var contractActions = context.getOpcodeContext().getActions();
+        final var opcodeContext = context.getOpcodeContext();
+        final var contractActions = opcodeContext.getActions();
 
         if (CollectionUtils.isEmpty(contractActions)) {
             return null;
         }
 
-        for (var action : contractActions) {
-            if (action.hasRevertReason()) {
-                return formatRevertReason(action.getResultData());
-            }
+        final int index = opcodeContext.getPrecompileActionIndex();
+        opcodeContext.setPrecompileActionIndex(index + 1);
+
+        if (index >= contractActions.size()) {
+            return null;
         }
-        return null;
+
+        final var action = contractActions.get(index);
+        return action.hasRevertReason() ? formatRevertReason(action.getResultData()) : null;
     }
 
     /**
