@@ -208,8 +208,8 @@ describe('RecordFileService.getRecordFileBlockDetailsFromTimestamp tests', () =>
     });
 
     expect(blocks).toHaveLength(1);
-    expect(blocks[0].consensusStart).toEqual(1900n);
-    expect(blocks[0].consensusEnd).toEqual(3049n);
+    expect(blocks[0].consensusStart).toEqual(1900);
+    expect(blocks[0].consensusEnd).toEqual(3049);
   });
 
   test('RecordFileService.getByHashOrNumber applies consensus start and end offsets', async () => {
@@ -226,8 +226,8 @@ describe('RecordFileService.getRecordFileBlockDetailsFromTimestamp tests', () =>
     ]);
 
     const block = await RecordFileService.getByHashOrNumber(hash);
-    expect(block.consensusStart).toEqual(3800n);
-    expect(block.consensusEnd).toEqual(5099n);
+    expect(block.consensusStart).toEqual(3800);
+    expect(block.consensusEnd).toEqual(5099);
   });
 });
 
