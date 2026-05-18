@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -20,7 +21,9 @@ import org.springframework.jdbc.core.JdbcOperations;
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class DiskSpaceServiceTest {
 
-    private static final String DISK_USAGE_QUERY = "select pg_database_size(current_database())";
+    private static final String CITUS_CHECK_QUERY = DiskSpaceService.CITUS_CHECK_QUERY;
+    private static final String CITUS_DISK_USAGE_QUERY = DiskSpaceService.CITUS_DISK_USAGE_QUERY;
+    private static final String DISK_USAGE_QUERY = DiskSpaceService.DISK_USAGE_QUERY;
 
     @Mock
     private JdbcOperations jdbcOperations;
@@ -32,8 +35,10 @@ class DiskSpaceServiceTest {
     void setup() {
         diskSpaceProperties = new DiskSpaceProperties();
         diskSpaceProperties.setCheckFrequency(Duration.ofSeconds(30));
+        when(jdbcOperations.queryForObject(CITUS_CHECK_QUERY, Boolean.class)).thenReturn(false);
         diskSpaceService = new DiskSpaceService(diskSpaceProperties, jdbcOperations, new SimpleMeterRegistry());
         diskSpaceService.init();
+        clearInvocations(jdbcOperations);
     }
 
     @Test
@@ -42,18 +47,7 @@ class DiskSpaceServiceTest {
     }
 
     @Test
-    void disabledSkipsQuery() {
-        diskSpaceProperties.setEnabled(false);
-
-        diskSpaceService.check();
-
-        verifyNoInteractions(jdbcOperations);
-        assertThat(diskSpaceService.hasEnoughSpace()).isTrue();
-    }
-
-    @Test
     void maxBytesZeroSkipsQuery() {
-        diskSpaceProperties.setEnabled(true);
         diskSpaceProperties.setMaxBytes(0);
 
         diskSpaceService.check();
@@ -64,7 +58,6 @@ class DiskSpaceServiceTest {
 
     @Test
     void belowThresholdHasEnoughSpace() {
-        diskSpaceProperties.setEnabled(true);
         diskSpaceProperties.setMaxBytes(1000L);
         when(jdbcOperations.queryForObject(DISK_USAGE_QUERY, Long.class)).thenReturn(500L);
 
@@ -75,7 +68,6 @@ class DiskSpaceServiceTest {
 
     @Test
     void atThresholdHaltsIngest(CapturedOutput output) {
-        diskSpaceProperties.setEnabled(true);
         diskSpaceProperties.setMaxBytes(1000L);
         when(jdbcOperations.queryForObject(DISK_USAGE_QUERY, Long.class)).thenReturn(1000L);
 
@@ -87,7 +79,6 @@ class DiskSpaceServiceTest {
 
     @Test
     void aboveThresholdHaltsIngest(CapturedOutput output) {
-        diskSpaceProperties.setEnabled(true);
         diskSpaceProperties.setMaxBytes(1000L);
         when(jdbcOperations.queryForObject(DISK_USAGE_QUERY, Long.class)).thenReturn(1500L);
 
@@ -99,7 +90,6 @@ class DiskSpaceServiceTest {
 
     @Test
     void recoversWhenSpaceFreed(CapturedOutput output) {
-        diskSpaceProperties.setEnabled(true);
         diskSpaceProperties.setMaxBytes(1000L);
         when(jdbcOperations.queryForObject(DISK_USAGE_QUERY, Long.class)).thenReturn(1500L);
         diskSpaceService.check();
@@ -114,7 +104,6 @@ class DiskSpaceServiceTest {
 
     @Test
     void queryExceptionKeepsPreviousState(CapturedOutput output) {
-        diskSpaceProperties.setEnabled(true);
         diskSpaceProperties.setMaxBytes(1000L);
         when(jdbcOperations.queryForObject(DISK_USAGE_QUERY, Long.class))
                 .thenThrow(new RuntimeException("connection error"));
@@ -127,7 +116,6 @@ class DiskSpaceServiceTest {
 
     @Test
     void nullResultKeepsPreviousState() {
-        diskSpaceProperties.setEnabled(true);
         diskSpaceProperties.setMaxBytes(1000L);
         when(jdbcOperations.queryForObject(DISK_USAGE_QUERY, Long.class)).thenReturn(null);
 
@@ -138,7 +126,6 @@ class DiskSpaceServiceTest {
 
     @Test
     void warnLoggedOnlyOnStateChange(CapturedOutput output) {
-        diskSpaceProperties.setEnabled(true);
         diskSpaceProperties.setMaxBytes(1000L);
         when(jdbcOperations.queryForObject(DISK_USAGE_QUERY, Long.class)).thenReturn(1500L);
 
@@ -154,8 +141,24 @@ class DiskSpaceServiceTest {
     }
 
     @Test
+    void citusUsesDistributedQuery(CapturedOutput output) {
+        diskSpaceProperties.setMaxBytes(1000L);
+        when(jdbcOperations.queryForObject(CITUS_CHECK_QUERY, Boolean.class)).thenReturn(true);
+        when(jdbcOperations.queryForObject(CITUS_DISK_USAGE_QUERY, Long.class)).thenReturn(1500L);
+        var service = new DiskSpaceService(diskSpaceProperties, jdbcOperations, new SimpleMeterRegistry());
+        service.init();
+
+        service.check();
+
+        assertThat(service.hasEnoughSpace()).isFalse();
+        assertThat(output.getAll()).contains("Citus extension detected");
+        assertThat(output.getAll()).contains("halting ingest");
+    }
+
+    @Test
     void metricsRegistered() {
         var registry = new SimpleMeterRegistry();
+        when(jdbcOperations.queryForObject(CITUS_CHECK_QUERY, Boolean.class)).thenReturn(false);
         var service = new DiskSpaceService(diskSpaceProperties, jdbcOperations, registry);
         service.init();
 

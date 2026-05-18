@@ -15,8 +15,6 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class DiskSpaceProperties {
 
-    private boolean enabled = false;
-
     @DurationMin(seconds = 1)
     @NotNull
     private Duration checkFrequency = Duration.ofSeconds(30);
