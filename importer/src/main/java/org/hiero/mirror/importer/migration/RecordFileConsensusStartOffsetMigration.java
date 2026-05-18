@@ -1,0 +1,343 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package org.hiero.mirror.importer.migration;
+
+import jakarta.inject.Named;
+import java.time.Duration;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Getter;
+import org.flywaydb.core.api.MigrationVersion;
+import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.ImporterProperties.HederaNetwork;
+import org.hiero.mirror.importer.config.Owner;
+import org.hiero.mirror.importer.db.DBProperties;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
+import org.springframework.jdbc.core.DataClassRowMapper;
+import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.support.TransactionTemplate;
+
+/**
+ * Adds {@code record_file.consensus_start_offset} and {@code record_file.consensus_end_offset} if missing, then
+ * populates them for each block with transactions that exist before its {@code consensus_start} or after its
+ * {@code consensus_end}. {@code consensus_start_offset} is {@code min(transaction.consensus_timestamp) - consensus_start}
+ * for transactions after the previous block's {@code consensus_end} and before this block's {@code consensus_start}.
+ * {@code consensus_end_offset} is {@code max(transaction.consensus_timestamp) - consensus_end} for transactions after
+ * this block's {@code consensus_end} and before the next block's {@code consensus_start}.
+ */
+@Named
+final class RecordFileConsensusStartOffsetMigration extends AsyncJavaMigration<Long> {
+
+    /**
+     * Mainnet: only {@code record_file} rows with {@code consensus_end} strictly after this instant are processed.
+     * Jan 28, 2026 00:00:00 UTC.
+     */
+    private static final long MAINNET_MIN_CONSENSUS_END_TIMESTAMP = 1769558400000000000L;
+
+    /**
+     * Testnet: only {@code record_file} rows with {@code consensus_end} strictly after this instant are processed.
+     * (Dec 29, 2025 00:00:00 UTC).
+     */
+    static final long TESTNET_MIN_CONSENSUS_END_TIMESTAMP = 1766966400000000000L;
+
+    private static final Map<String, Long> DEFAULT_MIN_CONSENSUS_END_TIMESTAMP_BY_NETWORK = Map.of(
+            HederaNetwork.MAINNET, MAINNET_MIN_CONSENSUS_END_TIMESTAMP,
+            HederaNetwork.TESTNET, TESTNET_MIN_CONSENSUS_END_TIMESTAMP);
+
+    static final String MIN_CONSENSUS_END_TIMESTAMP_KEY = "minConsensusEndTimestamp";
+
+    static final long INTERVAL = Duration.ofDays(7).toNanos();
+
+    private static final String ALTER_TABLE_RECORD_FILE_ADD_CONSENSUS_OFFSET_COLUMNS = """
+                    alter table if exists record_file
+                    add column if not exists consensus_start_offset bigint,
+                    add column if not exists consensus_end_offset bigint;
+            """;
+
+    private static final String CREATE_TEMPORARY_PROCESSED_RECORD_FILE_TABLE = """
+                    create table if not exists processed_record_file_temp(
+                        consensus_end bigint not null
+                    );
+            """;
+
+    private static final String DROP_TEMPORARY_PROCESSED_RECORD_FILE_TABLE = """
+                    drop table if exists processed_record_file_temp;
+            """;
+
+    private static final String SELECT_LAST_PROCESSED_TIMESTAMP = """
+                    select coalesce(
+                      (select consensus_end
+                       from processed_record_file_temp
+                       order by consensus_end asc
+                       limit 1),
+                      (select max(consensus_end)
+                       from record_file
+                       where consensus_end > :minConsensusEndTimestamp),
+                      :minConsensusEndTimestamp
+                    )
+            """;
+
+    private static final String INSERT_SLICE_CHECKPOINT = """
+                    insert into processed_record_file_temp(consensus_end)
+                    values (:consensusEndLowerBound)
+            """;
+
+    private static final String SELECT_RECORD_FILES_IN_SLICE = """
+                    select consensus_start, consensus_end, count
+                    from record_file
+                    where consensus_end > :consensusEndLowerBound
+                      and consensus_end <= :consensusEndUpperBound
+                      and consensus_end > :minConsensusEndTimestamp
+                    order by consensus_end
+            """;
+
+    private static final String SELECT_PREV_CONSENSUS_END = """
+                    select max(consensus_end)
+                    from record_file
+                    where consensus_end < :consensusStart
+            """;
+
+    // Using the consensus_end from the record_file as it is the primary key instead of searching
+    // by consensus_start directly.
+    private static final String SELECT_NEXT_CONSENSUS_START = """
+                    select consensus_start
+                    from record_file
+                    where consensus_end = (
+                      select min(consensus_end)
+                      from record_file
+                      where consensus_end > :consensusEnd
+                    )
+            """;
+
+    private static final String COUNT_TRANSACTIONS_IN_RANGE = """
+                    select count(*)::bigint
+                    from transaction t
+                    where t.consensus_timestamp >= :consensusStart
+                      and t.consensus_timestamp <= :consensusEnd
+            """;
+
+    private static final String SELECT_MIN_TX_BEFORE_START = """
+                    select min(t.consensus_timestamp)
+                    from transaction t
+                    where t.consensus_timestamp > :prevConsensusEnd
+                      and t.consensus_timestamp < :consensusStart
+            """;
+
+    private static final String SELECT_MAX_TX_AFTER_END = """
+                    select max(t.consensus_timestamp)
+                    from transaction t
+                    where t.consensus_timestamp > :consensusEnd
+                      and t.consensus_timestamp < :nextConsensusStart
+            """;
+
+    private static final String UPDATE_RECORD_FILE_OFFSETS = """
+                    update record_file
+                    set consensus_start_offset = :consensusStartOffset,
+                        consensus_end_offset = :consensusEndOffset
+                    where consensus_end = :consensusEnd
+            """;
+
+    private static final String V2_PROPERTY_MAX_INTERMEDIATE_RESULTS = "set citus.max_intermediate_result_size = -1;";
+
+    private static final DataClassRowMapper<RecordFileSlice> RECORD_FILE_SLICE_ROW_MAPPER =
+            new DataClassRowMapper<>(RecordFileSlice.class);
+
+    private final ImporterProperties importerProperties;
+    private final boolean v2;
+
+    @Getter(lazy = true)
+    private final TransactionOperations transactionOperations = transactionOperations();
+
+    protected RecordFileConsensusStartOffsetMigration(
+            final Environment environment,
+            final DBProperties dbProperties,
+            final ImporterProperties importerProperties,
+            final @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider) {
+        super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
+        this.importerProperties = importerProperties;
+        this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
+    }
+
+    private long getMinConsensusEndTimestamp() {
+        var override = migrationProperties.getParams().get(MIN_CONSENSUS_END_TIMESTAMP_KEY);
+        if (override != null) {
+            return Long.parseLong(override);
+        }
+        return getDefaultMinConsensusEndTimestampForNetwork();
+    }
+
+    private long getDefaultMinConsensusEndTimestampForNetwork() {
+        var network = importerProperties.getNetwork();
+        var minTimestamp = DEFAULT_MIN_CONSENSUS_END_TIMESTAMP_BY_NETWORK.get(network);
+        if (minTimestamp != null) {
+            return minTimestamp;
+        }
+
+        log.info("No minimum consensus_end configured for network {}; processing all record_file rows", network);
+        return 0L;
+    }
+
+    @Override
+    public String getDescription() {
+        return "Populate record_file consensus_start_offset and consensus_end_offset.";
+    }
+
+    @Override
+    protected MigrationVersion getMinimumVersion() {
+        // Latest versioned SQL migration before this repeatable (column DDL lives here, not in Flyway SQL).
+        return v2 ? MigrationVersion.fromVersion("2.23.3") : MigrationVersion.fromVersion("1.118.3");
+    }
+
+    @Override
+    protected boolean performSynchronousSteps() {
+        getJdbcOperations().execute(ALTER_TABLE_RECORD_FILE_ADD_CONSENSUS_OFFSET_COLUMNS);
+        return true;
+    }
+
+    @Override
+    protected Long getInitial() {
+        log.info("Create table processed_record_file_temp if not exists.");
+        getJdbcOperations().execute(CREATE_TEMPORARY_PROCESSED_RECORD_FILE_TABLE);
+
+        var minEnd = getMinConsensusEndTimestamp();
+        var endTimestamp = getNamedParameterJdbcOperations()
+                .queryForObject(
+                        SELECT_LAST_PROCESSED_TIMESTAMP,
+                        new MapSqlParameterSource("minConsensusEndTimestamp", minEnd),
+                        Long.class);
+        log.info(
+                "Starting record_file consensus offset migration with initial consensus_end upper bound: {}.",
+                endTimestamp);
+        return endTimestamp;
+    }
+
+    @NonNull
+    @Override
+    protected Optional<Long> migratePartial(Long consensusEndTimestamp) {
+        final long minEnd = getMinConsensusEndTimestamp();
+        if (consensusEndTimestamp <= minEnd) {
+            log.info(
+                    "Record_file consensus offset migration passed floor consensus_end {}; dropping temporary table.",
+                    minEnd);
+            getJdbcOperations().execute(DROP_TEMPORARY_PROCESSED_RECORD_FILE_TABLE);
+            return Optional.empty();
+        }
+
+        final long consensusEndLowerBound = Math.max(consensusEndTimestamp - INTERVAL, minEnd);
+        final var sliceParams = new MapSqlParameterSource()
+                .addValue("consensusEndLowerBound", consensusEndLowerBound)
+                .addValue("consensusEndUpperBound", consensusEndTimestamp)
+                .addValue("minConsensusEndTimestamp", minEnd);
+
+        var updated = new AtomicInteger(0);
+        getTransactionOperations().executeWithoutResult(_ -> {
+            if (v2) {
+                getJdbcOperations().execute(V2_PROPERTY_MAX_INTERMEDIATE_RESULTS);
+            }
+
+            var jdbc = getNamedParameterJdbcOperations();
+            for (var block : jdbc.query(SELECT_RECORD_FILES_IN_SLICE, sliceParams, RECORD_FILE_SLICE_ROW_MAPPER)) {
+                if (!hasCountMismatch(jdbc, block)) {
+                    continue;
+                }
+
+                var prevConsensusEnd = lookupPrevConsensusEnd(block.consensusStart());
+                var nextConsensusStart = lookupNextConsensusStart(block.consensusEnd());
+                var startOffset = computeStartOffset(block, prevConsensusEnd);
+                var endOffset = computeEndOffset(block, nextConsensusStart);
+                if (startOffset == null && endOffset == null) {
+                    continue;
+                }
+
+                var updateParams = new MapSqlParameterSource()
+                        .addValue("consensusEnd", block.consensusEnd())
+                        .addValue("consensusStartOffset", startOffset != null ? startOffset : 0L)
+                        .addValue("consensusEndOffset", endOffset != null ? endOffset : 0L);
+                updated.addAndGet(jdbc.update(UPDATE_RECORD_FILE_OFFSETS, updateParams));
+            }
+
+            jdbc.update(
+                    INSERT_SLICE_CHECKPOINT,
+                    new MapSqlParameterSource("consensusEndLowerBound", consensusEndLowerBound));
+        });
+
+        log.info(
+                "Updated {} record_file row(s) for consensus_end in ({}, {}].",
+                updated.get(),
+                consensusEndLowerBound,
+                consensusEndTimestamp);
+
+        if (consensusEndLowerBound <= minEnd) {
+            log.info(
+                    "Record_file consensus offset migration complete; dropping temporary table processed_record_file_temp.");
+            getJdbcOperations().execute(DROP_TEMPORARY_PROCESSED_RECORD_FILE_TABLE);
+            return Optional.empty();
+        }
+        return Optional.of(consensusEndLowerBound);
+    }
+
+    private boolean hasCountMismatch(NamedParameterJdbcOperations jdbc, RecordFileSlice block) {
+        var params = new MapSqlParameterSource()
+                .addValue("consensusStart", block.consensusStart())
+                .addValue("consensusEnd", block.consensusEnd());
+        var inRangeCount = jdbc.queryForObject(COUNT_TRANSACTIONS_IN_RANGE, params, Long.class);
+        return !Objects.equals(block.count(), inRangeCount != null ? inRangeCount : 0L);
+    }
+
+    @Nullable
+    private Long lookupPrevConsensusEnd(long consensusStart) {
+        return queryForObjectOrNull(
+                SELECT_PREV_CONSENSUS_END, new MapSqlParameterSource("consensusStart", consensusStart), Long.class);
+    }
+
+    @Nullable
+    private Long lookupNextConsensusStart(long consensusEnd) {
+        return queryForObjectOrNull(
+                SELECT_NEXT_CONSENSUS_START, new MapSqlParameterSource("consensusEnd", consensusEnd), Long.class);
+    }
+
+    @Nullable
+    private Long computeStartOffset(RecordFileSlice block, @Nullable Long prevConsensusEnd) {
+        if (prevConsensusEnd == null) {
+            return null;
+        }
+
+        var params = new MapSqlParameterSource()
+                .addValue("consensusStart", block.consensusStart())
+                .addValue("prevConsensusEnd", prevConsensusEnd);
+        var minTimestamp = queryForObjectOrNull(SELECT_MIN_TX_BEFORE_START, params, Long.class);
+        return minTimestamp != null ? minTimestamp - block.consensusStart() : null;
+    }
+
+    @Nullable
+    private Long computeEndOffset(RecordFileSlice block, @Nullable Long nextConsensusStart) {
+        if (nextConsensusStart == null) {
+            return null;
+        }
+
+        var params = new MapSqlParameterSource()
+                .addValue("consensusEnd", block.consensusEnd())
+                .addValue("nextConsensusStart", nextConsensusStart);
+        var maxTimestamp = queryForObjectOrNull(SELECT_MAX_TX_AFTER_END, params, Long.class);
+        return maxTimestamp != null ? maxTimestamp - block.consensusEnd() : null;
+    }
+
+    private TransactionOperations transactionOperations() {
+        var jdbcTemplate = (JdbcTemplate) getJdbcOperations();
+        var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(jdbcTemplate.getDataSource()));
+        return new TransactionTemplate(transactionManager);
+    }
+
+    private record RecordFileSlice(long consensusStart, long consensusEnd, long count) {}
+}

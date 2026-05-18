@@ -43,6 +43,12 @@ public class RecordFile implements StreamFile<RecordItem> {
 
     private Long consensusStart;
 
+    @Builder.Default
+    private long consensusStartOffset = 0L;
+
+    @Builder.Default
+    private long consensusEndOffset = 0L;
+
     @Id
     private Long consensusEnd;
 

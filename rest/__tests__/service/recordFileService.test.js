@@ -187,6 +187,48 @@ describe('RecordFileService.getRecordFileBlockDetailsFromTimestamp tests', () =>
     const block = await RecordFileService.getByHashOrNumber(null, null);
     expect(block).toBeNull();
   });
+
+  test('RecordFileService.getBlocks applies consensus start and end offsets', async () => {
+    await integrationDomainOps.loadRecordFiles([
+      {
+        index: 99,
+        consensus_start: '2000',
+        consensus_end: '2999',
+        consensus_start_offset: '-100',
+        consensus_end_offset: '50',
+        hash: 'offsetblockhash0000000000000000000000000000000000000000000000000000000000000000',
+      },
+    ]);
+
+    const blocks = await RecordFileService.getBlocks({
+      whereQuery: [{query: 'index =', param: '99'}],
+      order: 'asc',
+      orderBy: 'index',
+      limit: 1,
+    });
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].consensusStart).toEqual(1900n);
+    expect(blocks[0].consensusEnd).toEqual(3049n);
+  });
+
+  test('RecordFileService.getByHashOrNumber applies consensus start and end offsets', async () => {
+    const hash = 'offsetblockhash0000000000000000000000000000000000000000000000000000000000000000';
+    await integrationDomainOps.loadRecordFiles([
+      {
+        index: 100,
+        consensus_start: '4000',
+        consensus_end: '4999',
+        consensus_start_offset: '-200',
+        consensus_end_offset: '100',
+        hash,
+      },
+    ]);
+
+    const block = await RecordFileService.getByHashOrNumber(hash);
+    expect(block.consensusStart).toEqual(3800n);
+    expect(block.consensusEnd).toEqual(5099n);
+  });
 });
 
 describe('RecordFileService.getRecordFileBlockDetailsFromTimestampArray tests', () => {
