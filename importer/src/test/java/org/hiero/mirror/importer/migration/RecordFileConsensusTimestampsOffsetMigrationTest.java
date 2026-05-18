@@ -20,8 +20,8 @@ import org.springframework.jdbc.core.JdbcOperations;
 @Tag("migration")
 @DisablePartitionMaintenance
 @DisableRepeatableSqlMigration
-class RecordFileConsensusStartOffsetMigrationTest
-        extends AbstractAsyncJavaMigrationTest<RecordFileConsensusStartOffsetMigration> {
+class RecordFileConsensusTimestampsOffsetMigrationTest
+        extends AbstractAsyncJavaMigrationTest<RecordFileConsensusTimestampsOffsetMigration> {
 
     private static final String SELECT_LAST_CHECKSUM_SQL = """
             select (
@@ -33,10 +33,10 @@ class RecordFileConsensusStartOffsetMigrationTest
             """;
 
     private static final long END_TIMESTAMP =
-            RecordFileConsensusStartOffsetMigration.TESTNET_MIN_CONSENSUS_END_TIMESTAMP;
+            RecordFileConsensusTimestampsOffsetMigration.TESTNET_MIN_CONSENSUS_END_TIMESTAMP;
 
     @Getter
-    private final RecordFileConsensusStartOffsetMigration migration;
+    private final RecordFileConsensusTimestampsOffsetMigration migration;
 
     private final JdbcOperations jdbcOperations;
 
@@ -46,8 +46,9 @@ class RecordFileConsensusStartOffsetMigrationTest
                 .migrationProperties
                 .getParams()
                 .put(
-                        RecordFileConsensusStartOffsetMigration.MIN_CONSENSUS_END_TIMESTAMP_KEY,
-                        String.valueOf(RecordFileConsensusStartOffsetMigration.TESTNET_MIN_CONSENSUS_END_TIMESTAMP));
+                        RecordFileConsensusTimestampsOffsetMigration.MIN_CONSENSUS_END_TIMESTAMP_KEY,
+                        String.valueOf(
+                                RecordFileConsensusTimestampsOffsetMigration.TESTNET_MIN_CONSENSUS_END_TIMESTAMP));
     }
 
     @AfterEach
@@ -55,7 +56,7 @@ class RecordFileConsensusStartOffsetMigrationTest
         migration
                 .migrationProperties
                 .getParams()
-                .remove(RecordFileConsensusStartOffsetMigration.MIN_CONSENSUS_END_TIMESTAMP_KEY);
+                .remove(RecordFileConsensusTimestampsOffsetMigration.MIN_CONSENSUS_END_TIMESTAMP_KEY);
         jdbcOperations.execute("drop table if exists processed_record_file_temp");
     }
 

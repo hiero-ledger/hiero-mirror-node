@@ -37,7 +37,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * this block's {@code consensus_end} and before the next block's {@code consensus_start}.
  */
 @Named
-final class RecordFileConsensusStartOffsetMigration extends AsyncJavaMigration<Long> {
+final class RecordFileConsensusTimestampsOffsetMigration extends AsyncJavaMigration<Long> {
 
     /**
      * Mainnet: only {@code record_file} rows with {@code consensus_end} strictly after this instant are processed.
@@ -159,7 +159,7 @@ final class RecordFileConsensusStartOffsetMigration extends AsyncJavaMigration<L
     @Getter(lazy = true)
     private final TransactionOperations transactionOperations = transactionOperations();
 
-    protected RecordFileConsensusStartOffsetMigration(
+    protected RecordFileConsensusTimestampsOffsetMigration(
             final Environment environment,
             final DBProperties dbProperties,
             final ImporterProperties importerProperties,
