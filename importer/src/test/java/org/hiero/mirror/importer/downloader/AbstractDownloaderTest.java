@@ -278,6 +278,16 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     }
 
     @Test
+    @DisplayName("Disk space full halts download")
+    void diskSpaceFull() {
+        when(diskSpaceService.hasEnoughSpace()).thenReturn(false);
+
+        downloader.download();
+
+        verifyUnsuccessful();
+    }
+
+    @Test
     @DisplayName("Non-unanimous consensus reached")
     void partialConsensus() throws IOException {
         fileCopier.copy();

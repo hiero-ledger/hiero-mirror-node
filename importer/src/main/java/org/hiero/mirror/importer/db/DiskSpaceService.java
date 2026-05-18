@@ -18,7 +18,13 @@ import org.springframework.scheduling.annotation.Scheduled;
 public class DiskSpaceService {
 
     static final String DISK_USAGE_METRIC_NAME = "hiero.mirror.importer.db.disk.usage";
-    private static final String DISK_USAGE_QUERY = "select pg_database_size(current_database())";
+    static final String CITUS_CHECK_QUERY = "select exists(select 1 from pg_extension where extname = 'citus')";
+    static final String CITUS_DISK_USAGE_QUERY = "select max(db_size) from ("
+            + "select pg_database_size(current_database()) as db_size "
+            + "union all "
+            + "select result::bigint from run_command_on_workers('select pg_database_size(current_database())') where success"
+            + ") t";
+    static final String DISK_USAGE_QUERY = "select pg_database_size(current_database())";
 
     private final DiskSpaceProperties diskSpaceProperties;
     private final JdbcOperations jdbcOperations;
@@ -26,6 +32,7 @@ public class DiskSpaceService {
 
     private volatile boolean hasEnoughSpace = true;
     private volatile long lastUsedBytes = 0L;
+    private String diskUsageQuery = DISK_USAGE_QUERY;
 
     @PostConstruct
     void init() {
@@ -33,17 +40,23 @@ public class DiskSpaceService {
                 .description("Database disk usage in bytes")
                 .baseUnit(BaseUnits.BYTES)
                 .register(meterRegistry);
+
+        Boolean isCitus = jdbcOperations.queryForObject(CITUS_CHECK_QUERY, Boolean.class);
+        if (Boolean.TRUE.equals(isCitus)) {
+            diskUsageQuery = CITUS_DISK_USAGE_QUERY;
+            log.info("Citus extension detected, monitoring disk usage across all nodes");
+        }
     }
 
     @Scheduled(fixedDelayString = "#{@diskSpaceProperties.getCheckFrequency().toMillis()}")
     public void check() {
-        if (!diskSpaceProperties.isEnabled() || diskSpaceProperties.getMaxBytes() <= 0) {
+        if (diskSpaceProperties.getMaxBytes() <= 0) {
             hasEnoughSpace = true;
             return;
         }
 
         try {
-            Long usedBytes = jdbcOperations.queryForObject(DISK_USAGE_QUERY, Long.class);
+            Long usedBytes = jdbcOperations.queryForObject(diskUsageQuery, Long.class);
             if (usedBytes == null) {
                 return;
             }
