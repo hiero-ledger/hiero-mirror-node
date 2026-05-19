@@ -55,6 +55,7 @@ import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.core.retry.RetryTemplate;
+import org.springframework.util.CollectionUtils;
 
 @Named
 public class TokenClient extends AbstractNetworkClient {
@@ -221,7 +222,7 @@ public class TokenClient extends AbstractNetworkClient {
             transaction.setKycKey(adminKey);
         }
 
-        if (customFees != null && adminKey != null) {
+        if ((!CollectionUtils.isEmpty(customFees) || tokenNameEnum.forceFeeScheduleKey) && adminKey != null) {
             transaction.setCustomFees(customFees).setFeeScheduleKey(adminKey);
         }
 
@@ -813,24 +814,28 @@ public class TokenClient extends AbstractNetworkClient {
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         FUNGIBLEHISTORICAL(
                 "fungible_historical",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         FUNGIBLE_DELETABLE(
                 "fungible_deletable",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         FUNGIBLE_FOR_ETH_CALL(
                 "fungible",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         // used in tokenAllowance.feature and not using snake_case because cucumber cannot detect the enum
         ALLOWANCEFUNGIBLE(
@@ -838,102 +843,119 @@ public class TokenClient extends AbstractNetworkClient {
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         FUNGIBLE_WITH_CUSTOM_FEES(
                 "fungible_custom_fees",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         ALLOWANCE_NON_FUNGIBLE(
                 "allowance_non_fungible",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         NFT(
                 "non_fungible",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         NFT_FOR_ETH_CALL(
                 "non_fungible",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         NFT_ERC(
                 "non_fungible_erc",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         NFTHISTORICAL(
                 "non_fungible_historical",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         NFT_AIRDROP(
                 "non_fungible_airdrop",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
-                true),
+                true,
+                false),
         NFT_DELETABLE(
                 "non_fungible_deletable",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
-                true),
+                true,
+                false),
         FUNGIBLE_KYC_UNFROZEN(
                 "fungible_kyc_unfrozen",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
-                false),
+                false,
+                true),
         FUNGIBLE_KYC_UNFROZEN_2(
                 "fungible_kyc_unfrozen_2",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
-                true),
+                true,
+                false),
         FUNGIBLE_KYC_UNFROZEN_FOR_ETH_CALL(
                 "fungible_kyc_unfrozen_for_eth_call",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         FUNGIBLE_KYC_NOT_APPLICABLE_UNFROZEN(
                 "fungible_kyc_not_applicable_unfrozen",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         FUNGIBLE_AIRDROP(
                 "fungible_airdrop",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         NFT_KYC_NOT_APPLICABLE_UNFROZEN(
                 "nft_kyc_not_applicable_unfrozen",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         NFT_KYC_UNFROZEN(
                 "nft_kyc_unfrozen",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         FUNGIBLE_FOR_CUSTOM_FEE(
                 "fungible_for_custom_fee",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false);
 
         private final String symbol;
@@ -941,6 +963,7 @@ public class TokenClient extends AbstractNetworkClient {
         private final TokenKycStatus tokenKycStatus;
         private final TokenFreezeStatus tokenFreezeStatus;
         private final boolean createWithMetadata;
+        private final boolean forceFeeScheduleKey;
 
         @Override
         public String toString() {
