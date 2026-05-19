@@ -20,8 +20,8 @@ import org.springframework.jdbc.core.JdbcOperations;
 @Tag("migration")
 @DisablePartitionMaintenance
 @DisableRepeatableSqlMigration
-class RecordFileConsensusTimestampsOffsetMigrationTest
-        extends AbstractAsyncJavaMigrationTest<RecordFileConsensusTimestampsOffsetMigration> {
+class RecordFileConsensusTimestampsRecalculateMigrationTest
+        extends AbstractAsyncJavaMigrationTest<RecordFileConsensusTimestampsRecalculateMigration> {
 
     private static final String SELECT_LAST_CHECKSUM_SQL = """
             select (
@@ -33,10 +33,10 @@ class RecordFileConsensusTimestampsOffsetMigrationTest
             """;
 
     private static final long END_TIMESTAMP =
-            RecordFileConsensusTimestampsOffsetMigration.TESTNET_MIN_CONSENSUS_END_TIMESTAMP;
+            RecordFileConsensusTimestampsRecalculateMigration.TESTNET_MIN_CONSENSUS_END_TIMESTAMP;
 
     @Getter
-    private final RecordFileConsensusTimestampsOffsetMigration migration;
+    private final RecordFileConsensusTimestampsRecalculateMigration migration;
 
     private final JdbcOperations jdbcOperations;
 
@@ -46,9 +46,9 @@ class RecordFileConsensusTimestampsOffsetMigrationTest
                 .migrationProperties
                 .getParams()
                 .put(
-                        RecordFileConsensusTimestampsOffsetMigration.MIN_CONSENSUS_END_TIMESTAMP_KEY,
+                        RecordFileConsensusTimestampsRecalculateMigration.MIN_CONSENSUS_END_TIMESTAMP_KEY,
                         String.valueOf(
-                                RecordFileConsensusTimestampsOffsetMigration.TESTNET_MIN_CONSENSUS_END_TIMESTAMP));
+                                RecordFileConsensusTimestampsRecalculateMigration.TESTNET_MIN_CONSENSUS_END_TIMESTAMP));
     }
 
     @AfterEach
@@ -56,7 +56,7 @@ class RecordFileConsensusTimestampsOffsetMigrationTest
         migration
                 .migrationProperties
                 .getParams()
-                .remove(RecordFileConsensusTimestampsOffsetMigration.MIN_CONSENSUS_END_TIMESTAMP_KEY);
+                .remove(RecordFileConsensusTimestampsRecalculateMigration.MIN_CONSENSUS_END_TIMESTAMP_KEY);
         jdbcOperations.execute("drop table if exists processed_record_file_temp");
     }
 
@@ -65,12 +65,12 @@ class RecordFileConsensusTimestampsOffsetMigrationTest
         runMigration();
         waitForCompletionExtended();
 
-        assertThat(columnExists("record_file", "consensus_start_offset")).isTrue();
-        assertThat(columnExists("record_file", "consensus_end_offset")).isTrue();
+        assertThat(columnExists("record_file", "consensus_start_calculated")).isTrue();
+        assertThat(columnExists("record_file", "consensus_end_calculated")).isTrue();
     }
 
     @Test
-    void setsStartOffsetToEarliestGapTxBeforeConsensusStart() {
+    void setsStartTimestampToEarliestGapTxBeforeConsensusStart() {
         long prevStart = END_TIMESTAMP + 100L;
         long prevEnd = END_TIMESTAMP + 1_000L;
         long currStart = END_TIMESTAMP + 2_000L;
@@ -86,14 +86,14 @@ class RecordFileConsensusTimestampsOffsetMigrationTest
         runMigration();
         waitForCompletionExtended();
 
-        assertThat(startOffset(currEnd)).isEqualTo(earlierInGap - currStart);
-        assertThat(endOffset(currEnd)).isZero();
-        assertThat(startOffset(prevEnd)).isZero();
-        assertThat(endOffset(prevEnd)).isZero();
+        assertThat(startCalculated(currEnd)).isEqualTo(earlierInGap);
+        assertThat(endCalculated(currEnd)).isZero();
+        assertThat(startCalculated(prevEnd)).isZero();
+        assertThat(endCalculated(prevEnd)).isZero();
     }
 
     @Test
-    void setsEndOffsetToLatestGapTxAfterConsensusEnd() {
+    void setsEndTimestampToLatestGapTxAfterConsensusEnd() {
         long currStart = END_TIMESTAMP + 2_000L;
         long currEnd = END_TIMESTAMP + 3_000L;
         long nextStart = END_TIMESTAMP + 4_000L;
@@ -109,14 +109,14 @@ class RecordFileConsensusTimestampsOffsetMigrationTest
         runMigration();
         waitForCompletionExtended();
 
-        assertThat(startOffset(currEnd)).isZero();
-        assertThat(endOffset(currEnd)).isEqualTo(latestAfterEnd - currEnd);
-        assertThat(startOffset(nextEnd)).isZero();
-        assertThat(endOffset(nextEnd)).isZero();
+        assertThat(startCalculated(currEnd)).isZero();
+        assertThat(endCalculated(currEnd)).isEqualTo(latestAfterEnd);
+        assertThat(startCalculated(nextEnd)).isZero();
+        assertThat(endCalculated(nextEnd)).isZero();
     }
 
     @Test
-    void setsStartAndEndOffsetForGapTransactionsAroundCurrentBlock() {
+    void setsStartAndEndTimestampForGapTransactionsAroundCurrentBlock() {
         long prevStart = END_TIMESTAMP + 100L;
         long prevEnd = END_TIMESTAMP + 1_000L;
         long currStart = END_TIMESTAMP + 2_000L;
@@ -139,16 +139,16 @@ class RecordFileConsensusTimestampsOffsetMigrationTest
         runMigration();
         waitForCompletionExtended();
 
-        assertThat(startOffset(currEnd)).isEqualTo(earliestBeforeStart - currStart);
-        assertThat(endOffset(currEnd)).isEqualTo(latestAfterEnd - currEnd);
-        assertThat(startOffset(prevEnd)).isZero();
-        assertThat(endOffset(prevEnd)).isZero();
-        assertThat(startOffset(nextEnd)).isZero();
-        assertThat(endOffset(nextEnd)).isZero();
+        assertThat(startCalculated(currEnd)).isEqualTo(earliestBeforeStart);
+        assertThat(endCalculated(currEnd)).isEqualTo(latestAfterEnd);
+        assertThat(startCalculated(prevEnd)).isZero();
+        assertThat(endCalculated(prevEnd)).isZero();
+        assertThat(startCalculated(nextEnd)).isZero();
+        assertThat(endCalculated(nextEnd)).isZero();
     }
 
     @Test
-    void setsStartAndEndOffsetForGapTransactionsBeforeBlockStartAndAfterPrevEnd() {
+    void setsStartAndEndTimestampForGapTransactionsBeforeBlockStartAndAfterPrevEnd() {
         long prevStart = END_TIMESTAMP + 100L;
         long prevEnd = END_TIMESTAMP + 1_000L;
         long currStart = END_TIMESTAMP + 2_000L;
@@ -168,10 +168,10 @@ class RecordFileConsensusTimestampsOffsetMigrationTest
         runMigration();
         waitForCompletionExtended();
 
-        assertThat(startOffset(currEnd)).isEqualTo(earliestCurrBeforeStart - currStart);
-        assertThat(endOffset(currEnd)).isZero();
-        assertThat(startOffset(prevEnd)).isZero();
-        assertThat(endOffset(prevEnd)).isEqualTo(latestPrevAfterEnd - prevEnd);
+        assertThat(startCalculated(currEnd)).isEqualTo(earliestCurrBeforeStart);
+        assertThat(endCalculated(currEnd)).isZero();
+        assertThat(startCalculated(prevEnd)).isZero();
+        assertThat(endCalculated(prevEnd)).isEqualTo(latestPrevAfterEnd);
     }
 
     private void waitForCompletionExtended() {
@@ -196,16 +196,16 @@ class RecordFileConsensusTimestampsOffsetMigrationTest
                         """, Boolean.class, tableName, columnName));
     }
 
-    private long startOffset(long consensusEnd) {
+    private long startCalculated(long consensusEnd) {
         return jdbcOperations.queryForObject(
-                "select coalesce(consensus_start_offset, 0) from record_file where consensus_end = ?",
+                "select coalesce(consensus_start_calculated, 0) from record_file where consensus_end = ?",
                 Long.class,
                 consensusEnd);
     }
 
-    private long endOffset(long consensusEnd) {
+    private long endCalculated(long consensusEnd) {
         return jdbcOperations.queryForObject(
-                "select coalesce(consensus_end_offset, 0) from record_file where consensus_end = ?",
+                "select coalesce(consensus_end_calculated, 0) from record_file where consensus_end = ?",
                 Long.class,
                 consensusEnd);
     }

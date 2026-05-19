@@ -29,15 +29,15 @@ import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Adds {@code record_file.consensus_start_offset} and {@code record_file.consensus_end_offset} if missing, then
+ * Adds {@code record_file.consensus_start_calculated} and {@code record_file.consensus_end_calculated} if missing, then
  * populates them for each block with transactions that exist before its {@code consensus_start} or after its
- * {@code consensus_end}. {@code consensus_start_offset} is {@code min(transaction.consensus_timestamp) - consensus_start}
+ * {@code consensus_end}. {@code consensus_start_calculated} is {@code min(transaction.consensus_timestamp)}
  * for transactions after the previous block's {@code consensus_end} and before this block's {@code consensus_start}.
- * {@code consensus_end_offset} is {@code max(transaction.consensus_timestamp) - consensus_end} for transactions after
+ * {@code consensus_end_calculated} is {@code max(transaction.consensus_timestamp)} for transactions after
  * this block's {@code consensus_end} and before the next block's {@code consensus_start}.
  */
 @Named
-final class RecordFileConsensusTimestampsOffsetMigration extends AsyncJavaMigration<Long> {
+final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaMigration<Long> {
 
     /**
      * Mainnet: only {@code record_file} rows with {@code consensus_end} strictly after this instant are processed.
@@ -143,10 +143,10 @@ final class RecordFileConsensusTimestampsOffsetMigration extends AsyncJavaMigrat
                     )
             """;
 
-    private static final String UPDATE_RECORD_FILE_OFFSETS = """
+    private static final String UPDATE_RECORD_FILE_CALCULATED_TIMESTAMPS = """
                     update record_file
-                    set consensus_start_offset = :consensusStartOffset,
-                        consensus_end_offset = :consensusEndOffset
+                    set consensus_start_calculated = :consensusStartCalculated,
+                        consensus_end_calculated = :consensusEndCalculated
                     where consensus_end = :consensusEnd
             """;
 
@@ -161,7 +161,7 @@ final class RecordFileConsensusTimestampsOffsetMigration extends AsyncJavaMigrat
 
     private long latestProcessedEndTimestamp;
 
-    protected RecordFileConsensusTimestampsOffsetMigration(
+    protected RecordFileConsensusTimestampsRecalculateMigration(
             final Environment environment,
             final DBProperties dbProperties,
             final ImporterProperties importerProperties,
@@ -192,7 +192,7 @@ final class RecordFileConsensusTimestampsOffsetMigration extends AsyncJavaMigrat
 
     @Override
     public String getDescription() {
-        return "Populate record_file consensus_start_offset and consensus_end_offset.";
+        return "Populate record_file consensus_start_calculated and consensus_end_calculated.";
     }
 
     @Override
@@ -249,19 +249,21 @@ final class RecordFileConsensusTimestampsOffsetMigration extends AsyncJavaMigrat
 
             var prevConsensusEnd = lookupPrevConsensusEnd(block.consensusStart());
             var nextConsensusStart = lookupNextConsensusStart(block.consensusEnd());
-            var startOffset = computeStartOffset(
+            var consensusStartCalculated = computeStartTimestamp(
                     block, prevConsensusEnd != null ? prevConsensusEnd : 0L, actualTransactionsCount);
-            var endOffset = computeEndOffset(
+            var consensusEndCalculated = computeEndTimestamp(
                     block, nextConsensusStart != null ? nextConsensusStart : Long.MAX_VALUE, actualTransactionsCount);
-            if (startOffset == null && endOffset == null) {
+            if (consensusStartCalculated == null && consensusEndCalculated == null) {
                 continue;
             }
 
             var updateParams = new MapSqlParameterSource()
                     .addValue("consensusEnd", block.consensusEnd())
-                    .addValue("consensusStartOffset", startOffset != null ? startOffset : 0L)
-                    .addValue("consensusEndOffset", endOffset != null ? endOffset : 0L);
-            updated.addAndGet(jdbc.update(UPDATE_RECORD_FILE_OFFSETS, updateParams));
+                    .addValue(
+                            "consensusStartCalculated",
+                            consensusStartCalculated != null ? consensusStartCalculated : 0L)
+                    .addValue("consensusEndCalculated", consensusEndCalculated != null ? consensusEndCalculated : 0L);
+            updated.addAndGet(jdbc.update(UPDATE_RECORD_FILE_CALCULATED_TIMESTAMPS, updateParams));
         }
 
         jdbc.update(
@@ -302,23 +304,21 @@ final class RecordFileConsensusTimestampsOffsetMigration extends AsyncJavaMigrat
     }
 
     @Nullable
-    private Long computeStartOffset(RecordFileSlice block, Long prevConsensusEnd, Long actualTransactionsCount) {
+    private Long computeStartTimestamp(RecordFileSlice block, Long prevConsensusEnd, Long actualTransactionsCount) {
         var params = new MapSqlParameterSource()
                 .addValue("consensusStart", block.consensusStart())
                 .addValue("prevConsensusEnd", prevConsensusEnd)
                 .addValue("missingTransactionsCount", block.count() - actualTransactionsCount);
-        var minTimestamp = queryForObjectOrNull(SELECT_MIN_TX_BEFORE_START, params, Long.class);
-        return minTimestamp != null ? minTimestamp - block.consensusStart() : null;
+        return queryForObjectOrNull(SELECT_MIN_TX_BEFORE_START, params, Long.class);
     }
 
     @Nullable
-    private Long computeEndOffset(RecordFileSlice block, Long nextConsensusStart, Long actualTransactionsCount) {
+    private Long computeEndTimestamp(RecordFileSlice block, Long nextConsensusStart, Long actualTransactionsCount) {
         var params = new MapSqlParameterSource()
                 .addValue("consensusEnd", block.consensusEnd())
                 .addValue("nextConsensusStart", nextConsensusStart)
                 .addValue("missingTransactionsCount", block.count() - actualTransactionsCount);
-        var maxTimestamp = queryForObjectOrNull(SELECT_MAX_TX_AFTER_END, params, Long.class);
-        return maxTimestamp != null ? maxTimestamp - block.consensusEnd() : null;
+        return queryForObjectOrNull(SELECT_MAX_TX_AFTER_END, params, Long.class);
     }
 
     private TransactionOperations transactionOperations() {
