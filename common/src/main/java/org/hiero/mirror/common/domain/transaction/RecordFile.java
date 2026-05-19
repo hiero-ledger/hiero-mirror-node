@@ -43,9 +43,9 @@ public class RecordFile implements StreamFile<RecordItem> {
 
     private Long consensusStart;
 
-    private Long consensusStartOffset;
+    private Long consensusStartCalculated;
 
-    private Long consensusEndOffset;
+    private Long consensusEndCalculated;
 
     @Id
     private Long consensusEnd;
