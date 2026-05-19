@@ -6,11 +6,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
 import java.util.List;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.domain.transaction.AccessListEntry;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
@@ -34,32 +37,17 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     private static final long NONCE = 1L;
     private static final long AUTH_NONCE = 2L;
 
-    static final byte[] EIP7702_RAW_TX;
+    private static final List<?> DEFAULT_ACCESS_LIST =
+            List.of(List.of(Hex.decode(ACCESS_LIST_ADDRESS), List.of(Hex.decode(ACCESS_LIST_STORAGE_KEY))));
+    private static final List<?> DEFAULT_AUTHORIZATION_LIST = List.of(List.of(
+            Hex.decode(AUTH_CHAIN_ID_HEX),
+            Hex.decode(TO_ADDRESS_HEX),
+            Integers.toBytes(AUTH_NONCE),
+            Integers.toBytes(0),
+            Hex.decode(SIGNATURE_R_HEX),
+            Hex.decode(SIGNATURE_S_HEX)));
 
-    static {
-        EIP7702_RAW_TX = RLPEncoder.sequence(
-                Integers.toBytes(4),
-                List.of(
-                        Hex.decode(CHAIN_ID_HEX),
-                        Integers.toBytes(NONCE),
-                        Hex.decode(FEE_HEX),
-                        Hex.decode(FEE_HEX),
-                        Integers.toBytes(GAS_LIMIT),
-                        Hex.decode(TO_ADDRESS_HEX),
-                        Hex.decode(VALUE_HEX),
-                        Hex.decode(CALL_DATA_HEX),
-                        List.of(),
-                        List.of(List.of(
-                                Hex.decode(AUTH_CHAIN_ID_HEX),
-                                Hex.decode(TO_ADDRESS_HEX),
-                                Integers.toBytes(AUTH_NONCE),
-                                Integers.toBytes(0),
-                                Hex.decode(SIGNATURE_R_HEX),
-                                Hex.decode(SIGNATURE_S_HEX))),
-                        Integers.toBytes(1),
-                        Hex.decode(SIGNATURE_R_HEX),
-                        Hex.decode(SIGNATURE_S_HEX)));
-    }
+    static final byte[] EIP7702_RAW_TX = encodeEip7702Transaction(DEFAULT_ACCESS_LIST, DEFAULT_AUTHORIZATION_LIST);
 
     public Eip7702EthereumTransactionParserTest(Eip7702EthereumTransactionParser ethereumTransactionParser) {
         super(ethereumTransactionParser);
@@ -68,6 +56,13 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     @Override
     public byte[] getTransactionBytes() {
         return EIP7702_RAW_TX;
+    }
+
+    @Test
+    void decodeEmptyAccessList() {
+        final var ethereumTransaction =
+                ethereumTransactionParser.decode(encodeEip7702Transaction(List.of(), DEFAULT_AUTHORIZATION_LIST));
+        validateEthereumTransaction(ethereumTransaction, List.of());
     }
 
     @Test
@@ -122,41 +117,10 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
 
     @Test
     void decodeEmptyAuthorizationListSucceeds() {
-        final var transactionData = List.of(
-                Hex.decode(CHAIN_ID_HEX),
-                Integers.toBytes(NONCE),
-                Hex.decode(FEE_HEX),
-                Hex.decode(FEE_HEX),
-                Integers.toBytes(GAS_LIMIT),
-                Hex.decode(TO_ADDRESS_HEX),
-                Hex.decode(VALUE_HEX),
-                Hex.decode(CALL_DATA_HEX),
-                List.of(),
-                List.of(),
-                Integers.toBytes(1),
-                Hex.decode(SIGNATURE_R_HEX),
-                Hex.decode(SIGNATURE_S_HEX));
-        final var ethereumTransactionBytes = RLPEncoder.sequence(Integers.toBytes(4), transactionData);
+        final var ethereumTransaction =
+                ethereumTransactionParser.decode(encodeEip7702Transaction(DEFAULT_ACCESS_LIST, List.of()));
 
-        final var ethereumTransaction = ethereumTransactionParser.decode(ethereumTransactionBytes);
-
-        assertThat(ethereumTransaction)
-                .isNotNull()
-                .returns(Eip7702EthereumTransactionParser.EIP7702_TYPE_BYTE, EthereumTransaction::getType)
-                .returns(Hex.decode(CHAIN_ID_HEX), EthereumTransaction::getChainId)
-                .returns(NONCE, EthereumTransaction::getNonce)
-                .returns(null, EthereumTransaction::getGasPrice)
-                .returns(Hex.decode(FEE_HEX), EthereumTransaction::getMaxPriorityFeePerGas)
-                .returns(Hex.decode(FEE_HEX), EthereumTransaction::getMaxFeePerGas)
-                .returns(GAS_LIMIT, EthereumTransaction::getGasLimit)
-                .returns(Hex.decode(TO_ADDRESS_HEX), EthereumTransaction::getToAddress)
-                .returns(Hex.decode(VALUE_HEX), EthereumTransaction::getValue)
-                .returns(Hex.decode(CALL_DATA_HEX), EthereumTransaction::getCallData)
-                .returns(Hex.decode(""), EthereumTransaction::getAccessList)
-                .returns(1, EthereumTransaction::getRecoveryId)
-                .returns(null, EthereumTransaction::getSignatureV)
-                .returns(Hex.decode(SIGNATURE_R_HEX), EthereumTransaction::getSignatureR)
-                .returns(Hex.decode(SIGNATURE_S_HEX), EthereumTransaction::getSignatureS);
+        validateEthereumTransaction(ethereumTransaction, expectedAccessList());
         assertThat(ethereumTransaction.getAuthorizationList()).isEmpty();
     }
 
@@ -242,6 +206,18 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
 
     @Override
     protected void validateEthereumTransaction(EthereumTransaction ethereumTransaction) {
+        validateEthereumTransaction(ethereumTransaction, expectedAccessList());
+    }
+
+    private static List<AccessListEntry> expectedAccessList() {
+        return List.of(AccessListEntry.builder()
+                .address(ACCESS_LIST_ADDRESS)
+                .storageKeys(List.of(ACCESS_LIST_STORAGE_KEY))
+                .build());
+    }
+
+    private void validateEthereumTransaction(
+            EthereumTransaction ethereumTransaction, List<AccessListEntry> accessList) {
         assertThat(ethereumTransaction)
                 .isNotNull()
                 .returns(Eip7702EthereumTransactionParser.EIP7702_TYPE_BYTE, EthereumTransaction::getType)
@@ -254,13 +230,12 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
                 .returns(Hex.decode(TO_ADDRESS_HEX), EthereumTransaction::getToAddress)
                 .returns(Hex.decode(VALUE_HEX), EthereumTransaction::getValue)
                 .returns(Hex.decode(CALL_DATA_HEX), EthereumTransaction::getCallData)
-                .returns(Hex.decode(""), EthereumTransaction::getAccessList)
+                .returns(accessList, EthereumTransaction::getAccessList)
                 .returns(1, EthereumTransaction::getRecoveryId)
                 .returns(null, EthereumTransaction::getSignatureV)
                 .returns(Hex.decode(SIGNATURE_R_HEX), EthereumTransaction::getSignatureR)
                 .returns(Hex.decode(SIGNATURE_S_HEX), EthereumTransaction::getSignatureS);
 
-        // Validate authorization list
         assertThat(ethereumTransaction.getAuthorizationList()).isNotNull().hasSize(1);
 
         var authorization = ethereumTransaction.getAuthorizationList().getFirst();
@@ -272,5 +247,24 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
                 .returns(0, Authorization::getYParity)
                 .returns(SIGNATURE_R_HEX, Authorization::getR)
                 .returns(SIGNATURE_S_HEX, Authorization::getS);
+    }
+
+    private static byte[] encodeEip7702Transaction(List<?> accessList, List<?> authorizationList) {
+        return RLPEncoder.sequence(
+                Integers.toBytes(4),
+                List.of(
+                        Hex.decode(CHAIN_ID_HEX),
+                        Integers.toBytes(NONCE),
+                        Hex.decode(FEE_HEX),
+                        Hex.decode(FEE_HEX),
+                        Integers.toBytes(GAS_LIMIT),
+                        Hex.decode(TO_ADDRESS_HEX),
+                        Hex.decode(VALUE_HEX),
+                        Hex.decode(CALL_DATA_HEX),
+                        accessList,
+                        authorizationList,
+                        Integers.toBytes(1),
+                        Hex.decode(SIGNATURE_R_HEX),
+                        Hex.decode(SIGNATURE_S_HEX)));
     }
 }

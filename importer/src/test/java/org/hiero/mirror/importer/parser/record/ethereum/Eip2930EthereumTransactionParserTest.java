@@ -6,10 +6,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.EIP_2930_RAW_TX_WITH_ACCESS_LIST;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
+import java.util.List;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.domain.transaction.AccessListEntry;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
 import org.junit.jupiter.api.Test;
@@ -29,7 +34,13 @@ class Eip2930EthereumTransactionParserTest extends AbstractEthereumTransactionPa
 
     @Override
     public byte[] getTransactionBytes() {
-        return EIP_2930_RAW_TX;
+        return EIP_2930_RAW_TX_WITH_ACCESS_LIST;
+    }
+
+    @Test
+    void decodeEmptyAccessList() {
+        final var ethereumTransaction = ethereumTransactionParser.decode(EIP_2930_RAW_TX);
+        validateEthereumTransaction(ethereumTransaction, List.of());
     }
 
     @Test
@@ -72,6 +83,16 @@ class Eip2930EthereumTransactionParserTest extends AbstractEthereumTransactionPa
 
     @Override
     protected void validateEthereumTransaction(EthereumTransaction ethereumTransaction) {
+        validateEthereumTransaction(
+                ethereumTransaction,
+                List.of(AccessListEntry.builder()
+                        .address(ACCESS_LIST_ADDRESS)
+                        .storageKeys(List.of(ACCESS_LIST_STORAGE_KEY))
+                        .build()));
+    }
+
+    private void validateEthereumTransaction(
+            EthereumTransaction ethereumTransaction, List<AccessListEntry> accessList) {
         assertThat(ethereumTransaction)
                 .isNotNull()
                 .returns(Eip2930EthereumTransactionParser.EIP2930_TYPE_BYTE, EthereumTransaction::getType)
@@ -84,7 +105,7 @@ class Eip2930EthereumTransactionParserTest extends AbstractEthereumTransactionPa
                 .returns(Hex.decode("000000000000000000000000000000000000052d"), EthereumTransaction::getToAddress)
                 .returns(Hex.decode("02540be400"), EthereumTransaction::getValue)
                 .returns(Hex.decode("123456"), EthereumTransaction::getCallData)
-                .returns(Hex.decode(""), EthereumTransaction::getAccessList)
+                .returns(accessList, EthereumTransaction::getAccessList)
                 .returns(1, EthereumTransaction::getRecoveryId)
                 .returns(null, EthereumTransaction::getSignatureV)
                 .returns(

@@ -64,7 +64,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                 .toAddress(rlpItems.get(5).data())
                 .value(rlpItems.get(6).asBigInt().toByteArray())
                 .callData(rlpItems.get(7).data())
-                .accessList(rlpItems.get(8).data())
+                .accessList(parseAccessList(rlpItems.get(8), TRANSACTION_TYPE_NAME))
                 .authorizationList(authorizationList)
                 .recoveryId((int) rlpItems.get(10).asByte())
                 .signatureR(rlpItems.get(11).data())

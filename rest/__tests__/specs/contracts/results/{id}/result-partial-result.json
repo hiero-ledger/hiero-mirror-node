@@ -43,7 +43,15 @@
         "nonce": 5,
         "payer_account_id": "8001",
         "value": "0x0001A055690D9DB80000",
-        "_value_description": "3000000000 tinybars = 30000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00"
+        "_value_description": "3000000000 tinybars = 30000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00",
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ]
       }
     ]
   },
@@ -54,7 +62,14 @@
   ],
   "responseStatus": 206,
   "responseJson": {
-    "access_list": "0x",
+    "access_list": [
+      {
+        "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+        "storage_keys": [
+          "0x0000000000000000000000000000000000000000000000000000000000000081"
+        ]
+      }
+    ],
     "amount": 3000000000,
     "authorization_list": [],
     "block_gas_used": 50000000,

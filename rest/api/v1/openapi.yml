@@ -2072,6 +2072,20 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/AccountInfo"
+    AccessListEntry:
+      type: object
+      properties:
+        address:
+          description: The hex encoded address of the accessed contract
+          example: "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150"
+          type: string
+        storage_keys:
+          description: The list of accessed hex encoded storage keys
+          type: array
+          items:
+            type: string
+          example:
+            - "0x0000000000000000000000000000000000000000000000000000000000000081"
     AccountBalance:
       type: object
       required:
@@ -2317,9 +2331,10 @@ components:
       type: object
       properties:
         access_list:
-          description: The hex encoded access_list of the wrapped ethereum transaction
-          type: [string, "null"]
-          example: "0xabcd"
+          description: The access list of the wrapped ethereum transaction
+          type: [array, "null"]
+          items:
+            $ref: "#/components/schemas/AccessListEntry"
         address:
           description: The hex encoded evm address of contract
           example: "0x25fe26adc577cc89172e6156c9e24f7b9751b762"
@@ -2462,9 +2477,10 @@ components:
         - type: object
           properties:
             access_list:
-              description: The hex encoded access_list of the wrapped ethereum transaction
-              type: [string, "null"]
-              example: "0xabcd"
+              description: The access list of the wrapped ethereum transaction
+              type: [array, "null"]
+              items:
+                $ref: "#/components/schemas/AccessListEntry"
             address:
               description: The hex encoded evm address of contract
               example: "0x25fe26adc577cc89172e6156c9e24f7b9751b762"

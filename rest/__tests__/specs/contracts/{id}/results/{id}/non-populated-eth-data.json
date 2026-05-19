@@ -119,7 +119,14 @@
     "ethereumtransactions": [
       {
         "_value_description": "2000000000 tinybars = 20000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00",
-        "access_list": "0xabcd",
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ],
         "call_data": "0x0505",
         "call_data_id": "5001",
         "chain_id": "0x0127",
@@ -170,7 +177,14 @@
   ],
   "responseStatus": 200,
   "responseJson": {
-    "access_list": "0xabcd",
+    "access_list": [
+      {
+        "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+        "storage_keys": [
+          "0x0000000000000000000000000000000000000000000000000000000000000081"
+        ]
+      }
+    ],
     "amount": 2000000000,
     "authorization_list": [],
     "block_gas_used": 50000000,

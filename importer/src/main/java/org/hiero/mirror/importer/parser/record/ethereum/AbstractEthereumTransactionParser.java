@@ -4,14 +4,21 @@ package org.hiero.mirror.importer.parser.record.ethereum;
 
 import static org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
 
+import com.esaulpaugh.headlong.rlp.RLPItem;
 import com.esaulpaugh.headlong.util.Integers;
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.domain.transaction.AccessListEntry;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
+import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
 import org.hiero.mirror.importer.repository.FileDataRepository;
 import org.hiero.mirror.importer.service.ContractBytecodeService;
 import org.hiero.mirror.importer.util.Utility;
@@ -40,7 +47,7 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
 
         try {
             var ethereumTransaction = decode(transactionBytes);
-            if (ArrayUtils.isNotEmpty(ethereumTransaction.getAccessList())) {
+            if (!CollectionUtils.isEmpty(ethereumTransaction.getAccessList())) {
                 log.warn("Re-encoding ethereum transaction at {} with access list is unsupported", consensusTimestamp);
                 return EMPTY_BYTE_ARRAY;
             }
@@ -63,6 +70,42 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
     }
 
     protected abstract byte[] encode(EthereumTransaction ethereumTransaction);
+
+    protected static List<AccessListEntry> parseAccessList(RLPItem rlpAccessList, String transactionTypeName) {
+        if (!rlpAccessList.isList()) {
+            throw new InvalidEthereumBytesException(transactionTypeName, "Access list is not a list");
+        }
+
+        final var accessListEntries = rlpAccessList.asRLPList().elements();
+        final var accessList = new ArrayList<AccessListEntry>(accessListEntries.size());
+
+        for (final var entry : accessListEntries) {
+            if (!entry.isList()) {
+                throw new InvalidEthereumBytesException(transactionTypeName, "Access list entry is not a list");
+            }
+
+            final var entryProperties = entry.asRLPList().elements();
+            if (entryProperties.size() != 2) {
+                throw new InvalidEthereumBytesException(
+                        transactionTypeName,
+                        String.format("Access list entry size was %d but expected 2", entryProperties.size()));
+            }
+
+            final var address = Hex.encodeHexString(entryProperties.get(0).data());
+            final var storageKeyItems = entryProperties.get(1).asRLPList().elements();
+            final var storageKeys = new ArrayList<String>(storageKeyItems.size());
+            for (final var key : storageKeyItems) {
+                storageKeys.add(Hex.encodeHexString(key.data()));
+            }
+
+            accessList.add(AccessListEntry.builder()
+                    .address(address)
+                    .storageKeys(storageKeys)
+                    .build());
+        }
+
+        return accessList;
+    }
 
     protected static byte[] getValue(EthereumTransaction ethereumTransaction) {
         // Value (BigInteger 0) is stored as a 1-byte array [0] in EthereumTransaction, in the RPL encoded raw bytes,

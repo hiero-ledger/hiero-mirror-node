@@ -119,6 +119,14 @@
     ],
     "ethereumtransactions": [
       {
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ],
         "chain_id": "0x012a",
         "consensus_timestamp": 167654000123456,
         "hash": "165602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
@@ -139,7 +147,14 @@
       "url": "/api/v1/contracts/0.0.5001/results/167654.000123456?hbar=true",
       "responseStatus": 200,
       "responseJson": {
-        "access_list": "0x",
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ],
         "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
         "amount": 20,
         "authorization_list": [],
@@ -227,7 +242,14 @@
       "url": "/api/v1/contracts/0.0.5001/results/167654.000123456?hbar=false",
       "responseStatus": 200,
       "responseJson": {
-        "access_list": "0x",
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ],
         "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
         "amount": 200000000000,
         "authorization_list": [],

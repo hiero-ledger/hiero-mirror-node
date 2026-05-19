@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.parser.record.ethereum;
 
+import com.esaulpaugh.headlong.rlp.RLPEncoder;
+import com.esaulpaugh.headlong.util.Integers;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -67,6 +69,41 @@ public class EthereumTransactionTestUtility {
                     // 128 (dec) bytes
                     + "a0249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53" // same
             );
+
+    public static final String ACCESS_LIST_ADDRESS = "a02457e5dfd32bda5fc7e1f1b008aa5979568150";
+    public static final String ACCESS_LIST_STORAGE_KEY =
+            "0000000000000000000000000000000000000000000000000000000000000081";
+
+    public static final byte[] EIP_2930_RAW_TX_WITH_ACCESS_LIST = RLPEncoder.sequence(
+            Integers.toBytes(1),
+            List.of(
+                    Hex.decode("012a"),
+                    Integers.toBytes(5644),
+                    Hex.decode("a54f4c3c00"),
+                    Integers.toBytes(3_000_000),
+                    Hex.decode("000000000000000000000000000000000000052d"),
+                    Hex.decode("02540be400"),
+                    Hex.decode("123456"),
+                    List.of(List.of(Hex.decode(ACCESS_LIST_ADDRESS), List.of(Hex.decode(ACCESS_LIST_STORAGE_KEY)))),
+                    Integers.toBytes(1),
+                    Hex.decode("abb9e9c510716df2988cf626734ee50dcd9f41d30d638220712b5fe33fe4c816"),
+                    Hex.decode("249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53")));
+
+    public static final byte[] LONDON_RAW_TX_WITH_ACCESS_LIST = RLPEncoder.sequence(
+            Integers.toBytes(2),
+            List.of(
+                    Hex.decode("012a"),
+                    Integers.toBytes(2),
+                    Hex.decode("2f"),
+                    Hex.decode("2f"),
+                    Integers.toBytes(98_304),
+                    Hex.decode("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
+                    Hex.decode("0de0b6b3a7640000"),
+                    Hex.decode("123456"),
+                    List.of(List.of(Hex.decode(ACCESS_LIST_ADDRESS), List.of(Hex.decode(ACCESS_LIST_STORAGE_KEY)))),
+                    Integers.toBytes(1),
+                    Hex.decode("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
+                    Hex.decode("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66")));
 
     // The transactions and the file data are extracted from testnet. The data tests the following scenarios
     // - no call data offloading for legacy, type 1, and type 2
