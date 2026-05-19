@@ -393,7 +393,7 @@ class TestScenarioBuilder {
   }
 
   tags(tags) {
-    this._tags = tags;
+    Object.assign(this._tags, tags);
     return this;
   }
 }
