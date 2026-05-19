@@ -62,7 +62,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     void decodeEmptyAccessList() {
         final var ethereumTransaction =
                 ethereumTransactionParser.decode(encodeEip7702Transaction(List.of(), DEFAULT_AUTHORIZATION_LIST));
-        validateEthereumTransaction(ethereumTransaction, List.of());
+        validateEthereumTransaction(ethereumTransaction, List.of(), true);
     }
 
     @Test
@@ -120,8 +120,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         final var ethereumTransaction =
                 ethereumTransactionParser.decode(encodeEip7702Transaction(DEFAULT_ACCESS_LIST, List.of()));
 
-        validateEthereumTransaction(ethereumTransaction, expectedAccessList());
-        assertThat(ethereumTransaction.getAuthorizationList()).isEmpty();
+        validateEthereumTransaction(ethereumTransaction, expectedAccessList(), false);
     }
 
     @Test
@@ -206,7 +205,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
 
     @Override
     protected void validateEthereumTransaction(EthereumTransaction ethereumTransaction) {
-        validateEthereumTransaction(ethereumTransaction, expectedAccessList());
+        validateEthereumTransaction(ethereumTransaction, expectedAccessList(), true);
     }
 
     private static List<AccessListEntry> expectedAccessList() {
@@ -217,7 +216,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     }
 
     private void validateEthereumTransaction(
-            EthereumTransaction ethereumTransaction, List<AccessListEntry> accessList) {
+            EthereumTransaction ethereumTransaction, List<AccessListEntry> accessList, boolean expectAuthorization) {
         assertThat(ethereumTransaction)
                 .isNotNull()
                 .returns(Eip7702EthereumTransactionParser.EIP7702_TYPE_BYTE, EthereumTransaction::getType)
@@ -236,17 +235,21 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
                 .returns(Hex.decode(SIGNATURE_R_HEX), EthereumTransaction::getSignatureR)
                 .returns(Hex.decode(SIGNATURE_S_HEX), EthereumTransaction::getSignatureS);
 
-        assertThat(ethereumTransaction.getAuthorizationList()).isNotNull().hasSize(1);
+        if (expectAuthorization) {
+            assertThat(ethereumTransaction.getAuthorizationList()).isNotNull().hasSize(1);
 
-        var authorization = ethereumTransaction.getAuthorizationList().getFirst();
-        assertThat(authorization)
-                .isNotNull()
-                .returns(AUTH_CHAIN_ID_HEX, Authorization::getChainId)
-                .returns(TO_ADDRESS_HEX, Authorization::getAddress)
-                .returns(AUTH_NONCE, Authorization::getNonce)
-                .returns(0, Authorization::getYParity)
-                .returns(SIGNATURE_R_HEX, Authorization::getR)
-                .returns(SIGNATURE_S_HEX, Authorization::getS);
+            var authorization = ethereumTransaction.getAuthorizationList().getFirst();
+            assertThat(authorization)
+                    .isNotNull()
+                    .returns(AUTH_CHAIN_ID_HEX, Authorization::getChainId)
+                    .returns(TO_ADDRESS_HEX, Authorization::getAddress)
+                    .returns(AUTH_NONCE, Authorization::getNonce)
+                    .returns(0, Authorization::getYParity)
+                    .returns(SIGNATURE_R_HEX, Authorization::getR)
+                    .returns(SIGNATURE_S_HEX, Authorization::getS);
+        } else {
+            assertThat(ethereumTransaction.getAuthorizationList()).isEmpty();
+        }
     }
 
     private static byte[] encodeEip7702Transaction(List<?> accessList, List<?> authorizationList) {

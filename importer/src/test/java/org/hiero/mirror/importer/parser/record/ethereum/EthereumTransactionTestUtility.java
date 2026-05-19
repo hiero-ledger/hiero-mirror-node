@@ -53,23 +53,6 @@ public class EthereumTransactionTestUtility {
                     // 128 (dec) bytes
                     + "a0249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53" // same
             );
-    public static final byte[] RAW_TX_TYPE_1_WITH_ACCESS_LIST = Hex.decode(
-            "01" // type
-                    + "f872" // total length
-                    + "82012a" // chain id => 82 - 80 = 2 (hex) = 2 (dec) bytes length
-                    + "82160c" // nonce  => same length
-                    + "85a54f4c3c00" // gas price => 5 bytes
-                    + "832dc6c0" // gas limit => 3 bytes
-                    + "94000000000000000000000000000000000000052d" // to => 94 - 80 = 14 (hex) = 20 (dec) bytes
-                    + "8502540be400" // value => 5 bytes
-                    + "80" // calldata
-                    + "c281ff" // access list
-                    + "01" // v
-                    + "a0abb9e9c510716df2988cf626734ee50dcd9f41d30d638220712b5fe33fe4c816" // r => a0 - 80 = 80 (hex) =
-                    // 128 (dec) bytes
-                    + "a0249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53" // same
-            );
-
     public static final String ACCESS_LIST_ADDRESS = "a02457e5dfd32bda5fc7e1f1b008aa5979568150";
     public static final String ACCESS_LIST_STORAGE_KEY =
             "0000000000000000000000000000000000000000000000000000000000000081";

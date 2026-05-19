@@ -6,10 +6,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.EIP_2930_RAW_TX_WITH_ACCESS_LIST;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA_OFFLOADED;
-import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_WITH_ACCESS_LIST;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.loadEthereumTransactions;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.populateFileData;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -173,7 +173,7 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
 
         // when
         var actual = ethereumTransactionParser.getHash(
-                EMPTY_BYTE_ARRAY, domainBuilder.entityId(), consensusTimestamp, RAW_TX_TYPE_1_WITH_ACCESS_LIST, true);
+                EMPTY_BYTE_ARRAY, domainBuilder.entityId(), consensusTimestamp, EIP_2930_RAW_TX_WITH_ACCESS_LIST, true);
 
         // then
         softly.assertThat(actual).isEmpty();

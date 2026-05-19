@@ -92,7 +92,12 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
             }
 
             final var address = Hex.encodeHexString(entryProperties.get(0).data());
-            final var storageKeyItems = entryProperties.get(1).asRLPList().elements();
+            final var storageKeysItem = entryProperties.get(1);
+            if (!storageKeysItem.isList()) {
+                throw new InvalidEthereumBytesException(
+                        transactionTypeName, "Access list entry storage keys is not a list");
+            }
+            final var storageKeyItems = storageKeysItem.asRLPList().elements();
             final var storageKeys = new ArrayList<String>(storageKeyItems.size());
             for (final var key : storageKeyItems) {
                 storageKeys.add(Hex.encodeHexString(key.data()));
