@@ -1,7 +1,7 @@
 @contractbase @fullsuite @historical @call @web3 @acceptance
 Feature: Historical Feature
 
-  Scenario Outline: Validate Historical Data
+  Scenario: Validate Historical Data
     Given I successfully create estimateGas contract
     Given I successfully create erc contract
     Given I successfully create precompile contract
