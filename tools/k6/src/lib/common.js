@@ -14,8 +14,8 @@ const options = {
     http_req_duration: ['p(95)>=0'], // make it not fail
   },
   insecureSkipTLSVerify: true,
-  noConnectionReuse: true,
-  noVUConnectionReuse: true,
+  noConnectionReuse: false,
+  noVUConnectionReuse: false,
   setupTimeout: __ENV.DEFAULT_SETUP_TIMEOUT,
 };
 
@@ -309,7 +309,7 @@ function sanitizeScenarioName(name) {
 }
 
 class TestScenarioBuilder {
-  constructor() {
+  constructor(suite) {
     this._checks = {};
     this._fallbackChecks = {'fallback is 200': (r) => r.status === 200};
     this._fallbackRequest = null;
@@ -319,6 +319,10 @@ class TestScenarioBuilder {
     this._scenario = null;
     this._shouldSkip = null;
     this._tags = {};
+
+    if (suite != null) {
+      this._tags.suite = suite;
+    }
 
     this.build = this.build.bind(this);
     this.check = this.check.bind(this);
@@ -395,13 +399,18 @@ class TestScenarioBuilder {
 }
 
 class MultiIdScenarioBuilder {
-  constructor(ids) {
+  constructor(ids, suite) {
     this._ids = ids;
     this._name = null;
     this._request = null;
     this._checkName = null;
     this._checkFunc = null;
+    this._tags = {};
     this._url = null;
+
+    if (suite != null) {
+      this._tags.suite = suite;
+    }
   }
 
   name(name) {
@@ -434,7 +443,8 @@ class MultiIdScenarioBuilder {
       const sanitized = sanitizeScenarioName(id);
       const scenarioName = `${that._name}-${sanitized}`;
       const url = that._url.replace('{id}', id);
-      const options = getOptionsWithScenario(scenarioName, null, {url});
+      const tags = Object.assign({}, that._tags, {url});
+      const options = getOptionsWithScenario(scenarioName, null, tags);
       if (!combinedOptions) {
         combinedOptions = options;
       } else {

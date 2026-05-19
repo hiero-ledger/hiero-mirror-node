@@ -17,7 +17,7 @@ const params = {
   },
 };
 
-const options = getOptionsWithScenario('trafficReplay', null, {});
+const options = getOptionsWithScenario('trafficReplay', null, {suite: 'WEB3'});
 
 function parseRequests(fileContent) {
   const requests = [];

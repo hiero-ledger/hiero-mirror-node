@@ -101,7 +101,7 @@ function ContractCallTestScenarioBuilder() {
   this._name = null;
   this._selector = null;
   this._scenario = null;
-  this._tags = {};
+  this._tags = {suite: 'WEB3'};
   this._to = null;
   this._vuData = null;
   this._shouldRevert = false;
@@ -127,7 +127,7 @@ function ContractCallTestScenarioBuilder() {
       const block = that._blocks[i];
       const sanitized = sanitizeScenarioName(String(block));
       const scenarioName = `${that._name}-${sanitized}`;
-      const options = utils.getOptionsWithScenario(scenarioName, that._scenario);
+      const options = utils.getOptionsWithScenario(scenarioName, that._scenario, that._tags);
 
       if (!combinedOptions) {
         combinedOptions = options;
@@ -197,7 +197,7 @@ function ContractCallTestScenarioBuilder() {
   };
 
   this.tags = function (tags) {
-    this._tags = tags;
+    Object.assign(this._tags, tags);
     return this;
   };
 
