@@ -259,10 +259,8 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
 
             var updateParams = new MapSqlParameterSource()
                     .addValue("consensusEnd", block.consensusEnd())
-                    .addValue(
-                            "consensusStartCalculated",
-                            consensusStartCalculated != null ? consensusStartCalculated : 0L)
-                    .addValue("consensusEndCalculated", consensusEndCalculated != null ? consensusEndCalculated : 0L);
+                    .addValue("consensusStartCalculated", consensusStartCalculated)
+                    .addValue("consensusEndCalculated", consensusEndCalculated);
             updated.addAndGet(jdbc.update(UPDATE_RECORD_FILE_CALCULATED_TIMESTAMPS, updateParams));
         }
 

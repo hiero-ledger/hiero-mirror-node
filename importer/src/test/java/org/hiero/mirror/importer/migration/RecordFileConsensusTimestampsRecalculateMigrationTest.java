@@ -87,9 +87,9 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
         waitForCompletionExtended();
 
         assertThat(startCalculated(currEnd)).isEqualTo(earlierInGap);
-        assertThat(endCalculated(currEnd)).isZero();
-        assertThat(startCalculated(prevEnd)).isZero();
-        assertThat(endCalculated(prevEnd)).isZero();
+        assertThat(endCalculated(currEnd)).isNull();
+        assertThat(startCalculated(prevEnd)).isNull();
+        assertThat(endCalculated(prevEnd)).isNull();
     }
 
     @Test
@@ -109,10 +109,10 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
         runMigration();
         waitForCompletionExtended();
 
-        assertThat(startCalculated(currEnd)).isZero();
+        assertThat(startCalculated(currEnd)).isNull();
         assertThat(endCalculated(currEnd)).isEqualTo(latestAfterEnd);
-        assertThat(startCalculated(nextEnd)).isZero();
-        assertThat(endCalculated(nextEnd)).isZero();
+        assertThat(startCalculated(nextEnd)).isNull();
+        assertThat(endCalculated(nextEnd)).isNull();
     }
 
     @Test
@@ -141,10 +141,10 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
 
         assertThat(startCalculated(currEnd)).isEqualTo(earliestBeforeStart);
         assertThat(endCalculated(currEnd)).isEqualTo(latestAfterEnd);
-        assertThat(startCalculated(prevEnd)).isZero();
-        assertThat(endCalculated(prevEnd)).isZero();
-        assertThat(startCalculated(nextEnd)).isZero();
-        assertThat(endCalculated(nextEnd)).isZero();
+        assertThat(startCalculated(prevEnd)).isNull();
+        assertThat(endCalculated(prevEnd)).isNull();
+        assertThat(startCalculated(nextEnd)).isNull();
+        assertThat(endCalculated(nextEnd)).isNull();
     }
 
     @Test
@@ -169,8 +169,8 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
         waitForCompletionExtended();
 
         assertThat(startCalculated(currEnd)).isEqualTo(earliestCurrBeforeStart);
-        assertThat(endCalculated(currEnd)).isZero();
-        assertThat(startCalculated(prevEnd)).isZero();
+        assertThat(endCalculated(currEnd)).isNull();
+        assertThat(startCalculated(prevEnd)).isNull();
         assertThat(endCalculated(prevEnd)).isEqualTo(latestPrevAfterEnd);
     }
 
@@ -196,18 +196,14 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
                         """, Boolean.class, tableName, columnName));
     }
 
-    private long startCalculated(long consensusEnd) {
+    private Long startCalculated(long consensusEnd) {
         return jdbcOperations.queryForObject(
-                "select coalesce(consensus_start_calculated, 0) from record_file where consensus_end = ?",
-                Long.class,
-                consensusEnd);
+                "select consensus_start_calculated from record_file where consensus_end = ?", Long.class, consensusEnd);
     }
 
-    private long endCalculated(long consensusEnd) {
+    private Long endCalculated(long consensusEnd) {
         return jdbcOperations.queryForObject(
-                "select coalesce(consensus_end_calculated, 0) from record_file where consensus_end = ?",
-                Long.class,
-                consensusEnd);
+                "select consensus_end_calculated from record_file where consensus_end = ?", Long.class, consensusEnd);
     }
 
     private void insertRecordFile(long consensusStart, long consensusEnd, long count) {
