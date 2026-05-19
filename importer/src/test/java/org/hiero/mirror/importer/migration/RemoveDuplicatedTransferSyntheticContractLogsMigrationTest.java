@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
@@ -26,7 +27,7 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
 
     private static final long MIGRATION_TIMESTAMP_THRESHOLD = 1772316000000000000L;
 
-    @Value("classpath:db/migration/v1/V1.122.0__remove_duplicated_transfer_synthetic_contract_logs.sql")
+    @Value("classpath:db/migration/v1/V1.122.1__remove_duplicated_transfer_synthetic_contract_logs.sql")
     private final Resource migrationSql;
 
     private final ContractLogRepository contractLogRepository;
@@ -464,6 +465,82 @@ class RemoveDuplicatedTransferSyntheticContractLogsMigrationTest extends Importe
                         .bloom(domainBuilder.bytes(256))
                         .transactionHash(domainBuilder.bytes(32))
                         .transactionIndex(2))
+                .persist();
+
+        runMigration();
+
+        assertThat(contractLogRepository.findAll()).hasSize(1).containsExactly(originalLog);
+    }
+
+    @Test
+    void removeDuplicateWithAliasVsNumTopicFormat() throws DecoderException {
+        var recordFile = domainBuilder
+                .recordFile()
+                .customize(rf -> rf.hapiVersionMajor(0)
+                        .hapiVersionMinor(71)
+                        .hapiVersionPatch(0)
+                        .consensusStart(MIGRATION_TIMESTAMP_THRESHOLD + 1000))
+                .persist();
+
+        var consensusTimestamp = recordFile.getConsensusStart() + 100;
+        var contractId = domainBuilder.entityId();
+        var topic0 = Hex.decodeHex("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
+
+        // Create sender and receiver entities with EVM addresses
+        var sender = domainBuilder
+                .entity()
+                .customize(e -> e.evmAddress(domainBuilder.bytes(20)))
+                .persist();
+        var receiver = domainBuilder
+                .entity()
+                .customize(e -> e.evmAddress(domainBuilder.bytes(20)))
+                .persist();
+
+        // cl_orig topic1/topic2 have EVM addresses (from consensus node)
+        // Pad the 20-byte evm address to 32 bytes on the left
+        var topic1Orig = DomainUtils.leftPadBytes(sender.getEvmAddress(), 32);
+        var topic2Orig = DomainUtils.leftPadBytes(receiver.getEvmAddress(), 32);
+
+        // cl_dup topic1/topic2 have trimmed account numbers (from MN synthetic)
+        var topic1Dup = DomainUtils.trim(DomainUtils.toEvmAddress(sender.toEntityId()));
+        var topic2Dup = DomainUtils.trim(DomainUtils.toEvmAddress(receiver.toEntityId()));
+
+        byte[] topic3 = null;
+        var originalData = Hex.decodeHex("0000000000000000000000000000000000000000000000000000000000000064");
+        var duplicateData = Hex.decodeHex("64");
+        var bloomOriginal = domainBuilder.bytes(256);
+        var bloomDuplicate = domainBuilder.bytes(256);
+        var transactionHashOriginal = domainBuilder.bytes(32);
+        var transactionHashDuplicate = domainBuilder.bytes(32);
+
+        var originalLog = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
+                        .index(0)
+                        .topic0(topic0)
+                        .topic1(topic1Orig)
+                        .topic2(topic2Orig)
+                        .topic3(topic3)
+                        .data(originalData)
+                        .bloom(bloomOriginal)
+                        .transactionHash(transactionHashOriginal)
+                        .transactionIndex(0))
+                .persist();
+
+        domainBuilder
+                .contractLog()
+                .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractId)
+                        .index(1)
+                        .topic0(topic0)
+                        .topic1(topic1Dup)
+                        .topic2(topic2Dup)
+                        .topic3(topic3)
+                        .data(duplicateData)
+                        .bloom(bloomDuplicate)
+                        .transactionHash(transactionHashDuplicate)
+                        .transactionIndex(1))
                 .persist();
 
         runMigration();
