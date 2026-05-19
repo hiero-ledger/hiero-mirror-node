@@ -98,12 +98,12 @@ class RecordFileConsensusTimestampsOffsetMigrationTest
         long currEnd = END_TIMESTAMP + 3_000L;
         long nextStart = END_TIMESTAMP + 4_000L;
         long nextEnd = END_TIMESTAMP + 5_000L;
-        long earlierAfterEnd = END_TIMESTAMP + 3_100L;
+        long earliestAfterEnd = END_TIMESTAMP + 3_100L;
         long latestAfterEnd = END_TIMESTAMP + 3_900L;
 
-        insertRecordFile(currStart, currEnd, 1L);
+        insertRecordFile(currStart, currEnd, 2L);
         insertRecordFile(nextStart, nextEnd, 0L);
-        insertTransaction(earlierAfterEnd);
+        insertTransaction(earliestAfterEnd);
         insertTransaction(latestAfterEnd);
 
         runMigration();
@@ -145,6 +145,33 @@ class RecordFileConsensusTimestampsOffsetMigrationTest
         assertThat(endOffset(prevEnd)).isZero();
         assertThat(startOffset(nextEnd)).isZero();
         assertThat(endOffset(nextEnd)).isZero();
+    }
+
+    @Test
+    void setsStartAndEndOffsetForGapTransactionsBeforeBlockStartAndAfterPrevEnd() {
+        long prevStart = END_TIMESTAMP + 100L;
+        long prevEnd = END_TIMESTAMP + 1_000L;
+        long currStart = END_TIMESTAMP + 2_000L;
+        long currEnd = END_TIMESTAMP + 3_000L;
+        long earliestPrevAfterEnd = END_TIMESTAMP + 1_100L;
+        long latestPrevAfterEnd = END_TIMESTAMP + 1_200L;
+        long earliestCurrBeforeStart = END_TIMESTAMP + 1_500L;
+        long latestCurrBeforeStart = END_TIMESTAMP + 1_900L;
+
+        insertRecordFile(prevStart, prevEnd, 2L);
+        insertRecordFile(currStart, currEnd, 2L);
+        insertTransaction(earliestPrevAfterEnd);
+        insertTransaction(latestPrevAfterEnd);
+        insertTransaction(earliestCurrBeforeStart);
+        insertTransaction(latestCurrBeforeStart);
+
+        runMigration();
+        waitForCompletionExtended();
+
+        assertThat(startOffset(currEnd)).isEqualTo(earliestCurrBeforeStart - currStart);
+        assertThat(endOffset(currEnd)).isZero();
+        assertThat(startOffset(prevEnd)).isZero();
+        assertThat(endOffset(prevEnd)).isEqualTo(latestPrevAfterEnd - prevEnd);
     }
 
     private void waitForCompletionExtended() {
