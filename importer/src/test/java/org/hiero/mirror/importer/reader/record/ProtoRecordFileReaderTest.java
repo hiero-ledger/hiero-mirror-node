@@ -17,14 +17,17 @@ import com.hedera.services.stream.proto.RecordStreamItem;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.SemanticVersion;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.time.Instant;
+import java.util.List;
 import java.util.function.Function;
 import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
@@ -90,6 +93,75 @@ final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
         var recordFile = reader.read(streamFileData);
 
         assertThat(recordFile.getDigestAlgorithm()).isEqualTo(DigestAlgorithm.SHA_384);
+    }
+
+    @Test
+    void sortsOutOfOrderRecordStreamItemsByConsensusTimestamp() {
+        final long earliest = 1_000_000_000L;
+        final long middle = 2_000_000_000L;
+        final long latest = 3_000_000_000L;
+        var bytes = gzip(ProtoRecordStreamFile.of(b -> {
+            b.clearRecordStreamItems();
+            b.addRecordStreamItems(buildRecordStreamItemWithTimestamp(latest));
+            b.addRecordStreamItems(buildRecordStreamItemWithTimestamp(earliest));
+            b.addRecordStreamItems(buildRecordStreamItemWithTimestamp(middle));
+            return b;
+        }));
+
+        var recordFile = new ProtoRecordFileReader().read(StreamFileData.from(FILENAME, bytes));
+
+        assertThat(recordFile)
+                .returns(earliest, RecordFile::getConsensusStart)
+                .returns(latest, RecordFile::getConsensusEnd)
+                .returns(3L, RecordFile::getCount);
+        assertItemsSortedByTimestamp(recordFile.getItems(), List.of(earliest, middle, latest));
+    }
+
+    @Test
+    void preservesOrderWhenTimestampsAreAlreadySorted() {
+        final long earliest = 1_000_000_000L;
+        final long middle = 2_000_000_000L;
+        final long latest = 3_000_000_000L;
+        var bytes = gzip(ProtoRecordStreamFile.of(b -> {
+            b.clearRecordStreamItems();
+            b.addRecordStreamItems(buildRecordStreamItemWithTimestamp(earliest));
+            b.addRecordStreamItems(buildRecordStreamItemWithTimestamp(middle));
+            b.addRecordStreamItems(buildRecordStreamItemWithTimestamp(latest));
+            return b;
+        }));
+
+        var recordFile = new ProtoRecordFileReader().read(StreamFileData.from(FILENAME, bytes));
+
+        assertThat(recordFile)
+                .returns(earliest, RecordFile::getConsensusStart)
+                .returns(latest, RecordFile::getConsensusEnd)
+                .returns(3L, RecordFile::getCount);
+        assertItemsSortedByTimestamp(recordFile.getItems(), List.of(earliest, middle, latest));
+    }
+
+    private void assertItemsSortedByTimestamp(List<RecordItem> items, List<Long> expectedTimestamps) {
+        assertThat(items).extracting(RecordItem::getConsensusTimestamp).containsExactlyElementsOf(expectedTimestamps);
+        assertThat(items).extracting(RecordItem::getConsensusTimestamp).isSortedAccordingTo(Long::compare);
+    }
+
+    private RecordStreamItem buildRecordStreamItemWithTimestamp(long timestamp) {
+        return RecordStreamItem.newBuilder()
+                .setTransaction(Transaction.newBuilder()
+                        .setSignedTransactionBytes(SignedTransaction.newBuilder()
+                                .setBodyBytes(TransactionBody.newBuilder()
+                                        .setCryptoTransfer(CryptoTransferTransactionBody.newBuilder()
+                                                .build())
+                                        .build()
+                                        .toByteString())
+                                .build()
+                                .toByteString()))
+                .setRecord(TransactionRecord.newBuilder()
+                        .setConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(timestamp / 1_000_000_000)
+                                .setNanos((int) (timestamp % 1_000_000_000))
+                                .build())
+                        .build())
+                .build();
     }
 
     private static class ProtoRecordStreamFile {

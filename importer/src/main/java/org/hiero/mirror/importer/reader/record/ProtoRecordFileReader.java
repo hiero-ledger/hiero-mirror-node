@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.security.DigestOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -35,6 +36,10 @@ import org.springframework.data.util.Version;
 public final class ProtoRecordFileReader implements RecordFileReader {
 
     public static final int VERSION = 6;
+
+    private static final Comparator<RecordItem> TRANSACTION_TIMESTAMPS_COMPARATOR = Comparator.comparingLong(
+                    RecordItem::getConsensusTimestamp)
+            .thenComparingInt(RecordItem::getTransactionIndex);
 
     @Override
     public RecordFile read(StreamFileData streamFileData) {
@@ -180,6 +185,7 @@ public final class ProtoRecordFileReader implements RecordFileReader {
                 new Version(hapiProtoVersion.getMajor(), hapiProtoVersion.getMinor(), hapiProtoVersion.getPatch());
         var items = new ArrayList<RecordItem>(count);
         RecordItem previousItem = null;
+        boolean hasUnsortedItems = false;
         for (var recordStreamItem : recordStreamFile.getRecordStreamItemsList()) {
             var recordItem = RecordItem.builder()
                     .hapiVersion(hapiVersion)
@@ -189,7 +195,14 @@ public final class ProtoRecordFileReader implements RecordFileReader {
                     .transactionIndex(items.size())
                     .build();
             items.add(recordItem);
+            if (previousItem != null && previousItem.getConsensusTimestamp() > recordItem.getConsensusTimestamp()) {
+                hasUnsortedItems = true;
+            }
             previousItem = recordItem;
+        }
+
+        if (hasUnsortedItems) {
+            items.sort(TRANSACTION_TIMESTAMPS_COMPARATOR);
         }
 
         return items;
