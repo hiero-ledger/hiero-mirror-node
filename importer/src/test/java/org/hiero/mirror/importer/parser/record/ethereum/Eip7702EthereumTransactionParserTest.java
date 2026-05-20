@@ -11,9 +11,10 @@ import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransacti
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
+import java.util.HexFormat;
 import java.util.List;
 import org.bouncycastle.util.encoders.Hex;
-import org.hiero.mirror.common.domain.transaction.AccessListEntry;
+import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
@@ -37,15 +38,15 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     private static final long NONCE = 1L;
     private static final long AUTH_NONCE = 2L;
 
-    private static final List<?> DEFAULT_ACCESS_LIST =
-            List.of(List.of(Hex.decode(ACCESS_LIST_ADDRESS), List.of(Hex.decode(ACCESS_LIST_STORAGE_KEY))));
+    private static final List<?> DEFAULT_ACCESS_LIST = List.of(List.of(
+            HexFormat.of().parseHex(ACCESS_LIST_ADDRESS), List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY))));
     private static final List<?> DEFAULT_AUTHORIZATION_LIST = List.of(List.of(
-            Hex.decode(AUTH_CHAIN_ID_HEX),
-            Hex.decode(TO_ADDRESS_HEX),
+            HexFormat.of().parseHex(AUTH_CHAIN_ID_HEX),
+            HexFormat.of().parseHex(TO_ADDRESS_HEX),
             Integers.toBytes(AUTH_NONCE),
             Integers.toBytes(0),
-            Hex.decode(SIGNATURE_R_HEX),
-            Hex.decode(SIGNATURE_S_HEX)));
+            HexFormat.of().parseHex(SIGNATURE_R_HEX),
+            HexFormat.of().parseHex(SIGNATURE_S_HEX)));
 
     static final byte[] EIP7702_RAW_TX = encodeEip7702Transaction(DEFAULT_ACCESS_LIST, DEFAULT_AUTHORIZATION_LIST);
 
@@ -95,19 +96,19 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     @Test
     void decodeAuthorizationListNotAList() {
         var transactionData = List.of(
-                Hex.decode(CHAIN_ID_HEX),
+                HexFormat.of().parseHex(CHAIN_ID_HEX),
                 Integers.toBytes(NONCE),
-                Hex.decode(FEE_HEX),
-                Hex.decode(FEE_HEX),
+                HexFormat.of().parseHex(FEE_HEX),
+                HexFormat.of().parseHex(FEE_HEX),
                 Integers.toBytes(GAS_LIMIT),
-                Hex.decode(TO_ADDRESS_HEX),
-                Hex.decode(VALUE_HEX),
-                Hex.decode(CALL_DATA_HEX),
+                HexFormat.of().parseHex(TO_ADDRESS_HEX),
+                HexFormat.of().parseHex(VALUE_HEX),
+                HexFormat.of().parseHex(CALL_DATA_HEX),
                 List.of(),
-                Hex.decode("01"),
+                HexFormat.of().parseHex("01"),
                 Integers.toBytes(1),
-                Hex.decode(SIGNATURE_R_HEX),
-                Hex.decode(SIGNATURE_S_HEX));
+                HexFormat.of().parseHex(SIGNATURE_R_HEX),
+                HexFormat.of().parseHex(SIGNATURE_S_HEX));
         var ethereumTransactionBytes = RLPEncoder.sequence(Integers.toBytes(4), transactionData);
 
         assertThatThrownBy(() -> ethereumTransactionParser.decode(ethereumTransactionBytes))
@@ -128,41 +129,48 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         var transactionBytes = RLPEncoder.sequence(
                 Integers.toBytes(4),
                 List.of(
-                        Hex.decode(CHAIN_ID_HEX),
+                        HexFormat.of().parseHex(CHAIN_ID_HEX),
                         Integers.toBytes(NONCE),
-                        Hex.decode(FEE_HEX),
-                        Hex.decode(FEE_HEX),
+                        HexFormat.of().parseHex(FEE_HEX),
+                        HexFormat.of().parseHex(FEE_HEX),
                         Integers.toBytes(GAS_LIMIT),
-                        Hex.decode(TO_ADDRESS_HEX),
-                        Hex.decode(VALUE_HEX),
-                        Hex.decode(CALL_DATA_HEX),
+                        HexFormat.of().parseHex(TO_ADDRESS_HEX),
+                        HexFormat.of().parseHex(VALUE_HEX),
+                        HexFormat.of().parseHex(CALL_DATA_HEX),
                         List.of(),
                         List.of(
                                 List.of(
-                                        Hex.decode(AUTH_CHAIN_ID_HEX),
-                                        Hex.decode(TO_ADDRESS_HEX),
+                                        HexFormat.of().parseHex(AUTH_CHAIN_ID_HEX),
+                                        HexFormat.of().parseHex(TO_ADDRESS_HEX),
                                         Integers.toBytes(AUTH_NONCE),
                                         Integers.toBytes(0),
-                                        Hex.decode(SIGNATURE_R_HEX),
-                                        Hex.decode(SIGNATURE_S_HEX)),
+                                        HexFormat.of().parseHex(SIGNATURE_R_HEX),
+                                        HexFormat.of().parseHex(SIGNATURE_S_HEX)),
                                 List.of(
-                                        Hex.decode("04a5"),
-                                        Hex.decode("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"),
+                                        HexFormat.of().parseHex("04a5"),
+                                        HexFormat.of().parseHex("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"),
                                         Integers.toBytes(3L),
                                         Integers.toBytes(1),
-                                        Hex.decode("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"),
-                                        Hex.decode("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")),
+                                        HexFormat.of()
+                                                .parseHex(
+                                                        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"),
+                                        HexFormat.of()
+                                                .parseHex(
+                                                        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")),
                                 List.of(
-                                        Hex.decode("0789"),
-                                        Hex.decode("1234567890abcdef1234567890abcdef12345678"),
+                                        HexFormat.of().parseHex("0789"),
+                                        HexFormat.of().parseHex("1234567890abcdef1234567890abcdef12345678"),
                                         Integers.toBytes(5L),
                                         Integers.toBytes(0),
-                                        Hex.decode("fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"),
-                                        Hex.decode(
-                                                "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"))),
+                                        HexFormat.of()
+                                                .parseHex(
+                                                        "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"),
+                                        HexFormat.of()
+                                                .parseHex(
+                                                        "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"))),
                         Integers.toBytes(1),
-                        Hex.decode(SIGNATURE_R_HEX),
-                        Hex.decode(SIGNATURE_S_HEX)));
+                        HexFormat.of().parseHex(SIGNATURE_R_HEX),
+                        HexFormat.of().parseHex(SIGNATURE_S_HEX)));
 
         var ethereumTransaction = ethereumTransactionParser.decode(transactionBytes);
 
@@ -208,32 +216,32 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         validateEthereumTransaction(ethereumTransaction, expectedAccessList(), true);
     }
 
-    private static List<AccessListEntry> expectedAccessList() {
-        return List.of(AccessListEntry.builder()
+    private static List<AccessList> expectedAccessList() {
+        return List.of(AccessList.builder()
                 .address(ACCESS_LIST_ADDRESS)
                 .storageKeys(List.of(ACCESS_LIST_STORAGE_KEY))
                 .build());
     }
 
     private void validateEthereumTransaction(
-            EthereumTransaction ethereumTransaction, List<AccessListEntry> accessList, boolean expectAuthorization) {
+            EthereumTransaction ethereumTransaction, List<AccessList> accessList, boolean expectAuthorization) {
         assertThat(ethereumTransaction)
                 .isNotNull()
                 .returns(Eip7702EthereumTransactionParser.EIP7702_TYPE_BYTE, EthereumTransaction::getType)
-                .returns(Hex.decode(CHAIN_ID_HEX), EthereumTransaction::getChainId)
+                .returns(HexFormat.of().parseHex(CHAIN_ID_HEX), EthereumTransaction::getChainId)
                 .returns(NONCE, EthereumTransaction::getNonce)
                 .returns(null, EthereumTransaction::getGasPrice)
-                .returns(Hex.decode(FEE_HEX), EthereumTransaction::getMaxPriorityFeePerGas)
-                .returns(Hex.decode(FEE_HEX), EthereumTransaction::getMaxFeePerGas)
+                .returns(HexFormat.of().parseHex(FEE_HEX), EthereumTransaction::getMaxPriorityFeePerGas)
+                .returns(HexFormat.of().parseHex(FEE_HEX), EthereumTransaction::getMaxFeePerGas)
                 .returns(GAS_LIMIT, EthereumTransaction::getGasLimit)
-                .returns(Hex.decode(TO_ADDRESS_HEX), EthereumTransaction::getToAddress)
-                .returns(Hex.decode(VALUE_HEX), EthereumTransaction::getValue)
-                .returns(Hex.decode(CALL_DATA_HEX), EthereumTransaction::getCallData)
+                .returns(HexFormat.of().parseHex(TO_ADDRESS_HEX), EthereumTransaction::getToAddress)
+                .returns(HexFormat.of().parseHex(VALUE_HEX), EthereumTransaction::getValue)
+                .returns(HexFormat.of().parseHex(CALL_DATA_HEX), EthereumTransaction::getCallData)
                 .returns(accessList, EthereumTransaction::getAccessList)
                 .returns(1, EthereumTransaction::getRecoveryId)
                 .returns(null, EthereumTransaction::getSignatureV)
-                .returns(Hex.decode(SIGNATURE_R_HEX), EthereumTransaction::getSignatureR)
-                .returns(Hex.decode(SIGNATURE_S_HEX), EthereumTransaction::getSignatureS);
+                .returns(HexFormat.of().parseHex(SIGNATURE_R_HEX), EthereumTransaction::getSignatureR)
+                .returns(HexFormat.of().parseHex(SIGNATURE_S_HEX), EthereumTransaction::getSignatureS);
 
         if (expectAuthorization) {
             assertThat(ethereumTransaction.getAuthorizationList()).isNotNull().hasSize(1);

@@ -14,12 +14,12 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.function.Consumer;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.DomainWrapper;
@@ -27,7 +27,7 @@ import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.transaction.AccessListEntry;
+import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.Transaction;
@@ -145,10 +145,9 @@ public enum TransactionProviderEnum {
                 tx.maxPriorityFeePerGas(nextBytes(32));
             }
             if (typeByte == EthTransactionType.EIP_2930.getTypeByte()) {
-                tx.accessList(List.of(AccessListEntry.builder()
-                        .address(Hex.encodeHexString(nextBytes(20)))
-                        .storageKeys(List.of(Hex.encodeHexString(nextBytes(32))))
-                        .build()));
+                tx.accessList(List.of(new AccessList(
+                        HexFormat.of().formatHex(nextBytes(20)),
+                        List.of(HexFormat.of().formatHex(nextBytes(32))))));
             }
         });
     }

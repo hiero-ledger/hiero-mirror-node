@@ -13,9 +13,9 @@ import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransacti
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
+import java.util.HexFormat;
 import java.util.List;
-import org.bouncycastle.util.encoders.Hex;
-import org.hiero.mirror.common.domain.transaction.AccessListEntry;
+import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
 import org.junit.jupiter.api.Test;
@@ -83,34 +83,35 @@ class Eip1559EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     protected void validateEthereumTransaction(EthereumTransaction ethereumTransaction) {
         validateEthereumTransaction(
                 ethereumTransaction,
-                List.of(AccessListEntry.builder()
+                List.of(AccessList.builder()
                         .address(ACCESS_LIST_ADDRESS)
                         .storageKeys(List.of(ACCESS_LIST_STORAGE_KEY))
                         .build()));
     }
 
-    private void validateEthereumTransaction(
-            EthereumTransaction ethereumTransaction, List<AccessListEntry> accessList) {
+    private void validateEthereumTransaction(EthereumTransaction ethereumTransaction, List<AccessList> accessList) {
         assertThat(ethereumTransaction)
                 .isNotNull()
                 .returns(Eip1559EthereumTransactionParser.EIP1559_TYPE_BYTE, EthereumTransaction::getType)
-                .returns(Hex.decode("012a"), EthereumTransaction::getChainId)
+                .returns(HexFormat.of().parseHex("012a"), EthereumTransaction::getChainId)
                 .returns(2L, EthereumTransaction::getNonce)
                 .returns(null, EthereumTransaction::getGasPrice)
-                .returns(Hex.decode("2f"), EthereumTransaction::getMaxPriorityFeePerGas)
-                .returns(Hex.decode("2f"), EthereumTransaction::getMaxFeePerGas)
+                .returns(HexFormat.of().parseHex("2f"), EthereumTransaction::getMaxPriorityFeePerGas)
+                .returns(HexFormat.of().parseHex("2f"), EthereumTransaction::getMaxFeePerGas)
                 .returns(98_304L, EthereumTransaction::getGasLimit)
-                .returns(Hex.decode("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"), EthereumTransaction::getToAddress)
-                .returns(Hex.decode("0de0b6b3a7640000"), EthereumTransaction::getValue)
-                .returns(Hex.decode("123456"), EthereumTransaction::getCallData)
+                .returns(
+                        HexFormat.of().parseHex("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
+                        EthereumTransaction::getToAddress)
+                .returns(HexFormat.of().parseHex("0de0b6b3a7640000"), EthereumTransaction::getValue)
+                .returns(HexFormat.of().parseHex("123456"), EthereumTransaction::getCallData)
                 .returns(accessList, EthereumTransaction::getAccessList)
                 .returns(1, EthereumTransaction::getRecoveryId)
                 .returns(null, EthereumTransaction::getSignatureV)
                 .returns(
-                        Hex.decode("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
+                        HexFormat.of().parseHex("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
                         EthereumTransaction::getSignatureR)
                 .returns(
-                        Hex.decode("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66"),
+                        HexFormat.of().parseHex("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66"),
                         EthereumTransaction::getSignatureS);
     }
 }

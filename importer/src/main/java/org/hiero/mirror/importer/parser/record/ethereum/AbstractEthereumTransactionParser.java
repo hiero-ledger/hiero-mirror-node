@@ -8,15 +8,15 @@ import com.esaulpaugh.headlong.rlp.RLPItem;
 import com.esaulpaugh.headlong.util.Integers;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
-import org.hiero.mirror.common.domain.transaction.AccessListEntry;
+import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
 import org.hiero.mirror.importer.repository.FileDataRepository;
@@ -71,13 +71,13 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
 
     protected abstract byte[] encode(EthereumTransaction ethereumTransaction);
 
-    protected static List<AccessListEntry> parseAccessList(RLPItem rlpAccessList, String transactionTypeName) {
+    protected static List<AccessList> parseAccessList(RLPItem rlpAccessList, String transactionTypeName) {
         if (!rlpAccessList.isList()) {
             throw new InvalidEthereumBytesException(transactionTypeName, "Access list is not a list");
         }
 
         final var accessListEntries = rlpAccessList.asRLPList().elements();
-        final var accessList = new ArrayList<AccessListEntry>(accessListEntries.size());
+        final var accessList = new ArrayList<AccessList>(accessListEntries.size());
 
         for (final var entry : accessListEntries) {
             if (!entry.isList()) {
@@ -91,7 +91,7 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
                         String.format("Access list entry size was %d but expected 2", entryProperties.size()));
             }
 
-            final var address = Hex.encodeHexString(entryProperties.get(0).data());
+            final var address = HexFormat.of().formatHex(entryProperties.get(0).data());
             final var storageKeysItem = entryProperties.get(1);
             if (!storageKeysItem.isList()) {
                 throw new InvalidEthereumBytesException(
@@ -100,13 +100,10 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
             final var storageKeyItems = storageKeysItem.asRLPList().elements();
             final var storageKeys = new ArrayList<String>(storageKeyItems.size());
             for (final var key : storageKeyItems) {
-                storageKeys.add(Hex.encodeHexString(key.data()));
+                storageKeys.add(HexFormat.of().formatHex(key.data()));
             }
 
-            accessList.add(AccessListEntry.builder()
-                    .address(address)
-                    .storageKeys(storageKeys)
-                    .build());
+            accessList.add(new AccessList(address, storageKeys));
         }
 
         return accessList;

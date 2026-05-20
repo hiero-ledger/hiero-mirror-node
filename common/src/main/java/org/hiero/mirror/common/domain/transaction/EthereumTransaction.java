@@ -31,7 +31,7 @@ public class EthereumTransaction implements Persistable<Long> {
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
     @JdbcTypeCode(SqlTypes.JSON)
-    private List<AccessListEntry> accessList;
+    private List<AccessList> accessList;
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
     @JdbcTypeCode(SqlTypes.JSON)

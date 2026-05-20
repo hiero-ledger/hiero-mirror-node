@@ -10,11 +10,11 @@ import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransacti
 import com.esaulpaugh.headlong.rlp.RLPDecoder;
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.rlp.RLPItem;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import org.bouncycastle.util.encoders.Hex;
-import org.hiero.mirror.common.domain.transaction.AccessListEntry;
+import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
@@ -54,11 +54,13 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
     @MethodSource("accessListTransactionTypes")
     void parseAccessListWithSingleEntry(String transactionType) {
         final var accessList = parseAccessList(
-                List.of(List.of(Hex.decode(ACCESS_LIST_ADDRESS), List.of(Hex.decode(ACCESS_LIST_STORAGE_KEY)))),
+                List.of(List.of(
+                        HexFormat.of().parseHex(ACCESS_LIST_ADDRESS),
+                        List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY)))),
                 transactionType);
 
         assertThat(accessList)
-                .containsExactly(AccessListEntry.builder()
+                .containsExactly(AccessList.builder()
                         .address(ACCESS_LIST_ADDRESS)
                         .storageKeys(List.of(ACCESS_LIST_STORAGE_KEY))
                         .build());
@@ -70,20 +72,22 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
         final var accessList = parseAccessList(
                 List.of(
                         List.of(
-                                Hex.decode(ACCESS_LIST_ADDRESS),
+                                HexFormat.of().parseHex(ACCESS_LIST_ADDRESS),
                                 List.of(
-                                        Hex.decode(ACCESS_LIST_STORAGE_KEY),
-                                        Hex.decode(SECOND_ACCESS_LIST_STORAGE_KEY))),
-                        List.of(Hex.decode(SECOND_ACCESS_LIST_ADDRESS), List.of(Hex.decode(ACCESS_LIST_STORAGE_KEY)))),
+                                        HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY),
+                                        HexFormat.of().parseHex(SECOND_ACCESS_LIST_STORAGE_KEY))),
+                        List.of(
+                                HexFormat.of().parseHex(SECOND_ACCESS_LIST_ADDRESS),
+                                List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY)))),
                 transactionType);
 
         assertThat(accessList)
                 .containsExactly(
-                        AccessListEntry.builder()
+                        AccessList.builder()
                                 .address(ACCESS_LIST_ADDRESS)
                                 .storageKeys(List.of(ACCESS_LIST_STORAGE_KEY, SECOND_ACCESS_LIST_STORAGE_KEY))
                                 .build(),
-                        AccessListEntry.builder()
+                        AccessList.builder()
                                 .address(SECOND_ACCESS_LIST_ADDRESS)
                                 .storageKeys(List.of(ACCESS_LIST_STORAGE_KEY))
                                 .build());
@@ -92,7 +96,8 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
     @ParameterizedTest
     @MethodSource("accessListTransactionTypes")
     void parseAccessListNotList(String transactionType) {
-        final var accessListItem = RLPDecoder.RLP_STRICT.wrapItem(RLPEncoder.string(Hex.decode(ACCESS_LIST_ADDRESS)));
+        final var accessListItem =
+                RLPDecoder.RLP_STRICT.wrapItem(RLPEncoder.string(HexFormat.of().parseHex(ACCESS_LIST_ADDRESS)));
 
         assertThatThrownBy(() -> AbstractEthereumTransactionParser.parseAccessList(accessListItem, transactionType))
                 .isInstanceOf(InvalidEthereumBytesException.class)
@@ -102,7 +107,7 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
     @ParameterizedTest
     @MethodSource("accessListTransactionTypes")
     void parseAccessListEntryNotList(String transactionType) {
-        final var accessListItem = encodeAccessList(List.of(Hex.decode(ACCESS_LIST_ADDRESS)));
+        final var accessListItem = encodeAccessList(List.of(HexFormat.of().parseHex(ACCESS_LIST_ADDRESS)));
 
         assertThatThrownBy(() -> AbstractEthereumTransactionParser.parseAccessList(accessListItem, transactionType))
                 .isInstanceOf(InvalidEthereumBytesException.class)
@@ -112,8 +117,8 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
     @ParameterizedTest
     @MethodSource("accessListTransactionTypes")
     void parseAccessListEntryStorageKeysNotList(String transactionType) {
-        final var accessListItem = encodeAccessList(
-                List.of(List.of(Hex.decode(ACCESS_LIST_ADDRESS), Hex.decode(ACCESS_LIST_STORAGE_KEY))));
+        final var accessListItem = encodeAccessList(List.of(List.of(
+                HexFormat.of().parseHex(ACCESS_LIST_ADDRESS), HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY))));
 
         assertThatThrownBy(() -> AbstractEthereumTransactionParser.parseAccessList(accessListItem, transactionType))
                 .isInstanceOf(InvalidEthereumBytesException.class)
@@ -124,9 +129,9 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
     @MethodSource("accessListTransactionTypes")
     void parseAccessListEntryWrongSize(String transactionType) {
         final var accessListItem = encodeAccessList(List.of(List.of(
-                Hex.decode(ACCESS_LIST_ADDRESS),
-                List.of(Hex.decode(ACCESS_LIST_STORAGE_KEY)),
-                Hex.decode(SECOND_ACCESS_LIST_STORAGE_KEY))));
+                HexFormat.of().parseHex(ACCESS_LIST_ADDRESS),
+                List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY)),
+                HexFormat.of().parseHex(SECOND_ACCESS_LIST_STORAGE_KEY))));
 
         assertThatThrownBy(() -> AbstractEthereumTransactionParser.parseAccessList(accessListItem, transactionType))
                 .isInstanceOf(InvalidEthereumBytesException.class)
@@ -141,7 +146,7 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
         return "Unable to decode %s ethereum transaction bytes, %s".formatted(transactionType, detail);
     }
 
-    private static List<AccessListEntry> parseAccessList(Iterable<?> entries, String transactionType) {
+    private static List<AccessList> parseAccessList(Iterable<?> entries, String transactionType) {
         return AbstractEthereumTransactionParser.parseAccessList(encodeAccessList(entries), transactionType);
     }
 

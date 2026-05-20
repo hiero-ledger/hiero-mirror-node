@@ -121,7 +121,7 @@ import org.hiero.mirror.common.domain.topic.Topic;
 import org.hiero.mirror.common.domain.topic.TopicHistory;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.domain.topic.TopicMessageLookup;
-import org.hiero.mirror.common.domain.transaction.AccessListEntry;
+import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
@@ -1279,8 +1279,8 @@ public class DomainBuilder {
         return bytes(20);
     }
 
-    public List<AccessListEntry> accessList() {
-        return List.of(AccessListEntry.builder()
+    public List<AccessList> accessList() {
+        return List.of(AccessList.builder()
                 .address(hash(40))
                 .storageKeys(List.of(hash(64)))
                 .build());
