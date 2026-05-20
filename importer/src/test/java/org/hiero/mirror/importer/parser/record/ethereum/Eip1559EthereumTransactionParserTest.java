@@ -82,11 +82,7 @@ class Eip1559EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     @Override
     protected void validateEthereumTransaction(EthereumTransaction ethereumTransaction) {
         validateEthereumTransaction(
-                ethereumTransaction,
-                List.of(AccessList.builder()
-                        .address(ACCESS_LIST_ADDRESS)
-                        .storageKeys(List.of(ACCESS_LIST_STORAGE_KEY))
-                        .build()));
+                ethereumTransaction, List.of(new AccessList(ACCESS_LIST_ADDRESS, List.of(ACCESS_LIST_STORAGE_KEY))));
     }
 
     private void validateEthereumTransaction(EthereumTransaction ethereumTransaction, List<AccessList> accessList) {

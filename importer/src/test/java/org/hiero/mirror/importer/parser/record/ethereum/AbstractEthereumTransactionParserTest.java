@@ -59,11 +59,7 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
                         List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY)))),
                 transactionType);
 
-        assertThat(accessList)
-                .containsExactly(AccessList.builder()
-                        .address(ACCESS_LIST_ADDRESS)
-                        .storageKeys(List.of(ACCESS_LIST_STORAGE_KEY))
-                        .build());
+        assertThat(accessList).containsExactly(new AccessList(ACCESS_LIST_ADDRESS, List.of(ACCESS_LIST_STORAGE_KEY)));
     }
 
     @ParameterizedTest
@@ -83,14 +79,9 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
 
         assertThat(accessList)
                 .containsExactly(
-                        AccessList.builder()
-                                .address(ACCESS_LIST_ADDRESS)
-                                .storageKeys(List.of(ACCESS_LIST_STORAGE_KEY, SECOND_ACCESS_LIST_STORAGE_KEY))
-                                .build(),
-                        AccessList.builder()
-                                .address(SECOND_ACCESS_LIST_ADDRESS)
-                                .storageKeys(List.of(ACCESS_LIST_STORAGE_KEY))
-                                .build());
+                        new AccessList(
+                                ACCESS_LIST_ADDRESS, List.of(ACCESS_LIST_STORAGE_KEY, SECOND_ACCESS_LIST_STORAGE_KEY)),
+                        new AccessList(SECOND_ACCESS_LIST_ADDRESS, List.of(ACCESS_LIST_STORAGE_KEY)));
     }
 
     @ParameterizedTest

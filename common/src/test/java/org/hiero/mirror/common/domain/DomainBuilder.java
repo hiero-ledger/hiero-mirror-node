@@ -1280,10 +1280,7 @@ public class DomainBuilder {
     }
 
     public List<AccessList> accessList() {
-        return List.of(AccessList.builder()
-                .address(hash(40))
-                .storageKeys(List.of(hash(64)))
-                .build());
+        return List.of(new AccessList(hash(40), List.of(hash(64))));
     }
 
     public List<Authorization> authorizationList() {

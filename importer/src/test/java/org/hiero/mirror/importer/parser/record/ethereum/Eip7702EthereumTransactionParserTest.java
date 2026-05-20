@@ -217,10 +217,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     }
 
     private static List<AccessList> expectedAccessList() {
-        return List.of(AccessList.builder()
-                .address(ACCESS_LIST_ADDRESS)
-                .storageKeys(List.of(ACCESS_LIST_STORAGE_KEY))
-                .build());
+        return List.of(new AccessList(ACCESS_LIST_ADDRESS, List.of(ACCESS_LIST_STORAGE_KEY)));
     }
 
     private void validateEthereumTransaction(
