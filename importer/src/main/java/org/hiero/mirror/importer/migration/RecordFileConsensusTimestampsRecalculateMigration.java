@@ -84,21 +84,18 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
 
     private static final String SELECT_RECORD_FILES_IN_SLICE = """
                     select rf.consensus_start,
-                           rf.consensus_end,
-                           rf.count,
-                           tx_count.actual_transactions_count
+                        rf.consensus_end,
+                        rf.count,
+                        count(t.consensus_timestamp)::bigint as actual_transactions_count
                     from record_file rf
-                    join lateral (
-                        select count(*)::bigint as actual_transactions_count
-                        from transaction t
-                        where t.consensus_timestamp >= rf.consensus_start
-                          and t.consensus_timestamp <= rf.consensus_end
-                    ) tx_count on true
+                    left join transaction t on t.consensus_timestamp >= rf.consensus_start
+                            and t.consensus_timestamp <= rf.consensus_end
                     where rf.consensus_end > :consensusEndLowerBound
-                      and rf.consensus_end <= :consensusEndUpperBound
-                      and rf.consensus_end > :minConsensusEndTimestamp
-                      and rf.count != tx_count.actual_transactions_count
-                    order by rf.consensus_end
+                    and rf.consensus_end <= :consensusEndUpperBound
+                    and rf.consensus_end > :minConsensusEndTimestamp
+                    group by rf.consensus_start, rf.consensus_end, rf.count
+                    having rf.count != count(t.consensus_timestamp)::bigint
+                    order by rf.consensus_end;
             """;
 
     private static final String SELECT_PREV_CONSENSUS_END = """
