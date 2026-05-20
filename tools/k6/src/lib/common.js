@@ -312,6 +312,11 @@ function recordRequestDuration(response, passed) {
   requestsDurationTrend.add(response.timings.duration, {passed: String(passed)});
 }
 
+function removeBaseUrl(url) {
+  const parts = url.split('/api/v1');
+  return parts[parts.length - 1];
+}
+
 class TestScenarioBuilder {
   constructor(suite) {
     this._checks = {};
@@ -352,7 +357,6 @@ class TestScenarioBuilder {
         const response = that._request(testParameters);
         const passed = check(response, that._checks);
         recordRequestDuration(response, passed);
-        // requestsDurationTrend.add(response.timings.duration, {passed: String(passed)});
       } else {
         // fallback
         const response = that._fallbackRequest(testParameters);
@@ -443,12 +447,14 @@ class MultiIdScenarioBuilder {
     const that = this;
 
     let combinedOptions;
+    const scenarioUrls = {};
     for (let i = 0; i < that._ids.length; i++) {
       const id = that._ids[i];
       const sanitized = sanitizeScenarioName(id);
       const scenarioName = `${that._name}-${sanitized}`;
       const url = that._url.replace('{id}', id);
-      const tags = Object.assign({}, that._tags, {url});
+      scenarioUrls[scenarioName] = url;
+      const tags = Object.assign({}, that._tags, {url: removeBaseUrl(url)});
       const options = getOptionsWithScenario(scenarioName, null, tags);
       if (!combinedOptions) {
         combinedOptions = options;
@@ -459,14 +465,12 @@ class MultiIdScenarioBuilder {
 
     function run() {
       const active = k6Scenario.name;
-      const scenarioDef = combinedOptions.scenarios[active];
-      const url = (scenarioDef && scenarioDef.tags && scenarioDef.tags.url) || '';
+      const url = scenarioUrls[active] || '';
       const response = that._request(url);
       const passed = check(response, {
         [that._checkName]: (r) => that._checkFunc(r),
       });
       recordRequestDuration(response, passed);
-      // requestsDurationTrend.add(response.timings.duration, {passed: String(passed)});
     }
 
     return {options: combinedOptions, run};

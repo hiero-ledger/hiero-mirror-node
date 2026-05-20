@@ -17,7 +17,7 @@ const params = {
   },
 };
 
-const options = getOptionsWithScenario('trafficReplay', null, {suite: 'WEB3'});
+const options = getOptionsWithScenario('trafficReplay', null, {suite: 'WEB3', url: '/contracts/call'});
 
 function parseRequests(fileContent) {
   const requests = [];
