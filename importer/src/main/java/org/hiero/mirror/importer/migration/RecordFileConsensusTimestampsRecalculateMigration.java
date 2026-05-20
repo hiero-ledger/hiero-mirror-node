@@ -23,7 +23,6 @@ import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -84,12 +83,22 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
             """;
 
     private static final String SELECT_RECORD_FILES_IN_SLICE = """
-                    select consensus_start, consensus_end, count
-                    from record_file
-                    where consensus_end > :consensusEndLowerBound
-                      and consensus_end <= :consensusEndUpperBound
-                      and consensus_end > :minConsensusEndTimestamp
-                    order by consensus_end
+                    select rf.consensus_start,
+                           rf.consensus_end,
+                           rf.count,
+                           tx_count.actual_transactions_count
+                    from record_file rf
+                    join lateral (
+                        select count(*)::bigint as actual_transactions_count
+                        from transaction t
+                        where t.consensus_timestamp >= rf.consensus_start
+                          and t.consensus_timestamp <= rf.consensus_end
+                    ) tx_count on true
+                    where rf.consensus_end > :consensusEndLowerBound
+                      and rf.consensus_end <= :consensusEndUpperBound
+                      and rf.consensus_end > :minConsensusEndTimestamp
+                      and rf.count != tx_count.actual_transactions_count
+                    order by rf.consensus_end
             """;
 
     private static final String SELECT_PREV_CONSENSUS_END = """
@@ -106,13 +115,6 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
                     where consensus_end > :consensusEnd
                     order by consensus_end
                     limit 1
-            """;
-
-    private static final String COUNT_TRANSACTIONS_IN_RANGE = """
-                    select count(*)::bigint
-                    from transaction t
-                    where t.consensus_timestamp >= :consensusStart
-                      and t.consensus_timestamp <= :consensusEnd
             """;
 
     private static final String SELECT_MIN_TX_BEFORE_START = """
@@ -238,20 +240,12 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
         var updated = new AtomicInteger(0);
         var jdbc = getNamedParameterJdbcOperations();
         for (var block : jdbc.query(SELECT_RECORD_FILES_IN_SLICE, sliceParams, RECORD_FILE_SLICE_ROW_MAPPER)) {
-            final long actualTransactionsCount = getActualTransactionsCount(jdbc, block);
-            if (actualTransactionsCount == block.count()) {
-                continue;
-            }
-
             var prevConsensusEnd = lookupPrevConsensusEnd(block.consensusStart());
             var nextConsensusStart = lookupNextConsensusStart(block.consensusEnd());
-            var consensusStartCalculated = computeStartTimestamp(
-                    block, prevConsensusEnd != null ? prevConsensusEnd : 0L, actualTransactionsCount);
-            var consensusEndCalculated = computeEndTimestamp(
-                    block, nextConsensusStart != null ? nextConsensusStart : Long.MAX_VALUE, actualTransactionsCount);
-            if (consensusStartCalculated == null && consensusEndCalculated == null) {
-                continue;
-            }
+            var consensusStartCalculated =
+                    computeStartTimestamp(block, prevConsensusEnd != null ? prevConsensusEnd : 0L);
+            var consensusEndCalculated =
+                    computeEndTimestamp(block, nextConsensusStart != null ? nextConsensusStart : Long.MAX_VALUE);
 
             var updateParams = new MapSqlParameterSource()
                     .addValue("consensusEnd", block.consensusEnd())
@@ -278,13 +272,6 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
         return Optional.of(consensusEndLowerBound);
     }
 
-    private long getActualTransactionsCount(NamedParameterJdbcOperations jdbc, RecordFileSlice block) {
-        var params = new MapSqlParameterSource()
-                .addValue("consensusStart", block.consensusStart())
-                .addValue("consensusEnd", block.consensusEnd());
-        return jdbc.queryForObject(COUNT_TRANSACTIONS_IN_RANGE, params, Long.class);
-    }
-
     @Nullable
     private Long lookupPrevConsensusEnd(long consensusStart) {
         return queryForObjectOrNull(
@@ -298,20 +285,20 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
     }
 
     @Nullable
-    private Long computeStartTimestamp(RecordFileSlice block, Long prevConsensusEnd, Long actualTransactionsCount) {
+    private Long computeStartTimestamp(RecordFileSlice block, Long prevConsensusEnd) {
         var params = new MapSqlParameterSource()
                 .addValue("consensusStart", block.consensusStart())
                 .addValue("prevConsensusEnd", prevConsensusEnd)
-                .addValue("missingTransactionsCount", block.count() - actualTransactionsCount);
+                .addValue("missingTransactionsCount", block.count() - block.actualTransactionsCount());
         return queryForObjectOrNull(SELECT_MIN_TX_BEFORE_START, params, Long.class);
     }
 
     @Nullable
-    private Long computeEndTimestamp(RecordFileSlice block, Long nextConsensusStart, Long actualTransactionsCount) {
+    private Long computeEndTimestamp(RecordFileSlice block, Long nextConsensusStart) {
         var params = new MapSqlParameterSource()
                 .addValue("consensusEnd", block.consensusEnd())
                 .addValue("nextConsensusStart", nextConsensusStart)
-                .addValue("missingTransactionsCount", block.count() - actualTransactionsCount);
+                .addValue("missingTransactionsCount", block.count() - block.actualTransactionsCount());
         return queryForObjectOrNull(SELECT_MAX_TX_AFTER_END, params, Long.class);
     }
 
@@ -321,5 +308,5 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
         return new TransactionTemplate(transactionManager);
     }
 
-    private record RecordFileSlice(long consensusStart, long consensusEnd, long count) {}
+    private record RecordFileSlice(long consensusStart, long consensusEnd, long count, long actualTransactionsCount) {}
 }
