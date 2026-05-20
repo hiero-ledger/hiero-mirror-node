@@ -4,7 +4,7 @@ import {check, sleep} from 'k6';
 import {vu, scenario as k6Scenario} from 'k6/execution';
 import http from 'k6/http';
 import {SharedArray} from 'k6/data';
-import {sanitizeScenarioName} from '../../lib/common.js';
+import {recordRequestDuration, sanitizeScenarioName} from '../../lib/common.js';
 
 import * as utils from '../../lib/common.js';
 
@@ -168,9 +168,10 @@ function ContractCallTestScenarioBuilder() {
       }
 
       const response = jsonPost(that._url, JSON.stringify(payload));
-      check(response, {
+      const passed = check(response, {
         [`${k6Scenario.name}`]: (r) => (that._shouldRevert ? !isNonErrorResponse(r) : isNonErrorResponse(r)),
       });
+      recordRequestDuration(response, passed);
 
       if (sleepSecs > 0) {
         sleep(sleepSecs);

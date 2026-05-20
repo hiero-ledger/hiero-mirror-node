@@ -308,6 +308,10 @@ function sanitizeScenarioName(name) {
   return name.replace(/[^0-9A-Za-z_-]/g, '_');
 }
 
+function recordRequestDuration(response, passed) {
+  requestsDurationTrend.add(response.timings.duration, {passed: String(passed)});
+}
+
 class TestScenarioBuilder {
   constructor(suite) {
     this._checks = {};
@@ -347,7 +351,8 @@ class TestScenarioBuilder {
       if (!that._shouldSkip) {
         const response = that._request(testParameters);
         const passed = check(response, that._checks);
-        requestsDurationTrend.add(response.timings.duration, {passed: String(passed)});
+        recordRequestDuration(response, passed);
+        // requestsDurationTrend.add(response.timings.duration, {passed: String(passed)});
       } else {
         // fallback
         const response = that._fallbackRequest(testParameters);
@@ -460,7 +465,8 @@ class MultiIdScenarioBuilder {
       const passed = check(response, {
         [that._checkName]: (r) => that._checkFunc(r),
       });
-      requestsDurationTrend.add(response.timings.duration, {passed: String(passed)});
+      recordRequestDuration(response, passed);
+      // requestsDurationTrend.add(response.timings.duration, {passed: String(passed)});
     }
 
     return {options: combinedOptions, run};
@@ -472,6 +478,7 @@ export {
   getSequentialTestScenarios,
   getTestReportFilename,
   markdownReport,
+  recordRequestDuration,
   sanitizeScenarioName,
   TestScenarioBuilder,
   MultiIdScenarioBuilder,
