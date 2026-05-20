@@ -104,6 +104,7 @@ function ContractCallTestScenarioBuilder() {
   this._to = null;
   this._vuData = null;
   this._shouldRevert = false;
+  this._tags = {suite: 'WEB3', url: '/contracts/call'};
   this._blocks = null;
   this._data = null;
   this._estimate = null;
@@ -112,7 +113,6 @@ function ContractCallTestScenarioBuilder() {
   this._value = null;
 
   this._url = `${__ENV.BASE_URL_PREFIX}/contracts/call`;
-  this._tags = {suite: 'WEB3', url: this._url};
 
   this.build = function () {
     const that = this;
