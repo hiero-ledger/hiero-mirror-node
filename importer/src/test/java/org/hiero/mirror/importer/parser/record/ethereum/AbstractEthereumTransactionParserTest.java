@@ -107,7 +107,7 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
 
     @ParameterizedTest
     @MethodSource("accessListTransactionTypes")
-    void parseAccessListEntryStorageKeysNotList(String transactionType) {
+    void parseAccessListStorageKeysNotList(String transactionType) {
         final var accessListItem = encodeAccessList(List.of(List.of(
                 HexFormat.of().parseHex(ACCESS_LIST_ADDRESS), HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY))));
 
@@ -118,7 +118,7 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
 
     @ParameterizedTest
     @MethodSource("accessListTransactionTypes")
-    void parseAccessListEntryWrongSize(String transactionType) {
+    void parseAccessListWrongSize(String transactionType) {
         final var accessListItem = encodeAccessList(List.of(List.of(
                 HexFormat.of().parseHex(ACCESS_LIST_ADDRESS),
                 List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY)),

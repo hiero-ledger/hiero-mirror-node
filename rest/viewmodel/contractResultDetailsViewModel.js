@@ -8,7 +8,7 @@ import ContractResultStateChangeViewModel from './contractResultStateChangeViewM
 import ContractResultViewModel from './contractResultViewModel';
 import config from '../config';
 import EntityId from '../entityId';
-import {AccessListEntry, AuthorizationListItem, TransactionResult} from '../model';
+import {AuthorizationListItem, TransactionResult} from '../model';
 import * as utils from '../utils';
 import {WEIBARS_TO_TINYBARS} from '../constants';
 
@@ -86,7 +86,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     this.nonce = null;
 
     if (!isNil(ethTransaction)) {
-      this.access_list = (ethTransaction.accessList ?? []).map((item) => new AccessListEntry(item));
+      this.access_list = ethTransaction.accessList;
       if (config.response.enableDelegationAddress) {
         this.authorization_list = ethTransaction.authorizationList?.map((item) => new AuthorizationListItem(item));
       }

@@ -23,7 +23,7 @@
     "value": "AJiWgA=="
   },
   {
-    "accessList": null,
+    "accessList": [],
     "callData": "",
     "callDataId": null,
     "chainId": "ASg=",
@@ -46,7 +46,7 @@
     "value": "AQ=="
   },
   {
-    "accessList": null,
+    "accessList": [],
     "callData": "",
     "callDataId": 4675853,
     "chainId": "ASg=",
@@ -92,7 +92,7 @@
     "value": "AA=="
   },
   {
-    "accessList": null,
+    "accessList": [],
     "callData": "AKcYqQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIgztAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFUkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAENBSv//////////////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
     "callDataId": null,
     "chainId": "ASg=",

@@ -2072,17 +2072,19 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/AccountInfo"
-    AccessListEntry:
+    AccessList:
       type: object
       properties:
         address:
           description: The hex encoded address of the accessed contract
           example: "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150"
+          format: binary
           type: string
         storage_keys:
           description: The list of accessed hex encoded storage keys
           type: array
           items:
+            format: binary
             type: string
           example:
             - "0x0000000000000000000000000000000000000000000000000000000000000081"
@@ -2334,7 +2336,7 @@ components:
           description: The access list of the wrapped ethereum transaction
           type: [array, "null"]
           items:
-            $ref: "#/components/schemas/AccessListEntry"
+            $ref: "#/components/schemas/AccessList"
         address:
           description: The hex encoded evm address of contract
           example: "0x25fe26adc577cc89172e6156c9e24f7b9751b762"
@@ -2480,7 +2482,7 @@ components:
               description: The access list of the wrapped ethereum transaction
               type: [array, "null"]
               items:
-                $ref: "#/components/schemas/AccessListEntry"
+                $ref: "#/components/schemas/AccessList"
             address:
               description: The hex encoded evm address of contract
               example: "0x25fe26adc577cc89172e6156c9e24f7b9751b762"

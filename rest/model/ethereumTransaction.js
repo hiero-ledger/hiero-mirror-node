@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import isEmpty from 'lodash/isEmpty';
 import camelCase from 'lodash/camelCase';
 import mapKeys from 'lodash/mapKeys';
 
@@ -15,8 +14,6 @@ class EthereumTransaction {
       this,
       mapKeys(ethereumTransaction, (v, k) => camelCase(k))
     );
-
-    this.accessList = EthereumTransaction.normalizeAccessList(this.accessList);
 
     if (config.response.enableDelegationAddress) {
       if (this.authorizationList == null) {
@@ -62,38 +59,6 @@ class EthereumTransaction {
    */
   static getFullName(columnName) {
     return `${this.tableAlias}.${columnName}`;
-  }
-
-  /**
-   * Normalizes access_list from JSONB array. Legacy bytea values are returned as an empty array since
-   * Buffer.prototype.map returns a Buffer, not an array of access list items.
-   *
-   * @param {Array|Buffer|string|null} accessList
-   * @returns {Array|null}
-   */
-  static normalizeAccessList(accessList) {
-    if (accessList == null) {
-      return null;
-    }
-
-    if (Buffer.isBuffer(accessList)) {
-      return [];
-    }
-
-    if (typeof accessList === 'string') {
-      if (isEmpty(accessList)) {
-        return [];
-      }
-
-      try {
-        const parsed = JSON.parse(accessList);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-
-    return Array.isArray(accessList) ? accessList : [];
   }
 }
 

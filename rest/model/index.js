@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import AccountBalanceFile from './accountBalanceFile';
-import AccessListEntry from './accessListEntry.js';
 import AssessedCustomFee from './assessedCustomFee';
 import AuthorizationListItem from './authorizationListItem.js';
 import CachedApiResponse from './cachedApiResponse';
@@ -47,7 +46,6 @@ import TransactionType from './transactionType';
 import ContractState from './contractState';
 
 export {
-  AccessListEntry,
   AccountBalanceFile,
   AssessedCustomFee,
   AuthorizationListItem,

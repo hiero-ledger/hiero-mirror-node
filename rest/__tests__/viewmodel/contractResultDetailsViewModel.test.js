@@ -248,15 +248,16 @@ describe('ContractResultDetailsViewModel', () => {
       expect(viewModel.gas_price).toBe('0x4a817c80');
     });
 
-    test('maps access_list to structured format', () => {
+    test('returns access_list from db jsonb', () => {
+      const accessList = [
+        {
+          address: 'a02457e5dfd32bda5fc7e1f1b008aa5979568150',
+          storage_keys: ['0000000000000000000000000000000000000000000000000000000000000081'],
+        },
+      ];
       const ethTransaction = {
         ...mockEthTransaction,
-        accessList: [
-          {
-            address: 'a02457e5dfd32bda5fc7e1f1b008aa5979568150',
-            storage_keys: ['0000000000000000000000000000000000000000000000000000000000000081'],
-          },
-        ],
+        accessList,
       };
 
       const viewModel = new ContractResultDetailsViewModel(
@@ -268,32 +269,11 @@ describe('ContractResultDetailsViewModel', () => {
         null
       );
 
-      expect(viewModel.access_list).toEqual([
-        {
-          address: '0xa02457e5dfd32bda5fc7e1f1b008aa5979568150',
-          storage_keys: ['0x0000000000000000000000000000000000000000000000000000000000000081'],
-        },
-      ]);
+      expect(viewModel.access_list).toEqual(accessList);
     });
 
-    test('returns empty access_list when accessList is null', () => {
-      const viewModel = new ContractResultDetailsViewModel(
-        mockContractResult,
-        mockRecordFile,
-        mockEthTransaction,
-        [],
-        [],
-        null
-      );
-
-      expect(viewModel.access_list).toEqual([]);
-    });
-
-    test('returns empty access_list when accessList is legacy empty bytea buffer', () => {
-      const ethTransaction = new EthereumTransaction({
-        ...mockEthTransaction,
-        access_list: Buffer.alloc(0),
-      });
+    test('returns null access_list when accessList is null', () => {
+      const ethTransaction = new EthereumTransaction(mockEthTransaction);
 
       const viewModel = new ContractResultDetailsViewModel(
         mockContractResult,
@@ -304,7 +284,7 @@ describe('ContractResultDetailsViewModel', () => {
         null
       );
 
-      expect(viewModel.access_list).toEqual([]);
+      expect(viewModel.access_list).toBeNull();
     });
 
     test('leaves access_list null when ethTransaction is null', () => {
