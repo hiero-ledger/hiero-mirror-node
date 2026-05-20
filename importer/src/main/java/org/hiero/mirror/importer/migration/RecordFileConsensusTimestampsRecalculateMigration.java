@@ -29,12 +29,8 @@ import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Adds {@code record_file.consensus_start_calculated} and {@code record_file.consensus_end_calculated} if missing, then
- * populates them for each block with transactions that exist before its {@code consensus_start} or after its
- * {@code consensus_end}. {@code consensus_start_calculated} is {@code min(transaction.consensus_timestamp)}
- * for transactions after the previous block's {@code consensus_end} and before this block's {@code consensus_start}.
- * {@code consensus_end_calculated} is {@code max(transaction.consensus_timestamp)} for transactions after
- * this block's {@code consensus_end} and before the next block's {@code consensus_start}.
+ * Updates {@code record_file.consensus_start} and {@code record_file.consensus_end} with the earliest and latest
+ * timestamp of the transactions that belong to each block.
  */
 @Named
 final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaMigration<Long> {
@@ -145,8 +141,8 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
 
     private static final String UPDATE_RECORD_FILE_CALCULATED_TIMESTAMPS = """
                     update record_file
-                    set consensus_start_calculated = :consensusStartCalculated,
-                        consensus_end_calculated = :consensusEndCalculated
+                    set consensus_start = coalesce(:consensusStartCalculated, consensus_start),
+                        consensus_end = coalesce(:consensusEndCalculated, consensus_end)
                     where consensus_end = :consensusEnd
             """;
 
@@ -192,7 +188,7 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
 
     @Override
     public String getDescription() {
-        return "Populate record_file consensus_start_calculated and consensus_end_calculated.";
+        return "Recalculate record_file's consensus_start and consensus_end timestamps.";
     }
 
     @Override
@@ -216,7 +212,7 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
     @Override
     protected Long getInitial() {
         log.info(
-                "Starting record_file consensus offset migration with initial consensus_end upper bound: {}.",
+                "Starting record_file timestamp recalculation migration with initial consensus_end upper bound: {}.",
                 latestProcessedEndTimestamp);
         return latestProcessedEndTimestamp;
     }
@@ -275,7 +271,7 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
 
         if (consensusEndLowerBound <= minEnd) {
             log.info(
-                    "Record_file consensus offset migration complete; dropping temporary table processed_record_file_temp.");
+                    "Record_file consensus timestamp recalculation migration complete; dropping temporary table processed_record_file_temp.");
             getJdbcOperations().execute(DROP_TEMPORARY_PROCESSED_RECORD_FILE_TABLE);
             return Optional.empty();
         }

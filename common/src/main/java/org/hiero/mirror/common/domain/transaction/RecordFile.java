@@ -43,10 +43,6 @@ public class RecordFile implements StreamFile<RecordItem> {
 
     private Long consensusStart;
 
-    private Long consensusStartCalculated;
-
-    private Long consensusEndCalculated;
-
     @Id
     private Long consensusEnd;
 

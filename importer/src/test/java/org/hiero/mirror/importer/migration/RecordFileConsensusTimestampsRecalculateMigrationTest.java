@@ -64,9 +64,6 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
     void migrationOnEmptyDb() {
         runMigration();
         waitForCompletionExtended();
-
-        assertThat(columnExists("record_file", "consensus_start_calculated")).isTrue();
-        assertThat(columnExists("record_file", "consensus_end_calculated")).isTrue();
     }
 
     @Test
@@ -87,9 +84,9 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
         waitForCompletionExtended();
 
         assertThat(startCalculated(currEnd)).isEqualTo(earlierInGap);
-        assertThat(endCalculated(currEnd)).isNull();
-        assertThat(startCalculated(prevEnd)).isNull();
-        assertThat(endCalculated(prevEnd)).isNull();
+        assertThat(endCalculated(currEnd)).isEqualTo(currEnd);
+        assertThat(startCalculated(prevEnd)).isEqualTo(prevStart);
+        assertThat(endCalculated(prevEnd)).isEqualTo(prevEnd);
     }
 
     @Test
@@ -109,10 +106,10 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
         runMigration();
         waitForCompletionExtended();
 
-        assertThat(startCalculated(currEnd)).isNull();
-        assertThat(endCalculated(currEnd)).isEqualTo(latestAfterEnd);
-        assertThat(startCalculated(nextEnd)).isNull();
-        assertThat(endCalculated(nextEnd)).isNull();
+        assertThat(endCalculated(latestAfterEnd)).isEqualTo(latestAfterEnd);
+        assertThat(startCalculated(latestAfterEnd)).isEqualTo(currStart);
+        assertThat(startCalculated(nextEnd)).isEqualTo(nextStart);
+        assertThat(endCalculated(nextEnd)).isEqualTo(nextEnd);
     }
 
     @Test
@@ -139,12 +136,12 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
         runMigration();
         waitForCompletionExtended();
 
-        assertThat(startCalculated(currEnd)).isEqualTo(earliestBeforeStart);
-        assertThat(endCalculated(currEnd)).isEqualTo(latestAfterEnd);
-        assertThat(startCalculated(prevEnd)).isNull();
-        assertThat(endCalculated(prevEnd)).isNull();
-        assertThat(startCalculated(nextEnd)).isNull();
-        assertThat(endCalculated(nextEnd)).isNull();
+        assertThat(startCalculated(latestAfterEnd)).isEqualTo(earliestBeforeStart);
+        assertThat(endCalculated(latestAfterEnd)).isEqualTo(latestAfterEnd);
+        assertThat(startCalculated(prevEnd)).isEqualTo(prevStart);
+        assertThat(endCalculated(prevEnd)).isEqualTo(prevEnd);
+        assertThat(startCalculated(nextEnd)).isEqualTo(nextStart);
+        assertThat(endCalculated(nextEnd)).isEqualTo(nextEnd);
     }
 
     @Test
@@ -169,9 +166,9 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
         waitForCompletionExtended();
 
         assertThat(startCalculated(currEnd)).isEqualTo(earliestCurrBeforeStart);
-        assertThat(endCalculated(currEnd)).isNull();
-        assertThat(startCalculated(prevEnd)).isNull();
-        assertThat(endCalculated(prevEnd)).isEqualTo(latestPrevAfterEnd);
+        assertThat(endCalculated(currEnd)).isEqualTo(currEnd);
+        assertThat(startCalculated(latestPrevAfterEnd)).isEqualTo(prevStart);
+        assertThat(endCalculated(latestPrevAfterEnd)).isEqualTo(latestPrevAfterEnd);
     }
 
     private void waitForCompletionExtended() {
@@ -186,24 +183,14 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
         return Objects.equals(actual, migration.getSuccessChecksum());
     }
 
-    private boolean columnExists(String tableName, String columnName) {
-        return Boolean.TRUE.equals(jdbcOperations.queryForObject("""
-                        select exists(
-                          select 1
-                          from information_schema.columns
-                          where table_name = ? and column_name = ?
-                        )
-                        """, Boolean.class, tableName, columnName));
-    }
-
     private Long startCalculated(long consensusEnd) {
         return jdbcOperations.queryForObject(
-                "select consensus_start_calculated from record_file where consensus_end = ?", Long.class, consensusEnd);
+                "select consensus_start from record_file where consensus_end = ?", Long.class, consensusEnd);
     }
 
     private Long endCalculated(long consensusEnd) {
         return jdbcOperations.queryForObject(
-                "select consensus_end_calculated from record_file where consensus_end = ?", Long.class, consensusEnd);
+                "select consensus_end from record_file where consensus_end = ?", Long.class, consensusEnd);
     }
 
     private void insertRecordFile(long consensusStart, long consensusEnd, long count) {
