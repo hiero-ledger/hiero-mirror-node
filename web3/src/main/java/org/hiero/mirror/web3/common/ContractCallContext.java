@@ -14,6 +14,7 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.PrestateContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 
@@ -35,6 +36,9 @@ public class ContractCallContext {
 
     @Setter
     private OpcodeContext opcodeContext = null;
+
+    @Setter
+    private PrestateContext prestateContext = null;
 
     @Setter
     private CallServiceParameters callServiceParameters;

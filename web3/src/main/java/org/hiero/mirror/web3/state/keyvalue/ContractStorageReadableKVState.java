@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.state.keyvalue;
 
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.STORAGE_STATE_ID;
+import static com.hedera.services.utils.EntityIdUtils.asTypedEvmAddress;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
 
 import com.hedera.hapi.node.state.contract.SlotKey;
@@ -14,16 +15,17 @@ import jakarta.inject.Named;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.service.ContractStateService;
+import org.hyperledger.besu.datatypes.Address;
 import org.jspecify.annotations.NonNull;
 
 @Named
-final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
+public final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
 
     public static final int STATE_ID = STORAGE_STATE_ID;
 
     private final ContractStateService contractStateService;
 
-    protected ContractStorageReadableKVState(final ContractStateService contractStateService) {
+    ContractStorageReadableKVState(final ContractStateService contractStateService) {
         super(ContractService.NAME, STORAGE_STATE_ID);
         this.contractStateService = contractStateService;
     }
@@ -33,6 +35,8 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
         if (!slotKey.hasContractID()) {
             return null;
         }
+
+        addTouchedStorageForPrestateTracer(slotKey);
 
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var contractID = slotKey.contractID();
@@ -45,6 +49,24 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
                 .map(byteArr ->
                         new SlotValue(Bytes.wrap(leftPadBytes(byteArr, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY))
                 .orElse(null);
+    }
+
+    private void addTouchedStorageForPrestateTracer(SlotKey slotKey) {
+        final var ctx = ContractCallContext.get();
+        if (ctx.getPrestateContext() != null) {
+            Address contractAddress;
+            if (slotKey.contractID().hasContractNum()) {
+                contractAddress = asTypedEvmAddress(EntityIdUtils.entityIdFromContractId(slotKey.contractID())
+                        .toContractID());
+            } else if (slotKey.contractID().hasEvmAddress()) {
+                contractAddress = Address.wrap(org.apache.tuweni.bytes.Bytes.wrap(
+                        slotKey.contractID().evmAddress().toByteArray()));
+            } else {
+                return;
+            }
+            ctx.getPrestateContext()
+                    .setTouchedStorage(contractAddress, slotKey.key().toHex());
+        }
     }
 
     @Override
