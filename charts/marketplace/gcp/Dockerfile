@@ -1,7 +1,7 @@
 FROM gcr.io/cloud-marketplace-tools/k8s/deployer_helm
 
 # Marketplace image still depends upon Helm 3
-ENV HELM_VERSION=4.1.4
+ENV HELM_VERSION=4.2.0
 ENV YQ_VERSION=v4.53.2
 
 # Install yq
@@ -9,8 +9,8 @@ RUN wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linu
     mv yq_linux_amd64 /usr/local/bin/yq && \
     chmod +x /usr/local/bin/yq
 
-# Install Helm - temporarily use fork until next Helm version
-RUN wget -q https://github.com/steven-sheehy/helm/releases/download/v${HELM_VERSION}/helm-${HELM_VERSION}-linux-amd64.tar.gz -O - | \
+# Install Helm
+RUN wget -q https://github.com/helm/helm/releases/download/v${HELM_VERSION}/helm-${HELM_VERSION}-linux-amd64.tar.gz -O - | \
     tar -C /usr/local/bin --strip-components=1 -zxv linux-amd64/helm
 
 # Pull in charts
