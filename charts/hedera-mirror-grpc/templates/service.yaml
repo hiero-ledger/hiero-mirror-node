@@ -13,9 +13,13 @@ spec:
       targetPort: grpc
       protocol: TCP
       name: grpc
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
   selector: {{ include "hedera-mirror-grpc.selectorLabels" . | nindent 4 }}
   type: {{ .Values.service.type }}
-{{- if and .Values.global.gateway.enabled .Values.gateway.gcp.enabled (not (empty .Values.gateway.gcp.streamingBackendPolicy)) -}}
+{{ if and .Values.global.gateway.enabled .Values.gateway.gcp.enabled (not (empty .Values.gateway.gcp.streamingBackendPolicy)) -}}
 ---
 apiVersion: v1
 kind: Service

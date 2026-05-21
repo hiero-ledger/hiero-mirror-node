@@ -66,7 +66,6 @@ gateway:
         drainingTimeoutSec: 10
       logging:
         enabled: false
-      maxRatePerEndpoint: 250  # Requires a change to HPA to take effect
       sessionAffinity:
         type: CLIENT_IP
       timeoutSec: 15
@@ -75,7 +74,6 @@ gateway:
         drainingTimeoutSec: 10
       logging:
         enabled: false
-      maxRatePerEndpoint: 250
       sessionAffinity:
         type: CLIENT_IP
       timeoutSec: 9999999
@@ -95,7 +93,6 @@ gateway:
           port: 5600
       matches:
         - method:
-            method: subscribeTopic
             service: com.hedera.mirror.api.proto.ConsensusService
     - backendRefs:
         - group: "{{ .Values.gateway.target.group }}"
@@ -103,8 +100,6 @@ gateway:
           name: "{{ include \"hedera-mirror-grpc.fullname\" $ }}"
           port: 5600
       matches:
-        - method:
-            service: com.hedera.mirror.api.proto.ConsensusService
         - method:
             service: com.hedera.mirror.api.proto.NetworkService
         - method:
