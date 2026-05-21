@@ -15,7 +15,6 @@ import java.io.InputStream;
 import java.security.DigestOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -29,6 +28,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.hiero.mirror.importer.util.Utility;
 import org.springframework.data.util.Version;
 
 @CustomLog
@@ -36,10 +36,6 @@ import org.springframework.data.util.Version;
 public final class ProtoRecordFileReader implements RecordFileReader {
 
     public static final int VERSION = 6;
-
-    private static final Comparator<RecordItem> TRANSACTION_TIMESTAMPS_COMPARATOR = Comparator.comparingLong(
-                    RecordItem::getConsensusTimestamp)
-            .thenComparingInt(RecordItem::getTransactionIndex);
 
     @Override
     public RecordFile read(StreamFileData streamFileData) {
@@ -61,32 +57,23 @@ public final class ProtoRecordFileReader implements RecordFileReader {
                         endHashAlgorithm);
             }
 
-            var items = readItems(recordStreamFile);
-            final long consensusStart;
-            final long consensusEnd;
-            if (!items.isEmpty()) {
-                consensusStart = items.getFirst().getConsensusTimestamp();
-                consensusEnd = items.getLast().getConsensusTimestamp();
-            } else {
-                final long fileTimestamp = DomainUtils.convertToNanosMax(
-                        streamFileData.getStreamFilename().getInstant());
-                consensusStart = fileTimestamp;
-                consensusEnd = fileTimestamp;
-            }
-
+            final long fileTimestamp = DomainUtils.convertToNanosMax(
+                    streamFileData.getStreamFilename().getInstant());
+            final var readItemsResult = readItems(recordStreamFile, fileTimestamp);
             var bytes = streamFileData.getBytes();
-            int count = items.size();
+            int count = readItemsResult.items().size();
             var digestAlgorithm = getDigestAlgorithm(filename, startHashAlgorithm, endHashAlgorithm);
             var hapiProtoVersion = recordStreamFile.getHapiProtoVersion();
             var majorVersion = hapiProtoVersion.getMajor();
             var minorVersion = hapiProtoVersion.getMinor();
             var patchVersion = hapiProtoVersion.getPatch();
-            var sidecars = getSidecars(consensusEnd, recordStreamFile, streamFileData.getStreamFilename());
+            var sidecars =
+                    getSidecars(readItemsResult.consensusEnd(), recordStreamFile, streamFileData.getStreamFilename());
 
             return RecordFile.builder()
                     .bytes(bytes)
-                    .consensusStart(consensusStart)
-                    .consensusEnd(consensusEnd)
+                    .consensusStart(readItemsResult.consensusStart())
+                    .consensusEnd(readItemsResult.consensusEnd())
                     .count((long) count)
                     .digestAlgorithm(digestAlgorithm)
                     .fileHash(getFileHash(streamFileData.getDecompressedBytes()))
@@ -95,7 +82,7 @@ public final class ProtoRecordFileReader implements RecordFileReader {
                     .hapiVersionPatch(patchVersion)
                     .hash(DomainUtils.bytesToHex(DomainUtils.getHashBytes(endObjectRunningHash)))
                     .index(recordStreamFile.getBlockNumber())
-                    .items(items)
+                    .items(readItemsResult.items())
                     .loadStart(loadStart)
                     .metadataHash(getMetadataHash(recordStreamFile))
                     .name(filename)
@@ -174,10 +161,10 @@ public final class ProtoRecordFileReader implements RecordFileReader {
         }
     }
 
-    private List<RecordItem> readItems(final RecordStreamFile recordStreamFile) {
+    private ReadItemsResult readItems(final RecordStreamFile recordStreamFile, long fileTimestamp) {
         final int count = recordStreamFile.getRecordStreamItemsCount();
         if (count == 0) {
-            return Collections.emptyList();
+            return new ReadItemsResult(Collections.emptyList(), fileTimestamp, fileTimestamp);
         }
 
         var hapiProtoVersion = recordStreamFile.getHapiProtoVersion();
@@ -185,7 +172,8 @@ public final class ProtoRecordFileReader implements RecordFileReader {
                 new Version(hapiProtoVersion.getMajor(), hapiProtoVersion.getMinor(), hapiProtoVersion.getPatch());
         var items = new ArrayList<RecordItem>(count);
         RecordItem previousItem = null;
-        boolean hasUnsortedItems = false;
+        long minConsensusTimestamp = Long.MAX_VALUE;
+        long maxConsensusTimestamp = Long.MIN_VALUE;
         for (var recordStreamItem : recordStreamFile.getRecordStreamItemsList()) {
             var recordItem = RecordItem.builder()
                     .hapiVersion(hapiVersion)
@@ -195,17 +183,28 @@ public final class ProtoRecordFileReader implements RecordFileReader {
                     .transactionIndex(items.size())
                     .build();
             items.add(recordItem);
-            if (previousItem != null && previousItem.getConsensusTimestamp() > recordItem.getConsensusTimestamp()) {
-                hasUnsortedItems = true;
-            }
             previousItem = recordItem;
+            minConsensusTimestamp = Math.min(minConsensusTimestamp, recordItem.getConsensusTimestamp());
+            maxConsensusTimestamp = Math.max(maxConsensusTimestamp, recordItem.getConsensusTimestamp());
         }
 
-        if (hasUnsortedItems) {
-            items.sort(TRANSACTION_TIMESTAMPS_COMPARATOR);
+        if (items.getFirst().getConsensusTimestamp() != minConsensusTimestamp) {
+            Utility.handleRecoverableError(
+                    "Transaction timestamps out of order. First transaction timestamp in record file: {}, "
+                            + "minimum timestamp in record file: {}.",
+                    items.getFirst().getConsensusTimestamp(),
+                    minConsensusTimestamp);
         }
 
-        return items;
+        if (items.getLast().getConsensusTimestamp() != maxConsensusTimestamp) {
+            Utility.handleRecoverableError(
+                    "Transaction timestamps out of order. Last transaction timestamp in record file: {}, "
+                            + "maximum timestamp in record file: {}.",
+                    items.getLast().getConsensusTimestamp(),
+                    maxConsensusTimestamp);
+        }
+
+        return new ReadItemsResult(items, minConsensusTimestamp, maxConsensusTimestamp);
     }
 
     private RecordStreamFile readRecordStreamFile(String filename, InputStream inputStream) throws IOException {
@@ -219,4 +218,6 @@ public final class ProtoRecordFileReader implements RecordFileReader {
             return RecordStreamFile.parseFrom(dataInputStream);
         }
     }
+
+    private record ReadItemsResult(List<RecordItem> items, long consensusStart, long consensusEnd) {}
 }

@@ -7,7 +7,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.importer.ImporterProperties;
@@ -83,16 +82,21 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
             """;
 
     private static final String SELECT_RECORD_FILES_IN_SLICE = """
+                    with record_file_slice as (
+                        select rf.consensus_start,
+                            rf.consensus_end,
+                            rf.count
+                        from record_file rf
+                        where rf.consensus_end > :consensusEndLowerBound
+                                and rf.consensus_end <= :consensusEndUpperBound
+                    )
                     select rf.consensus_start,
                         rf.consensus_end,
                         rf.count,
                         count(t.consensus_timestamp)::bigint as actual_transactions_count
-                    from record_file rf
+                    from record_file_slice rf
                     left join transaction t on t.consensus_timestamp >= rf.consensus_start
                             and t.consensus_timestamp <= rf.consensus_end
-                    where rf.consensus_end > :consensusEndLowerBound
-                    and rf.consensus_end <= :consensusEndUpperBound
-                    and rf.consensus_end > :minConsensusEndTimestamp
                     group by rf.consensus_start, rf.consensus_end, rf.count
                     having rf.count != count(t.consensus_timestamp)::bigint
                     order by rf.consensus_end;
@@ -231,10 +235,9 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
         final long consensusEndLowerBound = Math.max(consensusEndTimestamp - INTERVAL, minEnd);
         final var sliceParams = new MapSqlParameterSource()
                 .addValue("consensusEndLowerBound", consensusEndLowerBound)
-                .addValue("consensusEndUpperBound", consensusEndTimestamp)
-                .addValue("minConsensusEndTimestamp", minEnd);
+                .addValue("consensusEndUpperBound", consensusEndTimestamp);
 
-        var updated = new AtomicInteger(0);
+        long updated = 0;
         var jdbc = getNamedParameterJdbcOperations();
         for (var block : jdbc.query(SELECT_RECORD_FILES_IN_SLICE, sliceParams, RECORD_FILE_SLICE_ROW_MAPPER)) {
             var prevConsensusEnd = lookupPrevConsensusEnd(block.consensusStart());
@@ -248,7 +251,8 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
                     .addValue("consensusEnd", block.consensusEnd())
                     .addValue("consensusStartCalculated", consensusStartCalculated)
                     .addValue("consensusEndCalculated", consensusEndCalculated);
-            updated.addAndGet(jdbc.update(UPDATE_RECORD_FILE_CALCULATED_TIMESTAMPS, updateParams));
+            jdbc.update(UPDATE_RECORD_FILE_CALCULATED_TIMESTAMPS, updateParams);
+            updated++;
         }
 
         jdbc.update(
@@ -256,7 +260,7 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
 
         log.info(
                 "Updated {} record_file row(s) for consensus_end in ({}, {}].",
-                updated.get(),
+                updated,
                 consensusEndLowerBound,
                 consensusEndTimestamp);
 

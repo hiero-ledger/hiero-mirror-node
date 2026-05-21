@@ -22,12 +22,10 @@ import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.time.Instant;
-import java.util.List;
 import java.util.function.Function;
 import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
@@ -96,7 +94,7 @@ final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
     }
 
     @Test
-    void sortsOutOfOrderRecordStreamItemsByConsensusTimestamp() {
+    void verifyRecordFileStartAndEndTimestampsOnOutOfOrderItems() {
         final long earliest = 1_000_000_000L;
         final long middle = 2_000_000_000L;
         final long latest = 3_000_000_000L;
@@ -114,11 +112,10 @@ final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
                 .returns(earliest, RecordFile::getConsensusStart)
                 .returns(latest, RecordFile::getConsensusEnd)
                 .returns(3L, RecordFile::getCount);
-        assertItemsSortedByTimestamp(recordFile.getItems(), List.of(earliest, middle, latest));
     }
 
     @Test
-    void preservesOrderWhenTimestampsAreAlreadySorted() {
+    void verifyRecordFileStartAndEndTimestampsOrderedItems() {
         final long earliest = 1_000_000_000L;
         final long middle = 2_000_000_000L;
         final long latest = 3_000_000_000L;
@@ -136,12 +133,6 @@ final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
                 .returns(earliest, RecordFile::getConsensusStart)
                 .returns(latest, RecordFile::getConsensusEnd)
                 .returns(3L, RecordFile::getCount);
-        assertItemsSortedByTimestamp(recordFile.getItems(), List.of(earliest, middle, latest));
-    }
-
-    private void assertItemsSortedByTimestamp(List<RecordItem> items, List<Long> expectedTimestamps) {
-        assertThat(items).extracting(RecordItem::getConsensusTimestamp).containsExactlyElementsOf(expectedTimestamps);
-        assertThat(items).extracting(RecordItem::getConsensusTimestamp).isSortedAccordingTo(Long::compare);
     }
 
     private RecordStreamItem buildRecordStreamItemWithTimestamp(long timestamp) {
