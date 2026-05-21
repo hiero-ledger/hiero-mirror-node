@@ -1916,8 +1916,8 @@ resource "grafana_rule_group" "rule_group_database" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, pod) (pg_exporter_last_scrape_error) == 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
-    exec_err_state = "Error"
+    no_data_state  = "OK"
+    exec_err_state = "OK"
     for            = "10m"
     annotations = {
       description = "{{ $labels.cluster }}: postgres-exporter is not running or is showing errors for {{ $labels.namespace }}/{{ $labels.pod }}"
@@ -2036,8 +2036,8 @@ resource "grafana_rule_group" "rule_group_database" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, pod) (pgbouncer_show_pools_cl_waiting) > 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
-    exec_err_state = "Error"
+    no_data_state  = "OK"
+    exec_err_state = "OK"
     for            = "5m"
     annotations = {
       description = "{{ $labels.cluster }}: PgBouncer {{ $labels.namespace }}/{{ $labels.pod }} has {{ (index $values \"A\").Value }} waiting clients"
