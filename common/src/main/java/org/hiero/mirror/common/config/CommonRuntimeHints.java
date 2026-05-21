@@ -2,14 +2,19 @@
 
 package org.hiero.mirror.common.config;
 
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_FIELDS;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_ONLY;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.METHODS_ONLY;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.UNSAFE_ALLOCATED;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionType;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionTypes;
 
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import java.time.Instant;
 import java.util.List;
+import org.hibernate.validator.internal.util.logging.Log_$logger;
+import org.hibernate.validator.internal.util.logging.Messages_$bundle;
 import org.hiero.mirror.common.util.SpelHelper;
 import org.springframework.aot.hint.ExecutableMode;
 import org.springframework.aot.hint.RuntimeHints;
@@ -29,6 +34,10 @@ public class CommonRuntimeHints implements RuntimeHintsRegistrar {
         registerNode(hints, "PDA");
         registerNode(hints, "PSAMS");
         registerNode(hints, "PSR");
+
+        // Hibernate Validator
+        registerReflectionTypes(hints, CONSTRUCTORS_ONLY, Log_$logger.class);
+        registerReflectionTypes(hints, CONSTRUCTORS_AND_FIELDS, Messages_$bundle.class);
 
         // For ReconciliationJob.timestampStart use as an ID in Hibernate
         registerReflectionType(hints, Instant[].class, UNSAFE_ALLOCATED);

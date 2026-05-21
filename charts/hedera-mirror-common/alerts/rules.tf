@@ -1,3 +1,7 @@
+###############################################################################
+# Shared configuration
+###############################################################################
+
 resource "grafana_folder" "mirror" {
   title = "Mirror"
   prevent_destroy_if_not_empty = true
@@ -8,6 +12,73 @@ variable "prometheus_datasource_uid" {
   default     = "grafanacloud-prom"
   description = "UID of the Prometheus datasource to query."
 }
+
+###############################################################################
+# Notification policies
+###############################################################################
+
+variable "prod_slack_contact_point" {
+  type        = string
+  default     = "mirror-node-prod"
+  description = "Name of the manually-created Grafana contact point that posts to the production Slack channel."
+}
+
+variable "nonprod_slack_contact_point" {
+  type        = string
+  default     = "mirror-node-preprod"
+  description = "Name of the manually-created Grafana contact point that posts to the non-prod Slack channel."
+}
+
+resource "grafana_notification_policy" "root" {
+  contact_point = "grafana-default-email"
+  group_by      = ["alertname", "cluster", "namespace"]
+
+  group_wait      = "30s"
+  group_interval  = "5m"
+  repeat_interval = "4h"
+
+  policy {
+    contact_point = var.prod_slack_contact_point
+    matcher {
+      label = "severity"
+      match = "=~"
+      value = "warning|critical"
+    }
+    matcher {
+      label = "env_category"
+      match = "="
+      value = "production"
+    }
+  }
+
+  policy {
+    contact_point = var.nonprod_slack_contact_point
+    matcher {
+      label = "severity"
+      match = "=~"
+      value = "warning|critical"
+    }
+    matcher {
+      label = "env_category"
+      match = "="
+      value = "non-prod"
+    }
+    matcher {
+      label = "namespace"
+      match = "!~"
+      value = "performance-citus"
+    }
+    matcher {
+      label = "cluster"
+      match = "!~"
+      value = "staging-lg|staging-sm|staging-council"
+    }
+  }
+}
+
+###############################################################################
+# Alert rules
+###############################################################################
 
 resource "grafana_rule_group" "rule_group_grpc" {
   disable_provenance = false
@@ -1916,8 +1987,8 @@ resource "grafana_rule_group" "rule_group_database" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, pod) (pg_exporter_last_scrape_error) == 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
-    exec_err_state = "Error"
+    no_data_state  = "OK"
+    exec_err_state = "OK"
     for            = "10m"
     annotations = {
       description = "{{ $labels.cluster }}: postgres-exporter is not running or is showing errors for {{ $labels.namespace }}/{{ $labels.pod }}"
@@ -2036,8 +2107,8 @@ resource "grafana_rule_group" "rule_group_database" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, pod) (pgbouncer_show_pools_cl_waiting) > 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
-    exec_err_state = "Error"
+    no_data_state  = "OK"
+    exec_err_state = "OK"
     for            = "5m"
     annotations = {
       description = "{{ $labels.cluster }}: PgBouncer {{ $labels.namespace }}/{{ $labels.pod }} has {{ (index $values \"A\").Value }} waiting clients"
