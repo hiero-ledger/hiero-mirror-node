@@ -91,7 +91,8 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
                         String.format("Access list entry size was %d but expected 2", entryProperties.size()));
             }
 
-            final var address = HexFormat.of().formatHex(entryProperties.get(0).data());
+            final var hexFormat = HexFormat.of();
+            final var address = hexFormat.formatHex(entryProperties.get(0).data());
             final var storageKeysItem = entryProperties.get(1);
             if (!storageKeysItem.isList()) {
                 throw new InvalidEthereumBytesException(
@@ -100,7 +101,7 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
             final var storageKeyItems = storageKeysItem.asRLPList().elements();
             final var storageKeys = new ArrayList<String>(storageKeyItems.size());
             for (final var key : storageKeyItems) {
-                storageKeys.add(HexFormat.of().formatHex(key.data()));
+                storageKeys.add(hexFormat.formatHex(key.data()));
             }
 
             accessList.add(new AccessList(address, storageKeys));

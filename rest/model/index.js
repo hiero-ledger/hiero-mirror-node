@@ -2,6 +2,7 @@
 
 import AccountBalanceFile from './accountBalanceFile';
 import AssessedCustomFee from './assessedCustomFee';
+import AccessListItem from './accessListItem.js';
 import AuthorizationListItem from './authorizationListItem.js';
 import CachedApiResponse from './cachedApiResponse';
 import CachedToken from './cachedToken';
@@ -48,6 +49,7 @@ import ContractState from './contractState';
 export {
   AccountBalanceFile,
   AssessedCustomFee,
+  AccessListItem,
   AuthorizationListItem,
   CachedApiResponse,
   CachedToken,

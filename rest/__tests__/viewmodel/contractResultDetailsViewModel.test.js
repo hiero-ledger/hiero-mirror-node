@@ -269,7 +269,12 @@ describe('ContractResultDetailsViewModel', () => {
         null
       );
 
-      expect(viewModel.access_list).toEqual(accessList);
+      expect(viewModel.access_list).toEqual([
+        {
+          address: '0xa02457e5dfd32bda5fc7e1f1b008aa5979568150',
+          storage_keys: ['0x0000000000000000000000000000000000000000000000000000000000000081'],
+        },
+      ]);
     });
 
     test('returns null access_list when accessList is null', () => {
