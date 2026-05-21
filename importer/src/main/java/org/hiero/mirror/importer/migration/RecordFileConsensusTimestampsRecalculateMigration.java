@@ -240,12 +240,8 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
         long updated = 0;
         var jdbc = getNamedParameterJdbcOperations();
         for (var block : jdbc.query(SELECT_RECORD_FILES_IN_SLICE, sliceParams, RECORD_FILE_SLICE_ROW_MAPPER)) {
-            var prevConsensusEnd = lookupPrevConsensusEnd(block.consensusStart());
-            var nextConsensusStart = lookupNextConsensusStart(block.consensusEnd());
-            var consensusStartCalculated =
-                    computeStartTimestamp(block, prevConsensusEnd != null ? prevConsensusEnd : 0L);
-            var consensusEndCalculated =
-                    computeEndTimestamp(block, nextConsensusStart != null ? nextConsensusStart : Long.MAX_VALUE);
+            var consensusStartCalculated = computeStartTimestamp(block);
+            var consensusEndCalculated = computeEndTimestamp(block);
 
             var updateParams = new MapSqlParameterSource()
                     .addValue("consensusEnd", block.consensusEnd())
@@ -286,19 +282,21 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
     }
 
     @Nullable
-    private Long computeStartTimestamp(RecordFileSlice block, Long prevConsensusEnd) {
+    private Long computeStartTimestamp(RecordFileSlice block) {
+        var prevConsensusEnd = lookupPrevConsensusEnd(block.consensusStart());
         var params = new MapSqlParameterSource()
                 .addValue("consensusStart", block.consensusStart())
-                .addValue("prevConsensusEnd", prevConsensusEnd)
+                .addValue("prevConsensusEnd", prevConsensusEnd != null ? prevConsensusEnd : 0L)
                 .addValue("missingTransactionsCount", block.count() - block.actualTransactionsCount());
         return queryForObjectOrNull(SELECT_MIN_TX_BEFORE_START, params, Long.class);
     }
 
     @Nullable
-    private Long computeEndTimestamp(RecordFileSlice block, Long nextConsensusStart) {
+    private Long computeEndTimestamp(RecordFileSlice block) {
+        var nextConsensusStart = lookupNextConsensusStart(block.consensusEnd());
         var params = new MapSqlParameterSource()
                 .addValue("consensusEnd", block.consensusEnd())
-                .addValue("nextConsensusStart", nextConsensusStart)
+                .addValue("nextConsensusStart", nextConsensusStart != null ? nextConsensusStart : Long.MAX_VALUE)
                 .addValue("missingTransactionsCount", block.count() - block.actualTransactionsCount());
         return queryForObjectOrNull(SELECT_MAX_TX_AFTER_END, params, Long.class);
     }
