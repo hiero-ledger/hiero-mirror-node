@@ -7,21 +7,51 @@ import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import java.util.ArrayList;
 import java.util.Optional;
 import lombok.CustomLog;
-import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.repository.ContractResultRepository;
+import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
+import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
+import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
+import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
+import org.hiero.mirror.web3.state.keyvalue.ContractBytecodeReadableKVState;
+import org.hiero.mirror.web3.state.keyvalue.ContractStorageReadableKVState;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
 @Service
 @CustomLog
-@RequiredArgsConstructor
 public class OpcodeServiceImpl extends TraceService implements OpcodeService {
+
+    public OpcodeServiceImpl(
+            final RecordFileService recordFileService,
+            final ContractDebugService contractDebugService,
+            final ContractBytecodeReadableKVState contractBytecodeReadableKVState,
+            final ContractStorageReadableKVState contractStorageReadableKVState,
+            final EthereumTransactionRepository ethereumTransactionRepository,
+            final ContractResultRepository contractResultRepository,
+            final CommonEntityAccessor commonEntityAccessor,
+            final AccountReadableKVState accountReadableKVState,
+            final ContractTransactionHashRepository contractTransactionHashRepository,
+            final TransactionRepository transactionRepository) {
+        super(
+                recordFileService,
+                contractDebugService,
+                contractBytecodeReadableKVState,
+                contractStorageReadableKVState,
+                ethereumTransactionRepository,
+                contractResultRepository,
+                commonEntityAccessor,
+                accountReadableKVState,
+                contractTransactionHashRepository,
+                transactionRepository);
+    }
 
     @Override
     public OpcodesResponse processOpcodeCall(@NonNull OpcodeRequest opcodeRequest) {

@@ -11,7 +11,6 @@ import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import java.math.BigInteger;
 import java.util.Optional;
 import lombok.CustomLog;
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
@@ -43,22 +42,21 @@ import org.springframework.stereotype.Service;
 @Service
 @CustomLog
 @RequiredArgsConstructor
-@NoArgsConstructor(force = true)
 public class TraceService {
 
     protected static final Address EMPTY_ADDRESS = Address.ZERO;
     protected static final BigInteger ZERO = BigInteger.ZERO;
 
     private final RecordFileService recordFileService;
+    protected final ContractDebugService contractDebugService;
+    protected final ContractBytecodeReadableKVState contractBytecodeReadableKVState;
+    protected final ContractStorageReadableKVState contractStorageReadableKVState;
+    private final EthereumTransactionRepository ethereumTransactionRepository;
     private final ContractResultRepository contractResultRepository;
     protected final CommonEntityAccessor commonEntityAccessor;
     protected final AccountReadableKVState accountReadableKVState;
-    protected final ContractBytecodeReadableKVState contractBytecodeReadableKVState;
-    protected final ContractStorageReadableKVState contractStorageReadableKVState;
     private final ContractTransactionHashRepository contractTransactionHashRepository;
-    private final EthereumTransactionRepository ethereumTransactionRepository;
     private final TransactionRepository transactionRepository;
-    protected final ContractDebugService contractDebugService;
 
     protected ContractDebugParameters buildCallServiceParameters(
             @NonNull TransactionIdOrHashParameter transactionIdOrHash) {

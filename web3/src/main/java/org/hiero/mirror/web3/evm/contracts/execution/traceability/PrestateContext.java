@@ -38,17 +38,21 @@ public class PrestateContext {
     /**
      * The account addresses that were referenced during the transaction execution
      */
+    @Builder.Default
     private Set<Address> touchedAccounts = new HashSet<>();
 
     /**
      * The contract storage keys per contract that were referenced during the transaction execution
      */
+    @Builder.Default
     private Map<Address, Set<String>> touchedStorageKeys = new HashMap<>();
 
     public PrestateContext(final PrestateRequest prestateRequest) {
         this.code = prestateRequest.isCode();
         this.diff = prestateRequest.isDiffMode();
         this.storage = prestateRequest.isStorage();
+        this.touchedAccounts = new HashSet<>();
+        this.touchedStorageKeys = new HashMap<>();
     }
 
     public void setTouchedStorage(final Address contract, final String slotKey) {

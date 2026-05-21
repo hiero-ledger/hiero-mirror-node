@@ -13,16 +13,52 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import lombok.CustomLog;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.rest.model.AccountTrace;
 import org.hiero.mirror.rest.model.PrestateResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.PrestateContext;
+import org.hiero.mirror.web3.repository.ContractResultRepository;
+import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
+import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
+import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
+import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
+import org.hiero.mirror.web3.state.keyvalue.ContractBytecodeReadableKVState;
+import org.hiero.mirror.web3.state.keyvalue.ContractStorageReadableKVState;
 import org.hyperledger.besu.datatypes.Address;
+import org.springframework.stereotype.Service;
 
+@Service
+@CustomLog
 public class PrestateServiceImpl extends TraceService implements PrestateService {
+
+    public PrestateServiceImpl(
+            final RecordFileService recordFileService,
+            final ContractDebugService contractDebugService,
+            final ContractBytecodeReadableKVState contractBytecodeReadableKVState,
+            final ContractStorageReadableKVState contractStorageReadableKVState,
+            final EthereumTransactionRepository ethereumTransactionRepository,
+            final ContractResultRepository contractResultRepository,
+            final CommonEntityAccessor commonEntityAccessor,
+            final AccountReadableKVState accountReadableKVState,
+            final ContractTransactionHashRepository contractTransactionHashRepository,
+            final TransactionRepository transactionRepository) {
+        super(
+                recordFileService,
+                contractDebugService,
+                contractBytecodeReadableKVState,
+                contractStorageReadableKVState,
+                ethereumTransactionRepository,
+                contractResultRepository,
+                commonEntityAccessor,
+                accountReadableKVState,
+                contractTransactionHashRepository,
+                transactionRepository);
+    }
 
     @Override
     public PrestateResponse processPrestateCall(final PrestateRequest prestateRequest) {

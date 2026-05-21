@@ -9,4 +9,5 @@ public class Constants {
     public static final String BALANCE_OPERATION_NAME = "BALANCE";
     public static final String CALL_URI = "/api/v1/contracts/call";
     public static final String OPCODES_URI = "/api/v1/contracts/results/{transactionIdOrHash}/opcodes";
+    public static final String PRESTATE_URI = "/api/v1/contracts/results/{transactionIdOrHash}/prestate";
 }
