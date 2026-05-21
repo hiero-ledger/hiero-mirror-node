@@ -30,6 +30,21 @@ final class RuntimeHintsConfiguration {
             registerOpenApi(hints);
             registerProtobufs(hints);
             registerTransactionSuppliers(hints);
+            registerHibernateValidator(hints);
+        }
+
+        // native-gradle-plugin 1.1.0 reachability metadata is incomplete for hibernate-validator
+        private void registerHibernateValidator(RuntimeHints hints) {
+            final var scanner = new ClassPathScanningCandidateComponentProvider(false);
+            scanner.addIncludeFilter(new AssignableTypeFilter(Object.class));
+            scanner.findCandidateComponents("org.hibernate.validator").forEach(b -> hints.reflection()
+                    .registerType(
+                            TypeReference.of(b.getBeanClassName()),
+                            MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
+                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                            MemberCategory.INVOKE_PUBLIC_METHODS,
+                            MemberCategory.INVOKE_DECLARED_METHODS,
+                            MemberCategory.ACCESS_DECLARED_FIELDS));
         }
 
         /**
