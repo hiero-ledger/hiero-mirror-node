@@ -3,7 +3,7 @@
 import http from 'k6/http';
 import {check as k6Check} from 'k6';
 
-import {getOptionsWithScenario} from '../../../lib/common.js';
+import {getOptionsWithScenario, recordRequestDuration} from '../../../lib/common.js';
 
 const BASE_URL = __ENV.BASE_URL;
 
@@ -56,9 +56,10 @@ function run(testParameters) {
 
   const url = `${BASE_URL}/api/v1/contracts/call`;
   const res = http.post(url, requestData, params);
-  k6Check(res, {
+  const passed = k6Check(res, {
     'Traffic replay OK': (r) => r.status === 200 || r.status === 400, // Some of the requests are expected to revert.
   });
+  recordRequestDuration(res, passed);
 }
 
 export {options, run, parseRequests};
