@@ -6,6 +6,7 @@ import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_F
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_ONLY;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.METHODS_ONLY;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.UNSAFE_ALLOCATED;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionType;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionTypes;
 
@@ -38,6 +39,7 @@ public class CommonRuntimeHints implements RuntimeHintsRegistrar {
         // Hibernate Validator
         registerReflectionTypes(hints, CONSTRUCTORS_ONLY, Log_$logger.class);
         registerReflectionTypes(hints, CONSTRUCTORS_AND_FIELDS, Messages_$bundle.class);
+        registerPackage(hints, classLoader, "org.hibernate.validator.internal.constraintvalidators", CONSTRUCTORS_ONLY);
 
         // For ReconciliationJob.timestampStart use as an ID in Hibernate
         registerReflectionType(hints, Instant[].class, UNSAFE_ALLOCATED);
