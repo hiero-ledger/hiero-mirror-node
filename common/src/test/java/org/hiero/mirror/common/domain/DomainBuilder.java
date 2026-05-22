@@ -1290,7 +1290,7 @@ public class DomainBuilder {
                 .nonce(number())
                 .r("0x" + hash(64))
                 .s("0x" + hash(64))
-                .yParity(0x01)
+                .yParity("0x01")
                 .build());
     }
 

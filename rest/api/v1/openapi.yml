@@ -2088,6 +2088,37 @@ components:
             type: string
           example:
             - "0x0000000000000000000000000000000000000000000000000000000000000081"
+    AuthorizationList:
+      type: object
+      properties:
+        address:
+          description: The hex encoded address to be delegated to
+          example: "0x0000000000000000000000000000000000000001"
+          format: binary
+          type: string
+        chain_id:
+          description: The hex encoded chain id
+          example: "0x127"
+          type: string
+        nonce:
+          description: The nonce of the authorization
+          example: 5
+          format: int64
+          type: integer
+        r:
+          description: The hex encoded signature r value
+          example: "0x2222222222222222222222222222222222222222222222222222222222222222"
+          format: binary
+          type: string
+        s:
+          description: The hex encoded signature s value
+          example: "0x3333333333333333333333333333333333333333333333333333333333333333"
+          format: binary
+          type: string
+        y_parity:
+          description: The hex encoded parity of the y-coordinate of the signature point
+          example: "0x1"
+          type: string
     AccountBalance:
       type: object
       required:
@@ -2341,6 +2372,11 @@ components:
           description: The hex encoded evm address of contract
           example: "0x25fe26adc577cc89172e6156c9e24f7b9751b762"
           type: string
+        authorization_list:
+          description: The authorization list of the wrapped EIP-7702 ethereum transaction
+          type: array
+          items:
+            $ref: "#/components/schemas/AuthorizationList"
         amount:
           description: >-
             The amount sent to the function. When `hbar=true` (default), the value is in tinybars.
@@ -2373,7 +2409,7 @@ components:
         chain_id:
           description: The hex encoded chain_id of the wrapped ethereum transaction
           type: [string, "null"]
-          example: "0x0127"
+          example: "0x127"
         contract_id:
           $ref: "#/components/schemas/EntityId"
         created_contract_ids:
@@ -2487,6 +2523,11 @@ components:
               description: The hex encoded evm address of contract
               example: "0x25fe26adc577cc89172e6156c9e24f7b9751b762"
               type: string
+            authorization_list:
+              description: The authorization list of the wrapped EIP-7702 ethereum transaction
+              type: array
+              items:
+                $ref: "#/components/schemas/AuthorizationList"
             block_gas_used:
               description: The total amount of gas used in the block
               example: 2000
@@ -2504,7 +2545,7 @@ components:
             chain_id:
               description: The hex encoded chain_id of the wrapped ethereum transaction
               type: [string, "null"]
-              example: "0x0127"
+              example: "0x127"
             failed_initcode:
               description: The hex encoded initcode of a failed contract create transaction
               example: "0x856739"

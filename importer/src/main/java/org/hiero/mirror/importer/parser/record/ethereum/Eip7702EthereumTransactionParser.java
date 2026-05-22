@@ -113,7 +113,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                             + StringUtils.leftPad(
                                     hexFormat.formatHex(tuple.get(1).data()), 40, '0'))
                     .nonce(tuple.get(2).asLong())
-                    .yParity((int) tuple.get(3).asByte())
+                    .yParity(tuple.get(3).asByte() == 0 ? HEX_PREFIX + "0" : HEX_PREFIX + "1")
                     .r(HEX_PREFIX + StringUtils.leftPad(ArrayUtils.isEmpty(r) ? "" : hexFormat.formatHex(r), 64, '0'))
                     .s(HEX_PREFIX + StringUtils.leftPad(ArrayUtils.isEmpty(s) ? "" : hexFormat.formatHex(s), 64, '0'))
                     .build();
@@ -157,7 +157,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                     decodeHex(auth.getChainId()),
                     decodeHex(auth.getAddress()),
                     Integers.toBytes(auth.getNonce()),
-                    Integers.toBytes(auth.getYParity()),
+                    Integers.toBytes(Integer.parseInt(auth.getYParity().substring(2), 16)),
                     decodeHex(auth.getR()),
                     decodeHex(auth.getS())));
         }
