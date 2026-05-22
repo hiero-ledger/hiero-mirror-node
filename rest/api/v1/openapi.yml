@@ -1947,7 +1947,8 @@ components:
           type: string
         nonce:
           description: the nonce of the account
-          type: long
+          type: integer
+          format: int64
         storage:
           description: The storage slots (keys and values in hex) of the contract which is read from and written to
           type: [object, "null"]
