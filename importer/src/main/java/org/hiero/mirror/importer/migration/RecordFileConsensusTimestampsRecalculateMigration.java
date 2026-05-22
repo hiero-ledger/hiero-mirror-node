@@ -97,6 +97,8 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
                     from record_file_slice rf
                     left join transaction t on t.consensus_timestamp >= rf.consensus_start
                             and t.consensus_timestamp <= rf.consensus_end
+                            and t.consensus_timestamp > :consensusEndLowerBound - 10_000_000_000
+                            and t.consensus_timestamp <= :consensusEndUpperBound
                     group by rf.consensus_start, rf.consensus_end, rf.count
                     having rf.count != count(t.consensus_timestamp)::bigint
                     order by rf.consensus_end;
@@ -119,7 +121,8 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
             """;
 
     private static final String SELECT_MIN_TX_BEFORE_START = """
-                    select min(consensus_timestamp)
+                    select min(gap_transactions.consensus_timestamp) as consensus_timestamp,
+                           count(*)::bigint as transaction_count
                     from (
                         select t.consensus_timestamp
                         from transaction t
@@ -127,11 +130,12 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
                           and t.consensus_timestamp < :consensusStart
                         order by t.consensus_timestamp desc
                         limit :missingTransactionsCount
-                    )
+                    ) gap_transactions
             """;
 
     private static final String SELECT_MAX_TX_AFTER_END = """
-                    select max(consensus_timestamp)
+                    select max(gap_transactions.consensus_timestamp) as consensus_timestamp,
+                           count(*)::bigint as transaction_count
                     from (
                         select t.consensus_timestamp
                         from transaction t
@@ -139,7 +143,13 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
                           and t.consensus_timestamp < :nextConsensusStart
                         order by t.consensus_timestamp asc
                         limit :missingTransactionsCount
-                    )
+                    ) gap_transactions
+            """;
+
+    private static final String UPDATE_SIDECAR_FILES_WITH_CALCULATED_TIMESTAMPS = """
+                    update sidecar_file
+                    set consensus_end = coalesce(:consensusEndCalculated, consensus_end)
+                    where consensus_end = :consensusEnd
             """;
 
     private static final String UPDATE_RECORD_FILE_CALCULATED_TIMESTAMPS = """
@@ -151,6 +161,8 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
 
     private static final DataClassRowMapper<RecordFileSlice> RECORD_FILE_SLICE_ROW_MAPPER =
             new DataClassRowMapper<>(RecordFileSlice.class);
+    private static final DataClassRowMapper<GapTransactionsResult> GAP_TRANSACTIONS_RESULT_ROW_MAPPER =
+            new DataClassRowMapper<>(GapTransactionsResult.class);
 
     private final ImporterProperties importerProperties;
     private final boolean v2;
@@ -240,8 +252,21 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
         long updated = 0;
         var jdbc = getNamedParameterJdbcOperations();
         for (var block : jdbc.query(SELECT_RECORD_FILES_IN_SLICE, sliceParams, RECORD_FILE_SLICE_ROW_MAPPER)) {
-            var consensusStartCalculated = computeStartTimestamp(block);
-            var consensusEndCalculated = computeEndTimestamp(block);
+            final long missingTransactionsCount = block.count() - block.actualTransactionsCount();
+            final var beforeStartGapResult = computeStartTimestamp(block);
+            final var consensusStartCalculated = getTimestampOrNull(beforeStartGapResult);
+            final long transactionsCountBeforeStart = getTransactionsCountOrZero(beforeStartGapResult);
+            Long consensusEndCalculated = null;
+            if (missingTransactionsCount > transactionsCountBeforeStart) {
+                // There are some transactions after the block's consensus_end.
+                // Updating the consensus_end means we need to update the block's sidecars as well.
+                final var afterEndGapResult = computeEndTimestamp(block);
+                consensusEndCalculated = getTimestampOrNull(afterEndGapResult);
+                final long transactionsCountAfterEnd = getTransactionsCountOrZero(afterEndGapResult);
+
+                updateSidecarFiles(block, consensusEndCalculated);
+                logFailedRecalculationIfNeeded(block, transactionsCountBeforeStart, transactionsCountAfterEnd);
+            }
 
             var updateParams = new MapSqlParameterSource()
                     .addValue("consensusEnd", block.consensusEnd())
@@ -269,6 +294,19 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
         return Optional.of(consensusEndLowerBound);
     }
 
+    private void updateSidecarFiles(RecordFileSlice block, Long consensusEndCalculated) {
+        var jdbc = getNamedParameterJdbcOperations();
+        var sidecarUpdateParams = new MapSqlParameterSource()
+                .addValue("consensusEnd", block.consensusEnd())
+                .addValue("consensusEndCalculated", consensusEndCalculated);
+        int updatedSidecars = jdbc.update(UPDATE_SIDECAR_FILES_WITH_CALCULATED_TIMESTAMPS, sidecarUpdateParams);
+        log.info(
+                "Updated {} sidecar_file row(s) for consensus_end {} with calculated timestamp {}.",
+                updatedSidecars,
+                block.consensusEnd(),
+                consensusEndCalculated);
+    }
+
     @Nullable
     private Long lookupPrevConsensusEnd(long consensusStart) {
         return queryForObjectOrNull(
@@ -282,23 +320,23 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
     }
 
     @Nullable
-    private Long computeStartTimestamp(RecordFileSlice block) {
+    private GapTransactionsResult computeStartTimestamp(RecordFileSlice block) {
         var prevConsensusEnd = lookupPrevConsensusEnd(block.consensusStart());
         var params = new MapSqlParameterSource()
                 .addValue("consensusStart", block.consensusStart())
                 .addValue("prevConsensusEnd", prevConsensusEnd != null ? prevConsensusEnd : 0L)
                 .addValue("missingTransactionsCount", block.count() - block.actualTransactionsCount());
-        return queryForObjectOrNull(SELECT_MIN_TX_BEFORE_START, params, Long.class);
+        return queryForObjectOrNull(SELECT_MIN_TX_BEFORE_START, params, GAP_TRANSACTIONS_RESULT_ROW_MAPPER);
     }
 
     @Nullable
-    private Long computeEndTimestamp(RecordFileSlice block) {
+    private GapTransactionsResult computeEndTimestamp(RecordFileSlice block) {
         var nextConsensusStart = lookupNextConsensusStart(block.consensusEnd());
         var params = new MapSqlParameterSource()
                 .addValue("consensusEnd", block.consensusEnd())
                 .addValue("nextConsensusStart", nextConsensusStart != null ? nextConsensusStart : Long.MAX_VALUE)
                 .addValue("missingTransactionsCount", block.count() - block.actualTransactionsCount());
-        return queryForObjectOrNull(SELECT_MAX_TX_AFTER_END, params, Long.class);
+        return queryForObjectOrNull(SELECT_MAX_TX_AFTER_END, params, GAP_TRANSACTIONS_RESULT_ROW_MAPPER);
     }
 
     private TransactionOperations transactionOperations() {
@@ -307,5 +345,29 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
         return new TransactionTemplate(transactionManager);
     }
 
+    private void logFailedRecalculationIfNeeded(
+            RecordFileSlice block, long transactionsCountBeforeStart, long transactionsCountAfterEnd) {
+        if (transactionsCountBeforeStart + transactionsCountAfterEnd
+                != block.count() - block.actualTransactionsCount()) {
+            log.warn(
+                    "The transactions count before record_file start {} and after end {} does not match the missing"
+                            + "transactions count {} for record_file with consensus_end {}.",
+                    transactionsCountBeforeStart,
+                    transactionsCountAfterEnd,
+                    (block.count() - block.actualTransactionsCount()),
+                    block.consensusEnd());
+        }
+    }
+
+    private @Nullable Long getTimestampOrNull(GapTransactionsResult gapTransactionsResult) {
+        return gapTransactionsResult != null ? gapTransactionsResult.consensusTimestamp() : null;
+    }
+
+    private long getTransactionsCountOrZero(GapTransactionsResult gapTransactionsResult) {
+        return gapTransactionsResult != null ? gapTransactionsResult.transactionCount() : 0L;
+    }
+
     private record RecordFileSlice(long consensusStart, long consensusEnd, long count, long actualTransactionsCount) {}
+
+    private record GapTransactionsResult(Long consensusTimestamp, long transactionCount) {}
 }

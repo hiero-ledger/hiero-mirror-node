@@ -126,7 +126,7 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
         long latestAfterEnd = END_TIMESTAMP + 3_900L;
 
         insertRecordFile(prevStart, prevEnd, 0L);
-        insertRecordFile(currStart, currEnd, 2L);
+        insertRecordFile(currStart, currEnd, 4L);
         insertRecordFile(nextStart, nextEnd, 0L);
         insertTransaction(earliestBeforeStart);
         insertTransaction(latestBeforeStart);
@@ -171,6 +171,94 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
         assertThat(endCalculated(latestPrevAfterEnd)).isEqualTo(latestPrevAfterEnd);
     }
 
+    @Test
+    void updatesSidecarFilesWhenConsensusEndIsRecalculated() {
+        long currStart = END_TIMESTAMP + 2_000L;
+        long currEnd = END_TIMESTAMP + 3_000L;
+        long nextStart = END_TIMESTAMP + 4_000L;
+        long nextEnd = END_TIMESTAMP + 5_000L;
+        long currAfterEnd = END_TIMESTAMP + 3_900L;
+
+        insertRecordFile(currStart, currEnd, 1L);
+        insertRecordFile(nextStart, nextEnd, 0L);
+        insertSidecarFile(currEnd, 0);
+        insertTransaction(currAfterEnd);
+
+        runMigration();
+        waitForCompletionExtended();
+
+        assertThat(endCalculated(currAfterEnd)).isEqualTo(currAfterEnd);
+        assertThat(sidecarConsensusEnd(currAfterEnd, 0)).isEqualTo(currAfterEnd);
+    }
+
+    @Test
+    void doesNotUpdateSidecarFilesWhenOnlyConsensusStartChanges() {
+        long prevStart = END_TIMESTAMP + 100L;
+        long prevEnd = END_TIMESTAMP + 1_000L;
+        long currStart = END_TIMESTAMP + 2_000L;
+        long currEnd = END_TIMESTAMP + 3_000L;
+        long earlierInGap = END_TIMESTAMP + 1_100L;
+
+        insertRecordFile(prevStart, prevEnd, 0L);
+        insertRecordFile(currStart, currEnd, 1L);
+        insertSidecarFile(currEnd, 0);
+        insertSidecarFile(currEnd, 1);
+        insertTransaction(earlierInGap);
+
+        runMigration();
+        waitForCompletionExtended();
+
+        assertThat(startCalculated(currEnd)).isEqualTo(earlierInGap);
+        assertThat(endCalculated(currEnd)).isEqualTo(currEnd);
+        assertThat(sidecarConsensusEnd(currEnd, 0)).isEqualTo(currEnd);
+        assertThat(sidecarConsensusEnd(currEnd, 1)).isEqualTo(currEnd);
+    }
+
+    @Test
+    void updatesAllSidecarFilesForRecordFileWhenConsensusEndIsRecalculated() {
+        long currStart = END_TIMESTAMP + 2_000L;
+        long currEnd = END_TIMESTAMP + 3_000L;
+        long nextStart = END_TIMESTAMP + 4_000L;
+        long nextEnd = END_TIMESTAMP + 5_000L;
+        long earliestAfterEnd = END_TIMESTAMP + 3_100L;
+        long latestAfterEnd = END_TIMESTAMP + 3_900L;
+
+        insertRecordFile(currStart, currEnd, 2L);
+        insertRecordFile(nextStart, nextEnd, 0L);
+        insertSidecarFile(currEnd, 0);
+        insertSidecarFile(currEnd, 1);
+        insertTransaction(earliestAfterEnd);
+        insertTransaction(latestAfterEnd);
+
+        runMigration();
+        waitForCompletionExtended();
+
+        assertThat(endCalculated(latestAfterEnd)).isEqualTo(latestAfterEnd);
+        assertThat(sidecarConsensusEnd(latestAfterEnd, 0)).isEqualTo(latestAfterEnd);
+        assertThat(sidecarConsensusEnd(latestAfterEnd, 1)).isEqualTo(latestAfterEnd);
+    }
+
+    @Test
+    void doesNotUpdateSidecarFilesForOtherRecordFiles() {
+        long currStart = END_TIMESTAMP + 2_000L;
+        long currEnd = END_TIMESTAMP + 3_000L;
+        long nextStart = END_TIMESTAMP + 4_000L;
+        long nextEnd = END_TIMESTAMP + 5_000L;
+        long latestCurrAfterEnd = END_TIMESTAMP + 3_900L;
+
+        insertRecordFile(currStart, currEnd, 1L);
+        insertRecordFile(nextStart, nextEnd, 0L);
+        insertSidecarFile(currEnd, 0);
+        insertSidecarFile(nextEnd, 0);
+        insertTransaction(latestCurrAfterEnd);
+
+        runMigration();
+        waitForCompletionExtended();
+
+        assertThat(sidecarConsensusEnd(latestCurrAfterEnd, 0)).isEqualTo(latestCurrAfterEnd);
+        assertThat(sidecarConsensusEnd(nextEnd, 0)).isEqualTo(nextEnd);
+    }
+
     private void waitForCompletionExtended() {
         await().atMost(Duration.ofMinutes(2))
                 .pollDelay(Duration.ofMillis(100))
@@ -191,6 +279,14 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
     private Long endCalculated(long consensusEnd) {
         return jdbcOperations.queryForObject(
                 "select consensus_end from record_file where consensus_end = ?", Long.class, consensusEnd);
+    }
+
+    private Long sidecarConsensusEnd(long consensusEnd, int id) {
+        return jdbcOperations.queryForObject(
+                "select consensus_end from sidecar_file where consensus_end = ? and id = ?",
+                Long.class,
+                consensusEnd,
+                id);
     }
 
     private void insertRecordFile(long consensusStart, long consensusEnd, long count) {
@@ -223,5 +319,14 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
                         )
                         values (?, ?, ?, ?, ?, ?, ?)
                         """, consensusTimestamp, 0, 100, 22, false, 14, consensusTimestamp);
+    }
+
+    private void insertSidecarFile(long consensusEnd, int id) {
+        jdbcOperations.update("""
+                        insert into sidecar_file (
+                          consensus_end, hash_algorithm, hash, id, name, size, types
+                        )
+                        values (?, ?, ?, ?, ?, ?, ?::int[])
+                        """, consensusEnd, 0, new byte[48], id, consensusEnd + "_" + id + ".rcd.gz", 256, "{1}");
     }
 }
