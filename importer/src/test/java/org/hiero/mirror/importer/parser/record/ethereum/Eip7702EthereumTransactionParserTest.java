@@ -216,6 +216,68 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         softly.assertThat(capturedOutput).contains("Unable to decode EIP7702 ethereum transaction bytes");
     }
 
+    @Test
+    void decodeAuthorizationListHexEncoding() {
+        final var authorizationList = List.of(List.of(
+                HexFormat.of().parseHex("0127"),
+                new byte[] {0x01},
+                Integers.toBytes(2L),
+                Integers.toBytes(0),
+                HexFormat.of().parseHex("00ab"),
+                HexFormat.of().parseHex(SIGNATURE_S_HEX)));
+        final var transactionBytes = encodeEip7702Transaction(List.of(), authorizationList);
+
+        final var authorization = ethereumTransactionParser
+                .decode(transactionBytes)
+                .getAuthorizationList()
+                .getFirst();
+
+        assertThat(authorization)
+                .returns("0x127", Authorization::getChainId)
+                .returns("0x0000000000000000000000000000000000000001", Authorization::getAddress)
+                .returns("0x00000000000000000000000000000000000000000000000000000000000000ab", Authorization::getR)
+                .returns(HEX_PREFIX + SIGNATURE_S_HEX, Authorization::getS);
+    }
+
+    @Test
+    void decodeAuthorizationListPadsShortSBytes() {
+        final var authorizationList = List.of(List.of(
+                HexFormat.of().parseHex("0127"),
+                new byte[] {0x01},
+                Integers.toBytes(2L),
+                Integers.toBytes(0),
+                HexFormat.of().parseHex(SIGNATURE_R_HEX),
+                HexFormat.of().parseHex("00cd")));
+        final var transactionBytes = encodeEip7702Transaction(List.of(), authorizationList);
+
+        final var authorization = ethereumTransactionParser
+                .decode(transactionBytes)
+                .getAuthorizationList()
+                .getFirst();
+
+        assertThat(authorization)
+                .returns("0x00000000000000000000000000000000000000000000000000000000000000cd", Authorization::getS);
+    }
+
+    @Test
+    void decodeAuthorizationListEmptyChainId() {
+        final var authorizationList = List.of(List.of(
+                new byte[] {},
+                new byte[] {0x01},
+                Integers.toBytes(2L),
+                Integers.toBytes(0),
+                HexFormat.of().parseHex(SIGNATURE_R_HEX),
+                HexFormat.of().parseHex(SIGNATURE_S_HEX)));
+        final var transactionBytes = encodeEip7702Transaction(List.of(), authorizationList);
+
+        final var authorization = ethereumTransactionParser
+                .decode(transactionBytes)
+                .getAuthorizationList()
+                .getFirst();
+
+        assertThat(authorization).returns("0x0", Authorization::getChainId);
+    }
+
     @Override
     protected void validateEthereumTransaction(EthereumTransaction ethereumTransaction) {
         validateEthereumTransaction(ethereumTransaction, expectedAccessList(), true);
@@ -255,8 +317,8 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
                     .returns(HEX_PREFIX + TO_ADDRESS_HEX, Authorization::getAddress)
                     .returns(AUTH_NONCE, Authorization::getNonce)
                     .returns(0, Authorization::getYParity)
-                    .returns(SIGNATURE_R_HEX, Authorization::getR)
-                    .returns(SIGNATURE_S_HEX, Authorization::getS);
+                    .returns(HEX_PREFIX + SIGNATURE_R_HEX, Authorization::getR)
+                    .returns(HEX_PREFIX + SIGNATURE_S_HEX, Authorization::getS);
         } else {
             assertThat(ethereumTransaction.getAuthorizationList()).isEmpty();
         }

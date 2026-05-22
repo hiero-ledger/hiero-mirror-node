@@ -28,6 +28,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 @RequiredArgsConstructor
 abstract class AbstractEthereumTransactionParserTest extends ImporterIntegrationTest {
 
+    private static final String PADDED_ADDRESS = "0x0000000000000000000000000000000000000001";
+    private static final String PADDED_STORAGE_KEY =
+            "0x0000000000000000000000000000000000000000000000000000000000000081";
     private static final String SECOND_ACCESS_LIST_ADDRESS = "0x000000000000000000000000000000000000052d";
     private static final String SECOND_ACCESS_LIST_ADDRESS_RAW = "000000000000000000000000000000000000052d";
     private static final String SECOND_ACCESS_LIST_STORAGE_KEY =
@@ -45,6 +48,15 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
     void decode() {
         final var ethereumTransaction = ethereumTransactionParser.decode(getTransactionBytes());
         validateEthereumTransaction(ethereumTransaction);
+    }
+
+    @ParameterizedTest
+    @MethodSource("accessListTransactionTypes")
+    void parseAccessListPadsShortRlpBytes(String transactionType) {
+        final var accessList = parseAccessList(
+                List.of(List.of(new byte[] {0x01}, List.of(new byte[] {(byte) 0x81}))), transactionType);
+
+        assertThat(accessList).containsExactly(new AccessList(PADDED_ADDRESS, List.of(PADDED_STORAGE_KEY)));
     }
 
     @ParameterizedTest

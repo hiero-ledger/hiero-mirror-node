@@ -13,6 +13,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
@@ -93,8 +94,9 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
                         transactionTypeName,
                         String.format("Access list entry size was %d but expected 2", entryProperties.size()));
             }
-            final var address =
-                    HEX_PREFIX + hexFormat.formatHex(entryProperties.get(0).data());
+            final var address = HEX_PREFIX
+                    + StringUtils.leftPad(
+                            hexFormat.formatHex(entryProperties.get(0).data()), 40, '0');
             final var storageKeysItem = entryProperties.get(1);
             if (!storageKeysItem.isList()) {
                 throw new InvalidEthereumBytesException(
@@ -103,7 +105,7 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
             final var storageKeyItems = storageKeysItem.asRLPList().elements();
             final var storageKeys = new ArrayList<String>(storageKeyItems.size());
             for (final var key : storageKeyItems) {
-                storageKeys.add(HEX_PREFIX + hexFormat.formatHex(key.data()));
+                storageKeys.add(HEX_PREFIX + StringUtils.leftPad(hexFormat.formatHex(key.data()), 64, '0'));
             }
 
             accessList.add(new AccessList(address, storageKeys));
