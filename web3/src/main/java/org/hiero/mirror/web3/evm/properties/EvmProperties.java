@@ -87,6 +87,8 @@ public class EvmProperties {
     @NotNull
     private Map<String, String> properties = new HashMap<>();
 
+    private boolean sharedWritableState = false;
+
     // Contains the default properties merged with the user defined properties to pass to the consensus node library
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)

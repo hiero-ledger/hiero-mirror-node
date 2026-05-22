@@ -5,34 +5,33 @@ package org.hiero.mirror.web3.state.core;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.WritableKVStateBase;
-import java.util.Objects;
-import java.util.Optional;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings({"unchecked", "deprecation"})
 public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
 
-    private final ReadableKVState<K, V> readableBackingStore;
+    // Sentinel stored in the cache to indicate a key was explicitly deleted
+    static final Object TOMBSTONE = new Object();
 
-    // Optional.empty() is a tombstone indicating explicit removal
-    private final Cache<K, Optional<V>> sharedStore;
+    private final ReadableKVState<K, V> readableBackingStore;
+    private final Cache<K, Object> sharedStore;
 
     public CaffeineWritableKVState(
             @NonNull final String serviceName,
             final int stateId,
             @NonNull final ReadableKVState<K, V> readableBackingStore,
-            @NonNull final Cache<K, Optional<V>> sharedStore) {
+            @NonNull final Cache<K, Object> sharedStore) {
         super(serviceName, stateId);
-        this.readableBackingStore = Objects.requireNonNull(readableBackingStore);
-        this.sharedStore = Objects.requireNonNull(sharedStore);
+        this.readableBackingStore = readableBackingStore;
+        this.sharedStore = sharedStore;
     }
 
     @Override
     protected V readFromDataSource(@NonNull K key) {
         final var cached = sharedStore.getIfPresent(key);
         if (cached != null) {
-            return cached.orElse(null); // Optional.empty() = tombstone → null (no DB fallthrough)
+            return cached == TOMBSTONE ? null : (V) cached;
         }
         return readableBackingStore.get(key);
     }
@@ -40,12 +39,12 @@ public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
     // Called only from commit(); writes directly to the shared store, bypassing the per-request cache.
     @Override
     protected void putIntoDataSource(@NonNull K key, @NonNull V value) {
-        sharedStore.put(key, Optional.of(value));
+        sharedStore.put(key, value);
     }
 
     @Override
     protected void removeFromDataSource(@NonNull K key) {
-        sharedStore.put(key, Optional.empty());
+        sharedStore.put(key, TOMBSTONE);
     }
 
     /**
@@ -72,43 +71,5 @@ public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
     @Override
     public long sizeOfDataSource() {
         return readableBackingStore.size();
-    }
-
-    // Bypasses readFromDataSource to avoid Caffeine skewing the backing-store presence check.
-    @SuppressWarnings("deprecation")
-    @Override
-    public long size() {
-        final long sizeOfBackingMap = readableBackingStore.size();
-        int numAdditions = 0;
-        int numRemovals = 0;
-
-        final var writeCache = ContractCallContext.get().getWriteCacheState(getStateId());
-        for (final var mod : writeCache.entrySet()) {
-            final var key = (K) mod.getKey();
-            final var rawValue = mod.getValue();
-            final var isPresentInBackingMap = readableBackingStore.get(key) != null;
-            final var isRemovedInMod = rawValue == null;
-
-            if (isPresentInBackingMap && isRemovedInMod) {
-                numRemovals++;
-            } else if (!isPresentInBackingMap && !isRemovedInMod) {
-                numAdditions++;
-            }
-        }
-        return sizeOfBackingMap + numAdditions - numRemovals;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof CaffeineWritableKVState<?, ?> that)) return false;
-        return Objects.equals(getStateId(), that.getStateId())
-                && Objects.equals(readableBackingStore, that.readableBackingStore)
-                && Objects.equals(sharedStore, that.sharedStore);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(getStateId(), readableBackingStore, sharedStore);
     }
 }

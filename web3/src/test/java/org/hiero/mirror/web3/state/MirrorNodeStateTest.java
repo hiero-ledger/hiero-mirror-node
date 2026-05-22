@@ -17,7 +17,7 @@ import com.swirlds.state.spi.WritableKVState;
 import com.swirlds.state.spi.WritableQueueState;
 import com.swirlds.state.spi.WritableSingletonState;
 import java.util.LinkedList;
-import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.hiero.mirror.web3.state.core.CaffeineWritableKVState;
 import org.hiero.mirror.web3.state.core.MapWritableKVState;
@@ -29,7 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 final class MirrorNodeStateTest {
 
     private final MirrorNodeState mirrorNodeState =
-            new MirrorNodeState(new LinkedList<>(), new LinkedList<>(), new CacheProperties(), new Web3Properties());
+            new MirrorNodeState(new LinkedList<>(), new LinkedList<>(), new CacheProperties(), new EvmProperties());
 
     @Test
     void getReadableStatesWithSingleton() {
@@ -105,7 +105,7 @@ final class MirrorNodeStateTest {
 
     @Test
     void testGetWritableStatesWithKVReturnsCaffeineStateWhenFlagEnabled() {
-        final var props = new Web3Properties();
+        final var props = new EvmProperties();
         props.setSharedWritableState(true);
         final var state = new MirrorNodeState(new LinkedList<>(), new LinkedList<>(), new CacheProperties(), props);
         final var scheduleStates = state.getWritableStates(ScheduleService.NAME);
