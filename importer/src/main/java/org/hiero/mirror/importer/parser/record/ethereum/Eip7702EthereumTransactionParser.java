@@ -7,7 +7,9 @@ import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.rlp.RLPItem;
 import com.esaulpaugh.headlong.util.Integers;
 import jakarta.inject.Named;
+import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.transaction.Authorization;
@@ -97,8 +99,8 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
             }
 
             var authorization = Authorization.builder()
-                    .chainId(Hex.encodeHexString(tuple.get(0).data()))
-                    .address(Hex.encodeHexString(tuple.get(1).data()))
+                    .chainId(HEX_PREFIX + new BigInteger(1, tuple.get(0).data()).toString(16))
+                    .address(HEX_PREFIX + HexFormat.of().formatHex(tuple.get(1).data()))
                     .nonce(tuple.get(2).asLong())
                     .yParity((int) tuple.get(3).asByte())
                     .r(Hex.encodeHexString(tuple.get(4).data()))
@@ -153,7 +155,11 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
 
     private byte[] decodeHex(String hex) {
         try {
-            return Hex.decodeHex(hex);
+            var stripped = hex.startsWith(HEX_PREFIX) ? hex.substring(2) : hex;
+            if (stripped.length() % 2 != 0) {
+                stripped = "0" + stripped;
+            }
+            return Hex.decodeHex(stripped);
         } catch (Exception e) {
             throw new InvalidEthereumBytesException(TRANSACTION_TYPE_NAME, "Invalid hex string: " + hex);
         }

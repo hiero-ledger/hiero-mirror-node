@@ -97,7 +97,7 @@
       {
         "authorization_list": [
           {
-            "chain_id": "0x0127",
+            "chain_id": "0x127",
             "address": "0x1111111111111111111111111111111111111111",
             "nonce": 5,
             "y_parity": 1,

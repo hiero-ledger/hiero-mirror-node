@@ -129,7 +129,7 @@
         ],
         "authorization_list": [
           {
-            "chain_id": "0x0127",
+            "chain_id": "0x127",
             "address": "0x1111111111111111111111111111111111111111",
             "nonce": 5,
             "y_parity": 1,
@@ -139,7 +139,7 @@
         ],
         "call_data": "0x0606",
         "call_data_id": "5001",
-        "chain_id": "0x0127",
+        "chain_id": "0x127",
         "consensus_timestamp": 167654000123456,
         "gas_limit": 15000,
         "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",

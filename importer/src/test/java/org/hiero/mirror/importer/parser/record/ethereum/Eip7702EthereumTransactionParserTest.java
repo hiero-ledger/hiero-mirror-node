@@ -33,7 +33,8 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     private static final String TO_ADDRESS_HEX = "7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181";
     private static final String VALUE_HEX = "0de0b6b3a7640000";
     private static final String CALL_DATA_HEX = "123456";
-    private static final String AUTH_CHAIN_ID_HEX = "0123";
+    private static final String AUTH_CHAIN_ID_HEX = "0x123";
+    private static final String AUTH_CHAIN_ID_HEX_RAW = "0123";
     private static final String SIGNATURE_R_HEX = "df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479";
     private static final String SIGNATURE_S_HEX = "1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66";
     private static final long GAS_LIMIT = 98_304L;
@@ -44,7 +45,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
             HexFormat.of().parseHex(ACCESS_LIST_ADDRESS_RAW),
             List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY_RAW))));
     private static final List<?> DEFAULT_AUTHORIZATION_LIST = List.of(List.of(
-            HexFormat.of().parseHex(AUTH_CHAIN_ID_HEX),
+            HexFormat.of().parseHex(AUTH_CHAIN_ID_HEX_RAW),
             HexFormat.of().parseHex(TO_ADDRESS_HEX),
             Integers.toBytes(AUTH_NONCE),
             Integers.toBytes(0),
@@ -143,7 +144,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
                         List.of(),
                         List.of(
                                 List.of(
-                                        HexFormat.of().parseHex(AUTH_CHAIN_ID_HEX),
+                                        HexFormat.of().parseHex(AUTH_CHAIN_ID_HEX_RAW),
                                         HexFormat.of().parseHex(TO_ADDRESS_HEX),
                                         Integers.toBytes(AUTH_NONCE),
                                         Integers.toBytes(0),
