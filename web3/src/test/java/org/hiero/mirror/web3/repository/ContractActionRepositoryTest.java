@@ -17,7 +17,7 @@ class ContractActionRepositoryTest extends Web3IntegrationTest {
     private final ContractActionRepository contractActionRepository;
 
     @Test
-    void findSystemActionsByConsensusTimestampReturnsAllSystemActionsOrderedByIndex() {
+    void findFailedSystemActionsByConsensusTimestampReturnsOnlyRevertedSystemActionsOrderedByIndex() {
         final var timestamp = domainBuilder.timestamp();
         final var otherActions = List.of(
                 domainBuilder
@@ -41,8 +41,9 @@ class ContractActionRepositoryTest extends Web3IntegrationTest {
                         .resultDataType(REVERT_REASON.getNumber()))
                 .persist();
 
-        assertThat(contractActionRepository.findSystemActionsByConsensusTimestamp(timestamp))
-                .containsExactly(successSystemAction, failedSystemAction)
+        assertThat(contractActionRepository.findFailedSystemActionsByConsensusTimestamp(timestamp))
+                .containsExactly(failedSystemAction)
+                .doesNotContain(successSystemAction)
                 .doesNotContainAnyElementsOf(otherActions);
     }
 }

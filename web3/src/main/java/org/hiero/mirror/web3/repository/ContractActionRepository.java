@@ -9,8 +9,10 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface ContractActionRepository extends CrudRepository<ContractAction, Long> {
 
+    // result_data_type = 12 corresponds to ContractAction.ResultDataCase.REVERT_REASON (proto field number)
     @Query(
-            value = "select * from contract_action where consensus_timestamp = ?1 and call_type = 4 order by index asc",
+            value =
+                    "select * from contract_action where consensus_timestamp = ?1 and call_type = 4 and result_data_type = 12 order by index asc",
             nativeQuery = true)
-    List<ContractAction> findSystemActionsByConsensusTimestamp(long consensusTimestamp);
+    List<ContractAction> findFailedSystemActionsByConsensusTimestamp(long consensusTimestamp);
 }

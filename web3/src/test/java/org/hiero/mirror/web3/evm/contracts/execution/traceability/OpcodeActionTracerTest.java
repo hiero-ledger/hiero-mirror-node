@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import static com.hedera.node.app.service.contract.impl.utils.SystemContractUtils.HTS_PRECOMPILED_CONTRACT_ADDRESS;
-import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.OUTPUT;
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REVERT_REASON;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.convert.BytesDecoder.getAbiEncodedRevertReason;
@@ -530,7 +529,7 @@ class OpcodeActionTracerTest {
     void shouldReturnAbiEncodedRevertReasonWhenPrecompileCallHasContractActionWithAbiEncodedRevertReason() {
         // Given
         final var contractActionWithRevert =
-                contractAction(1, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
+                contractAction(0, 0, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
         contractActionWithRevert.setResultData(Bytes.fromHexString(getAbiEncodedRevertReason(
                         new String(INVALID_OPERATION.name().getBytes())))
                 .toArray());
@@ -578,42 +577,40 @@ class OpcodeActionTracerTest {
     @DisplayName(
             "should return correct revert reason for each precompile call when multiple system contract calls occur")
     void shouldReturnCorrectRevertReasonPerPrecompileCallWhenMultipleSystemContractCallsOccur() {
-        // Given: two system contract actions — first succeeds, second fails with a distinct reason
-        final var successAction =
-                contractAction(0, 1, CallOperationType.OP_CALL, OUTPUT.getNumber(), HTS_PRECOMPILE_ADDRESS);
+        // Given: only failed system actions are loaded (matching repository behaviour — successful actions
+        // are filtered out at the DB level). Actions are ordered by index within their call depth.
         final var failedAction1 =
-                contractAction(1, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
-        failedAction1.setResultData("reason for call 2".getBytes());
+                contractAction(0, 0, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
+        failedAction1.setResultData("reason for call 1".getBytes());
         final var failedAction2 =
-                contractAction(2, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
-        failedAction2.setResultData("reason for call 3".getBytes());
+                contractAction(1, 0, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
+        failedAction2.setResultData("reason for call 2".getBytes());
 
-        frame = setupInitialFrame(
-                opcodeContext, CONTRACT_ADDRESS, MESSAGE_CALL, successAction, failedAction1, failedAction2);
+        frame = setupInitialFrame(opcodeContext, CONTRACT_ADDRESS, MESSAGE_CALL, failedAction1, failedAction2);
 
-        // When: first system contract call (success) — counter=0 → successAction → no revert reason
-        final var firstCallFrame = buildMessageFrameFromAction(successAction);
+        // When: first system contract call at depth=0 — per-depth counter=0 → failedAction1
+        final var firstCallFrame = buildMessageFrameFromAction(failedAction1);
         frame = setupFrame(firstCallFrame);
         final Opcode firstPrecompileOpcode = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
 
-        // When: second system contract call (fail with reason for call 2) — counter=1 → failedAction1
-        final var secondCallFrame = buildMessageFrameFromAction(failedAction1);
+        // When: second system contract call at depth=0 — per-depth counter=1 → failedAction2
+        final var secondCallFrame = buildMessageFrameFromAction(failedAction2);
         frame = setupFrame(secondCallFrame);
         final Opcode secondPrecompileOpcode = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
 
-        // When: third system contract call (fail with reason for call 3) — counter=2 → failedAction2
-        final var thirdCallFrame = buildMessageFrameFromAction(failedAction2);
+        // When: third call at depth=0 — per-depth counter=2, no more actions at depth=0 → null
+        final var thirdCallFrame = buildMessageFrameFromAction(failedAction1);
         frame = setupFrame(thirdCallFrame);
         final Opcode thirdPrecompileOpcode = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
 
-        // Then: each precompile call gets its own correct revert reason
-        assertThat(firstPrecompileOpcode.getReason()).isNull();
-        assertThat(secondPrecompileOpcode.getReason())
+        // Then: each precompile call resolves against the correct per-depth action
+        assertThat(firstPrecompileOpcode.getReason())
                 .isNotEmpty()
                 .isEqualTo(getAbiEncodedRevertReason(new String(failedAction1.getResultData())));
-        assertThat(thirdPrecompileOpcode.getReason())
+        assertThat(secondPrecompileOpcode.getReason())
                 .isNotEmpty()
                 .isEqualTo(getAbiEncodedRevertReason(new String(failedAction2.getResultData())));
+        assertThat(thirdPrecompileOpcode.getReason()).isNull();
     }
 
     @Test
@@ -915,6 +912,6 @@ class OpcodeActionTracerTest {
     }
 
     private ContractAction getContractActionWithRevert() {
-        return contractAction(1, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
+        return contractAction(0, 0, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
     }
 }
