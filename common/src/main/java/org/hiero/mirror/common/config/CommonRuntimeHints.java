@@ -21,20 +21,23 @@ import org.springframework.aot.hint.ExecutableMode;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.aot.hint.TypeReference;
+import org.springframework.util.ClassUtils;
 
 public class CommonRuntimeHints implements RuntimeHintsRegistrar {
     @Override
     public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
         // Caffeine loads generated cache implementations via reflection
-        registerCache(hints, "SIA");
-        registerCache(hints, "SSMSA");
-        registerCache(hints, "SSR");
-        registerCache(hints, "SSSMA");
-        registerCache(hints, "SSSMSA");
-        registerCache(hints, "SSSW");
-        registerNode(hints, "PDA");
-        registerNode(hints, "PSAMS");
-        registerNode(hints, "PSR");
+        if (ClassUtils.isPresent("com.github.benmanes.caffeine.cache.Caffeine", classLoader)) {
+            registerCache(hints, "SIA");
+            registerCache(hints, "SSMSA");
+            registerCache(hints, "SSR");
+            registerCache(hints, "SSSMA");
+            registerCache(hints, "SSSMSA");
+            registerCache(hints, "SSSW");
+            registerNode(hints, "PDA");
+            registerNode(hints, "PSAMS");
+            registerNode(hints, "PSR");
+        }
 
         // Hibernate Validator
         registerReflectionTypes(hints, CONSTRUCTORS_ONLY, Log_$logger.class);
