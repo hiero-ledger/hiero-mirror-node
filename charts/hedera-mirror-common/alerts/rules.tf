@@ -1,3 +1,7 @@
+###############################################################################
+# Shared configuration
+###############################################################################
+
 resource "grafana_folder" "mirror" {
   title = "Mirror"
   prevent_destroy_if_not_empty = true
@@ -8,6 +12,73 @@ variable "prometheus_datasource_uid" {
   default     = "grafanacloud-prom"
   description = "UID of the Prometheus datasource to query."
 }
+
+###############################################################################
+# Notification policies
+###############################################################################
+
+variable "prod_slack_contact_point" {
+  type        = string
+  default     = "mirror-node-prod"
+  description = "Name of the manually-created Grafana contact point that posts to the production Slack channel."
+}
+
+variable "nonprod_slack_contact_point" {
+  type        = string
+  default     = "mirror-node-preprod"
+  description = "Name of the manually-created Grafana contact point that posts to the non-prod Slack channel."
+}
+
+resource "grafana_notification_policy" "root" {
+  contact_point = "grafana-default-email"
+  group_by      = ["alertname", "cluster", "namespace"]
+
+  group_wait      = "30s"
+  group_interval  = "5m"
+  repeat_interval = "4h"
+
+  policy {
+    contact_point = var.prod_slack_contact_point
+    matcher {
+      label = "severity"
+      match = "=~"
+      value = "warning|critical"
+    }
+    matcher {
+      label = "env_category"
+      match = "="
+      value = "production"
+    }
+  }
+
+  policy {
+    contact_point = var.nonprod_slack_contact_point
+    matcher {
+      label = "severity"
+      match = "=~"
+      value = "warning|critical"
+    }
+    matcher {
+      label = "env_category"
+      match = "="
+      value = "non-prod"
+    }
+    matcher {
+      label = "namespace"
+      match = "!~"
+      value = "performance-citus"
+    }
+    matcher {
+      label = "cluster"
+      match = "!~"
+      value = "staging-lg|staging-sm|staging-council"
+    }
+  }
+}
+
+###############################################################################
+# Alert rules
+###############################################################################
 
 resource "grafana_rule_group" "rule_group_grpc" {
   disable_provenance = false
