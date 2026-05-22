@@ -7,7 +7,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS_RAW;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY_RAW;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
@@ -39,7 +41,8 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     private static final long AUTH_NONCE = 2L;
 
     private static final List<?> DEFAULT_ACCESS_LIST = List.of(List.of(
-            HexFormat.of().parseHex(ACCESS_LIST_ADDRESS), List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY))));
+            HexFormat.of().parseHex(ACCESS_LIST_ADDRESS_RAW),
+            List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY_RAW))));
     private static final List<?> DEFAULT_AUTHORIZATION_LIST = List.of(List.of(
             HexFormat.of().parseHex(AUTH_CHAIN_ID_HEX),
             HexFormat.of().parseHex(TO_ADDRESS_HEX),

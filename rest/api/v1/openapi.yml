@@ -2334,7 +2334,7 @@ components:
       properties:
         access_list:
           description: The access list of the wrapped ethereum transaction
-          type: [array, "null"]
+          type: array
           items:
             $ref: "#/components/schemas/AccessList"
         address:
@@ -2480,7 +2480,7 @@ components:
           properties:
             access_list:
               description: The access list of the wrapped ethereum transaction
-              type: [array, "null"]
+              type: array
               items:
                 $ref: "#/components/schemas/AccessList"
             address:

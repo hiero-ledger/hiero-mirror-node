@@ -251,8 +251,8 @@ describe('ContractResultDetailsViewModel', () => {
     test('returns access_list from db jsonb', () => {
       const accessList = [
         {
-          address: 'a02457e5dfd32bda5fc7e1f1b008aa5979568150',
-          storage_keys: ['0000000000000000000000000000000000000000000000000000000000000081'],
+          address: '0xa02457e5dfd32bda5fc7e1f1b008aa5979568150',
+          storage_keys: ['0x0000000000000000000000000000000000000000000000000000000000000081'],
         },
       ];
       const ethTransaction = {
@@ -277,7 +277,7 @@ describe('ContractResultDetailsViewModel', () => {
       ]);
     });
 
-    test('returns null access_list when accessList is null', () => {
+    test('returns empty array when accessList is null', () => {
       const ethTransaction = new EthereumTransaction(mockEthTransaction);
 
       const viewModel = new ContractResultDetailsViewModel(
@@ -289,7 +289,7 @@ describe('ContractResultDetailsViewModel', () => {
         null
       );
 
-      expect(viewModel.access_list).toBeNull();
+      expect(viewModel.access_list).toEqual([]);
     });
 
     test('leaves access_list null when ethTransaction is null', () => {

@@ -57,8 +57,11 @@ public class EthereumTransactionTestUtility {
                             // 128 (dec) bytes
                             + "a0249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53" // same
                     );
-    public static final String ACCESS_LIST_ADDRESS = "a02457e5dfd32bda5fc7e1f1b008aa5979568150";
+    public static final String ACCESS_LIST_ADDRESS = "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150";
+    public static final String ACCESS_LIST_ADDRESS_RAW = "a02457e5dfd32bda5fc7e1f1b008aa5979568150";
     public static final String ACCESS_LIST_STORAGE_KEY =
+            "0x0000000000000000000000000000000000000000000000000000000000000081";
+    public static final String ACCESS_LIST_STORAGE_KEY_RAW =
             "0000000000000000000000000000000000000000000000000000000000000081";
 
     public static final byte[] EIP_2930_RAW_TX_WITH_ACCESS_LIST = RLPEncoder.sequence(
@@ -72,8 +75,8 @@ public class EthereumTransactionTestUtility {
                     HexFormat.of().parseHex("02540be400"),
                     HexFormat.of().parseHex("123456"),
                     List.of(List.of(
-                            HexFormat.of().parseHex(ACCESS_LIST_ADDRESS),
-                            List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY)))),
+                            HexFormat.of().parseHex(ACCESS_LIST_ADDRESS_RAW),
+                            List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY_RAW)))),
                     Integers.toBytes(1),
                     HexFormat.of().parseHex("abb9e9c510716df2988cf626734ee50dcd9f41d30d638220712b5fe33fe4c816"),
                     HexFormat.of().parseHex("249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53")));
@@ -90,8 +93,8 @@ public class EthereumTransactionTestUtility {
                     HexFormat.of().parseHex("0de0b6b3a7640000"),
                     HexFormat.of().parseHex("123456"),
                     List.of(List.of(
-                            HexFormat.of().parseHex(ACCESS_LIST_ADDRESS),
-                            List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY)))),
+                            HexFormat.of().parseHex(ACCESS_LIST_ADDRESS_RAW),
+                            List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY_RAW)))),
                     Integers.toBytes(1),
                     HexFormat.of().parseHex("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
                     HexFormat.of().parseHex("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66")));

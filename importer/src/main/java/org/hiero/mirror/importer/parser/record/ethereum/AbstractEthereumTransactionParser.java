@@ -28,6 +28,8 @@ import org.slf4j.LoggerFactory;
 @RequiredArgsConstructor
 abstract class AbstractEthereumTransactionParser implements EthereumTransactionParser {
 
+    public static final String HEX_PREFIX = "0x";
+
     private final ContractBytecodeService contractBytecodeService;
     private final FileDataRepository fileDataRepository;
     private final Logger log = LoggerFactory.getLogger(getClass());
@@ -79,6 +81,7 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
         final var accessListEntries = rlpAccessList.asRLPList().elements();
         final var accessList = new ArrayList<AccessList>(accessListEntries.size());
 
+        final var hexFormat = HexFormat.of();
         for (final var entry : accessListEntries) {
             if (!entry.isList()) {
                 throw new InvalidEthereumBytesException(transactionTypeName, "Access list entry is not a list");
@@ -90,9 +93,8 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
                         transactionTypeName,
                         String.format("Access list entry size was %d but expected 2", entryProperties.size()));
             }
-
-            final var hexFormat = HexFormat.of();
-            final var address = hexFormat.formatHex(entryProperties.get(0).data());
+            final var address =
+                    HEX_PREFIX + hexFormat.formatHex(entryProperties.get(0).data());
             final var storageKeysItem = entryProperties.get(1);
             if (!storageKeysItem.isList()) {
                 throw new InvalidEthereumBytesException(
@@ -101,7 +103,7 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
             final var storageKeyItems = storageKeysItem.asRLPList().elements();
             final var storageKeys = new ArrayList<String>(storageKeyItems.size());
             for (final var key : storageKeyItems) {
-                storageKeys.add(hexFormat.formatHex(key.data()));
+                storageKeys.add(HEX_PREFIX + hexFormat.formatHex(key.data()));
             }
 
             accessList.add(new AccessList(address, storageKeys));

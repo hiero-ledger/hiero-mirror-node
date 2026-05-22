@@ -106,7 +106,7 @@
   ],
   "responseStatus": 200,
   "responseJson": {
-    "access_list": null,
+    "access_list": [],
     "amount": 2000000000,
     "authorization_list": [],
     "block_gas_used": 50000000,
