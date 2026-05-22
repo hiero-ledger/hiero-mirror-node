@@ -8,6 +8,9 @@ concurrency:
 on:
   workflow_call:
     inputs:
+      collect_k6_report:
+        default: false
+        type: boolean
       require_clean_target:
         default: true
         type: boolean
@@ -70,6 +73,11 @@ on:
         required: true
   workflow_dispatch:
     inputs:
+      collect_k6_report:
+        default: false
+        description: "Collect and upload the k6 test report artifact"
+        type: boolean
+        required: false
       require_clean_target:
         default: true
         description: "Require target to be in torn down state"
@@ -151,6 +159,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-medium
     timeout-minutes: 900 # 15 hours
     env:
+      COLLECT_K6_REPORT: ${{ inputs.collect_k6_report }}
       GCP_SNAPSHOT_PROJECT: ${{ inputs.source_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
       GCP_K8S_SOURCE_CLUSTER_NAME: ${{ inputs.source_cluster_name }}
       GCP_K8S_SOURCE_CLUSTER_REGION: ${{ inputs.source_cluster_location }}
@@ -298,7 +307,7 @@ jobs:
           ./copy-live-environment.sh
 
       - name: Upload k6 test report
-        if: ${{ inputs.run_k6_test == true }}
+        if: ${{ inputs.run_k6_test == true && inputs.collect_k6_report == true }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: k6-test-report
