@@ -1073,7 +1073,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       }
 
       datasource_uid = var.prometheus_datasource_uid
-      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, pod, scenario) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application=\\\"monitor\\\",status!=\\\"SUCCESS\\\"}[2m])) / sum by (cluster, namespace, pod, scenario) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application=\\\"monitor\\\"}[2m])) > 0.5\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, pod, scenario) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application=\\\"monitor\\\",cluster!~\\\"preprod|previewnet|staging-lg|staging-sm|staging-council\\\",status!=\\\"SUCCESS\\\"}[2m])) / sum by (cluster, namespace, pod, scenario) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application=\\\"monitor\\\",cluster!~\\\"preprod|previewnet|staging-lg|staging-sm|staging-council\\\"}[2m])) > 0.5\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
     no_data_state  = "NoData"
@@ -1118,7 +1118,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       mode        = "publish"
       severity    = "warning"
     }
-    is_paused = false
+    is_paused = true
   }
   rule {
     name      = "MonitorPublishPlatformNotActive"
@@ -1236,7 +1236,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       application = "monitor"
       severity    = "critical"
     }
-    is_paused = false
+    is_paused = true
   }
   rule {
     name      = "MonitorSubscribeStopped"
