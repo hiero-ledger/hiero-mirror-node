@@ -2,9 +2,16 @@
 
 package org.hiero.mirror.monitor.config;
 
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_FIELDS;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_ONLY;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionTypes;
+
 import com.google.protobuf.GeneratedMessageLite;
 import com.hedera.hashgraph.sdk.Transaction;
 import lombok.CustomLog;
+import org.hibernate.validator.internal.constraintvalidators.hv.time.DurationMaxValidator;
+import org.hibernate.validator.internal.util.logging.Log_$logger;
+import org.hibernate.validator.internal.util.logging.Messages_$bundle;
 import org.hiero.mirror.monitor.config.RuntimeHintsConfiguration.CustomRuntimeHints;
 import org.hiero.mirror.monitor.publish.transaction.TransactionSupplier;
 import org.hiero.mirror.rest.model.NetworkNodesResponse;
@@ -30,6 +37,9 @@ final class RuntimeHintsConfiguration {
             registerOpenApi(hints);
             registerProtobufs(hints);
             registerTransactionSuppliers(hints);
+            registerReflectionTypes(hints, CONSTRUCTORS_ONLY, Log_$logger.class);
+            registerReflectionTypes(hints, CONSTRUCTORS_AND_FIELDS, Messages_$bundle.class);
+            registerReflectionTypes(hints, CONSTRUCTORS_ONLY, DurationMaxValidator.class);
         }
 
         /**
