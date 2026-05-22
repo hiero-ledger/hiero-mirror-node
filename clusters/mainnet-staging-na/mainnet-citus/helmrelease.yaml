@@ -63,6 +63,7 @@ spec:
           enabled: false
         MonitorSubscribeLatency:
           enabled: false
+      replicas: 0
     rest:
       env:
         HIERO_MIRROR_REST_CACHE_RESPONSE_ENABLED: "false"
