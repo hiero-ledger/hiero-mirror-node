@@ -208,7 +208,7 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
 
     @Override
     protected MigrationVersion getMinimumVersion() {
-        return v2 ? MigrationVersion.fromVersion("2.28.0") : MigrationVersion.fromVersion("1.123.0");
+        return v2 ? MigrationVersion.fromVersion("2.27.0") : MigrationVersion.fromVersion("1.122.0");
     }
 
     @Override
