@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
+import static org.hiero.mirror.importer.parser.record.ethereum.AbstractEthereumTransactionParser.HEX_PREFIX;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS_RAW;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY;
@@ -185,21 +186,21 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         var auth1 = ethereumTransaction.getAuthorizationList().get(0);
         assertThat(auth1)
                 .returns(AUTH_CHAIN_ID_HEX, Authorization::getChainId)
-                .returns(TO_ADDRESS_HEX, Authorization::getAddress)
+                .returns(HEX_PREFIX + TO_ADDRESS_HEX, Authorization::getAddress)
                 .returns(AUTH_NONCE, Authorization::getNonce)
                 .returns(0, Authorization::getYParity);
 
         var auth2 = ethereumTransaction.getAuthorizationList().get(1);
         assertThat(auth2)
-                .returns("04a5", Authorization::getChainId)
-                .returns("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0", Authorization::getAddress)
+                .returns("0x4a5", Authorization::getChainId)
+                .returns("0xa1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0", Authorization::getAddress)
                 .returns(3L, Authorization::getNonce)
                 .returns(1, Authorization::getYParity);
 
         var auth3 = ethereumTransaction.getAuthorizationList().get(2);
         assertThat(auth3)
-                .returns("0789", Authorization::getChainId)
-                .returns("1234567890abcdef1234567890abcdef12345678", Authorization::getAddress)
+                .returns("0x789", Authorization::getChainId)
+                .returns("0x1234567890abcdef1234567890abcdef12345678", Authorization::getAddress)
                 .returns(5L, Authorization::getNonce)
                 .returns(0, Authorization::getYParity);
     }
@@ -251,7 +252,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
             assertThat(authorization)
                     .isNotNull()
                     .returns(AUTH_CHAIN_ID_HEX, Authorization::getChainId)
-                    .returns(TO_ADDRESS_HEX, Authorization::getAddress)
+                    .returns(HEX_PREFIX + TO_ADDRESS_HEX, Authorization::getAddress)
                     .returns(AUTH_NONCE, Authorization::getNonce)
                     .returns(0, Authorization::getYParity)
                     .returns(SIGNATURE_R_HEX, Authorization::getR)
