@@ -2,19 +2,29 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
+import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.ADDRESS_LENGTH;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
-import java.util.Map;
+import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import lombok.Data;
 import org.hiero.mirror.web3.validation.Hex;
 
 /**
  * Per-address state override for {@code /api/v1/contracts/call}, matching the {@code eth_call} JSON-RPC state override
- * set. All fields are optional. {@code state} and {@code stateDiff} are mutually exclusive.
+ * set. All fields are optional except {@code address}. {@code state} and {@code state_diff} are mutually exclusive.
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class StateOverride {
+
+    /** EVM address (40 hex chars, with or without {@code 0x} prefix) of the account to override. */
+    @NotNull
+    @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH)
+    private String address;
 
     /** Hex-encoded balance override in tinybars (Hedera's smallest denomination). */
     @Hex
@@ -29,20 +39,23 @@ public class StateOverride {
     private String code;
 
     /**
-     * Full storage replacement: maps hex storage slot to hex value.
+     * Full storage replacement: list of slot key-value pairs.
      * All existing storage for this address is discarded; only these slots exist.
      * Mutually exclusive with {@link #stateDiff}.
      */
-    private Map<@Hex String, @Hex String> state;
+    @Valid
+    private List<@Valid StorageEntry> state;
 
     /**
-     * Storage patch: maps hex storage slot to hex value.
+     * Storage patch: list of slot key-value pairs.
      * Only the listed slots are overridden; all other slots fall through to the underlying state.
      * Mutually exclusive with {@link #state}.
      */
-    private Map<@Hex String, @Hex String> stateDiff;
+    @JsonProperty("state_diff")
+    @Valid
+    private List<@Valid StorageEntry> stateDiff;
 
-    @AssertTrue(message = "state and stateDiff are mutually exclusive")
+    @AssertTrue(message = "state and state_diff are mutually exclusive")
     private boolean hasValidStorage() {
         return state == null || stateDiff == null;
     }

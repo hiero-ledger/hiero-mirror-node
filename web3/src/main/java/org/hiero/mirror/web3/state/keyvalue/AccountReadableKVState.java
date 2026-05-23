@@ -27,6 +27,7 @@ import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.utils.AccountDetector;
+import org.hiero.mirror.web3.viewmodel.NormalizedStateOverride;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -116,7 +117,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             return account;
         }
 
-        final var override = overrides.get(evmAddr);
+        final NormalizedStateOverride override = overrides.get(evmAddr);
         if (override == null || (override.getBalance() == null && override.getNonce() == null)) {
             return account;
         }

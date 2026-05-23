@@ -10,6 +10,7 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import lombok.CustomLog;
@@ -21,7 +22,9 @@ import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
+import org.hiero.mirror.web3.viewmodel.NormalizedStateOverride;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.hiero.mirror.web3.viewmodel.StorageEntry;
 
 @CustomLog
 @Named
@@ -67,9 +70,9 @@ public class ContractExecutionService extends ContractCallService {
             try {
                 updateGasLimitMetric(params);
 
-                if (params.getStateOverride() != null
-                        && !params.getStateOverride().isEmpty()) {
-                    ctx.setStateOverrides(normalizeOverrideKeys(params.getStateOverride()));
+                if (params.getStateOverrides() != null
+                        && !params.getStateOverrides().isEmpty()) {
+                    ctx.setStateOverrides(normalizeOverrides(params.getStateOverrides()));
                 }
 
                 Bytes result;
@@ -93,30 +96,27 @@ public class ContractExecutionService extends ContractCallService {
     }
 
     /**
-     * Normalizes state-override map keys to lowercase {@code 0x}-prefixed form and slot keys within each
-     * override to 64-character hex, so that all lookups in the state layer can use direct map access.
+     * Normalizes a list of state overrides into a map keyed by lowercase {@code 0x}-prefixed EVM address.
+     * Slot keys within each override are normalized to 64-character hex for direct map access in the state layer.
      */
-    private static Map<String, StateOverride> normalizeOverrideKeys(Map<String, StateOverride> raw) {
-        var result = new HashMap<String, StateOverride>(raw.size());
-        for (var entry : raw.entrySet()) {
-            normalizeSlotKeys(entry.getValue());
-            result.put(normalizeAddress(entry.getKey()), entry.getValue());
+    private static Map<String, NormalizedStateOverride> normalizeOverrides(List<StateOverride> overrides) {
+        var result = new HashMap<String, NormalizedStateOverride>(overrides.size());
+        for (var override : overrides) {
+            var normalized = NormalizedStateOverride.builder()
+                    .balance(override.getBalance())
+                    .nonce(override.getNonce())
+                    .code(override.getCode())
+                    .state(override.getState() != null ? normalizeSlotList(override.getState()) : null)
+                    .stateDiff(override.getStateDiff() != null ? normalizeSlotList(override.getStateDiff()) : null)
+                    .build();
+            result.put(normalizeAddress(override.getAddress()), normalized);
         }
         return result;
     }
 
-    private static void normalizeSlotKeys(StateOverride override) {
-        if (override.getState() != null) {
-            override.setState(normalizeSlotMap(override.getState()));
-        }
-        if (override.getStateDiff() != null) {
-            override.setStateDiff(normalizeSlotMap(override.getStateDiff()));
-        }
-    }
-
-    private static Map<String, String> normalizeSlotMap(Map<String, String> map) {
-        var result = new HashMap<String, String>(map.size());
-        for (var entry : map.entrySet()) {
+    private static Map<String, String> normalizeSlotList(List<StorageEntry> entries) {
+        var result = new HashMap<String, String>(entries.size());
+        for (var entry : entries) {
             result.put(normalizeStorageSlot(entry.getKey()), entry.getValue());
         }
         return result;

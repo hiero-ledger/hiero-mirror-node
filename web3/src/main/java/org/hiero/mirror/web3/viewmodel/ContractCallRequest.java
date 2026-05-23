@@ -3,13 +3,14 @@
 package org.hiero.mirror.web3.viewmodel;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.PositiveOrZero;
-import java.util.Map;
+import java.util.List;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.convert.BlockTypeDeserializer;
@@ -45,12 +46,12 @@ public class ContractCallRequest {
     private String to;
 
     /**
-     * Optional per-address state overrides, keyed by 40-char hex EVM address.
+     * Optional list of per-address state overrides.
      * Mirrors the state override set accepted by {@code eth_call}.
      */
+    @JsonProperty("state_overrides")
     @Valid
-    private Map<@Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH) String, @Valid StateOverride>
-            stateOverride;
+    private List<@Valid StateOverride> stateOverrides;
 
     @PositiveOrZero
     private long value;

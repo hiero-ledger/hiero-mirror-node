@@ -85,7 +85,7 @@ class ContractController {
                 .isStatic(isStaticCall)
                 .receiver(receiver)
                 .sender(fromAddress)
-                .stateOverride(request.getStateOverride())
+                .stateOverrides(request.getStateOverrides())
                 .value(request.getValue())
                 .build();
     }
