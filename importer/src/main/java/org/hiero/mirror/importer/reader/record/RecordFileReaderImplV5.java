@@ -93,6 +93,7 @@ public class RecordFileReaderImplV5 implements RecordFileReader {
 
         int count = 0;
         long consensusStart = 0;
+        long consensusEnd = 0;
         List<RecordItem> items = new ArrayList<>();
         RecordItem lastRecordItem = null;
 
@@ -109,8 +110,13 @@ public class RecordFileReaderImplV5 implements RecordFileReader {
 
             items.add(recordItem);
 
+            final long timestamp = recordItem.getConsensusTimestamp();
             if (count == 0) {
-                consensusStart = recordItem.getConsensusTimestamp();
+                consensusStart = timestamp;
+                consensusEnd = timestamp;
+            } else {
+                consensusStart = Math.min(consensusStart, timestamp);
+                consensusEnd = Math.max(consensusEnd, timestamp);
             }
 
             lastRecordItem = recordItem;
@@ -120,7 +126,6 @@ public class RecordFileReaderImplV5 implements RecordFileReader {
         if (count == 0) {
             throw new InvalidStreamFileException("No record stream objects in record file " + filename);
         }
-        long consensusEnd = lastRecordItem.getConsensusTimestamp();
 
         // end object running hash, metadata hash is calculated on it
         metadataDigestInputStream.on(true);

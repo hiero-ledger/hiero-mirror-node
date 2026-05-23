@@ -85,8 +85,14 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             blockFile.setCount((long) items.size());
 
             if (!items.isEmpty()) {
-                blockFile.setConsensusStart(items.getFirst().getConsensusTimestamp());
-                blockFile.setConsensusEnd(items.getLast().getConsensusTimestamp());
+                blockFile.setConsensusStart(items.stream()
+                        .mapToLong(BlockTransaction::getConsensusTimestamp)
+                        .min()
+                        .getAsLong());
+                blockFile.setConsensusEnd(items.stream()
+                        .mapToLong(BlockTransaction::getConsensusTimestamp)
+                        .max()
+                        .getAsLong());
             } else {
                 final long blockTimestamp = DomainUtils.timestampInNanosMax(
                         blockFile.getBlockHeader().getBlockTimestamp());

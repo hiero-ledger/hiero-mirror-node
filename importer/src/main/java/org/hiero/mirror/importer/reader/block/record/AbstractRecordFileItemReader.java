@@ -70,9 +70,20 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
             final var recordFile = context.recordFile();
             final byte[] bytes = bos.toByteArray();
             recordFile.setBytes(bytes);
-            recordFile.setConsensusEnd(!items.isEmpty() ? items.getLast().getConsensusTimestamp() : creationTimestamp);
+            recordFile.setConsensusEnd(
+                    items.isEmpty()
+                            ? creationTimestamp
+                            : items.stream()
+                                    .mapToLong(RecordItem::getConsensusTimestamp)
+                                    .max()
+                                    .getAsLong());
             recordFile.setConsensusStart(
-                    !items.isEmpty() ? items.getFirst().getConsensusTimestamp() : creationTimestamp);
+                    items.isEmpty()
+                            ? creationTimestamp
+                            : items.stream()
+                                    .mapToLong(RecordItem::getConsensusTimestamp)
+                                    .min()
+                                    .getAsLong());
             recordFile.setCount((long) items.size());
             recordFile.setDigestAlgorithm(DigestAlgorithm.SHA_384);
             recordFile.setFileHash(Hex.encodeHexString(context.fileDigest().digest()));
