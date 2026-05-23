@@ -9,7 +9,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings({"unchecked", "deprecation"})
-public class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
+public final class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, V> {
 
     // Sentinel stored in the cache to indicate a key was explicitly deleted
     static final Object TOMBSTONE = new Object();
