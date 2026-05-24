@@ -25,7 +25,7 @@ extra.apply {
     set("netty.version", "4.2.13.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.15.0")
     set("postgresql.version", "42.7.11") // Temporary until next Spring Boot
-    set("protobufVersion", "4.34.1")
+    set("protobufVersion", "4.35.0")
     set("springGrpcVersion", "1.0.3")
     set("tomcat.version", "11.0.22") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
