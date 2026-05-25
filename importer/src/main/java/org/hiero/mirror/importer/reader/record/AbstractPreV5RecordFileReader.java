@@ -114,13 +114,12 @@ public abstract class AbstractPreV5RecordFileReader implements RecordFileReader 
                     .build();
             items.add(recordItem);
 
-            final long timestamp = recordItem.getConsensusTimestamp();
             if (count == 0) {
-                consensusStart = timestamp;
-                consensusEnd = timestamp;
-            } else {
-                consensusStart = Math.min(consensusStart, timestamp);
-                consensusEnd = Math.max(consensusEnd, timestamp);
+                consensusStart = recordItem.getConsensusTimestamp();
+            }
+
+            if (vdis.available() == 0) {
+                consensusEnd = recordItem.getConsensusTimestamp();
             }
 
             lastRecordItem = recordItem;

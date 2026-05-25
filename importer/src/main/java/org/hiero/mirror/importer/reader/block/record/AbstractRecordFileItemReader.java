@@ -70,20 +70,10 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
             final var recordFile = context.recordFile();
             final byte[] bytes = bos.toByteArray();
             recordFile.setBytes(bytes);
-            recordFile.setConsensusEnd(
-                    items.isEmpty()
-                            ? creationTimestamp
-                            : items.stream()
-                                    .mapToLong(RecordItem::getConsensusTimestamp)
-                                    .max()
-                                    .getAsLong());
-            recordFile.setConsensusStart(
-                    items.isEmpty()
-                            ? creationTimestamp
-                            : items.stream()
-                                    .mapToLong(RecordItem::getConsensusTimestamp)
-                                    .min()
-                                    .getAsLong());
+            if (items.isEmpty()) {
+                recordFile.setConsensusEnd(creationTimestamp);
+                recordFile.setConsensusStart(creationTimestamp);
+            }
             recordFile.setCount((long) items.size());
             recordFile.setDigestAlgorithm(DigestAlgorithm.SHA_384);
             recordFile.setFileHash(Hex.encodeHexString(context.fileDigest().digest()));
@@ -154,6 +144,41 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
         final var recordStreamFile = context.recordFileItem().getRecordFileContents();
         if (recordStreamFile.hasEndObjectRunningHash()) {
             context.recordFile().setHash(Hex.encodeHexString(getHashBytes(recordStreamFile.getEndObjectRunningHash())));
+        }
+
+        final var items = context.items();
+        if (!items.isEmpty()) {
+            long minTimestamp = Long.MAX_VALUE;
+            long maxTimestamp = Long.MIN_VALUE;
+            for (final var item : items) {
+                final long ts = item.getConsensusTimestamp();
+                if (ts < minTimestamp) {
+                    minTimestamp = ts;
+                }
+                if (ts > maxTimestamp) {
+                    maxTimestamp = ts;
+                }
+            }
+
+            final long firstTimestamp = items.getFirst().getConsensusTimestamp();
+            final long lastTimestamp = items.getLast().getConsensusTimestamp();
+            if (minTimestamp != firstTimestamp) {
+                Utility.handleRecoverableError(
+                        "Record file {} has out-of-order transactions: min consensus timestamp {} != first transaction timestamp {}",
+                        context.recordFile().getName(),
+                        minTimestamp,
+                        firstTimestamp);
+            }
+            if (maxTimestamp != lastTimestamp) {
+                Utility.handleRecoverableError(
+                        "Record file {} has out-of-order transactions: max consensus timestamp {} != last transaction timestamp {}",
+                        context.recordFile().getName(),
+                        maxTimestamp,
+                        lastTimestamp);
+            }
+
+            context.recordFile().setConsensusStart(minTimestamp);
+            context.recordFile().setConsensusEnd(maxTimestamp);
         }
     }
 

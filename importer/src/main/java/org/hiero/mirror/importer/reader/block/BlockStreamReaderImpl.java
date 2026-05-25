@@ -85,14 +85,37 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             blockFile.setCount((long) items.size());
 
             if (!items.isEmpty()) {
-                blockFile.setConsensusStart(items.stream()
-                        .mapToLong(BlockTransaction::getConsensusTimestamp)
-                        .min()
-                        .getAsLong());
-                blockFile.setConsensusEnd(items.stream()
-                        .mapToLong(BlockTransaction::getConsensusTimestamp)
-                        .max()
-                        .getAsLong());
+                long minTimestamp = Long.MAX_VALUE;
+                long maxTimestamp = Long.MIN_VALUE;
+                for (final var item : items) {
+                    final long ts = item.getConsensusTimestamp();
+                    if (ts < minTimestamp) {
+                        minTimestamp = ts;
+                    }
+                    if (ts > maxTimestamp) {
+                        maxTimestamp = ts;
+                    }
+                }
+
+                final long firstTimestamp = items.getFirst().getConsensusTimestamp();
+                final long lastTimestamp = items.getLast().getConsensusTimestamp();
+                if (minTimestamp != firstTimestamp) {
+                    log.error(
+                            "Block file {} has out-of-order transactions: min consensus timestamp {} != first transaction timestamp {}",
+                            blockFile.getName(),
+                            minTimestamp,
+                            firstTimestamp);
+                }
+                if (maxTimestamp != lastTimestamp) {
+                    log.error(
+                            "Block file {} has out-of-order transactions: max consensus timestamp {} != last transaction timestamp {}",
+                            blockFile.getName(),
+                            maxTimestamp,
+                            lastTimestamp);
+                }
+
+                blockFile.setConsensusStart(minTimestamp);
+                blockFile.setConsensusEnd(maxTimestamp);
             } else {
                 final long blockTimestamp = DomainUtils.timestampInNanosMax(
                         blockFile.getBlockHeader().getBlockTimestamp());
