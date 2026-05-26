@@ -6,8 +6,6 @@ import {CurrentAndNextFeeScheduleSchema, HederaFunctionality} from '../gen/servi
 import {FileDecodeError} from '../errors';
 import {bigIntMax} from '../utils';
 
-const FEE_DIVISOR_FACTOR = 1000n;
-
 const FUNCTIONALITY_TO_TYPE = {
   [HederaFunctionality.ContractCall]: 'ContractCall',
   [HederaFunctionality.ContractCreate]: 'ContractCreate',
@@ -15,6 +13,8 @@ const FUNCTIONALITY_TO_TYPE = {
 };
 
 class FeeSchedule {
+  static FEE_DIVISOR_FACTOR = 1000n;
+
   #feeSchedule;
 
   constructor(feeScheduleFile) {
@@ -28,12 +28,11 @@ class FeeSchedule {
 
     this.#feeSchedule = feeSchedule;
     this.fees = {};
-    this.timestamp = feeScheduleFile.consensus_timestamp;
   }
 
-  setExchangeRate(exchangeRate) {
-    const effectiveFeeSchedule = this.getEffectiveFeeSchedule(this.#feeSchedule, this.timestamp);
-    const effectiveExchangeRate = this.getEffectiveExchangeRate(exchangeRate, this.timestamp);
+  setExchangeRate(exchangeRate, refTimestampNanos) {
+    const effectiveFeeSchedule = this.getEffectiveFeeSchedule(this.#feeSchedule, refTimestampNanos);
+    const effectiveExchangeRate = this.getEffectiveExchangeRate(exchangeRate, refTimestampNanos);
     this.fees = this.mapFees(effectiveFeeSchedule, effectiveExchangeRate);
   }
 
@@ -94,7 +93,7 @@ class FeeSchedule {
       return null;
     }
 
-    const fee = (BigInt(gasPrice) * BigInt(hbars)) / (cents * FEE_DIVISOR_FACTOR);
+    const fee = (BigInt(gasPrice) * BigInt(hbars)) / (cents * FeeSchedule.FEE_DIVISOR_FACTOR);
     return bigIntMax(fee, 1n);
   }
 

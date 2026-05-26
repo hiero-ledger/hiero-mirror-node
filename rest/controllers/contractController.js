@@ -25,7 +25,7 @@ import {
   ContractState,
   ContractStateChange,
   Entity,
-  FeeSchedule,
+  FileData,
   TransactionResult,
   TransactionType,
 } from '../model';
@@ -1048,8 +1048,7 @@ class ContractController extends BaseController {
           param: timestamp,
         },
       ];
-      const feeSchedule = await FileDataService.getFeeSchedule({whereQuery});
-      gasPriceFromFeeSchedule = feeSchedule?.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL) ?? null;
+      gasPriceFromFeeSchedule = await FileDataService.getFeeSchedule({whereQuery});
     }
 
     if (isNil(contractResults[0].callResult)) {
@@ -1067,7 +1066,6 @@ class ContractController extends BaseController {
       contractStateChanges,
       fileData,
       convertToHbar,
-      null,
       gasPriceFromFeeSchedule
     );
   };
@@ -1128,8 +1126,7 @@ class ContractController extends BaseController {
               param: row.consensusTimestamp,
             },
           ];
-          const feeSchedule = await FileDataService.getFeeSchedule({whereQuery});
-          gasPriceFromFeeSchedule = feeSchedule?.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL) ?? null;
+          gasPriceFromFeeSchedule = await FileDataService.getFeeSchedule({whereQuery});
         }
 
         return new ContractResultDetailsViewModel(
@@ -1140,7 +1137,6 @@ class ContractController extends BaseController {
           null,
           null,
           convertToHbar,
-          null,
           gasPriceFromFeeSchedule
         );
       })
@@ -1240,8 +1236,7 @@ class ContractController extends BaseController {
           param: transactionDetails.consensusTimestamp,
         },
       ];
-      const feeSchedule = await FileDataService.getFeeSchedule({whereQuery});
-      gasPriceFromFeeSchedule = feeSchedule?.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL) ?? null;
+      gasPriceFromFeeSchedule = await FileDataService.getFeeSchedule({whereQuery});
     }
 
     this.setContractResultsResponse(
@@ -1253,7 +1248,6 @@ class ContractController extends BaseController {
       contractStateChanges,
       fileData,
       convertToHbar,
-      null,
       gasPriceFromFeeSchedule
     );
 
@@ -1361,7 +1355,6 @@ class ContractController extends BaseController {
     contractStateChanges,
     fileData,
     convertToHbar = true,
-    transactionType = null,
     gasPriceFromFeeSchedule = null
   ) => {
     res.locals[responseDataLabel] = new ContractResultDetailsViewModel(
@@ -1372,7 +1365,6 @@ class ContractController extends BaseController {
       contractStateChanges,
       fileData,
       convertToHbar,
-      transactionType,
       gasPriceFromFeeSchedule
     );
   };

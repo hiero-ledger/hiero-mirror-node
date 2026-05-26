@@ -10,7 +10,7 @@ import {
   HederaFunctionality,
 } from '../../gen/services/basic_types_pb.js';
 import {TimestampSecondsSchema} from '../../gen/services/timestamp_pb.js';
-import {FileData, FeeSchedule} from '../../model';
+import {FileData} from '../../model';
 import {FileDataService} from '../../service';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
@@ -189,7 +189,7 @@ describe('FileDataService.getFeeSchedule tests', () => {
 
     const result = await FileDataService.getFeeSchedule({whereQuery: []});
     expect(result).not.toBeNull();
-    expect(result.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL)).toBeGreaterThan(0n);
+    expect(result).toBeGreaterThan(0n);
   });
 
   test('FileDataService.getFeeSchedule - Row match w previous latest', async () => {
@@ -204,6 +204,40 @@ describe('FileDataService.getFeeSchedule tests', () => {
     ];
     const result = await FileDataService.getFeeSchedule({whereQuery: where});
     expect(result).not.toBeNull();
-    expect(result.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL)).toBeGreaterThan(0n);
+    expect(result).toBeGreaterThan(0n);
+  });
+
+  test('FileDataService.getFeeSchedule - Returns null when exchange rate is missing', async () => {
+    await integrationDomainOps.loadFileData(feeScheduleFiles);
+    // no exchange rate data loaded
+
+    await expect(FileDataService.getFeeSchedule({whereQuery: []})).resolves.toBeNull();
+  });
+
+  test('FileDataService.getFeeSchedule - Returns null when fee schedule is missing', async () => {
+    await integrationDomainOps.loadFileData(exchangeRateFiles);
+    // no fee schedule data loaded
+
+    await expect(FileDataService.getFeeSchedule({whereQuery: []})).resolves.toBeNull();
+  });
+
+  test('FileDataService.getFeeSchedule - Returns cached result on repeated call with same filter', async () => {
+    await integrationDomainOps.loadFileData(feeScheduleFiles);
+    await integrationDomainOps.loadFileData(exchangeRateFiles);
+
+    const where = [{query: `${FileData.CONSENSUS_TIMESTAMP} <= `, param: 2}];
+    const filterQueries = {whereQuery: where};
+
+    const spy = jest.spyOn(FileDataService, 'getLatestFileDataContents');
+
+    const first = await FileDataService.getFeeSchedule(filterQueries);
+    const second = await FileDataService.getFeeSchedule(filterQueries);
+
+    expect(first).not.toBeNull();
+    expect(second).toEqual(first); // same value served from cache
+    // DB was called for each of feeSchedule + exchangeRate on first call only
+    expect(spy).toHaveBeenCalledTimes(2);
+
+    spy.mockRestore();
   });
 });

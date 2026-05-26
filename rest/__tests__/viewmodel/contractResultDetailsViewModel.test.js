@@ -405,14 +405,13 @@ describe('ContractResultDetailsViewModel', () => {
         [],
         null,
         true,
-        null, // transactionType
         gasPriceFromFeeSchedule
       );
 
       expect(viewModel.gas_price).toBe('0x56'); // 86 in hex
     });
 
-    test('gas_price remains 0x when ethTransaction is null and no fee schedule gas price', () => {
+    test('gas_price remains null when ethTransaction is null and no fee schedule gas price', () => {
       const viewModel = new ContractResultDetailsViewModel(
         mockContractResult,
         mockRecordFile,
@@ -421,7 +420,6 @@ describe('ContractResultDetailsViewModel', () => {
         [],
         null,
         true,
-        null, // transactionType
         null // no gas price from fee schedule
       );
 

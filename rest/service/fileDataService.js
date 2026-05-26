@@ -102,9 +102,11 @@ class FileDataService extends BaseService {
     const key = this.#getFeeScheduleKey(filterQueries);
 
     const cached = this.#feeScheduleCache.get(key);
-    if (cached) {
+    if (cached !== undefined) {
       return cached;
     }
+
+    const refTimestampNanos = this.#getRefTimestamp(filterQueries);
 
     const [exchangeRate, feeSchedule] = await Promise.all([
       this.getExchangeRate(filterQueries),
@@ -112,22 +114,32 @@ class FileDataService extends BaseService {
     ]);
 
     if (!feeSchedule || !exchangeRate) {
+      this.#feeScheduleCache.set(key, null);
       return null;
     }
 
-    feeSchedule.setExchangeRate(exchangeRate);
-    this.#feeScheduleCache.set(key, feeSchedule);
-    return feeSchedule;
+    feeSchedule.setExchangeRate(exchangeRate, refTimestampNanos ?? BigInt(Date.now()) * 1_000_000n);
+    const gasPrice = feeSchedule.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL);
+    this.#feeScheduleCache.set(key, gasPrice);
+    return gasPrice;
   };
 
-  #getFeeScheduleKey(filterQueries) {
+  #getRefTimestamp(filterQueries) {
     const {whereQuery} = filterQueries;
     for (const filter of whereQuery) {
       if (filter.query.trim().startsWith(FileData.CONSENSUS_TIMESTAMP)) {
-        return Math.floor(Number(filter.param) / 1_000_000_000);
+        return BigInt(filter.param);
       }
     }
-    return 'latest';
+    return null;
+  }
+
+  #getFeeScheduleKey(filterQueries) {
+    const refTimestamp = this.#getRefTimestamp(filterQueries);
+    if (refTimestamp === null) {
+      return 'latest';
+    }
+    return Math.floor(Number(refTimestamp) / 3_600_000_000_000) * 3600;
   }
 
   fallbackRetry = async (fileEntityId, filterQueries, resultConstructor) => {
@@ -138,7 +150,7 @@ class FileDataService extends BaseService {
     while (++attempts <= config.query.maxFileAttempts) {
       const row = await this.getLatestFileDataContents(fileEntityId, filters);
       try {
-        return row === null ? null : resultConstructor ? new resultConstructor(row) : row;
+        return row === null ? null : new resultConstructor(row);
       } catch (error) {
         logger.warn(
           `Attempt ${attempts} failed to load file ${fileEntityId} at ${row.consensus_timestamp}, falling back to previous file: ${error.message}`
