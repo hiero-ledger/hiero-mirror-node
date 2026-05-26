@@ -51,7 +51,7 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
 
     static final String MIN_CONSENSUS_END_TIMESTAMP_KEY = "minConsensusEndTimestamp";
 
-    static final long INTERVAL = Duration.ofDays(7).toNanos();
+    static final long INTERVAL = Duration.ofHours(1).toNanos();
 
     private static final String CREATE_TEMPORARY_PROCESSED_RECORD_FILE_TABLE = """
                     create table if not exists processed_record_file_temp(
@@ -77,6 +77,9 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
             """;
 
     private static final String INSERT_SLICE_CHECKPOINT = """
+                    with clear_table as (
+                        delete from processed_record_file_temp
+                    )
                     insert into processed_record_file_temp(consensus_end)
                     values (:consensusEndLowerBound)
             """;
@@ -279,11 +282,13 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
         jdbc.update(
                 INSERT_SLICE_CHECKPOINT, new MapSqlParameterSource("consensusEndLowerBound", consensusEndLowerBound));
 
-        log.info(
-                "Updated {} record_file row(s) for consensus_end in ({}, {}].",
-                updated,
-                consensusEndLowerBound,
-                consensusEndTimestamp);
+        if (updated > 0) {
+            log.info(
+                    "Updated {} record_file row(s) for consensus_end in ({}, {}].",
+                    updated,
+                    consensusEndLowerBound,
+                    consensusEndTimestamp);
+        }
 
         if (consensusEndLowerBound <= minEnd) {
             log.info(
