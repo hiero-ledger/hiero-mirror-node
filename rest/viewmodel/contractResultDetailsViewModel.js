@@ -77,13 +77,13 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     // default eth related values
     this.access_list = null;
     this.block_gas_used = recordFile?.gasUsed != null && recordFile.gasUsed !== -1 ? recordFile.gasUsed : null;
-    this.chain_id = config.chainId ?? null;
+    this.chain_id = null;
     this.gas_price = null;
     this.max_fee_per_gas = null;
     this.max_priority_fee_per_gas = null;
     this.r = null;
     this.s = null;
-    this.type = ContractResultDetailsViewModel._LEGACY_TYPE;
+    this.type = null;
     this.v = null;
     this.nonce = null;
 
@@ -92,7 +92,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       if (config.response.enableDelegationAddress) {
         this.authorization_list = ethTransaction.authorizationList ?? [];
       }
-      this.chain_id = utils.toHexStringQuantity(ethTransaction.chainId) ?? config.chainId ?? null;
+      this.chain_id = utils.toHexStringQuantity(ethTransaction.chainId);
 
       if (!isTransactionSuccessful && isEmpty(contractResult.errorMessage)) {
         this.error_message = this.result;
@@ -130,7 +130,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       if (ethTransaction.toAddress?.length) {
         this.to = utils.toHexStringNonQuantity(ethTransaction.toAddress);
       }
-      this.type = ethTransaction.type ?? ContractResultDetailsViewModel._LEGACY_TYPE;
+      this.type = ethTransaction.type;
       this.v =
         this.type === ContractResultDetailsViewModel._LEGACY_TYPE && ethTransaction.signatureV
           ? BigInt(utils.toHexStringNonQuantity(ethTransaction.signatureV))
@@ -143,14 +143,18 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       }
     }
 
-    // Apply defaults for non-ethereum transactions
-    if (this.gas_price == null) {
-      if (gasPriceFromFeeSchedule != null) {
-        this.gas_price = utils.toHexStringQuantity(gasPriceFromFeeSchedule);
-      }
-      if (!convertToHbar && !isNil(contractResult.amount)) {
-        this.amount = BigInt(contractResult.amount) * WEIBARS_TO_TINYBARS;
-      }
+    // Apply defaults for any fields still null after eth transaction processing
+    if (this.chain_id == null) {
+      this.chain_id = config.chainId ?? null;
+    }
+    if (this.type == null) {
+      this.type = ContractResultDetailsViewModel._LEGACY_TYPE;
+    }
+    if (this.gas_price == null && gasPriceFromFeeSchedule != null) {
+      this.gas_price = utils.toHexStringQuantity(gasPriceFromFeeSchedule);
+    }
+    if (isNil(ethTransaction) && !convertToHbar && !isNil(contractResult.amount)) {
+      this.amount = BigInt(contractResult.amount) * WEIBARS_TO_TINYBARS;
     }
   }
 
