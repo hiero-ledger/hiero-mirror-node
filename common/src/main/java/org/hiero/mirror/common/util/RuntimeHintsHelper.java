@@ -17,11 +17,6 @@ import org.springframework.core.type.filter.TypeFilter;
 @NullMarked
 public final class RuntimeHintsHelper {
 
-    private static final MemberCategory[] DEFAULT_CATEGORIES = {
-        MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-        MemberCategory.INVOKE_DECLARED_METHODS,
-        MemberCategory.ACCESS_DECLARED_FIELDS,
-    };
     public static final MemberCategory[] NONE = {};
     public static final MemberCategory[] UNSAFE_ALLOCATED = {MemberCategory.UNSAFE_ALLOCATED};
     public static final MemberCategory[] METHODS_ONLY = {MemberCategory.INVOKE_DECLARED_METHODS};
@@ -29,8 +24,14 @@ public final class RuntimeHintsHelper {
         MemberCategory.INVOKE_DECLARED_CONSTRUCTORS, MemberCategory.INVOKE_DECLARED_METHODS
     };
     public static final MemberCategory[] CONSTRUCTORS_ONLY = {MemberCategory.INVOKE_DECLARED_CONSTRUCTORS};
-    public static final MemberCategory[] FIELDS_AND_METHODS = {
-        MemberCategory.ACCESS_DECLARED_FIELDS, MemberCategory.INVOKE_DECLARED_METHODS
+    public static final MemberCategory[] CONSTRUCTORS_AND_FIELDS = {
+        MemberCategory.INVOKE_DECLARED_CONSTRUCTORS, MemberCategory.ACCESS_DECLARED_FIELDS
+    };
+
+    private static final MemberCategory[] DEFAULT_CATEGORIES = {
+        MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+        MemberCategory.INVOKE_DECLARED_METHODS,
+        MemberCategory.ACCESS_DECLARED_FIELDS,
     };
 
     public static void registerReflectionTypes(RuntimeHints hints, String... classNames) {
@@ -96,17 +97,6 @@ public final class RuntimeHintsHelper {
     public static void registerResourcePatterns(RuntimeHints hints, String... patterns) {
         for (final var pattern : patterns) {
             hints.resources().registerPattern(pattern);
-        }
-    }
-
-    public static void registerSerialization(RuntimeHints hints, ClassLoader loader, String... classNames) {
-        for (final var className : classNames) {
-            try {
-                final var clazz = Class.forName(className, false, loader);
-                hints.reflection().registerJavaSerialization(clazz);
-            } catch (ClassNotFoundException e) {
-                // no-op
-            }
         }
     }
 

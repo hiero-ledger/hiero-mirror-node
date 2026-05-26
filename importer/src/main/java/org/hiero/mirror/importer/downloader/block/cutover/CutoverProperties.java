@@ -18,11 +18,14 @@ import org.springframework.validation.annotation.Validated;
 public final class CutoverProperties {
 
     @Nullable
-    private Boolean enabled = false;
+    private Boolean enabled;
 
     @NotNull
     @Valid
     private CutoverFirstStageProperties firstStage = new CutoverFirstStageProperties();
+
+    @NotNull
+    private Version hapiVersion = new Version(0, 76, 0);
 
     @DurationMin(seconds = 8)
     @NotNull

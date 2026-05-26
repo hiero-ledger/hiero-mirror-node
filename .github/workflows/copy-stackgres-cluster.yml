@@ -8,6 +8,9 @@ concurrency:
 on:
   workflow_call:
     inputs:
+      collect_k6_report:
+        default: false
+        type: boolean
       require_clean_target:
         default: true
         type: boolean
@@ -70,6 +73,11 @@ on:
         required: true
   workflow_dispatch:
     inputs:
+      collect_k6_report:
+        default: false
+        description: "Collect and upload the k6 test report artifact"
+        type: boolean
+        required: false
       require_clean_target:
         default: true
         description: "Require target to be in torn down state"
@@ -151,6 +159,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-medium
     timeout-minutes: 900 # 15 hours
     env:
+      COLLECT_K6_REPORT: ${{ inputs.collect_k6_report }}
       GCP_SNAPSHOT_PROJECT: ${{ inputs.source_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
       GCP_K8S_SOURCE_CLUSTER_NAME: ${{ inputs.source_cluster_name }}
       GCP_K8S_SOURCE_CLUSTER_REGION: ${{ inputs.source_cluster_location }}
@@ -168,7 +177,7 @@ jobs:
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -261,7 +270,7 @@ jobs:
           version: v2.3.0
 
       - name: Setup Flux CLI
-        uses: fluxcd/flux2/action@04acaec6161ac4fb1a82ffafa88901c03271d34f # v2.8.6
+        uses: fluxcd/flux2/action@1fd61a06264d71cf445ed55c4f14d401d26a1c64 # v2.8.8
         with:
           version: v2.3.0
 
@@ -298,7 +307,7 @@ jobs:
           ./copy-live-environment.sh
 
       - name: Upload k6 test report
-        if: ${{ inputs.run_k6_test == true }}
+        if: ${{ inputs.run_k6_test == true && inputs.collect_k6_report == true }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: k6-test-report
