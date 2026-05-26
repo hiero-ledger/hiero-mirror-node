@@ -12,6 +12,7 @@ import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerResourcePa
 import com.hedera.node.app.hapi.utils.sysfiles.domain.throttling.ThrottleGroup;
 import com.swirlds.config.api.ConfigData;
 import org.hibernate.validator.internal.util.logging.Log_$logger;
+import org.hibernate.validator.internal.util.logging.Messages_$bundle;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
@@ -47,7 +48,7 @@ final class RuntimeHintsConfiguration {
                     "com.esaulpaugh.headlong.abi.Sextuple[]",
                     "com.esaulpaugh.headlong.abi.Triple[]");
 
-            registerReflectionTypes(hints, CONSTRUCTORS_ONLY, Log_$logger.class);
+            registerReflectionTypes(hints, CONSTRUCTORS_ONLY, Log_$logger.class, Messages_$bundle.class);
 
             registerReflectionTypes(
                     hints,

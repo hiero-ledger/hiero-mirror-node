@@ -21,6 +21,7 @@ import java.time.OffsetTime;
 import java.time.Year;
 import java.util.Objects;
 import org.hibernate.validator.internal.util.logging.Log_$logger;
+import org.hibernate.validator.internal.util.logging.Messages_$bundle;
 import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.restjava.config.RuntimeHintsConfiguration.CustomRuntimeHints;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
@@ -70,7 +71,7 @@ final class RuntimeHintsConfiguration {
             registerPackage(hints, loader, ThrottleGroup.class.getPackageName());
             registerPackage(hints, loader, NumberRangeParameter.class.getPackageName());
 
-            registerReflectionTypes(hints, CONSTRUCTORS_ONLY, Log_$logger.class);
+            registerReflectionTypes(hints, CONSTRUCTORS_ONLY, Log_$logger.class, Messages_$bundle.class);
 
             registerResourcePatterns(
                     hints,
