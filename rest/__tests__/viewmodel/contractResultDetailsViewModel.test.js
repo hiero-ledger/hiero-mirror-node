@@ -426,5 +426,55 @@ describe('ContractResultDetailsViewModel', () => {
       // gas_price should be null when there's no ethTransaction and no fee schedule gas price
       expect(viewModel.gas_price).toBeNull();
     });
+
+    test('returns access_list from db jsonb', () => {
+      const accessList = [
+        {
+          address: '0xa02457e5dfd32bda5fc7e1f1b008aa5979568150',
+          storage_keys: ['0x0000000000000000000000000000000000000000000000000000000000000081'],
+        },
+      ];
+      const ethTransaction = {
+        ...mockEthTransaction,
+        accessList,
+      };
+
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult,
+        mockRecordFile,
+        ethTransaction,
+        [],
+        [],
+        null
+      );
+
+      expect(viewModel.access_list).toEqual([
+        {
+          address: '0xa02457e5dfd32bda5fc7e1f1b008aa5979568150',
+          storage_keys: ['0x0000000000000000000000000000000000000000000000000000000000000081'],
+        },
+      ]);
+    });
+
+    test('returns empty array when accessList is null', () => {
+      const ethTransaction = new EthereumTransaction(mockEthTransaction);
+
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult,
+        mockRecordFile,
+        ethTransaction,
+        [],
+        [],
+        null
+      );
+
+      expect(viewModel.access_list).toEqual([]);
+    });
+
+    test('leaves access_list null when ethTransaction is null', () => {
+      const viewModel = new ContractResultDetailsViewModel(mockContractResult, mockRecordFile, null, [], [], null);
+
+      expect(viewModel.access_list).toBeNull();
+    });
   });
 });
