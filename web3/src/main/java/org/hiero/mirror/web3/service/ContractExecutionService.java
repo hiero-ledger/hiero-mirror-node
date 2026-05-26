@@ -17,6 +17,7 @@ import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
@@ -126,7 +127,10 @@ public class ContractExecutionService extends ContractCallService {
         if (address == null) {
             return null;
         }
-        var hex = address.startsWith(HEX_PREFIX) || address.startsWith("0X") ? address.substring(2) : address;
+        if (address.startsWith("0X")) {
+            throw new InvalidParametersException("Invalid address: '0X' prefix is not allowed, use '0x'");
+        }
+        var hex = address.startsWith(HEX_PREFIX) ? address.substring(2) : address;
         return HEX_PREFIX + hex.toLowerCase();
     }
 

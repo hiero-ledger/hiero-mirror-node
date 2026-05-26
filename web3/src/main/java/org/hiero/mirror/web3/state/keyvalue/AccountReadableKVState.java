@@ -6,6 +6,7 @@ import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.AC
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.web3.state.Utils.parseHexNonce;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
@@ -145,9 +146,9 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
      */
     private static String accountIdToEvmAddressHex(@NonNull AccountID key) {
         if (key.hasAlias() && key.alias().length() == 20) {
-            return "0x" + key.alias().toHex().toLowerCase();
+            return HEX_PREFIX + key.alias().toHex().toLowerCase();
         } else if (key.hasAccountNum()) {
-            return "0x" + String.format("%040x", key.accountNum());
+            return HEX_PREFIX + String.format("%040x", key.accountNum());
         }
         return null;
     }
