@@ -691,7 +691,7 @@ class OpcodeActionTracerTest {
                 contractCallContext.getOpcodeContext().getOpcodes().get(EXECUTED_FRAMES.get() - 1);
 
         assertThat(contractCallContext.getOpcodeContext().getOpcodes()).hasSize(EXECUTED_FRAMES.get());
-        assertThat(contractCallContext.getOpcodeContext().getActions()).isNotNull();
+        assertThat(contractCallContext.getOpcodeContext().getActionsByDepth()).isNotNull();
         return expectedOpcode;
     }
 
@@ -717,7 +717,7 @@ class OpcodeActionTracerTest {
                 contractCallContext.getOpcodeContext().getOpcodes().get(EXECUTED_FRAMES.get() - 1);
 
         assertThat(contractCallContext.getOpcodeContext().getOpcodes()).hasSize(EXECUTED_FRAMES.get());
-        assertThat(contractCallContext.getOpcodeContext().getActions()).isNotNull();
+        assertThat(contractCallContext.getOpcodeContext().getActionsByDepth()).isNotNull();
         return expectedOpcode;
     }
 

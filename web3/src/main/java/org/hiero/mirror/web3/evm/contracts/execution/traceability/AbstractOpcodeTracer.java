@@ -23,7 +23,6 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
 import org.hyperledger.besu.evm.frame.MessageFrame;
-import org.springframework.util.CollectionUtils;
 
 public abstract class AbstractOpcodeTracer {
 
@@ -131,11 +130,11 @@ public abstract class AbstractOpcodeTracer {
     protected final String getRevertReasonFromContractActions(final ContractCallContext context, final int depth) {
         final var opcodeContext = context.getOpcodeContext();
 
-        if (CollectionUtils.isEmpty(opcodeContext.getActions())) {
+        if (opcodeContext.getActionsByDepth().isEmpty()) {
             return null;
         }
 
-        final var action = opcodeContext.getNextFailedActionAtDepth(depth);
+        final var action = opcodeContext.consumeNextFailedActionAtDepth(depth);
         return action != null && action.hasRevertReason() ? formatRevertReason(action.getResultData()) : null;
     }
 

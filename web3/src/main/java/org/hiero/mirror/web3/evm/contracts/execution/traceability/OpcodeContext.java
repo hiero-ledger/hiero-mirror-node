@@ -25,8 +25,13 @@ import org.hiero.mirror.web3.service.model.OpcodeRequest;
 @AllArgsConstructor
 public final class OpcodeContext {
 
+    /**
+     * Actions pre-grouped by call depth and sorted by index within each depth.
+     * Populated once via {@link #setActions(List)} to avoid repeated filtering and sorting.
+     */
+    @Setter(AccessLevel.NONE)
     @Builder.Default
-    private List<ContractAction> actions = List.of();
+    private Map<Integer, List<ContractAction>> actionsByDepth = Map.of();
 
     private List<Opcode> opcodes;
 
@@ -62,11 +67,28 @@ public final class OpcodeContext {
         this.memory = opcodeRequest.isMemory();
         this.storage = opcodeRequest.isStorage();
         this.opcodes = new ArrayList<>(opcodesSize);
+        this.actionsByDepth = new HashMap<>();
         this.precompileCallCountByDepth = new HashMap<>();
     }
 
     public void addOpcodes(Opcode opcode) {
         opcodes.add(opcode);
+    }
+
+    /**
+     * Groups the given actions by call depth and sorts each group by index.
+     * This pre-processing is done once so that {@link #consumeNextFailedActionAtDepth(int)} is a simple lookup.
+     */
+    public void setActions(final List<ContractAction> actions) {
+        final var grouped = new HashMap<Integer, List<ContractAction>>();
+        for (final var action : actions) {
+            grouped.computeIfAbsent(action.getCallDepth(), k -> new ArrayList<>())
+                    .add(action);
+        }
+        for (final var list : grouped.values()) {
+            list.sort(Comparator.comparingInt(ContractAction::getIndex));
+        }
+        this.actionsByDepth = grouped;
     }
 
     /**
@@ -82,16 +104,15 @@ public final class OpcodeContext {
      * Returns the reverted sidecar {@link ContractAction} that corresponds to the n-th system-contract
      * call at the given {@code depth}, where n is the current per-depth call counter, or {@code null}
      * if no such action exists (i.e., the call succeeded or no actions were loaded for that depth).
+     * <p>
+     * This method advances the per-depth call counter as a side effect.
      *
      * @param depth the EVM call depth at the time of the system-contract invocation
      * @return the matching reverted action, or {@code null}
      */
-    public ContractAction getNextFailedActionAtDepth(final int depth) {
+    public ContractAction consumeNextFailedActionAtDepth(final int depth) {
         final int counter = incrementPrecompileCallCountAtDepth(depth);
-        final var actionsAtDepth = actions.stream()
-                .filter(a -> a.getCallDepth() == depth)
-                .sorted(Comparator.comparingInt(ContractAction::getIndex))
-                .toList();
+        final var actionsAtDepth = actionsByDepth.getOrDefault(depth, List.of());
         if (counter >= actionsAtDepth.size()) {
             return null;
         }
