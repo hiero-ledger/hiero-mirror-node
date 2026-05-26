@@ -85,17 +85,8 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             blockFile.setCount((long) items.size());
 
             if (!items.isEmpty()) {
-                long minTimestamp = Long.MAX_VALUE;
-                long maxTimestamp = Long.MIN_VALUE;
-                for (final var item : items) {
-                    final long ts = item.getConsensusTimestamp();
-                    if (ts < minTimestamp) {
-                        minTimestamp = ts;
-                    }
-                    if (ts > maxTimestamp) {
-                        maxTimestamp = ts;
-                    }
-                }
+                final long minTimestamp = context.getMinTimestamp();
+                final long maxTimestamp = context.getMaxTimestamp();
 
                 final long firstTimestamp = items.getFirst().getConsensusTimestamp();
                 final long lastTimestamp = items.getLast().getConsensusTimestamp();
@@ -249,6 +240,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
                 final var blockFileBuilder = context.getBlockFile();
                 blockFileBuilder.item(blockTransaction);
+                context.trackConsensusTimestamp(blockTransaction.getConsensusTimestamp());
                 if (blockTransaction.getTransactionBody().hasLedgerIdPublication() && blockTransaction.isSuccessful()) {
                     blockFileBuilder.lastLedgerIdPublicationTransaction(blockTransaction);
                 }
@@ -288,6 +280,12 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         @NonFinal
         @Nullable
         private BlockTransaction lastBlockTransaction;
+
+        @NonFinal
+        private long minTimestamp = Long.MAX_VALUE;
+
+        @NonFinal
+        private long maxTimestamp = Long.MIN_VALUE;
 
         @NonFinal
         @Nullable
@@ -341,6 +339,15 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             }
 
             return null;
+        }
+
+        void trackConsensusTimestamp(final long timestamp) {
+            if (timestamp < minTimestamp) {
+                minTimestamp = timestamp;
+            }
+            if (timestamp > maxTimestamp) {
+                maxTimestamp = timestamp;
+            }
         }
 
         void resetBatchTransaction() {
