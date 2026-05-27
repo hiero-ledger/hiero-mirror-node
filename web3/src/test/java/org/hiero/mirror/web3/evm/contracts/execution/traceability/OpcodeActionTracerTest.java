@@ -67,10 +67,10 @@ import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
+import org.hyperledger.besu.evm.Code;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
 import org.hyperledger.besu.evm.account.MutableAccount;
-import org.hyperledger.besu.evm.code.CodeV0;
 import org.hyperledger.besu.evm.frame.BlockValues;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
@@ -167,7 +167,7 @@ class OpcodeActionTracerTest {
                 .input(new byte[0])
                 .payerAccountId(EntityId.of("0.0.2"))
                 .recipientAccount(EntityId.of("0.0.3"))
-                .recipientAddress(recipientAddress.toArray())
+                .recipientAddress(recipientAddress.getBytes().toArray())
                 .recipientContract(EntityId.of("0.0.4"))
                 .resultData(resultDataType == REVERT_REASON.getNumber() ? "revert reason".getBytes() : new byte[0])
                 .resultDataType(resultDataType)
@@ -797,7 +797,7 @@ class OpcodeActionTracerTest {
     private MessageFrame.Builder messageFrameBuilder(final Address recipientAddress, final MessageFrame.Type type) {
         return new MessageFrame.Builder()
                 .type(type)
-                .code(CodeV0.EMPTY_CODE)
+                .code(Code.EMPTY_CODE)
                 .sender(Address.ZERO)
                 .originator(Address.ZERO)
                 .completer(ignored -> {})

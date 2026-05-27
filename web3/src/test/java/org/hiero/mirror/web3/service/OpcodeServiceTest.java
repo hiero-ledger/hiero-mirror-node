@@ -919,7 +919,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                         Integers.toBytes(nonce),
                         gasPrice,
                         Integers.toBytes(TRANSACTION_GAS_LIMIT),
-                        Address.fromHexString(contractAddress).toArray(),
+                        Address.fromHexString(contractAddress).getBytes().toArray(),
                         Integers.toBytesUnsigned(calculatedValue),
                         callData,
                         List.of())));
@@ -942,7 +942,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                         Integers.toBytes(nonce),
                         gasPrice,
                         Integers.toBytes(TRANSACTION_GAS_LIMIT),
-                        Address.fromHexString(contractAddress).toArray(),
+                        Address.fromHexString(contractAddress).getBytes().toArray(),
                         Integers.toBytesUnsigned(calculatedValue),
                         callData,
                         List.of(),
@@ -960,7 +960,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 null,
                 null,
                 TRANSACTION_GAS_LIMIT,
-                Address.fromHexString(contractAddress).toArray(),
+                Address.fromHexString(contractAddress).getBytes().toArray(),
                 BigInteger.valueOf(value),
                 callData,
                 new byte[] {},
@@ -987,7 +987,9 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                         .gasLimit(TRANSACTION_GAS_LIMIT)
                         .gasPrice(gasPrice)
                         .hash(calculatedEthHash)
-                        .toAddress(Address.fromHexString(contractAddress).toArray())
+                        .toAddress(Address.fromHexString(contractAddress)
+                                .getBytes()
+                                .toArray())
                         .recoveryId(recoveryId)
                         .signatureR(signatureR)
                         .signatureS(signatureS)

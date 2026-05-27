@@ -37,7 +37,8 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
 
         // Create an account entity with delegation address pointing to the deployed contract
-        final var account = accountEntityPersistWithCodeDelegation(contractAddress.toArrayUnsafe());
+        final var account = accountEntityPersistWithCodeDelegation(
+                contractAddress.getBytes().toArrayUnsafe());
         final var accountAddress = toAddress(account.toEntityId());
 
         // Encode the call data for multiplySimpleNumbers()
@@ -60,7 +61,8 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
 
-        final var account = accountEntityPersistWithCodeDelegation(contractAddress.toArrayUnsafe());
+        final var account = accountEntityPersistWithCodeDelegation(
+                contractAddress.getBytes().toArrayUnsafe());
         final var accountAddress = toAddress(account.toEntityId());
 
         final var functionCall = contract.call_returnStorageData();
@@ -83,7 +85,8 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
 
-        final var account = accountEntityPersistWithCodeDelegation(contractAddress.toArrayUnsafe());
+        final var account = accountEntityPersistWithCodeDelegation(
+                contractAddress.getBytes().toArrayUnsafe());
         final var accountAddress = toAddress(account.toEntityId());
 
         final var functionCall = contract.call_writeToStorageSlot("123");
@@ -105,7 +108,8 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
 
-        final var account = accountEntityPersistWithCodeDelegation(contractAddress.toArrayUnsafe());
+        final var account = accountEntityPersistWithCodeDelegation(
+                contractAddress.getBytes().toArrayUnsafe());
         final var accountAddress = toAddress(account.toEntityId());
 
         final var functionCall = contract.call_getExternalBytecode(accountAddress.toHexString());
@@ -190,7 +194,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
     void callToAccountWithDelegationToPrecompileIsNoOp(final String precompileAddress) {
         // Given - an account with delegation address pointing to a system contract / precompile
         final var account = accountEntityPersistWithCodeDelegation(
-                Address.fromHexString(precompileAddress).toArrayUnsafe());
+                Address.fromHexString(precompileAddress).getBytes().toArrayUnsafe());
         final var accountAddress = toAddress(account.toEntityId());
         final var serviceParameters =
                 getContractExecutionParameters(Bytes.EMPTY, accountAddress, Address.ZERO, 0L, ETH_CALL);
@@ -208,7 +212,8 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         final var systemAccountAddress = toAddress(systemEntity.nodeRewardAccount());
 
         // Create an account entity with delegation address pointing to the system account
-        final var account = accountEntityPersistWithCodeDelegation(systemAccountAddress.toArrayUnsafe());
+        final var account = accountEntityPersistWithCodeDelegation(
+                systemAccountAddress.getBytes().toArrayUnsafe());
         final var accountAddress = toAddress(account.toEntityId());
 
         final var serviceParameters =
@@ -228,7 +233,8 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
 
         // Create an account entity with delegation address pointing to the deployed contract
-        final var accountSecondary = accountEntityPersistWithCodeDelegation(contractAddress.toArrayUnsafe());
+        final var accountSecondary = accountEntityPersistWithCodeDelegation(
+                contractAddress.getBytes().toArrayUnsafe());
         final var accountAddressSecondary = toAddress(accountSecondary.toEntityId());
 
         // Encode the call data for multiplySimpleNumbers()
@@ -236,7 +242,8 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         final var callData = Bytes.fromHexString(functionCall.encodeFunctionCall());
 
         // Create an account entity with delegation address pointing to the first account
-        final var accountPrimary = accountEntityPersistWithCodeDelegation(accountAddressSecondary.toArrayUnsafe());
+        final var accountPrimary = accountEntityPersistWithCodeDelegation(
+                accountAddressSecondary.getBytes().toArrayUnsafe());
         final var accountAddressPrimary = toAddress(accountPrimary.toEntityId());
 
         final var serviceParameters =
@@ -258,11 +265,12 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         final var tokenAddress = toAddress(tokenEntity.toEntityId());
 
         // Create an account entity with delegation address pointing to the token
-        final var account = accountEntityPersistWithCodeDelegation(tokenAddress.toArrayUnsafe());
+        final var account =
+                accountEntityPersistWithCodeDelegation(tokenAddress.getBytes().toArrayUnsafe());
         final var accountAddress = toAddress(account.toEntityId());
 
         final var callData = Bytes.of(new Function("getTokenInfo(address)")
-                .encodeCallWithArgs(asHeadlongAddress(tokenAddress.toArrayUnsafe()))
+                .encodeCallWithArgs(asHeadlongAddress(tokenAddress.getBytes().toArrayUnsafe()))
                 .array());
         final var serviceParameters =
                 getContractExecutionParameters(callData, accountAddress, Address.ZERO, 0L, ETH_CALL);
@@ -282,11 +290,12 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         final var scheduleAddress = toAddress(scheduleEntity.toEntityId());
 
         // Create an account entity with delegation address pointing to the schedule
-        final var account = accountEntityPersistWithCodeDelegation(scheduleAddress.toArrayUnsafe());
+        final var account = accountEntityPersistWithCodeDelegation(
+                scheduleAddress.getBytes().toArrayUnsafe());
         final var accountAddress = toAddress(account.toEntityId());
 
         final var callData = Bytes.of(new Function("authorizeSchedule(address)")
-                .encodeCallWithArgs(asHeadlongAddress(scheduleAddress.toArrayUnsafe()))
+                .encodeCallWithArgs(asHeadlongAddress(scheduleAddress.getBytes().toArrayUnsafe()))
                 .array());
         final var serviceParameters =
                 getContractExecutionParameters(callData, accountAddress, Address.ZERO, 0L, ETH_CALL);

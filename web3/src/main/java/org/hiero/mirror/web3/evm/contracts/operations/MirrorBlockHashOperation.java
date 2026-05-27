@@ -61,10 +61,10 @@ class MirrorBlockHashOperation extends BlockHashOperation {
         } else if (currentBlockNumber == soughtBlock) {
             final var latestBlock = ContractCallContext.get().getRecordFile();
             final var blockHash = getBlockHash(latestBlock);
-            frame.pushStackItem(blockHash);
+            frame.pushStackItem(blockHash.getBytes());
         } else {
             final Hash blockHash = getBlockHash(soughtBlock);
-            frame.pushStackItem(blockHash);
+            frame.pushStackItem(blockHash.getBytes());
         }
 
         return new OperationResult(cost, null);

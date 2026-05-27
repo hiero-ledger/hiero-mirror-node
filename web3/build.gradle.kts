@@ -69,9 +69,9 @@ val isNativeBuild =
 val isTestExecution =
     !isNativeBuild &&
         requestedTasks.any {
-            it.contains("test", ignoreCase = true)
-            it.contains("check", ignoreCase = true)
-            it.contains("build", ignoreCase = true)
+            it.contains("test", ignoreCase = true) ||
+                it.contains("check", ignoreCase = true) ||
+                it.contains("build", ignoreCase = true)
         }
 
 if (isTestExecution) {

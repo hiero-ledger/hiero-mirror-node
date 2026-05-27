@@ -43,13 +43,21 @@ class ContractBytecodeReadableKVStateTest {
     private static final Address MIRROR_ADDRESS = Address.fromHexString(HEX);
     private static final Address EVM_ADDRESS = Address.fromHexString("0xb794f5ea0ba39494ce839613fffba74279579268");
     private static final ContractID CONTRACT_ID_WITH_MIRROR_EVM_ADDRESS = new ContractID(
-            1L, 0L, new OneOf<>(ContractOneOfType.EVM_ADDRESS, Bytes.wrap(MIRROR_ADDRESS.toArrayUnsafe())));
+            1L,
+            0L,
+            new OneOf<>(
+                    ContractOneOfType.EVM_ADDRESS,
+                    Bytes.wrap(MIRROR_ADDRESS.getBytes().toArrayUnsafe())));
     private static final EntityId ENTITY_ID_WITH_MIRROR_EVM_ADDRESS =
             EntityId.of(entityIdNumFromEvmAddress(MIRROR_ADDRESS));
-    private static final ContractID CONTRACT_ID_WITH_EVM_ADDRESS =
-            new ContractID(1L, 0L, new OneOf<>(ContractOneOfType.EVM_ADDRESS, Bytes.wrap(EVM_ADDRESS.toArrayUnsafe())));
+    private static final ContractID CONTRACT_ID_WITH_EVM_ADDRESS = new ContractID(
+            1L,
+            0L,
+            new OneOf<>(
+                    ContractOneOfType.EVM_ADDRESS,
+                    Bytes.wrap(EVM_ADDRESS.getBytes().toArrayUnsafe())));
     private static final Entity ENTITY = Entity.builder()
-            .evmAddress(EVM_ADDRESS.toArrayUnsafe())
+            .evmAddress(EVM_ADDRESS.getBytes().toArrayUnsafe())
             .shard(1L)
             .realm(0L)
             .num(1L)
@@ -110,7 +118,8 @@ class ContractBytecodeReadableKVStateTest {
 
     @Test
     void whenContractEvmAddressIsSetReturnRuntimeBytecode() {
-        when(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(EVM_ADDRESS.toArray(), Optional.empty()))
+        when(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(
+                        EVM_ADDRESS.getBytes().toArray(), Optional.empty()))
                 .thenReturn(Optional.of(ENTITY));
         when(contractRepository.findRuntimeBytecode(ENTITY.toEntityId().getId()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));

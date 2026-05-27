@@ -370,8 +370,9 @@ public class TestWeb3jService implements Web3jService {
         final var contractBytes = Hex.decode(binary.replace(HEX_PREFIX, ""));
         final var entity = domainBuilder
                 .entity(entityId)
-                .customize(e ->
-                        e.type(CONTRACT).evmAddress(contractAddress.toArray()).timestampRange(historicalRange))
+                .customize(e -> e.type(CONTRACT)
+                        .evmAddress(contractAddress.getBytes().toArray())
+                        .timestampRange(historicalRange))
                 .persist();
 
         domainBuilder

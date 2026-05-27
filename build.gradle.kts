@@ -18,7 +18,7 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.34.0")
-    set("consensusNodeVersion", "0.74.0-rc.4")
+    set("consensusNodeVersion", "0.73.0-pectra-preview-alpha.4")
     set("grpcVersion", "1.81.0")
     set("jooq.version", "3.21.4") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
@@ -58,7 +58,7 @@ dependencies {
         api("com.hedera.cryptography:hedera-cryptography-wraps:3.8.1")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.74.0-rc.4")
         api("com.hedera.hashgraph:sdk:2.72.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")

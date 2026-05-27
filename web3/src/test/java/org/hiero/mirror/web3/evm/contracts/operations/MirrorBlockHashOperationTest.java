@@ -114,7 +114,8 @@ class MirrorBlockHashOperationTest {
                 .extracting(OperationResult::getHaltReason)
                 .isNull();
         verify(messageFrame)
-                .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64)));
+                .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64))
+                        .getBytes());
     }
 
     @Test
@@ -136,7 +137,8 @@ class MirrorBlockHashOperationTest {
                 .extracting(OperationResult::getHaltReason)
                 .isNull();
         verify(messageFrame)
-                .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64)));
+                .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64))
+                        .getBytes());
     }
 
     @Test
@@ -156,6 +158,6 @@ class MirrorBlockHashOperationTest {
                 .isNotNull()
                 .extracting(OperationResult::getHaltReason)
                 .isNull();
-        verify(messageFrame).pushStackItem(Hash.ZERO);
+        verify(messageFrame).pushStackItem(Hash.ZERO.getBytes());
     }
 }

@@ -71,7 +71,7 @@ public class TransactionExecutionService {
     private final TransactionExecutorFactory transactionExecutorFactory;
 
     public EvmTransactionResult execute(final CallServiceParameters params, final long estimatedGas) {
-        final var isContractCreate = params.getReceiver().isZero();
+        final var isContractCreate = params.getReceiver().getBytes().isZero();
         final var configuration = evmProperties.getVersionedConfiguration();
         final var maxLifetime =
                 configuration.getConfigData(EntitiesConfig.class).maxLifetime();
@@ -189,7 +189,8 @@ public class TransactionExecutionService {
                         .contractID(ContractID.newBuilder()
                                 .shardNum(commonProperties.getShard())
                                 .realmNum(commonProperties.getRealm())
-                                .evmAddress(Bytes.wrap(params.getReceiver().toArrayUnsafe()))
+                                .evmAddress(Bytes.wrap(
+                                        params.getReceiver().getBytes().toArrayUnsafe()))
                                 .build())
                         .functionParameters(Bytes.wrap(params.getCallData()))
                         .amount(params.getValue()) // tinybars sent to contract
@@ -216,7 +217,7 @@ public class TransactionExecutionService {
      *  the state, to bypass the nonce verification during transaction replay.
      */
     private void patchSenderNonce(final ContractDebugParameters params) {
-        if (params.getSender().isZero() && params.getValue() == 0L || !ContractCallContext.isInitialized()) {
+        if (params.getSender().getBytes().isZero() && params.getValue() == 0L || !ContractCallContext.isInitialized()) {
             return;
         }
         final long nonce = populateEthTxData(params.getEthereumData()).nonce();
@@ -232,13 +233,13 @@ public class TransactionExecutionService {
 
     private ProtoBytes convertAddressToProtoBytes(final Address address) {
         return ProtoBytes.newBuilder()
-                .value(Bytes.wrap(address.toArrayUnsafe()))
+                .value(Bytes.wrap(address.getBytes().toArrayUnsafe()))
                 .build();
     }
 
     private AccountID getSenderAccountID(final CallServiceParameters params) {
         // Set a default account to keep the sender parameter optional.
-        if (params.getSender().isZero() && params.getValue() == 0L) {
+        if (params.getSender().getBytes().isZero() && params.getValue() == 0L) {
             return EntityIdUtils.toAccountId(systemEntity.treasuryAccount());
         }
         final var senderAddress = params.getSender();
