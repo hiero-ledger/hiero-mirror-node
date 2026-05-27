@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static com.hedera.services.utils.EntityIdUtils.accountIdToEvmAddressHex;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.state.Utils.EMPTY_KEY_LIST;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,6 +33,7 @@ import com.hedera.services.utils.EntityIdUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.hiero.mirror.common.CommonProperties;
@@ -54,6 +56,7 @@ import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.repository.projections.TokenAccountAssociationsCount;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hiero.mirror.web3.viewmodel.NormalizedStateOverride;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -76,6 +79,10 @@ class AccountReadableKVStateTest {
     private static final EntityId AUTO_RENEW_ACCOUNT_ID = EntityId.of(SHARD, REALM, NUM + 1);
     private static final long EXPIRATION_TIMESTAMP = 2_000_000_000L;
     private static final long BALANCE = 3L;
+    private static final String OVERRIDE_BALANCE_HEX = "0x64";
+    private static final long OVERRIDE_BALANCE = 100L;
+    private static final String OVERRIDE_NONCE_HEX = "0x2a";
+    private static final long OVERRIDE_NONCE = 42L;
     private static final long AUTO_RENEW_PERIOD = 4_000_000_000L;
     private static final EntityId PROXY_ACCOUNT_ID = EntityId.of(SHARD, REALM, 5L);
     private static final int MAX_AUTOMATIC_TOKEN_ASSOCIATIONS = 6;
@@ -664,6 +671,84 @@ class AccountReadableKVStateTest {
         final var account = accountReadableKVState.readFromDataSource(systemAccount);
         assertThat(account).isNotNull();
         assertThat(account.keyOrThrow()).isNotNull().isEqualTo(EMPTY_KEY_LIST);
+    }
+
+    @Test
+    void whenStateOverrideHasBalanceReturnsOverriddenBalance() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        contractCallContext.setStateOverrides(Map.of(
+                accountIdToEvmAddressHex(ACCOUNT_ID),
+                NormalizedStateOverride.builder().balance(OVERRIDE_BALANCE_HEX).build()));
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account).returns(OVERRIDE_BALANCE, Account::tinybarBalance));
+    }
+
+    @Test
+    void whenStateOverrideHasNonceReturnsOverriddenNonce() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        contractCallContext.setStateOverrides(Map.of(
+                accountIdToEvmAddressHex(ACCOUNT_ID),
+                NormalizedStateOverride.builder().nonce(OVERRIDE_NONCE_HEX).build()));
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account).returns(OVERRIDE_NONCE, Account::ethereumNonce));
+    }
+
+    @Test
+    void whenStateOverrideHasBalanceAndNonceReturnsBoth() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        contractCallContext.setStateOverrides(Map.of(
+                accountIdToEvmAddressHex(ACCOUNT_ID),
+                NormalizedStateOverride.builder()
+                        .balance(OVERRIDE_BALANCE_HEX)
+                        .nonce(OVERRIDE_NONCE_HEX)
+                        .build()));
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
+                .returns(OVERRIDE_BALANCE, Account::tinybarBalance)
+                .returns(OVERRIDE_NONCE, Account::ethereumNonce));
+    }
+
+    @Test
+    void whenStateOverrideHasBalanceTakesPrecedenceOverDatabaseBalance() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        contractCallContext.setStateOverrides(Map.of(
+                accountIdToEvmAddressHex(ACCOUNT_ID),
+                NormalizedStateOverride.builder().balance(OVERRIDE_BALANCE_HEX).build()));
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
+                .returns(OVERRIDE_BALANCE, Account::tinybarBalance)
+                .doesNotReturn(BALANCE, Account::tinybarBalance));
+    }
+
+    @Test
+    void whenStateOverrideExistsButOnlyCodeLeavesAccountUnchanged() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        contractCallContext.setStateOverrides(Map.of(
+                accountIdToEvmAddressHex(ACCOUNT_ID),
+                NormalizedStateOverride.builder().code("0x6080604052").build()));
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
+                .returns(BALANCE, Account::tinybarBalance)
+                .returns(0L, Account::ethereumNonce));
+    }
+
+    @Test
+    void whenStateOverridesExistButNoMatchingAddressLeavesAccountUnchanged() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        contractCallContext.setStateOverrides(Map.of(
+                "0x000000000000000000000000000000000000dead",
+                NormalizedStateOverride.builder().balance(OVERRIDE_BALANCE_HEX).build()));
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account).returns(BALANCE, Account::tinybarBalance));
     }
 
     private AccountID getAccountId(final Long num) {
