@@ -228,8 +228,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
           cl.transaction_hash, cl.transaction_index, cl.payer_account_id, cl.index
         from contract_log cl
-        where (cl.root_contract_id is null or cl.root_contract_id = cl.contract_id)
-          and cl.synthetic is distinct from false
+        where cl.synthetic = true
           and not exists (
             select 1
             from contract_result cr
@@ -270,8 +269,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
           cl.transaction_hash, cl.transaction_index, cl.payer_account_id, cl.index
         from contract_log cl
-        where (cl.root_contract_id is null or cl.root_contract_id = cl.contract_id)
-          and cl.synthetic is distinct from false
+        where cl.synthetic = true
           and not exists (
             select 1
             from contract_result cr
@@ -313,8 +311,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
           cl.transaction_hash, cl.transaction_index, cl.payer_account_id, cl.index
         from contract_log cl
-        where (cl.root_contract_id is null or cl.root_contract_id = cl.contract_id)
-          and cl.synthetic is distinct from false
+        where cl.synthetic = true
           and not exists (
             select 1
             from contract_result cr
@@ -401,8 +398,9 @@ describe('ContractService.getContractResultsByIdAndFilters - synthetic inclusion
     expect(response[1]).toMatchObject({consensusTimestamp: 20, gasLimit: 0}); // synthetic
   });
 
-  test('Old-style synthetic log (synthetic null) with no contract_result appears in results', async () => {
-    // loadContractLogs with no synthetic field — defaults to null, simulating historical rows
+  test('Old-style synthetic log (synthetic null) does not appear in results', async () => {
+    // Historical rows (pre-2026-04-16) have synthetic=null; synthetic=true filter excludes them.
+    // A backfill is planned as a follow-up to include these historical rows.
     await integrationDomainOps.loadContractLogs([
       {
         consensus_timestamp: 1,
@@ -421,18 +419,12 @@ describe('ContractService.getContractResultsByIdAndFilters - synthetic inclusion
       true
     );
 
-    expect(response).toHaveLength(1);
-    expect(response[0]).toMatchObject({
-      contractId: entityId2.getEncodedId(),
-      consensusTimestamp: 1,
-      gasLimit: 0,
-      transactionNonce: 0,
-    });
+    expect(response).toHaveLength(0);
   });
 
   test('Explicitly non-synthetic log (synthetic=false) without contract_result does not appear', async () => {
-    // Simulates an orphaned EVM log: synthetic=false means it is an EVM log, not a HAPI transfer.
-    // The synthetic IS DISTINCT FROM false filter must exclude it even though NOT EXISTS would pass.
+    // Simulates an orphaned EVM log: synthetic=false is an EVM log, not a HAPI transfer.
+    // The synthetic=true filter excludes it even though NOT EXISTS would pass.
     await integrationDomainOps.loadContractLogs([
       {
         consensus_timestamp: 1,

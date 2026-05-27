@@ -270,8 +270,7 @@ class ContractService extends BaseService {
     }
 
     const baseConditions = [
-      `(${clAlias}${ContractLog.ROOT_CONTRACT_ID} is null or ${clAlias}${ContractLog.ROOT_CONTRACT_ID} = ${clAlias}${ContractLog.CONTRACT_ID})`,
-      `${clAlias}${ContractLog.SYNTHETIC} is distinct from false`,
+      `${clAlias}${ContractLog.SYNTHETIC} = true`,
       `not exists (
           select 1
           from ${ContractResult.tableName} ${ContractResult.tableAlias}
