@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.web3.state;
 
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
+
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.Key;
@@ -97,7 +99,7 @@ public class Utils {
 
     /** Decodes a hex string (with or without {@code 0x} prefix) to a byte array. */
     public static byte[] hexStringToBytes(@NonNull String hex) {
-        var h = hex.startsWith("0x") || hex.startsWith("0X") ? hex.substring(2) : hex;
+        var h = hex.startsWith(HEX_PREFIX) || hex.startsWith("0X") ? hex.substring(2) : hex;
         if (h.isEmpty()) {
             return new byte[0];
         }

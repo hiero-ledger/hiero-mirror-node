@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.state.keyvalue;
 
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ACCOUNTS_STATE_ID;
+import static com.hedera.services.utils.EntityIdUtils.accountIdToEvmAddressHex;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.web3.state.Utils.parseHexNonce;
@@ -28,7 +29,6 @@ import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.utils.AccountDetector;
-import org.hiero.mirror.web3.viewmodel.NormalizedStateOverride;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -84,8 +84,9 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             return getDummySystemAccountIfApplicable(key).orElse(null);
         }
 
-        final var timestamp = ContractCallContext.get().getTimestamp();
-        final var account = commonEntityAccessor
+        final var context = ContractCallContext.get();
+        final var timestamp = context.getTimestamp();
+        return commonEntityAccessor
                 .get(key, timestamp)
                 .filter(entity -> entity.getType() == ACCOUNT || entity.getType() == CONTRACT)
                 .map(entity -> {
@@ -97,9 +98,8 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     return account;
                 })
                 .or(() -> getDummySystemAccountIfApplicable(key))
+                .map(account -> applyAccountStateOverride(context, key, account))
                 .orElse(null);
-
-        return applyAccountStateOverride(key, account);
     }
 
     /**
@@ -107,24 +107,17 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
      * When the account does not exist in the DB but an override is present, a synthetic account is created so
      * that the EVM can execute against the overridden state.
      */
-    private Account applyAccountStateOverride(@NonNull AccountID key, Account account) {
-        final var overrides = ContractCallContext.get().getStateOverrides();
+    private Account applyAccountStateOverride(
+            final ContractCallContext context, @NonNull AccountID key, Account account) {
+        final var overrides = context.getStateOverrides();
         if (overrides.isEmpty()) {
             return account;
         }
 
         final var evmAddr = accountIdToEvmAddressHex(key);
-        if (evmAddr == null) {
-            return account;
-        }
-
-        final NormalizedStateOverride override = overrides.get(evmAddr);
+        final var override = overrides.get(evmAddr);
         if (override == null || (override.getBalance() == null && override.getNonce() == null)) {
             return account;
-        }
-
-        if (account == null) {
-            return null;
         }
 
         final var builder = account.copyBuilder();
@@ -137,25 +130,10 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
         return builder.build();
     }
 
-    /**
-     * Returns the normalized ({@code 0x}-prefixed, lowercase) EVM address for the given {@link AccountID}.
-     * <ul>
-     *   <li>If the ID has an alias that is exactly 20 bytes it IS the EVM address.</li>
-     *   <li>Otherwise the long-zero address is derived from the account number.</li>
-     * </ul>
-     */
-    private static String accountIdToEvmAddressHex(@NonNull AccountID key) {
-        if (key.hasAlias() && key.alias().length() == 20) {
-            return HEX_PREFIX + key.alias().toHex().toLowerCase();
-        } else if (key.hasAccountNum()) {
-            return HEX_PREFIX + String.format("%040x", key.accountNum());
-        }
-        return null;
-    }
-
     /** Parses a hex-encoded balance string (with or without {@code 0x} prefix) into tinybars, clamped to {@link Long#MAX_VALUE}. */
     private static long parseHexBalance(@NonNull String hexBalance) {
-        var hex = hexBalance.startsWith("0x") || hexBalance.startsWith("0X") ? hexBalance.substring(2) : hexBalance;
+        var hex =
+                hexBalance.startsWith(HEX_PREFIX) || hexBalance.startsWith("0X") ? hexBalance.substring(2) : hexBalance;
         if (hex.isEmpty()) {
             return 0L;
         }

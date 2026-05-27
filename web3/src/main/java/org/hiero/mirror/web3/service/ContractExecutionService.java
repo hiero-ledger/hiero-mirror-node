@@ -73,7 +73,7 @@ public class ContractExecutionService extends ContractCallService {
 
                 if (params.getStateOverrides() != null
                         && !params.getStateOverrides().isEmpty()) {
-                    ctx.setStateOverrides(normalizeOverrides(params.getStateOverrides()));
+                    ctx.setStateOverrides(convertStateOverridesToMap(params.getStateOverrides()));
                 }
 
                 Bytes result;
@@ -100,7 +100,7 @@ public class ContractExecutionService extends ContractCallService {
      * Normalizes a list of state overrides into a map keyed by lowercase {@code 0x}-prefixed EVM address.
      * Slot keys within each override are normalized to 64-character hex for direct map access in the state layer.
      */
-    private static Map<String, NormalizedStateOverride> normalizeOverrides(List<StateOverride> overrides) {
+    private Map<String, NormalizedStateOverride> convertStateOverridesToMap(List<StateOverride> overrides) {
         var result = new HashMap<String, NormalizedStateOverride>(overrides.size());
         for (var override : overrides) {
             var normalized = NormalizedStateOverride.builder()
@@ -115,7 +115,7 @@ public class ContractExecutionService extends ContractCallService {
         return result;
     }
 
-    private static Map<String, String> normalizeSlotList(List<StorageEntry> entries) {
+    private Map<String, String> normalizeSlotList(List<StorageEntry> entries) {
         var result = new HashMap<String, String>(entries.size());
         for (var entry : entries) {
             result.put(normalizeStorageSlot(entry.getKey()), entry.getValue());
@@ -123,14 +123,11 @@ public class ContractExecutionService extends ContractCallService {
         return result;
     }
 
-    static String normalizeAddress(String address) {
-        if (address == null) {
-            return null;
-        }
+    private String normalizeAddress(String address) {
         if (address.startsWith("0X")) {
             throw new InvalidParametersException("Invalid address: '0X' prefix is not allowed, use '0x'");
         }
-        var hex = address.startsWith(HEX_PREFIX) ? address.substring(2) : address;
+        final var hex = address.startsWith(HEX_PREFIX) ? address.substring(2) : address;
         return HEX_PREFIX + hex.toLowerCase();
     }
 

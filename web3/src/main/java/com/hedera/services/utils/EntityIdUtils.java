@@ -4,6 +4,7 @@ package com.hedera.services.utils;
 
 import static org.hiero.mirror.common.util.DomainUtils.fromEvmAddress;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.hapi.node.base.AccountID.AccountOneOfType;
 import com.hedera.pbj.runtime.OneOf;
@@ -157,5 +158,19 @@ public final class EntityIdUtils {
             return null;
         }
         return EntityId.of(id.shardNum(), id.realmNum(), id.contractNum());
+    }
+
+    /**
+     * Returns the normalized ({@code 0x}-prefixed, lowercase) EVM address for the given {@link com.hedera.hapi.node.base.AccountID}.
+     * <ul>
+     *   <li>If the ID has an alias that is exactly 20 bytes it IS the EVM address.</li>
+     *   <li>Otherwise the long-zero address is derived from the account number.</li>
+     * </ul>
+     */
+    public static String accountIdToEvmAddressHex(com.hedera.hapi.node.base.AccountID key) {
+        if (key.hasAlias()) {
+            return HEX_PREFIX + key.alias().toHex().toLowerCase();
+        }
+        return HEX_PREFIX + String.format("%040x", key.accountNum());
     }
 }
