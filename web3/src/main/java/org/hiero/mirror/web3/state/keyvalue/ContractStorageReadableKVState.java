@@ -3,20 +3,24 @@
 package org.hiero.mirror.web3.state.keyvalue;
 
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.STORAGE_STATE_ID;
+import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
 import static org.hiero.mirror.web3.state.Utils.contractIdToEvmAddressHex;
 import static org.hiero.mirror.web3.state.Utils.hexToSlotValue;
 import static org.hiero.mirror.web3.state.Utils.normalizeStorageSlot;
 
+import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
 import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
+import java.util.Map;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.service.ContractStateService;
+import org.hiero.mirror.web3.viewmodel.NormalizedStateOverride;
 import org.jspecify.annotations.NonNull;
 
 @Named
@@ -37,35 +41,46 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
             return null;
         }
 
-        // Check storage state overrides before falling through to the DB.
-        final var ctx = ContractCallContext.get();
-        final var stateOverrides = ctx.getStateOverrides();
-        if (!stateOverrides.isEmpty()) {
-            final var evmAddr = contractIdToEvmAddressHex(slotKey.contractID());
-            if (evmAddr != null) {
-                final var override = stateOverrides.get(evmAddr);
-                if (override != null) {
-                    final var normalizedSlot =
-                            normalizeStorageSlot(slotKey.key().toByteArray());
-                    if (override.getState() != null) {
-                        // Full storage replace: return override value or null (not in override ⇒ slot is empty).
-                        final var valueHex = override.getState().get(normalizedSlot);
-                        return valueHex != null ? hexToSlotValue(valueHex) : null;
-                    } else if (override.getStateDiff() != null) {
-                        // Storage patch: return override value if slot is listed, otherwise fall through to DB.
-                        final var valueHex = override.getStateDiff().get(normalizedSlot);
-                        if (valueHex != null) {
-                            return hexToSlotValue(valueHex);
-                        }
-                    }
+        final var context = ContractCallContext.get();
+        final var override = findStateOverride(context, slotKey.contractID());
+        if (override != null) {
+            // Replace all slots from state overrides and don't go to DB, if set.
+            if (override.getState() != null) {
+                return slotValueFromMap(override.getState(), slotKey);
+            }
+            // Replace only the existing slots from state_diff overrides, if set.
+            if (override.getStateDiff() != null) {
+                final var patched = slotValueFromMap(override.getStateDiff(), slotKey);
+                // Return the patched value only if found.
+                if (patched != null) {
+                    return patched;
                 }
             }
         }
 
-        final var timestamp = ctx.getTimestamp();
+        return readStorageFromDatabase(context, slotKey);
+    }
+
+    @Override
+    public String getServiceName() {
+        return ContractService.NAME;
+    }
+
+    private NormalizedStateOverride findStateOverride(
+            @NonNull ContractCallContext context, @NonNull ContractID contractID) {
+        final var stateOverrides = context.getStateOverrides();
+        if (stateOverrides.isEmpty()) {
+            return null;
+        }
+        final var evmAddr = contractIdToEvmAddressHex(contractID);
+        return stateOverrides.get(evmAddr);
+    }
+
+    private SlotValue readStorageFromDatabase(@NonNull ContractCallContext context, @NonNull SlotKey slotKey) {
         final var contractID = slotKey.contractID();
         final var entityId = EntityIdUtils.entityIdFromContractId(contractID);
         final var keyBytes = slotKey.key().toByteArray();
+        final var timestamp = context.getTimestamp();
         return timestamp
                 .map(t -> contractStateService.findStorageByBlockTimestamp(
                         entityId, Bytes32.wrap(keyBytes).trimLeadingZeros().toArrayUnsafe(), t))
@@ -75,8 +90,13 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
                 .orElse(null);
     }
 
-    @Override
-    public String getServiceName() {
-        return ContractService.NAME;
+    /**
+     * Looks up a slot in a storage override map. Returns {@code null} when the slot is absent
+     * ({@code state} replace) or when the slot is not listed ({@code state_diff} patch).
+     */
+    private SlotValue slotValueFromMap(@NonNull Map<String, String> storage, @NonNull SlotKey slotKey) {
+        final var valueHex =
+                storage.get(normalizeStorageSlot(bytesToHex(slotKey.key().toByteArray())));
+        return valueHex != null ? hexToSlotValue(valueHex) : null;
     }
 }

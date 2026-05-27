@@ -80,19 +80,7 @@ public class Utils {
      * Normalizes a hex-encoded storage slot key to a 64-character lowercase hex string (32 bytes, left-padded, no {@code 0x} prefix).
      */
     public static String normalizeStorageSlot(@NonNull String hexSlot) {
-        return normalizeStorageSlot(hexStringToBytes(hexSlot));
-    }
-
-    /**
-     * Converts a raw slot key byte array to a 64-character lowercase hex string (32 bytes, left-padded, no {@code 0x} prefix).
-     */
-    public static String normalizeStorageSlot(byte[] slotBytes) {
-        var padded = DomainUtils.leftPadBytes(slotBytes, 32);
-        var sb = new StringBuilder(64);
-        for (byte b : padded) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
+        return DomainUtils.bytesToHex(DomainUtils.leftPadBytes(hexStringToBytes(hexSlot), Bytes32.SIZE));
     }
 
     /** Decodes a hex string (with or without {@code 0x} prefix) to a byte array. */
