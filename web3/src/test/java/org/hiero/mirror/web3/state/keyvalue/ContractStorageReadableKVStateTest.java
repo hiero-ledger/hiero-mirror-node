@@ -3,10 +3,17 @@
 package org.hiero.mirror.web3.state.keyvalue;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
+import static org.hiero.mirror.web3.state.Utils.contractIdToEvmAddressHex;
+import static org.hiero.mirror.web3.state.Utils.hexStringToBytes;
+import static org.hiero.mirror.web3.state.Utils.normalizeStorageSlot;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.ContractID;
@@ -15,12 +22,14 @@ import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import java.util.Map;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.service.ContractStateService;
+import org.hiero.mirror.web3.viewmodel.NormalizedStateOverride;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +50,14 @@ class ContractStorageReadableKVStateTest {
     private static final SlotKey SLOT_KEY = new SlotKey(CONTRACT_ID, BYTES);
     private static final EntityId ENTITY_ID =
             EntityId.of(CONTRACT_ID.shardNum(), CONTRACT_ID.realmNum(), CONTRACT_ID.contractNum());
+    private static final String NORMALIZED_SLOT_KEY =
+            normalizeStorageSlot(bytesToHex(SLOT_KEY.key().toByteArray()));
+    private static final String OTHER_NORMALIZED_SLOT_KEY = normalizeStorageSlot("0x02");
+    private static final String OVERRIDE_VALUE_HEX =
+            "0x0000000000000000000000000000000000000000000000000000000000000064";
+    private static final SlotValue OVERRIDE_SLOT_VALUE = new SlotValue(
+            Bytes.wrap(leftPadBytes(hexStringToBytes(OVERRIDE_VALUE_HEX), Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY);
+    private static final SlotValue DATABASE_SLOT_VALUE = new SlotValue(BYTES, Bytes.EMPTY, Bytes.EMPTY);
     private static MockedStatic<ContractCallContext> contextMockedStatic;
 
     @InjectMocks
@@ -114,6 +131,97 @@ class ContractStorageReadableKVStateTest {
     void whenSlotKeyIsNullReturnNull() {
         assertThat(contractStorageReadableKVState.get(new SlotKey(null, BYTES)))
                 .satisfies(slotValue -> assertThat(slotValue).isNull());
+    }
+
+    @Test
+    void whenStateOverrideHasFullStateReturnsOverrideValue() {
+        contractCallContext.setStateOverrides(Map.of(
+                contractIdToEvmAddressHex(CONTRACT_ID),
+                NormalizedStateOverride.builder()
+                        .state(Map.of(NORMALIZED_SLOT_KEY, OVERRIDE_VALUE_HEX))
+                        .build()));
+
+        assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isEqualTo(OVERRIDE_SLOT_VALUE);
+        verify(contractStateService, never()).findStorage(any(), any());
+    }
+
+    @Test
+    void whenStateOverrideHasFullStateReturnsNullForUnlistedSlot() {
+        contractCallContext.setStateOverrides(Map.of(
+                contractIdToEvmAddressHex(CONTRACT_ID),
+                NormalizedStateOverride.builder()
+                        .state(Map.of(OTHER_NORMALIZED_SLOT_KEY, OVERRIDE_VALUE_HEX))
+                        .build()));
+
+        assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isNull();
+        verify(contractStateService, never()).findStorage(any(), any());
+    }
+
+    @Test
+    void whenStateOverrideHasFullStateTakesPrecedenceOverDatabase() {
+        contractCallContext.setStateOverrides(Map.of(
+                contractIdToEvmAddressHex(CONTRACT_ID),
+                NormalizedStateOverride.builder()
+                        .state(Map.of(NORMALIZED_SLOT_KEY, OVERRIDE_VALUE_HEX))
+                        .build()));
+        lenient()
+                .when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
+                .thenReturn(Optional.of(BYTES.toByteArray()));
+
+        assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isEqualTo(OVERRIDE_SLOT_VALUE);
+        verify(contractStateService, never()).findStorage(ENTITY_ID, BYTES.toByteArray());
+    }
+
+    @Test
+    void whenStateOverrideHasStateDiffReturnsOverrideValue() {
+        contractCallContext.setStateOverrides(Map.of(
+                contractIdToEvmAddressHex(CONTRACT_ID),
+                NormalizedStateOverride.builder()
+                        .stateDiff(Map.of(NORMALIZED_SLOT_KEY, OVERRIDE_VALUE_HEX))
+                        .build()));
+
+        assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isEqualTo(OVERRIDE_SLOT_VALUE);
+        verify(contractStateService, never()).findStorage(any(), any());
+    }
+
+    @Test
+    void whenStateOverrideHasStateDiffFallsThroughToDatabaseForUnlistedSlot() {
+        contractCallContext.setStateOverrides(Map.of(
+                contractIdToEvmAddressHex(CONTRACT_ID),
+                NormalizedStateOverride.builder()
+                        .stateDiff(Map.of(OTHER_NORMALIZED_SLOT_KEY, OVERRIDE_VALUE_HEX))
+                        .build()));
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
+                .thenReturn(Optional.of(BYTES.toByteArray()));
+
+        assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isEqualTo(DATABASE_SLOT_VALUE);
+    }
+
+    @Test
+    void whenStateOverrideExistsButNoStorageFieldsFallsThroughToDatabase() {
+        contractCallContext.setStateOverrides(Map.of(
+                contractIdToEvmAddressHex(CONTRACT_ID),
+                NormalizedStateOverride.builder().balance("0x1").build()));
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
+                .thenReturn(Optional.of(BYTES.toByteArray()));
+
+        assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isEqualTo(DATABASE_SLOT_VALUE);
+    }
+
+    @Test
+    void whenStateOverridesExistButNoMatchingAddressFallsThroughToDatabase() {
+        contractCallContext.setStateOverrides(Map.of(
+                "0x000000000000000000000000000000000000dead",
+                NormalizedStateOverride.builder()
+                        .state(Map.of(NORMALIZED_SLOT_KEY, OVERRIDE_VALUE_HEX))
+                        .build()));
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
+                .thenReturn(Optional.of(BYTES.toByteArray()));
+
+        assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isEqualTo(DATABASE_SLOT_VALUE);
     }
 
     @Test

@@ -9,12 +9,13 @@ import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.KeyList;
 import com.hedera.hapi.node.base.Timestamp;
-import com.hedera.hapi.node.state.contract.SlotValue;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.math.BigInteger;
 import java.time.Instant;
 import lombok.experimental.UtilityClass;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -24,7 +25,6 @@ import org.jspecify.annotations.NonNull;
 public class Utils {
 
     public static final long DEFAULT_AUTO_RENEW_PERIOD = 7776000L;
-    public static final int EVM_ADDRESS_LEN = 20;
     public static final Key EMPTY_KEY_LIST =
             Key.newBuilder().keyList(KeyList.DEFAULT).build();
     public static final Key DEFAULT_KEY = Key.newBuilder()
@@ -83,22 +83,13 @@ public class Utils {
         return DomainUtils.bytesToHex(DomainUtils.leftPadBytes(hexStringToBytes(hexSlot), Bytes32.SIZE));
     }
 
-    /** Decodes a hex string (with or without {@code 0x} prefix) to a byte array. */
+    /** Decodes a hex string (with or without {@code 0x}/{@code 0X} prefix) to a byte array. */
     public static byte[] hexStringToBytes(@NonNull String hex) {
-        var h = hex.startsWith(HEX_PREFIX) || hex.startsWith("0X") ? hex.substring(2) : hex;
-        if (h.isEmpty()) {
-            return new byte[0];
-        }
-        var padded = h.length() % 2 == 0 ? h : "0" + h;
-        var bytes = new byte[padded.length() / 2];
-        for (var i = 0; i < bytes.length; i++) {
-            bytes[i] = (byte) Integer.parseInt(padded, i * 2, i * 2 + 2, 16);
-        }
-        return bytes;
+        return decodeHex(hex);
     }
 
     /** Parses a hex-encoded string (with or without {@code 0x} prefix) into tinybars, clamped to {@link Long#MAX_VALUE}. */
-    public static long parseHex(@NonNull String hex) {
+    public static long hexStringToLong(@NonNull String hex) {
         var hexWithoutPrefix = hex.startsWith(HEX_PREFIX) || hex.startsWith("0X") ? hex.substring(2) : hex;
         if (hexWithoutPrefix.isEmpty()) {
             return 0L;
@@ -111,17 +102,26 @@ public class Utils {
         }
     }
 
-    /** Converts a hex value string to a {@link SlotValue} (32-byte left-padded). */
-    public static SlotValue hexToSlotValue(@NonNull String hexValue) {
-        var valueBytes = hexStringToBytes(hexValue);
-        return new SlotValue(Bytes.wrap(DomainUtils.leftPadBytes(valueBytes, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY);
-    }
-
     public static FileID toFileID(final EntityId entityId) {
         return FileID.newBuilder()
                 .shardNum(entityId.getShard())
                 .realmNum(entityId.getRealm())
                 .fileNum(entityId.getNum())
                 .build();
+    }
+
+    public static byte[] decodeHex(@NonNull String hex) {
+        var stripped = hex.startsWith(HEX_PREFIX) || hex.startsWith("0X") ? hex.substring(2) : hex;
+        if (stripped.isEmpty()) {
+            return new byte[0];
+        }
+        if (stripped.length() % 2 != 0) {
+            stripped = "0" + stripped;
+        }
+        try {
+            return Hex.decodeHex(stripped);
+        } catch (DecoderException e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 }

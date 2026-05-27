@@ -5,9 +5,7 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.STORAGE_STATE_ID;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
-import static org.hiero.mirror.web3.state.Utils.contractIdToEvmAddressHex;
-import static org.hiero.mirror.web3.state.Utils.hexToSlotValue;
-import static org.hiero.mirror.web3.state.Utils.normalizeStorageSlot;
+import static org.hiero.mirror.web3.state.Utils.*;
 
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.SlotKey;
@@ -18,6 +16,7 @@ import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.util.Map;
 import org.apache.tuweni.bytes.Bytes32;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.service.ContractStateService;
 import org.hiero.mirror.web3.viewmodel.NormalizedStateOverride;
@@ -98,5 +97,12 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
         final var valueHex =
                 storage.get(normalizeStorageSlot(bytesToHex(slotKey.key().toByteArray())));
         return valueHex != null ? hexToSlotValue(valueHex) : null;
+    }
+
+    /** Converts a hex value string to a {@link SlotValue} (32-byte left-padded). */
+    private SlotValue hexToSlotValue(@NonNull String hexValue) {
+        final var decoded = decodeHex(hexValue);
+        final var padded = decoded.length >= Bytes32.SIZE ? decoded : DomainUtils.leftPadBytes(decoded, Bytes32.SIZE);
+        return new SlotValue(Bytes.wrap(padded), Bytes.EMPTY, Bytes.EMPTY);
     }
 }

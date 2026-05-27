@@ -6,7 +6,7 @@ import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.AC
 import static com.hedera.services.utils.EntityIdUtils.accountIdToEvmAddressHex;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
-import static org.hiero.mirror.web3.state.Utils.parseHex;
+import static org.hiero.mirror.web3.state.Utils.hexStringToLong;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
@@ -119,10 +119,10 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
 
         final var builder = account.copyBuilder();
         if (override.getBalance() != null) {
-            builder.tinybarBalance(parseHex(override.getBalance()));
+            builder.tinybarBalance(hexStringToLong(override.getBalance()));
         }
         if (override.getNonce() != null) {
-            builder.ethereumNonce(parseHex(override.getNonce()));
+            builder.ethereumNonce(hexStringToLong(override.getNonce()));
         }
         return builder.build();
     }
