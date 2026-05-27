@@ -763,7 +763,6 @@ const addEthereumTransaction = async (ethereumTransaction) => {
 
   convertByteaFields(
     [
-      'access_list',
       'call_data',
       'chain_id',
       'data',
@@ -779,6 +778,10 @@ const addEthereumTransaction = async (ethereumTransaction) => {
     ],
     ethTx
   );
+
+  if (ethTx.access_list != null) {
+    ethTx.access_list = JSONStringify(ethTx.access_list);
+  }
 
   if (ethTx.authorization_list != null) {
     ethTx.authorization_list = JSONStringify(ethTx.authorization_list);

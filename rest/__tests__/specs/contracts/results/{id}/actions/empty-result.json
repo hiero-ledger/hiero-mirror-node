@@ -108,12 +108,28 @@
       {
         "consensus_timestamp": "1676540001234390005",
         "hash": "0x9db63968721fc76815d11b0b97734669bf88ae3810e07c199924553f0548eb98",
-        "payer_account_id": 5001
+        "payer_account_id": 5001,
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ]
       },
       {
         "consensus_timestamp": "1676540001234500005",
         "hash": "0x9db63968721fc76815d11b0b97734669bf88ae3810e07c199924553f0548eb99",
-        "payer_account_id": 8001
+        "payer_account_id": 8001,
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ]
       }
     ]
   },

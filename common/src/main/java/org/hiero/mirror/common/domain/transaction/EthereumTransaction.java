@@ -29,8 +29,9 @@ import org.springframework.data.domain.Persistable;
 @NoArgsConstructor
 public class EthereumTransaction implements Persistable<Long> {
 
-    @ToString.Exclude
-    private byte[] accessList;
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<AccessList> accessList;
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
     @JdbcTypeCode(SqlTypes.JSON)

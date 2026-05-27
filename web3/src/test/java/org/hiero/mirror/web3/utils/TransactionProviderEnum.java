@@ -14,6 +14,7 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.function.Consumer;
 import lombok.Getter;
@@ -26,6 +27,7 @@ import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.Transaction;
@@ -143,7 +145,9 @@ public enum TransactionProviderEnum {
                 tx.maxPriorityFeePerGas(nextBytes(32));
             }
             if (typeByte == EthTransactionType.EIP_2930.getTypeByte()) {
-                tx.accessList(nextBytes(100));
+                tx.accessList(List.of(new AccessList(
+                        HexFormat.of().formatHex(nextBytes(20)),
+                        List.of(HexFormat.of().formatHex(nextBytes(32))))));
             }
         });
     }

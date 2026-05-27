@@ -2,19 +2,17 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
+import java.util.List;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 @Data
 @NoArgsConstructor
+@AllArgsConstructor
 @SuperBuilder(toBuilder = true)
-public class Authorization {
-
+public class AccessList {
     private String address;
-    private String chainId;
-    private Long nonce;
-    private String r;
-    private String s;
-    private String yParity;
+    private List<String> storageKeys;
 }

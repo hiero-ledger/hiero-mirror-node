@@ -176,7 +176,7 @@ class ContractService extends BaseService {
   };
 
   static ethereumTransactionByPayerAndTimestampArrayQuery = `select
-        encode(${EthereumTransaction.ACCESS_LIST}, 'hex') ${EthereumTransaction.ACCESS_LIST},
+        ${EthereumTransaction.ACCESS_LIST},
         ${EthereumTransaction.AUTHORIZATION_LIST},
         encode(${EthereumTransaction.CHAIN_ID}, 'hex') ${EthereumTransaction.CHAIN_ID},
         ${EthereumTransaction.CONSENSUS_TIMESTAMP},

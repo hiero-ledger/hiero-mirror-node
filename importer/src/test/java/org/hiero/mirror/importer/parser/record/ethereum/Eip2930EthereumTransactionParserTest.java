@@ -6,10 +6,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.EIP_2930_RAW_TX_WITH_ACCESS_LIST;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
-import org.bouncycastle.util.encoders.Hex;
+import java.util.HexFormat;
+import java.util.List;
+import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
 import org.junit.jupiter.api.Test;
@@ -20,8 +25,9 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 @ExtendWith(OutputCaptureExtension.class)
 class Eip2930EthereumTransactionParserTest extends AbstractEthereumTransactionParserTest {
 
-    public static final byte[] EIP_2930_RAW_TX = Hex.decode(
-            "01f87382012a82160c85a54f4c3c00832dc6c094000000000000000000000000000000000000052d8502540be40083123456c001a0abb9e9c510716df2988cf626734ee50dcd9f41d30d638220712b5fe33fe4c816a0249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53");
+    public static final byte[] EIP_2930_RAW_TX = HexFormat.of()
+            .parseHex(
+                    "01f87382012a82160c85a54f4c3c00832dc6c094000000000000000000000000000000000000052d8502540be40083123456c001a0abb9e9c510716df2988cf626734ee50dcd9f41d30d638220712b5fe33fe4c816a0249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53");
 
     public Eip2930EthereumTransactionParserTest(Eip2930EthereumTransactionParser ethereumTransactionParser) {
         super(ethereumTransactionParser);
@@ -29,7 +35,13 @@ class Eip2930EthereumTransactionParserTest extends AbstractEthereumTransactionPa
 
     @Override
     public byte[] getTransactionBytes() {
-        return EIP_2930_RAW_TX;
+        return EIP_2930_RAW_TX_WITH_ACCESS_LIST;
+    }
+
+    @Test
+    void decodeEmptyAccessList() {
+        final var ethereumTransaction = ethereumTransactionParser.decode(EIP_2930_RAW_TX);
+        validateEthereumTransaction(ethereumTransaction, List.of());
     }
 
     @Test
@@ -72,26 +84,33 @@ class Eip2930EthereumTransactionParserTest extends AbstractEthereumTransactionPa
 
     @Override
     protected void validateEthereumTransaction(EthereumTransaction ethereumTransaction) {
+        validateEthereumTransaction(
+                ethereumTransaction, List.of(new AccessList(ACCESS_LIST_ADDRESS, List.of(ACCESS_LIST_STORAGE_KEY))));
+    }
+
+    private void validateEthereumTransaction(EthereumTransaction ethereumTransaction, List<AccessList> accessList) {
         assertThat(ethereumTransaction)
                 .isNotNull()
                 .returns(Eip2930EthereumTransactionParser.EIP2930_TYPE_BYTE, EthereumTransaction::getType)
-                .returns(Hex.decode("012a"), EthereumTransaction::getChainId)
+                .returns(HexFormat.of().parseHex("012a"), EthereumTransaction::getChainId)
                 .returns(5644L, EthereumTransaction::getNonce)
-                .returns(Hex.decode("a54f4c3c00"), EthereumTransaction::getGasPrice)
+                .returns(HexFormat.of().parseHex("a54f4c3c00"), EthereumTransaction::getGasPrice)
                 .returns(null, EthereumTransaction::getMaxPriorityFeePerGas)
                 .returns(null, EthereumTransaction::getMaxFeePerGas)
                 .returns(3_000_000L, EthereumTransaction::getGasLimit)
-                .returns(Hex.decode("000000000000000000000000000000000000052d"), EthereumTransaction::getToAddress)
-                .returns(Hex.decode("02540be400"), EthereumTransaction::getValue)
-                .returns(Hex.decode("123456"), EthereumTransaction::getCallData)
-                .returns(Hex.decode(""), EthereumTransaction::getAccessList)
+                .returns(
+                        HexFormat.of().parseHex("000000000000000000000000000000000000052d"),
+                        EthereumTransaction::getToAddress)
+                .returns(HexFormat.of().parseHex("02540be400"), EthereumTransaction::getValue)
+                .returns(HexFormat.of().parseHex("123456"), EthereumTransaction::getCallData)
+                .returns(accessList, EthereumTransaction::getAccessList)
                 .returns(1, EthereumTransaction::getRecoveryId)
                 .returns(null, EthereumTransaction::getSignatureV)
                 .returns(
-                        Hex.decode("abb9e9c510716df2988cf626734ee50dcd9f41d30d638220712b5fe33fe4c816"),
+                        HexFormat.of().parseHex("abb9e9c510716df2988cf626734ee50dcd9f41d30d638220712b5fe33fe4c816"),
                         EthereumTransaction::getSignatureR)
                 .returns(
-                        Hex.decode("249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53"),
+                        HexFormat.of().parseHex("249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53"),
                         EthereumTransaction::getSignatureS);
     }
 }

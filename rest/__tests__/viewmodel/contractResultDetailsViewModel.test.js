@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import ContractResultDetailsViewModel from '../../viewmodel/contractResultDetailsViewModel.js';
+import EthereumTransaction from '../../model/ethereumTransaction.js';
 
 describe('ContractResultDetailsViewModel', () => {
   describe('_convertWeibarToTinybar', () => {
@@ -245,6 +246,56 @@ describe('ContractResultDetailsViewModel', () => {
 
       expect(viewModel.amount).toBe(20n); // Converted from weibar to tinybar
       expect(viewModel.gas_price).toBe('0x4a817c80');
+    });
+
+    test('returns access_list from db jsonb', () => {
+      const accessList = [
+        {
+          address: '0xa02457e5dfd32bda5fc7e1f1b008aa5979568150',
+          storage_keys: ['0x0000000000000000000000000000000000000000000000000000000000000081'],
+        },
+      ];
+      const ethTransaction = {
+        ...mockEthTransaction,
+        accessList,
+      };
+
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult,
+        mockRecordFile,
+        ethTransaction,
+        [],
+        [],
+        null
+      );
+
+      expect(viewModel.access_list).toEqual([
+        {
+          address: '0xa02457e5dfd32bda5fc7e1f1b008aa5979568150',
+          storage_keys: ['0x0000000000000000000000000000000000000000000000000000000000000081'],
+        },
+      ]);
+    });
+
+    test('returns empty array when accessList is null', () => {
+      const ethTransaction = new EthereumTransaction(mockEthTransaction);
+
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult,
+        mockRecordFile,
+        ethTransaction,
+        [],
+        [],
+        null
+      );
+
+      expect(viewModel.access_list).toEqual([]);
+    });
+
+    test('leaves access_list null when ethTransaction is null', () => {
+      const viewModel = new ContractResultDetailsViewModel(mockContractResult, mockRecordFile, null, [], [], null);
+
+      expect(viewModel.access_list).toBeNull();
     });
   });
 });
