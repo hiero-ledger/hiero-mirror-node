@@ -6,15 +6,13 @@ import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.AC
 import static com.hedera.services.utils.EntityIdUtils.accountIdToEvmAddressHex;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
-import static org.hiero.mirror.web3.state.Utils.parseHexNonce;
-import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
+import static org.hiero.mirror.web3.state.Utils.parseHex;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.node.app.service.token.TokenService;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
-import java.math.BigInteger;
 import java.util.Optional;
 import java.util.Set;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -98,7 +96,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     return account;
                 })
                 .or(() -> getDummySystemAccountIfApplicable(key))
-                .map(account -> applyAccountStateOverride(context, key, account))
+                .map(account -> applyStateOverride(context, key, account))
                 .orElse(null);
     }
 
@@ -107,8 +105,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
      * When the account does not exist in the DB but an override is present, a synthetic account is created so
      * that the EVM can execute against the overridden state.
      */
-    private Account applyAccountStateOverride(
-            final ContractCallContext context, @NonNull AccountID key, Account account) {
+    private Account applyStateOverride(final ContractCallContext context, @NonNull AccountID key, Account account) {
         final var overrides = context.getStateOverrides();
         if (overrides.isEmpty()) {
             return account;
@@ -122,27 +119,12 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
 
         final var builder = account.copyBuilder();
         if (override.getBalance() != null) {
-            builder.tinybarBalance(parseHexBalance(override.getBalance()));
+            builder.tinybarBalance(parseHex(override.getBalance()));
         }
         if (override.getNonce() != null) {
-            builder.ethereumNonce(parseHexNonce(override.getNonce()));
+            builder.ethereumNonce(parseHex(override.getNonce()));
         }
         return builder.build();
-    }
-
-    /** Parses a hex-encoded balance string (with or without {@code 0x} prefix) into tinybars, clamped to {@link Long#MAX_VALUE}. */
-    private static long parseHexBalance(@NonNull String hexBalance) {
-        var hex =
-                hexBalance.startsWith(HEX_PREFIX) || hexBalance.startsWith("0X") ? hexBalance.substring(2) : hexBalance;
-        if (hex.isEmpty()) {
-            return 0L;
-        }
-        try {
-            final var bigInt = new BigInteger(hex, 16);
-            return bigInt.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0 ? Long.MAX_VALUE : bigInt.longValue();
-        } catch (NumberFormatException e) {
-            return 0L;
-        }
     }
 
     /**

@@ -70,12 +70,10 @@ public class Utils {
      * Returns the normalized ({@code 0x}-prefixed, lowercase) EVM address for the given {@link ContractID}.
      */
     public static String contractIdToEvmAddressHex(@NonNull ContractID contractID) {
-        if (contractID.hasEvmAddress() && contractID.evmAddress().length() == 20) {
-            return "0x" + contractID.evmAddress().toHex().toLowerCase();
-        } else if (contractID.hasContractNum()) {
-            return "0x" + String.format("%040x", contractID.contractNum());
+        if (contractID.hasEvmAddress()) {
+            return HEX_PREFIX + contractID.evmAddress().toHex().toLowerCase();
         }
-        return null;
+        return HEX_PREFIX + String.format("%040x", contractID.contractNum());
     }
 
     /**
@@ -111,14 +109,15 @@ public class Utils {
         return bytes;
     }
 
-    /** Parses a hex-encoded nonce string (with or without {@code 0x} prefix) into a long value. */
-    public static long parseHexNonce(@NonNull String hexNonce) {
-        var bytes = hexStringToBytes(hexNonce);
-        if (bytes.length == 0) {
+    /** Parses a hex-encoded string (with or without {@code 0x} prefix) into tinybars, clamped to {@link Long#MAX_VALUE}. */
+    public static long parseHex(@NonNull String hex) {
+        var hexWithoutPrefix = hex.startsWith(HEX_PREFIX) || hex.startsWith("0X") ? hex.substring(2) : hex;
+        if (hexWithoutPrefix.isEmpty()) {
             return 0L;
         }
         try {
-            return new BigInteger(1, bytes).longValue();
+            final var bigInt = new BigInteger(hexWithoutPrefix, 16);
+            return bigInt.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0 ? Long.MAX_VALUE : bigInt.longValue();
         } catch (NumberFormatException e) {
             return 0L;
         }

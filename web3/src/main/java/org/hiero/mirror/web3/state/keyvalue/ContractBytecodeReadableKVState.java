@@ -41,17 +41,8 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
     @Override
     protected Bytecode readFromDataSource(@NonNull ContractID contractID) {
         // Check code override first so it takes precedence over DB bytecode.
-        final var ctx = ContractCallContext.get();
-        final var stateOverrides = ctx.getStateOverrides();
-        if (!stateOverrides.isEmpty()) {
-            final var evmAddr = contractIdToEvmAddressHex(contractID);
-            if (evmAddr != null) {
-                final var override = stateOverrides.get(evmAddr);
-                if (override != null && override.getCode() != null) {
-                    return new Bytecode(Bytes.wrap(hexStringToBytes(override.getCode())));
-                }
-            }
-        }
+        final var stateOverride = applyStateOverride(contractID);
+        if (stateOverride != null) return stateOverride;
 
         final var entityId = toEntityId(contractID);
         return contractRepository
@@ -59,6 +50,19 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
                 .map(Bytes::wrap)
                 .map(Bytecode::new)
                 .orElse(null);
+    }
+
+    private Bytecode applyStateOverride(@NonNull ContractID contractID) {
+        final var ctx = ContractCallContext.get();
+        final var stateOverrides = ctx.getStateOverrides();
+        if (!stateOverrides.isEmpty()) {
+            final var evmAddr = contractIdToEvmAddressHex(contractID);
+            final var override = stateOverrides.get(evmAddr);
+            if (override != null && override.getCode() != null) {
+                return new Bytecode(Bytes.wrap(hexStringToBytes(override.getCode())));
+            }
+        }
+        return null;
     }
 
     private EntityId toEntityId(@NonNull final ContractID contractID) {
