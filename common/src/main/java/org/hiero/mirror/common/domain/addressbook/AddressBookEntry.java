@@ -8,8 +8,8 @@ import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,7 +23,6 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.NonParsableKeyException;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
-import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.MappedCollection;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -37,8 +36,7 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
     private String description;
 
     @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    private Id id;
+    private long consensusTimestamp;
 
     private String memo;
 
@@ -46,6 +44,8 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
 
     @ToString.Exclude
     private byte[] nodeCertHash;
+
+    private long nodeId;
 
     @ToString.Exclude
     private String publicKey;
@@ -60,16 +60,16 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
     @EqualsAndHashCode.Exclude
     @JsonIgnore
     @MappedCollection(idColumn = "consensus_timestamp", keyColumn = "node_id")
-    private Set<AddressBookServiceEndpoint> serviceEndpoints = new HashSet<>();
+    private List<AddressBookServiceEndpoint> serviceEndpoints = new ArrayList<>();
 
     private Long stake;
 
     public long getConsensusTimestamp() {
-        return id.getConsensusTimestamp();
+        return consensusTimestamp;
     }
 
     public long getNodeId() {
-        return id.getNodeId();
+        return nodeId;
     }
 
     private PublicKey parsePublicKey() {
@@ -86,7 +86,7 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
     @JsonIgnore
     @Override
     public Id getId() {
-        return id;
+        return new Id(consensusTimestamp, nodeId);
     }
 
     @JsonIgnore
@@ -106,14 +106,12 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
 
     public static class AddressBookEntryBuilder {
         public AddressBookEntryBuilder consensusTimestamp(long consensusTimestamp) {
-            if (this.id == null) this.id = new Id();
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            this.consensusTimestamp = consensusTimestamp;
             return this;
         }
 
         public AddressBookEntryBuilder nodeId(long nodeId) {
-            if (this.id == null) this.id = new Id();
-            this.id.setNodeId(nodeId);
+            this.nodeId = nodeId;
             return this;
         }
     }

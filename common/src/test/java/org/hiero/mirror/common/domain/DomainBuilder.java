@@ -36,7 +36,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -222,7 +221,7 @@ public class DomainBuilder {
                 .publicKey(text(64))
                 .stake(0L);
 
-        var serviceEndpoints = new HashSet<AddressBookServiceEndpoint>();
+        var serviceEndpoints = new ArrayList<AddressBookServiceEndpoint>();
         builder.serviceEndpoints(serviceEndpoints);
 
         for (int i = 0; i < endpoints; ++i) {
@@ -410,6 +409,7 @@ public class DomainBuilder {
                 .amount(10L)
                 .consensusTimestamp(timestamp())
                 .entityId(entityId().getId())
+                .errata(ErrataType.INSERT)
                 .isApproval(false)
                 .payerAccountId(entityId());
         return new DomainWrapperImpl<>(builder, builder::build);
@@ -1014,8 +1014,8 @@ public class DomainBuilder {
                 .balance(number())
                 .balanceTimestamp(timestamp)
                 .createdTimestamp(timestamp)
-                .freezeStatus(null)
-                .kycStatus(null)
+                .freezeStatus(TokenFreezeStatusEnum.NOT_APPLICABLE)
+                .kycStatus(TokenKycStatusEnum.NOT_APPLICABLE)
                 .timestampRange(Range.atLeast(timestamp))
                 .tokenId(id());
         return new DomainWrapperImpl<>(builder, builder::build);
@@ -1031,8 +1031,8 @@ public class DomainBuilder {
                 .balance(number())
                 .balanceTimestamp(timestamp)
                 .createdTimestamp(timestamp)
-                .freezeStatus(null)
-                .kycStatus(null)
+                .freezeStatus(TokenFreezeStatusEnum.NOT_APPLICABLE)
+                .kycStatus(TokenKycStatusEnum.NOT_APPLICABLE)
                 .timestampRange(Range.closedOpen(timestamp, timestamp + 10))
                 .tokenId(id());
         return new DomainWrapperImpl<>(builder, builder::build);

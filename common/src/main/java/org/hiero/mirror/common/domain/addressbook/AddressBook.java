@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.common.domain.addressbook;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,7 +32,7 @@ public class AddressBook {
     @Builder.Default
     @ToString.Exclude
     @MappedCollection(idColumn = "consensus_timestamp")
-    private List<AddressBookEntry> entries = new ArrayList<>();
+    private Set<AddressBookEntry> entries = new HashSet<>();
 
     @ToString.Exclude
     private byte[] fileData;

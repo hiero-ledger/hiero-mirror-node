@@ -24,7 +24,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -226,7 +225,7 @@ public class AddressBookServiceImpl implements AddressBookService {
                 Collection<AddressBookEntry> addressBookEntryCollection =
                         retrieveNodeAddressesFromAddressBook(nodeAddressBook, startConsensusTimestamp);
 
-                addressBookBuilder.entries(new ArrayList<>(addressBookEntryCollection));
+                addressBookBuilder.entries(new HashSet<>(addressBookEntryCollection));
             }
         } catch (Exception e) {
             log.warn("Unable to parse address book: {}", e.getMessage());
@@ -407,7 +406,7 @@ public class AddressBookServiceImpl implements AddressBookService {
             AddressBookEntry addressBookEntry = addressBookEntries.computeIfAbsent(
                     nodeIds.getLeft(), k -> getAddressBookEntry(nodeAddressProto, consensusTimestamp, nodeIds));
 
-            Set<AddressBookServiceEndpoint> updatedList = new HashSet<>(addressBookEntry.getServiceEndpoints());
+            var updatedList = new ArrayList<>(addressBookEntry.getServiceEndpoints());
             updatedList.addAll(getAddressBookServiceEndpoints(nodeAddressProto, consensusTimestamp));
             addressBookEntry.setServiceEndpoints(updatedList);
         }
@@ -452,7 +451,7 @@ public class AddressBookServiceImpl implements AddressBookService {
                 .nodeAccountId(nodeIds.getRight())
                 .nodeId(nodeIds.getLeft())
                 .publicKey(nodeAddressProto.getRSAPubKey())
-                .serviceEndpoints(Set.of())
+                .serviceEndpoints(List.of())
                 .stake(nodeAddressProto.getStake());
 
         if (!nodeAddressProto.getNodeCertHash().isEmpty()) {
@@ -466,10 +465,10 @@ public class AddressBookServiceImpl implements AddressBookService {
         return builder.build();
     }
 
-    private Set<AddressBookServiceEndpoint> getAddressBookServiceEndpoints(
+    private List<AddressBookServiceEndpoint> getAddressBookServiceEndpoints(
             NodeAddress nodeAddressProto, long consensusTimestamp) throws UnknownHostException {
         var nodeId = nodeAddressProto.getNodeId();
-        Set<AddressBookServiceEndpoint> serviceEndpoints = new HashSet<>();
+        List<AddressBookServiceEndpoint> serviceEndpoints = new ArrayList<>();
 
         // create an AddressBookServiceEndpoint for deprecated port and IP if populated
         AddressBookServiceEndpoint deprecatedServiceEndpoint =

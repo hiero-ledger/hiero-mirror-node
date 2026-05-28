@@ -12,7 +12,7 @@ import org.hiero.mirror.common.domain.token.AbstractTokenAccount;
 import org.hiero.mirror.common.domain.token.TokenAccount;
 import org.hiero.mirror.web3.repository.projections.TokenAccountAssociationsCount;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
@@ -35,14 +35,15 @@ public interface TokenAccountRepository extends CrudRepository<TokenAccount, Abs
                     from token_account as ta
                     left join (select * from token where token_id = :#{#id.tokenId}) as t on true
                     where ta.account_id = :#{#id.accountId} and ta.token_id = :#{#id.tokenId}
-                    """, nativeQuery = true)
+                    """)
     Optional<TokenAccount> findById(@Param("id") AbstractTokenAccount.Id id);
 
     @Cacheable(cacheNames = CACHE_NAME_TOKEN_ACCOUNT_COUNT, cacheManager = CACHE_MANAGER_TOKEN)
-    @Query(
-            value = "select count(*) as tokenCount, balance>0 as isPositiveBalance from token_account "
-                    + "where account_id = ?1 and associated is true group by balance>0",
-            nativeQuery = true)
+    @Query("""
+            select count(*) as token_count, balance > 0 as is_positive_balance from token_account
+            where account_id = :accountId and associated is true
+            group by balance > 0
+            """)
     List<TokenAccountAssociationsCount> countByAccountIdAndAssociatedGroupedByBalanceIsPositive(long accountId);
 
     /**
@@ -56,7 +57,7 @@ public interface TokenAccountRepository extends CrudRepository<TokenAccount, Abs
      * @return List of {@link TokenAccountAssociationsCount}
      */
     @Query(value = """
-                    select count(*) as tokenCount, balance>0 as isPositiveBalance
+                    select count(*) as token_count, balance > 0 as is_positive_balance
                     from (
                         (
                             select *
@@ -75,7 +76,7 @@ public interface TokenAccountRepository extends CrudRepository<TokenAccount, Abs
                         )
                     ) as ta
                     group by balance>0
-                    """, nativeQuery = true)
+                    """)
     List<TokenAccountAssociationsCount> countByAccountIdAndTimestampAndAssociatedGroupedByBalanceIsPositive(
             long accountId, long blockTimestamp);
 
@@ -124,6 +125,6 @@ public interface TokenAccountRepository extends CrudRepository<TokenAccount, Abs
                             limit 1
                     ) as ta
                     left join (select * from token where token_id = :tokenId) as t on true;
-                    """, nativeQuery = true)
+                    """)
     Optional<TokenAccount> findByIdAndTimestamp(long accountId, long tokenId, long blockTimestamp);
 }

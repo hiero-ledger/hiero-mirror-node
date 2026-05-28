@@ -13,9 +13,9 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
-import org.springframework.data.relational.core.mapping.MappedCollection;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Builder
@@ -30,7 +30,7 @@ public class AccountBalance implements Persistable<AccountBalance.Id>, StreamIte
     @Builder.Default
     @EqualsAndHashCode.Exclude
     @JsonIgnore
-    @MappedCollection(idColumn = "account_id", keyColumn = "consensus_timestamp")
+    @Transient
     private List<TokenBalance> tokenBalances = new ArrayList<>();
 
     @org.springframework.data.annotation.Id

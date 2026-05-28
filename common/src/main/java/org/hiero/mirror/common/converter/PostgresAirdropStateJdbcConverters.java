@@ -41,4 +41,16 @@ public final class PostgresAirdropStateJdbcConverters {
             return PostgresAirdropState.of(TokenAirdropStateEnum.valueOf(source.getValue()));
         }
     }
+
+    @ReadingConverter
+    public static final class StringToPostgresAirdropState implements Converter<String, PostgresAirdropState> {
+
+        @Override
+        public PostgresAirdropState convert(String source) {
+            if (source == null || source.isEmpty()) {
+                return null;
+            }
+            return PostgresAirdropState.of(TokenAirdropStateEnum.valueOf(source));
+        }
+    }
 }

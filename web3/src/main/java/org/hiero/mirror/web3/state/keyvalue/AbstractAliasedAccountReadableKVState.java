@@ -227,7 +227,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
         int positive = 0;
 
         for (final var count : counts) {
-            if (count.getIsPositiveBalance()) {
+            if (count.isPositiveBalance()) {
                 positive = count.getTokenCount();
             }
             all += count.getTokenCount();

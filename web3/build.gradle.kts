@@ -34,6 +34,7 @@ dependencies {
     implementation("jakarta.inject:jakarta.inject-api")
     implementation("net.java.dev.jna:jna")
     implementation("org.springframework:spring-context-support")
+    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
     implementation("org.springframework.boot:spring-boot-health")
@@ -75,9 +76,11 @@ tasks.withType<JavaCompile>().configureEach {
     options.compilerArgs.removeIf { it == "-Werror" }
 }
 
-tasks.withType<JavaExec>().configureEach { jvmArgs = listOf("--enable-preview") }
+// Append preview flag; do not replace jvmArgs (processAot needs --add-opens from
+// spring-conventions).
+tasks.withType<JavaExec>().configureEach { jvmArgs("--enable-preview") }
 
-tasks.test { jvmArgs = listOf("--enable-preview") }
+tasks.test { jvmArgs("--enable-preview") }
 
 tasks.processTestResources { dependsOn(tasks.withType<GenerateContractWrappers>()) }
 

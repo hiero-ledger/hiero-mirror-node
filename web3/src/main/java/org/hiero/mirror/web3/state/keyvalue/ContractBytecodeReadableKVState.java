@@ -12,6 +12,7 @@ import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -40,7 +41,8 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
         final var entityId = toEntityId(contractID);
 
         return contractRepository
-                .findRuntimeBytecode(entityId.getId())
+                .findById(entityId.getId())
+                .map(Contract::getRuntimeBytecode)
                 .map(Bytes::wrap)
                 .map(Bytecode::new)
                 .orElse(null);

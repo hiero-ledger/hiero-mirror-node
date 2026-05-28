@@ -19,6 +19,7 @@ import org.hiero.mirror.common.converter.PostgresAirdropStateJdbcConverters;
 import org.hiero.mirror.common.converter.PostgresEntityTypeJdbcConverters;
 import org.hiero.mirror.common.converter.PostgresErrataTypeJdbcConverters;
 import org.hiero.mirror.common.converter.PostgresHookJdbcConverters;
+import org.hiero.mirror.common.converter.PostgresTokenJdbcConverters;
 import org.hiero.mirror.common.converter.RangeToPGobjectWritingConverter;
 import org.hiero.mirror.common.converter.ShortArrayJdbcConverters;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -114,10 +115,12 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new ShortArrayJdbcConverters.SqlArrayToRegisteredNodeTypesHolder(),
                 new PostgresAirdropStateJdbcConverters.PostgresAirdropStateToPGobject(),
                 new PostgresAirdropStateJdbcConverters.PGobjectToPostgresAirdropState(),
+                new PostgresAirdropStateJdbcConverters.StringToPostgresAirdropState(),
                 new PostgresEntityTypeJdbcConverters.EntityTypeToJdbcValue(),
                 new PostgresEntityTypeJdbcConverters.PGobjectToEntityType(),
                 new PostgresEntityTypeJdbcConverters.StringToEntityType(),
                 new PostgresErrataTypeJdbcConverters.ErrataTypeToJdbcValue(),
+                new PostgresErrataTypeJdbcConverters.ErrataTypeToPGobject(),
                 new PostgresErrataTypeJdbcConverters.PGobjectToErrataType(),
                 new PostgresErrataTypeJdbcConverters.StringToErrataType(),
                 new PostgresHookJdbcConverters.HookExtensionPointToJdbcValue(),
@@ -126,6 +129,21 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new PostgresHookJdbcConverters.HookTypeToJdbcValue(),
                 new PostgresHookJdbcConverters.PGobjectToHookType(),
                 new PostgresHookJdbcConverters.StringToHookType(),
+                new PostgresTokenJdbcConverters.TokenFreezeStatusEnumToJdbcValue(),
+                new PostgresTokenJdbcConverters.TokenFreezeStatusEnumToInteger(),
+                new PostgresTokenJdbcConverters.IntegerToTokenFreezeStatusEnum(),
+                new PostgresTokenJdbcConverters.TokenKycStatusEnumToJdbcValue(),
+                new PostgresTokenJdbcConverters.TokenKycStatusEnumToInteger(),
+                new PostgresTokenJdbcConverters.IntegerToTokenKycStatusEnum(),
+                new PostgresTokenJdbcConverters.TokenPauseStatusEnumToJdbcValue(),
+                new PostgresTokenJdbcConverters.PGobjectToTokenPauseStatusEnum(),
+                new PostgresTokenJdbcConverters.StringToTokenPauseStatusEnum(),
+                new PostgresTokenJdbcConverters.TokenSupplyTypeEnumToJdbcValue(),
+                new PostgresTokenJdbcConverters.PGobjectToTokenSupplyTypeEnum(),
+                new PostgresTokenJdbcConverters.StringToTokenSupplyTypeEnum(),
+                new PostgresTokenJdbcConverters.TokenTypeEnumToJdbcValue(),
+                new PostgresTokenJdbcConverters.PGobjectToTokenTypeEnum(),
+                new PostgresTokenJdbcConverters.StringToTokenTypeEnum(),
                 new RangeToPGobjectWritingConverter(),
                 new PGobjectToRangeReadingConverter(),
                 new JsonbWritingConverters.FixedFeesHolderToJsonb(),

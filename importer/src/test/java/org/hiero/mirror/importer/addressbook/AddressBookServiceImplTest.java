@@ -24,13 +24,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
-import org.assertj.core.api.ListAssert;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -566,7 +564,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .returns(0L, AddressBookEntry::getStake)
                 .extracting(
                         AddressBookEntry::getServiceEndpoints,
-                        InstanceOfAssertFactories.set(AddressBookServiceEndpoint.class))
+                        InstanceOfAssertFactories.list(AddressBookServiceEndpoint.class))
                 .hasSize(1)
                 .first()
                 .returns(0L, AddressBookServiceEndpoint::getNodeId)
@@ -801,7 +799,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .first()
                 .extracting(
                         AddressBookEntry::getServiceEndpoints,
-                        InstanceOfAssertFactories.set(AddressBookServiceEndpoint.class))
+                        InstanceOfAssertFactories.list(AddressBookServiceEndpoint.class))
                 .hasSize(1)
                 .first()
                 .returns("", AddressBookServiceEndpoint::getIpAddressV4)
@@ -1247,10 +1245,8 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertArrayEquals(expected, actualAddressBook.getFileData());
     }
 
-    @SuppressWarnings("deprecation")
     private void assertAddressBook(AddressBook actual, NodeAddressBook expected) {
-        ListAssert<AddressBookEntry> listAssert =
-                assertThat(actual.getEntries()).hasSize(expected.getNodeAddressCount());
+        var listAssert = assertThat(actual.getEntries()).hasSize(expected.getNodeAddressCount());
 
         for (NodeAddress nodeAddress : expected.getNodeAddressList()) {
             listAssert.anySatisfy(abe -> {
@@ -1266,7 +1262,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         }
     }
 
-    private void assertAddressBookEndPoints(Set<AddressBookServiceEndpoint> actual, List<ServiceEndpoint> expected) {
+    private void assertAddressBookEndPoints(List<AddressBookServiceEndpoint> actual, List<ServiceEndpoint> expected) {
         if (expected.isEmpty()) {
             return;
         }

@@ -15,6 +15,7 @@ import lombok.CustomLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
+import org.hiero.mirror.web3.state.ContractSlotValue;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -57,7 +58,7 @@ final class ContractStateServiceImpl implements ContractStateService {
     @Override
     public Optional<byte[]> findStorage(final EntityId contractId, final byte[] key) {
         if (!cacheProperties.isEnableBatchContractSlotCaching()) {
-            return contractStateRepository.findStorage(contractId.getId(), key);
+            return contractStateRepository.findStorage(contractId.getId(), key).map(ContractSlotValue::getValue);
         }
 
         final var cachedValue = contractStateCache.get(generateCacheKey(contractId, key), byte[].class);
@@ -72,7 +73,9 @@ final class ContractStateServiceImpl implements ContractStateService {
     @Override
     public Optional<byte[]> findStorageByBlockTimestamp(
             final EntityId entityId, final byte[] slotKeyByteArray, final long blockTimestamp) {
-        return contractStateRepository.findStorageByBlockTimestamp(entityId.getId(), slotKeyByteArray, blockTimestamp);
+        return contractStateRepository
+                .findStorageByBlockTimestamp(entityId.getId(), slotKeyByteArray, blockTimestamp)
+                .map(ContractSlotValue::getValue);
     }
 
     /**
@@ -116,7 +119,7 @@ final class ContractStateServiceImpl implements ContractStateService {
         // If the cache key was evicted and hasn't been requested since, the cached value will be null.
         // In that case, fall back to the original query.
         if (isKeyEvictedFromCache) {
-            return contractStateRepository.findStorage(contractId.getId(), key);
+            return contractStateRepository.findStorage(contractId.getId(), key).map(ContractSlotValue::getValue);
         }
         return Optional.ofNullable(cachedValue);
     }

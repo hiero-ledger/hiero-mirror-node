@@ -13,6 +13,7 @@ import com.hedera.hapi.node.state.contract.Bytecode;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -94,16 +95,22 @@ class ContractBytecodeReadableKVStateTest {
 
     @Test
     void whenContractNumIsSetReturnRuntimeBytecode() {
-        when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
-                .thenReturn(Optional.of(BYTES.toByteArray()));
+        when(contractRepository.findById(ENTITY_ID_WITH_NUM.getId()))
+                .thenReturn(Optional.of(Contract.builder()
+                        .id(ENTITY_ID_WITH_NUM.getId())
+                        .runtimeBytecode(BYTES.toByteArray())
+                        .build()));
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM))
                 .satisfies(bytecode -> assertThat(bytecode).isEqualTo(BYTECODE));
     }
 
     @Test
     void whenContractMirrorEvmAddressIsSetReturnRuntimeBytecode() {
-        when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_MIRROR_EVM_ADDRESS.getId()))
-                .thenReturn(Optional.of(BYTES.toByteArray()));
+        when(contractRepository.findById(ENTITY_ID_WITH_MIRROR_EVM_ADDRESS.getId()))
+                .thenReturn(Optional.of(Contract.builder()
+                        .id(ENTITY_ID_WITH_MIRROR_EVM_ADDRESS.getId())
+                        .runtimeBytecode(BYTES.toByteArray())
+                        .build()));
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_MIRROR_EVM_ADDRESS))
                 .satisfies(bytecode -> assertThat(bytecode).isEqualTo(BYTECODE));
     }
@@ -112,15 +119,18 @@ class ContractBytecodeReadableKVStateTest {
     void whenContractEvmAddressIsSetReturnRuntimeBytecode() {
         when(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(EVM_ADDRESS.toArray(), Optional.empty()))
                 .thenReturn(Optional.of(ENTITY));
-        when(contractRepository.findRuntimeBytecode(ENTITY.toEntityId().getId()))
-                .thenReturn(Optional.of(BYTES.toByteArray()));
+        when(contractRepository.findById(ENTITY.toEntityId().getId()))
+                .thenReturn(Optional.of(Contract.builder()
+                        .id(ENTITY.toEntityId().getId())
+                        .runtimeBytecode(BYTES.toByteArray())
+                        .build()));
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_EVM_ADDRESS))
                 .satisfies(bytecode -> assertThat(bytecode).isEqualTo(BYTECODE));
     }
 
     @Test
     void whenContractRuntimeBytecodeIsNullReturnNull() {
-        when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId())).thenReturn(Optional.empty());
+        when(contractRepository.findById(ENTITY_ID_WITH_NUM.getId())).thenReturn(Optional.empty());
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM))
                 .satisfies(bytecode -> assertThat(bytecode).isNull());
     }

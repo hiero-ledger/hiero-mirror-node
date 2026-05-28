@@ -86,7 +86,7 @@ class AddressBookServiceEndpointRepositoryTest extends ImporterIntegrationTest {
                 .publicKey("rsa+public/key");
 
         if (!CollectionUtils.isEmpty(portNums)) {
-            Set<AddressBookServiceEndpoint> serviceEndpoints = new HashSet<>();
+            List<AddressBookServiceEndpoint> serviceEndpoints = new ArrayList<>();
             for (int i = 0; i < portNums.size(); i++) {
                 serviceEndpoints.add(addressBookServiceEndpoint(
                         consensusTimestamp,
@@ -110,7 +110,7 @@ class AddressBookServiceEndpointRepositoryTest extends ImporterIntegrationTest {
                 .fileData("address book memo".getBytes())
                 .fileId(addressBookEntityId102);
 
-        List<AddressBookEntry> addressBookEntries = new ArrayList<>();
+        Set<AddressBookEntry> addressBookEntries = new HashSet<>();
         for (Integer accountNum : accountNums) {
             addressBookEntries.add(addressBookEntry(consensusTimestamp, accountNum, portNums));
         }

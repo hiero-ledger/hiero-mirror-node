@@ -31,6 +31,26 @@ public final class PostgresErrataTypeJdbcConverters {
         }
     }
 
+    /**
+     * Some Spring Data JDBC code paths bind enums as VARCHAR unless we explicitly provide a PGobject.
+     * Returning a {@link PGobject} ensures the driver sends the parameter as PostgreSQL enum (OTHER).
+     */
+    @WritingConverter
+    public static final class ErrataTypeToPGobject implements Converter<ErrataType, PGobject> {
+
+        @Override
+        @SneakyThrows
+        public PGobject convert(ErrataType source) {
+            if (source == null) {
+                return null;
+            }
+            var pg = new PGobject();
+            pg.setType("errata_type");
+            pg.setValue(source.name());
+            return pg;
+        }
+    }
+
     @ReadingConverter
     public static final class PGobjectToErrataType implements Converter<PGobject, ErrataType> {
 

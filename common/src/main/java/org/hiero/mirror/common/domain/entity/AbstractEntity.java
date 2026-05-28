@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common.domain.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
 import java.sql.Date;
 import java.util.concurrent.TimeUnit;
@@ -149,6 +150,19 @@ public abstract class AbstractEntity implements History {
         long base = balance != null ? balance : 0L;
         long d = delta != null ? delta : 0L;
         setBalance(base + d);
+    }
+
+    @JsonIgnore
+    public long getEffectiveExpiration() {
+        if (expirationTimestamp != null) {
+            return expirationTimestamp;
+        }
+
+        if (createdTimestamp != null && autoRenewPeriod != null) {
+            return createdTimestamp + TimeUnit.SECONDS.toNanos(autoRenewPeriod);
+        }
+
+        return DEFAULT_EXPIRY_TIMESTAMP;
     }
 
     @SuppressWarnings("java:S1610")

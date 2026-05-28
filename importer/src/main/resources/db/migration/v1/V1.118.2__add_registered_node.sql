@@ -10,6 +10,8 @@ create table if not exists registered_node
 );
 
 alter table if exists registered_node
+    drop constraint if exists registered_node__pk;
+alter table if exists registered_node
     add constraint registered_node__pk primary key (registered_node_id);
 
 create table if not exists registered_node_history
