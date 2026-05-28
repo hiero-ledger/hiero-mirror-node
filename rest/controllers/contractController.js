@@ -1040,16 +1040,7 @@ class ContractController extends BaseController {
       fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
     }
 
-    let gasPriceFromFeeSchedule = null;
-    if (!ethTransaction) {
-      const whereQuery = [
-        {
-          query: `${FileData.CONSENSUS_TIMESTAMP}${utils.opsMap.lte}`,
-          param: timestamp,
-        },
-      ];
-      gasPriceFromFeeSchedule = await FileDataService.getFeeSchedule({whereQuery});
-    }
+    const gasPriceFromFeeSchedule = await this.getGasPriceFromFeeSchedule(ethTransaction, timestamp);
 
     if (isNil(contractResults[0].callResult)) {
       // set 206 partial response
@@ -1118,16 +1109,7 @@ class ContractController extends BaseController {
       rows.map(async (row) => {
         const ethTransaction = ethereumTransactionMap.get(row.consensusTimestamp);
 
-        let gasPriceFromFeeSchedule = null;
-        if (!ethTransaction) {
-          const whereQuery = [
-            {
-              query: `${FileData.CONSENSUS_TIMESTAMP}${utils.opsMap.lte}`,
-              param: row.consensusTimestamp,
-            },
-          ];
-          gasPriceFromFeeSchedule = await FileDataService.getFeeSchedule({whereQuery});
-        }
+        const gasPriceFromFeeSchedule = await this.getGasPriceFromFeeSchedule(ethTransaction, row.consensusTimestamp);
 
         return new ContractResultDetailsViewModel(
           row,
@@ -1228,16 +1210,10 @@ class ContractController extends BaseController {
       fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
     }
 
-    let gasPriceFromFeeSchedule = null;
-    if (!ethTransaction) {
-      const whereQuery = [
-        {
-          query: `${FileData.CONSENSUS_TIMESTAMP}${utils.opsMap.lte}`,
-          param: transactionDetails.consensusTimestamp,
-        },
-      ];
-      gasPriceFromFeeSchedule = await FileDataService.getFeeSchedule({whereQuery});
-    }
+    const gasPriceFromFeeSchedule = await this.getGasPriceFromFeeSchedule(
+      ethTransaction,
+      transactionDetails.consensusTimestamp
+    );
 
     this.setContractResultsResponse(
       res,
@@ -1256,6 +1232,19 @@ class ContractController extends BaseController {
       res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
       logger.debug(`getContractResultsByTransactionId returning partial content`);
     }
+  };
+
+  getGasPriceFromFeeSchedule = async (ethTransaction, consensusTimestamp) => {
+    if (ethTransaction) {
+      return null;
+    }
+    const whereQuery = [
+      {
+        query: `${FileData.CONSENSUS_TIMESTAMP}${utils.opsMap.lte}`,
+        param: consensusTimestamp,
+      },
+    ];
+    return FileDataService.getFeeSchedule({whereQuery});
   };
 
   getDetailedContractResults = async (contractDetails, contractId = undefined) => {
