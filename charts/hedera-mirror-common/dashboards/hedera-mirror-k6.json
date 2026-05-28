@@ -82,16 +82,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "red",
                 "value": 0
               },
               {
-                "color": "#EAB839",
-                "value": 0.98
-              },
-              {
-                "color": "orange",
-                "value": 0.99
+                "color": "green",
+                "value": 0.95
               }
             ]
           },
@@ -764,9 +760,9 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "grafanacloud-prom"
+          "uid": "${prometheus}"
         },
-        "definition": "label_values(k6_requests_seconds{namespace=\"$namespace\"},suite)",
+        "definition": "label_values(k6_requests_seconds{namespace=~\"$namespace\"},suite)",
         "description": "k6 test suite",
         "hide": 0,
         "includeAll": true,
