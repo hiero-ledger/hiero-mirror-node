@@ -66,10 +66,17 @@ gateway:
         drainingTimeoutSec: 10
       logging:
         enabled: false
-      maxRatePerEndpoint: 250  # Requires a change to HPA to take effect
       sessionAffinity:
         type: CLIENT_IP
-      timeoutSec: 20
+      timeoutSec: 15
+    streamingBackendPolicy:
+      connectionDraining:
+        drainingTimeoutSec: 10
+      logging:
+        enabled: false
+      sessionAffinity:
+        type: CLIENT_IP
+      timeoutSec: 9999999
     enabled: true
     healthCheckPolicy:
       config:
@@ -82,11 +89,17 @@ gateway:
     - backendRefs:
         - group: "{{ .Values.gateway.target.group }}"
           kind: "{{ .Values.gateway.target.kind }}"
-          name: "{{ include \"hedera-mirror-grpc.fullname\" $ }}"
+          name: "{{ include \"hedera-mirror-grpc.fullname\" $ }}-streaming"
           port: 5600
       matches:
         - method:
             service: com.hedera.mirror.api.proto.ConsensusService
+    - backendRefs:
+        - group: "{{ .Values.gateway.target.group }}"
+          kind: "{{ .Values.gateway.target.kind }}"
+          name: "{{ include \"hedera-mirror-grpc.fullname\" $ }}"
+          port: 5600
+      matches:
         - method:
             service: com.hedera.mirror.api.proto.NetworkService
         - method:

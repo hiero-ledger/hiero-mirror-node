@@ -5,7 +5,15 @@
       {
         "consensus_timestamp": 167655000123456,
         "hash": "6c515f5eae90c7a7ed8312b60a6990f19d809f9a5ad06ea90c172d0a1f7789da",
-        "payer_account_id": 8001
+        "payer_account_id": 8001,
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ]
       }
     ],
     "transactions": [

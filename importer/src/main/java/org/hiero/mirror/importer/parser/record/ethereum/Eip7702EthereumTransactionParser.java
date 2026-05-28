@@ -7,9 +7,13 @@ import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.rlp.RLPItem;
 import com.esaulpaugh.headlong.util.Integers;
 import jakarta.inject.Named;
+import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
@@ -64,7 +68,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                 .toAddress(rlpItems.get(5).data())
                 .value(rlpItems.get(6).asBigInt().toByteArray())
                 .callData(rlpItems.get(7).data())
-                .accessList(rlpItems.get(8).data())
+                .accessList(parseAccessList(rlpItems.get(8), TRANSACTION_TYPE_NAME))
                 .authorizationList(authorizationList)
                 .recoveryId((int) rlpItems.get(10).asByte())
                 .signatureR(rlpItems.get(11).data())
@@ -96,13 +100,22 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                                 tuple.size(), AUTHORIZATION_TUPLE_SIZE));
             }
 
-            var authorization = Authorization.builder()
-                    .chainId(Hex.encodeHexString(tuple.get(0).data()))
-                    .address(Hex.encodeHexString(tuple.get(1).data()))
+            final var hexFormat = HexFormat.of();
+            final var chainId = tuple.get(0).data();
+            final var r = tuple.get(4).data();
+            final var s = tuple.get(5).data();
+            final var authorization = Authorization.builder()
+                    .chainId(
+                            ArrayUtils.isEmpty(chainId)
+                                    ? HEX_PREFIX + "0"
+                                    : HEX_PREFIX + new BigInteger(1, chainId).toString(16))
+                    .address(HEX_PREFIX
+                            + StringUtils.leftPad(
+                                    hexFormat.formatHex(tuple.get(1).data()), 40, '0'))
                     .nonce(tuple.get(2).asLong())
-                    .yParity((int) tuple.get(3).asByte())
-                    .r(Hex.encodeHexString(tuple.get(4).data()))
-                    .s(Hex.encodeHexString(tuple.get(5).data()))
+                    .yParity(tuple.get(3).asByte() == 0 ? HEX_PREFIX + "0" : HEX_PREFIX + "1")
+                    .r(HEX_PREFIX + StringUtils.leftPad(ArrayUtils.isEmpty(r) ? "" : hexFormat.formatHex(r), 64, '0'))
+                    .s(HEX_PREFIX + StringUtils.leftPad(ArrayUtils.isEmpty(s) ? "" : hexFormat.formatHex(s), 64, '0'))
                     .build();
 
             authorizations.add(authorization);
@@ -144,7 +157,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                     decodeHex(auth.getChainId()),
                     decodeHex(auth.getAddress()),
                     Integers.toBytes(auth.getNonce()),
-                    Integers.toBytes(auth.getYParity()),
+                    Integers.toBytes(Integer.parseInt(auth.getYParity().substring(2), 16)),
                     decodeHex(auth.getR()),
                     decodeHex(auth.getS())));
         }
@@ -153,7 +166,11 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
 
     private byte[] decodeHex(String hex) {
         try {
-            return Hex.decodeHex(hex);
+            var stripped = hex.startsWith(HEX_PREFIX) ? hex.substring(2) : hex;
+            if (stripped.length() % 2 != 0) {
+                stripped = "0" + stripped;
+            }
+            return Hex.decodeHex(stripped);
         } catch (Exception e) {
             throw new InvalidEthereumBytesException(TRANSACTION_TYPE_NAME, "Invalid hex string: " + hex);
         }

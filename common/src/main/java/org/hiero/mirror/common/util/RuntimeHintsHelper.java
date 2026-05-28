@@ -100,17 +100,6 @@ public final class RuntimeHintsHelper {
         }
     }
 
-    public static void registerSerialization(RuntimeHints hints, ClassLoader loader, String... classNames) {
-        for (final var className : classNames) {
-            try {
-                final var clazz = Class.forName(className, false, loader);
-                hints.reflection().registerJavaSerialization(clazz);
-            } catch (ClassNotFoundException e) {
-                // no-op
-            }
-        }
-    }
-
     private static void registerType(RuntimeHints hints, String className, MemberCategory... memberCategories) {
         final var type = TypeReference.of(className);
         hints.reflection().registerType(type, memberCategories);

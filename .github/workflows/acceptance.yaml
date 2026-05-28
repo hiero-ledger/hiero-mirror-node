@@ -42,8 +42,8 @@ jobs:
           - BLOCK
     timeout-minutes: 50
     env:
-      BLOCK_NODE_VERSION: v0.31.0
-      CONSENSUS_NODE_VERSION: v0.74.0-rc.3
+      BLOCK_NODE_VERSION: v0.34.0
+      CONSENSUS_NODE_VERSION: v0.75.0-rc.3
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
@@ -54,7 +54,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -186,6 +186,7 @@ jobs:
             --num-consensus-nodes 1
           solo cluster-ref config setup --cluster-ref kind-"${SOLO_CLUSTER_NAME}"
 
+          APPLICATION_PROPERTIES_FLAG=()
           if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
             cat <<EOF >> mirror.yaml
           importer:
@@ -193,12 +194,25 @@ jobs:
               HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
               SPRING_PROFILES_ACTIVE: 'blocknode'
           EOF
+            cat $(which solo | xargs dirname)/../lib/node_modules/@hashgraph/solo/resources/templates/application.properties \
+              > application.properties
+            cat <<EOF >> application.properties
+          blockStream.writerMode=FILE_AND_GRPC
+          blockStream.streamWrappedRecordBlocks=false
+
+          tss.hintsEnabled=true
+          tss.historyEnabled=true
+          tss.forceMockSignatures=false
+          tss.wrapsEnabled=true
+          EOF
+            APPLICATION_PROPERTIES_FLAG=(--application-properties application.properties)
             solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
               --chart-version "${BLOCK_NODE_VERSION}" --release-tag "${CONSENSUS_NODE_VERSION}"
           fi
 
           solo keys consensus generate --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1
-          solo consensus network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_NODE_VERSION}"
+          solo consensus network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_NODE_VERSION}" \
+            "${APPLICATION_PROPERTIES_FLAG[@]}"
           solo consensus node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 --release-tag "${CONSENSUS_NODE_VERSION}"
           solo consensus node start --deployment "${SOLO_DEPLOYMENT}" -i node1
 

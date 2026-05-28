@@ -14,8 +14,6 @@ import com.hederahashgraph.api.proto.java.ScheduleID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TopicID;
 import jakarta.persistence.Transient;
-import java.io.Serial;
-import java.io.Serializable;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -27,7 +25,7 @@ import org.hiero.mirror.common.exception.InvalidEntityException;
  * Common encapsulation for a Hedera entity identifier.
  */
 @Value
-public final class EntityId implements Serializable, Comparable<EntityId> {
+public final class EntityId implements Comparable<EntityId> {
 
     public static final EntityId EMPTY = new EntityId(0L);
 
@@ -49,9 +47,6 @@ public final class EntityId implements Serializable, Comparable<EntityId> {
     private static final Range<Long> DEFAULT_RANGE = Range.atLeast(0L);
     private static final String DOT = ".";
     private static final Splitter SPLITTER = Splitter.on('.').omitEmptyStrings().trimResults();
-
-    @Serial
-    private static final long serialVersionUID = 1427649605832330197L;
 
     @JsonValue
     private final long id;

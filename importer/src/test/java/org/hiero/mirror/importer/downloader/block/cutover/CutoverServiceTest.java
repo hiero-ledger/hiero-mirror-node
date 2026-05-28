@@ -197,6 +197,43 @@ final class CutoverServiceTest {
         verifyNoInteractions(recordFileRepository);
     }
 
+    @Test
+    void getBeforeLastHapiVersion() {
+        // given
+        final var recordFile = recordFile(100, false);
+        recordFile.setHapiVersionMinor(75);
+        doReturn(Optional.of(recordFile)).when(recordFileRepository).findLatest();
+
+        // when
+        cutoverService.get(StreamType.BLOCK, blockStreamTask);
+        cutoverService.get(StreamType.RECORD, recordStreamTask);
+
+        // then
+        verify(recordFileRepository, atLeast(1)).findLatest();
+        verifyNoInteractions(blockStreamTask);
+        verify(recordStreamTask).run();
+    }
+
+    @Test
+    void getWhenNoRecordFiles() {
+        // when
+        cutoverService.get(StreamType.BLOCK, blockStreamTask);
+        cutoverService.get(StreamType.RECORD, recordStreamTask);
+
+        // then
+        verify(recordFileRepository, atLeast(1)).findLatest();
+        verifyNoInteractions(blockStreamTask);
+        verify(recordStreamTask).run();
+
+        // then
+        await().atMost(CUTOVER_THRESHOLD.multipliedBy(2))
+                .pollInterval(Duration.ofMillis(10))
+                .untilAsserted(() -> {
+                    cutoverService.get(StreamType.BLOCK, blockStreamTask);
+                    verify(blockStreamTask).run();
+                });
+    }
+
     @ParameterizedTest
     @CsvSource(textBlock = """
             false, true
@@ -507,6 +544,9 @@ final class CutoverServiceTest {
         return RecordFile.builder()
                 .consensusStart(consensusStart)
                 .consensusEnd(consensusStart + 2000L)
+                .hapiVersionMajor(0)
+                .hapiVersionMinor(76)
+                .hapiVersionPatch(0)
                 .index(index)
                 .version(isBlockStream ? BlockStreamReader.VERSION : ProtoRecordFileReader.VERSION)
                 .build();

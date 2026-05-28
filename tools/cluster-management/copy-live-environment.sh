@@ -8,6 +8,7 @@ source ./utils/utils.sh
 source ./utils/input-utils.sh
 source ./utils/snapshot-utils.sh
 
+COLLECT_K6_REPORT="${COLLECT_K6_REPORT:-false}"
 CREATE_NEW_BACKUPS="${CREATE_NEW_BACKUPS:-true}"
 DEFAULT_POOL_MAX_PER_ZONE="${DEFAULT_POOL_MAX_PER_ZONE:-5}"
 DEFAULT_POOL_NAME="${DEFAULT_POOL_NAME:-default-pool}"
@@ -654,22 +655,31 @@ function waitForK6PodExecution() {
     sleep 1
   done
 
-  log "downloading artifacts for job ${job}"
-  until {
-    rm -f artifacts/report.md 2>/dev/null || true
-    testkube download artifacts "${job}"  >/dev/null 2>&1
-    [[ -s artifacts/report.md ]]
-  }; do
-    log "Waiting for artifacts to be available"
-    sleep 5
-  done
-
-  cat artifacts/report.md
-  mkdir -p "${K6_TEST_REPORT_DIR}"
-  cp artifacts/report.md "${K6_TEST_REPORT_DIR}/${testName}.md"
-  rm -fr artifacts
-
   scaleHpaMin "${targetNamespace}" "${hpaName}"
+
+  if [[ "${COLLECT_K6_REPORT}" == "true" ]]; then
+    log "downloading artifacts for job ${job}"
+    local deadline=$((SECONDS + 60))
+    rm -f artifacts/report.md 2>/dev/null || true
+    while true; do
+      testkube download artifacts "${job}"  >/dev/null 2>&1
+      if [[ -s artifacts/report.md ]]; then
+        cat artifacts/report.md
+        mkdir -p "${K6_TEST_REPORT_DIR}"
+        cp artifacts/report.md "${K6_TEST_REPORT_DIR}/${testName}.md"
+        rm -fr artifacts
+        break
+      fi
+
+      if (( SECONDS >= deadline )); then
+        log "Timed out waiting for artifacts after 60s"
+        break
+      fi
+
+      log "Waiting for artifacts to be available"
+      sleep 5
+    done
+  fi
 }
 
 function waitForHelmReleaseReady() {

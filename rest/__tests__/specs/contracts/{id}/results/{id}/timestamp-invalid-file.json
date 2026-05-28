@@ -86,6 +86,14 @@
     ],
     "ethereumtransactions": [
       {
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ],
         "call_data_id": 120,
         "consensus_timestamp": 167654000123456,
         "hash": "981202030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
@@ -146,7 +154,14 @@
   ],
   "responseStatus": 200,
   "responseJson": {
-    "access_list": "0x",
+    "access_list": [
+      {
+        "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+        "storage_keys": [
+          "0x0000000000000000000000000000000000000000000000000000000000000081"
+        ]
+      }
+    ],
     "amount": 2000000000,
     "authorization_list": [],
     "block_gas_used": 0,
