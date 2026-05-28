@@ -2,11 +2,11 @@
 
 name: Trigger Staging on Deploy Change
 
-on:
-  push:
-    branches: [deploy]
-    paths:
-      - clusters/mainnet-staging-na/mainnet-citus/helmrelease.yaml
+#on:
+#  push:
+#    branches: [deploy]
+#    paths:
+#      - clusters/mainnet-staging-na/mainnet-citus/helmrelease.yaml
 
 permissions:
   id-token: write
