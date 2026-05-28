@@ -14,6 +14,7 @@ import * as networkRegisteredNodes from './networkRegisteredNodes.js';
 import * as networkStake from './networkStake.js';
 import * as networkSupply from './networkSupply.js';
 import * as topicsId from './topicsId.js';
+import * as rampUp from './rampUp.js';
 
 // add test modules here
 const tests = {
@@ -28,7 +29,7 @@ const tests = {
   networkStake,
   networkSupply,
   topicsId,
-  // rampUp,
+  rampUp,
 };
 
 const {funcs, getUrlFuncs, options, requiredParameters, scenarioDurationGauge, scenarios} = getSequentialTestScenarios(
