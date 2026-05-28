@@ -199,8 +199,6 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
         if (minTimestamp != null) {
             return minTimestamp;
         }
-
-        log.info("No minimum consensus_end configured for network {}; processing all record_file rows", network);
         return 0L;
     }
 
