@@ -42,6 +42,7 @@ import java.math.BigInteger;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -51,7 +52,6 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
-import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
@@ -1210,6 +1210,9 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         }
     }
 
+    private static final String STORAGE_SLOT_0_KEY =
+            "0x0000000000000000000000000000000000000000000000000000000000000000";
+
     @Nested
     class StateOverrides {
 
@@ -1222,11 +1225,11 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
             final var storageEntry = new StorageEntry();
             final var slotValue = "11".repeat(32);
-            storageEntry.setKey("0x0"); // intentionally non-32-byte
+            storageEntry.setKey(STORAGE_SLOT_0_KEY);
             storageEntry.setValue(HEX_PREFIX + slotValue);
 
             final var stateOverride = new StateOverride();
-            stateOverride.setAddress(contract.getContractAddress());
+            stateOverride.setAddress(contract.getContractAddress().toLowerCase());
             stateOverride.setState(List.of(storageEntry));
 
             final var params = contractExecutionParametersBuilder(
@@ -1236,7 +1239,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             Address.fromHexString(contract.getContractAddress()),
                             ETH_CALL,
                             0L)
-                    .stateOverrides(List.of(stateOverride))
+                    .stateOverrides(Map.of(stateOverride.getAddress(), stateOverride))
                     .build();
 
             // When
@@ -1256,11 +1259,11 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
             final var storageEntry = new StorageEntry();
             final var slotValue = "22".repeat(32);
-            storageEntry.setKey("0x0");
+            storageEntry.setKey(STORAGE_SLOT_0_KEY);
             storageEntry.setValue(HEX_PREFIX + slotValue);
 
             final var stateOverride = new StateOverride();
-            stateOverride.setAddress(contract.getContractAddress());
+            stateOverride.setAddress(contract.getContractAddress().toLowerCase());
             stateOverride.setStateDiff(List.of(storageEntry));
 
             final var params = contractExecutionParametersBuilder(
@@ -1270,7 +1273,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             Address.fromHexString(contract.getContractAddress()),
                             ETH_CALL,
                             0L)
-                    .stateOverrides(List.of(stateOverride))
+                    .stateOverrides(Map.of(stateOverride.getAddress(), stateOverride))
                     .build();
 
             // When
@@ -1291,7 +1294,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             final var functionCall = ethCall.call_multiplySimpleNumbers();
 
             final var stateOverride = new StateOverride();
-            stateOverride.setAddress(contract.getContractAddress());
+            stateOverride.setAddress(contract.getContractAddress().toLowerCase());
             stateOverride.setCode(overrideBytecode);
 
             final var params = contractExecutionParametersBuilder(
@@ -1301,7 +1304,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             Address.fromHexString(contract.getContractAddress()),
                             ETH_CALL,
                             0L)
-                    .stateOverrides(List.of(stateOverride))
+                    .stateOverrides(Map.of(stateOverride.getAddress(), stateOverride))
                     .build();
 
             // When
@@ -1320,7 +1323,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             final var functionCall = contract.call_slot0();
 
             final var stateOverride = new StateOverride();
-            stateOverride.setAddress(contract.getContractAddress());
+            stateOverride.setAddress(contract.getContractAddress().toLowerCase());
             stateOverride.setCode(overrideBytecode);
 
             final var params = contractExecutionParametersBuilder(
@@ -1330,7 +1333,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             Address.fromHexString(contract.getContractAddress()),
                             ETH_CALL,
                             0L)
-                    .stateOverrides(List.of(stateOverride))
+                    .stateOverrides(Map.of(stateOverride.getAddress(), stateOverride))
                     .build();
 
             // Then: The random bytecode gets executed, which results in CONTRACT_EXECUTION_EXCEPTION
@@ -1364,21 +1367,6 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         }
 
         @Test
-        void processCallWithGasRejectsUpperCaseAddressPrefix() {
-            final var stateOverride = new StateOverride();
-            stateOverride.setAddress("0X00000000000000000000000000000000000004e4");
-            stateOverride.setBalance("0x1");
-            final var params = contractExecutionParametersBuilder(
-                            BlockType.LATEST, HEX_PREFIX, Address.ZERO, Address.ZERO, ETH_CALL, 0L)
-                    .stateOverrides(List.of(stateOverride))
-                    .build();
-
-            assertThatThrownBy(() -> contractExecutionService.processCallWithGas(params))
-                    .isInstanceOf(InvalidParametersException.class)
-                    .hasMessageContaining("0X");
-        }
-
-        @Test
         void processCallWithGasAppliesAccountBalanceOverride() {
             // Given
             final var account = accountEntityPersist();
@@ -1399,7 +1387,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             Address.fromHexString(contract.getContractAddress()),
                             ETH_CALL,
                             0L)
-                    .stateOverrides(List.of(stateOverride))
+                    .stateOverrides(Map.of(stateOverride.getAddress(), stateOverride))
                     .build();
 
             // When
@@ -1445,7 +1433,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             Address.fromHexString(contract.getContractAddress()),
                             ETH_CALL,
                             0L)
-                    .stateOverrides(List.of(stateOverride))
+                    .stateOverrides(Map.of(stateOverride.getAddress(), stateOverride))
                     .build();
 
             // When

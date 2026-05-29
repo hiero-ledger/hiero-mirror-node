@@ -10,11 +10,12 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.PositiveOrZero;
-import java.util.List;
+import java.util.Map;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.convert.BlockTypeDeserializer;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
+import org.hiero.mirror.web3.convert.StateOverrideMapDeserializer;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.validation.Hex;
 
@@ -45,13 +46,9 @@ public class ContractCallRequest {
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH, allowEmpty = true)
     private String to;
 
-    /**
-     * Optional list of per-address state overrides.
-     * Mirrors the state override set accepted by {@code eth_call}.
-     */
     @JsonProperty("state_overrides")
-    @Valid
-    private List<@Valid StateOverride> stateOverrides;
+    @JsonDeserialize(using = StateOverrideMapDeserializer.class)
+    private Map<String, @Valid StateOverride> stateOverrides;
 
     @PositiveOrZero
     private long value;

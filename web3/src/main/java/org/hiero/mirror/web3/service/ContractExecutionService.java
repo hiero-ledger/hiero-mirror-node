@@ -2,30 +2,20 @@
 
 package org.hiero.mirror.web3.service;
 
-import static org.hiero.mirror.web3.state.Utils.normalizeStorageSlot;
-import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
-
 import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
-import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
-import org.hiero.mirror.web3.viewmodel.NormalizedStateOverride;
-import org.hiero.mirror.web3.viewmodel.StateOverride;
-import org.hiero.mirror.web3.viewmodel.StorageEntry;
 
 @CustomLog
 @Named
@@ -73,7 +63,7 @@ public class ContractExecutionService extends ContractCallService {
 
                 if (params.getStateOverrides() != null
                         && !params.getStateOverrides().isEmpty()) {
-                    ctx.setStateOverrides(convertStateOverridesToMap(params.getStateOverrides()));
+                    ctx.setStateOverrides(params.getStateOverrides());
                 }
 
                 Bytes result;
@@ -94,41 +84,6 @@ public class ContractExecutionService extends ContractCallService {
 
             return new ContractExecutionResult(stringResult, gasUsed);
         });
-    }
-
-    /**
-     * Normalizes a list of state overrides into a map keyed by lowercase {@code 0x}-prefixed EVM address.
-     * Slot keys within each override are normalized to 64-character hex for direct map access in the state layer.
-     */
-    private Map<String, NormalizedStateOverride> convertStateOverridesToMap(List<StateOverride> overrides) {
-        var result = new HashMap<String, NormalizedStateOverride>(overrides.size());
-        for (var override : overrides) {
-            var normalized = NormalizedStateOverride.builder()
-                    .balance(override.getBalance())
-                    .nonce(override.getNonce())
-                    .code(override.getCode())
-                    .state(override.getState() != null ? normalizeSlotList(override.getState()) : null)
-                    .stateDiff(override.getStateDiff() != null ? normalizeSlotList(override.getStateDiff()) : null)
-                    .build();
-            result.put(normalizeAddress(override.getAddress()), normalized);
-        }
-        return result;
-    }
-
-    private Map<String, String> normalizeSlotList(List<StorageEntry> entries) {
-        var result = new HashMap<String, String>(entries.size());
-        for (var entry : entries) {
-            result.put(normalizeStorageSlot(entry.getKey()), entry.getValue());
-        }
-        return result;
-    }
-
-    private String normalizeAddress(String address) {
-        if (address.startsWith("0X")) {
-            throw new InvalidParametersException("Invalid address: '0X' prefix is not allowed, use '0x'");
-        }
-        final var hex = address.startsWith(HEX_PREFIX) ? address.substring(2) : address;
-        return HEX_PREFIX + hex.toLowerCase();
     }
 
     /**

@@ -14,9 +14,11 @@ import org.hiero.mirror.web3.validation.Hex;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class StorageEntry {
 
-    @Hex
+    public static final int SLOT_HEX_LENGTH = 64;
+
+    @Hex(minLength = SLOT_HEX_LENGTH, maxLength = SLOT_HEX_LENGTH)
     private String key;
 
-    @Hex
+    @Hex(minLength = SLOT_HEX_LENGTH, maxLength = SLOT_HEX_LENGTH)
     private String value;
 }

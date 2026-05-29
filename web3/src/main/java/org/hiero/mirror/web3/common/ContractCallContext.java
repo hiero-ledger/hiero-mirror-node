@@ -16,7 +16,7 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
-import org.hiero.mirror.web3.viewmodel.NormalizedStateOverride;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 
 @SuppressWarnings("deprecation")
 @Getter
@@ -64,7 +64,7 @@ public class ContractCallContext {
      * Empty map when no overrides are requested.
      */
     @Setter
-    private Map<String, NormalizedStateOverride> stateOverrides = Map.of();
+    private Map<String, StateOverride> stateOverrides = Map.of();
 
     private ContractCallContext() {}
 

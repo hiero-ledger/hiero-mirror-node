@@ -5,7 +5,9 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.STORAGE_STATE_ID;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
-import static org.hiero.mirror.web3.state.Utils.*;
+import static org.hiero.mirror.web3.state.Utils.contractIdToEvmAddressHex;
+import static org.hiero.mirror.web3.state.Utils.decodeHex;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.SlotKey;
@@ -14,12 +16,12 @@ import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
-import java.util.Map;
+import java.util.List;
 import org.apache.tuweni.bytes.Bytes32;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.service.ContractStateService;
-import org.hiero.mirror.web3.viewmodel.NormalizedStateOverride;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.jspecify.annotations.NonNull;
 
 @Named
@@ -45,11 +47,11 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
         if (override != null) {
             // Replace all slots from state overrides and don't go to DB, if set.
             if (override.getState() != null) {
-                return slotValueFromMap(override.getState(), slotKey);
+                return slotValueFromStateOverrides(override.getState(), slotKey);
             }
             // Replace only the existing slots from state_diff overrides, if set.
             if (override.getStateDiff() != null) {
-                final var patched = slotValueFromMap(override.getStateDiff(), slotKey);
+                final var patched = slotValueFromStateOverrides(override.getStateDiff(), slotKey);
                 // Return the patched value only if found.
                 if (patched != null) {
                     return patched;
@@ -65,8 +67,7 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
         return ContractService.NAME;
     }
 
-    private NormalizedStateOverride findStateOverride(
-            @NonNull ContractCallContext context, @NonNull ContractID contractID) {
+    private StateOverride findStateOverride(@NonNull ContractCallContext context, @NonNull ContractID contractID) {
         final var stateOverrides = context.getStateOverrides();
         if (stateOverrides.isEmpty()) {
             return null;
@@ -89,20 +90,22 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
                 .orElse(null);
     }
 
-    /**
-     * Looks up a slot in a storage override map. Returns {@code null} when the slot is absent
-     * ({@code state} replace) or when the slot is not listed ({@code state_diff} patch).
-     */
-    private SlotValue slotValueFromMap(@NonNull Map<String, String> storage, @NonNull SlotKey slotKey) {
-        final var valueHex =
-                storage.get(normalizeStorageSlot(bytesToHex(slotKey.key().toByteArray())));
-        return valueHex != null ? hexToSlotValue(valueHex) : null;
+    private SlotValue slotValueFromStateOverrides(@NonNull List<StorageEntry> storage, @NonNull SlotKey slotKey) {
+        final var slotHex = storageSlotHex(slotKey);
+        for (var entry : storage) {
+            if (slotHex.equals(entry.getKey())) {
+                return hexToSlotValue(entry.getValue());
+            }
+        }
+        return null;
     }
 
-    /** Converts a hex value string to a {@link SlotValue} (32-byte left-padded). */
+    private String storageSlotHex(@NonNull SlotKey slotKey) {
+        return HEX_PREFIX + bytesToHex(leftPadBytes(slotKey.key().toByteArray(), Bytes32.SIZE));
+    }
+
+    /** Converts a validated 32-byte hex value string to a {@link SlotValue}. */
     private SlotValue hexToSlotValue(@NonNull String hexValue) {
-        final var decoded = decodeHex(hexValue);
-        final var padded = decoded.length >= Bytes32.SIZE ? decoded : DomainUtils.leftPadBytes(decoded, Bytes32.SIZE);
-        return new SlotValue(Bytes.wrap(padded), Bytes.EMPTY, Bytes.EMPTY);
+        return new SlotValue(Bytes.wrap(decodeHex(hexValue)), Bytes.EMPTY, Bytes.EMPTY);
     }
 }

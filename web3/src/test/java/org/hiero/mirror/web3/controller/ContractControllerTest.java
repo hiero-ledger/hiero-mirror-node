@@ -552,7 +552,7 @@ class ContractControllerTest {
         override.setAddress("0x00000000000000000000000000000000000004e2");
         override.setBalance("0xde0b6b3a7640000"); // 1 HBAR in tinybars hex
         final var request = request();
-        request.setStateOverrides(List.of(override));
+        request.setStateOverrides(Map.of(override.getAddress(), override));
 
         contractCall(request).andExpect(status().isOk());
     }
@@ -563,7 +563,7 @@ class ContractControllerTest {
         override.setAddress("0x00000000000000000000000000000000000004e2");
         override.setNonce("0x2a");
         final var request = request();
-        request.setStateOverrides(List.of(override));
+        request.setStateOverrides(Map.of(override.getAddress(), override));
 
         contractCall(request).andExpect(status().isOk());
     }
@@ -574,7 +574,7 @@ class ContractControllerTest {
         override.setAddress("0x00000000000000000000000000000000000004e4");
         override.setCode("0x6080604052");
         final var request = request();
-        request.setStateOverrides(List.of(override));
+        request.setStateOverrides(Map.of(override.getAddress(), override));
 
         contractCall(request).andExpect(status().isOk());
     }
@@ -588,7 +588,7 @@ class ContractControllerTest {
         override.setAddress("0x00000000000000000000000000000000000004e4");
         override.setStateDiff(List.of(entry));
         final var request = request();
-        request.setStateOverrides(List.of(override));
+        request.setStateOverrides(Map.of(override.getAddress(), override));
 
         contractCall(request).andExpect(status().isOk());
     }
@@ -602,7 +602,7 @@ class ContractControllerTest {
         override.setAddress("0x00000000000000000000000000000000000004e4");
         override.setState(List.of(entry));
         final var request = request();
-        request.setStateOverrides(List.of(override));
+        request.setStateOverrides(Map.of(override.getAddress(), override));
 
         contractCall(request).andExpect(status().isOk());
     }
@@ -610,17 +610,17 @@ class ContractControllerTest {
     @Test
     void callWithStateOverrideMutuallyExclusiveStateAndStateDiff() throws Exception {
         final var stateEntry = new StorageEntry();
-        stateEntry.setKey("0x01");
-        stateEntry.setValue("0x01");
+        stateEntry.setKey("0x0000000000000000000000000000000000000000000000000000000000000001");
+        stateEntry.setValue("0x0000000000000000000000000000000000000000000000000000000000000001");
         final var diffEntry = new StorageEntry();
-        diffEntry.setKey("0x02");
-        diffEntry.setValue("0x02");
+        diffEntry.setKey("0x0000000000000000000000000000000000000000000000000000000000000002");
+        diffEntry.setValue("0x0000000000000000000000000000000000000000000000000000000000000002");
         final var override = new StateOverride();
         override.setAddress("0x00000000000000000000000000000000000004e4");
         override.setState(List.of(stateEntry));
         override.setStateDiff(List.of(diffEntry));
         final var request = request();
-        request.setStateOverrides(List.of(override));
+        request.setStateOverrides(Map.of(override.getAddress(), override));
 
         contractCall(request)
                 .andExpect(status().isBadRequest())
@@ -633,9 +633,22 @@ class ContractControllerTest {
         override.setAddress("0x1234"); // too short (not 40 hex chars)
         override.setBalance("0x1");
         final var request = request();
-        request.setStateOverrides(List.of(override));
+        request.setStateOverrides(Map.of(override.getAddress(), override));
 
         contractCall(request).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void callWithStateOverrideUpperCaseAddressPrefix() throws Exception {
+        final var override = new StateOverride();
+        override.setAddress("0X00000000000000000000000000000000000004e4");
+        override.setBalance("0x1");
+        final var request = request();
+        request.setStateOverrides(Map.of(override.getAddress(), override));
+
+        contractCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains(MESSAGE)));
     }
 
     @Test

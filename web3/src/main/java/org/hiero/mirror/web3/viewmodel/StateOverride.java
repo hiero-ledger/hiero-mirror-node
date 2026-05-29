@@ -21,7 +21,7 @@ import org.hiero.mirror.web3.validation.Hex;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class StateOverride {
 
-    /** EVM address (40 hex chars, with or without {@code 0x} prefix) of the account to override. */
+    /** EVM address (40 hex characters, optional {@code 0x} prefix) of the account to override. */
     @NotNull
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH)
     private String address;
@@ -57,6 +57,10 @@ public class StateOverride {
 
     @AssertTrue(message = "state and state_diff are mutually exclusive")
     private boolean hasValidStorage() {
-        return state == null || stateDiff == null;
+        return isEmpty(state) || isEmpty(stateDiff);
+    }
+
+    private static boolean isEmpty(List<?> list) {
+        return list == null || list.isEmpty();
     }
 }

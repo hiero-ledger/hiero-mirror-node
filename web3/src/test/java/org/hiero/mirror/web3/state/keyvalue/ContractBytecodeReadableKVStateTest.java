@@ -25,7 +25,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractRepository;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
-import org.hiero.mirror.web3.viewmodel.NormalizedStateOverride;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -137,9 +137,8 @@ class ContractBytecodeReadableKVStateTest {
 
     @Test
     void whenStateOverrideHasCodeForContractNumReturnsOverrideBytecode() {
-        contractCallContext.setStateOverrides(Map.of(
-                contractIdToEvmAddressHex(CONTRACT_ID_WITH_NUM),
-                NormalizedStateOverride.builder().code(OVERRIDE_CODE_HEX).build()));
+        contractCallContext.setStateOverrides(
+                Map.of(contractIdToEvmAddressHex(CONTRACT_ID_WITH_NUM), stateOverrideWithCode(OVERRIDE_CODE_HEX)));
 
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM)).isEqualTo(OVERRIDE_BYTECODE);
         verify(contractRepository, never()).findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId());
@@ -149,7 +148,7 @@ class ContractBytecodeReadableKVStateTest {
     void whenStateOverrideHasCodeForMirrorEvmAddressReturnsOverrideBytecode() {
         contractCallContext.setStateOverrides(Map.of(
                 contractIdToEvmAddressHex(CONTRACT_ID_WITH_MIRROR_EVM_ADDRESS),
-                NormalizedStateOverride.builder().code(OVERRIDE_CODE_HEX).build()));
+                stateOverrideWithCode(OVERRIDE_CODE_HEX)));
 
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_MIRROR_EVM_ADDRESS))
                 .isEqualTo(OVERRIDE_BYTECODE);
@@ -159,8 +158,7 @@ class ContractBytecodeReadableKVStateTest {
     @Test
     void whenStateOverrideHasCodeForEvmAddressReturnsOverrideBytecode() {
         contractCallContext.setStateOverrides(Map.of(
-                contractIdToEvmAddressHex(CONTRACT_ID_WITH_EVM_ADDRESS),
-                NormalizedStateOverride.builder().code(OVERRIDE_CODE_HEX).build()));
+                contractIdToEvmAddressHex(CONTRACT_ID_WITH_EVM_ADDRESS), stateOverrideWithCode(OVERRIDE_CODE_HEX)));
 
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_EVM_ADDRESS))
                 .isEqualTo(OVERRIDE_BYTECODE);
@@ -170,9 +168,8 @@ class ContractBytecodeReadableKVStateTest {
 
     @Test
     void whenStateOverrideHasCodeTakesPrecedenceOverDatabaseBytecode() {
-        contractCallContext.setStateOverrides(Map.of(
-                contractIdToEvmAddressHex(CONTRACT_ID_WITH_NUM),
-                NormalizedStateOverride.builder().code(OVERRIDE_CODE_HEX).build()));
+        contractCallContext.setStateOverrides(
+                Map.of(contractIdToEvmAddressHex(CONTRACT_ID_WITH_NUM), stateOverrideWithCode(OVERRIDE_CODE_HEX)));
         lenient()
                 .when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
@@ -183,9 +180,8 @@ class ContractBytecodeReadableKVStateTest {
 
     @Test
     void whenStateOverrideExistsButCodeIsNullFallsThroughToDatabase() {
-        contractCallContext.setStateOverrides(Map.of(
-                contractIdToEvmAddressHex(CONTRACT_ID_WITH_NUM),
-                NormalizedStateOverride.builder().balance("0x1").build()));
+        contractCallContext.setStateOverrides(
+                Map.of(contractIdToEvmAddressHex(CONTRACT_ID_WITH_NUM), stateOverrideWithBalance("0x1")));
         when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
 
@@ -194,9 +190,8 @@ class ContractBytecodeReadableKVStateTest {
 
     @Test
     void whenStateOverridesExistButNoMatchingAddressFallsThroughToDatabase() {
-        contractCallContext.setStateOverrides(Map.of(
-                "0x000000000000000000000000000000000000dead",
-                NormalizedStateOverride.builder().code(OVERRIDE_CODE_HEX).build()));
+        contractCallContext.setStateOverrides(
+                Map.of("0x000000000000000000000000000000000000dead", stateOverrideWithCode(OVERRIDE_CODE_HEX)));
         when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
 
@@ -206,5 +201,17 @@ class ContractBytecodeReadableKVStateTest {
     @Test
     void getExpectedSize() {
         assertThat(contractBytecodeReadableKVState.size()).isZero();
+    }
+
+    private StateOverride stateOverrideWithCode(String codeHex) {
+        final var override = new StateOverride();
+        override.setCode(codeHex);
+        return override;
+    }
+
+    private StateOverride stateOverrideWithBalance(String balanceHex) {
+        final var override = new StateOverride();
+        override.setBalance(balanceHex);
+        return override;
     }
 }
