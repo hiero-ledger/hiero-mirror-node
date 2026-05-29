@@ -5,8 +5,8 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.STORAGE_STATE_ID;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
-import static org.hiero.mirror.web3.state.Utils.decodeHex;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.hapi.node.base.ContractID;
@@ -69,7 +69,7 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
 
     private StateOverride findStateOverride(@NonNull ContractCallContext context, @NonNull ContractID contractID) {
         final var stateOverrides = context.getStateOverrides();
-        if (stateOverrides.isEmpty()) {
+        if (stateOverrides == null || stateOverrides.isEmpty()) {
             return null;
         }
         final var evmAddr = toAddress(contractID.contractNum()).toHexString();
@@ -106,6 +106,6 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
 
     /** Converts a validated 32-byte hex value string to a {@link SlotValue}. */
     private SlotValue hexToSlotValue(@NonNull String hexValue) {
-        return new SlotValue(Bytes.wrap(decodeHex(hexValue)), Bytes.EMPTY, Bytes.EMPTY);
+        return new SlotValue(Bytes.wrap(hexToBytes(hexValue)), Bytes.EMPTY, Bytes.EMPTY);
     }
 }

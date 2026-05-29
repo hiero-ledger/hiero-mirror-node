@@ -5,8 +5,8 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.BYTECODE_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.entityIdFromContractId;
 import static org.hiero.mirror.common.util.DomainUtils.isLongZeroAddress;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
-import static org.hiero.mirror.web3.state.Utils.hexStringToBytes;
 
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.Bytecode;
@@ -57,11 +57,11 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
     private Bytecode applyStateOverride(@NonNull EntityId entityId) {
         final var ctx = ContractCallContext.get();
         final var stateOverrides = ctx.getStateOverrides();
-        if (!stateOverrides.isEmpty()) {
+        if (stateOverrides != null && !stateOverrides.isEmpty()) {
             final var evmAddr = toAddress(entityId).toHexString();
             final var override = stateOverrides.get(evmAddr);
             if (override != null && override.getCode() != null) {
-                return new Bytecode(Bytes.wrap(hexStringToBytes(override.getCode())));
+                return new Bytecode(Bytes.wrap(hexToBytes(override.getCode())));
             }
         }
         return null;

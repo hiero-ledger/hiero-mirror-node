@@ -62,7 +62,7 @@ public class ContractCallContext {
      * Per-address state overrides for the current call.
      */
     @Setter
-    private Map<String, StateOverride> stateOverrides = Map.of();
+    private Map<String, StateOverride> stateOverrides;
 
     private ContractCallContext() {}
 

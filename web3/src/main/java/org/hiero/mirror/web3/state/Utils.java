@@ -13,8 +13,6 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.math.BigInteger;
 import java.time.Instant;
 import lombok.experimental.UtilityClass;
-import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.NonNull;
@@ -64,11 +62,6 @@ public class Utils {
         return DomainUtils.convertToNanos(now.getEpochSecond(), now.getNano());
     }
 
-    /** Decodes a hex string (with or without {@code 0x}/{@code 0X} prefix) to a byte array. */
-    public static byte[] hexStringToBytes(@NonNull String hex) {
-        return decodeHex(hex);
-    }
-
     /** Parses a hex-encoded string (with or without {@code 0x} prefix) into tinybars, clamped to {@link Long#MAX_VALUE}. */
     public static long hexStringToLong(@NonNull String hex) {
         var hexWithoutPrefix = hex.startsWith(HEX_PREFIX) || hex.startsWith("0X") ? hex.substring(2) : hex;
@@ -89,20 +82,5 @@ public class Utils {
                 .realmNum(entityId.getRealm())
                 .fileNum(entityId.getNum())
                 .build();
-    }
-
-    public static byte[] decodeHex(@NonNull String hex) {
-        var stripped = hex.startsWith(HEX_PREFIX) || hex.startsWith("0X") ? hex.substring(2) : hex;
-        if (stripped.isEmpty()) {
-            return new byte[0];
-        }
-        if (stripped.length() % 2 != 0) {
-            stripped = "0" + stripped;
-        }
-        try {
-            return Hex.decodeHex(stripped);
-        } catch (DecoderException e) {
-            throw new IllegalArgumentException(e);
-        }
     }
 }

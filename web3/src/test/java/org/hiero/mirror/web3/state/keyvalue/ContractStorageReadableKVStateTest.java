@@ -4,8 +4,8 @@ package org.hiero.mirror.web3.state.keyvalue;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
-import static org.hiero.mirror.web3.state.Utils.hexStringToBytes;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.lenient;
@@ -58,7 +58,7 @@ class ContractStorageReadableKVStateTest {
     private static final String OVERRIDE_VALUE_HEX =
             "0x0000000000000000000000000000000000000000000000000000000000000064";
     private static final SlotValue OVERRIDE_SLOT_VALUE = new SlotValue(
-            Bytes.wrap(leftPadBytes(hexStringToBytes(OVERRIDE_VALUE_HEX), Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY);
+            Bytes.wrap(leftPadBytes(hexToBytes(OVERRIDE_VALUE_HEX), Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY);
     private static final SlotValue DATABASE_SLOT_VALUE = new SlotValue(BYTES, Bytes.EMPTY, Bytes.EMPTY);
     private static MockedStatic<ContractCallContext> contextMockedStatic;
 

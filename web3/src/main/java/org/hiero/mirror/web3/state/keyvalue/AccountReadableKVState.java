@@ -107,7 +107,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
      */
     private Account applyStateOverride(final ContractCallContext context, @NonNull AccountID key, Account account) {
         final var overrides = context.getStateOverrides();
-        if (overrides.isEmpty()) {
+        if (overrides == null || overrides.isEmpty()) {
             return account;
         }
 

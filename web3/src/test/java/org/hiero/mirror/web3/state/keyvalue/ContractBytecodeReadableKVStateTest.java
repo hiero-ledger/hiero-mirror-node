@@ -3,9 +3,9 @@
 package org.hiero.mirror.web3.state.keyvalue;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
-import static org.hiero.mirror.web3.state.Utils.hexStringToBytes;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -49,7 +49,7 @@ class ContractBytecodeReadableKVStateTest {
     private static final Bytes BYTES = Bytes.fromBase64("123456");
     private static final Bytecode BYTECODE = new Bytecode(BYTES);
     private static final String OVERRIDE_CODE_HEX = "0x6080604052";
-    private static final Bytecode OVERRIDE_BYTECODE = new Bytecode(Bytes.wrap(hexStringToBytes(OVERRIDE_CODE_HEX)));
+    private static final Bytecode OVERRIDE_BYTECODE = new Bytecode(Bytes.wrap(hexToBytes(OVERRIDE_CODE_HEX)));
     private static final String HEX = "0x00000000000000000000000000000000000004e4";
     private static final Address MIRROR_ADDRESS = Address.fromHexString(HEX);
     private static final Address EVM_ADDRESS = Address.fromHexString("0xb794f5ea0ba39494ce839613fffba74279579268");
