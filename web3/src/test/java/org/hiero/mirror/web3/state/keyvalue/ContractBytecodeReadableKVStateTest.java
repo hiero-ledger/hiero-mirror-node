@@ -4,9 +4,8 @@ package org.hiero.mirror.web3.state.keyvalue;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
-import static org.hiero.mirror.web3.state.Utils.contractIdToEvmAddressHex;
+import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.state.Utils.hexStringToBytes;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -43,6 +42,8 @@ class ContractBytecodeReadableKVStateTest {
 
     private static final ContractID CONTRACT_ID_WITH_NUM =
             new ContractID(1L, 0L, new OneOf<>(ContractOneOfType.CONTRACT_NUM, 1L));
+    private static final String CONTRACT_ID_WITH_NUM_ADDRESS =
+            toAddress(CONTRACT_ID_WITH_NUM.contractNum()).toHexString();
     private static final EntityId ENTITY_ID_WITH_NUM = EntityId.of(
             CONTRACT_ID_WITH_NUM.shardNum(), CONTRACT_ID_WITH_NUM.realmNum(), CONTRACT_ID_WITH_NUM.contractNum());
     private static final Bytes BYTES = Bytes.fromBase64("123456");
@@ -138,7 +139,7 @@ class ContractBytecodeReadableKVStateTest {
     @Test
     void whenStateOverrideHasCodeForContractNumReturnsOverrideBytecode() {
         contractCallContext.setStateOverrides(
-                Map.of(contractIdToEvmAddressHex(CONTRACT_ID_WITH_NUM), stateOverrideWithCode(OVERRIDE_CODE_HEX)));
+                Map.of(CONTRACT_ID_WITH_NUM_ADDRESS, stateOverrideWithCode(OVERRIDE_CODE_HEX)));
 
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM)).isEqualTo(OVERRIDE_BYTECODE);
         verify(contractRepository, never()).findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId());
@@ -146,9 +147,7 @@ class ContractBytecodeReadableKVStateTest {
 
     @Test
     void whenStateOverrideHasCodeForMirrorEvmAddressReturnsOverrideBytecode() {
-        contractCallContext.setStateOverrides(Map.of(
-                contractIdToEvmAddressHex(CONTRACT_ID_WITH_MIRROR_EVM_ADDRESS),
-                stateOverrideWithCode(OVERRIDE_CODE_HEX)));
+        contractCallContext.setStateOverrides(Map.of(HEX, stateOverrideWithCode(OVERRIDE_CODE_HEX)));
 
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_MIRROR_EVM_ADDRESS))
                 .isEqualTo(OVERRIDE_BYTECODE);
@@ -156,20 +155,9 @@ class ContractBytecodeReadableKVStateTest {
     }
 
     @Test
-    void whenStateOverrideHasCodeForEvmAddressReturnsOverrideBytecode() {
-        contractCallContext.setStateOverrides(Map.of(
-                contractIdToEvmAddressHex(CONTRACT_ID_WITH_EVM_ADDRESS), stateOverrideWithCode(OVERRIDE_CODE_HEX)));
-
-        assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_EVM_ADDRESS))
-                .isEqualTo(OVERRIDE_BYTECODE);
-        verify(contractRepository, never()).findRuntimeBytecode(any());
-        verify(commonEntityAccessor, never()).getEntityByEvmAddressAndTimestamp(any(), any());
-    }
-
-    @Test
     void whenStateOverrideHasCodeTakesPrecedenceOverDatabaseBytecode() {
         contractCallContext.setStateOverrides(
-                Map.of(contractIdToEvmAddressHex(CONTRACT_ID_WITH_NUM), stateOverrideWithCode(OVERRIDE_CODE_HEX)));
+                Map.of(CONTRACT_ID_WITH_NUM_ADDRESS, stateOverrideWithCode(OVERRIDE_CODE_HEX)));
         lenient()
                 .when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
@@ -180,8 +168,7 @@ class ContractBytecodeReadableKVStateTest {
 
     @Test
     void whenStateOverrideExistsButCodeIsNullFallsThroughToDatabase() {
-        contractCallContext.setStateOverrides(
-                Map.of(contractIdToEvmAddressHex(CONTRACT_ID_WITH_NUM), stateOverrideWithBalance("0x1")));
+        contractCallContext.setStateOverrides(Map.of(CONTRACT_ID_WITH_NUM_ADDRESS, stateOverrideWithBalance("0x1")));
         when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
 

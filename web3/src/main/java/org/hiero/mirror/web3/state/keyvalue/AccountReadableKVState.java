@@ -3,9 +3,9 @@
 package org.hiero.mirror.web3.state.keyvalue;
 
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ACCOUNTS_STATE_ID;
-import static com.hedera.services.utils.EntityIdUtils.accountIdToEvmAddressHex;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.state.Utils.hexStringToLong;
 
 import com.hedera.hapi.node.base.AccountID;
@@ -111,7 +111,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             return account;
         }
 
-        final var evmAddr = accountIdToEvmAddressHex(key);
+        final var evmAddr = toAddress(key.accountNum()).toHexString();
         final var override = overrides.get(evmAddr);
         if (override == null || (override.getBalance() == null && override.getNonce() == null)) {
             return account;

@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
-import static com.hedera.services.utils.EntityIdUtils.accountIdToEvmAddressHex;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.state.Utils.EMPTY_KEY_LIST;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -74,6 +74,7 @@ class AccountReadableKVStateTest {
     private static final long TOKEN_NUM = 1253L;
     private static final AccountID ACCOUNT_ID =
             new AccountID(SHARD, REALM, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, NUM));
+    private static final String LONG_ZERO_ADDRESS = toAddress(NUM).toHexString();
     private static final AccountID ACCOUNT_ID_TOKEN =
             new AccountID(SHARD, REALM, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, TOKEN_NUM));
     private static final EntityId AUTO_RENEW_ACCOUNT_ID = EntityId.of(SHARD, REALM, NUM + 1);
@@ -678,7 +679,7 @@ class AccountReadableKVStateTest {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
         contractCallContext.setStateOverrides(
-                Map.of(accountIdToEvmAddressHex(ACCOUNT_ID), stateOverride(OVERRIDE_BALANCE_HEX, null, null)));
+                Map.of(LONG_ZERO_ADDRESS, stateOverride(OVERRIDE_BALANCE_HEX, null, null)));
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID))
                 .satisfies(account -> assertThat(account).returns(OVERRIDE_BALANCE, Account::tinybarBalance));
@@ -688,8 +689,7 @@ class AccountReadableKVStateTest {
     void whenStateOverrideHasNonceReturnsOverriddenNonce() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
-        contractCallContext.setStateOverrides(
-                Map.of(accountIdToEvmAddressHex(ACCOUNT_ID), stateOverride(null, OVERRIDE_NONCE_HEX, null)));
+        contractCallContext.setStateOverrides(Map.of(LONG_ZERO_ADDRESS, stateOverride(null, OVERRIDE_NONCE_HEX, null)));
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID))
                 .satisfies(account -> assertThat(account).returns(OVERRIDE_NONCE, Account::ethereumNonce));
@@ -699,8 +699,8 @@ class AccountReadableKVStateTest {
     void whenStateOverrideHasBalanceAndNonceReturnsBoth() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
-        contractCallContext.setStateOverrides(Map.of(
-                accountIdToEvmAddressHex(ACCOUNT_ID), stateOverride(OVERRIDE_BALANCE_HEX, OVERRIDE_NONCE_HEX, null)));
+        contractCallContext.setStateOverrides(
+                Map.of(LONG_ZERO_ADDRESS, stateOverride(OVERRIDE_BALANCE_HEX, OVERRIDE_NONCE_HEX, null)));
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
                 .returns(OVERRIDE_BALANCE, Account::tinybarBalance)
@@ -712,7 +712,7 @@ class AccountReadableKVStateTest {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
         contractCallContext.setStateOverrides(
-                Map.of(accountIdToEvmAddressHex(ACCOUNT_ID), stateOverride(OVERRIDE_BALANCE_HEX, null, null)));
+                Map.of(LONG_ZERO_ADDRESS, stateOverride(OVERRIDE_BALANCE_HEX, null, null)));
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
                 .returns(OVERRIDE_BALANCE, Account::tinybarBalance)
@@ -723,8 +723,7 @@ class AccountReadableKVStateTest {
     void whenStateOverrideExistsButOnlyCodeLeavesAccountUnchanged() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
-        contractCallContext.setStateOverrides(
-                Map.of(accountIdToEvmAddressHex(ACCOUNT_ID), stateOverride(null, null, "0x6080604052")));
+        contractCallContext.setStateOverrides(Map.of(LONG_ZERO_ADDRESS, stateOverride(null, null, "0x6080604052")));
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
                 .returns(BALANCE, Account::tinybarBalance)

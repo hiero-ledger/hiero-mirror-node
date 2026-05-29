@@ -5,7 +5,7 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.BYTECODE_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.entityIdFromContractId;
 import static org.hiero.mirror.common.util.DomainUtils.isLongZeroAddress;
-import static org.hiero.mirror.web3.state.Utils.contractIdToEvmAddressHex;
+import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.state.Utils.hexStringToBytes;
 
 import com.hedera.hapi.node.base.ContractID;
@@ -40,11 +40,13 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
 
     @Override
     protected Bytecode readFromDataSource(@NonNull ContractID contractID) {
-        // Check code override first so it takes precedence over DB bytecode.
-        final var stateOverride = applyStateOverride(contractID);
-        if (stateOverride != null) return stateOverride;
-
         final var entityId = toEntityId(contractID);
+        // Check code override first so it takes precedence over DB bytecode.
+        final var stateOverride = applyStateOverride(entityId);
+        if (stateOverride != null) {
+            return stateOverride;
+        }
+
         return contractRepository
                 .findRuntimeBytecode(entityId.getId())
                 .map(Bytes::wrap)
@@ -52,11 +54,11 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
                 .orElse(null);
     }
 
-    private Bytecode applyStateOverride(@NonNull ContractID contractID) {
+    private Bytecode applyStateOverride(@NonNull EntityId entityId) {
         final var ctx = ContractCallContext.get();
         final var stateOverrides = ctx.getStateOverrides();
         if (!stateOverrides.isEmpty()) {
-            final var evmAddr = contractIdToEvmAddressHex(contractID);
+            final var evmAddr = toAddress(entityId).toHexString();
             final var override = stateOverrides.get(evmAddr);
             if (override != null && override.getCode() != null) {
                 return new Bytecode(Bytes.wrap(hexStringToBytes(override.getCode())));

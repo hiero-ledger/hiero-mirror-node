@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.state;
 
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
-import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.KeyList;
@@ -16,7 +15,6 @@ import java.time.Instant;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.NonNull;
@@ -64,23 +62,6 @@ public class Utils {
     public static long getCurrentTimestamp() {
         final var now = Instant.now();
         return DomainUtils.convertToNanos(now.getEpochSecond(), now.getNano());
-    }
-
-    /**
-     * Returns the normalized ({@code 0x}-prefixed, lowercase) EVM address for the given {@link ContractID}.
-     */
-    public static String contractIdToEvmAddressHex(@NonNull ContractID contractID) {
-        if (contractID.hasEvmAddress()) {
-            return HEX_PREFIX + contractID.evmAddress().toHex().toLowerCase();
-        }
-        return HEX_PREFIX + String.format("%040x", contractID.contractNum());
-    }
-
-    /**
-     * Normalizes a hex-encoded storage slot key to a 64-character lowercase hex string (32 bytes, left-padded, no {@code 0x} prefix).
-     */
-    public static String normalizeStorageSlot(@NonNull String hexSlot) {
-        return DomainUtils.bytesToHex(DomainUtils.leftPadBytes(hexStringToBytes(hexSlot), Bytes32.SIZE));
     }
 
     /** Decodes a hex string (with or without {@code 0x}/{@code 0X} prefix) to a byte array. */

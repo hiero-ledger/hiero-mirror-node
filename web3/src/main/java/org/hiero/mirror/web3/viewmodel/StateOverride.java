@@ -14,8 +14,8 @@ import lombok.Data;
 import org.hiero.mirror.web3.validation.Hex;
 
 /**
- * Per-address state override for {@code /api/v1/contracts/call}, matching the {@code eth_call} JSON-RPC state override
- * set. All fields are optional except {@code address}. {@code state} and {@code state_diff} are mutually exclusive.
+ * Per-address state override for {@code /api/v1/contracts/call}. All fields are optional except {@code address}.
+ * {@code state} and {@code state_diff} are mutually exclusive.
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

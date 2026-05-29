@@ -60,8 +60,6 @@ public class ContractCallContext {
 
     /**
      * Per-address state overrides for the current call.
-     * Keyed by normalized EVM address (lowercase with {@code 0x} prefix).
-     * Empty map when no overrides are requested.
      */
     @Setter
     private Map<String, StateOverride> stateOverrides = Map.of();
