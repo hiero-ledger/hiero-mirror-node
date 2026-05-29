@@ -6,20 +6,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.EIP_2930_RAW_TX_WITH_ACCESS_LIST;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA_OFFLOADED;
-import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_WITH_ACCESS_LIST;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.loadEthereumTransactions;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.populateFileData;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Stream;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
-import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
@@ -75,14 +75,16 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
 
     @Test
     void decodeEip1559WithAlternate2ndByte() {
-        var ethereumTransaction = ethereumTransactionParser.decode(Hex.decode(LONDON_RAW_TX_2));
+        var ethereumTransaction =
+                ethereumTransactionParser.decode(HexFormat.of().parseHex(LONDON_RAW_TX_2));
         validateEthereumTransaction(ethereumTransaction);
         assertThat(ethereumTransaction.getType()).isEqualTo(Eip1559EthereumTransactionParser.EIP1559_TYPE_BYTE);
     }
 
     @Test
     void decodeEip2930() {
-        var ethereumTransaction = ethereumTransactionParser.decode(Hex.decode(BERLIN_RAW_TX_1));
+        var ethereumTransaction =
+                ethereumTransactionParser.decode(HexFormat.of().parseHex(BERLIN_RAW_TX_1));
         validateEthereumTransaction(ethereumTransaction);
         assertThat(ethereumTransaction.getType()).isEqualTo(Eip2930EthereumTransactionParser.EIP2930_TYPE_BYTE);
     }
@@ -109,7 +111,7 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
 
     @Test
     void decodeUnsupportedEthereumTransaction() {
-        byte[] unsupportedTx = Hex.decode("33" + BERLIN_RAW_TX_1.substring(2));
+        byte[] unsupportedTx = HexFormat.of().parseHex("33" + BERLIN_RAW_TX_1.substring(2));
         assertThrows(InvalidDatasetException.class, () -> ethereumTransactionParser.decode(unsupportedTx));
     }
 
@@ -173,7 +175,7 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
 
         // when
         var actual = ethereumTransactionParser.getHash(
-                EMPTY_BYTE_ARRAY, domainBuilder.entityId(), consensusTimestamp, RAW_TX_TYPE_1_WITH_ACCESS_LIST, true);
+                EMPTY_BYTE_ARRAY, domainBuilder.entityId(), consensusTimestamp, EIP_2930_RAW_TX_WITH_ACCESS_LIST, true);
 
         // then
         softly.assertThat(actual).isEmpty();

@@ -17,15 +17,15 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.33.0")
-    set("consensusNodeVersion", "0.74.0-rc.4")
+    set("blockNodeVersion", "0.34.0")
+    set("consensusNodeVersion", "0.75.0-rc.3")
     set("grpcVersion", "1.81.0")
     set("jooq.version", "3.21.4") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("netty.version", "4.2.13.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.15.0")
     set("postgresql.version", "42.7.11") // Temporary until next Spring Boot
-    set("protobufVersion", "4.34.1")
+    set("protobufVersion", "4.35.0")
     set("springGrpcVersion", "1.0.3")
     set("tomcat.version", "11.0.22") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
@@ -46,7 +46,7 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-8")
+        api("com.github.luben:zstd-jni:1.5.7-9")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
@@ -89,7 +89,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.44.7")
+        api("software.amazon.awssdk:bom:2.44.12")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

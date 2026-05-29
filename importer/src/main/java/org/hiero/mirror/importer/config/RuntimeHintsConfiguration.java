@@ -6,7 +6,6 @@ import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_M
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionTypes;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerResourcePatterns;
-import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerSerialization;
 
 import java.time.Duration;
 import org.apache.velocity.runtime.ParserPoolImpl;
@@ -17,7 +16,6 @@ import org.apache.velocity.runtime.resource.ResourceManagerImpl;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
 import org.apache.velocity.util.introspection.TypeConversionHandlerImpl;
 import org.apache.velocity.util.introspection.UberspectImpl;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -87,8 +85,6 @@ final class RuntimeHintsConfiguration {
                     UberspectImpl.class,
                     TypeConversionHandlerImpl.class,
                     Duration.class);
-
-            registerSerialization(hints, loader, EntityId.class.getName());
 
             registerResourcePatterns(hints, "org/apache/velocity/runtime/defaults/*", "db/template/**");
         }

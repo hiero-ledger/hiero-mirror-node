@@ -1,6 +1,6 @@
 {
   "name": "@hiero-ledger/mirror-rest",
-  "version": "0.156.0-SNAPSHOT",
+  "version": "0.157.0-SNAPSHOT",
   "description": "Mirror Node REST API",
   "type": "module",
   "main": "server.js",
@@ -39,12 +39,12 @@
     "lodash": "4.18.1",
     "negotiator": "1.0.0",
     "parse-duration": "2.1.6",
-    "pg": "8.20.0",
+    "pg": "8.21.0",
     "pg-range": "1.1.2",
     "qs": "6.15.2",
     "quick-lru": "7.3.0",
     "rfc4648": "1.5.4",
-    "sql-formatter": "15.7.4",
+    "sql-formatter": "15.8.0",
     "swagger-ui-express": "5.0.1",
     "tsscmp": "1.0.6"
   },
