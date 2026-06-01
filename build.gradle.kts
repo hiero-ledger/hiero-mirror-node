@@ -18,7 +18,7 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.34.0")
-    set("consensusNodeVersion", "0.74.0-rc.4")
+    set("consensusNodeVersion", "0.75.0-rc.3")
     set("grpcVersion", "1.81.0")
     set("jooq.version", "3.21.4") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
@@ -88,8 +88,8 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
-        api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.44.12")
+        api("org.web3j:core:5.0.3")
+        api("software.amazon.awssdk:bom:2.45.1")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
