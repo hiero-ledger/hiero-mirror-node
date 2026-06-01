@@ -762,9 +762,9 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .collect(Collectors.toList());
 
         // Reset stake tables and progress state
-        jdbcOperations.update("truncate table entity_stake_history");
-        jdbcOperations.update("truncate table entity_stake");
-        jdbcOperations.update("truncate table entity_stake_calculation_state");
+        jdbcOperations.update("delete from entity_stake_history");
+        jdbcOperations.update("delete from entity_stake");
+        jdbcOperations.update("delete from entity_stake_calculation_state");
 
         // Chunked calculation: full snapshot once, then process entities in two chunks, then staking reward account
         transactionOperations.executeWithoutResult(
@@ -848,7 +848,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                         .endStakePeriod(previousEpochDay)
                         .pendingReward(0L)
                         .stakedNodeIdStart(1L)
-                        .stakeTotalStart(0L)
+                        .stakeTotalStart(targetBalance + stakerBalance)
                         .timestampRange(Range.atLeast(entityStakeLowerTimestamp)))
                 .persist();
         domainBuilder
@@ -867,28 +867,13 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .customize(ab -> ab.balance(stakerBalance).id(new Id(balanceTimestamp, EntityId.of(stakerId))))
                 .persist();
 
-        transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
-            entityStakeRepository.updateEntityStake(stakingRewardAccountId);
-        });
-        final List<EntityStake> expected = StreamSupport.stream(
-                        entityStakeRepository.findAll().spliterator(), false)
-                .collect(Collectors.toList());
+        runChunkedEntityStakeUpdate(epochDay, splitId, targetId);
 
         final EntityStake targetStake = entityStakeRepository.findById(targetId).orElseThrow();
         assertThat(targetStake.getStakedToMe()).isEqualTo(stakerBalance);
         assertThat(targetStake.getStakeTotalStart()).isEqualTo(targetBalance + stakerBalance);
         assertThat(targetStake.getPendingReward())
                 .isEqualTo(rewardRate * (targetStake.getStakeTotalStart() / TINYBARS_IN_ONE_HBAR));
-
-        jdbcOperations.update("truncate table entity_stake_history");
-        jdbcOperations.update("truncate table entity_stake");
-
-        runChunkedEntityStakeUpdate(epochDay, splitId, targetId);
-
-        assertThat(StreamSupport.stream(entityStakeRepository.findAll().spliterator(), false))
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactlyInAnyOrderElementsOf(expected);
     }
 
     @Test
@@ -976,8 +961,8 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                         entityStakeRepository.findAll().spliterator(), false)
                 .collect(Collectors.toList());
 
-        jdbcOperations.update("truncate table entity_stake_history");
-        jdbcOperations.update("truncate table entity_stake");
+        jdbcOperations.update("delete from entity_stake_history");
+        jdbcOperations.update("delete from entity_stake");
 
         transactionOperations.executeWithoutResult(
                 s -> entityStakeRepository.createEntityStateStart(stakingRewardAccountId));

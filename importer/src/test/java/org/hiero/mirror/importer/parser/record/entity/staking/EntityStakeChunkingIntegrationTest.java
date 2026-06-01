@@ -191,8 +191,8 @@ class EntityStakeChunkingIntegrationTest extends ImporterIntegrationTest {
     }
 
     private void resetStakeTables() {
-        jdbcOperations.update("truncate table entity_stake_history");
-        jdbcOperations.update("truncate table entity_stake");
-        jdbcOperations.update("truncate table entity_stake_calculation_state");
+        jdbcOperations.update("delete from entity_stake_history");
+        jdbcOperations.update("delete from entity_stake");
+        jdbcOperations.update("delete from entity_stake_calculation_state");
     }
 }

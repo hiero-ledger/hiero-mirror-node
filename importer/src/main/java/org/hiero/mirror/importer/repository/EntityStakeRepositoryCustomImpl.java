@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
 
-    private static final String CLEANUP_TABLE_SQL = "truncate entity_state_start;";
+    private static final String CLEANUP_TABLE_SQL = "delete from entity_state_start;";
 
     private static final String CREATE_ENTITY_STATE_START_SQL = """
             with entity_state as (
