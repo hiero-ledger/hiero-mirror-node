@@ -2,17 +2,7 @@
 
 package org.hiero.mirror.importer.reader.block;
 
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_FOOTER;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_HEADER;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_PROOF;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.EVENT_HEADER;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.RECORD_FILE;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.ROUND_HEADER;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.SIGNED_TRANSACTION;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.STATE_CHANGES;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRACE_DATA;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_OUTPUT;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_RESULT;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.*;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
@@ -27,11 +17,7 @@ import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
@@ -85,28 +71,14 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             blockFile.setCount((long) items.size());
 
             if (!items.isEmpty()) {
-                final long minTimestamp = context.getMinTimestamp();
-                final long maxTimestamp = context.getMaxTimestamp();
+                final var bounds = context.getConsensusTimestampTracker()
+                        .validateItemOrder(
+                                blockFile.getName(),
+                                items.getFirst().getConsensusTimestamp(),
+                                items.getLast().getConsensusTimestamp());
 
-                final long firstTimestamp = items.getFirst().getConsensusTimestamp();
-                final long lastTimestamp = items.getLast().getConsensusTimestamp();
-                if (minTimestamp != firstTimestamp) {
-                    log.error(
-                            "Block file {} has out-of-order transactions: min consensus timestamp {} != first transaction timestamp {}",
-                            blockFile.getName(),
-                            minTimestamp,
-                            firstTimestamp);
-                }
-                if (maxTimestamp != lastTimestamp) {
-                    log.error(
-                            "Block file {} has out-of-order transactions: max consensus timestamp {} != last transaction timestamp {}",
-                            blockFile.getName(),
-                            maxTimestamp,
-                            lastTimestamp);
-                }
-
-                blockFile.setConsensusStart(minTimestamp);
-                blockFile.setConsensusEnd(maxTimestamp);
+                blockFile.setConsensusStart(bounds.start());
+                blockFile.setConsensusEnd(bounds.end());
             } else {
                 final long blockTimestamp = DomainUtils.timestampInNanosMax(
                         blockFile.getBlockHeader().getBlockTimestamp());
@@ -240,7 +212,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
                 final var blockFileBuilder = context.getBlockFile();
                 blockFileBuilder.item(blockTransaction);
-                context.trackConsensusTimestamp(blockTransaction.getConsensusTimestamp());
+                context.getConsensusTimestampTracker().track(blockTransaction.getConsensusTimestamp());
                 if (blockTransaction.getTransactionBody().hasLedgerIdPublication() && blockTransaction.isSuccessful()) {
                     blockFileBuilder.lastLedgerIdPublicationTransaction(blockTransaction);
                 }
@@ -282,10 +254,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         private BlockTransaction lastBlockTransaction;
 
         @NonFinal
-        private long minTimestamp = Long.MAX_VALUE;
-
-        @NonFinal
-        private long maxTimestamp = Long.MIN_VALUE;
+        private ConsensusTimestampTracker consensusTimestampTracker = new ConsensusTimestampTracker();
 
         @NonFinal
         @Nullable
@@ -339,15 +308,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             }
 
             return null;
-        }
-
-        void trackConsensusTimestamp(final long timestamp) {
-            if (timestamp < minTimestamp) {
-                minTimestamp = timestamp;
-            }
-            if (timestamp > maxTimestamp) {
-                maxTimestamp = timestamp;
-            }
         }
 
         void resetBatchTransaction() {

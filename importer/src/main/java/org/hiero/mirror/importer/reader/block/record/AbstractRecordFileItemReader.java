@@ -30,6 +30,7 @@ import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
+import org.hiero.mirror.importer.reader.block.ConsensusTimestampTracker;
 import org.hiero.mirror.importer.util.Utility;
 
 @RequiredArgsConstructor
@@ -52,7 +53,7 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
                     new RecordFile(),
                     recordFileItem,
                     new HashMap<>(),
-                    new ConsensusTimestampRange());
+                    new ConsensusTimestampTracker());
 
             dos.writeInt(version);
             onHeader(context);
@@ -144,28 +145,14 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
 
         final var items = context.items();
         if (!items.isEmpty()) {
-            final long minTimestamp = context.consensusTimestampRange().min();
-            final long maxTimestamp = context.consensusTimestampRange().max();
+            final var bounds = context.consensusTimestampTracker()
+                    .validateItemOrder(
+                            context.recordFile().getName(),
+                            items.getFirst().getConsensusTimestamp(),
+                            items.getLast().getConsensusTimestamp());
 
-            final long firstTimestamp = items.getFirst().getConsensusTimestamp();
-            final long lastTimestamp = items.getLast().getConsensusTimestamp();
-            if (minTimestamp != firstTimestamp) {
-                Utility.handleRecoverableError(
-                        "Record file {} has out-of-order transactions: min consensus timestamp {} != first transaction timestamp {}",
-                        context.recordFile().getName(),
-                        minTimestamp,
-                        firstTimestamp);
-            }
-            if (maxTimestamp != lastTimestamp) {
-                Utility.handleRecoverableError(
-                        "Record file {} has out-of-order transactions: max consensus timestamp {} != last transaction timestamp {}",
-                        context.recordFile().getName(),
-                        maxTimestamp,
-                        lastTimestamp);
-            }
-
-            context.recordFile().setConsensusStart(minTimestamp);
-            context.recordFile().setConsensusEnd(maxTimestamp);
+            context.recordFile().setConsensusStart(bounds.start());
+            context.recordFile().setConsensusEnd(bounds.end());
         }
     }
 
@@ -201,7 +188,7 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
         recordItem.setSidecarRecords(
                 context.sidecarRecords().getOrDefault(recordItem.getConsensusTimestamp(), Collections.emptyList()));
         items.add(recordItem);
-        context.consensusTimestampRange().track(recordItem.getConsensusTimestamp());
+        context.consensusTimestampTracker().track(recordItem.getConsensusTimestamp());
     }
 
     private boolean isSidecarFileAccepted(final SidecarMetadata metadata) {
@@ -304,28 +291,6 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
         recordFile.setSidecars(sidecars);
     }
 
-    private static final class ConsensusTimestampRange {
-        private long min = Long.MAX_VALUE;
-        private long max = Long.MIN_VALUE;
-
-        long min() {
-            return min;
-        }
-
-        long max() {
-            return max;
-        }
-
-        void track(final long timestamp) {
-            if (timestamp < min) {
-                min = timestamp;
-            }
-            if (timestamp > max) {
-                max = timestamp;
-            }
-        }
-    }
-
     protected record Context(
             DataOutputStream dos,
             MessageDigest fileDigest,
@@ -334,5 +299,5 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
             RecordFile recordFile,
             RecordFileItem recordFileItem,
             Map<Long, List<TransactionSidecarRecord>> sidecarRecords,
-            ConsensusTimestampRange consensusTimestampRange) {}
+            ConsensusTimestampTracker consensusTimestampTracker) {}
 }
