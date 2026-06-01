@@ -77,9 +77,6 @@ import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
-import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.ContractBytecodeReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.ContractStorageReadableKVState;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.utils.TransactionProviderEnum;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -146,15 +143,6 @@ class OpcodesControllerTest {
 
     @MockitoBean
     private CommonEntityAccessor commonEntityAccessor;
-
-    @MockitoBean
-    private AccountReadableKVState accountReadableKVState;
-
-    @MockitoBean
-    private ContractBytecodeReadableKVState contractBytecodeReadableKVState;
-
-    @MockitoBean
-    private ContractStorageReadableKVState contractStorageReadableKVState;
 
     @MockitoBean
     private Web3Properties web3Properties;
@@ -637,7 +625,6 @@ class OpcodesControllerTest {
 
         private static OpcodesProcessingResult successfulOpcodesProcessingResult(
                 final ContractDebugParameters params, final OpcodeContext options) {
-            final Address recipient = params != null ? params.getReceiver() : Address.ZERO;
             final List<Opcode> opcodes = opcodes(options);
             final long gasUsed =
                     opcodes.stream().map(Opcode::getGas).reduce(Long::sum).orElse(0L);
@@ -764,21 +751,15 @@ class OpcodesControllerTest {
         OpcodeService opcodeService(
                 final RecordFileService recordFileService,
                 final ContractDebugService contractDebugService,
-                final ContractBytecodeReadableKVState contractBytecodeReadableKVState,
-                final ContractStorageReadableKVState contractStorageReadableKVState,
                 final EthereumTransactionRepository ethereumTransactionRepository,
                 final ContractResultRepository contractResultRepository,
                 final CommonEntityAccessor commonEntityAccessor,
-                final AccountReadableKVState accountReadableKVState,
                 final ContractTransactionHashRepository contractTransactionHashRepository,
                 final TransactionRepository transactionRepository,
                 final CommonProperties commonProperties) {
             return new OpcodeServiceImpl(
                     contractDebugService,
-                    contractBytecodeReadableKVState,
-                    contractStorageReadableKVState,
                     commonEntityAccessor,
-                    accountReadableKVState,
                     commonProperties,
                     recordFileService,
                     ethereumTransactionRepository,

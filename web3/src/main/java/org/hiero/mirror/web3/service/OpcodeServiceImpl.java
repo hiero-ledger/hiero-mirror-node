@@ -20,9 +20,6 @@ import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
-import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.ContractBytecodeReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.ContractStorageReadableKVState;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
@@ -32,10 +29,7 @@ public class OpcodeServiceImpl extends TraceService implements OpcodeService {
 
     public OpcodeServiceImpl(
             final ContractDebugService contractDebugService,
-            final ContractBytecodeReadableKVState contractBytecodeReadableKVState,
-            final ContractStorageReadableKVState contractStorageReadableKVState,
             final CommonEntityAccessor commonEntityAccessor,
-            final AccountReadableKVState accountReadableKVState,
             final CommonProperties commonProperties,
             final RecordFileService recordFileService,
             final EthereumTransactionRepository ethereumTransactionRepository,
@@ -44,10 +38,7 @@ public class OpcodeServiceImpl extends TraceService implements OpcodeService {
             final TransactionRepository transactionRepository) {
         super(
                 contractDebugService,
-                contractBytecodeReadableKVState,
-                contractStorageReadableKVState,
                 commonEntityAccessor,
-                accountReadableKVState,
                 commonProperties,
                 recordFileService,
                 ethereumTransactionRepository,

@@ -41,10 +41,7 @@ public class PrestateServiceImpl extends TraceService implements PrestateService
 
     public PrestateServiceImpl(
             final ContractDebugService contractDebugService,
-            final ContractBytecodeReadableKVState contractBytecodeReadableKVState,
-            final ContractStorageReadableKVState contractStorageReadableKVState,
             final CommonEntityAccessor commonEntityAccessor,
-            final AccountReadableKVState accountReadableKVState,
             final CommonProperties commonProperties,
             final RecordFileService recordFileService,
             final EthereumTransactionRepository ethereumTransactionRepository,
@@ -53,10 +50,7 @@ public class PrestateServiceImpl extends TraceService implements PrestateService
             final TransactionRepository transactionRepository) {
         super(
                 contractDebugService,
-                contractBytecodeReadableKVState,
-                contractStorageReadableKVState,
                 commonEntityAccessor,
-                accountReadableKVState,
                 commonProperties,
                 recordFileService,
                 ethereumTransactionRepository,
@@ -152,10 +146,10 @@ public class PrestateServiceImpl extends TraceService implements PrestateService
             if (contractStorageCache != null) {
                 for (final var touchedStorageKey : contractStorageCache.entrySet()) {
                     final var slotKey = (SlotKey) touchedStorageKey.getKey();
-                    if (!slotKey.hasContractID() || !slotKey.contractID().equals(toContractId(contractId))) {
-                        continue;
-                    }
-                    if (contractStorageCache.get(slotKey) instanceof SlotValue slotValue) {
+
+                    if (slotKey.hasContractID()
+                            && slotKey.contractID().equals(toContractId(contractId))
+                            && contractStorageCache.get(slotKey) instanceof SlotValue slotValue) {
                         touchedSlots.put(
                                 slotKey.key().toHex(), slotValue.value().toHex());
                     }

@@ -56,9 +56,6 @@ import org.hiero.mirror.web3.service.RecordFileService;
 import org.hiero.mirror.web3.service.RecordFileServiceImpl;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
-import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.ContractBytecodeReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.ContractStorageReadableKVState;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.utils.TransactionProviderEnum;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -119,15 +116,6 @@ class PrestateControllerTest {
 
     @MockitoBean
     private CommonEntityAccessor commonEntityAccessor;
-
-    @MockitoBean
-    private AccountReadableKVState accountReadableKVState;
-
-    @MockitoBean
-    private ContractBytecodeReadableKVState contractBytecodeReadableKVState;
-
-    @MockitoBean
-    private ContractStorageReadableKVState contractStorageReadableKVState;
 
     @MockitoBean
     private Web3Properties web3Properties;
@@ -473,21 +461,15 @@ class PrestateControllerTest {
         PrestateService prestateService(
                 final RecordFileService recordFileService,
                 final ContractDebugService contractDebugService,
-                final ContractBytecodeReadableKVState contractBytecodeReadableKVState,
-                final ContractStorageReadableKVState contractStorageReadableKVState,
                 final EthereumTransactionRepository ethereumTransactionRepository,
                 final ContractResultRepository contractResultRepository,
                 final CommonEntityAccessor commonEntityAccessor,
-                final AccountReadableKVState accountReadableKVState,
                 final ContractTransactionHashRepository contractTransactionHashRepository,
                 final TransactionRepository transactionRepository,
                 final CommonProperties commonProperties) {
             return new PrestateServiceImpl(
                     contractDebugService,
-                    contractBytecodeReadableKVState,
-                    contractStorageReadableKVState,
                     commonEntityAccessor,
-                    accountReadableKVState,
                     commonProperties,
                     recordFileService,
                     ethereumTransactionRepository,

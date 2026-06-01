@@ -33,9 +33,6 @@ import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
-import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.ContractBytecodeReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.ContractStorageReadableKVState;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
 import org.jspecify.annotations.NonNull;
@@ -46,16 +43,15 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TraceService {
 
-    protected static final Address EMPTY_ADDRESS = Address.ZERO;
     public static final long MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS = 35 * 60 * NANOS_PER_SECOND;
+
+    protected static final Address EMPTY_ADDRESS = Address.ZERO;
     protected static final BigInteger ZERO = BigInteger.ZERO;
 
     protected final ContractDebugService contractDebugService;
-    protected final ContractBytecodeReadableKVState contractBytecodeReadableKVState;
-    protected final ContractStorageReadableKVState contractStorageReadableKVState;
     protected final CommonEntityAccessor commonEntityAccessor;
-    protected final AccountReadableKVState accountReadableKVState;
-    protected final CommonProperties commonProperties;
+
+    private final CommonProperties commonProperties;
     private final RecordFileService recordFileService;
     private final EthereumTransactionRepository ethereumTransactionRepository;
     private final ContractResultRepository contractResultRepository;
