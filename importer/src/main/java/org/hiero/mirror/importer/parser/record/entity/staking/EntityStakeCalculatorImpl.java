@@ -4,6 +4,8 @@ package org.hiero.mirror.importer.parser.record.entity.staking;
 
 import com.google.common.base.Stopwatch;
 import jakarta.inject.Named;
+import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +37,13 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
         }
 
         try {
-            var stakingRewardAccountId = systemEntity.stakingRewardAccount().getId();
+            final var stakingRewardAccountId =
+                    systemEntity.stakingRewardAccount().getId();
+            final var chunkSize = Math.max(1, entityProperties.getPersist().getPendingRewardChunkSize());
+            final var chunkDelay = Optional.ofNullable(
+                            entityProperties.getPersist().getPendingRewardChunkDelay())
+                    .orElse(Duration.ZERO);
+            final boolean resume = entityProperties.getPersist().isPendingRewardChunkResume();
 
             while (true) {
                 if (entityStakeRepository.updated(stakingRewardAccountId)) {
@@ -43,18 +51,105 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
                     return;
                 }
 
-                var stopwatch = Stopwatch.createStarted();
-                var lastEndStakePeriod = entityStakeRepository
+                final var stopwatch = Stopwatch.createStarted();
+                // get last successful stake period for staking reward account
+                final var lastEndStakePeriod = entityStakeRepository
                         .getEndStakePeriod(stakingRewardAccountId)
                         .orElse(0L);
+
+                // The target staking period to process is driven by the staking reward account, and must not advance
+                // until all other entities have been processed for that period.
+                final var nextEndStakePeriod = entityStakeRepository.getNextEndStakePeriod(stakingRewardAccountId);
+                if (nextEndStakePeriod.isEmpty()) {
+                    log.info("Skipping since there is no next staking period to process");
+                    return;
+                }
+
+                final long endStakePeriodToProcess = nextEndStakePeriod.get();
+                long lastProcessedEntityId = resume
+                        ? entityStakeRepository
+                                .getLastProcessedEntityId(endStakePeriodToProcess)
+                                .orElse(0L)
+                        : 0L;
+
+                log.info(
+                        "Starting pending reward calculation for endStakePeriod={}, resume={}, chunkSize={}, chunkDelayMs={}, lastProcessedEntityId={}",
+                        endStakePeriodToProcess,
+                        resume,
+                        chunkSize,
+                        chunkDelay.toMillis(),
+                        lastProcessedEntityId);
+
+                final var stagingStopwatch = Stopwatch.createStarted();
                 transactionOperations.executeWithoutResult(s -> {
                     entityStakeRepository.lockFromConcurrentUpdates();
                     entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
-                    log.info("Created entity_state_start in {}", stopwatch);
-                    entityStakeRepository.updateEntityStake(stakingRewardAccountId);
                 });
+                log.info(
+                        "Completed pending reward staging for endStakePeriod={} in {}",
+                        endStakePeriodToProcess,
+                        stagingStopwatch);
 
-                var endStakePeriod = entityStakeRepository.getEndStakePeriod(stakingRewardAccountId);
+                while (true) {
+                    final var upperBound = entityStakeRepository.getChunkUpperBoundEntityId(
+                            stakingRewardAccountId, endStakePeriodToProcess, lastProcessedEntityId, chunkSize);
+                    if (upperBound.isEmpty()) {
+                        break;
+                    }
+
+                    final long chunkEndEntityId = upperBound.get();
+                    final long chunkStartEntityId = lastProcessedEntityId;
+                    final var chunkStopwatch = Stopwatch.createStarted();
+                    transactionOperations.executeWithoutResult(s -> {
+                        entityStakeRepository.lockFromConcurrentUpdates();
+                        entityStakeRepository.updateEntityStakeChunk(
+                                stakingRewardAccountId,
+                                endStakePeriodToProcess,
+                                chunkStartEntityId,
+                                chunkEndEntityId,
+                                false);
+                        entityStakeRepository.saveProgress(endStakePeriodToProcess, chunkEndEntityId, false);
+                    });
+
+                    lastProcessedEntityId = chunkEndEntityId;
+
+                    log.info(
+                            "Completed pending reward chunk for endStakePeriod={}, entityIdExclusive={}, entityIdInclusive={} in {}",
+                            endStakePeriodToProcess,
+                            chunkStartEntityId,
+                            chunkEndEntityId,
+                            chunkStopwatch);
+
+                    if (!chunkDelay.isZero()) {
+                        try {
+                            log.info(
+                                    "Sleeping {}ms between pending reward chunks for endStakePeriod={}",
+                                    chunkDelay.toMillis(),
+                                    endStakePeriodToProcess);
+                            Thread.sleep(chunkDelay.toMillis());
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            return;
+                        }
+                    }
+                }
+
+                // Final chunk updates the staking reward account (800) last, and marks the period as completed.
+                final long finalLastProcessedEntityId = lastProcessedEntityId;
+                final var finalChunkStopwatch = Stopwatch.createStarted();
+                transactionOperations.executeWithoutResult(s -> {
+                    entityStakeRepository.lockFromConcurrentUpdates();
+                    entityStakeRepository.updateEntityStakeChunk(
+                            stakingRewardAccountId, endStakePeriodToProcess, 0L, 0L, true);
+                    entityStakeRepository.saveProgress(endStakePeriodToProcess, finalLastProcessedEntityId, true);
+                });
+                log.info(
+                        "Completed pending reward final chunk (stakingRewardAccountId={}) for endStakePeriod={} in {}",
+                        stakingRewardAccountId,
+                        endStakePeriodToProcess,
+                        finalChunkStopwatch);
+
+                final var endStakePeriod = entityStakeRepository.getEndStakePeriod(stakingRewardAccountId);
                 if (endStakePeriod
                         .filter(stakePeriod -> stakePeriod > lastEndStakePeriod)
                         .isPresent()) {
