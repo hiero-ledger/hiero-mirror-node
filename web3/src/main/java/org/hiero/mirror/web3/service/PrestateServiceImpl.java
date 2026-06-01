@@ -4,18 +4,21 @@ package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
+import com.google.protobuf.ByteString;
+import com.hedera.hapi.node.base.AccountID;
+import com.hedera.hapi.node.state.contract.Bytecode;
 import com.hedera.hapi.node.state.contract.SlotKey;
+import com.hedera.hapi.node.state.contract.SlotValue;
+import com.hedera.hapi.node.state.token.Account;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
+import com.hederahashgraph.api.proto.java.ContractID;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import lombok.CustomLog;
-import org.hiero.mirror.common.domain.entity.Entity;
-import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.rest.model.AccountTrace;
 import org.hiero.mirror.rest.model.PrestateResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -29,7 +32,7 @@ import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.ContractBytecodeReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.ContractStorageReadableKVState;
-import org.hyperledger.besu.datatypes.Address;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -37,31 +40,33 @@ import org.springframework.stereotype.Service;
 public class PrestateServiceImpl extends TraceService implements PrestateService {
 
     public PrestateServiceImpl(
-            final RecordFileService recordFileService,
             final ContractDebugService contractDebugService,
             final ContractBytecodeReadableKVState contractBytecodeReadableKVState,
             final ContractStorageReadableKVState contractStorageReadableKVState,
-            final EthereumTransactionRepository ethereumTransactionRepository,
-            final ContractResultRepository contractResultRepository,
             final CommonEntityAccessor commonEntityAccessor,
             final AccountReadableKVState accountReadableKVState,
+            final CommonProperties commonProperties,
+            final RecordFileService recordFileService,
+            final EthereumTransactionRepository ethereumTransactionRepository,
+            final ContractResultRepository contractResultRepository,
             final ContractTransactionHashRepository contractTransactionHashRepository,
             final TransactionRepository transactionRepository) {
         super(
-                recordFileService,
                 contractDebugService,
                 contractBytecodeReadableKVState,
                 contractStorageReadableKVState,
-                ethereumTransactionRepository,
-                contractResultRepository,
                 commonEntityAccessor,
                 accountReadableKVState,
+                commonProperties,
+                recordFileService,
+                ethereumTransactionRepository,
+                contractResultRepository,
                 contractTransactionHashRepository,
                 transactionRepository);
     }
 
     @Override
-    public PrestateResponse processPrestateCall(final PrestateRequest prestateRequest) {
+    public PrestateResponse processPrestateCall(@NonNull final PrestateRequest prestateRequest) {
         return ContractCallContext.run(ctx -> {
             final var params = buildCallServiceParameters(prestateRequest.getTransactionIdOrHashParameter());
             final var prestateContext = new PrestateContext(prestateRequest);
@@ -69,22 +74,13 @@ public class PrestateServiceImpl extends TraceService implements PrestateService
             ctx.setPrestateContext(prestateContext);
             contractDebugService.processPrestateCall(params, prestateContext);
 
-            final var touchedAccounts = prestateContext.getTouchedAccounts();
-            final var touchedStorages = prestateContext.getTouchedStorageKeys();
-
             final var response = new PrestateResponse();
 
-            // Reset context to fetch pre-execution state
-            ctx.reset();
-
-            final var preAccountTraces = loadAccountTraces(prestateContext, touchedAccounts, touchedStorages);
-            response.setPre(preAccountTraces);
-
-            contractDebugService.processPrestateCall(params, prestateContext);
+            final var preAccountTraceMap = loadAccountTraces(prestateContext, ctx.getReadCache());
+            response.setPre(new ArrayList<>(preAccountTraceMap.values()));
 
             if (prestateContext.isDiff()) {
-                response.setPost(
-                        loadPostAccountTraces(prestateContext, touchedAccounts, touchedStorages, preAccountTraces));
+                response.setPost(loadPostAccountTraces(prestateContext, preAccountTraceMap, ctx.getWriteCache()));
             }
 
             return response;
@@ -93,129 +89,100 @@ public class PrestateServiceImpl extends TraceService implements PrestateService
 
     private List<AccountTrace> loadPostAccountTraces(
             final PrestateContext prestateContext,
-            final Set<Address> touchedAccounts,
-            final Map<Address, Set<String>> touchedStorages,
-            final List<AccountTrace> preAccountTraces) {
-        final var postAccountTraces = loadAccountTraces(prestateContext, touchedAccounts, touchedStorages);
+            final Map<String, AccountTrace> preAccountTraceMap,
+            final Map<Integer, Map<Object, Object>> states) {
+        final var postAccountTraceMap = loadAccountTraces(prestateContext, states);
 
-        for (final var postAccountTracesEntry : postAccountTraces) {
-            for (final var preAccountTracesEntry : preAccountTraces) {
-                if (postAccountTracesEntry.getAddress() != null
-                        && preAccountTracesEntry.getAddress() != null
-                        && postAccountTracesEntry.getAddress().equals(preAccountTracesEntry.getAddress())) {
-                    if (postAccountTracesEntry.getBalance() != null
-                            && preAccountTracesEntry.getBalance() != null
-                            && postAccountTracesEntry.getBalance().equals(preAccountTracesEntry.getBalance())) {
-                        postAccountTracesEntry.setBalance(null);
-                    }
-
-                    if (postAccountTracesEntry.getNonce() != null
-                            && preAccountTracesEntry.getNonce() != null
-                            && postAccountTracesEntry.getNonce().equals(preAccountTracesEntry.getNonce())) {
-                        postAccountTracesEntry.setNonce(null);
-                    }
-
-                    if (postAccountTracesEntry.getCode() != null
-                            && preAccountTracesEntry.getCode() != null
-                            && postAccountTracesEntry.getCode().equals(preAccountTracesEntry.getCode())) {
-                        postAccountTracesEntry.setCode(null);
-                    }
-
-                    final var postAccountStorage = postAccountTracesEntry.getStorage();
-                    final var preAccountStorage = preAccountTracesEntry.getStorage();
-
-                    if (postAccountStorage != null && preAccountStorage != null) {
-                        for (final var preAccountStorageEntry : preAccountStorage.entrySet()) {
-                            final var postAccountStorageEntryValue =
-                                    postAccountStorage.get(preAccountStorageEntry.getKey());
-
-                            if (preAccountStorageEntry.getValue().equals(postAccountStorageEntryValue)) {
-                                postAccountStorage.remove(preAccountStorageEntry.getKey());
-                            }
-                        }
-                    }
-                }
+        final var result = new ArrayList<AccountTrace>();
+        for (final var entry : postAccountTraceMap.entrySet()) {
+            final var preTrace = preAccountTraceMap.get(entry.getKey());
+            if (!entry.getValue().equals(preTrace)) {
+                result.add(entry.getValue());
             }
         }
-
-        return postAccountTraces;
+        return result;
     }
 
-    private List<AccountTrace> loadAccountTraces(
-            final PrestateContext prestateContext,
-            final Set<Address> touchedAccounts,
-            final Map<Address, Set<String>> touchedStorageKeys) {
-        final var preAccountTraces = new ArrayList<AccountTrace>();
-        for (final var touchedAccount : touchedAccounts) {
-            final var accountTrace = new AccountTrace();
+    private Map<String, AccountTrace> loadAccountTraces(
+            final PrestateContext prestateContext, final Map<Integer, Map<Object, Object>> states) {
+        final var accountTraceMap = new HashMap<String, AccountTrace>();
+        final var accountCache = states.computeIfAbsent(AccountReadableKVState.STATE_ID, _ -> new HashMap<>());
 
-            final var entity =
-                    commonEntityAccessor.get(touchedAccount, Optional.empty()).orElse(null);
-            if (entity != null) {
-                final var type = entity.getType();
-
-                if (EntityType.ACCOUNT.equals(type)) {
-                    populateCommonFields(touchedAccount, accountTrace, entity);
-                } else if (EntityType.CONTRACT.equals(type)) {
-                    populateContractFields(
-                            prestateContext, touchedAccount, accountTrace, touchedStorageKeys.get(touchedAccount));
-                }
-            }
-
-            if (accountTrace.getAddress() != null) {
-                preAccountTraces.add(accountTrace);
-            }
-        }
-
-        return preAccountTraces;
-    }
-
-    private void populateCommonFields(
-            final Address touchedAccount, final AccountTrace accountTrace, final Entity entity) {
-        final var accountId = EntityIdUtils.toAccountID(touchedAccount);
-        if (accountId != null) {
-            final var account = accountReadableKVState.get(accountId);
-
-            if (account != null) {
-                accountTrace.setAddress(touchedAccount.toHexString());
-                accountTrace.setBalance(HEX_PREFIX + Long.toHexString(entity.getBalance()));
+        for (final var accountCacheEntry : accountCache.entrySet()) {
+            if (accountCacheEntry.getValue() instanceof Account account) {
+                final var accountTrace = new AccountTrace();
+                accountTrace.setAddress(
+                        !account.alias().equals(Bytes.EMPTY)
+                                ? account.alias().toHex()
+                                : EntityIdUtils.toEntityId(account.accountId()).toString());
+                accountTrace.setBalance(HEX_PREFIX + Long.toHexString(account.tinybarBalance()));
                 accountTrace.setNonce(account.ethereumNonce());
+
+                if (account.smartContract()) {
+                    populateContractFields(
+                            prestateContext, (AccountID) accountCacheEntry.getKey(), accountTrace, states);
+                }
+
+                if (accountTrace.getAddress() != null) {
+                    accountTraceMap.put(accountTrace.getAddress(), accountTrace);
+                }
             }
         }
+
+        return accountTraceMap;
     }
 
     private void populateContractFields(
             final PrestateContext prestateContext,
-            final Address touchedAccount,
+            final AccountID accountID,
             final AccountTrace accountTrace,
-            final Set<String> touchedStorageKeys) {
-        final var contractId = EntityIdUtils.toContractID(touchedAccount);
+            final Map<Integer, Map<Object, Object>> states) {
+        final var contractId = toProtoContractId(accountID);
 
-        if (contractId != null) {
-            if (prestateContext.isCode()) {
-                final var bytecode = contractBytecodeReadableKVState.get(contractId);
-
-                if (bytecode != null) {
-                    accountTrace.setCode(bytecode.toString());
-                }
+        if (prestateContext.isCode()) {
+            final var contractBytecodeCache = states.get(ContractBytecodeReadableKVState.STATE_ID);
+            if (contractBytecodeCache != null && contractBytecodeCache.get(contractId) instanceof Bytecode bytecode) {
+                accountTrace.setCode(bytecode.code().toHex());
             }
-            if (prestateContext.isStorage() && touchedStorageKeys != null && !touchedStorageKeys.isEmpty()) {
-                final var touchedSlots = new HashMap<String, String>();
-                for (final var touchedStorageKey : touchedStorageKeys) {
-                    final var slotKey = SlotKey.newBuilder()
-                            .contractID(contractId)
-                            .key(Bytes.fromHex(touchedStorageKey))
-                            .build();
-                    final var slotValue = contractStorageReadableKVState.get(slotKey);
+        }
 
-                    if (slotValue != null) {
+        if (prestateContext.isStorage()) {
+            final var touchedSlots = new HashMap<String, String>();
+            final var contractStorageCache = states.get(ContractStorageReadableKVState.STATE_ID);
+            if (contractStorageCache != null) {
+                for (final var touchedStorageKey : contractStorageCache.entrySet()) {
+                    final var slotKey = (SlotKey) touchedStorageKey.getKey();
+                    if (!slotKey.hasContractID() || !slotKey.contractID().equals(toContractId(contractId))) {
+                        continue;
+                    }
+                    if (contractStorageCache.get(slotKey) instanceof SlotValue slotValue) {
                         touchedSlots.put(
                                 slotKey.key().toHex(), slotValue.value().toHex());
                     }
                 }
-
-                accountTrace.setStorage(touchedSlots);
             }
+            accountTrace.setStorage(touchedSlots);
         }
+    }
+
+    private static com.hederahashgraph.api.proto.java.ContractID toProtoContractId(final AccountID accountID) {
+        final var builder =
+                ContractID.newBuilder().setShardNum(accountID.shardNum()).setRealmNum(accountID.realmNum());
+        if (accountID.hasAlias()) {
+            return builder.setEvmAddress(ByteString.copyFrom(accountID.alias().toByteArray()))
+                    .build();
+        }
+        return builder.setContractNum(accountID.accountNum()).build();
+    }
+
+    private static com.hedera.hapi.node.base.ContractID toContractId(final ContractID contractID) {
+        final var builder = com.hedera.hapi.node.base.ContractID.newBuilder()
+                .shardNum(contractID.getShardNum())
+                .realmNum(contractID.getRealmNum());
+        if (contractID.hasEvmAddress()) {
+            return builder.evmAddress(Bytes.wrap(contractID.getEvmAddress().toByteArray()))
+                    .build();
+        }
+        return builder.contractNum(contractID.getContractNum()).build();
     }
 }

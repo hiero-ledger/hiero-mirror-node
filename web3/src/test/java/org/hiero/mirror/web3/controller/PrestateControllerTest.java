@@ -8,6 +8,8 @@ import static org.hiero.mirror.common.util.CommonUtils.instant;
 import static org.hiero.mirror.web3.utils.Constants.PRESTATE_URI;
 import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -31,6 +33,7 @@ import java.util.List;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.hamcrest.core.StringContains;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.Web3Properties;
@@ -168,8 +171,8 @@ class PrestateControllerTest {
         final var contractAddress = entityAddress(contractEntity);
 
         when(contractTransactionHashRepository.findByHash(hash)).thenReturn(Optional.of(contractTransactionHash));
-        when(transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
-                        payerAccountId, validStartNs))
+        when(transactionRepository.findByPayerAccountIdAndValidStartNs(
+                        eq(payerAccountId.getId()), eq(validStartNs), anyLong(), anyLong()))
                 .thenReturn(List.of(transaction));
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(
                         contractTransactionHash.getConsensusTimestamp(),
@@ -477,16 +480,18 @@ class PrestateControllerTest {
                 final CommonEntityAccessor commonEntityAccessor,
                 final AccountReadableKVState accountReadableKVState,
                 final ContractTransactionHashRepository contractTransactionHashRepository,
-                final TransactionRepository transactionRepository) {
+                final TransactionRepository transactionRepository,
+                final CommonProperties commonProperties) {
             return new PrestateServiceImpl(
-                    recordFileService,
                     contractDebugService,
                     contractBytecodeReadableKVState,
                     contractStorageReadableKVState,
-                    ethereumTransactionRepository,
-                    contractResultRepository,
                     commonEntityAccessor,
                     accountReadableKVState,
+                    commonProperties,
+                    recordFileService,
+                    ethereumTransactionRepository,
+                    contractResultRepository,
                     contractTransactionHashRepository,
                     transactionRepository);
         }

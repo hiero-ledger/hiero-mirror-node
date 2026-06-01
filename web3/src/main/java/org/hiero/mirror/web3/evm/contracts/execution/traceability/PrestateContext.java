@@ -2,15 +2,10 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
-import org.hyperledger.besu.datatypes.Address;
 
 /**
  * Properties for tracing prestate
@@ -35,36 +30,9 @@ public class PrestateContext {
      */
     private final boolean diff;
 
-    /**
-     * The account addresses that were referenced during the transaction execution
-     */
-    @Builder.Default
-    private Set<Address> touchedAccounts = new HashSet<>();
-
-    /**
-     * The contract storage keys per contract that were referenced during the transaction execution
-     */
-    @Builder.Default
-    private Map<Address, Set<String>> touchedStorageKeys = new HashMap<>();
-
     public PrestateContext(final PrestateRequest prestateRequest) {
         this.code = prestateRequest.isCode();
         this.diff = prestateRequest.isDiffMode();
         this.storage = prestateRequest.isStorage();
-        this.touchedAccounts = new HashSet<>();
-        this.touchedStorageKeys = new HashMap<>();
-    }
-
-    public void setTouchedStorage(final Address contract, final String slotKey) {
-        var touchedStorages = touchedStorageKeys.get(contract);
-
-        if (touchedStorages == null) {
-            touchedStorages = new HashSet<>();
-            touchedStorages.add(slotKey);
-        } else {
-            touchedStorages.add(slotKey);
-        }
-
-        touchedStorageKeys.put(contract, touchedStorages);
     }
 }

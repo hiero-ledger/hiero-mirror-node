@@ -7,6 +7,7 @@ import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import java.util.ArrayList;
 import java.util.Optional;
 import lombok.CustomLog;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.rest.model.OpcodesResponse;
@@ -30,25 +31,27 @@ import org.springframework.stereotype.Service;
 public class OpcodeServiceImpl extends TraceService implements OpcodeService {
 
     public OpcodeServiceImpl(
-            final RecordFileService recordFileService,
             final ContractDebugService contractDebugService,
             final ContractBytecodeReadableKVState contractBytecodeReadableKVState,
             final ContractStorageReadableKVState contractStorageReadableKVState,
-            final EthereumTransactionRepository ethereumTransactionRepository,
-            final ContractResultRepository contractResultRepository,
             final CommonEntityAccessor commonEntityAccessor,
             final AccountReadableKVState accountReadableKVState,
+            final CommonProperties commonProperties,
+            final RecordFileService recordFileService,
+            final EthereumTransactionRepository ethereumTransactionRepository,
+            final ContractResultRepository contractResultRepository,
             final ContractTransactionHashRepository contractTransactionHashRepository,
             final TransactionRepository transactionRepository) {
         super(
-                recordFileService,
                 contractDebugService,
                 contractBytecodeReadableKVState,
                 contractStorageReadableKVState,
-                ethereumTransactionRepository,
-                contractResultRepository,
                 commonEntityAccessor,
                 accountReadableKVState,
+                commonProperties,
+                recordFileService,
+                ethereumTransactionRepository,
+                contractResultRepository,
                 contractTransactionHashRepository,
                 transactionRepository);
     }

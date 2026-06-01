@@ -5,8 +5,10 @@ package org.hiero.mirror.web3.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
@@ -21,13 +23,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
-import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.rest.model.AccountTrace;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
@@ -58,7 +59,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class PrestateServiceTest {
 
-    private static final Address ACCOUNT_ADDRESS = Address.fromHexString("0x0000000000000000000000000000000000000064");
     private static final Address CONTRACT_ADDRESS = Address.fromHexString("0x00000000000000000000000000000000000000c8");
 
     private static final EntityId PAYER_ACCOUNT_ID = EntityId.of(0L, 0L, 1001L);
@@ -99,12 +99,19 @@ class PrestateServiceTest {
     @Mock
     private ContractStorageReadableKVState contractStorageReadableKVState;
 
+    @Mock
+    private CommonProperties commonProperties;
+
     private MockedStatic<ContractCallContext> contextMockedStatic;
 
     @BeforeEach
     void setUp() {
         contextMockedStatic = mockStatic(ContractCallContext.class);
         contextMockedStatic.when(() -> ContractCallContext.run(any())).thenCallRealMethod();
+        contextMockedStatic.when(ContractCallContext::get).thenCallRealMethod();
+
+        lenient().when(commonProperties.getShard()).thenReturn(0L);
+        lenient().when(commonProperties.getRealm()).thenReturn(0L);
     }
 
     @AfterEach
@@ -119,8 +126,11 @@ class PrestateServiceTest {
         setupContractResult();
         setupRecordFile();
 
-        simulateTouchedAccounts(Set.of(ACCOUNT_ADDRESS), Collections.emptyMap());
-        setupAccountEntity(ACCOUNT_ADDRESS, EntityType.ACCOUNT, 100L, 1L);
+        final var acctId = accountIdOf(100L);
+        final var preAccount = buildAccount(100L, 100L, 1L);
+        final var postAccount = buildAccount(100L, 100L, 2L);
+
+        setupCaches(Map.of(acctId, preAccount), Map.of(acctId, postAccount));
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -136,8 +146,7 @@ class PrestateServiceTest {
         setupContractResult();
         setupRecordFile();
 
-        simulateTouchedAccounts(Set.of(ACCOUNT_ADDRESS), Collections.emptyMap());
-        setupAccountEntity(ACCOUNT_ADDRESS, EntityType.ACCOUNT, 100L, 1L);
+        setupCaches(Map.of(accountIdOf(100L), buildAccount(100L, 100L, 1L)), null);
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -153,19 +162,14 @@ class PrestateServiceTest {
         setupContractResult();
         setupRecordFile();
 
-        simulateTouchedAccounts(Set.of(ACCOUNT_ADDRESS), Collections.emptyMap());
-        setupAccountEntity(ACCOUNT_ADDRESS, EntityType.ACCOUNT, 100L, 5L);
+        final var acctId = accountIdOf(100L);
+        final var account = buildAccount(100L, 100L, 5L);
+        setupCaches(Map.of(acctId, account), Map.of(acctId, account));
 
         final var response = prestateService.processPrestateCall(request);
 
         assertThat(response.getPre()).isNotEmpty();
-        assertThat(response.getPost()).isNotEmpty();
-
-        final var preTrace = response.getPre().getFirst();
-        final var postTrace = response.getPost().getFirst();
-        assertThat(preTrace.getAddress()).isEqualTo(postTrace.getAddress());
-        assertThat(postTrace.getBalance()).isNull();
-        assertThat(postTrace.getNonce()).isNull();
+        assertThat(response.getPost()).isEmpty();
     }
 
     @Test
@@ -175,24 +179,11 @@ class PrestateServiceTest {
         setupContractResult();
         setupRecordFile();
 
-        final var entity = createEntity(ACCOUNT_ADDRESS, EntityType.ACCOUNT, 100L);
-        when(commonEntityAccessor.get(eq(ACCOUNT_ADDRESS), any())).thenReturn(Optional.of(entity));
+        final var acctId = accountIdOf(100L);
+        final var preAccount = buildAccount(100L, 100L, 5L);
+        final var postAccount = buildAccount(100L, 100L, 10L);
 
-        final var account = Account.newBuilder().ethereumNonce(5L).build();
-
-        final var changedAccount = Account.newBuilder().ethereumNonce(10L).build();
-
-        when(accountReadableKVState.get(any(AccountID.class)))
-                .thenReturn(account)
-                .thenReturn(changedAccount);
-
-        doAnswer(invocation -> {
-                    final PrestateContext ctx = invocation.getArgument(1);
-                    ctx.getTouchedAccounts().add(ACCOUNT_ADDRESS);
-                    return null;
-                })
-                .when(contractDebugService)
-                .processPrestateCall(any(ContractDebugParameters.class), any(PrestateContext.class));
+        setupCaches(Map.of(acctId, preAccount), Map.of(acctId, postAccount));
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -211,14 +202,21 @@ class PrestateServiceTest {
 
         final var bytecodeValue = Bytes.wrap(new byte[] {0x60, 0x40});
         final var bytecode = new Bytecode(bytecodeValue);
+        final var contractIdKey = EntityId.of(0L, 0L, 200L).toContractID();
 
-        simulateTouchedAccounts(Set.of(CONTRACT_ADDRESS), Collections.emptyMap());
-        setupContractEntity(CONTRACT_ADDRESS, bytecode, null);
+        setupCaches(
+                Map.of(accountIdOf(200L), buildContract(200L, 50L, 1L)),
+                null,
+                Map.of(contractIdKey, bytecode),
+                null,
+                null);
 
         final var response = prestateService.processPrestateCall(request);
 
-        // CONTRACT entities' traces are filtered out since address is never set in populateContractFields
-        assertThat(response.getPre()).isEmpty();
+        assertThat(response.getPre()).hasSize(1);
+        final var trace = response.getPre().getFirst();
+        assertThat(trace.getAddress()).isEqualTo("0.0.200");
+        assertThat(trace.getCode()).isEqualTo(bytecodeValue.toHex());
     }
 
     @Test
@@ -228,13 +226,15 @@ class PrestateServiceTest {
         setupContractResult();
         setupRecordFile();
 
-        simulateTouchedAccounts(Set.of(CONTRACT_ADDRESS), Collections.emptyMap());
-        final var entity = createEntity(CONTRACT_ADDRESS, EntityType.CONTRACT, 50L);
-        when(commonEntityAccessor.get(eq(CONTRACT_ADDRESS), any())).thenReturn(Optional.of(entity));
+        setupCaches(Map.of(accountIdOf(200L), buildContract(200L, 50L, 1L)), null);
 
         final var response = prestateService.processPrestateCall(request);
 
-        assertThat(response.getPre()).isEmpty();
+        assertThat(response.getPre()).hasSize(1);
+        final var trace = response.getPre().getFirst();
+        assertThat(trace.getAddress()).isEqualTo("0.0.200");
+        assertThat(trace.getCode()).isNull();
+        assertThat(trace.getStorage()).isNullOrEmpty();
     }
 
     @Test
@@ -244,25 +244,27 @@ class PrestateServiceTest {
         setupContractResult();
         setupRecordFile();
 
-        final var slotKeyHex = "0000000000000000000000000000000000000000000000000000000000000001";
-        final var storageMap = Map.of(CONTRACT_ADDRESS, Set.of(slotKeyHex));
-        simulateTouchedAccounts(Set.of(CONTRACT_ADDRESS), storageMap);
-
-        final var entity = createEntity(CONTRACT_ADDRESS, EntityType.CONTRACT, 50L);
-        when(commonEntityAccessor.get(eq(CONTRACT_ADDRESS), any())).thenReturn(Optional.of(entity));
-
+        final var slotKeyBytes = Bytes.fromHex("0000000000000000000000000000000000000000000000000000000000000001");
+        final var contractId = ContractID.newBuilder().contractNum(200L).build();
+        final var slotKey =
+                SlotKey.newBuilder().contractID(contractId).key(slotKeyBytes).build();
         final var slotValue = new SlotValue(
                 Bytes.wrap(new byte[] {
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x14
                 }),
                 Bytes.EMPTY,
                 Bytes.EMPTY);
-        when(contractStorageReadableKVState.get(any(SlotKey.class))).thenReturn(slotValue);
+
+        setupCaches(
+                Map.of(accountIdOf(200L), buildContract(200L, 50L, 1L)), null, null, Map.of(slotKey, slotValue), null);
 
         final var response = prestateService.processPrestateCall(request);
 
-        // CONTRACT entities' traces are filtered out since address is never set
-        assertThat(response.getPre()).isEmpty();
+        assertThat(response.getPre()).hasSize(1);
+        final var trace = response.getPre().getFirst();
+        assertThat(trace.getAddress()).isEqualTo("0.0.200");
+        assertThat(trace.getStorage()).isNotEmpty();
+        assertThat(trace.getStorage()).containsKey(slotKeyBytes.toHex());
     }
 
     @ParameterizedTest
@@ -282,8 +284,9 @@ class PrestateServiceTest {
         setupContractResult();
         setupRecordFile();
 
-        simulateTouchedAccounts(Set.of(ACCOUNT_ADDRESS), Collections.emptyMap());
-        setupAccountEntity(ACCOUNT_ADDRESS, EntityType.ACCOUNT, 100L, 1L);
+        final var acctId = accountIdOf(100L);
+        final var account = buildAccount(100L, 100L, 1L);
+        setupCaches(Map.of(acctId, account), diff ? Map.of(acctId, account) : null);
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -304,38 +307,30 @@ class PrestateServiceTest {
         setupContractResult();
         setupRecordFile();
 
-        simulateTouchedAccounts(Set.of(ACCOUNT_ADDRESS), Collections.emptyMap());
-        setupAccountEntity(ACCOUNT_ADDRESS, EntityType.ACCOUNT, 500L, 3L);
+        setupCaches(Map.of(accountIdOf(100L), buildAccount(100L, 500L, 3L)), null);
 
         final var response = prestateService.processPrestateCall(request);
 
         assertThat(response.getPre()).hasSize(1);
         final var trace = response.getPre().getFirst();
-        assertThat(trace.getAddress()).isEqualTo(ACCOUNT_ADDRESS.toHexString());
+        assertThat(trace.getAddress()).isEqualTo("0.0.100");
         assertThat(trace.getBalance()).isNotNull();
         assertThat(trace.getNonce()).isEqualTo(3L);
         assertThat(trace.getCode()).isNull();
-        assertThat(trace.getStorage()).isEmpty();
+        assertThat(trace.getStorage()).isNullOrEmpty();
     }
 
     @Test
-    void callForContractEntityFilteredBecauseAddressNotSet() {
+    void callWithEmptyCacheReturnsEmptyPre() {
         final var request = createRequest(false, true, true);
         setupTransactionHashLookup();
         setupContractResult();
         setupRecordFile();
 
-        final var slotKeyHex = "0000000000000000000000000000000000000000000000000000000000000001";
-        final var storageMap = Map.of(CONTRACT_ADDRESS, Set.of(slotKeyHex));
-        simulateTouchedAccounts(Set.of(CONTRACT_ADDRESS), storageMap);
-
-        final var bytecodeValue = Bytes.wrap(new byte[] {0x60, 0x40, 0x52});
-        final var bytecode = new Bytecode(bytecodeValue);
-        setupContractEntity(CONTRACT_ADDRESS, bytecode, slotKeyHex);
+        setupCaches(Collections.emptyMap(), null);
 
         final var response = prestateService.processPrestateCall(request);
 
-        // CONTRACT entities are not included because populateContractFields doesn't set address
         assertThat(response.getPre()).isEmpty();
     }
 
@@ -358,8 +353,8 @@ class PrestateServiceTest {
                 new TransactionIdParameter(PAYER_ACCOUNT_ID, java.time.Instant.ofEpochSecond(0, VALID_START_NS));
         final var request = new PrestateRequest(txIdParam, false, false, false);
 
-        when(transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
-                        PAYER_ACCOUNT_ID, VALID_START_NS))
+        when(transactionRepository.findByPayerAccountIdAndValidStartNs(
+                        eq(PAYER_ACCOUNT_ID.getId()), eq(VALID_START_NS), anyLong(), anyLong()))
                 .thenReturn(Collections.emptyList());
 
         assertThatThrownBy(() -> prestateService.processPrestateCall(request))
@@ -380,13 +375,13 @@ class PrestateServiceTest {
     }
 
     @Test
-    void callWithNoTouchedAccounts() {
+    void callWithNoAccountsInCacheReturnsEmptyPre() {
         final var request = createRequest(false, false, false);
         setupTransactionHashLookup();
         setupContractResult();
         setupRecordFile();
 
-        simulateTouchedAccounts(Collections.emptySet(), Collections.emptyMap());
+        setupCaches(Collections.emptyMap(), null);
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -395,14 +390,19 @@ class PrestateServiceTest {
     }
 
     @Test
-    void callWithTouchedAccountNotInEntityAccessor() {
+    void callWithNonAccountValuesInCacheReturnsEmptyPre() {
         final var request = createRequest(false, false, false);
         setupTransactionHashLookup();
         setupContractResult();
         setupRecordFile();
 
-        simulateTouchedAccounts(Set.of(ACCOUNT_ADDRESS), Collections.emptyMap());
-        when(commonEntityAccessor.get(eq(ACCOUNT_ADDRESS), any())).thenReturn(Optional.empty());
+        doAnswer(invocation -> {
+                    final var ctx = ContractCallContext.get();
+                    ctx.getReadCacheState(AccountReadableKVState.STATE_ID).put(accountIdOf(100L), "not-an-account");
+                    return null;
+                })
+                .when(contractDebugService)
+                .processPrestateCall(any(ContractDebugParameters.class), any(PrestateContext.class));
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -410,45 +410,23 @@ class PrestateServiceTest {
     }
 
     @Test
-    void callWithDiffEnabledAndMultipleAccountsWithContractFiltered() {
-        final var request = createRequest(true, false, false);
-        setupTransactionHashLookup();
-        setupContractResult();
-        setupRecordFile();
-
-        simulateTouchedAccounts(Set.of(ACCOUNT_ADDRESS, CONTRACT_ADDRESS), Collections.emptyMap());
-
-        setupAccountEntity(ACCOUNT_ADDRESS, EntityType.ACCOUNT, 100L, 1L);
-        final var contractEntity = createEntity(CONTRACT_ADDRESS, EntityType.CONTRACT, 50L);
-        when(commonEntityAccessor.get(eq(CONTRACT_ADDRESS), any())).thenReturn(Optional.of(contractEntity));
-
-        final var response = prestateService.processPrestateCall(request);
-
-        // Only ACCOUNT entities produce traces; CONTRACT entities are filtered out
-        assertThat(response.getPre()).hasSize(1);
-        assertThat(response.getPre().getFirst().getAddress()).isEqualTo(ACCOUNT_ADDRESS.toHexString());
-        assertThat(response.getPost()).isNotNull();
-    }
-
-    @Test
     void callWithDiffEnabledAndMultipleAccountEntities() {
-        final var secondAccountAddress = Address.fromHexString("0x00000000000000000000000000000000000000c9");
         final var request = createRequest(true, false, false);
         setupTransactionHashLookup();
         setupContractResult();
         setupRecordFile();
 
-        simulateTouchedAccounts(Set.of(ACCOUNT_ADDRESS, secondAccountAddress), Collections.emptyMap());
+        final var acctId1 = accountIdOf(100L);
+        final var acctId2 = accountIdOf(201L);
+        final var account1 = buildAccount(100L, 200L, 2L);
+        final var account2 = buildAccount(201L, 200L, 2L);
 
-        final var entity = createEntity(ACCOUNT_ADDRESS, EntityType.ACCOUNT, 100L);
-        when(commonEntityAccessor.get(eq(ACCOUNT_ADDRESS), any())).thenReturn(Optional.of(entity));
-
-        setupAccountEntity(secondAccountAddress, EntityType.ACCOUNT, 200L, 2L);
+        setupCaches(Map.of(acctId1, account1, acctId2, account2), Map.of(acctId1, account1, acctId2, account2));
 
         final var response = prestateService.processPrestateCall(request);
 
         assertThat(response.getPre()).hasSize(2);
-        assertThat(response.getPost()).isNotNull().hasSize(2);
+        assertThat(response.getPost()).isNotNull().isEmpty();
     }
 
     @Test
@@ -463,8 +441,8 @@ class PrestateServiceTest {
         transaction.setValidStartNs(VALID_START_NS);
         transaction.setType(7);
 
-        when(transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
-                        PAYER_ACCOUNT_ID, VALID_START_NS))
+        when(transactionRepository.findByPayerAccountIdAndValidStartNs(
+                        eq(PAYER_ACCOUNT_ID.getId()), eq(VALID_START_NS), anyLong(), anyLong()))
                 .thenReturn(List.of(transaction));
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(
                         CONSENSUS_TIMESTAMP, PAYER_ACCOUNT_ID))
@@ -472,8 +450,7 @@ class PrestateServiceTest {
         setupContractResult();
         setupRecordFile();
 
-        simulateTouchedAccounts(Set.of(ACCOUNT_ADDRESS), Collections.emptyMap());
-        setupAccountEntity(ACCOUNT_ADDRESS, EntityType.ACCOUNT, 100L, 1L);
+        setupCaches(Map.of(accountIdOf(100L), buildAccount(100L, 100L, 1L)), null);
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -482,17 +459,13 @@ class PrestateServiceTest {
     }
 
     @Test
-    void callWithAccountNullFromKVStateAndTracesSkipped() {
+    void callWithEmptyReadCacheReturnsEmptyPre() {
         final var request = createRequest(false, false, false);
         setupTransactionHashLookup();
         setupContractResult();
         setupRecordFile();
 
-        simulateTouchedAccounts(Set.of(ACCOUNT_ADDRESS), Collections.emptyMap());
-
-        final var entity = createEntity(ACCOUNT_ADDRESS, EntityType.ACCOUNT, 100L);
-        when(commonEntityAccessor.get(eq(ACCOUNT_ADDRESS), any())).thenReturn(Optional.of(entity));
-        when(accountReadableKVState.get(any(AccountID.class))).thenReturn(null);
+        setupCaches(Collections.emptyMap(), null);
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -536,56 +509,258 @@ class PrestateServiceTest {
         when(recordFileService.findByTimestamp(CONSENSUS_TIMESTAMP)).thenReturn(Optional.of(recordFile));
     }
 
-    private void simulateTouchedAccounts(
-            final Set<Address> touchedAccounts, final Map<Address, Set<String>> touchedStorage) {
+    private void setupCaches(final Map<AccountID, Account> readAccounts, final Map<AccountID, Account> writeAccounts) {
+        setupCaches(readAccounts, writeAccounts, null, null, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void setupCaches(
+            final Map<AccountID, Account> readAccounts,
+            final Map<AccountID, Account> writeAccounts,
+            final Map<?, ?> bytecodes,
+            final Map<SlotKey, SlotValue> readStorage,
+            final Map<SlotKey, SlotValue> writeStorage) {
         doAnswer(invocation -> {
-                    final PrestateContext ctx = invocation.getArgument(1);
-                    ctx.getTouchedAccounts().addAll(touchedAccounts);
-                    for (final var entry : touchedStorage.entrySet()) {
-                        for (final var key : entry.getValue()) {
-                            ctx.setTouchedStorage(entry.getKey(), key);
+                    final var ctx = ContractCallContext.get();
+
+                    readAccounts.forEach(ctx.getReadCacheState(AccountReadableKVState.STATE_ID)::put);
+                    ctx.getReadCacheState(ContractBytecodeReadableKVState.STATE_ID);
+                    ctx.getReadCacheState(ContractStorageReadableKVState.STATE_ID);
+
+                    if (bytecodes != null) {
+                        bytecodes.forEach(ctx.getReadCacheState(ContractBytecodeReadableKVState.STATE_ID)::put);
+                    }
+                    if (readStorage != null) {
+                        readStorage.forEach(ctx.getReadCacheState(ContractStorageReadableKVState.STATE_ID)::put);
+                    }
+
+                    if (writeAccounts != null) {
+                        writeAccounts.forEach(ctx.getWriteCacheState(AccountReadableKVState.STATE_ID)::put);
+                        ctx.getWriteCacheState(ContractBytecodeReadableKVState.STATE_ID);
+                        ctx.getWriteCacheState(ContractStorageReadableKVState.STATE_ID);
+
+                        if (bytecodes != null) {
+                            bytecodes.forEach(ctx.getWriteCacheState(ContractBytecodeReadableKVState.STATE_ID)::put);
+                        }
+                        if (writeStorage != null) {
+                            writeStorage.forEach(ctx.getWriteCacheState(ContractStorageReadableKVState.STATE_ID)::put);
                         }
                     }
+
                     return null;
                 })
                 .when(contractDebugService)
                 .processPrestateCall(any(ContractDebugParameters.class), any(PrestateContext.class));
     }
 
-    private void setupAccountEntity(Address address, EntityType type, long balance, long nonce) {
-        final var entity = createEntity(address, type, balance);
-        when(commonEntityAccessor.get(eq(address), any())).thenReturn(Optional.of(entity));
-
-        final var account = Account.newBuilder().ethereumNonce(nonce).build();
-        when(accountReadableKVState.get(any(AccountID.class))).thenReturn(account);
+    private static AccountID accountIdOf(long num) {
+        return AccountID.newBuilder().accountNum(num).build();
     }
 
-    private Entity createEntity(Address address, EntityType type, long balance) {
-        final var entity = new Entity();
-        entity.setType(type);
-        entity.setBalance(balance);
-        entity.setNum(Long.parseLong(
-                address.toHexString().substring(address.toHexString().length() - 4), 16));
-        entity.setShard(0L);
-        entity.setRealm(0L);
-        entity.setId(entity.getNum());
-        return entity;
+    private static AccountID accountIdOf(Address alias) {
+        return AccountID.newBuilder().alias(Bytes.wrap(alias.toArray())).build();
     }
 
-    private void setupContractEntity(Address address, Bytecode bytecode, String slotKeyHex) {
-        final var entity = createEntity(address, EntityType.CONTRACT, 50L);
-        when(commonEntityAccessor.get(eq(address), any())).thenReturn(Optional.of(entity));
-        when(contractBytecodeReadableKVState.get(any(ContractID.class))).thenReturn(bytecode);
+    private static Account buildAccount(long num, long balance, long nonce) {
+        return Account.newBuilder()
+                .accountId(AccountID.newBuilder().accountNum(num).build())
+                .ethereumNonce(nonce)
+                .tinybarBalance(balance)
+                .build();
+    }
 
-        if (slotKeyHex != null) {
-            final var slotValue = new SlotValue(
-                    Bytes.wrap(new byte[] {
-                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                        0x14
-                    }),
-                    Bytes.EMPTY,
-                    Bytes.EMPTY);
-            when(contractStorageReadableKVState.get(any(SlotKey.class))).thenReturn(slotValue);
-        }
+    private static Account buildAliasedAccount(Address alias, long balance, long nonce) {
+        return Account.newBuilder()
+                .alias(Bytes.wrap(alias.toArray()))
+                .ethereumNonce(nonce)
+                .tinybarBalance(balance)
+                .build();
+    }
+
+    private static Account buildContract(long num, long balance, long nonce) {
+        return Account.newBuilder()
+                .accountId(AccountID.newBuilder().accountNum(num).build())
+                .ethereumNonce(nonce)
+                .tinybarBalance(balance)
+                .smartContract(true)
+                .build();
+    }
+
+    private static Account buildAliasedContract(Address alias, long balance, long nonce) {
+        return Account.newBuilder()
+                .alias(Bytes.wrap(alias.toArray()))
+                .ethereumNonce(nonce)
+                .tinybarBalance(balance)
+                .smartContract(true)
+                .build();
+    }
+
+    @Test
+    void transactionTouches3AccountsAnd2ContractsWithAliasesInDiffModeFalse() {
+        final var request = createRequest(false, false, false);
+        setupTransactionHashLookup();
+        setupContractResult();
+        setupRecordFile();
+
+        final var alias1 = Address.fromHexString("0x1234567890abcdef1234567890abcdef12345678");
+        final var alias2 = Address.fromHexString("0xabcdefabcdefabcdefabcdefabcdefabcdefabcd");
+        final var alias3 = Address.fromHexString("0xfedcba9876543210fedcba9876543210fedcba98");
+        final var contractAlias1 = Address.fromHexString("0x1111111111111111111111111111111111111111");
+        final var contractAlias2 = Address.fromHexString("0x2222222222222222222222222222222222222222");
+
+        setupCaches(
+                Map.of(
+                        accountIdOf(alias1), buildAliasedAccount(alias1, 500L, 5L),
+                        accountIdOf(alias2), buildAliasedAccount(alias2, 500L, 5L),
+                        accountIdOf(alias3), buildAliasedAccount(alias3, 500L, 5L),
+                        accountIdOf(contractAlias1), buildAliasedContract(contractAlias1, 500L, 5L),
+                        accountIdOf(contractAlias2), buildAliasedContract(contractAlias2, 500L, 5L)),
+                null);
+
+        final var response = prestateService.processPrestateCall(request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getPre()).hasSize(5);
+        assertThat(response.getPost()).isNullOrEmpty();
+
+        final var preAddresses =
+                response.getPre().stream().map(AccountTrace::getAddress).toList();
+        assertThat(preAddresses)
+                .containsExactlyInAnyOrder(
+                        Bytes.wrap(alias1.toArray()).toHex(),
+                        Bytes.wrap(alias2.toArray()).toHex(),
+                        Bytes.wrap(alias3.toArray()).toHex(),
+                        Bytes.wrap(contractAlias1.toArray()).toHex(),
+                        Bytes.wrap(contractAlias2.toArray()).toHex());
+    }
+
+    @Test
+    void transactionTouches2AccountsAnd3ContractsWithMixedAddressTypesInDiffModeFalse() {
+        final var request = createRequest(false, false, false);
+        setupTransactionHashLookup();
+        setupContractResult();
+        setupRecordFile();
+
+        final var accountAlias = Address.fromHexString("0xabcdefabcdefabcdefabcdefabcdefabcdefabcd");
+        final var contractAlias = Address.fromHexString("0x3333333333333333333333333333333333333333");
+
+        setupCaches(
+                Map.of(
+                        accountIdOf(accountAlias), buildAliasedAccount(accountAlias, 500L, 5L),
+                        accountIdOf(100L), buildAccount(100L, 500L, 5L),
+                        accountIdOf(contractAlias), buildAliasedContract(contractAlias, 500L, 5L),
+                        accountIdOf(200L), buildContract(200L, 500L, 5L),
+                        accountIdOf(201L), buildContract(201L, 500L, 5L)),
+                null);
+
+        final var response = prestateService.processPrestateCall(request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getPre()).hasSize(5);
+        assertThat(response.getPost()).isNullOrEmpty();
+
+        final var preAddresses =
+                response.getPre().stream().map(AccountTrace::getAddress).toList();
+        assertThat(preAddresses)
+                .containsExactlyInAnyOrder(
+                        Bytes.wrap(accountAlias.toArray()).toHex(),
+                        "0.0.100",
+                        Bytes.wrap(contractAlias.toArray()).toHex(),
+                        "0.0.200",
+                        "0.0.201");
+    }
+
+    @Test
+    void transactionTouchesMultipleAccountsAndContractsWithPartialChangesInDiffModeTrue() {
+        final var request = createRequest(true, false, false);
+        setupTransactionHashLookup();
+        setupContractResult();
+        setupRecordFile();
+
+        final var alias3 = Address.fromHexString("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        final var alias4 = Address.fromHexString("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+
+        final var acctId1 = accountIdOf(100L);
+        final var acctId2 = accountIdOf(101L);
+        final var acctId3 = accountIdOf(alias3);
+        final var acctId4 = accountIdOf(alias4);
+
+        final var preAccounts = Map.of(
+                acctId1, buildAccount(100L, 100L, 1L),
+                acctId2, buildAccount(101L, 200L, 2L),
+                acctId3, buildAliasedAccount(alias3, 300L, 3L),
+                acctId4, buildAliasedAccount(alias4, 400L, 4L));
+
+        final var postAccounts = Map.of(
+                acctId1, buildAccount(100L, 100L, 100L),
+                acctId2, buildAccount(101L, 200L, 2L),
+                acctId3, buildAliasedAccount(alias3, 300L, 300L),
+                acctId4, buildAliasedAccount(alias4, 400L, 4L));
+
+        setupCaches(preAccounts, postAccounts);
+
+        final var response = prestateService.processPrestateCall(request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getPre()).hasSize(4);
+
+        assertThat(response.getPost()).hasSize(2);
+
+        final var postAddresses =
+                response.getPost().stream().map(AccountTrace::getAddress).toList();
+        assertThat(postAddresses)
+                .containsExactlyInAnyOrder(
+                        "0.0.100", Bytes.wrap(alias3.toArray()).toHex());
+
+        final var account1Trace = response.getPost().stream()
+                .filter(trace -> trace.getAddress().equals("0.0.100"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(account1Trace.getNonce()).isEqualTo(100L);
+
+        final var account3Trace = response.getPost().stream()
+                .filter(trace ->
+                        trace.getAddress().equals(Bytes.wrap(alias3.toArray()).toHex()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(account3Trace.getNonce()).isEqualTo(300L);
+    }
+
+    @Test
+    void transactionCreatesNewAccountInPostState() {
+        final var request = createRequest(true, false, false);
+        setupTransactionHashLookup();
+        setupContractResult();
+        setupRecordFile();
+
+        final var newAccountAlias = Address.fromHexString("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+
+        final var acctId1 = accountIdOf(100L);
+        final var acctId2 = accountIdOf(101L);
+        final var newAcctId = accountIdOf(newAccountAlias);
+
+        final var preAccounts = Map.of(
+                acctId1, buildAccount(100L, 100L, 1L),
+                acctId2, buildAccount(101L, 200L, 2L));
+
+        final var postAccounts = Map.of(
+                acctId1, buildAccount(100L, 100L, 1L),
+                acctId2, buildAccount(101L, 200L, 2L),
+                newAcctId, buildAliasedAccount(newAccountAlias, 500L, 1L));
+
+        setupCaches(preAccounts, postAccounts);
+
+        final var response = prestateService.processPrestateCall(request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getPre()).hasSize(2);
+
+        assertThat(response.getPost()).hasSize(1);
+
+        final var newAccountTrace = response.getPost().getFirst();
+        assertThat(newAccountTrace.getAddress())
+                .isEqualTo(Bytes.wrap(newAccountAlias.toArray()).toHex());
+        assertThat(newAccountTrace.getBalance()).isNotNull();
+        assertThat(newAccountTrace.getNonce()).isNotNull();
     }
 }

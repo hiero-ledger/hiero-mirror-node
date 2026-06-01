@@ -40,6 +40,7 @@ import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.PrestateTracer;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -82,6 +83,9 @@ class TransactionExecutionServiceTest {
     private OpcodeActionTracer opcodeActionTracer;
 
     @Mock
+    private PrestateTracer prestateTracer;
+
+    @Mock
     private MirrorOperationActionTracer mirrorOperationActionTracer;
 
     @Mock
@@ -106,6 +110,7 @@ class TransactionExecutionServiceTest {
                 commonProperties,
                 new EvmProperties(),
                 opcodeActionTracer,
+                prestateTracer,
                 mirrorOperationActionTracer,
                 systemEntity,
                 transactionExecutorFactory);

@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCREATEINSTANCE;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
+import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
@@ -14,6 +15,7 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -45,16 +47,18 @@ import org.springframework.stereotype.Service;
 public class TraceService {
 
     protected static final Address EMPTY_ADDRESS = Address.ZERO;
+    public static final long MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS = 35 * 60 * NANOS_PER_SECOND;
     protected static final BigInteger ZERO = BigInteger.ZERO;
 
-    private final RecordFileService recordFileService;
     protected final ContractDebugService contractDebugService;
     protected final ContractBytecodeReadableKVState contractBytecodeReadableKVState;
     protected final ContractStorageReadableKVState contractStorageReadableKVState;
-    private final EthereumTransactionRepository ethereumTransactionRepository;
-    private final ContractResultRepository contractResultRepository;
     protected final CommonEntityAccessor commonEntityAccessor;
     protected final AccountReadableKVState accountReadableKVState;
+    protected final CommonProperties commonProperties;
+    private final RecordFileService recordFileService;
+    private final EthereumTransactionRepository ethereumTransactionRepository;
+    private final ContractResultRepository contractResultRepository;
     private final ContractTransactionHashRepository contractTransactionHashRepository;
     private final TransactionRepository transactionRepository;
 
@@ -82,9 +86,11 @@ public class TraceService {
                 final var validStartNs = convertToNanosMax(transactionId.validStart());
                 final var payerAccountId = transactionId.payerAccountId();
 
-                final var transactionList =
-                        transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
-                                payerAccountId, validStartNs);
+                final var transactionList = transactionRepository.findByPayerAccountIdAndValidStartNs(
+                        payerAccountId.getId(),
+                        validStartNs,
+                        validStartNs,
+                        validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS);
                 if (transactionList.isEmpty()) {
                     throw new EntityNotFoundException("Transaction not found: " + transactionId);
                 }

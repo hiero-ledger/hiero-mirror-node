@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -25,13 +24,13 @@ public class ContractCallContext {
     public static final String CONTEXT_NAME = "ContractCallContext";
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
 
-    @Getter(AccessLevel.NONE)
+    @Getter
     private final Map<Integer, Map<Object, Object>> readCache = new HashMap<>();
 
     @Getter
     private final long startTime = System.currentTimeMillis();
 
-    @Getter(AccessLevel.NONE)
+    @Getter
     private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
 
     @Setter
