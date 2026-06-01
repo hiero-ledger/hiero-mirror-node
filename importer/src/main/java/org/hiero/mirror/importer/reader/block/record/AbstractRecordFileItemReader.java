@@ -18,12 +18,7 @@ import java.io.IOException;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
@@ -56,7 +51,8 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
                     new ArrayList<>(),
                     new RecordFile(),
                     recordFileItem,
-                    new HashMap<>());
+                    new HashMap<>(),
+                    new ConsensusTimestampRange());
 
             dos.writeInt(version);
             onHeader(context);
@@ -148,17 +144,8 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
 
         final var items = context.items();
         if (!items.isEmpty()) {
-            long minTimestamp = Long.MAX_VALUE;
-            long maxTimestamp = Long.MIN_VALUE;
-            for (final var item : items) {
-                final long ts = item.getConsensusTimestamp();
-                if (ts < minTimestamp) {
-                    minTimestamp = ts;
-                }
-                if (ts > maxTimestamp) {
-                    maxTimestamp = ts;
-                }
-            }
+            final long minTimestamp = context.consensusTimestampRange().min();
+            final long maxTimestamp = context.consensusTimestampRange().max();
 
             final long firstTimestamp = items.getFirst().getConsensusTimestamp();
             final long lastTimestamp = items.getLast().getConsensusTimestamp();
@@ -214,6 +201,7 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
         recordItem.setSidecarRecords(
                 context.sidecarRecords().getOrDefault(recordItem.getConsensusTimestamp(), Collections.emptyList()));
         items.add(recordItem);
+        context.consensusTimestampRange().track(recordItem.getConsensusTimestamp());
     }
 
     private boolean isSidecarFileAccepted(final SidecarMetadata metadata) {
@@ -316,6 +304,28 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
         recordFile.setSidecars(sidecars);
     }
 
+    private static final class ConsensusTimestampRange {
+        private long min = Long.MAX_VALUE;
+        private long max = Long.MIN_VALUE;
+
+        long min() {
+            return min;
+        }
+
+        long max() {
+            return max;
+        }
+
+        void track(final long timestamp) {
+            if (timestamp < min) {
+                min = timestamp;
+            }
+            if (timestamp > max) {
+                max = timestamp;
+            }
+        }
+    }
+
     protected record Context(
             DataOutputStream dos,
             MessageDigest fileDigest,
@@ -323,5 +333,6 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
             List<RecordItem> items,
             RecordFile recordFile,
             RecordFileItem recordFileItem,
-            Map<Long, List<TransactionSidecarRecord>> sidecarRecords) {}
+            Map<Long, List<TransactionSidecarRecord>> sidecarRecords,
+            ConsensusTimestampRange consensusTimestampRange) {}
 }
