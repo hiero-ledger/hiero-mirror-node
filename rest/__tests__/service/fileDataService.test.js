@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {jest} from '@jest/globals';
 import {create, toBinary} from '@bufbuild/protobuf';
 import {
   FeeDataSchema,
@@ -155,6 +156,10 @@ describe('FileDataService.getLatestFileDataContents tests', () => {
 });
 
 describe('FileDataService.getFeeSchedule tests', () => {
+  beforeEach(() => {
+    FileDataService.clearFeeScheduleCache();
+  });
+
   const previousGas = 123456;
   const latestGas = 789012;
 
@@ -166,13 +171,13 @@ describe('FileDataService.getFeeSchedule tests', () => {
 
   const feeScheduleFiles = [
     {
-      consensus_timestamp: 1,
+      consensus_timestamp: 11,
       entity_id: feeScheduleEntityId.toString(),
       file_data: previousFeeScheduleData,
       transaction_type: 17,
     },
     {
-      consensus_timestamp: 3,
+      consensus_timestamp: 13,
       entity_id: feeScheduleEntityId.toString(),
       file_data: latestFeeScheduleData,
       transaction_type: 19,
@@ -199,7 +204,7 @@ describe('FileDataService.getFeeSchedule tests', () => {
     const where = [
       {
         query: `${FileData.CONSENSUS_TIMESTAMP} <= `,
-        param: 2,
+        param: 12,
       },
     ];
     const result = await FileDataService.getFeeSchedule({whereQuery: where});
@@ -225,7 +230,7 @@ describe('FileDataService.getFeeSchedule tests', () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     await integrationDomainOps.loadFileData(exchangeRateFiles);
 
-    const where = [{query: `${FileData.CONSENSUS_TIMESTAMP} <= `, param: 2}];
+    const where = [{query: `${FileData.CONSENSUS_TIMESTAMP} <= `, param: 12}];
     const filterQueries = {whereQuery: where};
 
     const spy = jest.spyOn(FileDataService, 'getLatestFileDataContents');

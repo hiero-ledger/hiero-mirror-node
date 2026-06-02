@@ -16,6 +16,8 @@ import {WEIBARS_TO_TINYBARS} from '../constants';
  * Contract result details view model
  */
 class ContractResultDetailsViewModel extends ContractResultViewModel {
+  #gasPriceFromFeeSchedule = null;
+
   static _LEGACY_TYPE = 0;
   static _SUCCESS_PROTO_IDS = TransactionResult.getSuccessProtoIds();
   static _SUCCESS_RESULT = '0x1';
@@ -31,7 +33,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
    * @param {ContractStateChange[]} contractStateChanges
    * @param {FileData} fileData
    * @param {boolean} convertToHbar - If true, convert weibar to tinybar; if false, return raw weibar
-   * @param {BigInt|null} gasPriceFromFeeSchedule - Gas price from fee schedule for non-Ethereum transactions
+   * @param {Promise<BigInt|null>|null} gasPriceFromFeeSchedule - Gas price from fee schedule for non-Ethereum transactions
    */
   constructor(
     contractResult,
@@ -150,12 +152,21 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     if (this.type == null) {
       this.type = ContractResultDetailsViewModel._LEGACY_TYPE;
     }
-    if (this.gas_price == null && gasPriceFromFeeSchedule != null) {
-      this.gas_price = utils.toHexStringQuantity(gasPriceFromFeeSchedule);
-    }
+    this.#gasPriceFromFeeSchedule =
+      this.gas_price == null && gasPriceFromFeeSchedule != null ? gasPriceFromFeeSchedule : null;
     if (isNil(ethTransaction) && !convertToHbar && !isNil(contractResult.amount)) {
       this.amount = BigInt(contractResult.amount) * WEIBARS_TO_TINYBARS;
     }
+  }
+
+  async resolveGasPriceFromFeeSchedule() {
+    if (this.gas_price == null && this.#gasPriceFromFeeSchedule != null) {
+      const gasPriceFromFeeSchedule = await this.#gasPriceFromFeeSchedule;
+      if (gasPriceFromFeeSchedule != null) {
+        this.gas_price = utils.toHexStringQuantity(gasPriceFromFeeSchedule);
+      }
+    }
+    return this;
   }
 
   /**

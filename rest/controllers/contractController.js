@@ -1040,15 +1040,13 @@ class ContractController extends BaseController {
       fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
     }
 
-    const gasPriceFromFeeSchedule = await this.getGasPriceFromFeeSchedule(ethTransaction, timestamp);
-
     if (isNil(contractResults[0].callResult)) {
       // set 206 partial response
       res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
       logger.debug(`getContractResultsByTimestamp returning partial content`);
     }
 
-    this.setContractResultsResponse(
+    await this.setContractResultsResponse(
       res,
       contractResults[0],
       recordFile,
@@ -1057,7 +1055,7 @@ class ContractController extends BaseController {
       contractStateChanges,
       fileData,
       convertToHbar,
-      gasPriceFromFeeSchedule
+      this.getGasPriceFromFeeSchedule(ethTransaction, timestamp)
     );
   };
 
@@ -1109,8 +1107,6 @@ class ContractController extends BaseController {
       rows.map(async (row) => {
         const ethTransaction = ethereumTransactionMap.get(row.consensusTimestamp);
 
-        const gasPriceFromFeeSchedule = await this.getGasPriceFromFeeSchedule(ethTransaction, row.consensusTimestamp);
-
         return new ContractResultDetailsViewModel(
           row,
           recordFileMap.get(row.consensusTimestamp),
@@ -1119,8 +1115,8 @@ class ContractController extends BaseController {
           null,
           null,
           convertToHbar,
-          gasPriceFromFeeSchedule
-        );
+          this.getGasPriceFromFeeSchedule(ethTransaction, row.consensusTimestamp)
+        ).resolveGasPriceFromFeeSchedule();
       })
     );
 
@@ -1210,12 +1206,9 @@ class ContractController extends BaseController {
       fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
     }
 
-    const gasPriceFromFeeSchedule = await this.getGasPriceFromFeeSchedule(
-      ethTransaction,
-      transactionDetails.consensusTimestamp
-    );
+    const gasPriceFromFeeSchedule = this.getGasPriceFromFeeSchedule(ethTransaction, contractResult.consensusTimestamp);
 
-    this.setContractResultsResponse(
+    await this.setContractResultsResponse(
       res,
       contractResult,
       recordFile,
@@ -1335,7 +1328,7 @@ class ContractController extends BaseController {
     };
   };
 
-  setContractResultsResponse = (
+  setContractResultsResponse = async (
     res,
     contractResult,
     recordFile,
@@ -1346,7 +1339,7 @@ class ContractController extends BaseController {
     convertToHbar = true,
     gasPriceFromFeeSchedule = null
   ) => {
-    res.locals[responseDataLabel] = new ContractResultDetailsViewModel(
+    res.locals[responseDataLabel] = await new ContractResultDetailsViewModel(
       contractResult,
       recordFile,
       ethTransaction,
@@ -1355,7 +1348,7 @@ class ContractController extends BaseController {
       fileData,
       convertToHbar,
       gasPriceFromFeeSchedule
-    );
+    ).resolveGasPriceFromFeeSchedule();
   };
 }
 

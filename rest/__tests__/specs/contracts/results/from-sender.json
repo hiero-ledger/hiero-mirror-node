@@ -136,7 +136,7 @@
             "block_number": null,
             "bloom": "0x0909",
             "call_result": "0x0101",
-            "chain_id": null,
+            "chain_id": "0x0128",
             "contract_id": "0.0.5002",
             "created_contract_ids": ["0.0.7002"],
             "error_message": null,
@@ -158,7 +158,7 @@
             "timestamp": "1676540001.234900005",
             "to": "0x000000000000000000000000000000000000138a",
             "transaction_index": 1,
-            "type": null,
+            "type": 0,
             "v": null
           },
           {
@@ -170,7 +170,7 @@
             "block_number": null,
             "bloom": "0x0101",
             "call_result": "0x0202",
-            "chain_id": null,
+            "chain_id": "0x0128",
             "contract_id": "0.0.5001",
             "created_contract_ids": [],
             "error_message": "Not enough gas",
@@ -192,7 +192,7 @@
             "timestamp": "1676540001.234390005",
             "to": "0x0000000000000000000000000000000000001389",
             "transaction_index": 1,
-            "type": null,
+            "type": 0,
             "v": null
           }
         ],
@@ -222,7 +222,7 @@
             "block_number": null,
             "bloom": "0x0909",
             "call_result": "0x0101",
-            "chain_id": null,
+            "chain_id": "0x0128",
             "contract_id": "0.0.5002",
             "created_contract_ids": ["0.0.7002"],
             "error_message": null,
@@ -244,7 +244,7 @@
             "timestamp": "1676540001.234900005",
             "to": "0x000000000000000000000000000000000000138a",
             "transaction_index": 1,
-            "type": null,
+            "type": 0,
             "v": null
           },
           {
@@ -256,7 +256,7 @@
             "block_number": null,
             "bloom": "0x0505",
             "call_result": "0x0606",
-            "chain_id": null,
+            "chain_id": "0x0128",
             "contract_id": "0.0.5001",
             "created_contract_ids": ["0.0.7001"],
             "error_message": null,
@@ -278,7 +278,7 @@
             "timestamp": "1676540001.234500005",
             "to": "0x0000000000000000000000000000000000001389",
             "transaction_index": 1,
-            "type": null,
+            "type": 0,
             "v": null
           },
           {
@@ -290,7 +290,7 @@
             "block_number": null,
             "bloom": "0x0101",
             "call_result": "0x0202",
-            "chain_id": null,
+            "chain_id": "0x0128",
             "contract_id": "0.0.5001",
             "created_contract_ids": [],
             "error_message": "Not enough gas",
@@ -312,7 +312,7 @@
             "timestamp": "1676540001.234390005",
             "to": "0x0000000000000000000000000000000000001389",
             "transaction_index": 1,
-            "type": null,
+            "type": 0,
             "v": null
           }
         ],

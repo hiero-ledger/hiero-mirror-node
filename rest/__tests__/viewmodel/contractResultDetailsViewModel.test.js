@@ -330,6 +330,27 @@ describe('ContractResultDetailsViewModel', () => {
       index: 10,
     };
 
+    const mockEthTransaction = {
+      accessList: null,
+      callData: null,
+      chainId: '012a',
+      consensusTimestamp: '187654000123456',
+      gasLimit: 1234556,
+      gasPrice: 'ad78ebc5ac620000',
+      hash: '185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
+      maxFeePerGas: 'cf38224400',
+      maxPriorityFeePerGas: '76be5e6c00',
+      nonce: 5,
+      payerAccountId: 5000,
+      recoveryId: 1,
+      signatureR: 'b5c21ab4dfd336e30ac2106cad4aa8888b1873a99bce35d50f64d2ec2cc5f6d9',
+      signatureS: '1092806a99727a20c31836959133301b65a2bfa980f9795522d21a254e629110',
+      signatureV: Buffer.from('1b', 'hex'),
+      toAddress: '0000000000000000000000000000000000001389',
+      type: 2,
+      value: '2e90edd000',
+    };
+
     test('type defaults to 0 when ethTransaction is null', () => {
       const viewModel = new ContractResultDetailsViewModel(
         mockContractResult,
@@ -394,10 +415,10 @@ describe('ContractResultDetailsViewModel', () => {
       expect(viewModel.chain_id).toBe('0x0128');
     });
 
-    test('gas_price is set from fee schedule when ethTransaction is null', () => {
+    test('gas_price is set from fee schedule when ethTransaction is null', async () => {
       const gasPriceFromFeeSchedule = 86n; // Example gas price in tinybars
 
-      const viewModel = new ContractResultDetailsViewModel(
+      const viewModel = await new ContractResultDetailsViewModel(
         mockContractResult,
         mockRecordFile,
         null, // no ethTransaction
@@ -405,14 +426,14 @@ describe('ContractResultDetailsViewModel', () => {
         [],
         null,
         true,
-        gasPriceFromFeeSchedule
-      );
+        Promise.resolve(gasPriceFromFeeSchedule)
+      ).resolveGasPriceFromFeeSchedule();
 
       expect(viewModel.gas_price).toBe('0x56'); // 86 in hex
     });
 
-    test('gas_price remains null when ethTransaction is null and no fee schedule gas price', () => {
-      const viewModel = new ContractResultDetailsViewModel(
+    test('gas_price remains null when ethTransaction is null and no fee schedule gas price', async () => {
+      const viewModel = await new ContractResultDetailsViewModel(
         mockContractResult,
         mockRecordFile,
         null, // no ethTransaction
@@ -420,11 +441,60 @@ describe('ContractResultDetailsViewModel', () => {
         [],
         null,
         true,
-        null // no gas price from fee schedule
-      );
+        Promise.resolve(null)
+      ).resolveGasPriceFromFeeSchedule();
 
       // gas_price should be null when there's no ethTransaction and no fee schedule gas price
       expect(viewModel.gas_price).toBeNull();
+    });
+
+    test('fee schedule promise is not awaited when ethTransaction provides gas price', async () => {
+      let promiseResolved = false;
+      const ethTransaction = {
+        accessList: null,
+        callData: null,
+        chainId: '012a',
+        consensusTimestamp: '187654000123456',
+        gasLimit: 1234556,
+        gasPrice: 'ad78ebc5ac620000',
+        hash: '185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
+        maxFeePerGas: 'cf38224400',
+        maxPriorityFeePerGas: '76be5e6c00',
+        nonce: 5,
+        payerAccountId: 5000,
+        recoveryId: 1,
+        signatureR: 'b5c21ab4dfd336e30ac2106cad4aa8888b1873a99bce35d50f64d2ec2cc5f6d9',
+        signatureS: '1092806a99727a20c31836959133301b65a2bfa980f9795522d21a254e629110',
+        signatureV: Buffer.from('1b', 'hex'),
+        toAddress: '0000000000000000000000000000000000001389',
+        type: 2,
+        value: '2e90edd000',
+      };
+      let resolveGasPrice;
+      const gasPricePromise = new Promise((resolve) => {
+        resolveGasPrice = () => {
+          promiseResolved = true;
+          resolve(86n);
+        };
+      });
+
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult,
+        mockRecordFile,
+        ethTransaction,
+        [],
+        [],
+        null,
+        true,
+        gasPricePromise
+      );
+
+      expect(promiseResolved).toBe(false);
+      expect(viewModel.gas_price).toBe('0x4a817c80');
+
+      await viewModel.resolveGasPriceFromFeeSchedule();
+      expect(promiseResolved).toBe(false);
+      resolveGasPrice();
     });
 
     test('returns access_list from db jsonb', () => {

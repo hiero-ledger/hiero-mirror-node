@@ -68,11 +68,12 @@ class FeeSchedule {
       }
 
       const feeData = schedule.fees[0];
-      if (!feeData?.serviceData) {
+      const serviceData = feeData?.servicedata ?? feeData?.serviceData;
+      if (!serviceData) {
         continue;
       }
 
-      const gas = feeData.serviceData.gas;
+      const gas = serviceData.gas;
       const tinyBars = this.convertGasPriceToTinyBars(gas, exchangeRate.hbarEquiv, exchangeRate.centEquiv);
 
       if (tinyBars !== null) {
@@ -84,7 +85,7 @@ class FeeSchedule {
   }
 
   convertGasPriceToTinyBars(gasPrice, hbars, cents) {
-    if (!isNumber(gasPrice) || !isNumber(hbars) || !isNumber(cents)) {
+    if (gasPrice == null || !isNumber(hbars) || !isNumber(cents)) {
       return null;
     }
 

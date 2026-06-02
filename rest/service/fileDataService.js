@@ -8,6 +8,10 @@ import {ExchangeRate, FeeSchedule, FileData} from '../model';
 import * as utils from '../utils';
 import EntityId from '../entityId';
 
+const NANOSECONDS_PER_SECOND = 1_000_000_000;
+const SECONDS_PER_HOUR = 3600;
+const NANOSECONDS_PER_HOUR = NANOSECONDS_PER_SECOND * SECONDS_PER_HOUR;
+
 /**
  * File data retrieval business logic
  */
@@ -124,24 +128,6 @@ class FileDataService extends BaseService {
     return gasPrice;
   };
 
-  #getRefTimestamp(filterQueries) {
-    const {whereQuery} = filterQueries;
-    for (const filter of whereQuery) {
-      if (filter.query.trim().startsWith(FileData.CONSENSUS_TIMESTAMP)) {
-        return BigInt(filter.param);
-      }
-    }
-    return null;
-  }
-
-  #getFeeScheduleKey(filterQueries) {
-    const refTimestamp = this.#getRefTimestamp(filterQueries);
-    if (refTimestamp === null) {
-      return 'latest';
-    }
-    return Math.floor(Number(refTimestamp) / 3_600_000_000_000) * 3600;
-  }
-
   fallbackRetry = async (fileEntityId, filterQueries, resultConstructor) => {
     const whereQuery = filterQueries.whereQuery ?? [];
     const filters = {whereQuery};
@@ -167,6 +153,35 @@ class FileDataService extends BaseService {
     }
 
     return null;
+  };
+
+  #getFeeScheduleKey(filterQueries) {
+    const refTimestamp = this.#getRefTimestamp(filterQueries);
+    if (refTimestamp === null) {
+      return 'latest';
+    }
+    return this.#truncateToStartOfHour(refTimestamp);
+  }
+
+  #getRefTimestamp(filterQueries) {
+    const {whereQuery} = filterQueries;
+    for (const filter of whereQuery) {
+      if (filter.query.trim().startsWith(FileData.CONSENSUS_TIMESTAMP)) {
+        return BigInt(filter.param);
+      }
+    }
+    return null;
+  }
+
+  #truncateToStartOfHour(refTimestampNs) {
+    const hours = Number(refTimestampNs) / NANOSECONDS_PER_HOUR;
+    const roundHours = Math.floor(hours);
+
+    return roundHours * SECONDS_PER_HOUR;
+  }
+
+  clearFeeScheduleCache = () => {
+    this.#feeScheduleCache.clear();
   };
 }
 
