@@ -2,7 +2,17 @@
 
 package org.hiero.mirror.importer.reader.block;
 
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.*;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_FOOTER;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_HEADER;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_PROOF;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.EVENT_HEADER;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.RECORD_FILE;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.ROUND_HEADER;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.SIGNED_TRANSACTION;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.STATE_CHANGES;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRACE_DATA;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_OUTPUT;
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_RESULT;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
@@ -17,7 +27,11 @@ import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Objects;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
