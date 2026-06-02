@@ -100,7 +100,7 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
                     from record_file_slice rf
                     left join transaction t on t.consensus_timestamp >= rf.consensus_start
                             and t.consensus_timestamp <= rf.consensus_end
-                            and t.consensus_timestamp > :consensusEndLowerBound - 10_000_000_000
+                            and t.consensus_timestamp > :consensusEndLowerBound - 10000000000
                             and t.consensus_timestamp <= :consensusEndUpperBound
                     group by rf.consensus_start, rf.consensus_end, rf.count
                     having rf.count != count(t.consensus_timestamp)::bigint
@@ -199,8 +199,6 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
         if (minTimestamp != null) {
             return minTimestamp;
         }
-
-        log.info("No minimum consensus_end configured for network {}; processing all record_file rows", network);
         return 0L;
     }
 

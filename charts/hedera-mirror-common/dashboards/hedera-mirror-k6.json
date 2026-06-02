@@ -42,12 +42,14 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
-            "gradientMode": "none",
+            "gradientMode": "opacity",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
@@ -55,12 +57,16 @@
             },
             "insertNulls": false,
             "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
             "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -77,7 +83,7 @@
             "steps": [
               {
                 "color": "red",
-                "value": null
+                "value": 0
               },
               {
                 "color": "green",
@@ -86,27 +92,34 @@
             ]
           },
           "unit": "percentunit"
-        },
-        "overrides": []
+        }
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 24,
         "x": 0,
         "y": 0
       },
       "id": 1,
       "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
         "legend": {
           "calcs": [
-            "lastNotNull",
-            "min"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Name",
+          "sortDesc": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
@@ -114,12 +127,13 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace, scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",passed=\"true\"}[$__rate_interval]))) / sum by (namespace, scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval]))) or sum by (namespace, scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])) * 0)",
-          "interval": "1m",
-          "legendFormat": "{{namespace}} {{scenario}} {{url}}",
+          "expr": "sum by (namespace, scenario, suite, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\",passed=\"true\"}[$__rate_interval]))) / sum by (namespace, scenario, suite, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\"}[$__rate_interval]))) or sum by (namespace, scenario, suite, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\"}[$__rate_interval])) * 0)",
+          "interval": "",
+          "legendFormat": "{{scenario}}",
           "range": true,
           "refId": "A"
         }
@@ -132,7 +146,7 @@
         "type": "prometheus",
         "uid": "${prometheus}"
       },
-      "description": "Total requests per second across all scenarios",
+      "description": "Total passed requests per second across all scenarios",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -142,9 +156,11 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -161,6 +177,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -176,32 +193,39 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               }
             ]
           },
-          "unit": "reqps"
-        },
-        "overrides": []
+          "unit": "none"
+        }
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 0
+        "w": 24,
+        "x": 0,
+        "y": 8
       },
       "id": 2,
       "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
         "legend": {
           "calcs": [
-            "lastNotNull",
+            "min",
+            "max",
             "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Name",
+          "sortDesc": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
@@ -209,17 +233,18 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace, scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])))",
-          "interval": "1m",
-          "legendFormat": "{{namespace}} {{scenario}} {{url}}",
+          "expr": "histogram_count(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\",passed=\"true\"}) * 1000 / on (namespace, scenario, suite) k6_scenario_duration{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\"}",
+          "interval": "",
+          "legendFormat": "{{scenario}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Requests per Second",
+      "title": "Pass RPS",
       "type": "timeseries"
     },
     {
@@ -227,7 +252,7 @@
         "type": "prometheus",
         "uid": "${prometheus}"
       },
-      "description": "Average request duration per scenario",
+      "description": "Average pass request duration per scenario",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -237,9 +262,11 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -256,6 +283,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -271,33 +299,39 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               }
             ]
           },
           "unit": "s"
-        },
-        "overrides": []
+        }
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 24,
         "x": 0,
-        "y": 8
+        "y": 16
       },
       "id": 3,
       "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
         "legend": {
           "calcs": [
-            "lastNotNull",
-            "mean",
-            "max"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Name",
+          "sortDesc": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
@@ -305,17 +339,18 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace, scenario, url) (histogram_sum(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval]))) / sum by (namespace, scenario, url) (histogram_count(rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])))",
-          "interval": "1m",
-          "legendFormat": "{{namespace}} {{scenario}} {{url}}",
+          "expr": "sum by (namespace, scenario, suite) (histogram_sum(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\",passed=\"true\"}) / histogram_count(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\",passed=\"true\"}))",
+          "interval": "",
+          "legendFormat": "{{scenario}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average Request Duration",
+      "title": "Average Pass Request Duration",
       "type": "timeseries"
     },
     {
@@ -333,9 +368,11 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -352,6 +389,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -367,33 +405,39 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               }
             ]
           },
           "unit": "s"
-        },
-        "overrides": []
+        }
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 8
+        "w": 24,
+        "x": 0,
+        "y": 24
       },
       "id": 4,
       "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
         "legend": {
           "calcs": [
-            "lastNotNull",
-            "mean",
-            "max"
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Name",
+          "sortDesc": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
@@ -401,22 +445,226 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (namespace, scenario, url) (rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\"}[$__rate_interval])))",
-          "interval": "1m",
-          "legendFormat": "{{namespace}} {{scenario}} {{url}}",
+          "expr": "histogram_quantile(0.95, sum by (namespace, scenario, suite) (rate(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\"}[$__rate_interval])))",
+          "interval": "",
+          "legendFormat": "{{scenario}}",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "P95 Request Duration",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "mixed",
+        "uid": "-- Mixed --"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false,
+            "styleField": "Value",
+            "wrapHeaderText": false,
+            "wrapText": false
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#dbccda6b",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rps",
+              "scope": "series"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Overall RPS"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "duration",
+              "scope": "series"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Avg. Pass Request Duration"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pass_rps",
+              "scope": "series"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Pass RPS"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pass_rate",
+              "scope": "series"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Pass Rate"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 15,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "id": 5,
+      "options": {
+        "cellHeight": "sm",
+        "enablePagination": false,
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "scenario"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "app": "grafana-assistant-app",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "last_over_time(\n  (\n    sum by (scenario, suite) (\n      histogram_count(\n        k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\"}\n      )\n    ) * 1000\n    / on (scenario, suite) k6_scenario_duration{namespace=~\"$namespace\", scenario=~\"$scenario\", suite=~\"$suite\"}\n  )[$__range:])",
+          "hide": true,
+          "instant": true,
+          "legendFormat": "__auto",
+          "queryType": "instant",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "app": "grafana-assistant-app",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "last_over_time(\n  (\n    sum by (scenario, suite) (\n      histogram_count(\n        k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\", passed=\"true\"}\n      )\n    ) * 1000\n    / on (scenario, suite) k6_scenario_duration{namespace=~\"$namespace\", scenario=~\"$scenario\", suite=~\"$suite\"}\n  )[$__range:])",
+          "hide": true,
+          "instant": true,
+          "legendFormat": "__auto",
+          "queryType": "instant",
+          "range": false,
+          "refId": "B"
+        },
+        {
+          "app": "grafana-assistant-app",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "expr": "last_over_time(\n  (\n    sum by (scenario, suite) (\n      histogram_sum(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\",passed=\"true\"})\n      / histogram_count(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\",passed=\"true\"})\n    )\n  )[$__range:])",
+          "hide": true,
+          "instant": true,
+          "legendFormat": "__auto",
+          "queryType": "instant",
+          "range": false,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "label_replace(\n  last_over_time(sum by (scenario, suite, url) (k6_http_reqs_total{suite=~\"$suite\"})[$__range:]),\n  \"url\", \"$1\", \"url\", \"^.*/api/v1(.*)\"\n)",
+          "format": "time_series",
+          "hide": true,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "D"
+        },
+        {
+          "app": "grafana-assistant-app",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "SELECT A.scenario, A.suite, D.url, A.__value__ AS rps, coalesce(B.__value__, 0) AS pass_rps, C.__value__ * 1000 AS duration, coalesce(B.__value__, 0) * 100.0 / A.__value__ as pass_rate\nFROM A\nLEFT JOIN B using(scenario, suite)\nLEFT JOIN C using(scenario, suite)\nLEFT JOIN D using(scenario, suite)\nORDER BY A.scenario",
+          "refId": "F",
+          "type": "sql"
+        }
+      ],
+      "title": "Summary",
+      "transparent": true,
+      "type": "table"
     }
   ],
+  "preload": false,
   "refresh": "1m",
-  "schemaVersion": 41,
+  "schemaVersion": 42,
   "tags": [
     "hiero",
     "k6",
@@ -426,21 +674,26 @@
   "templating": {
     "list": [
       {
+        "allowCustomValue": true,
         "current": {
           "text": "default",
           "value": "default"
         },
         "description": "Name of the Prometheus datasource to use",
+        "hide": 0,
         "includeAll": false,
         "label": "Prometheus",
+        "multi": false,
         "name": "prometheus",
         "options": [],
         "query": "prometheus",
         "refresh": 1,
         "regex": ".*(?<!usage)",
+        "skipUrlSync": false,
         "type": "datasource"
       },
       {
+        "allowCustomValue": true,
         "current": {
           "text": "All",
           "value": "$__all"
@@ -449,23 +702,28 @@
           "type": "prometheus",
           "uid": "${prometheus}"
         },
-        "definition": "label_values(k6_requests_seconds, namespace)",
+        "definition": "label_values(k6_requests_seconds,namespace)",
         "description": "Kubernetes namespace",
+        "hide": 0,
         "includeAll": true,
         "label": "Namespace",
         "multi": true,
         "name": "namespace",
         "options": [],
         "query": {
-          "query": "label_values(k6_requests_seconds, namespace)",
-          "refId": "StandardVariableQuery"
+          "qryType": 1,
+          "query": "label_values(k6_requests_seconds,namespace)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
         "regex": "",
+        "regexApplyTo": "value",
+        "skipUrlSync": false,
         "sort": 1,
         "type": "query"
       },
       {
+        "allowCustomValue": true,
         "current": {
           "text": "All",
           "value": "$__all"
@@ -474,19 +732,53 @@
           "type": "prometheus",
           "uid": "${prometheus}"
         },
-        "definition": "label_values(k6_requests_seconds{namespace=~\"$namespace\"}, scenario)",
+        "definition": "label_values(k6_requests_seconds{namespace=~\"$namespace\"},scenario)",
         "description": "k6 test scenario name",
+        "hide": 0,
         "includeAll": true,
         "label": "Scenario",
         "multi": true,
         "name": "scenario",
         "options": [],
         "query": {
-          "query": "label_values(k6_requests_seconds{namespace=~\"$namespace\"}, scenario)",
-          "refId": "StandardVariableQuery"
+          "qryType": 1,
+          "query": "label_values(k6_requests_seconds{namespace=~\"$namespace\"},scenario)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
         "regex": "",
+        "regexApplyTo": "value",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allowCustomValue": true,
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${prometheus}"
+        },
+        "definition": "label_values(k6_requests_seconds{namespace=~\"$namespace\"},suite)",
+        "description": "k6 test suite",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Suite",
+        "multi": true,
+        "name": "suite",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(k6_requests_seconds{namespace=\"$namespace\"},suite)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "regexApplyTo": "value",
+        "skipUrlSync": false,
         "sort": 1,
         "type": "query"
       }

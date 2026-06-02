@@ -253,9 +253,39 @@ function log() {
   echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") ${1}" >& 2
 }
 
+function fail() {
+  log "ERROR: $*"
+  exit 1
+}
+
+function requireCommand() {
+  command -v "$1" >/dev/null 2>&1 || fail "Required command '$1' was not found"
+}
+
 function readUserInput() {
   read -p "${1}" input
   echo "${input}"
+}
+
+function getStackgresPrimaryLabels() {
+  local namespace="${1}"
+
+  while true; do
+    if kubectl get pods -n "${namespace}" -l 'app=StackGresCluster,role=primary' \
+        --no-headers 2>/dev/null | grep -q .; then
+      echo "app=StackGresCluster,role=primary"
+      return 0
+    fi
+
+    if kubectl get pods -n "${namespace}" -l 'app=StackGresCluster,role=master' \
+        --no-headers 2>/dev/null | grep -q .; then
+      echo "app=StackGresCluster,role=master"
+      return 0
+    fi
+
+    log "Unable to determine StackGres primary/master pod labels in namespace ${namespace}. Retrying ..."
+    sleep 10
+  done
 }
 
 function scaleDeployment() {
@@ -299,7 +329,8 @@ function suspendCommonChart() {
 
 function resumeCommonChart() {
   if ! kubectl get helmrelease -n "${COMMON_NAMESPACE}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
-    log "HelmRelease ${HELM_RELEASE_NAME} not found in namespace ${COMMON_NAMESPACE}; nothing to resume"
+    log "HelmRelease ${HELM_RELEASE_NAME} not found in namespace ${COMMON_NAMESPACE}; nothing to resume. Deploy common chart and continue."
+    doContinue
     return 0
   fi
 
@@ -359,9 +390,8 @@ function unrouteTraffic() {
     else
       log "No helm release found in namespace ${namespace}. Skipping suspend"
     fi
-
-    scaleDeployment "${namespace}" 0 "app.kubernetes.io/component=monitor"
   fi
+  scaleDeployment "${namespace}" 0 "app.kubernetes.io/component=monitor"
   scaleDeployment "${namespace}" 0 "app.kubernetes.io/component=importer"
 }
 
@@ -565,26 +595,48 @@ function pauseCitus() {
   fi
 }
 
+function waitForPrimaryPods() {
+  local namespace="${1}"
+  local expectedTotal pods stackgresPrimaryLabels
+
+  stackgresPrimaryLabels="$(getStackgresPrimaryLabels "${namespace}")"
+
+  expectedTotal=$(($(kubectl get sgshardedclusters -n "${namespace}" \
+    -o jsonpath='{.items[0].spec.shards.clusters}') + 1))
+
+  while true; do
+    mapfile -t pods < <(
+      kubectl get pods -n "${namespace}" \
+        -l "${stackgresPrimaryLabels}" \
+        -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
+    )
+
+    if [[ "${#pods[@]}" -eq "${expectedTotal}" ]]; then
+      log "Found all ${expectedTotal} primary pods in namespace ${namespace}"
+      printf '%s\n' "${pods[@]}"
+      return 0
+    fi
+
+    log "Expected ${expectedTotal} primary pods and found ${#pods[@]} in namespace ${namespace}. Retrying..."
+    sleep 10
+  done
+}
+
 function waitForPatroniMasters() {
   local namespace="${1}"
-  local expectedTotal masterPods
-  expectedTotal=$(($(kubectl get sgshardedclusters -n "${namespace}" -o jsonpath='{.items[0].spec.shards.clusters}') + 1))
-  while true; do
-    mapfile -t masterPods < <(kubectl get pods -n "${namespace}" -l "${STACKGRES_MASTER_LABELS}" -o name)
-    if [[ "${#masterPods[@]}" -eq "${expectedTotal}" ]]; then
-      break;
-    else
-      log "Expected ${expectedTotal} master pods and found only ${#masterPods[@]} in namespace ${namespace}. retrying"
-    fi
-  done
+  local expectedTotal masterPods patroniPod
 
-  local patroniPod="${masterPods[0]}"
+  expectedTotal=$(($(kubectl get sgshardedclusters -n "${namespace}" \
+    -o jsonpath='{.items[0].spec.shards.clusters}') + 1))
+
+  mapfile -t masterPods < <(waitForPrimaryPods "${namespace}")
+  patroniPod="${masterPods[0]}"
 
   while [[ "$(kubectl exec -n "${namespace}" "${patroniPod}" -c patroni -- patronictl list --format=json |
     jq -r --arg PATRONI_MASTER_ROLE "${PATRONI_MASTER_ROLE}" \
       --arg EXPECTED_MASTERS "${expectedTotal}" \
       'map(select(.Role == $PATRONI_MASTER_ROLE)) |
-                     length == ($EXPECTED_MASTERS | tonumber) and all(.State == "running")')" != "true" ]]; do
+       length == ($EXPECTED_MASTERS | tonumber) and all(.State == "running")')" != "true" ]]; do
     log "Waiting for Patroni to be ready"
     sleep 5
   done
@@ -636,16 +688,55 @@ function waitForStatefulSetPodsStarted() {
   done
 }
 
+function waitForSGClusterReady() {
+  local namespace="${1}"
+  local cluster="${2}"
+  local updateCreds="${3:-false}"
+  local expected
+
+  log "Waiting for cluster ${cluster} pods to start"
+
+  waitForStatefulSetPodsStarted "${namespace}" "${cluster}"
+
+  log "Resuming Patroni for ${cluster}"
+  resumePatroni "${namespace}" "${cluster}"
+
+  if [[ "${updateCreds}" == "true" ]]; then
+    local pod="${cluster}-0"
+    waitForPodReady "${namespace}" "${pod}"
+    updateStackgresCreds "${HELM_RELEASE_NAME}-citus" "${namespace}" "${pod}"
+  fi
+
+  expected="$(kubectl get sts "${cluster}" -n "${namespace}" -o jsonpath='{.spec.replicas}')"
+  log "Waiting for ${expected} replicas in ${cluster}"
+
+  while true; do
+    if kubectl wait \
+      --for=jsonpath="{.status.readyReplicas}=${expected}" \
+      sts "${cluster}" \
+      -n "${namespace}" \
+      --timeout=10s >/dev/null 2>&1; then
+      break
+    fi
+
+    log "StatefulSet ${cluster} not ready yet. Retrying..."
+    sleep 5
+  done
+
+  log "Cluster ${cluster} is ready"
+}
+
 function unpauseCitus() {
   local namespace="${1}"
   local reinitializeCitus="${2:-false}"
+  local updateCreds="${3:-false}"
   local citusPods
   citusPods=$(kubectl get pods -n "${namespace}" -l 'stackgres.io/cluster=true' -o 'jsonpath={.items[*].metadata.name}')
 
   if [[ -z "${citusPods}" ]]; then
     log "Starting citus cluster in namespace ${namespace}"
     if [[ "${reinitializeCitus}" == "true" ]]; then
-      kubectl annotate endpoints -n "${namespace}" -l 'stackgres.io/cluster=true' initialize- --overwrite
+      kubectl delete endpoints -n "${namespace}" -l 'stackgres.io/cluster=true' --ignore-not-found
     fi
     kubectl annotate sgclusters.stackgres.io -n "${namespace}" --all stackgres.io/reconciliation-pause- --overwrite
 
@@ -660,12 +751,8 @@ function unpauseCitus() {
     done
 
     log "Waiting for all StackGresCluster pods to be ready"
-    for sts in $(kubectl get sts -n "${namespace}" -l 'app=StackGresCluster' -o name); do
-      waitForStatefulSetPodsStarted "${namespace}" "${sts##*/}"
-      resumePatroni "${namespace}" "${sts##*/}"
-      expected=$(kubectl get "${sts}" -n "${namespace}" -o jsonpath='{.spec.replicas}')
-      log "Waiting for ${expected} replicas in ${sts}"
-      kubectl wait --for=jsonpath='{.status.readyReplicas}'=${expected} "${sts}" -n "${namespace}" --timeout=-1s
+    for sts in $(kubectl get sts -n "${namespace}" -l 'app=StackGresCluster' -o jsonpath='{.items[*].metadata.name}'); do
+      waitForSGClusterReady "${namespace}" "${sts}" "${reinitializeCitus}" "${updateCreds}"
     done
 
     patroniFailoverToFirstPod "${namespace}" # Ensure there is a marked primary
@@ -778,6 +865,7 @@ function resizeCitusNodePools() {
 function updateStackgresCreds() {
   local cluster="${1}"
   local namespace="${2}"
+  local primaryPod="${3}"
   local sgPasswords=$(kubectl get secret -n "${namespace}" "${cluster}" -o json |
     jq -r '.data')
   maskJsonValues "${sgPasswords}"
@@ -842,16 +930,14 @@ insert into pg_dist_authinfo(nodeid, rolename, authinfo)
 EOF
   )
 
-  log "Fixing passwords and pg_dist_authinfo for all pods in the cluster"
-  for pod in $(kubectl get pods -n "${namespace}" -l "${STACKGRES_MASTER_LABELS}" -o name); do
-    waitUntilOutOfRecovery "${namespace}" "${pod}"
-    log "Updating passwords and pg_dist_authinfo for ${pod}"
-    if ! kubectl exec -n "${namespace}" -i "${pod}" -c postgres-util -- \
-       psql -v ON_ERROR_STOP=1 -U "${superuserUsername}" -f - <<< "${sql}"; then
-       log "Failed to update passwords in pod ${pod}"
-       exit 1
-     fi
-  done
+  waitUntilOutOfRecovery "${namespace}" "${pod}"
+
+  log "Updating passwords and pg_dist_authinfo for ${pod}"
+  if ! kubectl exec -n "${namespace}" -i "${pod}" -c postgres-util -- \
+     psql -v ON_ERROR_STOP=1 -U "${superuserUsername}" -f - <<< "${sql}"; then
+     log "Failed to update passwords in pod ${pod}"
+     exit 1
+   fi
 }
 
 function pauseClustersIfNeeded() {
@@ -903,6 +989,27 @@ function setCitusNamespaces() {
     )
 }
 
+function waitForPodReady() {
+  local namespace="${1}"
+  local pod="${2}"
+  local timeout="${3:-60s}"
+
+  log "Waiting for pod ${pod} in namespace ${namespace} to be Ready"
+
+  while true; do
+    if kubectl wait pod "${pod}" \
+      -n "${namespace}" \
+      --for=condition=Ready \
+      --timeout="${timeout}" >/dev/null 2>&1; then
+      log "Pod ${pod} is Ready"
+      return 0
+    fi
+
+    log "Pod ${pod} not ready yet, retrying..."
+    sleep 5
+  done
+}
+
 AUTO_CONFIRM="${AUTO_CONFIRM:-false}"
 AUTO_UNROUTE="${AUTO_UNROUTE:-true}"
 CITUS_NAMESPACES=
@@ -914,8 +1021,11 @@ KUSTOMIZATION_NAME="${KUSTOMIZATION_NAME:-flux-system}"
 KUSTOMIZATION_NAMESPACE="${KUSTOMIZATION_NAMESPACE:-flux-system}"
 PATRONI_MASTER_ROLE="${PATRONI_MASTER_ROLE:-Leader}"
 PAUSE_CLUSTER="${PAUSE_CLUSTER:-true}"
-STACKGRES_MASTER_LABELS="${STACKGRES_MASTER_LABELS:-app=StackGresCluster,role=master}"
 ZFS_POOL_NAME="${ZFS_POOL_NAME:-zfspv-pool}"
 WAIT_FOR_STREAM_SYNC="${WAIT_FOR_STREAM_SYNC:-true}"
 
 alias kubectl_common="kubectl -n ${COMMON_NAMESPACE}"
+
+requireCommand kubectl
+requireCommand jq
+requireCommand yq

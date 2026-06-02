@@ -309,6 +309,10 @@ function patchBackupPaths() {
 }
 
 function scaleupResources() {
+  if [[ "${REQUIRE_CLEAN_TARGET}" == "false" ]]; then
+    return 0;
+  fi
+
   waitForClusterOperations "${DEFAULT_POOL_NAME}"
 
   gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
