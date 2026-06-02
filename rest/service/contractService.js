@@ -356,13 +356,15 @@ class ContractService extends BaseService {
     const syntheticRows = await super.getRows(syntheticQuery, syntheticParams);
 
     const isDesc = order === orderFilterValues.DESC;
-    const merged = [...rows, ...syntheticRows]
-      .sort((rowA, rowB) => {
-        const timestampA = BigInt(rowA[ContractResult.CONSENSUS_TIMESTAMP]);
-        const timestampB = BigInt(rowB[ContractResult.CONSENSUS_TIMESTAMP]);
-        return isDesc ? Number(timestampB - timestampA) : Number(timestampA - timestampB);
-      })
-      .slice(0, limit);
+    const merged = [];
+    let i = 0;
+    let j = 0;
+    while (merged.length < limit && (i < rows.length || j < syntheticRows.length)) {
+      const aTs = i < rows.length ? BigInt(rows[i][ContractResult.CONSENSUS_TIMESTAMP]) : null;
+      const bTs = j < syntheticRows.length ? BigInt(syntheticRows[j][ContractResult.CONSENSUS_TIMESTAMP]) : null;
+      const pickA = aTs !== null && (bTs === null || (isDesc ? aTs >= bTs : aTs <= bTs));
+      merged.push(pickA ? rows[i++] : syntheticRows[j++]);
+    }
 
     return merged.map((cr) => ({...new ContractResult(cr), hash: cr.hash}));
   }

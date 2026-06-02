@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -23,6 +24,11 @@ class ContractLogSyntheticBackfillMigrationTest
     private final ContractLogSyntheticBackfillMigration migration;
 
     private final ContractLogRepository contractLogRepository;
+
+    @BeforeEach
+    void dropProgressTable() {
+        ownerJdbcTemplate.execute("drop table if exists contract_log_synthetic_progress_temp");
+    }
 
     @Test
     void emptyDatabase() {
@@ -78,7 +84,7 @@ class ContractLogSyntheticBackfillMigrationTest
     }
 
     @Test
-    void backfillsNullRowWhenContractResultHasDifferentContractId() {
+    void preservesRowWhenContractResultHasDifferentContractId() {
         // given
         var contractLog = domainBuilder
                 .contractLog()
@@ -95,7 +101,7 @@ class ContractLogSyntheticBackfillMigrationTest
         waitForCompletion();
 
         // then
-        assertThat(findSynthetic(contractLog.getConsensusTimestamp())).isTrue();
+        assertThat(findSynthetic(contractLog.getConsensusTimestamp())).isNull();
     }
 
     @Test

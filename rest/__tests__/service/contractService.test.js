@@ -398,6 +398,34 @@ describe('ContractService.getContractResultsByIdAndFilters - synthetic inclusion
     expect(response[1]).toMatchObject({consensusTimestamp: 20, gasLimit: 0}); // synthetic
   });
 
+  test('Synthetic log with higher timestamp than real result appears first in desc order', async () => {
+    await integrationDomainOps.loadContractResults([
+      {
+        contract_id: entityId2.num,
+        consensus_timestamp: 10,
+        transaction_nonce: 0,
+      },
+    ]);
+    await integrationDomainOps.addSyntheticContractLog({
+      consensus_timestamp: 20,
+      contract_id: entityId3.num,
+      transaction_hash: Buffer.alloc(32, 0xcc),
+      transaction_index: 2,
+    });
+
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['cr.transaction_nonce = 0'],
+      [],
+      'desc',
+      25,
+      true
+    );
+
+    expect(response).toHaveLength(2);
+    expect(response[0]).toMatchObject({consensusTimestamp: 20, gasLimit: 0}); // synthetic first (higher ts)
+    expect(response[1]).toMatchObject({consensusTimestamp: 10, gasLimit: 1000}); // real second
+  });
+
   test('Old-style synthetic log (synthetic null) does not appear in results', async () => {
     // Historical rows (pre-2026-04-16) have synthetic=null; synthetic=true filter excludes them.
     // A backfill is planned as a follow-up to include these historical rows.
