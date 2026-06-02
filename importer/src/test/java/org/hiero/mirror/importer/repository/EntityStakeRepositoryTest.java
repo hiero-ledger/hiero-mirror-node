@@ -987,6 +987,60 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void getChunkUpperBoundEntityId() {
+        // given
+        final long epochDay = 100L;
+        final long nodeStakeTs = DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
+
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.epochDay(epochDay).consensusTimestamp(nodeStakeTs))
+                .persist();
+        domainBuilder.entity(stakingRewardAccountId, nodeStakeTs - 10).persist();
+
+        // eligible: three accounts staking to a node
+        domainBuilder
+                .entity(10L, nodeStakeTs - 1)
+                .customize(e -> e.stakedNodeId(1L).stakedAccountId(0L).declineReward(false))
+                .persist();
+        domainBuilder
+                .entity(20L, nodeStakeTs - 1)
+                .customize(e -> e.stakedNodeId(1L).stakedAccountId(0L).declineReward(false))
+                .persist();
+        domainBuilder
+                .entity(30L, nodeStakeTs - 1)
+                .customize(e -> e.stakedNodeId(1L).stakedAccountId(0L).declineReward(false))
+                .persist();
+
+        // ineligible: deleted
+        domainBuilder
+                .entity(40L, nodeStakeTs - 1)
+                .customize(e -> e.stakedNodeId(1L).deleted(true))
+                .persist();
+        // ineligible: no staking preference
+        domainBuilder
+                .entity(50L, nodeStakeTs - 1)
+                .customize(e -> e.stakedNodeId(-1L).stakedAccountId(0L).declineReward(true))
+                .persist();
+
+        // chunkSize=2 from the start: candidates are [10, 20], upper bound = 20
+        assertThat(entityStakeRepository.getChunkUpperBoundEntityId(stakingRewardAccountId, epochDay, 0L, 2))
+                .contains(20L);
+
+        // chunkSize=2 starting after 20: only [30] remains, upper bound = 30
+        assertThat(entityStakeRepository.getChunkUpperBoundEntityId(stakingRewardAccountId, epochDay, 20L, 2))
+                .contains(30L);
+
+        // no eligible entities beyond 30
+        assertThat(entityStakeRepository.getChunkUpperBoundEntityId(stakingRewardAccountId, epochDay, 30L, 2))
+                .isEmpty();
+
+        // unknown epoch day has no node_stake row → epoch_timestamp CTE is empty → no matches
+        assertThat(entityStakeRepository.getChunkUpperBoundEntityId(stakingRewardAccountId, 999L, 0L, 10))
+                .isEmpty();
+    }
+
+    @Test
     void chunkProgressIsResumable() {
         final long endStakePeriod = 123L;
 

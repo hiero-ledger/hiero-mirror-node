@@ -108,6 +108,36 @@ class EntityStakeChunkingIntegrationTest extends ImporterIntegrationTest {
         assertThat(entityStakeRepository.getLastProcessedEntityId(epochDay)).isEmpty();
     }
 
+    @Test
+    void calculateWithResumeFalseIgnoresPartialProgress() {
+        final long epochDay = setupCrossChunkProxyScenario();
+
+        transactionOperations.executeWithoutResult(s -> {
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.updateEntityStake(stakingRewardAccountId);
+        });
+        final List<EntityStake> expected = StreamSupport.stream(
+                        entityStakeRepository.findAll().spliterator(), false)
+                .toList();
+
+        resetStakeTables();
+
+        // Simulate leftover completed progress from a previous resume=true run.
+        transactionOperations.executeWithoutResult(s -> entityStakeRepository.saveProgress(epochDay, TARGET_ID, true));
+
+        entityProperties.getPersist().setPendingRewardChunkResume(false);
+        entityProperties.getPersist().setPendingRewardChunkSize(1);
+        entityStakeCalculator.calculate();
+        await().atMost(Durations.TEN_SECONDS)
+                .pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
+                .untilAsserted(() -> assertThat(entityStakeRepository.findAll())
+                        .usingRecursiveFieldByFieldElementComparator()
+                        .containsExactlyInAnyOrderElementsOf(expected));
+
+        // resume=false never saves progress, and deleteCompletedProgress cleans up the old completed record.
+        assertThat(entityStakeRepository.getLastProcessedEntityId(epochDay)).isEmpty();
+    }
+
     /**
      * Low-id proxy staker ({@value #STAKER_ID}) stakes to high-id node target ({@value #TARGET_ID}) with chunk
      * boundary {@value #SPLIT_ID} between them so proxy totals must come from the full-period snapshot.

@@ -4,8 +4,6 @@ package org.hiero.mirror.importer.parser.record.entity.staking;
 
 import com.google.common.base.Stopwatch;
 import jakarta.inject.Named;
-import java.time.Duration;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -40,9 +38,7 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
             final var stakingRewardAccountId =
                     systemEntity.stakingRewardAccount().getId();
             final var chunkSize = Math.max(1, entityProperties.getPersist().getPendingRewardChunkSize());
-            final var chunkDelay = Optional.ofNullable(
-                            entityProperties.getPersist().getPendingRewardChunkDelay())
-                    .orElse(Duration.ZERO);
+            final var chunkDelay = entityProperties.getPersist().getPendingRewardChunkDelay();
             final boolean resume = entityProperties.getPersist().isPendingRewardChunkResume();
 
             while (true) {
@@ -108,13 +104,15 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
                                 chunkStartEntityId,
                                 chunkEndEntityId,
                                 false);
-                        entityStakeRepository.saveProgress(endStakePeriodToProcess, chunkEndEntityId, false);
+                        if (resume) {
+                            entityStakeRepository.saveProgress(endStakePeriodToProcess, chunkEndEntityId, false);
+                        }
                     });
 
                     lastProcessedEntityId = chunkEndEntityId;
 
                     log.info(
-                            "Completed pending reward chunk for endStakePeriod={}, entityIdExclusive={}, entityIdInclusive={} in {}",
+                            "Completed pending reward chunk for endStakePeriod={}, entityIds=({}, {}] in {}",
                             endStakePeriodToProcess,
                             chunkStartEntityId,
                             chunkEndEntityId,
@@ -141,7 +139,9 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
                     entityStakeRepository.lockFromConcurrentUpdates();
                     entityStakeRepository.updateEntityStakeChunk(
                             stakingRewardAccountId, endStakePeriodToProcess, 0L, 0L, true);
-                    entityStakeRepository.saveProgress(endStakePeriodToProcess, finalLastProcessedEntityId, true);
+                    if (resume) {
+                        entityStakeRepository.saveProgress(endStakePeriodToProcess, finalLastProcessedEntityId, true);
+                    }
                 });
                 log.info(
                         "Completed pending reward final chunk (stakingRewardAccountId={}) for endStakePeriod={} in {}",
@@ -153,6 +153,7 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
                 if (endStakePeriod
                         .filter(stakePeriod -> stakePeriod > lastEndStakePeriod)
                         .isPresent()) {
+                    entityStakeRepository.deleteCompletedProgress();
                     log.info(
                             "Completed pending reward calculation of end stake period {} in {}",
                             endStakePeriod.get(),

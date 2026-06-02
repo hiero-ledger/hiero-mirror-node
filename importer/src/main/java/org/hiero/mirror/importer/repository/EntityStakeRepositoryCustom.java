@@ -29,6 +29,12 @@ interface EntityStakeRepositoryCustom {
     void saveProgress(long endStakePeriod, long lastEntityId, boolean completed);
 
     /**
+     * Deletes all completed progress records. Call after a period is successfully verified in entity_stake to prevent
+     * the table from growing indefinitely.
+     */
+    void deleteCompletedProgress();
+
+    /**
      * @return the last entity id for the next chunk of entities to process
      */
     Optional<Long> getChunkUpperBoundEntityId(

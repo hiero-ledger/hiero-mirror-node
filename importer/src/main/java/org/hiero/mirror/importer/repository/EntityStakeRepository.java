@@ -225,11 +225,6 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
               from node_stake
               where epoch_day = (select epoch_day from ending_period) - 365
               order by node_id, consensus_timestamp
-            ), proxy_staking as (
-              select staked_account_id, sum(balance) as staked_to_me
-              from entity_state_start
-              where staked_account_id <> 0
-              group by staked_account_id
             )
             insert into entity_stake_temp (end_stake_period, id, pending_reward,
               staked_node_id_start, staked_to_me, stake_total_start, timestamp_range)
@@ -254,7 +249,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
               int8range(ep.consensus_timestamp, null) as timestamp_range
             from entity_state_start ess
               left join ending_period_stake_state on entity_id = ess.id
-              left join proxy_staking ps on ps.staked_account_id = ess.id,
+              left join entity_state_proxy_staking ps on ps.staked_account_id = ess.id,
               ending_period ep
             where (
                 ess.id > ?3 and ess.id <= ?4 and ess.id <> ?1 and ess.staked_node_id <> -1
@@ -311,6 +306,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
               stake_total_start = excluded.stake_total_start,
               timestamp_range = excluded.timestamp_range;
             """, nativeQuery = true)
+    @Transactional
     void updateEntityStakeChunk(
             long stakingRewardAccount,
             long endStakePeriod,

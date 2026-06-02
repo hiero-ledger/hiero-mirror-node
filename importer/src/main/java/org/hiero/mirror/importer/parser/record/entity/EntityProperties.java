@@ -8,6 +8,7 @@ import static org.hiero.mirror.common.domain.transaction.TransactionType.SCHEDUL
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
@@ -75,6 +76,7 @@ public class EntityProperties {
          * Maximum number of staking entities processed in one chunk during the daily pending staking reward job.
          * Controls how the pending reward calculation is chunked to reduce database contention.
          */
+        @Positive
         private int pendingRewardChunkSize = 5_000;
 
         /**

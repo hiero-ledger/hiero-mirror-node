@@ -10,4 +10,10 @@ create table if not exists entity_stake_calculation_state (
   updated_at       timestamptz not null default now()
 );
 
-create index if not exists entity_stake_calculation_state__completed on entity_stake_calculation_state (completed);
+-- Pre-computed proxy staking totals for the current staging period. Populated once per period
+-- alongside entity_state_start and read by every updateEntityStakeChunk call instead of
+-- re-aggregating entity_state_start on every chunk.
+create table if not exists entity_state_proxy_staking (
+  staked_account_id bigint primary key,
+  staked_to_me      bigint not null
+);

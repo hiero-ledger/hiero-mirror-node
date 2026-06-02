@@ -22,6 +22,16 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
 
     private static final String CLEANUP_TABLE_SQL = "delete from entity_state_start;";
 
+    private static final String CLEANUP_PROXY_STAKING_SQL = "delete from entity_state_proxy_staking;";
+
+    private static final String CREATE_PROXY_STAKING_SQL = """
+            insert into entity_state_proxy_staking (staked_account_id, staked_to_me)
+            select staked_account_id, sum(balance)
+            from entity_state_start
+            where staked_account_id <> 0
+            group by staked_account_id;
+            """;
+
     private static final String CREATE_ENTITY_STATE_START_SQL = """
             with entity_state as (
               select
@@ -77,31 +87,10 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
             ) as balance_change on entity_id = id;
             """;
 
-    private static final String GET_END_PERIOD_TIMESTAMP_SQL = """
-            select consensus_timestamp
-            from node_stake
-            where epoch_day >= coalesce(
-              (select end_stake_period + 1 from entity_stake where id = ?),
-              (
-                select epoch_day
-                from node_stake
-                where consensus_timestamp > (
-                  select lower(timestamp_range) as timestamp from entity where id = $1
-                  union all
-                  select lower(timestamp_range) as timestamp from entity_history where id = $1
-                  order by timestamp
-                  limit 1
-                )
-                order by consensus_timestamp
-                limit 1
-              )
-            )
-            order by epoch_day
-            limit 1
-            """;
-
-    private static final String GET_NEXT_END_STAKE_PERIOD_SQL = """
-            select epoch_day
+    // Returns both epoch_day and consensus_timestamp for the next staking period to process.
+    // Used by getNextEndStakePeriod (epoch_day) and createEntityStateStart (consensus_timestamp).
+    private static final String GET_NEXT_STAKE_PERIOD_SQL = """
+            select epoch_day, consensus_timestamp
             from node_stake
             where epoch_day >= coalesce(
               (select end_stake_period + 1 from entity_stake where id = ?),
@@ -130,6 +119,9 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
               and completed is false
             """;
 
+    private static final String DELETE_COMPLETED_PROGRESS_SQL =
+            "delete from entity_stake_calculation_state where completed = true";
+
     private static final String UPSERT_PROGRESS_SQL = """
             insert into entity_stake_calculation_state (end_stake_period, last_entity_id, completed, updated_at)
             values (?, ?, ?, now())
@@ -140,7 +132,13 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
             """;
 
     private static final String GET_CHUNK_UPPER_BOUND_ENTITY_ID_SQL = """
-            with candidates as (
+            with epoch_timestamp as (
+              select consensus_timestamp
+              from node_stake
+              where epoch_day = :endStakePeriod
+              order by consensus_timestamp
+              limit 1
+            ), candidates as (
               select id
               from (
                 select id
@@ -149,28 +147,32 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
                   and id > :startEntityIdExclusive
                   and deleted is not true
                   and type in ('ACCOUNT', 'CONTRACT')
-                  and timestamp_range @> :endPeriodTimestamp
+                  and timestamp_range @> (select consensus_timestamp from epoch_timestamp)
                   and (staked_account_id <> 0 or (decline_reward is false and staked_node_id <> -1))
                 union
-                select distinct on (id) id
-                from entity_history
-                where id <> :stakingRewardAccount
-                  and id > :startEntityIdExclusive
-                  and deleted is not true
-                  and type in ('ACCOUNT', 'CONTRACT')
-                  and timestamp_range @> :endPeriodTimestamp
-                  and (staked_account_id <> 0 or (decline_reward is false and staked_node_id <> -1))
-                order by id, timestamp_range desc
+                (
+                  select distinct on (id) id
+                  from entity_history
+                  where id <> :stakingRewardAccount
+                    and id > :startEntityIdExclusive
+                    and deleted is not true
+                    and type in ('ACCOUNT', 'CONTRACT')
+                    and timestamp_range @> (select consensus_timestamp from epoch_timestamp)
+                    and (staked_account_id <> 0 or (decline_reward is false and staked_node_id <> -1))
+                  order by id, timestamp_range desc
+                )
               ) s
               order by id
               limit :chunkSize
             )
             select max(id) from candidates
             """;
+
     private static final long ONE_MONTH_IN_NS = Duration.ofDays(31).toNanos();
 
     private final AccountBalanceRepository accountBalanceRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final SystemEntity systemEntity;
 
     @Modifying
@@ -178,14 +180,16 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
     @Transactional
     public void createEntityStateStart(long stakingRewardAccount) {
         jdbcTemplate.execute(CLEANUP_TABLE_SQL);
+        jdbcTemplate.execute(CLEANUP_PROXY_STAKING_SQL);
 
-        var endPeriodTimestamp = getEndPeriodTimestamp(stakingRewardAccount);
-        if (endPeriodTimestamp.isEmpty()) {
+        var periodInfo = getNextStakePeriodInfo(stakingRewardAccount);
+        if (periodInfo.isEmpty()) {
             return;
         }
 
+        long endPeriodTimestamp = periodInfo.get().consensusTimestamp();
         // Add 1 for upper because the upper in getMaxConsensusTimestampInRange is exclusive
-        long upperTimestamp = endPeriodTimestamp.get() + 1;
+        long upperTimestamp = endPeriodTimestamp + 1;
         long lowerTimestamp = upperTimestamp - ONE_MONTH_IN_NS;
         long treasuryAccountId = systemEntity.treasuryAccount().getId();
         var balanceSnapshotTimestamp = accountBalanceRepository.getMaxConsensusTimestampInRange(
@@ -197,21 +201,16 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
         long lowerBalanceTimestamp = balanceSnapshotTimestamp.get() - ONE_MONTH_IN_NS;
         var params = new MapSqlParameterSource()
                 .addValue("balanceSnapshotTimestamp", balanceSnapshotTimestamp.get())
-                .addValue("endPeriodTimestamp", endPeriodTimestamp.get())
+                .addValue("endPeriodTimestamp", endPeriodTimestamp)
                 .addValue("stakingRewardAccount", stakingRewardAccount)
                 .addValue("lowerBalanceTimestamp", lowerBalanceTimestamp);
-        var namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
         namedParameterJdbcTemplate.update(CREATE_ENTITY_STATE_START_SQL, params);
+        jdbcTemplate.execute(CREATE_PROXY_STAKING_SQL);
     }
 
     @Override
     public Optional<Long> getNextEndStakePeriod(long stakingRewardAccount) {
-        try {
-            return Optional.ofNullable(
-                    jdbcTemplate.queryForObject(GET_NEXT_END_STAKE_PERIOD_SQL, Long.class, stakingRewardAccount));
-        } catch (EmptyResultDataAccessException ex) {
-            return Optional.empty();
-        }
+        return getNextStakePeriodInfo(stakingRewardAccount).map(StakePeriodInfo::epochDay);
     }
 
     @Override
@@ -230,30 +229,33 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
     }
 
     @Override
+    public void deleteCompletedProgress() {
+        jdbcTemplate.update(DELETE_COMPLETED_PROGRESS_SQL);
+    }
+
+    @Override
     public Optional<Long> getChunkUpperBoundEntityId(
             long stakingRewardAccount, long endStakePeriod, long startEntityIdExclusive, int chunkSize) {
-        var endPeriodTimestamp = getEndPeriodTimestamp(stakingRewardAccount);
-        if (endPeriodTimestamp.isEmpty()) {
-            return Optional.empty();
-        }
-
         var params = new MapSqlParameterSource()
                 .addValue("stakingRewardAccount", stakingRewardAccount)
+                .addValue("endStakePeriod", endStakePeriod)
                 .addValue("startEntityIdExclusive", startEntityIdExclusive)
-                .addValue("endPeriodTimestamp", endPeriodTimestamp.get())
                 .addValue("chunkSize", chunkSize);
-        var named = new NamedParameterJdbcTemplate(jdbcTemplate);
-        List<Long> rows =
-                named.query(GET_CHUNK_UPPER_BOUND_ENTITY_ID_SQL, params, new SingleColumnRowMapper<>(Long.class));
+        List<Long> rows = namedParameterJdbcTemplate.query(
+                GET_CHUNK_UPPER_BOUND_ENTITY_ID_SQL, params, new SingleColumnRowMapper<>(Long.class));
         return rows.isEmpty() || rows.get(0) == null ? Optional.empty() : Optional.of(rows.get(0));
     }
 
-    private Optional<Long> getEndPeriodTimestamp(long stakingRewardAccount) {
+    private Optional<StakePeriodInfo> getNextStakePeriodInfo(long stakingRewardAccount) {
         try {
-            return Optional.ofNullable(
-                    jdbcTemplate.queryForObject(GET_END_PERIOD_TIMESTAMP_SQL, Long.class, stakingRewardAccount));
+            return Optional.ofNullable(jdbcTemplate.queryForObject(
+                    GET_NEXT_STAKE_PERIOD_SQL,
+                    (rs, rowNum) -> new StakePeriodInfo(rs.getLong("epoch_day"), rs.getLong("consensus_timestamp")),
+                    stakingRewardAccount));
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         }
     }
+
+    private record StakePeriodInfo(long epochDay, long consensusTimestamp) {}
 }

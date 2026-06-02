@@ -109,6 +109,7 @@ class EntityStakeCalculatorImplTest {
                 .updateEntityStakeChunk(stakingRewardAccountId, endStakePeriodAfter, 0L, 0L, true);
         inorder.verify(entityStakeRepository).saveProgress(endStakePeriodAfter, 10L, true);
         inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).deleteCompletedProgress();
         inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
         inorder.verifyNoMoreInteractions();
 
@@ -201,6 +202,7 @@ class EntityStakeCalculatorImplTest {
         inorder.verify(entityStakeRepository).updateEntityStakeChunk(stakingRewardAccountId, 101L, 0L, 0L, true);
         inorder.verify(entityStakeRepository).saveProgress(101L, 10L, true);
         inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).deleteCompletedProgress();
         inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
         inorder.verifyNoMoreInteractions();
     }
@@ -250,9 +252,39 @@ class EntityStakeCalculatorImplTest {
         inorder.verify(entityStakeRepository).updateEntityStakeChunk(stakingRewardAccountId, 101L, 0L, 0L, true);
         inorder.verify(entityStakeRepository).saveProgress(101L, 10L, true);
         inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).deleteCompletedProgress();
         inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
         inorder.verifyNoMoreInteractions();
         pool.shutdown();
+    }
+
+    @Test
+    void calculateWhenResumeDisabled() {
+        // given
+        entityProperties.getPersist().setPendingRewardChunkResume(false);
+        var inorder = inOrder(entityStakeRepository);
+
+        // when
+        entityStakeCalculator.calculate();
+
+        // then: saveProgress and getLastProcessedEntityId are never called
+        inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).getNextEndStakePeriod(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
+        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).getChunkUpperBoundEntityId(stakingRewardAccountId, 101L, 0L, 5000);
+        inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
+        inorder.verify(entityStakeRepository).updateEntityStakeChunk(stakingRewardAccountId, 101L, 0L, 10L, false);
+        inorder.verify(entityStakeRepository).getChunkUpperBoundEntityId(stakingRewardAccountId, 101L, 10L, 5000);
+        inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
+        inorder.verify(entityStakeRepository).updateEntityStakeChunk(stakingRewardAccountId, 101L, 0L, 0L, true);
+        inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).deleteCompletedProgress();
+        inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
+        inorder.verifyNoMoreInteractions();
+        verify(entityStakeRepository, never()).getLastProcessedEntityId(anyLong());
+        verify(entityStakeRepository, never()).saveProgress(anyLong(), anyLong(), anyBoolean());
     }
 
     @Test
@@ -293,6 +325,7 @@ class EntityStakeCalculatorImplTest {
         inorder.verify(entityStakeRepository).updateEntityStakeChunk(stakingRewardAccountId, 101L, 0L, 0L, true);
         inorder.verify(entityStakeRepository).saveProgress(101L, 10L, true);
         inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).deleteCompletedProgress();
         inorder.verify(entityStakeRepository).updated(stakingRewardAccountId);
         inorder.verifyNoMoreInteractions();
     }
