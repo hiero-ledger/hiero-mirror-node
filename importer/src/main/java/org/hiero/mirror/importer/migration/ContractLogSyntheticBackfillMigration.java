@@ -71,6 +71,7 @@ final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Lon
 
     private final boolean v2;
     private long lowerBoundFloor = 0L;
+    private long initialUpperBound = -1L;
 
     @Getter(lazy = true)
     private final TransactionOperations transactionOperations = transactionOperations();
@@ -95,24 +96,30 @@ final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Lon
     }
 
     @Override
-    protected Long getInitial() {
+    protected boolean performSynchronousSteps() {
         getJdbcOperations().execute(CREATE_PROGRESS_TABLE);
 
         var upperBound = getJdbcOperations().queryForObject(SELECT_UPPER_BOUND, Long.class);
         if (upperBound == null) {
             log.info("No contract_log rows to backfill");
-            return -1L;
+            return true;
         }
 
         var floor = getJdbcOperations().queryForObject(SELECT_LOWER_BOUND_FLOOR, Long.class);
         if (floor == null) {
             log.info("contract_log is empty, skipping backfill");
-            return -1L;
+            return true;
         }
-        lowerBoundFloor = floor;
 
+        lowerBoundFloor = floor;
+        initialUpperBound = upperBound;
         log.info("Starting synthetic backfill from {} down to {}", upperBound, lowerBoundFloor);
-        return upperBound;
+        return true;
+    }
+
+    @Override
+    protected Long getInitial() {
+        return initialUpperBound;
     }
 
     @NonNull
