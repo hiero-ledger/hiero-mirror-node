@@ -238,6 +238,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         private List<BlockItem> blockItems;
         private BlockRootHashDigest blockRootHashDigest;
         private String filename;
+        private ConsensusTimestampTracker consensusTimestampTracker = new ConsensusTimestampTracker();
 
         @NonFinal
         private int batchIndex;
@@ -252,9 +253,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         @NonFinal
         @Nullable
         private BlockTransaction lastBlockTransaction;
-
-        @NonFinal
-        private ConsensusTimestampTracker consensusTimestampTracker = new ConsensusTimestampTracker();
 
         @NonFinal
         @Nullable
