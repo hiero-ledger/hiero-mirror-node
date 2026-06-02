@@ -84,7 +84,7 @@ class ContractLogSyntheticBackfillMigrationTest
     }
 
     @Test
-    void preservesRowWhenContractResultHasDifferentContractId() {
+    void backfillsNullRowWhenContractResultHasDifferentContractId() {
         // given
         var contractLog = domainBuilder
                 .contractLog()
@@ -101,7 +101,7 @@ class ContractLogSyntheticBackfillMigrationTest
         waitForCompletion();
 
         // then
-        assertThat(findSynthetic(contractLog.getConsensusTimestamp())).isNull();
+        assertThat(findSynthetic(contractLog.getConsensusTimestamp())).isTrue();
     }
 
     @Test

@@ -65,7 +65,8 @@ final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Lon
               and cl.consensus_timestamp < :upperBound
               and not exists (
                 select 1 from contract_result cr
-                where cr.consensus_timestamp = cl.consensus_timestamp
+                where cr.contract_id = cl.contract_id
+                  and cr.consensus_timestamp = cl.consensus_timestamp
               )
             """;
 
