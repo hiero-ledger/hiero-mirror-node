@@ -8,9 +8,7 @@ import {ExchangeRate, FeeSchedule, FileData} from '../model';
 import * as utils from '../utils';
 import EntityId from '../entityId';
 
-const NANOSECONDS_PER_SECOND = 1_000_000_000;
-const SECONDS_PER_HOUR = 3600;
-const NANOSECONDS_PER_HOUR = NANOSECONDS_PER_SECOND * SECONDS_PER_HOUR;
+const NANOSECONDS_PER_HOUR = 3_600_000_000_000n;
 
 /**
  * File data retrieval business logic
@@ -110,8 +108,6 @@ class FileDataService extends BaseService {
       return cached;
     }
 
-    const refTimestampNanos = this.#getRefTimestamp(filterQueries);
-
     const [exchangeRate, feeSchedule] = await Promise.all([
       this.getExchangeRate(filterQueries),
       this.fallbackRetry(EntityId.systemEntity.feeScheduleFile.getEncodedId(), filterQueries, FeeSchedule),
@@ -122,7 +118,7 @@ class FileDataService extends BaseService {
       return null;
     }
 
-    feeSchedule.setExchangeRate(exchangeRate, refTimestampNanos ?? BigInt(Date.now()) * 1_000_000n);
+    feeSchedule.setExchangeRate(exchangeRate, this.#getEffectiveRefTimestampNanos(filterQueries));
     const gasPrice = feeSchedule.getGasForType(transactionType);
     this.#gasPriceCache.set(key, gasPrice);
     return gasPrice;
@@ -155,10 +151,21 @@ class FileDataService extends BaseService {
     return null;
   };
 
+  truncateToStartOfHour(refTimestampNanos) {
+    const refTimestamp = BigInt(refTimestampNanos);
+    return (refTimestamp / NANOSECONDS_PER_HOUR) * NANOSECONDS_PER_HOUR;
+  }
+
   #getFeeScheduleKey(filterQueries, transactionType) {
     const refTimestamp = this.#getRefTimestamp(filterQueries);
-    const timeKey = refTimestamp === null ? 'latest' : this.#truncateToStartOfHour(refTimestamp);
+    const timeKey = refTimestamp === null ? 'latest' : this.truncateToStartOfHour(refTimestamp).toString();
     return `${transactionType}:${timeKey}`;
+  }
+
+  #getEffectiveRefTimestampNanos(filterQueries) {
+    const refTimestamp = this.#getRefTimestamp(filterQueries);
+    const refTimestampNanos = refTimestamp ?? BigInt(Date.now()) * 1_000_000n;
+    return this.truncateToStartOfHour(refTimestampNanos);
   }
 
   #getRefTimestamp(filterQueries) {
@@ -169,13 +176,6 @@ class FileDataService extends BaseService {
       }
     }
     return null;
-  }
-
-  #truncateToStartOfHour(refTimestampNs) {
-    const hours = Number(refTimestampNs) / NANOSECONDS_PER_HOUR;
-    const roundHours = Math.floor(hours);
-
-    return roundHours * SECONDS_PER_HOUR;
   }
 
   clearFeeScheduleCache = () => {

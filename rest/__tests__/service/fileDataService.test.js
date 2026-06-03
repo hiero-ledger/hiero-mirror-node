@@ -372,6 +372,68 @@ describe('FileDataService.getFeeSchedule tests', () => {
   });
 });
 
+describe('FileDataService.truncateToStartOfHour', () => {
+  test('rounds consensus timestamp down to start of hour in nanoseconds', () => {
+    const refTimestamp = 1_654_321_987_654_321_987n;
+
+    expect(FileDataService.truncateToStartOfHour(refTimestamp)).toBe(1_654_318_800_000_000_000n);
+  });
+});
+
+describe('FeeSchedule effective schedule selection', () => {
+  const exchangeRate = {
+    current_hbar: 100,
+    current_cent: 200,
+    current_expiration: 7200,
+    next_hbar: 300,
+    next_cent: 400,
+  };
+
+  const makeCurrentAndNextFeeScheduleFileData = (currentGas, nextGas, currentExpirySeconds) => {
+    const currentFeeSchedule = create(FeeScheduleSchema, {
+      transactionFeeSchedule: [makeTransactionFeeSchedule(HederaFunctionality.ContractCall, currentGas)],
+      expiryTime: create(TimestampSecondsSchema, {seconds: BigInt(currentExpirySeconds)}),
+    });
+    const nextFeeSchedule = create(FeeScheduleSchema, {
+      transactionFeeSchedule: [makeTransactionFeeSchedule(HederaFunctionality.ContractCall, nextGas)],
+      expiryTime: create(TimestampSecondsSchema, {seconds: BigInt(currentExpirySeconds + 3600)}),
+    });
+    return Buffer.from(
+      toBinary(
+        CurrentAndNextFeeScheduleSchema,
+        create(CurrentAndNextFeeScheduleSchema, {
+          currentFeeSchedule,
+          nextFeeSchedule,
+        })
+      )
+    );
+  };
+
+  test('uses current fee schedule and exchange rate within the expiry hour', () => {
+    const feeSchedule = new FeeSchedule({
+      file_data: makeCurrentAndNextFeeScheduleFileData(1000, 5000, 7200),
+      consensus_timestamp: 1,
+    });
+    const refTimestamp = 7_200_000_000_000n;
+
+    feeSchedule.setExchangeRate(exchangeRate, refTimestamp);
+
+    expect(feeSchedule.fees.ContractCall).toBe(gasPriceInTinybars(1000, 200, 100));
+  });
+
+  test('uses next fee schedule and exchange rate after the expiry hour', () => {
+    const feeSchedule = new FeeSchedule({
+      file_data: makeCurrentAndNextFeeScheduleFileData(1000, 5000, 7200),
+      consensus_timestamp: 1,
+    });
+    const refTimestamp = 10_800_000_000_000n;
+
+    feeSchedule.setExchangeRate(exchangeRate, refTimestamp);
+
+    expect(feeSchedule.fees.ContractCall).toBe(gasPriceInTinybars(5000, 400, 300));
+  });
+});
+
 describe('FeeSchedule.getFeeScheduleType', () => {
   test('maps Hedera transaction proto ids to fee schedule types', () => {
     expect(FeeSchedule.getFeeScheduleType(TransactionType.getProtoId('CONTRACTCALL'))).toBe(
