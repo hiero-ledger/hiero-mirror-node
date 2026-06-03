@@ -4,12 +4,10 @@ package org.hiero.mirror.importer.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
@@ -34,7 +32,6 @@ import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.contract.ContractTransaction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.AbstractHook;
-import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -46,7 +43,6 @@ import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.transactionhandler.EvmHookStorageHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
-import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.service.ContractInitcodeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -87,9 +83,6 @@ final class ContractResultServiceImplTest {
 
     @Mock
     private ImporterProperties importerProperties;
-
-    @Mock
-    private RecordFileRepository recordFileRepository;
 
     @Mock
     private SidecarContractMigration sidecarContractMigration;
@@ -168,11 +161,10 @@ final class ContractResultServiceImplTest {
                 entityProperties,
                 entityIdService,
                 entityListener,
-                evmHookStorageHandler,
                 importerProperties,
-                recordFileRepository,
                 sidecarContractMigration,
-                transactionHandlerFactory);
+                transactionHandlerFactory,
+                evmHookStorageHandler);
     }
 
     @ParameterizedTest
@@ -307,6 +299,8 @@ final class ContractResultServiceImplTest {
         when(entityIdService.lookup(any(ContractID.class))).thenReturn(Optional.of(EntityId.of(365L)));
 
         var transaction = domainBuilder.transaction().get();
+        var hookStorageChangeCaptor =
+                ArgumentCaptor.forClass(org.hiero.mirror.common.domain.hook.HookStorageChange.class);
 
         // When
         contractResultService.process(recordItem, transaction);
@@ -365,51 +359,6 @@ final class ContractResultServiceImplTest {
         } else {
             verify(evmHookStorageHandler, times(0))
                     .processStorageUpdatesForSidecar(any(Long.class), any(Long.class), any(Long.class), any());
-        }
-    }
-
-    @ParameterizedTest
-    @CsvSource(textBlock = """
-            , , true
-            0, , true
-            0, hash, false
-            1, , true
-            1, hash, true
-            """)
-    void processBytecodeSidecarMigration(
-            final Long firstBlockNumber, final String wrappedRecordBlockHash, final boolean shouldRunMigration) {
-        // given
-        final var recordFile = firstBlockNumber != null
-                ? RecordFile.builder()
-                        .index(firstBlockNumber)
-                        .wrappedRecordBlockHash(
-                                wrappedRecordBlockHash != null ? wrappedRecordBlockHash.getBytes() : null)
-                        .build()
-                : null;
-        doReturn(Optional.ofNullable(recordFile)).when(recordFileRepository).findFirst();
-        final var recordItem = recordItemBuilder
-                .contractCall()
-                .sidecarRecords(s -> {
-                    s.clear();
-                    s.add(recordItemBuilder
-                            .contractBytecode(recordItemBuilder.contractId())
-                            .setMigration(true));
-                })
-                .build();
-        final var transaction = domainBuilder.transaction().get();
-
-        // when
-        contractResultService.process(recordItem, transaction);
-
-        // then
-        verify(entityListener).onContractResult(any());
-        verify(recordFileRepository).findFirst();
-
-        if (shouldRunMigration) {
-            verify(sidecarContractMigration)
-                    .migrate(assertArg(l -> assertThat(l).hasSize(1)));
-        } else {
-            verifyNoInteractions(sidecarContractMigration);
         }
     }
 }
