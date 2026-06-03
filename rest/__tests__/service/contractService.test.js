@@ -39,9 +39,9 @@ const entityId111169 = EntityId.parseString('111169');
 const entityId111276 = EntityId.parseString('111276');
 const entityId111481 = EntityId.parseString('111481');
 const entityId111482 = EntityId.parseString('111482');
-const entityId222001 = EntityId.parseString('0.0.222001');
-const entityId222002 = EntityId.parseString('0.0.222002');
-const entityId222003 = EntityId.parseString('0.0.222003');
+const entityId222001 = EntityId.parseString('222001');
+const entityId222002 = EntityId.parseString('222002');
+const entityId222003 = EntityId.parseString('222003');
 
 describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
   test('Verify simple query', async () => {
@@ -1210,14 +1210,14 @@ describe('ContractService.computeContractIdFromString', () => {
     test('long-zero 20-byte address (12 zero bytes + entity num), stripped form as in path param', async () => {
       await assertComputeContractIdResolvesWithoutEntityEvmLookup(
         '000000000000000000000000000000000000000f',
-        EntityId.parseString('0.0.15', {paramName: 'contractId'}).getEncodedId()
+        EntityId.parseString('15', {paramName: 'contractId'}).getEncodedId()
       );
     });
 
     test('long-zero address with 0x prefix (parseString strips prefix)', async () => {
       await assertComputeContractIdResolvesWithoutEntityEvmLookup(
         '0x000000000000000000000000000000000000000f',
-        EntityId.parseString('0.0.15', {paramName: 'contractId'}).getEncodedId()
+        EntityId.parseString('15', {paramName: 'contractId'}).getEncodedId()
       );
     });
   });

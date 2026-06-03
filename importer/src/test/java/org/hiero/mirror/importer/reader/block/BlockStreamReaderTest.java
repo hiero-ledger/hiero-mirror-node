@@ -31,6 +31,7 @@ import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.ArrayList;
 import java.util.List;
@@ -612,6 +613,51 @@ public final class BlockStreamReaderTest {
                 .returns(0L, BlockFile::getCount)
                 .returns(List.of(), BlockFile::getItems)
                 .returns(BlockStreamReader.VERSION, BlockFile::getVersion);
+        verifyNoInteractions(initialStateReader);
+    }
+
+    @Test
+    void outOfOrderConsensusTimestampsUseMinMax() {
+        // given - three transactions with out-of-order timestamps: middle < first < last
+        // first transaction gets a later timestamp
+        var firstTimestamp =
+                Timestamp.newBuilder().setSeconds(1000).setNanos(500).build();
+        // second transaction gets an earlier timestamp (out of order)
+        var secondTimestamp =
+                Timestamp.newBuilder().setSeconds(1000).setNanos(100).build();
+        // third transaction gets the latest timestamp
+        var thirdTimestamp =
+                Timestamp.newBuilder().setSeconds(1000).setNanos(900).build();
+
+        var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(roundHeader())
+                .addItems(eventHeader())
+                .addItems(signedTransaction())
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(firstTimestamp)
+                        .build()))
+                .addItems(signedTransaction())
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(secondTimestamp)
+                        .build()))
+                .addItems(signedTransaction())
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(thirdTimestamp)
+                        .build()))
+                .addItems(blockFooter())
+                .addItems(blockProof())
+                .build();
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
+
+        // when
+        var blockFile = reader.read(blockStream);
+
+        // then - consensusStart is the minimum (second tx), consensusEnd is the maximum (third tx)
+        assertThat(blockFile)
+                .returns(DomainUtils.timestampInNanosMax(secondTimestamp), BlockFile::getConsensusStart)
+                .returns(DomainUtils.timestampInNanosMax(thirdTimestamp), BlockFile::getConsensusEnd)
+                .returns(3L, BlockFile::getCount);
         verifyNoInteractions(initialStateReader);
     }
 
