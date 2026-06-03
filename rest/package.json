@@ -33,7 +33,7 @@
     "express-http-context": "2.0.1",
     "express-openapi-validator": "5.6.2",
     "extend": "3.0.2",
-    "ioredis": "5.10.1",
+    "ioredis": "5.11.0",
     "js-yaml": "4.1.1",
     "json-bigint": "1.0.0",
     "lodash": "4.18.1",
@@ -49,9 +49,9 @@
     "tsscmp": "1.0.6"
   },
   "devDependencies": {
-    "@bufbuild/buf": "1.69.0",
+    "@bufbuild/buf": "1.70.0",
     "@bufbuild/protoc-gen-es": "2.12.0",
-    "@testcontainers/postgresql": "12.0.0",
+    "@testcontainers/postgresql": "12.0.1",
     "cross-env": "10.1.0",
     "crypto-random-string": "5.0.0",
     "esbuild": "^0.28.0",
