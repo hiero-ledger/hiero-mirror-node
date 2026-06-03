@@ -67,6 +67,8 @@ final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Lon
                 select 1 from contract_result cr
                 where cr.contract_id = cl.contract_id
                   and cr.consensus_timestamp = cl.consensus_timestamp
+                  and cr.consensus_timestamp >= :lowerBound
+                  and cr.consensus_timestamp < :upperBound
               )
             """;
 
