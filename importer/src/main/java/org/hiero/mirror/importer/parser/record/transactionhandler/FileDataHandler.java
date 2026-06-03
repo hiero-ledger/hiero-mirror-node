@@ -9,7 +9,6 @@ import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.transaction.Transaction;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.addressbook.AddressBookService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
@@ -33,8 +32,7 @@ final class FileDataHandler {
         // We always store file data for address books since they're used by the address book service
         if (addressBookService.isAddressBook(fileId)) {
             addressBookService.update(fileData);
-        } else if (entityProperties.getPersist().isFiles()
-                || (entityProperties.getPersist().isSystemFiles() && DomainUtils.isSystemEntity(fileId))) {
+        } else if (entityProperties.getPersist().shouldPersistFileData(fileId)) {
             entityListener.onFileData(fileData);
         }
     }

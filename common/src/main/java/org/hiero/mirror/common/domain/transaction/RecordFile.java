@@ -9,6 +9,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Transient;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -21,6 +22,8 @@ import lombok.ToString;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.StreamType;
+import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.file.FileData;
 import org.springframework.data.util.Version;
 
 @Builder(toBuilder = true)
@@ -31,6 +34,7 @@ import org.springframework.data.util.Version;
 public class RecordFile implements StreamFile<RecordItem> {
 
     public static final RecordFile EMPTY = new RecordFile();
+    public static final long GENESIS_BLOCK_NUMBER = 0;
     public static final Version HAPI_VERSION_NOT_SET = new Version(0, 0, 0);
     public static final Version HAPI_VERSION_0_23_0 = new Version(0, 23, 0);
     public static final Version HAPI_VERSION_0_27_0 = new Version(0, 27, 0);
@@ -70,6 +74,11 @@ public class RecordFile implements StreamFile<RecordItem> {
     private String hash;
 
     private Long index;
+
+    @EqualsAndHashCode.Exclude
+    @JsonIgnore
+    @Transient
+    private InitialState initialState;
 
     @Builder.Default
     @EqualsAndHashCode.Exclude
@@ -154,5 +163,15 @@ public class RecordFile implements StreamFile<RecordItem> {
         }
 
         return new Version(hapiVersionMajor, hapiVersionMinor, hapiVersionPatch);
+    }
+
+    public record InitialState(
+            Collection<Contract> contracts,
+            Collection<org.hiero.mirror.common.domain.entity.Entity> entities,
+            Collection<FileData> fileDatum) {
+
+        public InitialState() {
+            this(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+        }
     }
 }

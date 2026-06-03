@@ -25,6 +25,8 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
+import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
@@ -46,22 +48,28 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
     private final Map<Integer, DistributionSummary> sizeMetrics;
     private final Timer unknownLatencyMetric;
     private final DistributionSummary unknownSizeMetric;
+    private final EntityListener entityListener;
+    private final EntityProperties entityProperties;
 
     @SuppressWarnings("java:S107")
     public RecordFileParser(
-            ApplicationEventPublisher applicationEventPublisher,
-            MeterRegistry meterRegistry,
-            RecordParserProperties parserProperties,
-            StreamFileRepository<RecordFile, Long> streamFileRepository,
-            RecordItemListener recordItemListener,
-            RecordStreamFileListener recordStreamFileListener,
-            DateRangeCalculator dateRangeCalculator,
-            ParserContext parserContext) {
+            final ApplicationEventPublisher applicationEventPublisher,
+            final DateRangeCalculator dateRangeCalculator,
+            final EntityListener entityListener,
+            final EntityProperties entityProperties,
+            final MeterRegistry meterRegistry,
+            final ParserContext parserContext,
+            final RecordParserProperties parserProperties,
+            final RecordItemListener recordItemListener,
+            final RecordStreamFileListener recordStreamFileListener,
+            final StreamFileRepository<RecordFile, Long> streamFileRepository) {
         super(meterRegistry, parserProperties, recordStreamFileListener, streamFileRepository);
         this.applicationEventPublisher = applicationEventPublisher;
-        this.recordItemListener = recordItemListener;
         this.dateRangeCalculator = dateRangeCalculator;
+        this.entityListener = entityListener;
+        this.entityProperties = entityProperties;
         this.parserContext = parserContext;
+        this.recordItemListener = recordItemListener;
 
         // build transaction latency metrics
         ImmutableMap.Builder<Integer, Timer> latencyMetricsBuilder = ImmutableMap.builder();
@@ -136,6 +144,8 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         final var logIndex = new AtomicInteger(0);
 
         applicationEventPublisher.publishEvent(new RecordFileParsedEvent(this, recordFile.getConsensusEnd()));
+
+        parseInitialState(recordFile);
         recordFile.getItems().forEach(recordItem -> {
             if (shouldLog) {
                 logItem(recordItem);
@@ -167,6 +177,30 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
                     Utility.printProtoMessage(recordItem.getTransactionRecord()));
         } else if (log.isDebugEnabled()) {
             log.debug("Parsing transaction with consensus timestamp {}", recordItem.getConsensusTimestamp());
+        }
+    }
+
+    private void parseInitialState(final RecordFile recordFile) {
+        final var initialState = recordFile.getInitialState();
+        if (initialState == null) {
+            return;
+        }
+
+        final var persist = entityProperties.getPersist();
+        if (persist.isContracts()) {
+            for (final var contract : initialState.contracts()) {
+                entityListener.onContract(contract);
+            }
+        }
+
+        for (final var entity : initialState.entities()) {
+            entityListener.onEntity(entity);
+        }
+
+        for (final var fileData : initialState.fileDatum()) {
+            if (persist.shouldPersistFileData(fileData.getEntityId())) {
+                entityListener.onFileData(fileData);
+            }
         }
     }
 

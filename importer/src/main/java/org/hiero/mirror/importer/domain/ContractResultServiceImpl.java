@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.domain;
 
+import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOCK_NUMBER;
 import static org.hiero.mirror.common.domain.transaction.RecordItem.HOOK_CONTRACT_NUM;
 
 import com.google.common.base.Stopwatch;
@@ -15,7 +16,9 @@ import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import lombok.AccessLevel;
 import lombok.CustomLog;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -36,6 +39,7 @@ import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.transactionhandler.EvmHookStorageHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
+import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.service.ContractInitcodeService;
 import org.hiero.mirror.importer.util.Utility;
 import org.jspecify.annotations.NonNull;
@@ -49,10 +53,14 @@ final class ContractResultServiceImpl implements ContractResultService {
     private final EntityProperties entityProperties;
     private final EntityIdService entityIdService;
     private final EntityListener entityListener;
+    private final EvmHookStorageHandler evmHookStorageHandler;
     private final ImporterProperties importerProperties;
+    private final RecordFileRepository recordFileRepository;
     private final SidecarContractMigration sidecarContractMigration;
     private final TransactionHandlerFactory transactionHandlerFactory;
-    private final EvmHookStorageHandler evmHookStorageHandler;
+
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
+    private final boolean skipBytecodeSidecarMigration = shouldSkipBytecodeSidecarMigration();
 
     @Override
     @SuppressWarnings("java:S2259")
@@ -411,7 +419,9 @@ final class ContractResultServiceImpl implements ContractResultService {
                 }
             } else if (sidecarRecord.hasBytecode()) {
                 if (migration) {
-                    contractBytecodes.add(sidecarRecord.getBytecode());
+                    if (!isSkipBytecodeSidecarMigration()) {
+                        contractBytecodes.add(sidecarRecord.getBytecode());
+                    }
                 } else {
                     payloadBytes = contractInitcodeService.get(sidecarRecord.getBytecode(), recordItem);
                     isContractCreation = true;
@@ -422,7 +432,10 @@ final class ContractResultServiceImpl implements ContractResultService {
             }
         }
 
-        sidecarContractMigration.migrate(contractBytecodes);
+        if (!isSkipBytecodeSidecarMigration()) {
+            sidecarContractMigration.migrate(contractBytecodes);
+        }
+
         if (migrationCount > 0) {
             log.info(
                     "{} Sidecar records processed with {} migrations in {}",
@@ -567,6 +580,14 @@ final class ContractResultServiceImpl implements ContractResultService {
                 hookContext.getHookId(),
                 hookContext.getOwnerId(),
                 stateChange.getStorageChangesList());
+    }
+
+    private boolean shouldSkipBytecodeSidecarMigration() {
+        // The genesis WRB block has statechanges for contract bytecode created pre-OA, so skip the bytecode migration
+        return recordFileRepository
+                .findFirst()
+                .filter(rf -> rf.getIndex() == GENESIS_BLOCK_NUMBER && rf.getWrappedRecordBlockHash() != null)
+                .isPresent();
     }
 
     /**

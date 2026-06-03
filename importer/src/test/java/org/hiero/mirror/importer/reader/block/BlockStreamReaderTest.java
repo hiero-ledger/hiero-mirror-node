@@ -4,8 +4,14 @@ package org.hiero.mirror.importer.reader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOCK_NUMBER;
 import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.EXPECTED_RECORD_FILES;
 import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.readWrappedRecordBlocks;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.input.protoc.EventHeader;
@@ -47,13 +53,20 @@ import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 import org.hiero.mirror.importer.reader.block.record.CompositeRecordFileItemReader;
+import org.jspecify.annotations.NullUnmarked;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(MockitoExtension.class)
+@NullUnmarked
 public final class BlockStreamReaderTest {
 
     public static final List<BlockFile> TEST_BLOCK_FILES = List.of(
@@ -124,12 +137,26 @@ public final class BlockStreamReaderTest {
     private static final RecursiveComparisonConfiguration RECORD_FILE_COMPARISON_CONFIG =
             RecursiveComparisonConfiguration.builder()
                     .withIgnoredFields(
-                            "bytes", "loadStart", "items", "previousWrappedRecordBlockHash", "wrappedRecordBlockHash")
+                            "bytes",
+                            "loadStart",
+                            "initialState",
+                            "items",
+                            "previousWrappedRecordBlockHash",
+                            "wrappedRecordBlockHash")
                     .build();
 
-    private final BlockStreamReader reader =
-            new BlockStreamReaderImpl(new CompositeRecordFileItemReader(new SidecarProperties()));
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
+
+    @Mock
+    private InitialStateReader initialStateReader;
+
+    private BlockStreamReader reader;
+
+    @BeforeEach
+    void setup() {
+        reader = new BlockStreamReaderImpl(
+                initialStateReader, new CompositeRecordFileItemReader(new SidecarProperties()));
+    }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("readTestArgumentsProvider")
@@ -157,6 +184,14 @@ public final class BlockStreamReaderTest {
     @MethodSource("readWrappedRecordBlocksArgumentsProvider")
     void readWrappedRecordBlock(final Block block, final long blockNumber, final RecordFile expectedRecordFile) {
         // given
+        final RecordFile.InitialState expectedInitialState;
+        if (blockNumber == GENESIS_BLOCK_NUMBER) {
+            expectedInitialState = new RecordFile.InitialState();
+            doReturn(expectedInitialState).when(initialStateReader).read(any());
+        } else {
+            expectedInitialState = null;
+        }
+
         final var blockStream = createBlockStream(block, null, BlockFile.getFilename(blockNumber, true));
         final byte[] bytes = Objects.requireNonNull(blockStream.bytes());
         final long loadStart = blockStream.loadStart();
@@ -173,11 +208,13 @@ public final class BlockStreamReaderTest {
                 .satisfies(b -> assertThat(b.getHash()).isNotNull(), b -> assertThat(b.getPreviousHash())
                         .isNotNull())
                 .extracting(BlockFile::getRecordFile)
+                .returns(expectedInitialState, RecordFile::getInitialState)
                 .returns(loadStart, RecordFile::getLoadStart)
                 .returns(blockFile.getRawPreviousHash(), RecordFile::getPreviousWrappedRecordBlockHash)
                 .returns(blockFile.getRawHash(), RecordFile::getWrappedRecordBlockHash)
                 .usingRecursiveComparison(RECORD_FILE_COMPARISON_CONFIG)
                 .isEqualTo(expectedRecordFile);
+        verify(initialStateReader, times(blockNumber == 0 ? 1 : 0)).read(any());
     }
 
     @Test
@@ -302,6 +339,7 @@ public final class BlockStreamReaderTest {
         List<BlockTransaction> expected =
                 Lists.newArrayList(null, null, null, items.get(5), null, items.get(6), null, null);
         assertThat(batchInnerLinks).containsExactlyElementsOf(expected);
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -414,6 +452,7 @@ public final class BlockStreamReaderTest {
 
         // Verify nextInBatch is not used for hook executions
         assertThat(items).extracting(BlockTransaction::getNextInBatch).containsOnlyNulls();
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -455,6 +494,7 @@ public final class BlockStreamReaderTest {
         // then
         assertThat(actual.getLastLedgerIdPublicationTransaction())
                 .returns(DomainUtils.timestampInNanosMax(secondTimestamp), BlockTransaction::getConsensusTimestamp);
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -511,6 +551,7 @@ public final class BlockStreamReaderTest {
                         items -> assertThat(items.getLast())
                                 .returns(lastTransactionTimestamp, BlockTransaction::getConsensusTimestamp)
                                 .returns(null, BlockTransaction::getParentConsensusTimestamp));
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -546,6 +587,7 @@ public final class BlockStreamReaderTest {
                 .containsExactly(
                         DomainUtils.timestampInNanosMax(firstTimestamp),
                         DomainUtils.timestampInNanosMax(secondTimestamp));
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -570,6 +612,7 @@ public final class BlockStreamReaderTest {
                 .returns(0L, BlockFile::getCount)
                 .returns(List.of(), BlockFile::getItems)
                 .returns(BlockStreamReader.VERSION, BlockFile::getVersion);
+        verifyNoInteractions(initialStateReader);
     }
 
     @ParameterizedTest
@@ -634,6 +677,7 @@ public final class BlockStreamReaderTest {
                 .hasSize(1)
                 .first()
                 .returns(transactionTimestamp, StateChanges::getConsensusTimestamp);
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -658,6 +702,7 @@ public final class BlockStreamReaderTest {
         assertThat(blockFile)
                 .extracting(BlockFile::getItems, InstanceOfAssertFactories.collection(BlockTransaction.class))
                 .isEmpty();
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -670,6 +715,7 @@ public final class BlockStreamReaderTest {
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block footer");
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -679,6 +725,7 @@ public final class BlockStreamReaderTest {
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block header");
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -691,6 +738,7 @@ public final class BlockStreamReaderTest {
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block proof");
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -711,6 +759,7 @@ public final class BlockStreamReaderTest {
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Failed to deserialize Transaction");
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -734,6 +783,7 @@ public final class BlockStreamReaderTest {
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Failed to deserialize Transaction");
+        verifyNoInteractions(initialStateReader);
     }
 
     private BlockItem batchTransaction() {

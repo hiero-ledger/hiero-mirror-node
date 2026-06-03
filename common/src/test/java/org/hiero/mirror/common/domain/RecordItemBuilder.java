@@ -1383,6 +1383,10 @@ public final class RecordItemBuilder {
         return new Builder<>(TransactionType.HOOKSTORE, body);
     }
 
+    public long id() {
+        return id.incrementAndGet();
+    }
+
     public ByteString bytes(int length) {
         byte[] bytes = randomBytes(length);
         return ByteString.copyFrom(bytes);
@@ -1538,10 +1542,6 @@ public final class RecordItemBuilder {
                 .setStake(stake)
                 .setStakeNotRewarded(TINYBARS_IN_ONE_HBAR)
                 .setStakeRewarded(stake - TINYBARS_IN_ONE_HBAR);
-    }
-
-    private long id() {
-        return id.incrementAndGet();
     }
 
     private int port() {

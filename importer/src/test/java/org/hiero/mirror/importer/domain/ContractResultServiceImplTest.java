@@ -43,6 +43,7 @@ import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.transactionhandler.EvmHookStorageHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
+import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.service.ContractInitcodeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -83,6 +84,9 @@ final class ContractResultServiceImplTest {
 
     @Mock
     private ImporterProperties importerProperties;
+
+    @Mock
+    private RecordFileRepository recordFileRepository;
 
     @Mock
     private SidecarContractMigration sidecarContractMigration;
@@ -161,10 +165,11 @@ final class ContractResultServiceImplTest {
                 entityProperties,
                 entityIdService,
                 entityListener,
+                evmHookStorageHandler,
                 importerProperties,
+                recordFileRepository,
                 sidecarContractMigration,
-                transactionHandlerFactory,
-                evmHookStorageHandler);
+                transactionHandlerFactory);
     }
 
     @ParameterizedTest
