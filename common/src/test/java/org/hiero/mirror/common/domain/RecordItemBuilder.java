@@ -1412,14 +1412,6 @@ public final class RecordItemBuilder {
         return fromBytes(trim(randomBytes(32)));
     }
 
-    public TransactionSidecarRecord.Builder contractBytecode(ContractID contractId) {
-        var contractBytecode = ContractBytecode.newBuilder()
-                .setContractId(contractId)
-                .setInitcode(bytes(2048))
-                .setRuntimeBytecode(bytes(3048));
-        return TransactionSidecarRecord.newBuilder().setBytecode(contractBytecode);
-    }
-
     public TransactionSidecarRecord.Builder contractStateChanges(ContractID contractId) {
         var contractStateChange = ContractStateChange.newBuilder()
                 .setContractId(contractId)
@@ -1483,6 +1475,14 @@ public final class RecordItemBuilder {
                 .setRecipientContract(contractId())
                 .setOutput(bytes(256))
                 .setValue(20);
+    }
+
+    private TransactionSidecarRecord.Builder contractBytecode(ContractID contractId) {
+        var contractBytecode = ContractBytecode.newBuilder()
+                .setContractId(contractId)
+                .setInitcode(bytes(2048))
+                .setRuntimeBytecode(bytes(3048));
+        return TransactionSidecarRecord.newBuilder().setBytecode(contractBytecode);
     }
 
     private ContractLoginfo contractLoginfo(ContractID contractId) {

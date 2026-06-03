@@ -22,7 +22,6 @@ import lombok.ToString;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.StreamType;
-import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.springframework.data.util.Version;
 
@@ -166,12 +165,10 @@ public class RecordFile implements StreamFile<RecordItem> {
     }
 
     public record InitialState(
-            Collection<Contract> contracts,
-            Collection<org.hiero.mirror.common.domain.entity.Entity> entities,
-            Collection<FileData> fileDatum) {
+            Collection<org.hiero.mirror.common.domain.entity.Entity> entities, Collection<FileData> fileDatum) {
 
         public InitialState() {
-            this(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+            this(new ArrayList<>(), new ArrayList<>());
         }
     }
 }

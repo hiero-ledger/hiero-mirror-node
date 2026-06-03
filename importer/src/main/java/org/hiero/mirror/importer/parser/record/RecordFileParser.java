@@ -187,12 +187,6 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         }
 
         final var persist = entityProperties.getPersist();
-        if (persist.isContracts()) {
-            for (final var contract : initialState.contracts()) {
-                entityListener.onContract(contract);
-            }
-        }
-
         for (final var entity : initialState.entities()) {
             entityListener.onEntity(entity);
         }

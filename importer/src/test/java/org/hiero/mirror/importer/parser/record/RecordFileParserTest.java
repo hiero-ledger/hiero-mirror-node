@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
-import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -56,6 +55,7 @@ import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -177,23 +177,15 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
     }
 
     @ParameterizedTest
-    @CsvSource(textBlock = """
-            true, true
-            true, false
-            false, true
-            false, false
-            """)
-    void parseInitialState(final boolean contracts, final boolean fileData) {
+    @ValueSource(booleans = {true, false})
+    void parseInitialState(final boolean fileData) {
         // given
         final var persistProperties = mock(EntityProperties.PersistProperties.class);
         doReturn(persistProperties).when(entityProperties).getPersist();
-        doReturn(contracts).when(persistProperties).isContracts();
         doReturn(fileData).when(persistProperties).shouldPersistFileData(any());
         final var initialState = new RecordFile.InitialState();
         initialState.entities().add(domainBuilder.entity().get());
         initialState.entities().add(domainBuilder.entity().get());
-        initialState.contracts().add(domainBuilder.contract().get());
-        initialState.contracts().add(domainBuilder.contract().get());
         initialState.fileDatum().add(domainBuilder.fileData().get());
         initialState.fileDatum().add(domainBuilder.fileData().get());
         final var recordFile = getStreamFile();
@@ -208,12 +200,6 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
         final var entityCaptor = ArgumentCaptor.forClass(Entity.class);
         verify(entityListener, times(2)).onEntity(entityCaptor.capture());
         assertThat(entityCaptor.getAllValues()).containsExactlyInAnyOrderElementsOf(initialState.entities());
-
-        if (contracts) {
-            final var contractCaptor = ArgumentCaptor.forClass(Contract.class);
-            verify(entityListener, times(2)).onContract(contractCaptor.capture());
-            assertThat(contractCaptor.getAllValues()).containsExactlyInAnyOrderElementsOf(initialState.contracts());
-        }
 
         if (fileData) {
             final var fileDataCaptor = ArgumentCaptor.forClass(FileData.class);
