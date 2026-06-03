@@ -9,6 +9,7 @@ import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
 import jakarta.inject.Named;
 import java.util.Collection;
+import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.file.FileData;
@@ -29,12 +30,12 @@ final class InitialStateReaderImpl implements InitialStateReader {
                 switch (stateChange.getStateId()) {
                     case StateIdentifier.STATE_ID_ACCOUNTS_VALUE ->
                         readAccount(consensusTimestamp, initialState, mapUpdate);
+                    case StateIdentifier.STATE_ID_BYTECODE_VALUE ->
+                        readBytecode(consensusTimestamp, initialState, mapUpdate);
                     case StateIdentifier.STATE_ID_FILES_VALUE -> readFile(consensusTimestamp, initialState, mapUpdate);
-                    // There are also contract bytecode and contract storage slots statechanges in mainnet genesis WRB.
-                    // Contract bytecode statechanges are skipped because the contract bytecode sidecar migration
-                    // transaction record is a superset.
-                    // Contract storage slots statechanges are skipped because storage slots are mutable and the
-                    // contract storage state is also synced through sidecar migration.
+                    // There are also contract storage slots statechanges in mainnet's genesis WRB. They are not
+                    // processed here because storage slots are mutable and the contract storage state is later synced
+                    // through sidecar migration.
                 }
             }
         }
@@ -69,6 +70,20 @@ final class InitialStateReaderImpl implements InitialStateReader {
         }
 
         initialState.entities().add(entity);
+    }
+
+    private void readBytecode(
+            final long consensusTimestamp,
+            final RecordFile.InitialState initialState,
+            final MapUpdateChange mapUpdateChange) {
+        final var entityId = EntityId.of(mapUpdateChange.getKey().getContractIdKey());
+        final byte[] bytecode = DomainUtils.toBytes(
+                mapUpdateChange.getValue().getBytecodeValue().getCode());
+        final var contract = Contract.builder()
+                .id(entityId.getId())
+                .runtimeBytecode(bytecode)
+                .build();
+        initialState.contracts().add(contract);
     }
 
     private void readFile(

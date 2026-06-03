@@ -96,6 +96,7 @@ final class InitialStateReaderTest {
         assertThat(initialState)
                 .satisfies(
                         s -> assertThat(s.entities()).containsExactlyInAnyOrderElementsOf(expectedEntities),
+                        s -> assertThat(s.contracts()).containsExactlyInAnyOrderElementsOf(expectedContracts),
                         s -> assertThat(s.fileDatum()).containsExactlyInAnyOrderElementsOf(expectedFileDatum));
     }
 
