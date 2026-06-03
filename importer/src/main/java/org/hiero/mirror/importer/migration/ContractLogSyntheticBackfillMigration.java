@@ -37,12 +37,12 @@ final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Lon
             drop table if exists contract_log_synthetic_progress_temp;
             """;
 
-    // Uses partial index on synthetic=true for the initial upper bound; falls back to max(null)+1 if none exist yet.
+    // Uses partial index on synthetic=true for the initial upper bound; falls back to max+1 over all rows.
     private static final String SELECT_UPPER_BOUND = """
             select coalesce(
                 (select upper_bound from contract_log_synthetic_progress_temp limit 1),
                 (select min(consensus_timestamp) from contract_log where synthetic is true),
-                (select max(consensus_timestamp) + 1 from contract_log where synthetic is null)
+                (select max(consensus_timestamp) + 1 from contract_log)
             )
             """;
 
@@ -103,13 +103,13 @@ final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Lon
         var upperBound = getJdbcOperations().queryForObject(SELECT_UPPER_BOUND, Long.class);
         if (upperBound == null) {
             log.info("No contract_log rows to backfill");
-            return true;
+            return false;
         }
 
         var floor = getJdbcOperations().queryForObject(SELECT_LOWER_BOUND_FLOOR, Long.class);
         if (floor == null) {
             log.info("contract_log is empty, skipping backfill");
-            return true;
+            return false;
         }
 
         lowerBoundFloor = floor;
@@ -126,15 +126,13 @@ final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Lon
     @NonNull
     @Override
     protected Optional<Long> migratePartial(Long upperBound) {
-        if (upperBound < 0) {
-            return Optional.empty();
-        }
-
         var lowerBound = upperBound - BATCH_INTERVAL;
         var params =
                 new MapSqlParameterSource().addValue("lowerBound", lowerBound).addValue("upperBound", upperBound);
         var updated = getNamedParameterJdbcOperations().update(BACKFILL_SQL, params);
-        log.info("Backfilled {} contract_log rows in range [{}, {})", updated, lowerBound, upperBound);
+        if (updated > 0) {
+            log.info("Backfilled {} contract_log rows in range [{}, {})", updated, lowerBound, upperBound);
+        }
 
         if (lowerBound <= lowerBoundFloor) {
             getJdbcOperations().execute(DROP_PROGRESS_TABLE);

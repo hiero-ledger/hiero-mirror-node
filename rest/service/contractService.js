@@ -5,7 +5,7 @@ import range from 'lodash/range';
 
 import BaseService from './baseService';
 import {getResponseLimit} from '../config';
-import {filterKeys, HEX_PREFIX, MAX_LONG, orderFilterValues} from '../constants';
+import {filterKeys, HEX_PREFIX, MAX_LONG, MIN_LONG, orderFilterValues} from '../constants';
 import EntityId from '../entityId';
 import {OrderSpec} from '../sql';
 import {
@@ -356,17 +356,20 @@ class ContractService extends BaseService {
     const syntheticRows = await super.getRows(syntheticQuery, syntheticParams);
 
     const isDesc = order === orderFilterValues.DESC;
+    const defaultValue = isDesc ? MIN_LONG : MAX_LONG;
     const merged = [];
     let i = 0;
     let j = 0;
     while (merged.length < limit && (i < rows.length || j < syntheticRows.length)) {
-      const aTs = i < rows.length ? BigInt(rows[i][ContractResult.CONSENSUS_TIMESTAMP]) : null;
-      const bTs = j < syntheticRows.length ? BigInt(syntheticRows[j][ContractResult.CONSENSUS_TIMESTAMP]) : null;
-      const pickA = aTs !== null && (bTs === null || (isDesc ? aTs >= bTs : aTs <= bTs));
-      merged.push(pickA ? rows[i++] : syntheticRows[j++]);
+      const aTs = i < rows.length ? BigInt(rows[i][ContractResult.CONSENSUS_TIMESTAMP]) : defaultValue;
+      const bTs =
+        j < syntheticRows.length ? BigInt(syntheticRows[j][ContractResult.CONSENSUS_TIMESTAMP]) : defaultValue;
+      const pickA = isDesc ? aTs >= bTs : aTs <= bTs;
+      const cr = pickA ? rows[i++] : syntheticRows[j++];
+      merged.push({...new ContractResult(cr), hash: cr.hash});
     }
 
-    return merged.map((cr) => ({...new ContractResult(cr), hash: cr.hash}));
+    return merged;
   }
 
   async getContractStateByIdAndFilters(
