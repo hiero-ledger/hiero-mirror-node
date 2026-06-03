@@ -184,6 +184,12 @@ describe('FileDataService.getFeeSchedule tests', () => {
     },
   ];
 
+  // ContractCall gas in tinybars: max(1, (gas * hbarEquiv) / (centEquiv * 1000))
+  // Latest: gas=789012, next rate (now > current_expiration): hbar=30000, cent=435305 → 54n
+  const expectedLatestGasPrice = 54n;
+  // At consensus_timestamp <= 12: fee file at 11 (gas=123456), current rate cent=450041 → 8n
+  const expectedPreviousGasPrice = 8n;
+
   test('FileDataService.getFeeSchedule - No match', async () => {
     await expect(FileDataService.getFeeSchedule({whereQuery: []})).resolves.toBeNull();
   });
@@ -193,8 +199,7 @@ describe('FileDataService.getFeeSchedule tests', () => {
     await integrationDomainOps.loadFileData(exchangeRateFiles);
 
     const result = await FileDataService.getFeeSchedule({whereQuery: []});
-    expect(result).not.toBeNull();
-    expect(result).toBeGreaterThan(0n);
+    expect(result).toBe(expectedLatestGasPrice);
   });
 
   test('FileDataService.getFeeSchedule - Row match w previous latest', async () => {
@@ -208,8 +213,7 @@ describe('FileDataService.getFeeSchedule tests', () => {
       },
     ];
     const result = await FileDataService.getFeeSchedule({whereQuery: where});
-    expect(result).not.toBeNull();
-    expect(result).toBeGreaterThan(0n);
+    expect(result).toBe(expectedPreviousGasPrice);
   });
 
   test('FileDataService.getFeeSchedule - Returns null when exchange rate is missing', async () => {
