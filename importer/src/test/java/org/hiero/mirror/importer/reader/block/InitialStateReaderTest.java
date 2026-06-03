@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
-import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -51,7 +50,6 @@ final class InitialStateReaderTest {
         // given
         // first StateChanges - accounts, some are smart contract accounts
         final var expectedEntities = new ArrayList<Entity>();
-        final var expectedContracts = new ArrayList<Contract>();
         final var expectedFileDatum = new ArrayList<FileData>();
 
         final var accountId = recordItemBuilder.accountId();
@@ -68,8 +66,8 @@ final class InitialStateReaderTest {
         // second StateChanges - bytecode for the smart contract account from the first StateChanges
         final var bytecodeStateChanges = StateChanges.newBuilder()
                 .setConsensusTimestamp(accountTimestamp)
-                .addStateChanges(bytecodeStateChange(contractAccountId1, expectedContracts))
-                .addStateChanges(bytecodeStateChange(contractAccountId2, expectedContracts))
+                .addStateChanges(bytecodeStateChange(contractAccountId1))
+                .addStateChanges(bytecodeStateChange(contractAccountId2))
                 .build();
 
         // third StateChanges - 2 file map update
@@ -152,14 +150,9 @@ final class InitialStateReaderTest {
                 .build();
     }
 
-    private StateChange bytecodeStateChange(
-            final AccountID contractAccountId, final Collection<Contract> expectedContracts) {
+    private StateChange bytecodeStateChange(final AccountID contractAccountId) {
         final var contractId = toContractID(contractAccountId);
         final byte[] bytecode = recordItemBuilder.randomBytes(512);
-        expectedContracts.add(Contract.builder()
-                .id(EntityId.of(contractAccountId).getId())
-                .runtimeBytecode(bytecode)
-                .build());
         return StateChange.newBuilder()
                 .setStateId(StateIdentifier.STATE_ID_BYTECODE_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
