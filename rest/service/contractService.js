@@ -281,9 +281,11 @@ class ContractService extends BaseService {
       const positions = range(1, timestamps.length + 1).map((i) => `$${i}`);
       timestampsOpAndValue = `in (${positions})`;
     }
-    const conditions = [`${ContractResult.CONSENSUS_TIMESTAMP} ${timestampsOpAndValue}`];
+    const conditions = [`${ContractResult.getFullName(ContractResult.CONSENSUS_TIMESTAMP)} ${timestampsOpAndValue}`];
     if (involvedContractIds.length) {
-      conditions.push(`${ContractResult.CONTRACT_ID} in (${involvedContractIds.join(',')})`);
+      conditions.push(
+        `${ContractResult.getFullName(ContractResult.CONTRACT_ID)} in (${involvedContractIds.join(',')})`
+      );
     }
     const whereClause = ` where ${conditions.join(' and ')} `;
     const query = [
