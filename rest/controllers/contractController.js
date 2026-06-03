@@ -25,6 +25,7 @@ import {
   ContractState,
   ContractStateChange,
   Entity,
+  FeeSchedule,
   FileData,
   TransactionResult,
   TransactionType,
@@ -1055,7 +1056,7 @@ class ContractController extends BaseController {
       contractStateChanges,
       fileData,
       convertToHbar,
-      this.getGasPriceFromFeeSchedule(ethTransaction, timestamp)
+      this.getGasPriceFromFeeSchedule(timestamp, contractResults[0].transactionType)
     );
   };
 
@@ -1115,7 +1116,7 @@ class ContractController extends BaseController {
           null,
           null,
           convertToHbar,
-          this.getGasPriceFromFeeSchedule(ethTransaction, row.consensusTimestamp)
+          this.getGasPriceFromFeeSchedule(row.consensusTimestamp, row.transactionType)
         ).resolveGasPriceFromFeeSchedule();
       })
     );
@@ -1206,7 +1207,10 @@ class ContractController extends BaseController {
       fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
     }
 
-    const gasPriceFromFeeSchedule = this.getGasPriceFromFeeSchedule(ethTransaction, contractResult.consensusTimestamp);
+    const gasPriceFromFeeSchedule = this.getGasPriceFromFeeSchedule(
+      contractResult.consensusTimestamp,
+      contractResult.transactionType
+    );
 
     await this.setContractResultsResponse(
       res,
@@ -1227,17 +1231,15 @@ class ContractController extends BaseController {
     }
   };
 
-  getGasPriceFromFeeSchedule = async (ethTransaction, consensusTimestamp) => {
-    if (ethTransaction) {
-      return null;
-    }
+  getGasPriceFromFeeSchedule = async (consensusTimestamp, transactionType) => {
+    const feeScheduleType = FeeSchedule.getFeeScheduleType(transactionType);
     const whereQuery = [
       {
         query: `${FileData.CONSENSUS_TIMESTAMP}${utils.opsMap.lte}`,
         param: consensusTimestamp,
       },
     ];
-    return FileDataService.getFeeSchedule({whereQuery});
+    return FileDataService.getFeeSchedule({whereQuery}, feeScheduleType);
   };
 
   getDetailedContractResults = async (contractDetails, contractId = undefined) => {

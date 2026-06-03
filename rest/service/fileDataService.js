@@ -20,7 +20,7 @@ class FileDataService extends BaseService {
   static filterInnerPlaceholder = '<filterInnerPlaceHolder>';
   static filterOuterPlaceholder = '<filterOuterPlaceHolder>';
 
-  #feeScheduleCache = new quickLru({
+  #gasPriceCache = new quickLru({
     maxAge: config.cache.feeSchedule.maxAge,
     maxSize: config.cache.feeSchedule.maxSize,
   });
@@ -102,10 +102,10 @@ class FileDataService extends BaseService {
     return this.fallbackRetry(EntityId.systemEntity.exchangeRateFile.getEncodedId(), filterQueries, ExchangeRate);
   };
 
-  getFeeSchedule = async (filterQueries) => {
-    const key = this.#getFeeScheduleKey(filterQueries);
+  getFeeSchedule = async (filterQueries, transactionType = FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL) => {
+    const key = this.#getFeeScheduleKey(filterQueries, transactionType);
 
-    const cached = this.#feeScheduleCache.get(key);
+    const cached = this.#gasPriceCache.get(key);
     if (cached !== undefined) {
       return cached;
     }
@@ -118,13 +118,13 @@ class FileDataService extends BaseService {
     ]);
 
     if (!feeSchedule || !exchangeRate) {
-      this.#feeScheduleCache.set(key, null);
+      this.#gasPriceCache.set(key, null);
       return null;
     }
 
     feeSchedule.setExchangeRate(exchangeRate, refTimestampNanos ?? BigInt(Date.now()) * 1_000_000n);
-    const gasPrice = feeSchedule.getGasForType(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL);
-    this.#feeScheduleCache.set(key, gasPrice);
+    const gasPrice = feeSchedule.getGasForType(transactionType);
+    this.#gasPriceCache.set(key, gasPrice);
     return gasPrice;
   };
 
@@ -155,12 +155,10 @@ class FileDataService extends BaseService {
     return null;
   };
 
-  #getFeeScheduleKey(filterQueries) {
+  #getFeeScheduleKey(filterQueries, transactionType) {
     const refTimestamp = this.#getRefTimestamp(filterQueries);
-    if (refTimestamp === null) {
-      return 'latest';
-    }
-    return this.#truncateToStartOfHour(refTimestamp);
+    const timeKey = refTimestamp === null ? 'latest' : this.#truncateToStartOfHour(refTimestamp);
+    return `${transactionType}:${timeKey}`;
   }
 
   #getRefTimestamp(filterQueries) {
@@ -181,7 +179,7 @@ class FileDataService extends BaseService {
   }
 
   clearFeeScheduleCache = () => {
-    this.#feeScheduleCache.clear();
+    this.#gasPriceCache.clear();
   };
 }
 

@@ -11,7 +11,8 @@ import {
   HederaFunctionality,
 } from '../../gen/services/basic_types_pb.js';
 import {TimestampSecondsSchema} from '../../gen/services/timestamp_pb.js';
-import {FileData} from '../../model';
+import {FeeSchedule, FileData} from '../../model';
+import TransactionType from '../../model/transactionType';
 import {FileDataService} from '../../service';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
@@ -48,19 +49,18 @@ const exchangeRateFiles = [
   },
 ];
 
-const makeFeeScheduleFileData = (gas, expirySeconds) => {
-  const feeComponents = create(FeeComponentsSchema, {
-    gas,
-  });
-  const feeData = create(FeeDataSchema, {
-    servicedata: feeComponents,
-  });
-  const transactionFeeSchedule = create(TransactionFeeScheduleSchema, {
-    hederaFunctionality: HederaFunctionality.ContractCall,
+const makeTransactionFeeSchedule = (hederaFunctionality, gas) => {
+  const feeComponents = create(FeeComponentsSchema, {gas});
+  const feeData = create(FeeDataSchema, {servicedata: feeComponents});
+  return create(TransactionFeeScheduleSchema, {
+    hederaFunctionality,
     fees: [feeData],
   });
+};
+
+const makeFeeScheduleFileData = (gas, expirySeconds, hederaFunctionality = HederaFunctionality.ContractCall) => {
   const feeSchedule = create(FeeScheduleSchema, {
-    transactionFeeSchedule: [transactionFeeSchedule],
+    transactionFeeSchedule: [makeTransactionFeeSchedule(hederaFunctionality, gas)],
     expiryTime: create(TimestampSecondsSchema, {seconds: BigInt(expirySeconds)}),
   });
   return Buffer.from(
@@ -71,6 +71,29 @@ const makeFeeScheduleFileData = (gas, expirySeconds) => {
       })
     )
   );
+};
+
+const makeMultiTypeFeeScheduleFileData = (gasByFunctionality, expirySeconds) => {
+  const feeSchedule = create(FeeScheduleSchema, {
+    transactionFeeSchedule: Object.entries(gasByFunctionality).map(([functionality, gas]) =>
+      makeTransactionFeeSchedule(Number(functionality), gas)
+    ),
+    expiryTime: create(TimestampSecondsSchema, {seconds: BigInt(expirySeconds)}),
+  });
+  return Buffer.from(
+    toBinary(
+      CurrentAndNextFeeScheduleSchema,
+      create(CurrentAndNextFeeScheduleSchema, {
+        currentFeeSchedule: feeSchedule,
+      })
+    )
+  );
+};
+
+// max(1, (gas * hbarEquiv) / (centEquiv * 1000)) with next exchange rate (cent=435305, hbar=30000)
+const gasPriceInTinybars = (gas, centEquiv = 435305, hbarEquiv = 30000) => {
+  const fee = (BigInt(gas) * BigInt(hbarEquiv)) / (BigInt(centEquiv) * 1000n);
+  return fee > 0n ? fee : 1n;
 };
 
 const exchangeRateFileId = exchangeRateEntityId.getEncodedId();
@@ -248,5 +271,123 @@ describe('FileDataService.getFeeSchedule tests', () => {
     expect(spy).toHaveBeenCalledTimes(2);
 
     spy.mockRestore();
+  });
+
+  describe('by transaction type', () => {
+    const contractCallGas = 100_000;
+    const contractCreateGas = 500_000;
+    const ethereumTransactionGas = 200_000;
+    const multiTypeExpiry = 3_000_000_000;
+
+    const multiTypeFeeScheduleFiles = [
+      {
+        consensus_timestamp: 13,
+        entity_id: feeScheduleEntityId.toString(),
+        file_data: makeMultiTypeFeeScheduleFileData(
+          {
+            [HederaFunctionality.ContractCall]: contractCallGas,
+            [HederaFunctionality.ContractCreate]: contractCreateGas,
+            [HederaFunctionality.EthereumTransaction]: ethereumTransactionGas,
+          },
+          multiTypeExpiry
+        ),
+        transaction_type: 19,
+      },
+    ];
+
+    const expectedContractCallGasPrice = gasPriceInTinybars(contractCallGas);
+    const expectedContractCreateGasPrice = gasPriceInTinybars(contractCreateGas);
+    const expectedEthereumTransactionGasPrice = gasPriceInTinybars(ethereumTransactionGas);
+
+    const loadMultiTypeFeeScheduleData = async () => {
+      await integrationDomainOps.loadFileData(multiTypeFeeScheduleFiles);
+      await integrationDomainOps.loadFileData(exchangeRateFiles);
+    };
+
+    test('returns ContractCall gas price when transaction type is ContractCall', async () => {
+      await loadMultiTypeFeeScheduleData();
+
+      const result = await FileDataService.getFeeSchedule(
+        {whereQuery: []},
+        FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL
+      );
+
+      expect(result).toBe(expectedContractCallGasPrice);
+    });
+
+    test('returns ContractCreate gas price when transaction type is ContractCreate', async () => {
+      await loadMultiTypeFeeScheduleData();
+
+      const result = await FileDataService.getFeeSchedule(
+        {whereQuery: []},
+        FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE
+      );
+
+      expect(result).toBe(expectedContractCreateGasPrice);
+    });
+
+    test('returns EthereumTransaction gas price when transaction type is EthereumTransaction', async () => {
+      await loadMultiTypeFeeScheduleData();
+
+      const result = await FileDataService.getFeeSchedule(
+        {whereQuery: []},
+        FeeSchedule.TRANSACTION_TYPES.ETHEREUM_TRANSACTION
+      );
+
+      expect(result).toBe(expectedEthereumTransactionGasPrice);
+    });
+
+    test('caches gas prices separately per transaction type', async () => {
+      await loadMultiTypeFeeScheduleData();
+
+      const filterQueries = {whereQuery: []};
+      const spy = jest.spyOn(FileDataService, 'getLatestFileDataContents');
+
+      const contractCall = await FileDataService.getFeeSchedule(
+        filterQueries,
+        FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL
+      );
+      const contractCreate = await FileDataService.getFeeSchedule(
+        filterQueries,
+        FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE
+      );
+      const contractCallCached = await FileDataService.getFeeSchedule(
+        filterQueries,
+        FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL
+      );
+      const contractCreateCached = await FileDataService.getFeeSchedule(
+        filterQueries,
+        FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE
+      );
+
+      expect(contractCall).toBe(expectedContractCallGasPrice);
+      expect(contractCreate).toBe(expectedContractCreateGasPrice);
+      expect(contractCallCached).toBe(contractCall);
+      expect(contractCreateCached).toBe(contractCreate);
+      // fee schedule + exchange rate loaded once per transaction type on first access
+      expect(spy).toHaveBeenCalledTimes(4);
+
+      spy.mockRestore();
+    });
+  });
+});
+
+describe('FeeSchedule.getFeeScheduleType', () => {
+  test('maps Hedera transaction proto ids to fee schedule types', () => {
+    expect(FeeSchedule.getFeeScheduleType(TransactionType.getProtoId('CONTRACTCALL'))).toBe(
+      FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL
+    );
+    expect(FeeSchedule.getFeeScheduleType(TransactionType.getProtoId('CONTRACTCREATEINSTANCE'))).toBe(
+      FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE
+    );
+    expect(FeeSchedule.getFeeScheduleType(TransactionType.getProtoId('ETHEREUMTRANSACTION'))).toBe(
+      FeeSchedule.TRANSACTION_TYPES.ETHEREUM_TRANSACTION
+    );
+  });
+
+  test('defaults unknown transaction types to ContractCall', () => {
+    expect(FeeSchedule.getFeeScheduleType(TransactionType.getProtoId('CRYPTOTRANSFER'))).toBe(
+      FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL
+    );
   });
 });

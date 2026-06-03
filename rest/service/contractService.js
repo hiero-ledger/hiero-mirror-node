@@ -17,6 +17,7 @@ import {
   ContractTransactionHash,
   Entity,
   EthereumTransaction,
+  Transaction,
   TransactionResult,
 } from '../model';
 import ContractTransaction from '../model/contractTransaction';
@@ -71,13 +72,21 @@ class ContractService extends BaseService {
   static contractResultsWithEvmAddressQuery = `
     select
       ${contractResultsFields},
-      coalesce(${Entity.getFullName(Entity.EVM_ADDRESS)},'') as ${Entity.EVM_ADDRESS}
+      coalesce(${Entity.getFullName(Entity.EVM_ADDRESS)},'') as ${Entity.EVM_ADDRESS},
+      ${Transaction.getFullName(Transaction.TYPE)} as transaction_type
     from ${ContractResult.tableName} ${ContractResult.tableAlias}
     `;
 
   static joinContractResultWithEvmAddress = `
       left join ${Entity.tableName} ${Entity.tableAlias}
       on ${Entity.getFullName(Entity.ID)} = ${ContractResult.getFullName(ContractResult.CONTRACT_ID)}
+      left join ${Transaction.tableName} ${Transaction.tableAlias}
+      on ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} = ${ContractResult.getFullName(
+    ContractResult.CONSENSUS_TIMESTAMP
+  )}
+      and ${Transaction.getFullName(Transaction.PAYER_ACCOUNT_ID)} = ${ContractResult.getFullName(
+    ContractResult.PAYER_ACCOUNT_ID
+  )}
    `;
 
   static contractStateChangesQuery = `

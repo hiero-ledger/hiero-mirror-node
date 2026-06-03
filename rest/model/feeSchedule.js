@@ -4,6 +4,7 @@ import {fromBinary} from '@bufbuild/protobuf';
 import isNumber from 'lodash/isNumber';
 import {CurrentAndNextFeeScheduleSchema, HederaFunctionality} from '../gen/services/basic_types_pb.js';
 import {FileDecodeError} from '../errors';
+import TransactionType from './transactionType';
 import {bigIntMax} from '../utils';
 
 const FUNCTIONALITY_TO_TYPE = {
@@ -107,6 +108,17 @@ class FeeSchedule {
     CONTRACT_CREATE: 'ContractCreate',
     ETHEREUM_TRANSACTION: 'EthereumTransaction',
   };
+
+  static getFeeScheduleType(transactionType) {
+    switch (TransactionType.getName(transactionType)) {
+      case 'CONTRACTCREATEINSTANCE':
+        return FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE;
+      case 'ETHEREUMTRANSACTION':
+        return FeeSchedule.TRANSACTION_TYPES.ETHEREUM_TRANSACTION;
+      default:
+        return FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL;
+    }
+  }
 }
 
 export default FeeSchedule;
