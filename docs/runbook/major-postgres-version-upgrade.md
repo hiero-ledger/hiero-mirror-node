@@ -23,7 +23,6 @@ Need to upgrade the major PostgreSQL version for a StackGres Citus cluster while
 ### 1. Create Backup
 
 Follow the steps to [create a disk snapshot for Citus cluster](./create-disk-snapshot-for-citus-cluster.md) before beginning the upgrade.
-)
 
 ### 2. Increase Pod Termination Grace Period (if not already set) And Verify Values On Citus Cluster Pods
 
@@ -59,10 +58,15 @@ sleep 5
 kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod -l job-name=restart-mirror-citus --timeout=-1s
 ```
 
-Now verify the change
+Cleanup restart job
 
 ```bash
 kubectl delete sgshardeddbops.stackgres.io restart-mirror-citus
+```
+
+Verify the change
+
+```bash
 kubectl get pods -l app=StackGresCluster -o yaml | grep terminationGracePeriodSeconds
 ```
 
