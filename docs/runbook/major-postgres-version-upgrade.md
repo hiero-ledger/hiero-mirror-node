@@ -115,8 +115,6 @@ kubectl scale sts \
   --replicas=0
 ```
 
-[//]: # "TODO fix this command so it doesnt produce citus, if only shared lib"
-
 ## 7. Create Worker SGPostgresConfig
 
 ```bash
