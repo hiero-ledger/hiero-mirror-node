@@ -144,8 +144,21 @@ public final class CutoverServiceImpl implements CutoverService {
             return streamType == BLOCK ? blockProperties.isEnabled() : recordDownloaderProperties.isEnabled();
         }
 
+        if (!shouldTryFirstStage() && !isAtSingleStageCutoverHapiVersion()) {
+            return streamType == BLOCK ? blockProperties.isEnabled() : recordDownloaderProperties.isEnabled();
+        }
+
         updateActiveStreamType();
         return streamType == currentType;
+    }
+
+    private boolean isAtSingleStageCutoverHapiVersion() {
+        // Note the fallback is true when there's no record files, so importer started after the cutover will try to
+        // run the final cutover logic
+        return getLastRecordFile()
+                .map(RecordFile::getHapiVersion)
+                .map(version -> version.isGreaterThanOrEqualTo(cutoverProperties.getHapiVersion()))
+                .orElse(true);
     }
 
     private boolean isCutoverComplete() {

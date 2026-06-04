@@ -101,7 +101,15 @@
         "signature_s": "0x1092806a99727a20c31836959133301b65a2bfa980f9795522d21a254e629110",
         "recovery_id": 1,
         "nonce": 5,
-        "value": ["0x2E90EDD000"]
+        "value": ["0x2E90EDD000"],
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ]
       },
       {
         "consensus_timestamp": "1676540001234390006",
@@ -114,7 +122,15 @@
         "signature_s": "0x1092806a99727a20c31836959133301b65a2bfa980f9795522d21a254e629110",
         "recovery_id": 1,
         "nonce": 5,
-        "value": ["0x2E90EDD000"]
+        "value": ["0x2E90EDD000"],
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ]
       },
       {
         "consensus_timestamp": "1676540001234390007",
@@ -127,7 +143,15 @@
         "signature_s": "0x1092806a99727a20c31836959133301b65a2bfa980f9795522d21a254e629110",
         "recovery_id": 1,
         "nonce": 5,
-        "value": ["0x2E90EDD000"]
+        "value": ["0x2E90EDD000"],
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ]
       }
     ]
   },
@@ -138,7 +162,14 @@
       "responseJson": {
         "results": [
           {
-            "access_list": "0x",
+            "access_list": [
+              {
+                "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+                "storage_keys": [
+                  "0x0000000000000000000000000000000000000000000000000000000000000081"
+                ]
+              }
+            ],
             "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
             "amount": 20,
             "authorization_list": [],
@@ -184,7 +215,14 @@
       "responseJson": {
         "results": [
           {
-            "access_list": "0x",
+            "access_list": [
+              {
+                "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+                "storage_keys": [
+                  "0x0000000000000000000000000000000000000000000000000000000000000081"
+                ]
+              }
+            ],
             "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
             "amount": 20,
             "authorization_list": [],
@@ -230,7 +268,14 @@
       "responseJson": {
         "results": [
           {
-            "access_list": "0x",
+            "access_list": [
+              {
+                "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+                "storage_keys": [
+                  "0x0000000000000000000000000000000000000000000000000000000000000081"
+                ]
+              }
+            ],
             "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
             "amount": 20,
             "authorization_list": [],

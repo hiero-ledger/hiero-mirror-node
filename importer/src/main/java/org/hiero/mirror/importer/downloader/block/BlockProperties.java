@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
@@ -11,7 +12,6 @@ import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.downloader.block.tss.LedgerProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
@@ -33,8 +33,7 @@ public final class BlockProperties {
     @NotNull
     private Duration frequency = Duration.ofMillis(100L);
 
-    @Valid
-    private LedgerProperties ledger;
+    private Path initialLedgerIdPublication;
 
     @NotNull
     @Valid

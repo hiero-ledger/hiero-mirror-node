@@ -963,10 +963,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         int endIndex = startIndex + 64;
 
         // Check if the response without prefix is with correct size
-        if (responseWithoutPrefix.length() != 7168) {
-            throw new IllegalArgumentException("Invalid response size.");
-        }
-
+        assertThat(responseWithoutPrefix.length()).isEqualTo(7104);
         return responseWithoutPrefix.substring(0, startIndex) + responseWithoutPrefix.substring(endIndex);
     }
 
@@ -984,10 +981,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         int endIndex = startIndex + 64;
 
         // Check if the response without prefix is with correct size
-        if (responseWithoutPrefix.length() != 7296) {
-            throw new IllegalArgumentException("Invalid response size.");
-        }
-
+        assertThat(responseWithoutPrefix.length()).isEqualTo(7232);
         return responseWithoutPrefix.substring(0, startIndex) + responseWithoutPrefix.substring(endIndex);
     }
 

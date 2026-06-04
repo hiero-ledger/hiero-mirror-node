@@ -7,7 +7,6 @@ import BaseService from './baseService';
 import {getResponseLimit} from '../config';
 import {filterKeys, HEX_PREFIX, MAX_LONG, orderFilterValues} from '../constants';
 import EntityId from '../entityId';
-import {NotFoundError} from '../errors';
 import {OrderSpec} from '../sql';
 import {
   ContractAction,
@@ -147,7 +146,7 @@ class ContractService extends BaseService {
     select ${Entity.ID}
     from ${Entity.tableName} ${Entity.tableAlias}
     where ${Entity.DELETED} <> true and
-      ${Entity.TYPE} = 'CONTRACT' and
+      ${Entity.TYPE} in ('CONTRACT', 'ACCOUNT') and
       ${Entity.EVM_ADDRESS} = $1`;
 
   static contractActionsByConsensusTimestampQuery = `
@@ -177,7 +176,7 @@ class ContractService extends BaseService {
   };
 
   static ethereumTransactionByPayerAndTimestampArrayQuery = `select
-        encode(${EthereumTransaction.ACCESS_LIST}, 'hex') ${EthereumTransaction.ACCESS_LIST},
+        ${EthereumTransaction.ACCESS_LIST},
         ${EthereumTransaction.AUTHORIZATION_LIST},
         encode(${EthereumTransaction.CHAIN_ID}, 'hex') ${EthereumTransaction.CHAIN_ID},
         ${EthereumTransaction.CONSENSUS_TIMESTAMP},
@@ -455,11 +454,11 @@ class ContractService extends BaseService {
       Buffer.from(create2EvmAddress, 'hex'),
     ]);
     if (rows.length === 0) {
-      throw new NotFoundError(`No contract with the given evm address 0x${create2EvmAddress} has been found.`);
+      return null;
     }
     // since evm_address is not a unique index, it is important to make this check.
     if (rows.length > 1) {
-      throw new Error(`More than one contract with the evm address 0x${create2EvmAddress} have been found.`);
+      throw new Error(`More than one contract or account with the evm address 0x${create2EvmAddress} have been found.`);
     }
 
     return rows[0].id;
@@ -468,7 +467,7 @@ class ContractService extends BaseService {
   async computeContractIdFromString(contractIdValue) {
     const contractIdParts = EntityId.computeContractIdPartsFromContractIdValue(contractIdValue);
 
-    if (contractIdParts.hasOwnProperty('create2_evm_address')) {
+    if (contractIdParts.create2_evm_address) {
       return this.getContractIdByEvmAddress(contractIdParts);
     }
 
