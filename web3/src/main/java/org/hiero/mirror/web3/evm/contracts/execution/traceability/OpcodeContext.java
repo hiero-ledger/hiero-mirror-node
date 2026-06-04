@@ -82,7 +82,7 @@ public final class OpcodeContext {
     public void setActions(final List<ContractAction> actions) {
         final var grouped = new HashMap<Integer, List<ContractAction>>();
         for (final var action : actions) {
-            grouped.computeIfAbsent(action.getCallDepth(), k -> new ArrayList<>())
+            grouped.computeIfAbsent(action.getCallDepth(), _ -> new ArrayList<>())
                     .add(action);
         }
         for (final var list : grouped.values()) {
@@ -111,7 +111,7 @@ public final class OpcodeContext {
      * @return the matching reverted action, or {@code null}
      */
     public ContractAction consumeNextFailedActionAtDepth(final int depth) {
-        final int counter = incrementPrecompileCallCountAtDepth(depth);
+        final var counter = incrementPrecompileCallCountAtDepth(depth);
         final var actionsAtDepth = actionsByDepth.getOrDefault(depth, List.of());
         if (counter >= actionsAtDepth.size()) {
             return null;
