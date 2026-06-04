@@ -25,7 +25,6 @@ import {
   ContractState,
   ContractStateChange,
   Entity,
-  FeeSchedule,
   FileData,
   TransactionResult,
   TransactionType,
@@ -1056,7 +1055,7 @@ class ContractController extends BaseController {
       contractStateChanges,
       fileData,
       convertToHbar,
-      this.getGasPriceFromFeeSchedule(timestamp, contractResults[0].transactionType)
+      ethTransaction == null ? () => this.getGasPriceFromFeeSchedule(timestamp) : null
     );
   };
 
@@ -1116,7 +1115,7 @@ class ContractController extends BaseController {
           null,
           null,
           convertToHbar,
-          this.getGasPriceFromFeeSchedule(row.consensusTimestamp, row.transactionType)
+          ethTransaction == null ? () => this.getGasPriceFromFeeSchedule(row.consensusTimestamp) : null
         ).resolveGasPriceFromFeeSchedule();
       })
     );
@@ -1207,10 +1206,8 @@ class ContractController extends BaseController {
       fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
     }
 
-    const gasPriceFromFeeSchedule = this.getGasPriceFromFeeSchedule(
-      contractResult.consensusTimestamp,
-      contractResult.transactionType
-    );
+    const getGasPriceFromFeeSchedule =
+      ethTransaction == null ? () => this.getGasPriceFromFeeSchedule(contractResult.consensusTimestamp) : null;
 
     await this.setContractResultsResponse(
       res,
@@ -1221,7 +1218,7 @@ class ContractController extends BaseController {
       contractStateChanges,
       fileData,
       convertToHbar,
-      gasPriceFromFeeSchedule
+      getGasPriceFromFeeSchedule
     );
 
     if (isNil(contractResult.callResult)) {
@@ -1231,15 +1228,14 @@ class ContractController extends BaseController {
     }
   };
 
-  getGasPriceFromFeeSchedule = async (consensusTimestamp, transactionType) => {
-    const feeScheduleType = FeeSchedule.getFeeScheduleType(transactionType);
+  getGasPriceFromFeeSchedule = async (consensusTimestamp) => {
     const whereQuery = [
       {
         query: `${FileData.CONSENSUS_TIMESTAMP}${utils.opsMap.lte}`,
         param: consensusTimestamp,
       },
     ];
-    return FileDataService.getFeeSchedule({whereQuery}, feeScheduleType);
+    return FileDataService.getFeeSchedule({whereQuery});
   };
 
   getDetailedContractResults = async (contractDetails, contractId = undefined) => {
@@ -1339,7 +1335,7 @@ class ContractController extends BaseController {
     contractStateChanges,
     fileData,
     convertToHbar = true,
-    gasPriceFromFeeSchedule = null
+    getGasPriceFromFeeSchedule = null
   ) => {
     res.locals[responseDataLabel] = await new ContractResultDetailsViewModel(
       contractResult,
@@ -1349,7 +1345,7 @@ class ContractController extends BaseController {
       contractStateChanges,
       fileData,
       convertToHbar,
-      gasPriceFromFeeSchedule
+      getGasPriceFromFeeSchedule
     ).resolveGasPriceFromFeeSchedule();
   };
 }

@@ -426,7 +426,7 @@ describe('ContractResultDetailsViewModel', () => {
         [],
         null,
         true,
-        Promise.resolve(gasPriceFromFeeSchedule)
+        () => Promise.resolve(gasPriceFromFeeSchedule)
       ).resolveGasPriceFromFeeSchedule();
 
       expect(viewModel.gas_price).toBe('0x56'); // 86 in hex
@@ -441,15 +441,15 @@ describe('ContractResultDetailsViewModel', () => {
         [],
         null,
         true,
-        Promise.resolve(null)
+        () => Promise.resolve(null)
       ).resolveGasPriceFromFeeSchedule();
 
       // gas_price should be null when there's no ethTransaction and no fee schedule gas price
       expect(viewModel.gas_price).toBeNull();
     });
 
-    test('fee schedule promise is not awaited when ethTransaction provides gas price', async () => {
-      let promiseResolved = false;
+    test('fee schedule supplier is not invoked when ethTransaction provides gas price', async () => {
+      let supplierInvoked = false;
       const ethTransaction = {
         accessList: null,
         callData: null,
@@ -470,13 +470,10 @@ describe('ContractResultDetailsViewModel', () => {
         type: 2,
         value: '2e90edd000',
       };
-      let resolveGasPrice;
-      const gasPricePromise = new Promise((resolve) => {
-        resolveGasPrice = () => {
-          promiseResolved = true;
-          resolve(86n);
-        };
-      });
+      const getGasPriceFromFeeSchedule = () => {
+        supplierInvoked = true;
+        return Promise.resolve(86n);
+      };
 
       const viewModel = new ContractResultDetailsViewModel(
         mockContractResult,
@@ -486,15 +483,14 @@ describe('ContractResultDetailsViewModel', () => {
         [],
         null,
         true,
-        gasPricePromise
+        getGasPriceFromFeeSchedule
       );
 
-      expect(promiseResolved).toBe(false);
+      expect(supplierInvoked).toBe(false);
       expect(viewModel.gas_price).toBe('0x4a817c80');
 
       await viewModel.resolveGasPriceFromFeeSchedule();
-      expect(promiseResolved).toBe(false);
-      resolveGasPrice();
+      expect(supplierInvoked).toBe(false);
     });
 
     test('returns access_list from db jsonb', () => {
