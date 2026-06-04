@@ -38,7 +38,7 @@ public abstract class AbstractOpcodeTracer {
             .build(Bytes::toHexString);
 
     protected final List<String> captureMemory(final MessageFrame frame, final OpcodeContext options) {
-        if (!options.isMemory()) {
+        if (!options.getTracerConfig().isMemory()) {
             return Collections.emptyList();
         }
         var size = frame.memoryWordSize();
@@ -58,7 +58,7 @@ public abstract class AbstractOpcodeTracer {
     }
 
     protected final List<String> captureStack(final MessageFrame frame, final OpcodeContext options) {
-        if (!options.isStack()) {
+        if (!options.getTracerConfig().isStack()) {
             return Collections.emptyList();
         }
 
@@ -74,7 +74,7 @@ public abstract class AbstractOpcodeTracer {
 
     protected Map<String, String> captureStorage(
             final MessageFrame frame, final OpcodeContext options, final ContractCallContext context) {
-        if (!options.isStorage()) {
+        if (!options.getTracerConfig().isStorage()) {
             return Collections.emptyMap();
         }
 
@@ -100,6 +100,7 @@ public abstract class AbstractOpcodeTracer {
             }
 
             final var rootProxyWorldUpdater = context.getOpcodeContext().getRootProxyWorldUpdater();
+
             final var updates = rootProxyWorldUpdater
                     .getEvmFrameState()
                     .getTxStorageUsage(true)

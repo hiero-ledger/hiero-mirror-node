@@ -283,6 +283,8 @@ final class ThrottleManagerImplTest {
         var gasLimitBucket = createBucket(throttleProperties.getGasPerSecond());
         var rateLimitBucket = createBucket(throttleProperties.getRequestsPerSecond());
         var opcodeRateLimitBucket = createBucket(throttleProperties.getOpcodeRequestsPerSecond());
-        return new ThrottleManagerImpl(gasLimitBucket, rateLimitBucket, opcodeRateLimitBucket, throttleProperties);
+        var traceRateLimitBucket = createBucket(throttleProperties.getTraceRequestsPerSecond());
+        return new ThrottleManagerImpl(
+                gasLimitBucket, rateLimitBucket, opcodeRateLimitBucket, traceRateLimitBucket, throttleProperties);
     }
 }
