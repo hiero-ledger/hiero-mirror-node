@@ -85,8 +85,14 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             blockFile.setCount((long) items.size());
 
             if (!items.isEmpty()) {
-                blockFile.setConsensusStart(items.getFirst().getConsensusTimestamp());
-                blockFile.setConsensusEnd(items.getLast().getConsensusTimestamp());
+                final var bounds = context.getConsensusTimestampTracker()
+                        .validateItemOrder(
+                                blockFile.getName(),
+                                items.getFirst().getConsensusTimestamp(),
+                                items.getLast().getConsensusTimestamp());
+
+                blockFile.setConsensusStart(bounds.start());
+                blockFile.setConsensusEnd(bounds.end());
             } else {
                 final long blockTimestamp = DomainUtils.timestampInNanosMax(
                         blockFile.getBlockHeader().getBlockTimestamp());
@@ -220,6 +226,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
                 final var blockFileBuilder = context.getBlockFile();
                 blockFileBuilder.item(blockTransaction);
+                context.getConsensusTimestampTracker().track(blockTransaction.getConsensusTimestamp());
                 if (blockTransaction.getTransactionBody().hasLedgerIdPublication() && blockTransaction.isSuccessful()) {
                     blockFileBuilder.lastLedgerIdPublicationTransaction(blockTransaction);
                 }
@@ -245,6 +252,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         private List<BlockItem> blockItems;
         private BlockRootHashDigest blockRootHashDigest;
         private String filename;
+        private ConsensusTimestampTracker consensusTimestampTracker = new ConsensusTimestampTracker();
 
         @NonFinal
         private int batchIndex;

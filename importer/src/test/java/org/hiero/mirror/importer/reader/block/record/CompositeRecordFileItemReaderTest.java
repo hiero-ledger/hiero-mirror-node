@@ -237,6 +237,50 @@ final class CompositeRecordFileItemReaderTest {
     }
 
     @Test
+    void readWithOrderedTransactions() {
+        // given
+        final var timestamp1 = TestUtils.toTimestamp(1_000_000_000L);
+        final var timestamp2 = TestUtils.toTimestamp(2_000_000_000L);
+        final var timestamp3 = TestUtils.toTimestamp(3_000_000_000L);
+        final var recordFileItem = createRecordFileItemWithAmendments(
+                List.of(recordStreamItem(timestamp1), recordStreamItem(timestamp2), recordStreamItem(timestamp3)),
+                List.of());
+
+        // when
+        final var recordFile = reader.read(recordFileItem, 6);
+
+        // then
+        assertThat(recordFile)
+                .returns(DomainUtils.timestampInNanosMax(timestamp1), RecordFile::getConsensusStart)
+                .returns(DomainUtils.timestampInNanosMax(timestamp3), RecordFile::getConsensusEnd)
+                .returns(3L, RecordFile::getCount);
+    }
+
+    @Test
+    void readWithOutOfOrderTransactions(final CapturedOutput output) {
+        // given - items in non-monotonic order [t3, t1, t2], min != first and max != last
+        final var timestamp1 = TestUtils.toTimestamp(1_000_000_000L);
+        final var timestamp2 = TestUtils.toTimestamp(2_000_000_000L);
+        final var timestamp3 = TestUtils.toTimestamp(3_000_000_000L);
+        final var recordFileItem = createRecordFileItemWithAmendments(
+                List.of(recordStreamItem(timestamp3), recordStreamItem(timestamp1), recordStreamItem(timestamp2)),
+                List.of());
+
+        // when
+        final var recordFile = reader.read(recordFileItem, 6);
+
+        // then - consensusStart/End use the actual min/max despite out-of-order items
+        assertThat(recordFile)
+                .returns(DomainUtils.timestampInNanosMax(timestamp1), RecordFile::getConsensusStart)
+                .returns(DomainUtils.timestampInNanosMax(timestamp3), RecordFile::getConsensusEnd)
+                .returns(3L, RecordFile::getCount);
+        assertThat(output.getAll())
+                .contains("Recoverable error")
+                .contains("min consensus timestamp")
+                .contains("max consensus timestamp");
+    }
+
+    @Test
     void readWithAmendmentAddition() {
         // given - amendments insert items before, in the middle of, and after the existing items
         final var timestamp1 = TestUtils.toTimestamp(1_000_000_000L);
