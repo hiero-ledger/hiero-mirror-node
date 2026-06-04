@@ -23,6 +23,7 @@ Need to upgrade the major PostgreSQL version for a StackGres Citus cluster while
 ### 1. Create Backup
 
 Follow the steps to [create a disk snapshot for Citus cluster](./create-disk-snapshot-for-citus-cluster.md) before beginning the upgrade.
+)
 
 ### 2. Increase Pod Termination Grace Period (if not already set) And Verify Values On Citus Cluster Pods
 
@@ -54,10 +55,14 @@ spec:
   op: restart
 EOF
 
-kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod -l job-name=restart-mirror-citus --timeout=-1
+sleep 5
+kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod -l job-name=restart-mirror-citus --timeout=-1s
+```
 
+Now verify the change
+
+```bash
 kubectl delete sgshardeddbops.stackgres.io restart-mirror-citus
-
 kubectl get pods -l app=StackGresCluster -o yaml | grep terminationGracePeriodSeconds
 ```
 
@@ -79,7 +84,7 @@ kubectl scale deployment mirror-importer --replicas=0
 
 ```bash
 kubectl exec -it mirror-citus-coord-0 -c postgres-util -- \
-psql -U postgres -d mirror_node -c '
+psql -U postgres -d mirror_node -P pager=off -c '
 select consensus_end,load_start,load_end from record_file order by consensus_end asc limit 2;
 select consensus_end,load_start,load_end from record_file order by consensus_end desc limit 2;
 select consensus_timestamp from transaction order by consensus_timestamp asc limit 20;
@@ -106,6 +111,8 @@ kubectl scale sts \
   --replicas=0
 ```
 
+[//]: # "TODO fix this command so it doesnt produce citus, if only shared lib"
+
 ## 7. Create Worker SGPostgresConfig
 
 ```bash
@@ -122,10 +129,16 @@ kubectl get sgpgconfigs.stackgres.io mirror-citus-worker \
   | .metadata.name = .metadata.name + "-18"
   | .spec.postgresVersion = "18"
   | .spec["postgresql.conf"].shared_preload_libraries =
-      (if ((.spec["postgresql.conf"].shared_preload_libraries // "") | test("\\bcitus\\b"))
-       then .spec["postgresql.conf"].shared_preload_libraries
-       else "citus, " + (.spec["postgresql.conf"].shared_preload_libraries // "")
-       end)
+      (
+        .spec["postgresql.conf"].shared_preload_libraries // "" as $libs
+        | if ($libs | test("(^|,\\s*)citus(\\s*,|$)")) then
+            $libs
+          elif ($libs | gsub("\\s"; "") | length) == 0 then
+            "citus"
+          else
+            "citus, " + $libs
+          end
+      )
 ' \
 | kubectl apply -f -
 ```
@@ -313,10 +326,16 @@ kubectl get sgpgconfigs.stackgres.io mirror-citus-coordinator \
   | .metadata.name = .metadata.name + "-18"
   | .spec.postgresVersion = "18"
   | .spec["postgresql.conf"].shared_preload_libraries =
-      (if ((.spec["postgresql.conf"].shared_preload_libraries // "") | test("\\bcitus\\b"))
-       then .spec["postgresql.conf"].shared_preload_libraries
-       else "citus, " + (.spec["postgresql.conf"].shared_preload_libraries // "")
-       end)
+      (
+        .spec["postgresql.conf"].shared_preload_libraries // "" as $libs
+        | if ($libs | test("(^|,\\s*)citus(\\s*,|$)")) then
+            $libs
+          elif ($libs | gsub("\\s"; "") | length) == 0 then
+            "citus"
+          else
+            "citus, " + $libs
+          end
+      )
 ' \
 | kubectl apply -f -
 ```
@@ -367,7 +386,7 @@ spec:
       - name: pg_trgm
         version: "1.6"
   sgCluster: mirror-citus-coord
-  EOF
+EOF
 ```
 
 ## 20. Monitor Coordinator Upgrade Pod
@@ -468,15 +487,26 @@ kubectl get sgshardedcluster mirror-citus -o json \
 | kubectl replace -f -
 ```
 
-## 27. Deploy Updated Helm Chart
+## 27. Scale resources back up
+
+```bash
+kubectl scale deployment mirror-restjava --replicas=1
+kubectl scale deployment mirror-rest --replicas=1
+kubectl scale deployment mirror-web3 --replicas=1
+kubectl scale deployment mirror-grpc --replicas=1
+kubectl scale deployment mirror-rest-monitor --replicas=1
+kubectl scale deployment mirror-importer --replicas=1
+```
+
+## 28. Deploy Updated Helm Chart
 
 Deploy the updated chart with the new PostgreSQL and Citus versions. Should disable acceptance and monitor
 
-## 28. Verify Operator Logs
+## 29. Verify Operator Logs
 
 Ensure StackGres operator pod is not logging any errors. There will be some errors in the logs at various steps of the upgrade but there should be no new errors after previous step
 
-## 29. Restart Coordinator
+## 30. Restart Coordinator
 
 Restart the coordinator
 
@@ -492,6 +522,6 @@ spec:
 EOF
 ```
 
-## 29. Deploy Final Helm Release
+## 31. Deploy Final Helm Release
 
 Enable acceptance tests and monitor and upgrade helm release
