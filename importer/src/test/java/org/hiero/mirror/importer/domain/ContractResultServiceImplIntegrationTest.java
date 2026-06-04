@@ -53,6 +53,7 @@ import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
@@ -313,7 +314,7 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
                 .payerAccountId(recordItem.getPayerAccountId())
                 .senderId(recordItem.getPayerAccountId())
                 .transactionHash(ethereumTransaction.getHash())
-                .transactionIndex(recordItem.getTransactionIndex())
+                .transactionIndex(recordItem.getEvmTransactionIndex())
                 .transactionNonce(
                         recordItem.getTransactionRecord().getTransactionID().getNonce())
                 .transactionResult(ResponseCodeEnum.CONSENSUS_GAS_EXHAUSTED_VALUE)
@@ -833,7 +834,7 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
                 .returns(parseContractResultStrings(functionResult.getErrorMessage()), ContractResult::getErrorMessage)
                 .returns(parseContractResultLongs(functionResult.getGasUsed()), ContractResult::getGasUsed)
                 .returns(toBytes(failedInitcode), ContractResult::getFailedInitcode)
-                .returns(transaction.getIndex(), ContractResult::getTransactionIndex)
+                .returns(recordItem.getEvmTransactionIndex(), ContractResult::getTransactionIndex)
                 .returns(transaction.getNonce(), ContractResult::getTransactionNonce)
                 .returns(transaction.getResult(), ContractResult::getTransactionResult)
                 .extracting(ContractResult::getTransactionHash, InstanceOfAssertFactories.BYTE_ARRAY)
@@ -910,7 +911,7 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
         var contractFunctionResult = getFunctionResult(recordItem);
         var listAssert = assertThat(contractLogRepository.findAll()).hasSize(contractFunctionResult.getLogInfoCount());
         var transactionHash = getTransactionHash(recordItem);
-        var transactionIndex = recordItem.getTransactionIndex();
+        var transactionIndex = recordItem.getEvmTransactionIndex();
 
         if (contractFunctionResult.getLogInfoCount() > 0) {
             var blooms = new ArrayList<byte[]>();
@@ -974,6 +975,20 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
         assertThat(contractStateRepository.findAll()).containsExactlyInAnyOrderElementsOf(contractStates);
     }
 
+    // Mirrors RecordFileParser.computeEvmTransactionIndices() for the single-item case used in these tests.
+    private void simulateEvmTransactionIndex(RecordItem recordItem) {
+        final var type = recordItem.getTransactionType();
+        if (type != TransactionType.CONTRACTCALL.getProtoId()
+                && type != TransactionType.CONTRACTCREATEINSTANCE.getProtoId()
+                && type != TransactionType.ETHEREUMTRANSACTION.getProtoId()) {
+            return;
+        }
+        final var txId = recordItem.getTransactionRecord().getTransactionID();
+        if (txId.getNonce() == 0 || txId.getScheduled()) {
+            recordItem.setEvmTransactionIndex(0);
+        }
+    }
+
     protected void process(RecordItem recordItem) {
         var entityId =
                 EntityId.of(recordItem.getTransactionRecord().getReceipt().getContractID());
@@ -1003,6 +1018,7 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
                             .name(filename))
                     .get();
 
+            simulateEvmTransactionIndex(recordItem);
             contractResultService.process(recordItem, transaction);
             // commit, close connection
             recordStreamFileListener.onEnd(recordFile);

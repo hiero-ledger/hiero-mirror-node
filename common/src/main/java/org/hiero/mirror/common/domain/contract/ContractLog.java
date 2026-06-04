@@ -60,7 +60,7 @@ public class ContractLog implements Persistable<ContractLog.Id> {
 
     private byte[] transactionHash;
 
-    private int transactionIndex;
+    private Integer transactionIndex;
 
     private boolean synthetic;
 
