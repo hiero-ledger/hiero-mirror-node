@@ -17,6 +17,10 @@ import com.swirlds.state.spi.WritableKVState;
 import com.swirlds.state.spi.WritableQueueState;
 import com.swirlds.state.spi.WritableSingletonState;
 import java.util.LinkedList;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.hiero.mirror.web3.repository.properties.CacheProperties;
+import org.hiero.mirror.web3.state.core.CaffeineWritableKVState;
+import org.hiero.mirror.web3.state.core.MapWritableKVState;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -24,7 +28,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 final class MirrorNodeStateTest {
 
-    private final MirrorNodeState mirrorNodeState = new MirrorNodeState(new LinkedList<>(), new LinkedList<>());
+    private final MirrorNodeState mirrorNodeState =
+            new MirrorNodeState(new LinkedList<>(), new LinkedList<>(), new CacheProperties(), new EvmProperties());
 
     @Test
     void getReadableStatesWithSingleton() {
@@ -96,5 +101,20 @@ final class MirrorNodeStateTest {
     @Test
     void testHashCode() {
         assertThat(mirrorNodeState).hasSameHashCodeAs(mirrorNodeState);
+    }
+
+    @Test
+    void testGetWritableStatesWithKVReturnsCaffeineStateWhenFlagEnabled() {
+        final var props = new EvmProperties();
+        props.setSharedWritableState(true);
+        final var state = new MirrorNodeState(new LinkedList<>(), new LinkedList<>(), new CacheProperties(), props);
+        final var scheduleStates = state.getWritableStates(ScheduleService.NAME);
+        assertThat(scheduleStates.get(SCHEDULE_ID_BY_EQUALITY_STATE_ID)).isInstanceOf(CaffeineWritableKVState.class);
+    }
+
+    @Test
+    void testGetWritableStatesWithKVReturnsMapStateWhenFlagDisabled() {
+        final var scheduleStates = mirrorNodeState.getWritableStates(ScheduleService.NAME);
+        assertThat(scheduleStates.get(SCHEDULE_ID_BY_EQUALITY_STATE_ID)).isInstanceOf(MapWritableKVState.class);
     }
 }

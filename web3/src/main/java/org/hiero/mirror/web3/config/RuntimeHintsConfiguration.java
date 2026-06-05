@@ -67,8 +67,8 @@ final class RuntimeHintsConfiguration {
                     "ethereum/ckzg4844/lib/amd64/**", // pegasys
                     "ethereum/ckzg4844/lib/x86_64/**", // pegasys
                     "genesis/**",
-                    "*.json",
-                    "*.properties");
+                    "**/*.json",
+                    "**/*.properties");
         }
     }
 }

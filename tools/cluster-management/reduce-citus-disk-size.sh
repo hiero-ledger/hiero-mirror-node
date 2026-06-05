@@ -6,6 +6,8 @@ set -euo pipefail
 
 source ./utils/utils.sh
 
+requireCommand gcloud
+
 ONE_GI_BYTES=1073741824
 EPOCH_SECONDS=$(date +%s)
 ZFS_VOLUMES=$(getZFSVolumes)
