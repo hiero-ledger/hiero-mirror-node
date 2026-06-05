@@ -53,6 +53,10 @@ public final class EntityIdUtils {
         return Address.wrap(Bytes.wrap(toEvmAddress(id)));
     }
 
+    public static EntityId toEntityId(final com.hedera.hapi.node.base.ContractID contractID) {
+        return EntityId.of(contractID.shardNum(), contractID.realmNum(), contractID.contractNum());
+    }
+
     public static EntityId toEntityId(final com.hedera.hapi.node.base.AccountID accountID) {
         return EntityId.of(accountID.shardNum(), accountID.realmNum(), accountID.accountNum());
     }

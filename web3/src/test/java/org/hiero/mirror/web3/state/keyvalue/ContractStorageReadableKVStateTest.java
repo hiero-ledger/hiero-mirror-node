@@ -7,6 +7,8 @@ import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.ContractID;
@@ -19,7 +21,6 @@ import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.service.ContractStateService;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -47,9 +48,6 @@ class ContractStorageReadableKVStateTest {
     private ContractStorageReadableKVState contractStorageReadableKVState;
 
     @Mock
-    private ContractStateRepository contractStateRepository;
-
-    @Mock
     private ContractStateService contractStateService;
 
     @Spy
@@ -68,6 +66,16 @@ class ContractStorageReadableKVStateTest {
     @BeforeEach
     void setup() {
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
+    }
+
+    @Test
+    void storageDiscoveryModeReturnsDummySlotValueWithZeroBytes() {
+        when(contractCallContext.isStorageDiscoveryMode()).thenReturn(true);
+
+        final var result = contractStorageReadableKVState.get(SLOT_KEY);
+
+        assertThat(result).isNotNull();
+        assertThat(result.value()).isEqualTo(Bytes.wrap(new byte[Bytes32.SIZE]));
     }
 
     @Test
@@ -114,6 +122,55 @@ class ContractStorageReadableKVStateTest {
     void whenSlotKeyIsNullReturnNull() {
         assertThat(contractStorageReadableKVState.get(new SlotKey(null, BYTES)))
                 .satisfies(slotValue -> assertThat(slotValue).isNull());
+    }
+
+    @Test
+    void storageDiscoveryModeFinishedWarmsStorageKeysBeforeLatestLookup() {
+        when(contractCallContext.isStorageDiscoveryModeFinished()).thenReturn(true);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
+                .thenReturn(Optional.of(BYTES.toByteArray()));
+
+        assertThat(contractStorageReadableKVState.get(SLOT_KEY))
+                .satisfies(slotValue -> assertThat(slotValue).returns(BYTES, SlotValue::value));
+        verify(contractStateService).warmStorageKeys(ENTITY_ID);
+    }
+
+    @Test
+    void storageDiscoveryModeFinishedWarmsStorageKeysBeforeHistoricalLookup() {
+        final var blockTimestamp = 1234567L;
+        when(contractCallContext.isStorageDiscoveryModeFinished()).thenReturn(true);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.of(blockTimestamp));
+        when(contractStateService.findStorageByBlockTimestamp(
+                        ENTITY_ID,
+                        Bytes32.wrap(BYTES.toByteArray()).trimLeadingZeros().toArrayUnsafe(),
+                        blockTimestamp))
+                .thenReturn(Optional.of(BYTES.toByteArray()));
+
+        assertThat(contractStorageReadableKVState.get(SLOT_KEY))
+                .satisfies(slotValue -> assertThat(slotValue).returns(BYTES, SlotValue::value));
+        verify(contractStateService).warmStorageKeys(ENTITY_ID);
+    }
+
+    @Test
+    void storageDiscoveryModeFinishedWarmsStorageKeysWhenSlotNotFoundReturnsNull() {
+        when(contractCallContext.isStorageDiscoveryModeFinished()).thenReturn(true);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(contractStateService.findStorage(any(), any())).thenReturn(Optional.empty());
+
+        assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isNull();
+        verify(contractStateService).warmStorageKeys(ENTITY_ID);
+    }
+
+    @Test
+    void normalModeDoesNotWarmStorageKeys() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
+                .thenReturn(Optional.of(BYTES.toByteArray()));
+
+        contractStorageReadableKVState.get(SLOT_KEY);
+
+        verify(contractStateService, never()).warmStorageKeys(any());
     }
 
     @Test
