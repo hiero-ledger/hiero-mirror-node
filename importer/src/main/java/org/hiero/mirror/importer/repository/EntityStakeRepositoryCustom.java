@@ -7,10 +7,15 @@ import java.util.Optional;
 interface EntityStakeRepositoryCustom {
 
     /**
-     * Populates {@code entity_state_start} with the full period snapshot. Must be invoked once per end stake period,
-     * within a caller-managed transaction, before {@link EntityStakeRepository#updateEntityStakeChunk}.
+     * Populates {@code entity_state_start} with the full period snapshot for {@code endStakePeriod}. Must be
+     * invoked once per end stake period, within a caller-managed transaction, before
+     * {@link EntityStakeRepository#updateEntityStakeChunk}.
+     * <p>
+     * Note: staging always rebuilds {@code entity_state_start} from scratch even when the chunked calculation is
+     * being resumed. Only the entity-id range is resumable, not the staging step itself, because balances could
+     * have changed since the previous attempt.
      */
-    void createEntityStateStart(long stakingRewardAccount);
+    void createEntityStateStart(long stakingRewardAccount, long endStakePeriod);
 
     /**
      * @return the ending period epoch day that should be processed next, if any

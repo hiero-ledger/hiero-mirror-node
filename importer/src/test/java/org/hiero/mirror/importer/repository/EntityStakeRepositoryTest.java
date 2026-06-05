@@ -207,7 +207,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
 
             // then
             assertEntityStartStart(List.of(
@@ -227,7 +227,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
 
             // then
             assertEntityStartStart(List.of(expectedAccount2, expectedAccount3, expectedStackingRewardAccount));
@@ -255,7 +255,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
 
             // then
             assertEntityStartStart(Collections.emptyList());
@@ -275,7 +275,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
 
             // then
             assertEntityStartStart(Collections.emptyList());
@@ -285,6 +285,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
     @Test
     void createEntityStateStartWhenEmptyNodeStake() {
         // given
+        long epochDay = 1000L;
         long balanceTimestamp = 1_000_000_000L;
         var account = domainBuilder
                 .entity()
@@ -304,7 +305,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
 
             // then
             assertEntityStartStart(Collections.emptyList());
@@ -449,7 +450,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
 
             // then
             assertEntityStartStart(List.of(expectedAlice, expectedStakingRewardAccount, expectedTreasury));
@@ -670,7 +671,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, nodeStake.getEpochDay());
             entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
@@ -753,7 +754,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // Baseline: one-shot calculation
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, nodeStake.getEpochDay());
             entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
@@ -768,7 +769,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // Chunked calculation: full snapshot once, then process entities in two chunks, then staking reward account
         transactionOperations.executeWithoutResult(
-                s -> entityStakeRepository.createEntityStateStart(stakingRewardAccountId));
+                s -> entityStakeRepository.createEntityStateStart(stakingRewardAccountId, nodeStake.getEpochDay()));
 
         final long splitId = entityId9; // ensures we cover both ranges with >= 2 chunks
         transactionOperations.executeWithoutResult(s -> {
@@ -954,7 +955,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
 
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
             entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
         final List<EntityStake> expected = StreamSupport.stream(
@@ -965,7 +966,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         jdbcOperations.update("delete from entity_stake");
 
         transactionOperations.executeWithoutResult(
-                s -> entityStakeRepository.createEntityStateStart(stakingRewardAccountId));
+                s -> entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay));
         transactionOperations.executeWithoutResult(s -> {
             entityStakeRepository.updateEntityStakeChunk(stakingRewardAccountId, epochDay, 0L, entityA.getId(), false);
         });
@@ -1110,7 +1111,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, nodeStake.getEpochDay());
             entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
@@ -1210,7 +1211,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, nodeStakeEpochDay);
             entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
@@ -1325,7 +1326,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
             entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
@@ -1369,7 +1370,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
     private void runChunkedEntityStakeUpdate(long epochDay, long splitId, long lastEntityId) {
         transactionOperations.executeWithoutResult(
-                s -> entityStakeRepository.createEntityStateStart(stakingRewardAccountId));
+                s -> entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay));
         transactionOperations.executeWithoutResult(s -> {
             entityStakeRepository.updateEntityStakeChunk(stakingRewardAccountId, epochDay, 0L, splitId, false);
         });

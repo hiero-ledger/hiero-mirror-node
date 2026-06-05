@@ -87,8 +87,16 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
             ) as balance_change on entity_id = id;
             """;
 
+    private static final String GET_EPOCH_TIMESTAMP_SQL = """
+            select consensus_timestamp
+            from node_stake
+            where epoch_day = ?
+            order by consensus_timestamp
+            limit 1
+            """;
+
     // Returns both epoch_day and consensus_timestamp for the next staking period to process.
-    // Used by getNextEndStakePeriod (epoch_day) and createEntityStateStart (consensus_timestamp).
+    // Used only by getNextEndStakePeriod; createEntityStateStart receives the epoch_day from its caller.
     private static final String GET_NEXT_STAKE_PERIOD_SQL = """
             select epoch_day, consensus_timestamp
             from node_stake
@@ -112,6 +120,10 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
             limit 1
             """;
 
+    // Filters completed=false intentionally: a completed=true record means the period finished in
+    // entity_stake_calculation_state but deleteCompletedProgress has not run yet (e.g. crash between the final
+    // saveProgress and deleteCompletedProgress). The next run falls back to id=0 and reprocesses the full period,
+    // which is correct via the on-conflict upsert, at the cost of redundant work.
     private static final String GET_LAST_PROCESSED_ENTITY_ID_SQL = """
             select last_entity_id
             from entity_stake_calculation_state
@@ -178,16 +190,19 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
     @Modifying
     @Override
     @Transactional
-    public void createEntityStateStart(long stakingRewardAccount) {
+    public void createEntityStateStart(long stakingRewardAccount, long endStakePeriod) {
         jdbcTemplate.execute(CLEANUP_TABLE_SQL);
         jdbcTemplate.execute(CLEANUP_PROXY_STAKING_SQL);
 
-        var periodInfo = getNextStakePeriodInfo(stakingRewardAccount);
-        if (periodInfo.isEmpty()) {
+        Long endPeriodTimestamp;
+        try {
+            endPeriodTimestamp = jdbcTemplate.queryForObject(GET_EPOCH_TIMESTAMP_SQL, Long.class, endStakePeriod);
+        } catch (EmptyResultDataAccessException ex) {
             return;
         }
-
-        long endPeriodTimestamp = periodInfo.get().consensusTimestamp();
+        if (endPeriodTimestamp == null) {
+            return;
+        }
         // Add 1 for upper because the upper in getMaxConsensusTimestampInRange is exclusive
         long upperTimestamp = endPeriodTimestamp + 1;
         long lowerTimestamp = upperTimestamp - ONE_MONTH_IN_NS;

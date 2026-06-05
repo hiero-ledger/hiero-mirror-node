@@ -95,7 +95,7 @@ class EntityStakeCalculatorImplTest {
         inorder.verify(entityStakeRepository).getNextEndStakePeriod(stakingRewardAccountId);
         inorder.verify(entityStakeRepository).getLastProcessedEntityId(endStakePeriodAfter);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId, endStakePeriodAfter);
         inorder.verify(entityStakeRepository)
                 .getChunkUpperBoundEntityId(stakingRewardAccountId, endStakePeriodAfter, 0L, 5000);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
@@ -131,7 +131,7 @@ class EntityStakeCalculatorImplTest {
         inorder.verify(entityStakeRepository).getNextEndStakePeriod(stakingRewardAccountId);
         inorder.verify(entityStakeRepository).getLastProcessedEntityId(101L);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId, 101L);
         inorder.verify(entityStakeRepository).getChunkUpperBoundEntityId(stakingRewardAccountId, 101L, 0L, 5000);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
         inorder.verify(entityStakeRepository).updateEntityStakeChunk(stakingRewardAccountId, 101L, 0L, 10L, false);
@@ -158,7 +158,7 @@ class EntityStakeCalculatorImplTest {
         verify(entityStakeRepository).updated(stakingRewardAccountId);
         verify(entityStakeRepository, never()).getEndStakePeriod(stakingRewardAccountId);
         verify(entityStakeRepository, never()).lockFromConcurrentUpdates();
-        verify(entityStakeRepository, never()).createEntityStateStart(anyLong());
+        verify(entityStakeRepository, never()).createEntityStateStart(anyLong(), anyLong());
         verify(entityStakeRepository, never())
                 .updateEntityStakeChunk(anyLong(), anyLong(), anyLong(), anyLong(), anyBoolean());
     }
@@ -169,7 +169,7 @@ class EntityStakeCalculatorImplTest {
         assertThrows(RuntimeException.class, () -> entityStakeCalculator.calculate());
         verify(entityStakeRepository).updated(stakingRewardAccountId);
         verify(entityStakeRepository, never()).lockFromConcurrentUpdates();
-        verify(entityStakeRepository, never()).createEntityStateStart(anyLong());
+        verify(entityStakeRepository, never()).createEntityStateStart(anyLong(), anyLong());
         verify(entityStakeRepository, never())
                 .updateEntityStakeChunk(anyLong(), anyLong(), anyLong(), anyLong(), anyBoolean());
         verify(entityStakeRepository, never()).getEndStakePeriod(stakingRewardAccountId);
@@ -192,7 +192,7 @@ class EntityStakeCalculatorImplTest {
         inorder.verify(entityStakeRepository).getNextEndStakePeriod(stakingRewardAccountId);
         inorder.verify(entityStakeRepository).getLastProcessedEntityId(101L);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId, 101L);
         inorder.verify(entityStakeRepository).getChunkUpperBoundEntityId(stakingRewardAccountId, 101L, 0L, 5000);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
         inorder.verify(entityStakeRepository).updateEntityStakeChunk(stakingRewardAccountId, 101L, 0L, 10L, false);
@@ -242,7 +242,7 @@ class EntityStakeCalculatorImplTest {
         inorder.verify(entityStakeRepository).getNextEndStakePeriod(stakingRewardAccountId);
         inorder.verify(entityStakeRepository).getLastProcessedEntityId(101L);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId, 101L);
         inorder.verify(entityStakeRepository).getChunkUpperBoundEntityId(stakingRewardAccountId, 101L, 0L, 5000);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
         inorder.verify(entityStakeRepository).updateEntityStakeChunk(stakingRewardAccountId, 101L, 0L, 10L, false);
@@ -272,7 +272,7 @@ class EntityStakeCalculatorImplTest {
         inorder.verify(entityStakeRepository).getEndStakePeriod(stakingRewardAccountId);
         inorder.verify(entityStakeRepository).getNextEndStakePeriod(stakingRewardAccountId);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId, 101L);
         inorder.verify(entityStakeRepository).getChunkUpperBoundEntityId(stakingRewardAccountId, 101L, 0L, 5000);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
         inorder.verify(entityStakeRepository).updateEntityStakeChunk(stakingRewardAccountId, 101L, 0L, 10L, false);
@@ -313,7 +313,7 @@ class EntityStakeCalculatorImplTest {
         inorder.verify(entityStakeRepository).getNextEndStakePeriod(stakingRewardAccountId);
         inorder.verify(entityStakeRepository).getLastProcessedEntityId(101L);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
-        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId);
+        inorder.verify(entityStakeRepository).createEntityStateStart(stakingRewardAccountId, 101L);
         inorder.verify(entityStakeRepository).getChunkUpperBoundEntityId(stakingRewardAccountId, 101L, 7L, 5000);
         inorder.verify(entityStakeRepository).lockFromConcurrentUpdates();
         inorder.verify(entityStakeRepository).updateEntityStakeChunk(stakingRewardAccountId, 101L, 7L, 10L, false);

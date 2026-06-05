@@ -59,10 +59,10 @@ class EntityStakeChunkingIntegrationTest extends ImporterIntegrationTest {
 
     @Test
     void calculateWithSmallChunksMatchesOneShot() {
-        setupCrossChunkProxyScenario();
+        final long epochDay = setupCrossChunkProxyScenario();
 
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
             entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
         final List<EntityStake> expected = StreamSupport.stream(
@@ -85,7 +85,7 @@ class EntityStakeChunkingIntegrationTest extends ImporterIntegrationTest {
         final long epochDay = setupCrossChunkProxyScenario();
 
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
             entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
         final List<EntityStake> expected = StreamSupport.stream(
@@ -113,7 +113,7 @@ class EntityStakeChunkingIntegrationTest extends ImporterIntegrationTest {
         final long epochDay = setupCrossChunkProxyScenario();
 
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
             entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
         final List<EntityStake> expected = StreamSupport.stream(

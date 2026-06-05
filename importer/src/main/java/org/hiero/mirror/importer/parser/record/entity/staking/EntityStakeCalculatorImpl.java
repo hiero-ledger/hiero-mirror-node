@@ -17,6 +17,10 @@ import org.springframework.transaction.support.TransactionOperations;
 @RequiredArgsConstructor
 public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
 
+    // Sentinel range (0, 0] to only update staking reward account
+    private static final long FINAL_CHUNK_RANGE_END = 0L;
+    private static final long FINAL_CHUNK_RANGE_START = 0L;
+
     private final EntityProperties entityProperties;
     private final EntityStakeRepository entityStakeRepository;
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -42,19 +46,19 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
             final boolean resume = entityProperties.getPersist().isPendingRewardChunkResume();
 
             while (true) {
+                // Is pending reward calculation caught up with the latest ingested staking period
                 if (entityStakeRepository.updated(stakingRewardAccountId)) {
                     log.info("Skipping since the entity stake is up-to-date");
                     return;
                 }
 
                 final var stopwatch = Stopwatch.createStarted();
-                // get last successful stake period for staking reward account
+                // The last day the calculation has been completed for
                 final var lastEndStakePeriod = entityStakeRepository
                         .getEndStakePeriod(stakingRewardAccountId)
                         .orElse(0L);
 
-                // The target staking period to process is driven by the staking reward account, and must not advance
-                // until all other entities have been processed for that period.
+                // The first day after the last calculated day
                 final var nextEndStakePeriod = entityStakeRepository.getNextEndStakePeriod(stakingRewardAccountId);
                 if (nextEndStakePeriod.isEmpty()) {
                     log.info("Skipping since there is no next staking period to process");
@@ -62,6 +66,7 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
                 }
 
                 final long endStakePeriodToProcess = nextEndStakePeriod.get();
+                // The last processed entity id for the period we are calculating for
                 long lastProcessedEntityId = resume
                         ? entityStakeRepository
                                 .getLastProcessedEntityId(endStakePeriodToProcess)
@@ -76,10 +81,11 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
                         chunkDelay.toMillis(),
                         lastProcessedEntityId);
 
+                // Rebuild entity_state_start each period; resume only skips entity-id chunks.
                 final var stagingStopwatch = Stopwatch.createStarted();
                 transactionOperations.executeWithoutResult(s -> {
                     entityStakeRepository.lockFromConcurrentUpdates();
-                    entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+                    entityStakeRepository.createEntityStateStart(stakingRewardAccountId, endStakePeriodToProcess);
                 });
                 log.info(
                         "Completed pending reward staging for endStakePeriod={} in {}",
@@ -138,7 +144,11 @@ public class EntityStakeCalculatorImpl implements EntityStakeCalculator {
                 transactionOperations.executeWithoutResult(s -> {
                     entityStakeRepository.lockFromConcurrentUpdates();
                     entityStakeRepository.updateEntityStakeChunk(
-                            stakingRewardAccountId, endStakePeriodToProcess, 0L, 0L, true);
+                            stakingRewardAccountId,
+                            endStakePeriodToProcess,
+                            FINAL_CHUNK_RANGE_START,
+                            FINAL_CHUNK_RANGE_END,
+                            true);
                     if (resume) {
                         entityStakeRepository.saveProgress(endStakePeriodToProcess, finalLastProcessedEntityId, true);
                     }
