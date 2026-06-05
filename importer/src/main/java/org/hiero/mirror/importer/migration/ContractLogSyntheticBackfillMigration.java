@@ -25,7 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Named
 final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Long> {
 
-    static final long BATCH_INTERVAL = Duration.ofDays(7).toNanos();
+    static final long BATCH_INTERVAL = Duration.ofDays(1).toNanos();
 
     private static final String CREATE_PROGRESS_TABLE = """
             create table if not exists contract_log_synthetic_progress_temp(
@@ -58,17 +58,15 @@ final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Lon
             """;
 
     private static final String BACKFILL_SQL = """
-            update contract_log cl
+            update contract_log
             set synthetic = true
-            where cl.synthetic is null
-              and cl.consensus_timestamp >= :lowerBound
-              and cl.consensus_timestamp < :upperBound
-              and not exists (
-                select 1 from contract_result cr
-                where cr.contract_id = cl.contract_id
-                  and cr.consensus_timestamp = cl.consensus_timestamp
-                  and cr.consensus_timestamp >= :lowerBound
-                  and cr.consensus_timestamp < :upperBound
+            where synthetic is not true
+              and consensus_timestamp >= :lowerBound
+              and consensus_timestamp < :upperBound
+              and consensus_timestamp not in (
+                select consensus_timestamp from contract_result
+                where consensus_timestamp >= :lowerBound
+                  and consensus_timestamp < :upperBound
               )
             """;
 
@@ -95,7 +93,7 @@ final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Lon
 
     @Override
     protected MigrationVersion getMinimumVersion() {
-        return v2 ? MigrationVersion.fromVersion("2.28.1") : MigrationVersion.fromVersion("1.123.1");
+        return v2 ? MigrationVersion.fromVersion("2.29.0") : MigrationVersion.fromVersion("1.124.0");
     }
 
     @Override

@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 @DisableRepeatableSqlMigration
 @RequiredArgsConstructor
 @Tag("migration")
-class ContractLogSyntheticBackfillMigrationTest
+final class ContractLogSyntheticBackfillMigrationTest
         extends AbstractAsyncJavaMigrationTest<ContractLogSyntheticBackfillMigration> {
 
     @Getter
@@ -101,7 +101,7 @@ class ContractLogSyntheticBackfillMigrationTest
         waitForCompletion();
 
         // then
-        assertThat(findSynthetic(contractLog.getConsensusTimestamp())).isTrue();
+        assertThat(findSynthetic(contractLog.getConsensusTimestamp())).isNull();
     }
 
     @Test

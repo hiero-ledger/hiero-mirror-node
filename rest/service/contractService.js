@@ -228,7 +228,7 @@ class ContractService extends BaseService {
     const contractResultAlias = `${ContractResult.tableAlias}.`;
     const clAlias = `${ContractLog.tableAlias}.`;
 
-    const mappedConditions = whereConditions
+    const allConditions = whereConditions
       .filter((condition) => {
         // synthetic logs have no nonce; callers with sender_id/contract_id use includeSynthetic=false
         if (condition.includes(ContractResult.TRANSACTION_NONCE)) {
@@ -263,26 +263,20 @@ class ContractService extends BaseService {
       params.push(lastTs);
       const boundParamIndex = params.length;
       if (order === orderFilterValues.DESC) {
-        mappedConditions.push(`${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} >= $${boundParamIndex}`);
+        allConditions.push(`${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} >= $${boundParamIndex}`);
       } else {
-        mappedConditions.push(`${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} <= $${boundParamIndex}`);
+        allConditions.push(`${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} <= $${boundParamIndex}`);
       }
     }
 
-    const baseConditions = [
-      `${clAlias}${ContractLog.SYNTHETIC} = true`,
-      `not exists (
-          select 1
-          from ${ContractResult.tableName} ${ContractResult.tableAlias}
-          where ${ContractResult.getFullName(ContractResult.CONTRACT_ID)} = ${clAlias}${ContractLog.CONTRACT_ID}
-            and ${ContractResult.getFullName(ContractResult.CONSENSUS_TIMESTAMP)} = ${clAlias}${
-        ContractLog.CONSENSUS_TIMESTAMP
-      }
-        )`,
-    ];
-    const allConditions = [...baseConditions, ...mappedConditions];
-    const whereClause = `where ${allConditions.join(' and ')}`;
+    allConditions.push(`${clAlias}${ContractLog.SYNTHETIC} is true`);
+    if (contractResultRows.length > 0) {
+      const knownTimestamps = contractResultRows.map((r) => r[ContractResult.CONSENSUS_TIMESTAMP]);
+      params.push(knownTimestamps);
+      allConditions.push(`${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} != all($${params.length})`);
+    }
 
+    const whereClause = `where ${allConditions.join(' and ')}`;
     params.push(limit);
     const limitParam = params.length;
 
@@ -296,7 +290,7 @@ class ContractService extends BaseService {
         null::bigint[] as ${ContractResult.CREATED_CONTRACT_IDS},
         null::text as ${ContractResult.ERROR_MESSAGE},
         null::bytea as ${ContractResult.FAILED_INITCODE},
-        decode('', 'hex') as ${ContractResult.FUNCTION_PARAMETERS},
+        '\\x'::bytea as ${ContractResult.FUNCTION_PARAMETERS},
         null::bytea as ${ContractResult.FUNCTION_RESULT},
         null::bigint as ${ContractResult.GAS_CONSUMED},
         0::bigint as ${ContractResult.GAS_LIMIT},
@@ -316,12 +310,10 @@ class ContractService extends BaseService {
     },
           ${clAlias}${ContractLog.TRANSACTION_HASH},
           ${clAlias}${ContractLog.TRANSACTION_INDEX},
-          ${clAlias}${ContractLog.PAYER_ACCOUNT_ID},
-          ${clAlias}${ContractLog.INDEX}
+          ${clAlias}${ContractLog.PAYER_ACCOUNT_ID}
         from ${ContractLog.tableName} ${ContractLog.tableAlias}
         ${whereClause}
-        order by ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} ${order},
-                 ${clAlias}${ContractLog.INDEX} ${order}
+        order by ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} ${order}, ${clAlias}${ContractLog.INDEX} ${order}
         limit $${limitParam}
       ) synth_raw
       left join ${Entity.tableName} ${Entity.tableAlias}

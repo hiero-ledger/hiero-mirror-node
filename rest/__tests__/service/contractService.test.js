@@ -216,7 +216,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
-        null::bytea as failed_initcode, decode('', 'hex') as function_parameters,
+        null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
         null::bytea as function_result, null::bigint as gas_consumed, 0::bigint as gas_limit,
         null::bigint as gas_used, synth_raw.payer_account_id, null::bigint as sender_id,
         synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
@@ -226,15 +226,9 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
         select distinct on (cl.consensus_timestamp)
           cl.consensus_timestamp,
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
-          cl.transaction_hash, cl.transaction_index, cl.payer_account_id, cl.index
+          cl.transaction_hash, cl.transaction_index, cl.payer_account_id
         from contract_log cl
-        where cl.synthetic = true
-          and not exists (
-            select 1
-            from contract_result cr
-            where cr.contract_id = cl.contract_id
-              and cr.consensus_timestamp = cl.consensus_timestamp
-          )
+        where cl.synthetic is true
         order by cl.consensus_timestamp desc, cl.index desc
         limit $1
       ) synth_raw
@@ -254,10 +248,15 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
     );
     const expected = `
       select
-        null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
-        synth_raw.consensus_timestamp, synth_raw.contract_id,
-        null::bigint[] as created_contract_ids, null::text as error_message,
-        null::bytea as failed_initcode, decode('', 'hex') as function_parameters,
+        null::bigint as amount,
+        null::bytea as bloom,
+        null::bytea as call_result,
+        synth_raw.consensus_timestamp,
+        synth_raw.contract_id,
+        null::bigint[] as created_contract_ids,
+        null::text as error_message,
+        null::bytea as failed_initcode,
+        '\\x'::bytea as function_parameters,
         null::bytea as function_result, null::bigint as gas_consumed, 0::bigint as gas_limit,
         null::bigint as gas_used, synth_raw.payer_account_id, null::bigint as sender_id,
         synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
@@ -267,16 +266,9 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
         select distinct on (cl.consensus_timestamp)
           cl.consensus_timestamp,
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
-          cl.transaction_hash, cl.transaction_index, cl.payer_account_id, cl.index
+          cl.transaction_hash, cl.transaction_index, cl.payer_account_id
         from contract_log cl
-        where cl.synthetic = true
-          and not exists (
-            select 1
-            from contract_result cr
-            where cr.contract_id = cl.contract_id
-              and cr.consensus_timestamp = cl.consensus_timestamp
-          )
-          and cl.consensus_timestamp >= $1 and cl.consensus_timestamp <= $2
+        where cl.consensus_timestamp >= $1 and cl.consensus_timestamp <= $2 and cl.synthetic is true
         order by cl.consensus_timestamp desc, cl.index desc
         limit $3
       ) synth_raw
@@ -299,7 +291,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
-        null::bytea as failed_initcode, decode('', 'hex') as function_parameters,
+        null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
         null::bytea as function_result, null::bigint as gas_consumed, 0::bigint as gas_limit,
         null::bigint as gas_used, synth_raw.payer_account_id, null::bigint as sender_id,
         synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
@@ -309,23 +301,16 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
         select distinct on (cl.consensus_timestamp)
           cl.consensus_timestamp,
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
-          cl.transaction_hash, cl.transaction_index, cl.payer_account_id, cl.index
+          cl.transaction_hash, cl.transaction_index, cl.payer_account_id
         from contract_log cl
-        where cl.synthetic = true
-          and not exists (
-            select 1
-            from contract_result cr
-            where cr.contract_id = cl.contract_id
-              and cr.consensus_timestamp = cl.consensus_timestamp
-          )
-          and cl.consensus_timestamp >= $1
+        where cl.consensus_timestamp >= $1 and cl.synthetic is true and cl.consensus_timestamp != all($2)
         order by cl.consensus_timestamp desc, cl.index desc
-        limit $2
+        limit $3
       ) synth_raw
       left join entity e on e.id = synth_raw.contract_id
     `;
     assertSqlQueryEqual(query, expected);
-    expect(params).toEqual(['5', 1]);
+    expect(params).toEqual(['5', ['5'], 1]);
   });
 
   test('Transaction index condition is mapped to cl.transaction_index', () => {

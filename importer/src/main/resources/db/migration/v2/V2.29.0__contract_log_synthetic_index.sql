@@ -2,4 +2,4 @@
 
 create index if not exists contract_log__synthetic_timestamp
     on contract_log (consensus_timestamp desc, index desc)
-    where synthetic = true;
+    where synthetic is true;
