@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.importer.db.DiskSpaceService;
@@ -42,7 +43,7 @@ public abstract class AbstractStreamFileParserTest<F extends StreamFile<?>, T ex
 
     @BeforeEach()
     public void before() {
-        when(diskSpaceService.hasEnoughSpace()).thenReturn(true);
+        when(diskSpaceService.isExceeded()).thenReturn(false);
         parser = getParser();
         parserProperties = parser.getProperties();
         parserProperties.setEnabled(true);
@@ -97,14 +98,12 @@ public abstract class AbstractStreamFileParserTest<F extends StreamFile<?>, T ex
     @Test
     void diskSpaceFull() {
         // given
-        when(diskSpaceService.hasEnoughSpace()).thenReturn(false);
+        when(diskSpaceService.isExceeded()).thenReturn(true);
+        when(diskSpaceService.getCheckFrequency()).thenReturn(Duration.ZERO);
         F streamFile = getStreamFile();
 
-        // when
-        parser.parse(streamFile);
-
-        // then
-        assertParsed(streamFile, false, false);
+        // when / then
+        assertThatThrownBy(() -> parser.parse(streamFile)).isInstanceOf(ParserException.class);
     }
 
     @Test

@@ -7,7 +7,9 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.BaseUnits;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
+import java.time.Duration;
 import lombok.CustomLog;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -17,7 +19,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 @RequiredArgsConstructor
 public class DiskSpaceService {
 
-    static final String DISK_USAGE_METRIC_NAME = "hiero.mirror.importer.db.disk.usage";
+    static final String DISK_USAGE_METRIC_NAME = "db.disk.usage.bytes";
     static final String CITUS_CHECK_QUERY = "select exists(select 1 from pg_extension where extname = 'citus')";
     static final String CITUS_DISK_USAGE_QUERY = "select max(db_size) from ("
             + "select pg_database_size(current_database()) as db_size "
@@ -30,7 +32,9 @@ public class DiskSpaceService {
     private final JdbcOperations jdbcOperations;
     private final MeterRegistry meterRegistry;
 
-    private volatile boolean hasEnoughSpace = true;
+    @Getter
+    private volatile boolean exceeded = false;
+
     private volatile long lastUsedBytes = 0L;
     private String diskUsageQuery = DISK_USAGE_QUERY;
 
@@ -51,7 +55,6 @@ public class DiskSpaceService {
     @Scheduled(fixedDelayString = "#{@diskSpaceProperties.getCheckFrequency().toMillis()}")
     public void check() {
         if (diskSpaceProperties.getMaxBytes() <= 0) {
-            hasEnoughSpace = true;
             return;
         }
 
@@ -64,25 +67,25 @@ public class DiskSpaceService {
             lastUsedBytes = usedBytes;
             boolean exceeded = usedBytes >= diskSpaceProperties.getMaxBytes();
 
-            if (exceeded && hasEnoughSpace) {
+            if (exceeded && !this.exceeded) {
                 log.warn(
                         "Database disk usage {} bytes is at or above the threshold of {} bytes, halting ingest",
                         usedBytes,
                         diskSpaceProperties.getMaxBytes());
-            } else if (!exceeded && !hasEnoughSpace) {
+            } else if (!exceeded && this.exceeded) {
                 log.info(
                         "Database disk usage {} bytes is below the threshold of {} bytes, resuming ingest",
                         usedBytes,
                         diskSpaceProperties.getMaxBytes());
             }
 
-            hasEnoughSpace = !exceeded;
+            this.exceeded = exceeded;
         } catch (Exception e) {
             log.warn("Unable to query database disk space", e);
         }
     }
 
-    public boolean hasEnoughSpace() {
-        return hasEnoughSpace;
+    public Duration getCheckFrequency() {
+        return diskSpaceProperties.getCheckFrequency();
     }
 }

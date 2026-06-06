@@ -154,7 +154,7 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
             return;
         }
 
-        if (!diskSpaceService.hasEnoughSpace()) {
+        if (diskSpaceService.isExceeded()) {
             return;
         }
 
