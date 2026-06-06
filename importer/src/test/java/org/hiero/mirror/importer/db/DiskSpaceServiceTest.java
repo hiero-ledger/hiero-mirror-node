@@ -43,7 +43,7 @@ class DiskSpaceServiceTest {
 
     @Test
     void defaultsToHavingEnoughSpace() {
-        assertThat(diskSpaceService.hasEnoughSpace()).isTrue();
+        assertThat(diskSpaceService.isExceeded()).isFalse();
     }
 
     @Test
@@ -53,7 +53,7 @@ class DiskSpaceServiceTest {
         diskSpaceService.check();
 
         verifyNoInteractions(jdbcOperations);
-        assertThat(diskSpaceService.hasEnoughSpace()).isTrue();
+        assertThat(diskSpaceService.isExceeded()).isFalse();
     }
 
     @Test
@@ -63,7 +63,7 @@ class DiskSpaceServiceTest {
 
         diskSpaceService.check();
 
-        assertThat(diskSpaceService.hasEnoughSpace()).isTrue();
+        assertThat(diskSpaceService.isExceeded()).isFalse();
     }
 
     @Test
@@ -73,7 +73,7 @@ class DiskSpaceServiceTest {
 
         diskSpaceService.check();
 
-        assertThat(diskSpaceService.hasEnoughSpace()).isFalse();
+        assertThat(diskSpaceService.isExceeded()).isTrue();
         assertThat(output.getAll()).contains("halting ingest");
     }
 
@@ -84,7 +84,7 @@ class DiskSpaceServiceTest {
 
         diskSpaceService.check();
 
-        assertThat(diskSpaceService.hasEnoughSpace()).isFalse();
+        assertThat(diskSpaceService.isExceeded()).isTrue();
         assertThat(output.getAll()).contains("halting ingest");
     }
 
@@ -93,12 +93,12 @@ class DiskSpaceServiceTest {
         diskSpaceProperties.setMaxBytes(1000L);
         when(jdbcOperations.queryForObject(DISK_USAGE_QUERY, Long.class)).thenReturn(1500L);
         diskSpaceService.check();
-        assertThat(diskSpaceService.hasEnoughSpace()).isFalse();
+        assertThat(diskSpaceService.isExceeded()).isTrue();
 
         when(jdbcOperations.queryForObject(DISK_USAGE_QUERY, Long.class)).thenReturn(800L);
         diskSpaceService.check();
 
-        assertThat(diskSpaceService.hasEnoughSpace()).isTrue();
+        assertThat(diskSpaceService.isExceeded()).isFalse();
         assertThat(output.getAll()).contains("resuming ingest");
     }
 
@@ -110,7 +110,7 @@ class DiskSpaceServiceTest {
 
         diskSpaceService.check();
 
-        assertThat(diskSpaceService.hasEnoughSpace()).isTrue();
+        assertThat(diskSpaceService.isExceeded()).isFalse();
         assertThat(output.getAll()).contains("Unable to query database disk space");
     }
 
@@ -121,7 +121,7 @@ class DiskSpaceServiceTest {
 
         diskSpaceService.check();
 
-        assertThat(diskSpaceService.hasEnoughSpace()).isTrue();
+        assertThat(diskSpaceService.isExceeded()).isFalse();
     }
 
     @Test
@@ -132,7 +132,7 @@ class DiskSpaceServiceTest {
         diskSpaceService.check();
         diskSpaceService.check();
 
-        assertThat(diskSpaceService.hasEnoughSpace()).isFalse();
+        assertThat(diskSpaceService.isExceeded()).isTrue();
         long warnCount = output.getAll()
                 .lines()
                 .filter(l -> l.contains("halting ingest"))
@@ -150,7 +150,7 @@ class DiskSpaceServiceTest {
 
         service.check();
 
-        assertThat(service.hasEnoughSpace()).isFalse();
+        assertThat(service.isExceeded()).isTrue();
         assertThat(output.getAll()).contains("Citus extension detected");
         assertThat(output.getAll()).contains("halting ingest");
     }

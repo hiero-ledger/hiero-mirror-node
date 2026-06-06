@@ -235,7 +235,7 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
 
     @SneakyThrows
     protected void beforeEach() {
-        when(diskSpaceService.hasEnoughSpace()).thenReturn(true);
+        when(diskSpaceService.isExceeded()).thenReturn(false);
         loadAddressBook("testnet");
         initProperties();
         s3AsyncClient = S3AsyncClient.builder()
@@ -280,7 +280,7 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     @Test
     @DisplayName("Disk space full halts download")
     void diskSpaceFull() {
-        when(diskSpaceService.hasEnoughSpace()).thenReturn(false);
+        when(diskSpaceService.isExceeded()).thenReturn(true);
 
         downloader.download();
 

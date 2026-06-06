@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.importer.db.DiskSpaceService;
 import org.hiero.mirror.importer.exception.HashMismatchException;
+import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,9 +92,14 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
                 return;
             }
 
-            if (!diskSpaceService.hasEnoughSpace()) {
-                streamFile.clear();
-                return;
+            if (diskSpaceService.isExceeded()) {
+                log.warn("Database disk space exceeded, pausing before retry");
+                try {
+                    Thread.sleep(diskSpaceService.getCheckFrequency());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                throw new ParserException("Database disk space exceeded");
             }
 
             doParse(streamFile);
@@ -135,9 +141,14 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
         String first = null;
 
         try {
-            if (!diskSpaceService.hasEnoughSpace()) {
-                streamFiles.forEach(StreamFile::clear);
-                return;
+            if (diskSpaceService.isExceeded()) {
+                log.warn("Database disk space exceeded, pausing before retry");
+                try {
+                    Thread.sleep(diskSpaceService.getCheckFrequency());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                throw new ParserException("Database disk space exceeded");
             }
 
             for (int i = 0; i < size; ++i) {
