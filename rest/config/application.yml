@@ -11,7 +11,7 @@ hiero:
           maxAge: 1800
           maxSize: 100000
         feeSchedule:
-          maxAge: 60000
+          maxAge: 3600
           maxSize: 1000
         response:
           enabled: false

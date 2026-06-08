@@ -19,7 +19,7 @@ class FileDataService extends BaseService {
   static filterOuterPlaceholder = '<filterOuterPlaceHolder>';
 
   #gasPriceCache = new quickLru({
-    maxAge: config.cache.feeSchedule.maxAge,
+    maxAge: config.cache.feeSchedule.maxAge * 1000, // in millis
     maxSize: config.cache.feeSchedule.maxSize,
   });
 

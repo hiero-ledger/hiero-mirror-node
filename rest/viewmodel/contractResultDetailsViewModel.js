@@ -16,8 +16,6 @@ import {WEIBARS_TO_TINYBARS} from '../constants';
  * Contract result details view model
  */
 class ContractResultDetailsViewModel extends ContractResultViewModel {
-  #getGasPriceFromFeeSchedule = null;
-
   static _LEGACY_TYPE = 0;
   static _SUCCESS_PROTO_IDS = TransactionResult.getSuccessProtoIds();
   static _SUCCESS_RESULT = '0x1';
@@ -33,7 +31,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
    * @param {ContractStateChange[]} contractStateChanges
    * @param {FileData} fileData
    * @param {boolean} convertToHbar - If true, convert weibar to tinybar; if false, return raw weibar
-   * @param {(() => Promise<BigInt|null>)|null} getGasPriceFromFeeSchedule - Lazy supplier for non-Ethereum gas price
+   * @param {BigInt|null} gasPrice - Gas price in tinybars for non-Ethereum transactions
    */
   constructor(
     contractResult,
@@ -43,7 +41,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     contractStateChanges = null,
     fileData = null,
     convertToHbar = true,
-    getGasPriceFromFeeSchedule = null
+    gasPrice = null
   ) {
     super(contractResult);
 
@@ -146,27 +144,14 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     }
 
     // Apply defaults for any fields still null after eth transaction processing
-    if (this.chain_id == null) {
-      this.chain_id = config.chainId ?? null;
+    this.chain_id = this.chain_id ?? config.chainId;
+    this.type ??= ContractResultDetailsViewModel._LEGACY_TYPE;
+    if (this.gas_price == null && gasPrice != null) {
+      this.gas_price = utils.toHexStringQuantity(gasPrice);
     }
-    if (this.type == null) {
-      this.type = ContractResultDetailsViewModel._LEGACY_TYPE;
-    }
-    this.#getGasPriceFromFeeSchedule =
-      this.gas_price == null && getGasPriceFromFeeSchedule != null ? getGasPriceFromFeeSchedule : null;
     if (isNil(ethTransaction) && !convertToHbar && !isNil(contractResult.amount)) {
       this.amount = BigInt(contractResult.amount) * WEIBARS_TO_TINYBARS;
     }
-  }
-
-  async resolveGasPriceFromFeeSchedule() {
-    if (this.gas_price == null && this.#getGasPriceFromFeeSchedule != null) {
-      const gasPriceFromFeeSchedule = await this.#getGasPriceFromFeeSchedule();
-      if (gasPriceFromFeeSchedule != null) {
-        this.gas_price = utils.toHexStringQuantity(gasPriceFromFeeSchedule);
-      }
-    }
-    return this;
   }
 
   /**

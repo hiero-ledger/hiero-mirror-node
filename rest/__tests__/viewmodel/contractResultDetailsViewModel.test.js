@@ -415,10 +415,10 @@ describe('ContractResultDetailsViewModel', () => {
       expect(viewModel.chain_id).toBe('0x0128');
     });
 
-    test('gas_price is set from fee schedule when ethTransaction is null', async () => {
+    test('gas_price is set from fee schedule when ethTransaction is null', () => {
       const gasPriceFromFeeSchedule = 86n; // Example gas price in tinybars
 
-      const viewModel = await new ContractResultDetailsViewModel(
+      const viewModel = new ContractResultDetailsViewModel(
         mockContractResult,
         mockRecordFile,
         null, // no ethTransaction
@@ -426,14 +426,14 @@ describe('ContractResultDetailsViewModel', () => {
         [],
         null,
         true,
-        () => Promise.resolve(gasPriceFromFeeSchedule)
-      ).resolveGasPriceFromFeeSchedule();
+        gasPriceFromFeeSchedule
+      );
 
       expect(viewModel.gas_price).toBe('0x56'); // 86 in hex
     });
 
-    test('gas_price remains null when ethTransaction is null and no fee schedule gas price', async () => {
-      const viewModel = await new ContractResultDetailsViewModel(
+    test('gas_price remains null when ethTransaction is null and no fee schedule gas price', () => {
+      const viewModel = new ContractResultDetailsViewModel(
         mockContractResult,
         mockRecordFile,
         null, // no ethTransaction
@@ -441,15 +441,14 @@ describe('ContractResultDetailsViewModel', () => {
         [],
         null,
         true,
-        () => Promise.resolve(null)
-      ).resolveGasPriceFromFeeSchedule();
+        null
+      );
 
       // gas_price should be null when there's no ethTransaction and no fee schedule gas price
       expect(viewModel.gas_price).toBeNull();
     });
 
-    test('fee schedule supplier is not invoked when ethTransaction provides gas price', async () => {
-      let supplierInvoked = false;
+    test('fee schedule gas price is ignored when ethTransaction provides gas price', () => {
       const ethTransaction = {
         accessList: null,
         callData: null,
@@ -470,10 +469,6 @@ describe('ContractResultDetailsViewModel', () => {
         type: 2,
         value: '2e90edd000',
       };
-      const getGasPriceFromFeeSchedule = () => {
-        supplierInvoked = true;
-        return Promise.resolve(86n);
-      };
 
       const viewModel = new ContractResultDetailsViewModel(
         mockContractResult,
@@ -483,14 +478,10 @@ describe('ContractResultDetailsViewModel', () => {
         [],
         null,
         true,
-        getGasPriceFromFeeSchedule
+        86n
       );
 
-      expect(supplierInvoked).toBe(false);
       expect(viewModel.gas_price).toBe('0x4a817c80');
-
-      await viewModel.resolveGasPriceFromFeeSchedule();
-      expect(supplierInvoked).toBe(false);
     });
 
     test('returns access_list from db jsonb', () => {
