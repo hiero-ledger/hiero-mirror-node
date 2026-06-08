@@ -13,6 +13,8 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "hiero.mirror.web3")
 @Validated
 public class Web3Properties {
+    @Positive
+    private int batchSize = 100;
 
     @DurationMin(millis = 10L)
     private Duration contractCallRetryDelay = Duration.ofMillis(200L);

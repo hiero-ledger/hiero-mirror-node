@@ -23,9 +23,9 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
     @Query(value = """
                     select slot, value from contract_state
                     where contract_id = :contractId
-                    and slot in (:slots)
+                    and slot = any(cast(:slots as bytea[]))
                     """, nativeQuery = true)
-    List<ContractSlotValue> findStorageBatch(@Param("contractId") Long contractId, @Param("slots") List<byte[]> slots);
+    List<ContractSlotValue> findStorageBatch(@Param("contractId") Long contractId, @Param("slots") byte[][] slots);
 
     /**
      * This method retrieves the most recent contract state storage value up to given block timestamp.

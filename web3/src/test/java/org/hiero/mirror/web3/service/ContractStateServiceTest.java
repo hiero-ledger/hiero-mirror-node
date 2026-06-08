@@ -7,7 +7,6 @@ import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SLOTS_PER_CONTRACT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import com.hedera.hapi.node.base.ContractID;
@@ -20,7 +19,6 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
@@ -31,6 +29,7 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.repository.EntityRepository;
@@ -57,17 +56,16 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     @Qualifier(CACHE_MANAGER_CONTRACT_STATE)
     private final CaffeineCacheManager cacheManagerContractState;
 
-    @Qualifier(CACHE_MANAGER_SLOTS_PER_CONTRACT)
-    private final CaffeineCacheManager cacheManagerSlotsPerContract;
-
     private final CacheProperties cacheProperties;
     private final ContractStateService contractStateService;
     private final ContractStateRepository contractStateRepository;
     private final EntityRepository entityRepository;
+    private final Web3Properties web3Properties;
 
     @BeforeEach
     void setup() {
         cacheProperties.setEnableBatchContractSlotCaching(true);
+        web3Properties.setBatchSize(100);
     }
 
     @Test
@@ -113,7 +111,6 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         // Given a bounded per-contract slots cache
         final int maxCacheSize = 10;
         cacheProperties.setSlotsPerContract("expireAfterAccess=2s,maximumSize=" + maxCacheSize);
-        cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
         final var contract = persistContract();
         final var contractId = contract.toEntityId();
 
@@ -129,7 +126,6 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         }
 
         // Then the oldest entry is evicted and the cache does not exceed its maximum size
-        getSlotsPerContractCache().cleanUp();
 
         await("cacheIsEvicted")
                 .atMost(Durations.TWO_SECONDS)
@@ -372,7 +368,6 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         try {
             final int maxCacheSize = 3;
             cacheProperties.setSlotsPerContract("expireAfterAccess=10s,maximumSize=" + maxCacheSize);
-            cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
             final var contract = persistContract();
 
             final var slots = List.of(generateSlotKey(1), generateSlotKey(2), generateSlotKey(3), generateSlotKey(4));
@@ -426,7 +421,6 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
             // reset cache
             final int initialSize = 10;
             cacheProperties.setSlotsPerContract("expireAfterAccess=2s,maximumSize=" + initialSize);
-            cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
         }
     }
 
@@ -488,7 +482,6 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         // Given
         final int maxCacheSize = 10;
         cacheProperties.setSlotsPerContract("expireAfterAccess=2s,maximumSize=" + maxCacheSize);
-        cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
         final var contract = persistContract();
         final var contractStates = persistContractStates(contract.getId(), maxCacheSize);
 
@@ -506,6 +499,26 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         contractStateRepository.deleteAll();
 
         // Read and verify values exist in cache after contract states deletion
+        findStorage(contract, contractStates);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {50, 100, 150})
+    void verifyBatchQueryReturnsAllValuesForDifferentBatchSizes(final int batchSize) {
+        // Given: 200 slots. Reset slotsPerContract cache spec explicitly: prior tests may have reduced maximumSize to
+        // 10.
+        web3Properties.setBatchSize(batchSize);
+        cacheProperties.setSlotsPerContract("expireAfterAccess=5m,maximumSize=1500");
+
+        final int slotCount = 200;
+        final var contract = persistContract();
+        final var contractStates = persistContractStates(contract.getId(), slotCount);
+
+        // When / Then: all slot values are returned correctly on the first read
+        findStorage(contract, contractStates);
+
+        // Validate cached slot values survive DB deletion (served from contractStateCache)
+        contractStateRepository.deleteAll();
         findStorage(contract, contractStates);
     }
 
@@ -573,25 +586,21 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         return ((CaffeineCache) cacheManagerContractSlots.getCache(CACHE_NAME)).getNativeCache();
     }
 
-    private com.github.benmanes.caffeine.cache.Cache<Object, Object> getSlotsPerContractCache() {
-        return ((CaffeineCache) cacheManagerSlotsPerContract.getCache(CACHE_NAME)).getNativeCache();
-    }
-
     public List<ByteBuffer> getCachedSlots(Entity contract) {
         var slotsCache = getSlotsCache();
         var slotsPerContractCache = slotsCache.asMap().get(contract.toEntityId());
         return slotsPerContractCache != null
                 ? ((CaffeineCache) slotsPerContractCache)
                         .getNativeCache().asMap().keySet().stream()
-                                .map(slot -> (ByteBuffer) slot)
-                                .collect(Collectors.toList())
+                                .map(ByteBuffer.class::cast)
+                                .toList()
                 : List.of();
     }
 
     public void findStorage(Entity contract, List<ContractState> slotKeyValuePairs) {
         for (final var state : slotKeyValuePairs) {
             final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
-            assertThat(result.get()).isEqualTo(state.getValue());
+            assertThat(result).contains(state.getValue());
         }
     }
 }
