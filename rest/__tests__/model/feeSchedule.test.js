@@ -80,3 +80,14 @@ describe('FeeSchedule effective schedule selection', () => {
     expect(feeSchedule.fees.ContractCall).toBe(gasPriceInTinybars(5000, 400, 300));
   });
 });
+
+describe('FeeSchedule.getTransactionType', () => {
+  test('returns ContractCreate for CONTRACTCREATEINSTANCE transaction type', () => {
+    expect(FeeSchedule.getTransactionType(8)).toBe(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE);
+  });
+
+  test('returns ContractCall for other transaction types', () => {
+    expect(FeeSchedule.getTransactionType(7)).toBe(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL);
+    expect(FeeSchedule.getTransactionType(null)).toBe(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL);
+  });
+});

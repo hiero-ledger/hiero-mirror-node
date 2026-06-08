@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import isEmpty from 'lodash/isEmpty';
+
 import BaseService from './baseService';
+import {MAX_LONG} from '../constants';
 import {EthereumTransaction, Transaction, TransactionResult} from '../model';
 import TransactionId from '../transactionId';
 import config from '../config';
@@ -54,6 +57,14 @@ class TransactionService extends BaseService {
      ${EthereumTransaction.getFullName(EthereumTransaction.PAYER_ACCOUNT_ID)} =
      ${Transaction.getFullName(Transaction.PAYER_ACCOUNT_ID)}`;
 
+  static transactionTypesByPayerAndTimestampArrayQuery = `
+    select ${Transaction.CONSENSUS_TIMESTAMP}, ${Transaction.TYPE}
+    from ${Transaction.tableName}
+    where ${Transaction.PAYER_ACCOUNT_ID} = any($1)
+      and ${Transaction.CONSENSUS_TIMESTAMP} = any($2)
+      and ${Transaction.CONSENSUS_TIMESTAMP} >= $3
+      and ${Transaction.CONSENSUS_TIMESTAMP} <= $4`;
+
   /**
    * Retrieves the transaction based on the transaction id and its nonce
    *
@@ -82,6 +93,34 @@ class TransactionService extends BaseService {
 
     const rows = await super.getRows(query, params);
     return rows.map((row) => new EthereumTransaction(row));
+  }
+
+  async getTransactionTypesByPayerAndTimestampArray(payers, timestamps) {
+    const typeMap = new Map();
+    if (isEmpty(payers) || isEmpty(timestamps)) {
+      return typeMap;
+    }
+
+    let maxTimestamp = -1n;
+    let minTimestamp = MAX_LONG;
+    timestamps.forEach((timestamp) => {
+      if (timestamp > maxTimestamp) {
+        maxTimestamp = timestamp;
+      }
+      if (timestamp < minTimestamp) {
+        minTimestamp = timestamp;
+      }
+    });
+
+    const rows = await super.getRows(TransactionService.transactionTypesByPayerAndTimestampArrayQuery, [
+      payers,
+      timestamps,
+      minTimestamp,
+      maxTimestamp,
+    ]);
+    rows.forEach((row) => typeMap.set(row.consensus_timestamp, row.type));
+
+    return typeMap;
   }
 
   async getTransactionDetails(query, params) {

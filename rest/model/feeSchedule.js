@@ -5,6 +5,7 @@ import isNumber from 'lodash/isNumber';
 import {CurrentAndNextFeeScheduleSchema, HederaFunctionality} from '../gen/services/basic_types_pb.js';
 import {FileDecodeError} from '../errors';
 import {bigIntMax} from '../utils';
+import TransactionType from './transactionType';
 
 const FUNCTIONALITY_TO_TYPE = {
   [HederaFunctionality.ContractCall]: 'ContractCall',
@@ -100,6 +101,14 @@ class FeeSchedule {
 
   getGasForType(type) {
     return this.fees?.[type] ?? null;
+  }
+
+  static getTransactionType(hederaTransactionType) {
+    if (Number(hederaTransactionType) === Number(TransactionType.getProtoId('CONTRACTCREATEINSTANCE'))) {
+      return FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE;
+    }
+
+    return FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL;
   }
 
   static TRANSACTION_TYPES = {

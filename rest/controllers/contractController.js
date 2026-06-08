@@ -25,6 +25,7 @@ import {
   ContractState,
   ContractStateChange,
   Entity,
+  FeeSchedule,
   FileData,
   TransactionResult,
   TransactionType,
@@ -1046,7 +1047,14 @@ class ContractController extends BaseController {
       logger.debug(`getContractResultsByTimestamp returning partial content`);
     }
 
-    const gasPrice = ethTransaction == null ? await this.getGasPriceFromFeeSchedule(timestamp) : null;
+    let gasPrice = null;
+    if (ethTransaction == null) {
+      const transactionTypeMap = await TransactionService.getTransactionTypesByPayerAndTimestampArray(
+        [contractDetails.payerAccountId],
+        [timestamp]
+      );
+      gasPrice = await this.getGasPriceFromFeeSchedule(timestamp, transactionTypeMap.get(timestamp) ?? null);
+    }
 
     await this.setContractResultsResponse(
       res,
@@ -1105,10 +1113,29 @@ class ContractController extends BaseController {
       RecordFileService.getRecordFileBlockDetailsFromTimestampArray(timestamps),
     ]);
 
+    const nonEthPayers = [];
+    const nonEthTimestamps = [];
+    rows.forEach((row) => {
+      if (ethereumTransactionMap.get(row.consensusTimestamp) == null) {
+        nonEthPayers.push(row.payerAccountId);
+        nonEthTimestamps.push(row.consensusTimestamp);
+      }
+    });
+
+    const transactionTypeMap = isEmpty(nonEthPayers)
+      ? new Map()
+      : await TransactionService.getTransactionTypesByPayerAndTimestampArray(nonEthPayers, nonEthTimestamps);
+
     response.results = await Promise.all(
       rows.map(async (row) => {
         const ethTransaction = ethereumTransactionMap.get(row.consensusTimestamp);
-        const gasPrice = ethTransaction == null ? await this.getGasPriceFromFeeSchedule(row.consensusTimestamp) : null;
+        const gasPrice =
+          ethTransaction == null
+            ? await this.getGasPriceFromFeeSchedule(
+                row.consensusTimestamp,
+                transactionTypeMap.get(row.consensusTimestamp)
+              )
+            : null;
 
         return new ContractResultDetailsViewModel(
           row,
@@ -1209,8 +1236,18 @@ class ContractController extends BaseController {
       fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
     }
 
-    const gasPrice =
-      ethTransaction == null ? await this.getGasPriceFromFeeSchedule(contractResult.consensusTimestamp) : null;
+    let gasPrice = null;
+    if (ethTransaction == null) {
+      let hederaTransactionType = transactionDetails.type;
+      if (isNil(hederaTransactionType)) {
+        const transactionTypeMap = await TransactionService.getTransactionTypesByPayerAndTimestampArray(
+          [transactionDetails.payerAccountId],
+          [transactionDetails.consensusTimestamp]
+        );
+        hederaTransactionType = transactionTypeMap.get(transactionDetails.consensusTimestamp) ?? null;
+      }
+      gasPrice = await this.getGasPriceFromFeeSchedule(contractResult.consensusTimestamp, hederaTransactionType);
+    }
 
     await this.setContractResultsResponse(
       res,
@@ -1231,14 +1268,14 @@ class ContractController extends BaseController {
     }
   };
 
-  getGasPriceFromFeeSchedule = async (consensusTimestamp) => {
+  getGasPriceFromFeeSchedule = async (consensusTimestamp, hederaTransactionType) => {
     const whereQuery = [
       {
         query: `${FileData.CONSENSUS_TIMESTAMP}${utils.opsMap.lte}`,
         param: consensusTimestamp,
       },
     ];
-    return FileDataService.getFeeSchedule({whereQuery});
+    return FileDataService.getFeeSchedule({whereQuery}, FeeSchedule.getTransactionType(hederaTransactionType));
   };
 
   getDetailedContractResults = async (contractDetails, contractId = undefined) => {
