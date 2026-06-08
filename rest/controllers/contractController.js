@@ -25,7 +25,6 @@ import {
   ContractState,
   ContractStateChange,
   Entity,
-  FeeSchedule,
   FileData,
   TransactionResult,
   TransactionType,
@@ -1275,7 +1274,7 @@ class ContractController extends BaseController {
         param: consensusTimestamp,
       },
     ];
-    return FileDataService.getFeeSchedule({whereQuery}, FeeSchedule.getTransactionType(hederaTransactionType));
+    return FileDataService.getFeeSchedule({whereQuery}, FileDataService.getTransactionType(hederaTransactionType));
   };
 
   getDetailedContractResults = async (contractDetails, contractId = undefined) => {

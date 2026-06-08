@@ -1,14 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import quickLru from 'quick-lru';
+import isNumber from 'lodash/isNumber';
 
 import BaseService from './baseService';
 import config from '../config';
+import {HederaFunctionality} from '../gen/services/basic_types_pb.js';
 import {ExchangeRate, FeeSchedule, FileData} from '../model';
+import TransactionType from '../model/transactionType';
 import * as utils from '../utils';
 import EntityId from '../entityId';
 
 const NANOSECONDS_PER_HOUR = 3_600_000_000_000n;
+const FEE_DIVISOR_FACTOR = 1000n;
+
+const FUNCTIONALITY_TO_TYPE = {
+  [HederaFunctionality.ContractCall]: 'ContractCall',
+  [HederaFunctionality.ContractCreate]: 'ContractCreate',
+  [HederaFunctionality.EthereumTransaction]: 'EthereumTransaction',
+};
 
 /**
  * File data retrieval business logic
@@ -100,7 +110,7 @@ class FileDataService extends BaseService {
     return this.fallbackRetry(EntityId.systemEntity.exchangeRateFile.getEncodedId(), filterQueries, ExchangeRate);
   };
 
-  getFeeSchedule = async (filterQueries, transactionType = FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL) => {
+  getFeeSchedule = async (filterQueries, transactionType = FUNCTIONALITY_TO_TYPE[HederaFunctionality.ContractCall]) => {
     const key = this.#getFeeScheduleKey(filterQueries, transactionType);
 
     const cached = this.#gasPriceCache.get(key);
@@ -118,11 +128,95 @@ class FileDataService extends BaseService {
       return null;
     }
 
-    feeSchedule.setExchangeRate(exchangeRate, this.#getEffectiveRefTimestampNanos(filterQueries));
-    const gasPrice = feeSchedule.getGasForType(transactionType);
+    const gasPrice = this.getGasPriceForType(
+      feeSchedule,
+      exchangeRate,
+      this.#getEffectiveRefTimestampNanos(filterQueries),
+      transactionType
+    );
     this.#gasPriceCache.set(key, gasPrice);
     return gasPrice;
   };
+
+  getEffectiveExchangeRate(exchangeRate, refTimestampNanos) {
+    if (
+      exchangeRate.current_expiration != null &&
+      refTimestampNanos > BigInt(exchangeRate.current_expiration) * 1_000_000_000n
+    ) {
+      return {hbarEquiv: exchangeRate.next_hbar, centEquiv: exchangeRate.next_cent};
+    }
+
+    return {hbarEquiv: exchangeRate.current_hbar, centEquiv: exchangeRate.current_cent};
+  }
+
+  convertGasPriceToTinyBars(gasPrice, hbarEquiv, centEquiv) {
+    if (gasPrice == null || !isNumber(hbarEquiv) || !isNumber(centEquiv)) {
+      return null;
+    }
+
+    centEquiv = BigInt(centEquiv);
+    if (centEquiv === 0n) {
+      return null;
+    }
+
+    const fee = (BigInt(gasPrice) * BigInt(hbarEquiv)) / (centEquiv * FEE_DIVISOR_FACTOR);
+    return utils.bigIntMax(fee, 1n);
+  }
+
+  getEffectiveFeeSchedule(feeSchedules, refTimestampNanos) {
+    const currentFeeSchedule = feeSchedules.currentFeeSchedule;
+    const feeScheduleExpirationTime = currentFeeSchedule.expiryTime?.seconds;
+
+    if (feeScheduleExpirationTime != null && refTimestampNanos > feeScheduleExpirationTime * 1_000_000_000n) {
+      return feeSchedules.nextFeeSchedule;
+    }
+
+    return currentFeeSchedule;
+  }
+
+  mapFees(feeSchedule, exchangeRate) {
+    if (!feeSchedule?.transactionFeeSchedule) {
+      return {};
+    }
+
+    const fees = {};
+    for (const schedule of feeSchedule.transactionFeeSchedule) {
+      const type = FUNCTIONALITY_TO_TYPE[schedule.hederaFunctionality];
+      if (!type || !schedule.fees?.length) {
+        continue;
+      }
+
+      const feeData = schedule.fees[0];
+      const serviceData = feeData?.servicedata ?? feeData?.serviceData;
+      if (!serviceData) {
+        continue;
+      }
+
+      const gas = serviceData.gas;
+      const tinyBars = this.convertGasPriceToTinyBars(gas, exchangeRate.hbarEquiv, exchangeRate.centEquiv);
+
+      if (tinyBars !== null) {
+        fees[type] = tinyBars;
+      }
+    }
+
+    return fees;
+  }
+
+  getGasPriceForType(feeSchedule, exchangeRate, refTimestampNanos, transactionType) {
+    const effectiveFeeSchedule = this.getEffectiveFeeSchedule(feeSchedule.feeSchedule, refTimestampNanos);
+    const effectiveExchangeRate = this.getEffectiveExchangeRate(exchangeRate, refTimestampNanos);
+    const fees = this.mapFees(effectiveFeeSchedule, effectiveExchangeRate);
+    return fees[transactionType] ?? null;
+  }
+
+  getTransactionType(hederaTransactionType) {
+    if (Number(hederaTransactionType) === Number(TransactionType.getProtoId('CONTRACTCREATEINSTANCE'))) {
+      return FUNCTIONALITY_TO_TYPE[HederaFunctionality.ContractCreate];
+    }
+
+    return FUNCTIONALITY_TO_TYPE[HederaFunctionality.ContractCall];
+  }
 
   fallbackRetry = async (fileEntityId, filterQueries, resultConstructor) => {
     const whereQuery = filterQueries.whereQuery ?? [];

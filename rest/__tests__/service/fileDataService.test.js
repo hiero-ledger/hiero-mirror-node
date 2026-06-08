@@ -11,7 +11,7 @@ import {
   HederaFunctionality,
 } from '../../gen/services/basic_types_pb.js';
 import {TimestampSecondsSchema} from '../../gen/services/timestamp_pb.js';
-import {FeeSchedule, FileData} from '../../model';
+import {FileData} from '../../model';
 import {FileDataService} from '../../service';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
@@ -306,10 +306,7 @@ describe('FileDataService.getFeeSchedule tests', () => {
     test('returns ContractCall gas price when transaction type is ContractCall', async () => {
       await loadMultiTypeFeeScheduleData();
 
-      const result = await FileDataService.getFeeSchedule(
-        {whereQuery: []},
-        FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL
-      );
+      const result = await FileDataService.getFeeSchedule({whereQuery: []}, 'ContractCall');
 
       expect(result).toBe(expectedContractCallGasPrice);
     });
@@ -317,10 +314,7 @@ describe('FileDataService.getFeeSchedule tests', () => {
     test('returns ContractCreate gas price when transaction type is ContractCreate', async () => {
       await loadMultiTypeFeeScheduleData();
 
-      const result = await FileDataService.getFeeSchedule(
-        {whereQuery: []},
-        FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE
-      );
+      const result = await FileDataService.getFeeSchedule({whereQuery: []}, 'ContractCreate');
 
       expect(result).toBe(expectedContractCreateGasPrice);
     });
@@ -328,10 +322,7 @@ describe('FileDataService.getFeeSchedule tests', () => {
     test('returns EthereumTransaction gas price when transaction type is EthereumTransaction', async () => {
       await loadMultiTypeFeeScheduleData();
 
-      const result = await FileDataService.getFeeSchedule(
-        {whereQuery: []},
-        FeeSchedule.TRANSACTION_TYPES.ETHEREUM_TRANSACTION
-      );
+      const result = await FileDataService.getFeeSchedule({whereQuery: []}, 'EthereumTransaction');
 
       expect(result).toBe(expectedEthereumTransactionGasPrice);
     });
@@ -342,22 +333,10 @@ describe('FileDataService.getFeeSchedule tests', () => {
       const filterQueries = {whereQuery: []};
       const spy = jest.spyOn(FileDataService, 'getLatestFileDataContents');
 
-      const contractCall = await FileDataService.getFeeSchedule(
-        filterQueries,
-        FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL
-      );
-      const contractCreate = await FileDataService.getFeeSchedule(
-        filterQueries,
-        FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE
-      );
-      const contractCallCached = await FileDataService.getFeeSchedule(
-        filterQueries,
-        FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL
-      );
-      const contractCreateCached = await FileDataService.getFeeSchedule(
-        filterQueries,
-        FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE
-      );
+      const contractCall = await FileDataService.getFeeSchedule(filterQueries, 'ContractCall');
+      const contractCreate = await FileDataService.getFeeSchedule(filterQueries, 'ContractCreate');
+      const contractCallCached = await FileDataService.getFeeSchedule(filterQueries, 'ContractCall');
+      const contractCreateCached = await FileDataService.getFeeSchedule(filterQueries, 'ContractCreate');
 
       expect(contractCall).toBe(expectedContractCallGasPrice);
       expect(contractCreate).toBe(expectedContractCreateGasPrice);

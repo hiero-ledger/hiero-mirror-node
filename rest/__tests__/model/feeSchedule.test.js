@@ -10,7 +10,20 @@ import {
   HederaFunctionality,
 } from '../../gen/services/basic_types_pb.js';
 import {TimestampSecondsSchema} from '../../gen/services/timestamp_pb.js';
-import {FeeSchedule} from '../../model';
+import {ExchangeRate, FeeSchedule} from '../../model';
+import {FileDataService} from '../../service';
+
+const makeExchangeRate = (overrides = {}) => {
+  const exchangeRate = Object.create(ExchangeRate.prototype);
+  return Object.assign(exchangeRate, {
+    current_hbar: 100,
+    current_cent: 200,
+    current_expiration: 7200,
+    next_hbar: 300,
+    next_cent: 400,
+    ...overrides,
+  });
+};
 
 const makeTransactionFeeSchedule = (hederaFunctionality, gas) => {
   const feeComponents = create(FeeComponentsSchema, {gas});
@@ -27,14 +40,8 @@ const gasPriceInTinybars = (gas, centEquiv = 200, hbarEquiv = 100) => {
   return fee > 0n ? fee : 1n;
 };
 
-describe('FeeSchedule effective schedule selection', () => {
-  const exchangeRate = {
-    current_hbar: 100,
-    current_cent: 200,
-    current_expiration: 7200,
-    next_hbar: 300,
-    next_cent: 400,
-  };
+describe('FileDataService effective schedule selection', () => {
+  const exchangeRate = makeExchangeRate();
 
   const makeCurrentAndNextFeeScheduleFileData = (currentGas, nextGas, currentExpirySeconds) => {
     const currentFeeSchedule = create(FeeScheduleSchema, {
@@ -63,9 +70,9 @@ describe('FeeSchedule effective schedule selection', () => {
     });
     const refTimestamp = 7_200_000_000_000n;
 
-    feeSchedule.setExchangeRate(exchangeRate, refTimestamp);
+    const gasPrice = FileDataService.getGasPriceForType(feeSchedule, exchangeRate, refTimestamp, 'ContractCall');
 
-    expect(feeSchedule.fees.ContractCall).toBe(gasPriceInTinybars(1000, 200, 100));
+    expect(gasPrice).toBe(gasPriceInTinybars(1000, 200, 100));
   });
 
   test('uses next fee schedule and exchange rate after the expiry hour', () => {
@@ -75,19 +82,54 @@ describe('FeeSchedule effective schedule selection', () => {
     });
     const refTimestamp = 10_800_000_000_000n;
 
-    feeSchedule.setExchangeRate(exchangeRate, refTimestamp);
+    const gasPrice = FileDataService.getGasPriceForType(feeSchedule, exchangeRate, refTimestamp, 'ContractCall');
 
-    expect(feeSchedule.fees.ContractCall).toBe(gasPriceInTinybars(5000, 400, 300));
+    expect(gasPrice).toBe(gasPriceInTinybars(5000, 400, 300));
   });
 });
 
-describe('FeeSchedule.getTransactionType', () => {
+describe('FileDataService.getTransactionType', () => {
   test('returns ContractCreate for CONTRACTCREATEINSTANCE transaction type', () => {
-    expect(FeeSchedule.getTransactionType(8)).toBe(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CREATE);
+    expect(FileDataService.getTransactionType(8)).toBe('ContractCreate');
   });
 
   test('returns ContractCall for other transaction types', () => {
-    expect(FeeSchedule.getTransactionType(7)).toBe(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL);
-    expect(FeeSchedule.getTransactionType(null)).toBe(FeeSchedule.TRANSACTION_TYPES.CONTRACT_CALL);
+    expect(FileDataService.getTransactionType(7)).toBe('ContractCall');
+    expect(FileDataService.getTransactionType(null)).toBe('ContractCall');
+  });
+});
+
+describe('FileDataService.getEffectiveExchangeRate', () => {
+  test('returns current rate within the expiry hour', () => {
+    const exchangeRate = makeExchangeRate();
+
+    expect(FileDataService.getEffectiveExchangeRate(exchangeRate, 7_200_000_000_000n)).toEqual({
+      hbarEquiv: 100,
+      centEquiv: 200,
+    });
+  });
+
+  test('returns next rate after the expiry hour', () => {
+    const exchangeRate = makeExchangeRate();
+
+    expect(FileDataService.getEffectiveExchangeRate(exchangeRate, 10_800_000_000_000n)).toEqual({
+      hbarEquiv: 300,
+      centEquiv: 400,
+    });
+  });
+});
+
+describe('FileDataService.convertGasPriceToTinyBars', () => {
+  test('converts gas price using hbar and cent equivalents', () => {
+    expect(FileDataService.convertGasPriceToTinyBars(10000, 100, 200)).toBe(5n);
+  });
+
+  test('returns minimum fee of 1 tinybar', () => {
+    expect(FileDataService.convertGasPriceToTinyBars(1, 1, 1000)).toBe(1n);
+  });
+
+  test('returns null for invalid input', () => {
+    expect(FileDataService.convertGasPriceToTinyBars(null, 100, 200)).toBeNull();
+    expect(FileDataService.convertGasPriceToTinyBars(1000, 100, 0)).toBeNull();
   });
 });
