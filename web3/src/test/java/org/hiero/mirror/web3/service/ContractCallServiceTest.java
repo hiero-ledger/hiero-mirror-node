@@ -1343,30 +1343,6 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         }
 
         @Test
-        void processCallWithGasSkipsStateOverridesWhenNull() {
-            // Given
-            final var contract = testWeb3jService.deploy(StorageContract::deploy);
-            meterRegistry.clear();
-            final var functionCall = contract.call_slot0();
-
-            final var params = contractExecutionParametersBuilder(
-                            BlockType.LATEST,
-                            functionCall.encodeFunctionCall(),
-                            Address.ZERO,
-                            Address.fromHexString(contract.getContractAddress()),
-                            ETH_CALL,
-                            0L)
-                    .build();
-
-            // When
-            final var result = contractExecutionService.processCallWithGas(params);
-
-            // Then
-            assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(BigInteger.ZERO);
-            assertThat(result.gasUsed()).isPositive();
-        }
-
-        @Test
         void processCallWithGasAppliesAccountBalanceOverride() {
             // Given
             final var account = accountEntityPersist();

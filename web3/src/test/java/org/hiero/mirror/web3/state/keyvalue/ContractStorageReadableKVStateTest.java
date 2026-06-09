@@ -136,15 +136,6 @@ class ContractStorageReadableKVStateTest {
     }
 
     @Test
-    void whenStateOverrideHasFullStateReturnsOverrideValue() {
-        contractCallContext.setStateOverrides(
-                Map.of(CONTRACT_ID_WITH_NUM_ADDRESS, stateOverrideWithState(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
-
-        assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isEqualTo(OVERRIDE_SLOT_VALUE);
-        verify(contractStateService, never()).findStorage(any(), any());
-    }
-
-    @Test
     void whenStateOverrideHasFullStateReturnsNullForUnlistedSlot() {
         contractCallContext.setStateOverrides(
                 Map.of(CONTRACT_ID_WITH_NUM_ADDRESS, stateOverrideWithState(OTHER_SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));

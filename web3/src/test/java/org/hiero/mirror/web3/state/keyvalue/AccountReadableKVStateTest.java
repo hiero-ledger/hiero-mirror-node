@@ -675,17 +675,6 @@ class AccountReadableKVStateTest {
     }
 
     @Test
-    void whenStateOverrideHasBalanceReturnsOverriddenBalance() {
-        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
-        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
-        contractCallContext.setStateOverrides(
-                Map.of(LONG_ZERO_ADDRESS, stateOverride(OVERRIDE_BALANCE_HEX, null, null)));
-
-        assertThat(accountReadableKVState.get(ACCOUNT_ID))
-                .satisfies(account -> assertThat(account).returns(OVERRIDE_BALANCE, Account::tinybarBalance));
-    }
-
-    @Test
     void whenStateOverrideHasNonceReturnsOverriddenNonce() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));

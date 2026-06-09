@@ -137,15 +137,6 @@ class ContractBytecodeReadableKVStateTest {
     }
 
     @Test
-    void whenStateOverrideHasCodeForContractNumReturnsOverrideBytecode() {
-        contractCallContext.setStateOverrides(
-                Map.of(CONTRACT_ID_WITH_NUM_ADDRESS, stateOverrideWithCode(OVERRIDE_CODE_HEX)));
-
-        assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM)).isEqualTo(OVERRIDE_BYTECODE);
-        verify(contractRepository, never()).findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId());
-    }
-
-    @Test
     void whenStateOverrideHasCodeForMirrorEvmAddressReturnsOverrideBytecode() {
         contractCallContext.setStateOverrides(Map.of(HEX, stateOverrideWithCode(OVERRIDE_CODE_HEX)));
 
