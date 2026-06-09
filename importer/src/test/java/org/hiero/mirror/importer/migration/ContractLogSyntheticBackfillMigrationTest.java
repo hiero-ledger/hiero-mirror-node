@@ -3,7 +3,7 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hiero.mirror.importer.migration.ContractLogSyntheticBackfillMigration.BATCH_INTERVAL;
+import static org.hiero.mirror.importer.migration.ContractLogSyntheticBackfillMigration.DEFAULT_BATCH_INTERVAL;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +12,7 @@ import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.convert.DurationStyle;
 
 @DisablePartitionMaintenance
 @DisableRepeatableSqlMigration
@@ -150,13 +151,15 @@ final class ContractLogSyntheticBackfillMigrationTest
     @Test
     void processesMultipleBatchIntervals() {
         // given
-        var early = domainBuilder
+        final var early = domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(1000L))
                 .persist();
-        var late = domainBuilder
+        final long batchInterval =
+                DurationStyle.SIMPLE.parse(DEFAULT_BATCH_INTERVAL).toNanos();
+        final var late = domainBuilder
                 .contractLog()
-                .customize(cl -> cl.consensusTimestamp(1000L + BATCH_INTERVAL + 1))
+                .customize(cl -> cl.consensusTimestamp(1000L + batchInterval + 1))
                 .persist();
         nullifySynthetic(early.getConsensusTimestamp());
         nullifySynthetic(late.getConsensusTimestamp());

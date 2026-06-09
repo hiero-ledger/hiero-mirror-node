@@ -3,7 +3,7 @@
 package org.hiero.mirror.importer.migration;
 
 import jakarta.inject.Named;
-import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.Getter;
@@ -13,6 +13,7 @@ import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.convert.DurationStyle;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.jdbc.core.JdbcOperations;
@@ -25,7 +26,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Named
 final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Long> {
 
-    static final long BATCH_INTERVAL = Duration.ofDays(1).toNanos();
+    static final String DEFAULT_BATCH_INTERVAL = "6h";
+
+    private static final String BATCH_INTERVAL_PROPERTIES_KEY = "batchInterval";
 
     private static final String CREATE_PROGRESS_TABLE = """
             create table if not exists contract_log_synthetic_progress_temp(
@@ -70,7 +73,9 @@ final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Lon
               )
             """;
 
+    private final long batchInterval;
     private final boolean v2;
+
     private long lowerBoundFloor = 0L;
     private long initialUpperBound = -1L;
 
@@ -83,7 +88,15 @@ final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Lon
             DBProperties dbProperties,
             @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider) {
         super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
-        this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
+
+        batchInterval = DurationStyle.SIMPLE
+                .parse(
+                        migrationProperties
+                                .getParams()
+                                .getOrDefault(BATCH_INTERVAL_PROPERTIES_KEY, DEFAULT_BATCH_INTERVAL),
+                        ChronoUnit.HOURS)
+                .toNanos();
+        v2 = environment.acceptsProfiles(Profiles.of("v2"));
     }
 
     @Override
@@ -126,7 +139,7 @@ final class ContractLogSyntheticBackfillMigration extends AsyncJavaMigration<Lon
     @NonNull
     @Override
     protected Optional<Long> migratePartial(Long upperBound) {
-        var lowerBound = upperBound - BATCH_INTERVAL;
+        var lowerBound = upperBound - batchInterval;
         var params =
                 new MapSqlParameterSource().addValue("lowerBound", lowerBound).addValue("upperBound", upperBound);
         var updated = getNamedParameterJdbcOperations().update(BACKFILL_SQL, params);
