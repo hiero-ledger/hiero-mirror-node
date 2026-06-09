@@ -30,8 +30,7 @@ public final class OpcodeContext {
      * Populated once via {@link #setActions(List)} to avoid repeated filtering and sorting.
      */
     @Setter(AccessLevel.NONE)
-    @Builder.Default
-    private Map<Integer, List<ContractAction>> actionsByDepth = Map.of();
+    private Map<Integer, List<ContractAction>> actionsByDepth = new HashMap<>();
 
     private List<Opcode> opcodes;
 
@@ -40,7 +39,6 @@ public final class OpcodeContext {
      * Used to correlate EVM re-execution system calls with preloaded reverted sidecar actions.
      */
     @Setter(AccessLevel.NONE)
-    @Builder.Default
     private Map<Integer, Integer> precompileCallCountByDepth = new HashMap<>();
 
     private long gasRemaining;
@@ -67,8 +65,6 @@ public final class OpcodeContext {
         this.memory = opcodeRequest.isMemory();
         this.storage = opcodeRequest.isStorage();
         this.opcodes = new ArrayList<>(opcodesSize);
-        this.actionsByDepth = new HashMap<>();
-        this.precompileCallCountByDepth = new HashMap<>();
     }
 
     public void addOpcodes(Opcode opcode) {
@@ -80,24 +76,14 @@ public final class OpcodeContext {
      * This pre-processing is done once so that {@link #consumeNextFailedActionAtDepth(int)} is a simple lookup.
      */
     public void setActions(final List<ContractAction> actions) {
-        final var grouped = new HashMap<Integer, List<ContractAction>>();
         for (final var action : actions) {
-            grouped.computeIfAbsent(action.getCallDepth(), _ -> new ArrayList<>())
+            actionsByDepth
+                    .computeIfAbsent(action.getCallDepth(), _ -> new ArrayList<>())
                     .add(action);
         }
-        for (final var list : grouped.values()) {
+        for (final var list : actionsByDepth.values()) {
             list.sort(Comparator.comparingInt(ContractAction::getIndex));
         }
-        this.actionsByDepth = grouped;
-    }
-
-    /**
-     * Increments the system-contract call counter for the given call depth and returns the
-     * previous value (i.e., the 0-based position of the current call among all system-contract
-     * calls seen so far at that depth).
-     */
-    public int incrementPrecompileCallCountAtDepth(final int depth) {
-        return precompileCallCountByDepth.merge(depth, 1, Integer::sum) - 1;
     }
 
     /**
@@ -111,7 +97,9 @@ public final class OpcodeContext {
      * @return the matching reverted action, or {@code null}
      */
     public ContractAction consumeNextFailedActionAtDepth(final int depth) {
-        final var counter = incrementPrecompileCallCountAtDepth(depth);
+        // Increments the system-contract call counter for the given call depth and returns the previous value
+        // (i.e., the 0-based position of the current call among all system-contract calls seen so far at that depth).
+        final var counter = precompileCallCountByDepth.merge(depth, 1, Integer::sum) - 1;
         final var actionsAtDepth = actionsByDepth.getOrDefault(depth, List.of());
         if (counter >= actionsAtDepth.size()) {
             return null;
