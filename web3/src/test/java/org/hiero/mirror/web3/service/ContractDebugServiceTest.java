@@ -34,20 +34,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-/**
- * Integration test for {@link ContractDebugService#processOpcodeCall}. Validates that reverted system-contract
- * actions from historical DB records are correctly grouped by call depth and mapped to the returned opcode list at the
- * expected positions.
- */
 class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
     private static final int NUM_DEPTHS = 4;
     private static final int ACTIONS_PER_DEPTH = 2;
 
-    /**
-     * Replaces the real {@link ContractActionRepository} so that we can return a controlled set of reverted
-     * {@link ContractAction} records without touching the database.
-     */
     @MockitoBean
     private ContractActionRepository contractActionRepository;
 
@@ -93,7 +84,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
     @Test
     void processOpcodeCallMapsRevertedActionsToCorrectDepths() {
-        // Given – one unique revert message per action, 2 actions × 4 depths = 8 total
+        // Given – one unique revert message per action, 8 total
         final var timestamp = domainBuilder.timestamp();
         final var revertedActions = buildRevertedActions(timestamp);
 
@@ -117,7 +108,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var result =
                 ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, opcodeContext));
 
-        // Then – exactly 8 opcodes are returned, one per reverted action
+        // Then
         final var opcodes = result.opcodes();
         assertThat(opcodes).hasSize(NUM_DEPTHS * ACTIONS_PER_DEPTH);
 
