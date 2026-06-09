@@ -49,10 +49,12 @@ final class InitialStateReaderImpl implements InitialStateReader {
             final MapUpdateChange mapUpdateChange) {
         final var account = mapUpdateChange.getValue().getAccountValue();
         final var entity = EntityId.of(account.getAccountId()).toEntity();
+
+        // Account properties added later (e.g., alias, allowances, staking metadata, etc.) are not parsed
         entity.setAutoRenewPeriod(account.getAutoRenewSeconds());
         entity.setBalance(account.getTinybarBalance());
         entity.setBalanceTimestamp(consensusTimestamp);
-        entity.setDeleted(false);
+        entity.setDeleted(account.getDeleted());
         entity.setExpirationTimestamp(account.getExpirationSecond() * NANOS_PER_SECOND);
         entity.setMaxAutomaticTokenAssociations(account.getMaxAutoAssociations());
         entity.setMemo(account.getMemo());
@@ -93,7 +95,7 @@ final class InitialStateReaderImpl implements InitialStateReader {
         final var file = mapUpdateChange.getValue().getFileValue();
         final var entityId = EntityId.of(file.getFileId());
         final var entity = entityId.toEntity();
-        entity.setDeleted(false);
+        entity.setDeleted(file.getDeleted());
         entity.setExpirationTimestamp(file.getExpirationSecond() * NANOS_PER_SECOND);
         entity.setMemo(file.getMemo());
         entity.setTimestampLower(consensusTimestamp);

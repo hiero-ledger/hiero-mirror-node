@@ -13,6 +13,7 @@ import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.STATE_CHANG
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRACE_DATA;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_OUTPUT;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_RESULT;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOCK_NUMBER;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
@@ -175,7 +176,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
     }
 
     private void readInitialState(final ReaderContext context, final RecordFile recordFile) {
-        if (recordFile.getIndex() != RecordFile.GENESIS_BLOCK_NUMBER) {
+        if (recordFile.getIndex() != GENESIS_BLOCK_NUMBER || context.getStateChangesList() == null) {
             return;
         }
 
@@ -265,7 +266,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         private BlockRootHashDigest blockRootHashDigest;
         private ConsensusTimestampTracker consensusTimestampTracker = new ConsensusTimestampTracker();
         private String filename;
-        private List<StateChanges> stateChangesList = new ArrayList<>();
 
         @NonFinal
         private int batchIndex;
@@ -288,6 +288,10 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         @NonFinal
         @Nullable
         private BlockTransaction lastChildTransaction;
+
+        @NonFinal
+        @Nullable
+        private List<StateChanges> stateChangesList;
 
         ReaderContext(final List<BlockItem> blockItems, final String filename) {
             this.blockFile = BlockFile.builder();
@@ -398,7 +402,11 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             blockRootHashDigest.addBlockItem(blockItem);
             index++;
 
-            if (blockItem.hasStateChanges()) {
+            if (blockItem.hasBlockHeader() && blockItem.getBlockHeader().getNumber() == GENESIS_BLOCK_NUMBER) {
+                stateChangesList = new ArrayList<>();
+            }
+
+            if (blockItem.hasStateChanges() && stateChangesList != null) {
                 stateChangesList.add(blockItem.getStateChanges());
             }
         }

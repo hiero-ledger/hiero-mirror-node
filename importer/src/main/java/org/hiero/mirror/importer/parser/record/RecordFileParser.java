@@ -39,17 +39,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
     private final ApplicationEventPublisher applicationEventPublisher;
-    private final RecordItemListener recordItemListener;
     private final DateRangeCalculator dateRangeCalculator;
+    private final EntityListener entityListener;
+    private final EntityProperties entityProperties;
     private final ParserContext parserContext;
+    private final RecordItemListener recordItemListener;
 
     // Metrics
     private final Map<Integer, Timer> latencyMetrics;
     private final Map<Integer, DistributionSummary> sizeMetrics;
     private final Timer unknownLatencyMetric;
     private final DistributionSummary unknownSizeMetric;
-    private final EntityListener entityListener;
-    private final EntityProperties entityProperties;
 
     @SuppressWarnings("java:S107")
     public RecordFileParser(
@@ -186,22 +186,12 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             return;
         }
 
-        final var persist = entityProperties.getPersist();
-        if (persist.isContracts()) {
-            for (final var contract : initialState.contracts()) {
-                entityListener.onContract(contract);
-            }
+        if (entityProperties.getPersist().isContracts()) {
+            initialState.contracts().forEach(entityListener::onContract);
         }
 
-        for (final var entity : initialState.entities()) {
-            entityListener.onEntity(entity);
-        }
-
-        for (final var fileData : initialState.fileDatum()) {
-            if (persist.shouldPersistFileData(fileData.getEntityId())) {
-                entityListener.onFileData(fileData);
-            }
-        }
+        initialState.entities().forEach(entityListener::onEntity);
+        initialState.fileDatum().forEach(entityListener::onFileData);
     }
 
     private void recordMetrics(RecordItem recordItem) {

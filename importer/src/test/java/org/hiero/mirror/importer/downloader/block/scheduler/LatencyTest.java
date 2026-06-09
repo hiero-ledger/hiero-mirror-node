@@ -4,17 +4,13 @@ package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import org.apache.commons.lang3.StringUtils;
 import org.assertj.core.data.Offset;
+import org.hiero.mirror.importer.util.LongListConverter;
 import org.jspecify.annotations.NullUnmarked;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.converter.ArgumentConversionException;
 import org.junit.jupiter.params.converter.ConvertWith;
-import org.junit.jupiter.params.converter.SimpleArgumentConverter;
 import org.junit.jupiter.params.provider.CsvSource;
 
 @NullUnmarked
@@ -64,23 +60,5 @@ final class LatencyTest {
 
         // then
         assertThat(latency.getAverage()).isCloseTo(13, OFFSET);
-    }
-
-    private static class LongListConverter extends SimpleArgumentConverter {
-
-        @Override
-        protected Object convert(Object source, Class<?> targetType) throws ArgumentConversionException {
-            if (source == null) {
-                return Collections.emptyList();
-            }
-
-            if (source instanceof String input) {
-                return Arrays.stream(StringUtils.split(input, ','))
-                        .map(Long::valueOf)
-                        .toList();
-            }
-
-            return Collections.emptyList();
-        }
     }
 }

@@ -56,6 +56,7 @@ import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -177,18 +178,13 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
     }
 
     @ParameterizedTest
-    @CsvSource(textBlock = """
-            true, true
-            true, false
-            false, true
-            false, false
-            """)
-    void parseInitialState(final boolean contracts, final boolean fileData) {
+    @ValueSource(booleans = {true, false})
+    void parseInitialState(final boolean contracts) {
         // given
-        final var persistProperties = mock(EntityProperties.PersistProperties.class);
-        doReturn(persistProperties).when(entityProperties).getPersist();
-        doReturn(contracts).when(persistProperties).isContracts();
-        doReturn(fileData).when(persistProperties).shouldPersistFileData(any());
+        final var persisProperties = mock(EntityProperties.PersistProperties.class);
+        doReturn(persisProperties).when(entityProperties).getPersist();
+        doReturn(contracts).when(persisProperties).isContracts();
+
         final var initialState = new RecordFile.InitialState();
         initialState.entities().add(domainBuilder.entity().get());
         initialState.entities().add(domainBuilder.entity().get());
@@ -215,11 +211,9 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
             assertThat(contractCaptor.getAllValues()).containsExactlyInAnyOrderElementsOf(initialState.contracts());
         }
 
-        if (fileData) {
-            final var fileDataCaptor = ArgumentCaptor.forClass(FileData.class);
-            verify(entityListener, times(2)).onFileData(fileDataCaptor.capture());
-            assertThat(fileDataCaptor.getAllValues()).containsExactlyInAnyOrderElementsOf(initialState.fileDatum());
-        }
+        final var fileDataCaptor = ArgumentCaptor.forClass(FileData.class);
+        verify(entityListener, times(2)).onFileData(fileDataCaptor.capture());
+        assertThat(fileDataCaptor.getAllValues()).containsExactlyInAnyOrderElementsOf(initialState.fileDatum());
 
         verifyNoMoreInteractions(entityListener);
     }

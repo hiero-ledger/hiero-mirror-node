@@ -107,7 +107,8 @@ final class InitialStateReaderTest {
             final Collection<Entity> expectedEntities) {
         final long autoRenewPeriod = recordItemBuilder.timestamp().getSeconds();
         final long expirationSecond = recordItemBuilder.timestamp().getSeconds();
-        final long balance = recordItemBuilder.id();
+        final boolean deleted = recordItemBuilder.id() % 3 == 0;
+        final long balance = deleted ? 0 : recordItemBuilder.id();
         final var key = !smartContract
                 ? recordItemBuilder.key()
                 : Key.newBuilder().setContractID(toContractID(accountId)).build();
@@ -118,7 +119,7 @@ final class InitialStateReaderTest {
         entity.setAutoRenewPeriod(autoRenewPeriod);
         entity.setBalance(balance);
         entity.setBalanceTimestamp(consensusTimestamp);
-        entity.setDeleted(false);
+        entity.setDeleted(deleted);
         entity.setExpirationTimestamp(expirationSecond * NANOS_PER_SECOND);
         entity.setKey(key.toByteArray());
         entity.setMaxAutomaticTokenAssociations(0);
@@ -130,6 +131,7 @@ final class InitialStateReaderTest {
         final var account = Account.newBuilder()
                 .setAccountId(accountId)
                 .setAutoRenewSeconds(autoRenewPeriod)
+                .setDeleted(deleted)
                 .setExpirationSecond(expirationSecond)
                 .setKey(key)
                 .setMemo(accountId.toString())
@@ -175,19 +177,21 @@ final class InitialStateReaderTest {
             final Collection<Entity> expectedEntities,
             final Collection<FileData> expectedFileDatum) {
         final byte[] content = recordItemBuilder.randomBytes(1024);
+        final boolean deleted = recordItemBuilder.id() % 3 == 0;
         final long expirationSecond = recordItemBuilder.timestamp().getSeconds();
         final var fileId = recordItemBuilder.fileId();
         final long consensusTimestamp = DomainUtils.timestampInNanosMax(timestamp);
 
         final var entityId = EntityId.of(fileId);
         final var entity = entityId.toEntity();
-        entity.setDeleted(false);
+        entity.setDeleted(deleted);
         entity.setExpirationTimestamp(expirationSecond * NANOS_PER_SECOND);
         entity.setMemo(fileId.toString());
         entity.setTimestampLower(consensusTimestamp);
         entity.setType(EntityType.FILE);
 
         final var file = File.newBuilder()
+                .setDeleted(deleted)
                 .setFileId(fileId)
                 .setContents(DomainUtils.fromBytes(content))
                 .setExpirationSecond(expirationSecond)

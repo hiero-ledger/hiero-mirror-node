@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.reader.block;
 
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOCK_NUMBER;
@@ -38,6 +39,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.assertj.core.util.Lists;
@@ -66,6 +68,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+@Slf4j
 @ExtendWith(MockitoExtension.class)
 @NullUnmarked
 public final class BlockStreamReaderTest {
@@ -216,6 +219,37 @@ public final class BlockStreamReaderTest {
                 .usingRecursiveComparison(RECORD_FILE_COMPARISON_CONFIG)
                 .isEqualTo(expectedRecordFile);
         verify(initialStateReader, times(blockNumber == 0 ? 1 : 0)).read(any());
+    }
+
+    @Test
+    void readGenesisWRB() {
+        final var file = TestUtils.getResource("data/mainnet-0.blk");
+        final var streamFileData = StreamFileData.from(file);
+        final byte[] bytes = streamFileData.getBytes();
+        final var blockStream = createBlockStream(getBlock(streamFileData), bytes, "mainnet-0.blk");
+        final var blockFile = reader.read(blockStream);
+        assertThat(blockFile).isNotNull();
+        for (final var blockItem : blockStream.blockItems()) {
+            if (!blockItem.hasStateChanges()) {
+                continue;
+            }
+
+            final var stateChanges = blockItem.getStateChanges();
+            for (final var statechange : stateChanges.getStateChangesList()) {
+                if (statechange.getStateId() != STATE_ID_ACCOUNTS_VALUE) {
+                    continue;
+                }
+
+                final var account = statechange.getMapUpdate().getValue().getAccountValue();
+                if (account.getDeleted()) {
+                    log.info(
+                            "account - {}, balance - {}, deleted - {}",
+                            account.getAccountId(),
+                            account.getTinybarBalance(),
+                            account.getDeleted());
+                }
+            }
+        }
     }
 
     @Test
