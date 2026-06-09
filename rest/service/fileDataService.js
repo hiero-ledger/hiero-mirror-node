@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import quickLru from 'quick-lru';
+import isEmpty from 'lodash/isEmpty';
 import isNumber from 'lodash/isNumber';
 
 import BaseService from './baseService';
 import config from '../config';
 import {HederaFunctionality} from '../gen/services/basic_types_pb.js';
 import {ExchangeRate, FeeSchedule, FileData} from '../model';
-import TransactionType from '../model/transactionType';
 import * as utils from '../utils';
 import EntityId from '../entityId';
 import {NANOS_PER_SECOND} from '../constants.js';
@@ -111,13 +111,51 @@ class FileDataService extends BaseService {
     return this.fallbackRetry(EntityId.systemEntity.exchangeRateFile.getEncodedId(), filterQueries, ExchangeRate);
   };
 
-  getFeeSchedule = async (filterQueries, transactionType = FUNCTIONALITY_TO_TYPE[HederaFunctionality.ContractCall]) => {
-    const key = this.#getFeeScheduleKey(filterQueries, transactionType);
-
-    const cached = this.#gasPriceCache.get(key);
+  getFeeSchedule = async (consensusTimestamp = null) => {
+    const cacheKey = this.#getFeeScheduleKey(consensusTimestamp);
+    const cached = this.#gasPriceCache.get(cacheKey);
     if (cached !== undefined) {
       return cached;
     }
+
+    return this.#loadAndCacheGasPrice(consensusTimestamp);
+  };
+
+  /**
+   * Resolves gas prices for multiple contract results, deduplicating cache and DB lookups by hour bucket.
+   *
+   * @param {Array<*>} consensusTimestamps
+   * @returns {Promise<Map>} map of consensus timestamp to gas price
+   */
+  getGasPricesAtTimestamps = async (consensusTimestamps) => {
+    const gasPriceByTimestamp = new Map();
+    if (isEmpty(consensusTimestamps)) {
+      return gasPriceByTimestamp;
+    }
+
+    const loadRequests = new Map();
+    for (const consensusTimestamp of consensusTimestamps) {
+      const cacheKey = this.#getFeeScheduleKey(consensusTimestamp);
+      if (this.#gasPriceCache.get(cacheKey) === undefined && !loadRequests.has(cacheKey)) {
+        loadRequests.set(cacheKey, consensusTimestamp);
+      }
+    }
+
+    await Promise.all(
+      [...loadRequests.values()].map((consensusTimestamp) => this.#loadAndCacheGasPrice(consensusTimestamp))
+    );
+
+    for (const consensusTimestamp of consensusTimestamps) {
+      const cacheKey = this.#getFeeScheduleKey(consensusTimestamp);
+      gasPriceByTimestamp.set(consensusTimestamp, this.#gasPriceCache.get(cacheKey) ?? null);
+    }
+
+    return gasPriceByTimestamp;
+  };
+
+  async #loadAndCacheGasPrice(consensusTimestamp) {
+    const cacheKey = this.#getFeeScheduleKey(consensusTimestamp);
+    const filterQueries = this.#buildFilterQueries(consensusTimestamp);
 
     const [exchangeRate, feeSchedule] = await Promise.all([
       this.getExchangeRate(filterQueries),
@@ -125,19 +163,34 @@ class FileDataService extends BaseService {
     ]);
 
     if (!feeSchedule || !exchangeRate) {
-      this.#gasPriceCache.set(key, null);
+      this.#gasPriceCache.set(cacheKey, null);
       return null;
     }
 
     const gasPrice = this.getGasPriceForType(
       feeSchedule,
       exchangeRate,
-      this.#getEffectiveRefTimestampNanos(filterQueries),
-      transactionType
+      this.#getEffectiveRefTimestampNanos(consensusTimestamp),
+      FUNCTIONALITY_TO_TYPE[HederaFunctionality.ContractCall]
     );
-    this.#gasPriceCache.set(key, gasPrice);
+    this.#gasPriceCache.set(cacheKey, gasPrice);
     return gasPrice;
-  };
+  }
+
+  #buildFilterQueries(consensusTimestamp) {
+    if (consensusTimestamp == null) {
+      return {whereQuery: []};
+    }
+
+    return {
+      whereQuery: [
+        {
+          query: `${FileData.CONSENSUS_TIMESTAMP}${utils.opsMap.lte}`,
+          param: consensusTimestamp,
+        },
+      ],
+    };
+  }
 
   getEffectiveExchangeRate(exchangeRate, refTimestampNanos) {
     if (
@@ -211,14 +264,6 @@ class FileDataService extends BaseService {
     return fees[transactionType] ?? null;
   }
 
-  getTransactionType(hederaTransactionType) {
-    if (Number(hederaTransactionType) === Number(TransactionType.getProtoId('CONTRACTCREATEINSTANCE'))) {
-      return FUNCTIONALITY_TO_TYPE[HederaFunctionality.ContractCreate];
-    }
-
-    return FUNCTIONALITY_TO_TYPE[HederaFunctionality.ContractCall];
-  }
-
   fallbackRetry = async (fileEntityId, filterQueries, resultConstructor) => {
     const whereQuery = filterQueries.whereQuery ?? [];
     const filters = {whereQuery};
@@ -247,30 +292,16 @@ class FileDataService extends BaseService {
   };
 
   truncateToStartOfHour(refTimestampNanos) {
-    const refTimestamp = refTimestampNanos;
-    return (refTimestamp / NANOSECONDS_PER_HOUR) * NANOSECONDS_PER_HOUR;
+    return (refTimestampNanos / NANOSECONDS_PER_HOUR) * NANOSECONDS_PER_HOUR;
   }
 
-  #getFeeScheduleKey(filterQueries, transactionType) {
-    const refTimestamp = this.#getRefTimestamp(filterQueries);
-    const timeKey = refTimestamp === null ? 'latest' : this.truncateToStartOfHour(refTimestamp).toString();
-    return `${transactionType}:${timeKey}`;
+  #getFeeScheduleKey(consensusTimestamp) {
+    return consensusTimestamp == null ? 'latest' : this.truncateToStartOfHour(BigInt(consensusTimestamp)).toString();
   }
 
-  #getEffectiveRefTimestampNanos(filterQueries) {
-    const refTimestamp = this.#getRefTimestamp(filterQueries);
-    const refTimestampNanos = refTimestamp ?? BigInt(Date.now()) * 1_000_000n;
-    return this.truncateToStartOfHour(refTimestampNanos);
-  }
-
-  #getRefTimestamp(filterQueries) {
-    const {whereQuery} = filterQueries;
-    for (const filter of whereQuery) {
-      if (filter.query.trim().startsWith(FileData.CONSENSUS_TIMESTAMP)) {
-        return BigInt(filter.param);
-      }
-    }
-    return null;
+  #getEffectiveRefTimestampNanos(consensusTimestamp) {
+    const refTimestampNanos = consensusTimestamp ?? BigInt(Date.now()) * 1_000_000n;
+    return this.truncateToStartOfHour(BigInt(refTimestampNanos));
   }
 
   clearFeeScheduleCache = () => {

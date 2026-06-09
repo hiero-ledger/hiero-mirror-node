@@ -88,17 +88,6 @@ describe('FileDataService effective schedule selection', () => {
   });
 });
 
-describe('FileDataService.getTransactionType', () => {
-  test('returns ContractCreate for CONTRACTCREATEINSTANCE transaction type', () => {
-    expect(FileDataService.getTransactionType(8)).toBe('ContractCreate');
-  });
-
-  test('returns ContractCall for other transaction types', () => {
-    expect(FileDataService.getTransactionType(7)).toBe('ContractCall');
-    expect(FileDataService.getTransactionType(null)).toBe('ContractCall');
-  });
-});
-
 describe('FileDataService.getEffectiveExchangeRate', () => {
   test('returns current rate within the expiry hour', () => {
     const exchangeRate = makeExchangeRate();

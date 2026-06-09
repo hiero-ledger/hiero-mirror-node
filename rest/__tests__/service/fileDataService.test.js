@@ -213,14 +213,14 @@ describe('FileDataService.getFeeSchedule tests', () => {
   const expectedPreviousGasPrice = 8n;
 
   test('FileDataService.getFeeSchedule - No match', async () => {
-    await expect(FileDataService.getFeeSchedule({whereQuery: []})).resolves.toBeNull();
+    await expect(FileDataService.getFeeSchedule()).resolves.toBeNull();
   });
 
   test('FileDataService.getFeeSchedule - Row match w latest', async () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     await integrationDomainOps.loadFileData(exchangeRateFiles);
 
-    const result = await FileDataService.getFeeSchedule({whereQuery: []});
+    const result = await FileDataService.getFeeSchedule();
     expect(result).toBe(expectedLatestGasPrice);
   });
 
@@ -228,13 +228,7 @@ describe('FileDataService.getFeeSchedule tests', () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     await integrationDomainOps.loadFileData(exchangeRateFiles);
 
-    const where = [
-      {
-        query: `${FileData.CONSENSUS_TIMESTAMP} <= `,
-        param: 12,
-      },
-    ];
-    const result = await FileDataService.getFeeSchedule({whereQuery: where});
+    const result = await FileDataService.getFeeSchedule(12);
     expect(result).toBe(expectedPreviousGasPrice);
   });
 
@@ -242,27 +236,24 @@ describe('FileDataService.getFeeSchedule tests', () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     // no exchange rate data loaded
 
-    await expect(FileDataService.getFeeSchedule({whereQuery: []})).resolves.toBeNull();
+    await expect(FileDataService.getFeeSchedule()).resolves.toBeNull();
   });
 
   test('FileDataService.getFeeSchedule - Returns null when fee schedule is missing', async () => {
     await integrationDomainOps.loadFileData(exchangeRateFiles);
     // no fee schedule data loaded
 
-    await expect(FileDataService.getFeeSchedule({whereQuery: []})).resolves.toBeNull();
+    await expect(FileDataService.getFeeSchedule()).resolves.toBeNull();
   });
 
   test('FileDataService.getFeeSchedule - Returns cached result on repeated call with same filter', async () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     await integrationDomainOps.loadFileData(exchangeRateFiles);
 
-    const where = [{query: `${FileData.CONSENSUS_TIMESTAMP} <= `, param: 12}];
-    const filterQueries = {whereQuery: where};
-
     const spy = jest.spyOn(FileDataService, 'getLatestFileDataContents');
 
-    const first = await FileDataService.getFeeSchedule(filterQueries);
-    const second = await FileDataService.getFeeSchedule(filterQueries);
+    const first = await FileDataService.getFeeSchedule(12);
+    const second = await FileDataService.getFeeSchedule(12);
 
     expect(first).not.toBeNull();
     expect(second).toEqual(first); // same value served from cache
@@ -275,7 +266,6 @@ describe('FileDataService.getFeeSchedule tests', () => {
   describe('by transaction type', () => {
     const contractCallGas = 100_000;
     const contractCreateGas = 500_000;
-    const ethereumTransactionGas = 200_000;
     const multiTypeExpiry = 3_000_000_000;
 
     const multiTypeFeeScheduleFiles = [
@@ -286,7 +276,6 @@ describe('FileDataService.getFeeSchedule tests', () => {
           {
             [HederaFunctionality.ContractCall]: contractCallGas,
             [HederaFunctionality.ContractCreate]: contractCreateGas,
-            [HederaFunctionality.EthereumTransaction]: ethereumTransactionGas,
           },
           multiTypeExpiry
         ),
@@ -295,58 +284,50 @@ describe('FileDataService.getFeeSchedule tests', () => {
     ];
 
     const expectedContractCallGasPrice = gasPriceInTinybars(contractCallGas);
-    const expectedContractCreateGasPrice = gasPriceInTinybars(contractCreateGas);
-    const expectedEthereumTransactionGasPrice = gasPriceInTinybars(ethereumTransactionGas);
 
     const loadMultiTypeFeeScheduleData = async () => {
       await integrationDomainOps.loadFileData(multiTypeFeeScheduleFiles);
       await integrationDomainOps.loadFileData(exchangeRateFiles);
     };
 
-    test('returns ContractCall gas price when transaction type is ContractCall', async () => {
+    test('returns ContractCall gas price', async () => {
       await loadMultiTypeFeeScheduleData();
 
-      const result = await FileDataService.getFeeSchedule({whereQuery: []}, 'ContractCall');
+      const result = await FileDataService.getFeeSchedule(null);
 
       expect(result).toBe(expectedContractCallGasPrice);
     });
 
-    test('returns ContractCreate gas price when transaction type is ContractCreate', async () => {
+    test('caches gas price by hour bucket', async () => {
       await loadMultiTypeFeeScheduleData();
 
-      const result = await FileDataService.getFeeSchedule({whereQuery: []}, 'ContractCreate');
-
-      expect(result).toBe(expectedContractCreateGasPrice);
-    });
-
-    test('returns EthereumTransaction gas price when transaction type is EthereumTransaction', async () => {
-      await loadMultiTypeFeeScheduleData();
-
-      const result = await FileDataService.getFeeSchedule({whereQuery: []}, 'EthereumTransaction');
-
-      expect(result).toBe(expectedEthereumTransactionGasPrice);
-    });
-
-    test('caches gas prices separately per transaction type', async () => {
-      await loadMultiTypeFeeScheduleData();
-
-      const filterQueries = {whereQuery: []};
       const spy = jest.spyOn(FileDataService, 'getLatestFileDataContents');
 
-      const contractCall = await FileDataService.getFeeSchedule(filterQueries, 'ContractCall');
-      const contractCreate = await FileDataService.getFeeSchedule(filterQueries, 'ContractCreate');
-      const contractCallCached = await FileDataService.getFeeSchedule(filterQueries, 'ContractCall');
-      const contractCreateCached = await FileDataService.getFeeSchedule(filterQueries, 'ContractCreate');
+      const first = await FileDataService.getFeeSchedule(null);
+      const second = await FileDataService.getFeeSchedule(null);
 
-      expect(contractCall).toBe(expectedContractCallGasPrice);
-      expect(contractCreate).toBe(expectedContractCreateGasPrice);
-      expect(contractCallCached).toBe(contractCall);
-      expect(contractCreateCached).toBe(contractCreate);
-      // fee schedule + exchange rate loaded once per transaction type on first access
-      expect(spy).toHaveBeenCalledTimes(4);
+      expect(first).toBe(expectedContractCallGasPrice);
+      expect(second).toBe(first);
+      // fee schedule + exchange rate loaded once for the hour bucket
+      expect(spy).toHaveBeenCalledTimes(2);
 
       spy.mockRestore();
     });
+  });
+
+  test('getGasPricesAtTimestamps deduplicates lookups by hour bucket', async () => {
+    await integrationDomainOps.loadFileData(feeScheduleFiles);
+    await integrationDomainOps.loadFileData(exchangeRateFiles);
+
+    const spy = jest.spyOn(FileDataService, 'getLatestFileDataContents');
+
+    const gasPriceMap = await FileDataService.getGasPricesAtTimestamps([12, 12, 12]);
+
+    expect(gasPriceMap.get(12)).toBe(expectedPreviousGasPrice);
+    // one fee schedule + one exchange rate load for the same hour bucket
+    expect(spy).toHaveBeenCalledTimes(2);
+
+    spy.mockRestore();
   });
 });
 
