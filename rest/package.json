@@ -33,8 +33,8 @@
     "express-http-context": "2.0.1",
     "express-openapi-validator": "5.6.2",
     "extend": "3.0.2",
-    "ioredis": "5.10.1",
-    "js-yaml": "4.1.1",
+    "ioredis": "5.11.1",
+    "js-yaml": "4.2.0",
     "json-bigint": "1.0.0",
     "lodash": "4.18.1",
     "negotiator": "1.0.0",
@@ -44,14 +44,14 @@
     "qs": "6.15.2",
     "quick-lru": "7.3.0",
     "rfc4648": "1.5.4",
-    "sql-formatter": "15.8.0",
+    "sql-formatter": "15.8.1",
     "swagger-ui-express": "5.0.1",
     "tsscmp": "1.0.6"
   },
   "devDependencies": {
-    "@bufbuild/buf": "1.69.0",
+    "@bufbuild/buf": "1.70.0",
     "@bufbuild/protoc-gen-es": "2.12.0",
-    "@testcontainers/postgresql": "12.0.0",
+    "@testcontainers/postgresql": "12.0.1",
     "cross-env": "10.1.0",
     "crypto-random-string": "5.0.0",
     "esbuild": "^0.28.0",
@@ -64,7 +64,7 @@
     "pgsql-parser": "17.9.15",
     "sinon": "22.0.0",
     "supertest": "7.2.2",
-    "tar": "7.5.15"
+    "tar": "7.5.16"
   },
   "peerDependencies": {
     "ansi-regex": "6.2.2",

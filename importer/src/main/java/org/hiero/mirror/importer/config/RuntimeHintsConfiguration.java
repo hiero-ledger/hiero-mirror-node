@@ -47,6 +47,8 @@ final class RuntimeHintsConfiguration {
                     "org.hiero.mirror.importer.migration.FixAirdropTokenAssociationMigration$NftTransfer",
                     "org.hiero.mirror.importer.migration.FixAirdropTokenAssociationMigration$TokenBalanceChange",
                     "org.hiero.mirror.importer.migration.FixNodeTransactionsMigration$NodeTransaction",
+                    "org.hiero.mirror.importer.migration.RecordFileConsensusTimestampsRecalculateMigration$GapTransactionsResult",
+                    "org.hiero.mirror.importer.migration.RecordFileConsensusTimestampsRecalculateMigration$RecordFileSlice",
                     "org.hiero.mirror.importer.migration.SyntheticCryptoTransferApprovalMigration$TokenBalanceChange",
                     "org.hiero.mirror.importer.config.MetricsConfiguration$TableMetrics",
                     "org.hiero.mirror.importer.config.MetricsConfiguration$TableAttributes");

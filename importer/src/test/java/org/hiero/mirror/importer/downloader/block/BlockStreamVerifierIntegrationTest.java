@@ -2,12 +2,15 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatCode;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.hapi.block.stream.protoc.RecordFileSignature;
 import com.hedera.hapi.block.stream.protoc.SignedRecordFileProof;
+import com.hedera.hapi.block.stream.protoc.StateProof;
+import com.hedera.hapi.block.stream.protoc.TssSignedBlockProof;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -31,10 +34,14 @@ import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
+@ExtendWith(OutputCaptureExtension.class)
 @RequiredArgsConstructor
 final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
 
@@ -117,10 +124,19 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
                 .hasMessageStartingWith("Previous hash mismatch");
     }
 
-    @Test
-    void verifyWithWrappedRecordBlockHashMismatch() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void verifyWithWrappedRecordBlockHashMismatch(final boolean stateProof) {
         // given
         final var blockFile = createBlockFileWithWrb();
+        final var blockProof = blockFile.getBlockProof().toBuilder();
+        if (stateProof) {
+            blockProof.setBlockStateProof(StateProof.getDefaultInstance());
+        } else {
+            blockProof.setSignedBlockProof(TssSignedBlockProof.getDefaultInstance());
+        }
+        blockFile.setBlockProof(blockProof.build());
+
         final var recordFile = blockFile.getRecordFile();
         domainBuilder
                 .recordFile()
@@ -133,6 +149,23 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
         assertThatThrownBy(() -> verifier.verify(blockFile))
                 .isInstanceOf(HashMismatchException.class)
                 .hasMessageStartingWith("Previous wrapped record block hash mismatch");
+    }
+
+    @Test
+    void verifyWithWrappedRecordBlockHashMismatchRecoverable(final CapturedOutput output) {
+        // given
+        final var blockFile = createBlockFileWithWrb();
+        final var recordFile = blockFile.getRecordFile();
+        domainBuilder
+                .recordFile()
+                .customize(r -> r.hash(recordFile.getPreviousHash())
+                        .index(recordFile.getIndex() - 1)
+                        .wrappedRecordBlockHash(domainBuilder.bytes(48)))
+                .persist();
+
+        // when, then
+        assertThatCode(() -> verifier.verify(blockFile)).doesNotThrowAnyException();
+        assertThat(output.getAll()).contains("Previous wrapped record block hash mismatch");
     }
 
     @ParameterizedTest
