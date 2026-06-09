@@ -94,7 +94,7 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
     void findStorageBatchSingleValueSuccessfulCall() {
         ContractState contractState = domainBuilder.contractState().persist();
         assertThat(contractStateRepository.findStorageBatch(
-                        contractState.getContractId(), new byte[][] {contractState.getSlot()}))
+                        contractState.getContractId(), List.of(contractState.getSlot())))
                 .isEqualTo(List.of(new ContractSlotValue(contractState.getSlot(), contractState.getValue())));
     }
 
@@ -112,7 +112,7 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
             contractSlotsList.add(contractState.getSlot());
             contractSlotValuesList.add(new ContractSlotValue(contractState.getSlot(), contractState.getValue()));
         }
-        assertThat(contractStateRepository.findStorageBatch(contractId, contractSlotsList.toArray(byte[][]::new)))
+        assertThat(contractStateRepository.findStorageBatch(contractId, contractSlotsList))
                 .isEqualTo(contractSlotValuesList);
     }
 
@@ -120,8 +120,7 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
     void findStorageBatchNotPersistedKeyDoesNotReturnValue() {
         final var contractId = domainBuilder.id();
         assertThat(contractStateRepository.findStorageBatch(
-                        contractId,
-                        new byte[][] {domainBuilder.contractState().get().getSlot()}))
+                        contractId, List.of(domainBuilder.contractState().get().getSlot())))
                 .isEmpty();
     }
 
@@ -142,7 +141,7 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
         // Duplicate one for the keys
         contractSlotsList.add(contractSlotsList.getFirst());
 
-        assertThat(contractStateRepository.findStorageBatch(contractId, contractSlotsList.toArray(byte[][]::new)))
+        assertThat(contractStateRepository.findStorageBatch(contractId, contractSlotsList))
                 .containsAll(contractSlotValuesList);
     }
 }
