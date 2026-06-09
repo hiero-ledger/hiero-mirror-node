@@ -13,46 +13,46 @@ const successTransactionResult = TransactionResult.getProtoId('SUCCESS');
  */
 class TransactionService extends BaseService {
   static transactionDetailsFromTransactionIdQuery = `
-      select ${Transaction.CONSENSUS_TIMESTAMP}, ${Transaction.NONCE},
-             ${Transaction.SCHEDULED}, ${Transaction.TYPE},
-             ${Transaction.PAYER_ACCOUNT_ID}
-      from ${Transaction.tableName}
-      where ${Transaction.PAYER_ACCOUNT_ID} = $1
+    select ${Transaction.CONSENSUS_TIMESTAMP}, ${Transaction.NONCE},
+           ${Transaction.SCHEDULED}, ${Transaction.TYPE},
+           ${Transaction.PAYER_ACCOUNT_ID}
+    from ${Transaction.tableName}
+    where ${Transaction.PAYER_ACCOUNT_ID} = $1 
         and ${Transaction.CONSENSUS_TIMESTAMP} >= $2 and ${Transaction.CONSENSUS_TIMESTAMP} <= $3
         and ${Transaction.VALID_START_NS} = $2
         and ${Transaction.NONCE} = (select coalesce($4, 0))
-      order by (${Transaction.RESULT} = ${successTransactionResult}) desc,
-               ${Transaction.CONSENSUS_TIMESTAMP} desc
-          limit 1`;
+    order by (${Transaction.RESULT} = ${successTransactionResult}) desc,
+             ${Transaction.CONSENSUS_TIMESTAMP} desc
+    limit 1`;
 
   static ethereumTransactionDetailsQuery = `
-      select
-          ${EthereumTransaction.getFullName(EthereumTransaction.ACCESS_LIST)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.AUTHORIZATION_LIST)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.CALL_DATA)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.CALL_DATA_ID)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.CHAIN_ID)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.CONSENSUS_TIMESTAMP)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.GAS_LIMIT)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.GAS_PRICE)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.HASH)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.MAX_FEE_PER_GAS)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.MAX_PRIORITY_FEE_PER_GAS)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.NONCE)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.PAYER_ACCOUNT_ID)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.SIGNATURE_R)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.SIGNATURE_S)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.SIGNATURE_V)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.TYPE)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.RECOVERY_ID)},
-          ${EthereumTransaction.getFullName(EthereumTransaction.TO_ADDRESS)},
-          encode(${EthereumTransaction.getFullName(EthereumTransaction.VALUE)}, 'hex') as ${EthereumTransaction.VALUE}
-      from ${EthereumTransaction.tableName} ${EthereumTransaction.tableAlias}
-               join ${Transaction.tableName} ${Transaction.tableAlias}
-                    on ${EthereumTransaction.getFullName(EthereumTransaction.CONSENSUS_TIMESTAMP)} =
-                       ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} and
-                       ${EthereumTransaction.getFullName(EthereumTransaction.PAYER_ACCOUNT_ID)} =
-                       ${Transaction.getFullName(Transaction.PAYER_ACCOUNT_ID)}`;
+  select
+    ${EthereumTransaction.getFullName(EthereumTransaction.ACCESS_LIST)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.AUTHORIZATION_LIST)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.CALL_DATA)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.CALL_DATA_ID)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.CHAIN_ID)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.CONSENSUS_TIMESTAMP)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.GAS_LIMIT)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.GAS_PRICE)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.HASH)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.MAX_FEE_PER_GAS)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.MAX_PRIORITY_FEE_PER_GAS)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.NONCE)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.PAYER_ACCOUNT_ID)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.SIGNATURE_R)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.SIGNATURE_S)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.SIGNATURE_V)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.TYPE)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.RECOVERY_ID)},
+    ${EthereumTransaction.getFullName(EthereumTransaction.TO_ADDRESS)},
+    encode(${EthereumTransaction.getFullName(EthereumTransaction.VALUE)}, 'hex') as ${EthereumTransaction.VALUE}
+  from ${EthereumTransaction.tableName} ${EthereumTransaction.tableAlias}
+  join ${Transaction.tableName} ${Transaction.tableAlias}
+  on ${EthereumTransaction.getFullName(EthereumTransaction.CONSENSUS_TIMESTAMP)} =
+     ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} and
+     ${EthereumTransaction.getFullName(EthereumTransaction.PAYER_ACCOUNT_ID)} =
+     ${Transaction.getFullName(Transaction.PAYER_ACCOUNT_ID)}`;
 
   /**
    * Retrieves the transaction based on the transaction id and its nonce
