@@ -17,15 +17,12 @@ import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalance.Id;
 import org.hiero.mirror.common.domain.entity.Entity;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityStake;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
@@ -207,7 +204,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(List.of(
@@ -227,7 +224,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(List.of(expectedAccount2, expectedAccount3, expectedStackingRewardAccount));
@@ -255,7 +252,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(Collections.emptyList());
@@ -275,7 +272,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(Collections.emptyList());
@@ -285,7 +282,6 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
     @Test
     void createEntityStateStartWhenEmptyNodeStake() {
         // given
-        long epochDay = 1000L;
         long balanceTimestamp = 1_000_000_000L;
         var account = domainBuilder
                 .entity()
@@ -305,7 +301,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(Collections.emptyList());
@@ -450,7 +446,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         transactionOperations.executeWithoutResult(s -> {
             // when
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
 
             // then
             assertEntityStartStart(List.of(expectedAlice, expectedStakingRewardAccount, expectedTreasury));
@@ -671,7 +667,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, nodeStake.getEpochDay());
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
             entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
@@ -680,383 +676,6 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .usingRecursiveFieldByFieldElementComparatorIgnoringFields("pendingReward")
                 .containsExactlyInAnyOrderElementsOf(expectedEntityStakes);
         assertThat(findHistory(EntityStake.class)).containsExactly(entityStake1History);
-    }
-
-    @Test
-    void updateEntityStakeChunkMatchesOneShotCalculation() {
-        // given: same dataset as updateEntityStake() but we validate chunked path yields identical entity_stake rows
-        final var entity1 = domainBuilder
-                .entity()
-                .customize(e -> e.stakedAccountId(null).stakedNodeId(1L))
-                .persist();
-        domainBuilder
-                .entity()
-                .customize(e -> e.declineReward(true).stakedAccountId(entity1.getId()))
-                .persist();
-        domainBuilder
-                .entity()
-                .customize(e ->
-                        e.stakedAccountId(entity1.getId()).stakedNodeId(null).type(CONTRACT))
-                .persist();
-        domainBuilder
-                .entity()
-                .customize(e -> e.deleted(true).stakedAccountId(entity1.getId()))
-                .persist();
-        domainBuilder
-                .entity()
-                .customize(e -> e.stakedAccountId(domainBuilder.id()))
-                .persist();
-        domainBuilder.topicEntity().persist();
-
-        final var entity8 = domainBuilder
-                .entity()
-                .customize(e -> e.stakedAccountId(domainBuilder.id()))
-                .persist();
-        final long entityId9 = entity8.getId() + 1;
-        final long entityId10 = entityId9 + 1;
-        domainBuilder
-                .entity(entityId9, domainBuilder.timestamp())
-                .customize(e -> e.stakedAccountId(entityId10))
-                .persist();
-        domainBuilder
-                .entity(entityId10, domainBuilder.timestamp())
-                .customize(e -> e.stakedAccountId(entityId9))
-                .persist();
-
-        final var stakingRewardAccount = domainBuilder
-                .entity(stakingRewardAccountId, domainBuilder.timestamp())
-                .persist();
-
-        final long timestamp = domainBuilder.timestamp();
-        final var nodeStake = domainBuilder
-                .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(timestamp).nodeId(1L).rewardRate(0L))
-                .persist();
-
-        final long balanceTimestamp = nodeStake.getConsensusTimestamp() - 1000L;
-        final long previousBalanceTimestamp = balanceTimestamp - 1000L;
-        domainBuilder
-                .accountBalance()
-                .customize(ab ->
-                        ab.balance(5000L).id(new AccountBalance.Id(balanceTimestamp, systemEntity.treasuryAccount())))
-                .persist();
-        domainBuilder
-                .accountBalance()
-                .customize(ab -> ab.balance(100L).id(new AccountBalance.Id(balanceTimestamp, entity1.toEntityId())))
-                .persist();
-
-        // Deduped balances to ensure state start construction works
-        domainBuilder
-                .accountBalance()
-                .customize(ab -> ab.balance(600L)
-                        .id(new AccountBalance.Id(previousBalanceTimestamp, stakingRewardAccount.toEntityId())))
-                .persist();
-
-        // Baseline: one-shot calculation
-        transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, nodeStake.getEpochDay());
-            entityStakeRepository.updateEntityStake(stakingRewardAccountId);
-        });
-
-        final List<EntityStake> expected = StreamSupport.stream(
-                        entityStakeRepository.findAll().spliterator(), false)
-                .collect(Collectors.toList());
-
-        // Reset stake tables and progress state
-        jdbcOperations.update("delete from entity_stake_history");
-        jdbcOperations.update("delete from entity_stake");
-        jdbcOperations.update("delete from entity_stake_calculation_state");
-
-        // Chunked calculation: full snapshot once, then process entities in two chunks, then staking reward account
-        transactionOperations.executeWithoutResult(
-                s -> entityStakeRepository.createEntityStateStart(stakingRewardAccountId, nodeStake.getEpochDay()));
-
-        final long splitId = entityId9; // ensures we cover both ranges with >= 2 chunks
-        transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.updateEntityStakeChunk(
-                    stakingRewardAccountId, nodeStake.getEpochDay(), 0L, splitId, false);
-            entityStakeRepository.saveProgress(nodeStake.getEpochDay(), splitId, false);
-        });
-        transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.updateEntityStakeChunk(
-                    stakingRewardAccountId, nodeStake.getEpochDay(), splitId, entityId10, false);
-            entityStakeRepository.saveProgress(nodeStake.getEpochDay(), entityId10, false);
-        });
-        transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.updateEntityStakeChunk(stakingRewardAccountId, nodeStake.getEpochDay(), 0L, 0L, true);
-            entityStakeRepository.saveProgress(nodeStake.getEpochDay(), entityId10, true);
-        });
-
-        final List<EntityStake> actual = StreamSupport.stream(
-                        entityStakeRepository.findAll().spliterator(), false)
-                .collect(Collectors.toList());
-
-        assertThat(actual).usingRecursiveFieldByFieldElementComparator().containsExactlyInAnyOrderElementsOf(expected);
-    }
-
-    @Test
-    void updateEntityStakeChunkWithCrossChunkProxyStaking() {
-        // given: low-id proxy staker and high-id node target with chunk boundary between them
-        final long epochDay = 500L;
-        final long previousEpochDay = epochDay - 1;
-        final long stakerId = 100L;
-        final long targetId = 200L;
-        final long splitId = 150L;
-        final long rewardRate = 10L;
-        final long nodeStakeTimestamp =
-                DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
-        final long entityStakeLowerTimestamp =
-                nodeStakeTimestamp - Duration.ofDays(2).toNanos();
-        final long balanceTimestamp = nodeStakeTimestamp - 1000L;
-        final long previousBalanceTimestamp = balanceTimestamp - 1000L;
-        final long targetBalance = 200L * TINYBARS_IN_ONE_HBAR;
-        final long stakerBalance = 100L * TINYBARS_IN_ONE_HBAR;
-
-        domainBuilder.entity(stakingRewardAccountId, nodeStakeTimestamp - 10).persist();
-        domainBuilder
-                .nodeStake()
-                .customize(ns -> ns.epochDay(previousEpochDay)
-                        .consensusTimestamp(nodeStakeTimestamp - 100)
-                        .nodeId(1L))
-                .persist();
-        domainBuilder
-                .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp)
-                        .epochDay(epochDay)
-                        .nodeId(1L)
-                        .rewardRate(rewardRate))
-                .persist();
-
-        domainBuilder
-                .accountBalance()
-                .customize(ab -> ab.balance(5000L).id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
-                .persist();
-        domainBuilder
-                .accountBalance()
-                .customize(ab ->
-                        ab.balance(600L).id(new Id(previousBalanceTimestamp, EntityId.of(stakingRewardAccountId))))
-                .persist();
-
-        domainBuilder
-                .entity(targetId, nodeStakeTimestamp - 1)
-                .customize(e -> e.stakedNodeId(1L)
-                        .stakePeriodStart(previousEpochDay)
-                        .timestampRange(Range.atLeast(nodeStakeTimestamp - 1)))
-                .persist();
-        domainBuilder
-                .entityStake()
-                .customize(es -> es.id(targetId)
-                        .endStakePeriod(previousEpochDay)
-                        .pendingReward(0L)
-                        .stakedNodeIdStart(1L)
-                        .stakeTotalStart(targetBalance + stakerBalance)
-                        .timestampRange(Range.atLeast(entityStakeLowerTimestamp)))
-                .persist();
-        domainBuilder
-                .accountBalance()
-                .customize(ab -> ab.balance(targetBalance).id(new Id(balanceTimestamp, EntityId.of(targetId))))
-                .persist();
-
-        domainBuilder
-                .entity(stakerId, nodeStakeTimestamp - 2)
-                .customize(e -> e.stakedAccountId(targetId)
-                        .stakedNodeId(null)
-                        .timestampRange(Range.atLeast(nodeStakeTimestamp - 2)))
-                .persist();
-        domainBuilder
-                .accountBalance()
-                .customize(ab -> ab.balance(stakerBalance).id(new Id(balanceTimestamp, EntityId.of(stakerId))))
-                .persist();
-
-        runChunkedEntityStakeUpdate(epochDay, splitId, targetId);
-
-        final EntityStake targetStake = entityStakeRepository.findById(targetId).orElseThrow();
-        assertThat(targetStake.getStakedToMe()).isEqualTo(stakerBalance);
-        assertThat(targetStake.getStakeTotalStart()).isEqualTo(targetBalance + stakerBalance);
-        assertThat(targetStake.getPendingReward())
-                .isEqualTo(rewardRate * (targetStake.getStakeTotalStart() / TINYBARS_IN_ONE_HBAR));
-    }
-
-    @Test
-    void updateEntityStakeChunkWithMultipleChunks() {
-        // given: three entities requiring separate chunks (chunk size 1 via repeated single-entity bounds)
-        final long epochDay = 501L;
-        final long previousEpochDay = epochDay - 1;
-        final long nodeStakeTimestamp =
-                DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
-        final long entityStakeLowerTimestamp =
-                nodeStakeTimestamp - Duration.ofDays(2).toNanos();
-        final long balanceTimestamp = nodeStakeTimestamp - 1000L;
-        final long previousBalanceTimestamp = balanceTimestamp - 1000L;
-
-        final var entityA = domainBuilder
-                .entity(301L, nodeStakeTimestamp - 3)
-                .customize(e -> e.stakedNodeId(1L)
-                        .stakePeriodStart(previousEpochDay)
-                        .timestampRange(Range.atLeast(nodeStakeTimestamp - 3)))
-                .persist();
-        final var entityB = domainBuilder
-                .entity(302L, nodeStakeTimestamp - 2)
-                .customize(e -> e.stakedNodeId(1L)
-                        .stakePeriodStart(previousEpochDay)
-                        .timestampRange(Range.atLeast(nodeStakeTimestamp - 2)))
-                .persist();
-        final var entityC = domainBuilder
-                .entity(303L, nodeStakeTimestamp - 1)
-                .customize(e -> e.stakedNodeId(1L)
-                        .stakePeriodStart(previousEpochDay)
-                        .timestampRange(Range.atLeast(nodeStakeTimestamp - 1)))
-                .persist();
-
-        domainBuilder.entity(stakingRewardAccountId, nodeStakeTimestamp - 10).persist();
-        domainBuilder
-                .entityStake()
-                .customize(es -> es.id(stakingRewardAccountId)
-                        .endStakePeriod(previousEpochDay)
-                        .timestampRange(Range.atLeast(entityStakeLowerTimestamp)))
-                .persist();
-        for (final var entity : List.of(entityA, entityB, entityC)) {
-            domainBuilder
-                    .entityStake()
-                    .customize(es -> es.id(entity.getId())
-                            .endStakePeriod(previousEpochDay)
-                            .pendingReward(0L)
-                            .stakedNodeIdStart(1L)
-                            .stakeTotalStart(0L)
-                            .timestampRange(Range.atLeast(entityStakeLowerTimestamp)))
-                    .persist();
-            domainBuilder
-                    .accountBalance()
-                    .customize(ab -> ab.balance(100L).id(new Id(balanceTimestamp, entity.toEntityId())))
-                    .persist();
-        }
-
-        domainBuilder
-                .nodeStake()
-                .customize(ns -> ns.epochDay(previousEpochDay)
-                        .consensusTimestamp(nodeStakeTimestamp - 100)
-                        .nodeId(1L))
-                .persist();
-        domainBuilder
-                .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp)
-                        .epochDay(epochDay)
-                        .nodeId(1L)
-                        .rewardRate(0L))
-                .persist();
-        domainBuilder
-                .accountBalance()
-                .customize(ab -> ab.balance(5000L).id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
-                .persist();
-        domainBuilder
-                .accountBalance()
-                .customize(ab ->
-                        ab.balance(600L).id(new Id(previousBalanceTimestamp, EntityId.of(stakingRewardAccountId))))
-                .persist();
-
-        transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
-            entityStakeRepository.updateEntityStake(stakingRewardAccountId);
-        });
-        final List<EntityStake> expected = StreamSupport.stream(
-                        entityStakeRepository.findAll().spliterator(), false)
-                .collect(Collectors.toList());
-
-        jdbcOperations.update("delete from entity_stake_history");
-        jdbcOperations.update("delete from entity_stake");
-
-        transactionOperations.executeWithoutResult(
-                s -> entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay));
-        transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.updateEntityStakeChunk(stakingRewardAccountId, epochDay, 0L, entityA.getId(), false);
-        });
-        transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.updateEntityStakeChunk(
-                    stakingRewardAccountId, epochDay, entityA.getId(), entityB.getId(), false);
-        });
-        transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.updateEntityStakeChunk(
-                    stakingRewardAccountId, epochDay, entityB.getId(), entityC.getId(), false);
-        });
-        transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.updateEntityStakeChunk(stakingRewardAccountId, epochDay, 0L, 0L, true);
-        });
-
-        assertThat(StreamSupport.stream(entityStakeRepository.findAll().spliterator(), false))
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactlyInAnyOrderElementsOf(expected);
-    }
-
-    @Test
-    void getChunkUpperBoundEntityId() {
-        // given
-        final long epochDay = 100L;
-        final long nodeStakeTs = DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
-
-        domainBuilder
-                .nodeStake()
-                .customize(ns -> ns.epochDay(epochDay).consensusTimestamp(nodeStakeTs))
-                .persist();
-        domainBuilder.entity(stakingRewardAccountId, nodeStakeTs - 10).persist();
-
-        // eligible: three accounts staking to a node
-        domainBuilder
-                .entity(10L, nodeStakeTs - 1)
-                .customize(e -> e.stakedNodeId(1L).stakedAccountId(0L).declineReward(false))
-                .persist();
-        domainBuilder
-                .entity(20L, nodeStakeTs - 1)
-                .customize(e -> e.stakedNodeId(1L).stakedAccountId(0L).declineReward(false))
-                .persist();
-        domainBuilder
-                .entity(30L, nodeStakeTs - 1)
-                .customize(e -> e.stakedNodeId(1L).stakedAccountId(0L).declineReward(false))
-                .persist();
-
-        // ineligible: deleted
-        domainBuilder
-                .entity(40L, nodeStakeTs - 1)
-                .customize(e -> e.stakedNodeId(1L).deleted(true))
-                .persist();
-        // ineligible: no staking preference
-        domainBuilder
-                .entity(50L, nodeStakeTs - 1)
-                .customize(e -> e.stakedNodeId(-1L).stakedAccountId(0L).declineReward(true))
-                .persist();
-
-        // chunkSize=2 from the start: candidates are [10, 20], upper bound = 20
-        assertThat(entityStakeRepository.getChunkUpperBoundEntityId(stakingRewardAccountId, epochDay, 0L, 2))
-                .contains(20L);
-
-        // chunkSize=2 starting after 20: only [30] remains, upper bound = 30
-        assertThat(entityStakeRepository.getChunkUpperBoundEntityId(stakingRewardAccountId, epochDay, 20L, 2))
-                .contains(30L);
-
-        // no eligible entities beyond 30
-        assertThat(entityStakeRepository.getChunkUpperBoundEntityId(stakingRewardAccountId, epochDay, 30L, 2))
-                .isEmpty();
-
-        // unknown epoch day has no node_stake row → epoch_timestamp CTE is empty → no matches
-        assertThat(entityStakeRepository.getChunkUpperBoundEntityId(stakingRewardAccountId, 999L, 0L, 10))
-                .isEmpty();
-    }
-
-    @Test
-    void chunkProgressIsResumable() {
-        final long endStakePeriod = 123L;
-
-        assertThat(entityStakeRepository.getLastProcessedEntityId(endStakePeriod))
-                .isEmpty();
-
-        transactionOperations.executeWithoutResult(
-                s -> entityStakeRepository.saveProgress(endStakePeriod, 500L, false));
-        assertThat(entityStakeRepository.getLastProcessedEntityId(endStakePeriod))
-                .contains(500L);
-
-        // Completed periods should not be resumed
-        transactionOperations.executeWithoutResult(s -> entityStakeRepository.saveProgress(endStakePeriod, 500L, true));
-        assertThat(entityStakeRepository.getLastProcessedEntityId(endStakePeriod))
-                .isEmpty();
     }
 
     @Test
@@ -1111,7 +730,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, nodeStake.getEpochDay());
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
             entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
@@ -1211,7 +830,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, nodeStakeEpochDay);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
             entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
@@ -1326,7 +945,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         // when
         transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay);
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
             entityStakeRepository.updateEntityStake(stakingRewardAccountId);
         });
 
@@ -1366,20 +985,5 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .customize(ct ->
                         ct.amount(amount).consensusTimestamp(consensusTimestamp).entityId(entityId))
                 .persist();
-    }
-
-    private void runChunkedEntityStakeUpdate(long epochDay, long splitId, long lastEntityId) {
-        transactionOperations.executeWithoutResult(
-                s -> entityStakeRepository.createEntityStateStart(stakingRewardAccountId, epochDay));
-        transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.updateEntityStakeChunk(stakingRewardAccountId, epochDay, 0L, splitId, false);
-        });
-        transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.updateEntityStakeChunk(
-                    stakingRewardAccountId, epochDay, splitId, lastEntityId, false);
-        });
-        transactionOperations.executeWithoutResult(s -> {
-            entityStakeRepository.updateEntityStakeChunk(stakingRewardAccountId, epochDay, 0L, 0L, true);
-        });
     }
 }

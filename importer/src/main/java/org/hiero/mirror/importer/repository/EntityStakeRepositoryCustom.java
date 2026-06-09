@@ -2,46 +2,7 @@
 
 package org.hiero.mirror.importer.repository;
 
-import java.util.Optional;
-
 interface EntityStakeRepositoryCustom {
 
-    /**
-     * Populates {@code entity_state_start} with the full period snapshot for {@code endStakePeriod}. Must be
-     * invoked once per end stake period, within a caller-managed transaction, before
-     * {@link EntityStakeRepository#updateEntityStakeChunk}.
-     * <p>
-     * Note: staging always rebuilds {@code entity_state_start} from scratch even when the chunked calculation is
-     * being resumed. Only the entity-id range is resumable, not the staging step itself, because balances could
-     * have changed since the previous attempt.
-     */
-    void createEntityStateStart(long stakingRewardAccount, long endStakePeriod);
-
-    /**
-     * @return the ending period epoch day that should be processed next, if any
-     */
-    Optional<Long> getNextEndStakePeriod(long stakingRewardAccount);
-
-    /**
-     * @return the last entity id processed for the given end stake period (epoch day)
-     */
-    Optional<Long> getLastProcessedEntityId(long endStakePeriod);
-
-    /**
-     * Saves chunk progress for the given end stake period. Marking completed=true indicates the whole period finished.
-     * Must be invoked within a caller-managed transaction when used as part of chunked pending reward calculation.
-     */
-    void saveProgress(long endStakePeriod, long lastEntityId, boolean completed);
-
-    /**
-     * Deletes all completed progress records. Call after a period is successfully verified in entity_stake to prevent
-     * the table from growing indefinitely.
-     */
-    void deleteCompletedProgress();
-
-    /**
-     * @return the last entity id for the next chunk of entities to process
-     */
-    Optional<Long> getChunkUpperBoundEntityId(
-            long stakingRewardAccount, long endStakePeriod, long startEntityIdExclusive, int chunkSize);
+    void createEntityStateStart(long stakingRewardAccount);
 }

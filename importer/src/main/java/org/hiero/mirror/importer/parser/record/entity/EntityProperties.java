@@ -8,9 +8,6 @@ import static org.hiero.mirror.common.domain.transaction.TransactionType.SCHEDUL
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
 import java.util.Set;
 import lombok.Data;
@@ -19,7 +16,6 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.convert.DurationUnit;
 import org.springframework.validation.annotation.Validated;
 
 @Data
@@ -71,25 +67,6 @@ public class EntityProperties {
         private boolean itemizedTransfers = false;
 
         private boolean pendingReward = true;
-
-        /**
-         * Maximum number of staking entities processed in one chunk during the daily pending staking reward job.
-         * Controls how the pending reward calculation is chunked to reduce database contention.
-         */
-        @Positive
-        private int pendingRewardChunkSize = 5_000;
-
-        /**
-         * Optional delay in seconds between chunks to spread load. Set to 0 to disable.
-         */
-        @DurationUnit(ChronoUnit.SECONDS)
-        @NotNull
-        private Duration pendingRewardChunkDelay = Duration.ZERO;
-
-        /**
-         * If true, resume from the last saved chunk progress; otherwise reprocess the period from the beginning.
-         */
-        private boolean pendingRewardChunkResume = true;
 
         private boolean schedules = true;
 
