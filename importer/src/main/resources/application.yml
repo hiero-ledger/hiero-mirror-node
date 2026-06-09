@@ -40,6 +40,9 @@ hiero:
           entity:
             persist:
               syntheticContractLogEvmAddressLookup: true
+            staking:
+              chunk-delay: 500ms
+              chunk-size: 1000000
 logging:
   level:
     root: warn
