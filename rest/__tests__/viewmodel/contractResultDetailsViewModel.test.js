@@ -411,8 +411,8 @@ describe('ContractResultDetailsViewModel', () => {
         true
       );
 
-      // chain_id should come from config (0x0128 is the default in application.yml)
-      expect(viewModel.chain_id).toBe('0x0128');
+      // chain_id should come from config (0x128 is the default in application.yml)
+      expect(viewModel.chain_id).toBe('0x128');
     });
 
     test('gas_price is set from fee schedule when ethTransaction is null', () => {

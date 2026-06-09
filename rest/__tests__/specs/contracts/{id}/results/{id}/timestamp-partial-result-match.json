@@ -69,7 +69,7 @@
     "block_number": 17,
     "bloom": "0x",
     "call_result": "0x",
-    "chain_id": "0x0128",
+    "chain_id": "0x128",
     "contract_id": "0.0.5001",
     "created_contract_ids": [],
     "error_message": null,

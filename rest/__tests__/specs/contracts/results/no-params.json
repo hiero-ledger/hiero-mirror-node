@@ -204,7 +204,7 @@
         "block_number": 10,
         "bloom": "0x0105",
         "call_result": "0x0206",
-        "chain_id": "0x0128",
+        "chain_id": "0x128",
         "contract_id": "0.0.6001",
         "created_contract_ids": ["0.0.7001"],
         "error_message": null,

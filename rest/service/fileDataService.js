@@ -10,8 +10,9 @@ import {ExchangeRate, FeeSchedule, FileData} from '../model';
 import TransactionType from '../model/transactionType';
 import * as utils from '../utils';
 import EntityId from '../entityId';
+import {NANOS_PER_SECOND} from '../constants.js';
 
-const NANOSECONDS_PER_HOUR = 3_600_000_000_000n;
+const NANOSECONDS_PER_HOUR = 60n * 60n * NANOS_PER_SECOND;
 const FEE_DIVISOR_FACTOR = 1000n;
 
 const FUNCTIONALITY_TO_TYPE = {
@@ -246,7 +247,7 @@ class FileDataService extends BaseService {
   };
 
   truncateToStartOfHour(refTimestampNanos) {
-    const refTimestamp = BigInt(refTimestampNanos);
+    const refTimestamp = refTimestampNanos;
     return (refTimestamp / NANOSECONDS_PER_HOUR) * NANOSECONDS_PER_HOUR;
   }
 
