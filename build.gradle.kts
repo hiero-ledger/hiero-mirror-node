@@ -17,11 +17,12 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.34.0")
-    set("consensusNodeVersion", "0.75.0-rc.3")
+    set("blockNodeVersion", "0.35.1")
+    set("consensusNodeVersion", "0.75.0-rc.4")
     set("grpcVersion", "1.81.0")
     set("jooq.version", "3.21.4") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
+    set("micrometer.version", "1.17.0") // Temporary until next Spring Boot
     set("netty.version", "4.2.13.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.15.0")
     set("postgresql.version", "42.7.11") // Temporary until next Spring Boot
@@ -46,7 +47,7 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-9")
+        api("com.github.luben:zstd-jni:1.5.7-10")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
@@ -67,9 +68,9 @@ dependencies {
         api("io.fabric8:kubernetes-client-bom:7.7.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.2")
+        api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.3")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
-        api("net.java.dev.jna:jna:5.18.1")
+        api("net.java.dev.jna:jna:5.19.0")
         api("org.apache.commons:commons-collections4:4.5.0")
         api("org.apache.commons:commons-compress:1.28.0")
         api("org.apache.commons:commons-math3:3.6.1")
@@ -89,7 +90,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.3")
-        api("software.amazon.awssdk:bom:2.45.1")
+        api("software.amazon.awssdk:bom:2.46.5")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
