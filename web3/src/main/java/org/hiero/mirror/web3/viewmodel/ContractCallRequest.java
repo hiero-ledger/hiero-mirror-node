@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -10,12 +11,14 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.PositiveOrZero;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.convert.BlockTypeDeserializer;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
-import org.hiero.mirror.web3.convert.StateOverrideMapDeserializer;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.validation.Hex;
 
@@ -46,8 +49,7 @@ public class ContractCallRequest {
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH, allowEmpty = true)
     private String to;
 
-    @JsonProperty("state_overrides")
-    @JsonDeserialize(using = StateOverrideMapDeserializer.class)
+    @JsonIgnore
     private Map<String, @Valid StateOverride> stateOverrides;
 
     @PositiveOrZero
@@ -62,5 +64,20 @@ public class ContractCallRequest {
     private boolean hasTo() {
         boolean isValidToField = value <= 0 || from == null || StringUtils.isNotEmpty(to);
         return BytecodeUtils.isValidInitBytecode(data) || isValidToField;
+    }
+
+    @JsonProperty("state_overrides")
+    public List<StateOverride> getStateOverridesList() {
+        return stateOverrides != null ? new ArrayList<>(stateOverrides.values()) : null;
+    }
+
+    @JsonProperty("state_overrides")
+    public void setStateOverrides(List<StateOverride> overrides) {
+        if (overrides != null) {
+            stateOverrides = new HashMap<>();
+            for (final var override : overrides) {
+                stateOverrides.put(override.getAddress(), override);
+            }
+        }
     }
 }

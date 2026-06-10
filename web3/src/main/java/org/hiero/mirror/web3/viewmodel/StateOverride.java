@@ -30,13 +30,13 @@ public class StateOverride {
     @Hex
     private String balance;
 
-    /** Hex-encoded Ethereum nonce override. */
-    @Hex
-    private String nonce;
-
     /** Hex-encoded runtime bytecode override. */
     @Hex
     private String code;
+
+    /** Hex-encoded Ethereum nonce override. */
+    @Hex
+    private String nonce;
 
     /**
      * Full storage replacement: list of slot key-value pairs.

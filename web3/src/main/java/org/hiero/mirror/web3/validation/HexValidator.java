@@ -9,7 +9,6 @@ import java.util.regex.Pattern;
 public class HexValidator implements ConstraintValidator<Hex, String> {
 
     public static final String MESSAGE = "invalid hexadecimal string";
-    public static final String HEX_PREFIX = "0x";
 
     private boolean allowEmpty;
     private long minLength;

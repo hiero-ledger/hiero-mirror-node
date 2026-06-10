@@ -92,6 +92,9 @@ class ContractControllerTest {
     @Resource
     private ObjectMapper objectMapper;
 
+    @Resource
+    private Web3Properties web3Properties;
+
     @MockitoBean
     private ContractExecutionService service;
 
@@ -552,9 +555,10 @@ class ContractControllerTest {
         override.setAddress("0x00000000000000000000000000000000000004e2");
         override.setBalance("0xde0b6b3a7640000"); // 1 HBAR in tinybars hex
         final var request = request();
-        request.setStateOverrides(Map.of(override.getAddress(), override));
+        request.setStateOverrides(List.of(override));
 
-        contractCall(request).andExpect(status().isOk());
+        contractCall(request)
+                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
     }
 
     @Test
@@ -563,9 +567,10 @@ class ContractControllerTest {
         override.setAddress("0x00000000000000000000000000000000000004e2");
         override.setNonce("0x2a");
         final var request = request();
-        request.setStateOverrides(Map.of(override.getAddress(), override));
+        request.setStateOverrides(List.of(override));
 
-        contractCall(request).andExpect(status().isOk());
+        contractCall(request)
+                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
     }
 
     @Test
@@ -574,9 +579,10 @@ class ContractControllerTest {
         override.setAddress("0x00000000000000000000000000000000000004e4");
         override.setCode("0x6080604052");
         final var request = request();
-        request.setStateOverrides(Map.of(override.getAddress(), override));
+        request.setStateOverrides(List.of(override));
 
-        contractCall(request).andExpect(status().isOk());
+        contractCall(request)
+                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
     }
 
     @Test
@@ -588,9 +594,10 @@ class ContractControllerTest {
         override.setAddress("0x00000000000000000000000000000000000004e4");
         override.setStateDiff(List.of(entry));
         final var request = request();
-        request.setStateOverrides(Map.of(override.getAddress(), override));
+        request.setStateOverrides(List.of(override));
 
-        contractCall(request).andExpect(status().isOk());
+        contractCall(request)
+                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
     }
 
     @Test
@@ -602,9 +609,10 @@ class ContractControllerTest {
         override.setAddress("0x00000000000000000000000000000000000004e4");
         override.setState(List.of(entry));
         final var request = request();
-        request.setStateOverrides(Map.of(override.getAddress(), override));
+        request.setStateOverrides(List.of(override));
 
-        contractCall(request).andExpect(status().isOk());
+        contractCall(request)
+                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
     }
 
     @Test
@@ -620,7 +628,7 @@ class ContractControllerTest {
         override.setState(List.of(stateEntry));
         override.setStateDiff(List.of(diffEntry));
         final var request = request();
-        request.setStateOverrides(Map.of(override.getAddress(), override));
+        request.setStateOverrides(List.of(override));
 
         contractCall(request)
                 .andExpect(status().isBadRequest())
@@ -633,7 +641,7 @@ class ContractControllerTest {
         override.setAddress("0x1234"); // too short (not 40 hex chars)
         override.setBalance("0x1");
         final var request = request();
-        request.setStateOverrides(Map.of(override.getAddress(), override));
+        request.setStateOverrides(List.of(override));
 
         contractCall(request).andExpect(status().isBadRequest());
     }
@@ -644,7 +652,7 @@ class ContractControllerTest {
         override.setAddress("0X00000000000000000000000000000000000004e4");
         override.setBalance("0x1");
         final var request = request();
-        request.setStateOverrides(Map.of(override.getAddress(), override));
+        request.setStateOverrides(List.of(override));
 
         contractCall(request)
                 .andExpect(status().isBadRequest())

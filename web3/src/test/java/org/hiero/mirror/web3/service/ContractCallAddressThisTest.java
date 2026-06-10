@@ -92,7 +92,7 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
                 .contractCallResult();
 
         // Then
-        final var successfulResponse = "0x" + StringUtils.leftPad(result.substring(2), 64, '0');
+        final var successfulResponse = HEX_PREFIX + StringUtils.leftPad(result.substring(2), 64, '0');
         assertThat(successfulResponse)
                 .isEqualTo(Bytes.wrap(output.toByteArray()).toHexString());
     }
