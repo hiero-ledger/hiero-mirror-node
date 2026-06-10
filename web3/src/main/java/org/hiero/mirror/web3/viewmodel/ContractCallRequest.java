@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.viewmodel;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.constraints.AssertTrue;
@@ -44,6 +45,9 @@ public class ContractCallRequest {
 
     @PositiveOrZero
     private long value;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private TracerConfig tracerConfig;
 
     @AssertTrue(message = "must not be empty")
     private boolean hasFrom() {

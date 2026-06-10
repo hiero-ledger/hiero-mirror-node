@@ -13,6 +13,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -32,6 +33,9 @@ public class ContractCallContext {
 
     @Getter(AccessLevel.NONE)
     private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
+
+    @Setter
+    private ActionContext actionContext = null;
 
     @Setter
     private OpcodeContext opcodeContext = null;

@@ -38,6 +38,7 @@ import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
+import org.hiero.mirror.web3.service.ContractDebugService;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
@@ -91,6 +92,9 @@ class ContractControllerTest {
 
     @MockitoBean
     private ContractExecutionService service;
+
+    @MockitoBean
+    private ContractDebugService contractDebugService;
 
     @MockitoBean
     private ThrottleManager throttleManager;
