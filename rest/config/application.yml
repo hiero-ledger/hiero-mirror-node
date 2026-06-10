@@ -10,12 +10,16 @@ hiero:
         entityId:
           maxAge: 1800
           maxSize: 100000
+        feeSchedule:
+          maxAge: 3600
+          maxSize: 100
         response:
           enabled: false
           compress: true
           compressThreshold: 150
         token:
           maxSize: 100000
+      chainId: "0x128"
       db:
         host: 127.0.0.1
         name: mirror_node
@@ -63,6 +67,7 @@ hiero:
         maxTransactionsTimestampRange: 60d
         maxValidStartTimestampDrift: 1s
         strictTimestampParam: true
+        syntheticContractResults: true
         topicMessageLookup: false
         transactions:
           precedingTransactionTypes:
