@@ -38,6 +38,7 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
+import org.hiero.mirror.importer.db.DiskSpaceService;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFileSignature;
 import org.hiero.mirror.importer.domain.StreamFilename;
@@ -86,6 +87,7 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
     protected final AtomicReference<Optional<StreamFile<I>>> lastStreamFile = new AtomicReference<>(Optional.empty());
 
     private final ConsensusNodeService consensusNodeService;
+    private final DiskSpaceService diskSpaceService;
     private final StreamType streamType;
 
     // Metrics
@@ -107,8 +109,10 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
             SignatureFileReader signatureFileReader,
             StreamFileNotifier streamFileNotifier,
             StreamFileProvider streamFileProvider,
-            StreamFileReader<T, ?> streamFileReader) {
+            StreamFileReader<T, ?> streamFileReader,
+            DiskSpaceService diskSpaceService) {
         this.consensusNodeService = consensusNodeService;
+        this.diskSpaceService = diskSpaceService;
         this.downloaderProperties = downloaderProperties;
         this.importerProperties = importerProperties;
         this.meterRegistry = meterRegistry;
@@ -147,6 +151,10 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
 
     protected void downloadNextBatch() {
         if (!shouldDownload()) {
+            return;
+        }
+
+        if (diskSpaceService.isExceeded()) {
             return;
         }
 
