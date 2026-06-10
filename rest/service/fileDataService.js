@@ -10,16 +10,10 @@ import {HederaFunctionality} from '../gen/services/basic_types_pb.js';
 import {ExchangeRate, FeeSchedule, FileData} from '../model';
 import * as utils from '../utils';
 import EntityId from '../entityId';
-import {NANOS_PER_SECOND} from '../constants.js';
+import {MAX_LONG, NANOS_PER_SECOND} from '../constants.js';
 
 const NANOSECONDS_PER_HOUR = 60n * 60n * NANOS_PER_SECOND;
 const FEE_DIVISOR_FACTOR = 1000n;
-
-const FUNCTIONALITY_TO_TYPE = {
-  [HederaFunctionality.ContractCall]: 'ContractCall',
-  [HederaFunctionality.ContractCreate]: 'ContractCreate',
-  [HederaFunctionality.EthereumTransaction]: 'EthereumTransaction',
-};
 
 /**
  * File data retrieval business logic
@@ -28,13 +22,6 @@ class FileDataService extends BaseService {
   // placeholders to support where filtering for inner and outer calls
   static filterInnerPlaceholder = '<filterInnerPlaceHolder>';
   static filterOuterPlaceholder = '<filterOuterPlaceHolder>';
-
-  #gasPriceCache = new quickLru({
-    maxAge: config.cache.feeSchedule.maxAge * 1000, // in millis
-    maxSize: config.cache.feeSchedule.maxSize,
-  });
-
-  // retrieve the largest timestamp of the most recent create/update operation on the file
   // using this timestamp retrieve all recent file operations and combine contents for applicable file
   static latestFileContentsQuery = `with latest_create as (
       select max(${FileData.CONSENSUS_TIMESTAMP}) as ${FileData.CONSENSUS_TIMESTAMP}
@@ -61,6 +48,7 @@ class FileDataService extends BaseService {
   }
     group by ${FileData.getFullName(FileData.ENTITY_ID)}`;
 
+  // retrieve the largest timestamp of the most recent create/update operation on the file
   static getFileDataQuery = `select
          string_agg(
            ${FileData.FILE_DATA}, ''
@@ -82,6 +70,11 @@ class FileDataService extends BaseService {
         limit 1
         ) and ${FileData.CONSENSUS_TIMESTAMP} <= $2`;
 
+  #gasPriceCache = new quickLru({
+    maxAge: config.cache.feeSchedule.maxAge * 1000, // in millis
+    maxSize: config.cache.feeSchedule.maxSize,
+  });
+
   /**
    * The function returns the data for the fileId at the provided consensus timestamp.
    * @param fileId
@@ -95,7 +88,7 @@ class FileDataService extends BaseService {
     return row === null ? null : row.data;
   };
 
-  getLatestFileContentsQuery = (innerWhere = '') => {
+  #getLatestFileContentsQuery = (innerWhere = '') => {
     const outerWhere = innerWhere.replaceAll('and ', `and ${FileData.tableAlias}.`);
     return FileDataService.latestFileContentsQuery
       .replace(FileDataService.filterInnerPlaceholder, innerWhere)
@@ -104,21 +97,26 @@ class FileDataService extends BaseService {
 
   getLatestFileDataContents = async (fileId, filterQueries) => {
     const {where, params} = super.buildWhereSqlStatement(filterQueries.whereQuery, [fileId]);
-    return super.getSingleRow(this.getLatestFileContentsQuery(where), params);
+    return super.getSingleRow(this.#getLatestFileContentsQuery(where), params);
   };
 
   getExchangeRate = async (filterQueries) => {
-    return this.fallbackRetry(EntityId.systemEntity.exchangeRateFile.getEncodedId(), filterQueries, ExchangeRate);
+    return this.#fallbackRetry(EntityId.systemEntity.exchangeRateFile.getEncodedId(), filterQueries, ExchangeRate);
   };
 
-  getFeeSchedule = async (consensusTimestamp = null) => {
+  #getFeeSchedule = async (filterQueries) => {
+    return this.#fallbackRetry(EntityId.systemEntity.feeScheduleFile.getEncodedId(), filterQueries, FeeSchedule);
+  };
+
+  getGasPrice = async (consensusTimestamp = null) => {
     const cacheKey = this.#getFeeScheduleKey(consensusTimestamp);
     const cached = this.#gasPriceCache.get(cacheKey);
+
     if (cached !== undefined) {
       return cached;
     }
 
-    return this.#loadAndCacheGasPrice(consensusTimestamp);
+    return this.#loadAndCacheGasPrice(cacheKey, consensusTimestamp);
   };
 
   /**
@@ -127,39 +125,42 @@ class FileDataService extends BaseService {
    * @param {Array<*>} consensusTimestamps
    * @returns {Promise<Map>} map of consensus timestamp to gas price
    */
-  getGasPricesAtTimestamps = async (consensusTimestamps) => {
+  getGasPrices = async (consensusTimestamps) => {
     const gasPriceByTimestamp = new Map();
     if (isEmpty(consensusTimestamps)) {
       return gasPriceByTimestamp;
     }
 
     const loadRequests = new Map();
+
     for (const consensusTimestamp of consensusTimestamps) {
       const cacheKey = this.#getFeeScheduleKey(consensusTimestamp);
-      if (this.#gasPriceCache.get(cacheKey) === undefined && !loadRequests.has(cacheKey)) {
-        loadRequests.set(cacheKey, consensusTimestamp);
+      let gasPrice = this.#gasPriceCache.get(cacheKey);
+
+      if (gasPrice === undefined) {
+        gasPrice = loadRequests.get(cacheKey);
+        if (gasPrice === undefined) {
+          gasPrice = this.#loadAndCacheGasPrice(cacheKey, consensusTimestamp);
+          loadRequests.set(cacheKey, gasPrice);
+        }
       }
+
+      gasPriceByTimestamp.set(consensusTimestamp, gasPrice);
     }
 
-    await Promise.all(
-      [...loadRequests.values()].map((consensusTimestamp) => this.#loadAndCacheGasPrice(consensusTimestamp))
-    );
-
-    for (const consensusTimestamp of consensusTimestamps) {
-      const cacheKey = this.#getFeeScheduleKey(consensusTimestamp);
-      gasPriceByTimestamp.set(consensusTimestamp, this.#gasPriceCache.get(cacheKey) ?? null);
+    for (const [consensusTimestamp, gasPrice] of gasPriceByTimestamp) {
+      gasPriceByTimestamp.set(consensusTimestamp, (await gasPrice) ?? null);
     }
 
     return gasPriceByTimestamp;
   };
 
-  async #loadAndCacheGasPrice(consensusTimestamp) {
-    const cacheKey = this.#getFeeScheduleKey(consensusTimestamp);
+  async #loadAndCacheGasPrice(cacheKey, consensusTimestamp) {
     const filterQueries = this.#buildFilterQueries(consensusTimestamp);
 
     const [exchangeRate, feeSchedule] = await Promise.all([
       this.getExchangeRate(filterQueries),
-      this.fallbackRetry(EntityId.systemEntity.feeScheduleFile.getEncodedId(), filterQueries, FeeSchedule),
+      this.#getFeeSchedule(filterQueries),
     ]);
 
     if (!feeSchedule || !exchangeRate) {
@@ -170,8 +171,7 @@ class FileDataService extends BaseService {
     const gasPrice = this.getGasPriceForType(
       feeSchedule,
       exchangeRate,
-      this.#getEffectiveRefTimestampNanos(consensusTimestamp),
-      FUNCTIONALITY_TO_TYPE[HederaFunctionality.ContractCall]
+      this.#getEffectiveRefTimestampNanos(consensusTimestamp)
     );
     this.#gasPriceCache.set(cacheKey, gasPrice);
     return gasPrice;
@@ -195,7 +195,7 @@ class FileDataService extends BaseService {
   getEffectiveExchangeRate(exchangeRate, refTimestampNanos) {
     if (
       exchangeRate.current_expiration != null &&
-      refTimestampNanos > BigInt(exchangeRate.current_expiration) * 1_000_000_000n
+      refTimestampNanos > BigInt(exchangeRate.current_expiration) * NANOS_PER_SECOND
     ) {
       return {hbarEquiv: exchangeRate.next_hbar, centEquiv: exchangeRate.next_cent};
     }
@@ -217,26 +217,25 @@ class FileDataService extends BaseService {
     return utils.bigIntMax(fee, 1n);
   }
 
-  getEffectiveFeeSchedule(feeSchedules, refTimestampNanos) {
+  #getEffectiveFeeSchedule(feeSchedules, refTimestampNanos) {
     const currentFeeSchedule = feeSchedules.currentFeeSchedule;
     const feeScheduleExpirationTime = currentFeeSchedule.expiryTime?.seconds;
 
-    if (feeScheduleExpirationTime != null && refTimestampNanos > feeScheduleExpirationTime * 1_000_000_000n) {
+    if (feeScheduleExpirationTime != null && refTimestampNanos > feeScheduleExpirationTime * NANOS_PER_SECOND) {
       return feeSchedules.nextFeeSchedule;
     }
 
     return currentFeeSchedule;
   }
 
-  mapFees(feeSchedule, exchangeRate) {
+  #lookupGasPrice(feeSchedule, exchangeRate) {
     if (!feeSchedule?.transactionFeeSchedule) {
-      return {};
+      return null;
     }
 
-    const fees = {};
     for (const schedule of feeSchedule.transactionFeeSchedule) {
-      const type = FUNCTIONALITY_TO_TYPE[schedule.hederaFunctionality];
-      if (!type || !schedule.fees?.length) {
+      const type = schedule?.hederaFunctionality;
+      if (!type || !schedule?.fees?.length || type !== HederaFunctionality.ContractCall) {
         continue;
       }
 
@@ -247,24 +246,19 @@ class FileDataService extends BaseService {
       }
 
       const gas = serviceData.gas;
-      const tinyBars = this.convertGasPriceToTinyBars(gas, exchangeRate.hbarEquiv, exchangeRate.centEquiv);
-
-      if (tinyBars !== null) {
-        fees[type] = tinyBars;
-      }
+      return this.convertGasPriceToTinyBars(gas, exchangeRate.hbarEquiv, exchangeRate.centEquiv);
     }
 
-    return fees;
+    return null;
   }
 
-  getGasPriceForType(feeSchedule, exchangeRate, refTimestampNanos, transactionType) {
-    const effectiveFeeSchedule = this.getEffectiveFeeSchedule(feeSchedule.feeSchedule, refTimestampNanos);
+  getGasPriceForType(feeSchedule, exchangeRate, refTimestampNanos) {
+    const effectiveFeeSchedule = this.#getEffectiveFeeSchedule(feeSchedule.feeSchedule, refTimestampNanos);
     const effectiveExchangeRate = this.getEffectiveExchangeRate(exchangeRate, refTimestampNanos);
-    const fees = this.mapFees(effectiveFeeSchedule, effectiveExchangeRate);
-    return fees[transactionType] ?? null;
+    return this.#lookupGasPrice(effectiveFeeSchedule, effectiveExchangeRate);
   }
 
-  fallbackRetry = async (fileEntityId, filterQueries, resultConstructor) => {
+  #fallbackRetry = async (fileEntityId, filterQueries, resultConstructor) => {
     const whereQuery = filterQueries.whereQuery ?? [];
     const filters = {whereQuery};
 
@@ -296,7 +290,7 @@ class FileDataService extends BaseService {
   }
 
   #getFeeScheduleKey(consensusTimestamp) {
-    return consensusTimestamp == null ? 'latest' : this.truncateToStartOfHour(BigInt(consensusTimestamp)).toString();
+    return consensusTimestamp == null ? MAX_LONG : this.truncateToStartOfHour(BigInt(consensusTimestamp));
   }
 
   #getEffectiveRefTimestampNanos(consensusTimestamp) {

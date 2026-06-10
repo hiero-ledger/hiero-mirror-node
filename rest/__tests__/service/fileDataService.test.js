@@ -11,7 +11,7 @@ import {
   HederaFunctionality,
 } from '../../gen/services/basic_types_pb.js';
 import {TimestampSecondsSchema} from '../../gen/services/timestamp_pb.js';
-import {FileData} from '../../model';
+import {ExchangeRate, FeeSchedule, FileData} from '../../model';
 import {FileDataService} from '../../service';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
@@ -48,15 +48,6 @@ const exchangeRateFiles = [
   },
 ];
 
-const makeTransactionFeeSchedule = (hederaFunctionality, gas) => {
-  const feeComponents = create(FeeComponentsSchema, {gas});
-  const feeData = create(FeeDataSchema, {servicedata: feeComponents});
-  return create(TransactionFeeScheduleSchema, {
-    hederaFunctionality,
-    fees: [feeData],
-  });
-};
-
 const makeFeeScheduleFileData = (gas, expirySeconds, hederaFunctionality = HederaFunctionality.ContractCall) => {
   const feeSchedule = create(FeeScheduleSchema, {
     transactionFeeSchedule: [makeTransactionFeeSchedule(hederaFunctionality, gas)],
@@ -89,8 +80,29 @@ const makeMultiTypeFeeScheduleFileData = (gasByFunctionality, expirySeconds) => 
   );
 };
 
-// max(1, (gas * hbarEquiv) / (centEquiv * 1000)) with next exchange rate (cent=435305, hbar=30000)
-const gasPriceInTinybars = (gas, centEquiv = 435305, hbarEquiv = 30000) => {
+const makeExchangeRate = (overrides = {}) => {
+  const exchangeRate = Object.create(ExchangeRate.prototype);
+  return Object.assign(exchangeRate, {
+    current_hbar: 100,
+    current_cent: 200,
+    current_expiration: 7200,
+    next_hbar: 300,
+    next_cent: 400,
+    ...overrides,
+  });
+};
+
+const makeTransactionFeeSchedule = (hederaFunctionality, gas) => {
+  const feeComponents = create(FeeComponentsSchema, {gas});
+  const feeData = create(FeeDataSchema, {servicedata: feeComponents});
+  return create(TransactionFeeScheduleSchema, {
+    hederaFunctionality,
+    fees: [feeData],
+  });
+};
+
+// max(1, (gas * hbarEquiv) / (centEquiv * 1000))
+const gasPriceInTinybars = (gas, centEquiv = 200, hbarEquiv = 100) => {
   const fee = (BigInt(gas) * BigInt(hbarEquiv)) / (BigInt(centEquiv) * 1000n);
   return fee > 0n ? fee : 1n;
 };
@@ -177,7 +189,7 @@ describe('FileDataService.getLatestFileDataContents tests', () => {
   });
 });
 
-describe('FileDataService.getFeeSchedule tests', () => {
+describe('FileDataService.getGasPrice tests', () => {
   beforeEach(() => {
     FileDataService.clearFeeScheduleCache();
   });
@@ -212,48 +224,48 @@ describe('FileDataService.getFeeSchedule tests', () => {
   // At consensus_timestamp <= 12: fee file at 11 (gas=123456), current rate cent=450041 → 8n
   const expectedPreviousGasPrice = 8n;
 
-  test('FileDataService.getFeeSchedule - No match', async () => {
-    await expect(FileDataService.getFeeSchedule()).resolves.toBeNull();
+  test('FileDataService.getGasPrice - No match', async () => {
+    await expect(FileDataService.getGasPrice()).resolves.toBeNull();
   });
 
-  test('FileDataService.getFeeSchedule - Row match w latest', async () => {
+  test('FileDataService.getGasPrice - Row match w latest', async () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     await integrationDomainOps.loadFileData(exchangeRateFiles);
 
-    const result = await FileDataService.getFeeSchedule();
+    const result = await FileDataService.getGasPrice();
     expect(result).toBe(expectedLatestGasPrice);
   });
 
-  test('FileDataService.getFeeSchedule - Row match w previous latest', async () => {
+  test('FileDataService.getGasPrice - Row match w previous latest', async () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     await integrationDomainOps.loadFileData(exchangeRateFiles);
 
-    const result = await FileDataService.getFeeSchedule(12);
+    const result = await FileDataService.getGasPrice(12n);
     expect(result).toBe(expectedPreviousGasPrice);
   });
 
-  test('FileDataService.getFeeSchedule - Returns null when exchange rate is missing', async () => {
+  test('FileDataService.getGasPrice - Returns null when exchange rate is missing', async () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     // no exchange rate data loaded
 
-    await expect(FileDataService.getFeeSchedule()).resolves.toBeNull();
+    await expect(FileDataService.getGasPrice()).resolves.toBeNull();
   });
 
-  test('FileDataService.getFeeSchedule - Returns null when fee schedule is missing', async () => {
+  test('FileDataService.getGasPrice - Returns null when fee schedule is missing', async () => {
     await integrationDomainOps.loadFileData(exchangeRateFiles);
     // no fee schedule data loaded
 
-    await expect(FileDataService.getFeeSchedule()).resolves.toBeNull();
+    await expect(FileDataService.getGasPrice()).resolves.toBeNull();
   });
 
-  test('FileDataService.getFeeSchedule - Returns cached result on repeated call with same filter', async () => {
+  test('FileDataService.getGasPrice - Returns cached result on repeated call with same filter', async () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     await integrationDomainOps.loadFileData(exchangeRateFiles);
 
     const spy = jest.spyOn(FileDataService, 'getLatestFileDataContents');
 
-    const first = await FileDataService.getFeeSchedule(12);
-    const second = await FileDataService.getFeeSchedule(12);
+    const first = await FileDataService.getGasPrice(12n);
+    const second = await FileDataService.getGasPrice(12n);
 
     expect(first).not.toBeNull();
     expect(second).toEqual(first); // same value served from cache
@@ -263,67 +275,15 @@ describe('FileDataService.getFeeSchedule tests', () => {
     spy.mockRestore();
   });
 
-  describe('by transaction type', () => {
-    const contractCallGas = 100_000;
-    const contractCreateGas = 500_000;
-    const multiTypeExpiry = 3_000_000_000;
-
-    const multiTypeFeeScheduleFiles = [
-      {
-        consensus_timestamp: 13,
-        entity_id: feeScheduleEntityId.toString(),
-        file_data: makeMultiTypeFeeScheduleFileData(
-          {
-            [HederaFunctionality.ContractCall]: contractCallGas,
-            [HederaFunctionality.ContractCreate]: contractCreateGas,
-          },
-          multiTypeExpiry
-        ),
-        transaction_type: 19,
-      },
-    ];
-
-    const expectedContractCallGasPrice = gasPriceInTinybars(contractCallGas);
-
-    const loadMultiTypeFeeScheduleData = async () => {
-      await integrationDomainOps.loadFileData(multiTypeFeeScheduleFiles);
-      await integrationDomainOps.loadFileData(exchangeRateFiles);
-    };
-
-    test('returns ContractCall gas price', async () => {
-      await loadMultiTypeFeeScheduleData();
-
-      const result = await FileDataService.getFeeSchedule(null);
-
-      expect(result).toBe(expectedContractCallGasPrice);
-    });
-
-    test('caches gas price by hour bucket', async () => {
-      await loadMultiTypeFeeScheduleData();
-
-      const spy = jest.spyOn(FileDataService, 'getLatestFileDataContents');
-
-      const first = await FileDataService.getFeeSchedule(null);
-      const second = await FileDataService.getFeeSchedule(null);
-
-      expect(first).toBe(expectedContractCallGasPrice);
-      expect(second).toBe(first);
-      // fee schedule + exchange rate loaded once for the hour bucket
-      expect(spy).toHaveBeenCalledTimes(2);
-
-      spy.mockRestore();
-    });
-  });
-
-  test('getGasPricesAtTimestamps deduplicates lookups by hour bucket', async () => {
+  test('getGasPrices deduplicates lookups by hour bucket', async () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     await integrationDomainOps.loadFileData(exchangeRateFiles);
 
     const spy = jest.spyOn(FileDataService, 'getLatestFileDataContents');
 
-    const gasPriceMap = await FileDataService.getGasPricesAtTimestamps([12, 12, 12]);
+    const gasPriceMap = await FileDataService.getGasPrices([12n, 12n, 12n]);
 
-    expect(gasPriceMap.get(12)).toBe(expectedPreviousGasPrice);
+    expect(gasPriceMap.get(12n)).toBe(expectedPreviousGasPrice);
     // one fee schedule + one exchange rate load for the same hour bucket
     expect(spy).toHaveBeenCalledTimes(2);
 
@@ -336,5 +296,88 @@ describe('FileDataService.truncateToStartOfHour', () => {
     const refTimestamp = 1_654_321_987_654_321_987n;
 
     expect(FileDataService.truncateToStartOfHour(refTimestamp)).toBe(1_654_318_800_000_000_000n);
+  });
+});
+
+describe('FileDataService effective schedule selection', () => {
+  const exchangeRate = makeExchangeRate();
+
+  const makeCurrentAndNextFeeScheduleFileData = (currentGas, nextGas, currentExpirySeconds) => {
+    const currentFeeSchedule = create(FeeScheduleSchema, {
+      transactionFeeSchedule: [makeTransactionFeeSchedule(HederaFunctionality.ContractCall, currentGas)],
+      expiryTime: create(TimestampSecondsSchema, {seconds: BigInt(currentExpirySeconds)}),
+    });
+    const nextFeeSchedule = create(FeeScheduleSchema, {
+      transactionFeeSchedule: [makeTransactionFeeSchedule(HederaFunctionality.ContractCall, nextGas)],
+      expiryTime: create(TimestampSecondsSchema, {seconds: BigInt(currentExpirySeconds + 3600)}),
+    });
+    return Buffer.from(
+      toBinary(
+        CurrentAndNextFeeScheduleSchema,
+        create(CurrentAndNextFeeScheduleSchema, {
+          currentFeeSchedule,
+          nextFeeSchedule,
+        })
+      )
+    );
+  };
+
+  test('uses current fee schedule and exchange rate within the expiry hour', () => {
+    const feeSchedule = new FeeSchedule({
+      file_data: makeCurrentAndNextFeeScheduleFileData(1000, 5000, 7200),
+      consensus_timestamp: 1,
+    });
+    const refTimestamp = 7_200_000_000_000n;
+
+    const gasPrice = FileDataService.getGasPriceForType(feeSchedule, exchangeRate, refTimestamp);
+
+    expect(gasPrice).toBe(gasPriceInTinybars(1000, 200, 100));
+  });
+
+  test('uses next fee schedule and exchange rate after the expiry hour', () => {
+    const feeSchedule = new FeeSchedule({
+      file_data: makeCurrentAndNextFeeScheduleFileData(1000, 5000, 7200),
+      consensus_timestamp: 1,
+    });
+    const refTimestamp = 10_800_000_000_000n;
+
+    const gasPrice = FileDataService.getGasPriceForType(feeSchedule, exchangeRate, refTimestamp);
+
+    expect(gasPrice).toBe(gasPriceInTinybars(5000, 400, 300));
+  });
+});
+
+describe('FileDataService.getEffectiveExchangeRate', () => {
+  test('returns current rate within the expiry hour', () => {
+    const exchangeRate = makeExchangeRate();
+
+    expect(FileDataService.getEffectiveExchangeRate(exchangeRate, 7_200_000_000_000n)).toEqual({
+      hbarEquiv: 100,
+      centEquiv: 200,
+    });
+  });
+
+  test('returns next rate after the expiry hour', () => {
+    const exchangeRate = makeExchangeRate();
+
+    expect(FileDataService.getEffectiveExchangeRate(exchangeRate, 10_800_000_000_000n)).toEqual({
+      hbarEquiv: 300,
+      centEquiv: 400,
+    });
+  });
+});
+
+describe('FileDataService.convertGasPriceToTinyBars', () => {
+  test('converts gas price using hbar and cent equivalents', () => {
+    expect(FileDataService.convertGasPriceToTinyBars(10000, 100, 200)).toBe(5n);
+  });
+
+  test('returns minimum fee of 1 tinybar', () => {
+    expect(FileDataService.convertGasPriceToTinyBars(1, 1, 1000)).toBe(1n);
+  });
+
+  test('returns null for invalid input', () => {
+    expect(FileDataService.convertGasPriceToTinyBars(null, 100, 200)).toBeNull();
+    expect(FileDataService.convertGasPriceToTinyBars(1000, 100, 0)).toBeNull();
   });
 });
