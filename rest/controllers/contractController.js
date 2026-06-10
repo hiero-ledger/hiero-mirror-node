@@ -7,7 +7,7 @@ import range from 'lodash/range';
 
 import BaseController from './baseController';
 import Bound from './bound';
-import {getResponseLimit} from '../config';
+import config, {getResponseLimit} from '../config';
 import {
   filterKeys,
   httpStatusCodes,
@@ -532,8 +532,12 @@ class ContractController extends BaseController {
       conditions.push(`${ContractResult.getFullName(ContractResult.TRANSACTION_NONCE)} = 0`);
     }
 
+    const includeSynthetic =
+      config.query.syntheticContractResults && contractId === undefined && contractResultFromInValues.length === 0;
+
     return {
       conditions,
+      includeSynthetic,
       params,
       order,
       limit,
@@ -1080,12 +1084,20 @@ class ContractController extends BaseController {
       },
     };
     res.locals[responseDataLabel] = response;
-    const {conditions, params, order, limit, skip, next} = await this.extractContractResultsByIdQuery(filters);
+    const {conditions, includeSynthetic, params, order, limit, skip, next} = await this.extractContractResultsByIdQuery(
+      filters
+    );
     if (skip) {
       return;
     }
 
-    const rows = await ContractService.getContractResultsByIdAndFilters(conditions, params, order, limit);
+    const rows = await ContractService.getContractResultsByIdAndFilters(
+      conditions,
+      params,
+      order,
+      limit,
+      includeSynthetic
+    );
     if (rows.length === 0) {
       return;
     }

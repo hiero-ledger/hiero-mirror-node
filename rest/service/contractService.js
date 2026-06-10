@@ -5,7 +5,7 @@ import range from 'lodash/range';
 
 import BaseService from './baseService';
 import {getResponseLimit} from '../config';
-import {filterKeys, HEX_PREFIX, MAX_LONG, orderFilterValues} from '../constants';
+import {filterKeys, HEX_PREFIX, MAX_LONG, MIN_LONG, orderFilterValues} from '../constants';
 import EntityId from '../entityId';
 import {OrderSpec} from '../sql';
 import {
@@ -212,15 +212,113 @@ class ContractService extends BaseService {
 
   getContractResultsByIdAndFiltersQuery(whereConditions, whereParams, order, limit) {
     const params = whereParams;
-
     const query = [
       ContractService.contractResultsWithEvmAddressQuery,
       ContractService.joinContractResultWithEvmAddress,
       whereConditions.length > 0 ? `where ${whereConditions.join(' and ')}` : '',
       super.getOrderByQuery(OrderSpec.from(ContractResult.getFullName(ContractResult.CONSENSUS_TIMESTAMP), order)),
-      super.getLimitQuery(whereParams.length + 1), // get limit param located at end of array
+      super.getLimitQuery(whereParams.length + 1),
     ].join('\n');
     params.push(limit);
+    return [query, params];
+  }
+
+  getSyntheticContractResultsQuery(contractResultRows, whereConditions, whereParams, order, limit) {
+    const params = [...whereParams];
+    const contractResultAlias = `${ContractResult.tableAlias}.`;
+    const clAlias = `${ContractLog.tableAlias}.`;
+
+    const allConditions = whereConditions
+      .filter((condition) => {
+        // synthetic logs have no nonce; callers with sender_id/contract_id use includeSynthetic=false
+        if (condition.includes(ContractResult.TRANSACTION_NONCE)) {
+          return false;
+        }
+        if (
+          condition.includes(ContractResult.SENDER_ID) ||
+          condition.includes(`${contractResultAlias}${ContractResult.CONTRACT_ID}`)
+        ) {
+          return false;
+        }
+        return true;
+      })
+      .map((condition) => {
+        if (condition.includes(`${contractResultAlias}${ContractResult.CONSENSUS_TIMESTAMP}`)) {
+          return condition.replaceAll(
+            `${contractResultAlias}${ContractResult.CONSENSUS_TIMESTAMP}`,
+            `${clAlias}${ContractLog.CONSENSUS_TIMESTAMP}`
+          );
+        }
+        if (condition.includes(`${contractResultAlias}${ContractResult.TRANSACTION_INDEX}`)) {
+          return condition.replaceAll(
+            `${contractResultAlias}${ContractResult.TRANSACTION_INDEX}`,
+            `${clAlias}${ContractLog.TRANSACTION_INDEX}`
+          );
+        }
+        return condition;
+      });
+
+    if (contractResultRows.length >= limit) {
+      const lastTs = contractResultRows[contractResultRows.length - 1][ContractResult.CONSENSUS_TIMESTAMP];
+      params.push(lastTs);
+      const boundParamIndex = params.length;
+      if (order === orderFilterValues.DESC) {
+        allConditions.push(`${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} >= $${boundParamIndex}`);
+      } else {
+        allConditions.push(`${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} <= $${boundParamIndex}`);
+      }
+    }
+
+    allConditions.push(`${clAlias}${ContractLog.SYNTHETIC} is true`);
+    if (contractResultRows.length > 0) {
+      const knownTimestamps = contractResultRows.map((r) => r[ContractResult.CONSENSUS_TIMESTAMP]);
+      params.push(knownTimestamps);
+      allConditions.push(`${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} != all($${params.length})`);
+    }
+
+    const whereClause = `where ${allConditions.join(' and ')}`;
+    params.push(limit);
+    const limitParam = params.length;
+
+    const query = `
+      select
+        null::bigint as ${ContractResult.AMOUNT},
+        null::bytea as ${ContractResult.BLOOM},
+        null::bytea as ${ContractResult.CALL_RESULT},
+        synth_raw.${ContractResult.CONSENSUS_TIMESTAMP},
+        synth_raw.${ContractResult.CONTRACT_ID},
+        null::bigint[] as ${ContractResult.CREATED_CONTRACT_IDS},
+        null::text as ${ContractResult.ERROR_MESSAGE},
+        null::bytea as ${ContractResult.FAILED_INITCODE},
+        '\\x'::bytea as ${ContractResult.FUNCTION_PARAMETERS},
+        null::bytea as ${ContractResult.FUNCTION_RESULT},
+        null::bigint as ${ContractResult.GAS_CONSUMED},
+        0::bigint as ${ContractResult.GAS_LIMIT},
+        null::bigint as ${ContractResult.GAS_USED},
+        synth_raw.${ContractResult.PAYER_ACCOUNT_ID},
+        null::bigint as ${ContractResult.SENDER_ID},
+        synth_raw.${ContractResult.TRANSACTION_HASH},
+        synth_raw.${ContractResult.TRANSACTION_INDEX},
+        0::integer as ${ContractResult.TRANSACTION_NONCE},
+        ${successTransactionResult}::smallint as ${ContractResult.TRANSACTION_RESULT},
+        coalesce(${Entity.getFullName(Entity.EVM_ADDRESS)}, '') as ${Entity.EVM_ADDRESS}
+      from (
+        select distinct on (${clAlias}${ContractLog.CONSENSUS_TIMESTAMP})
+          ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP},
+          coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) as ${
+      ContractResult.CONTRACT_ID
+    },
+          ${clAlias}${ContractLog.TRANSACTION_HASH},
+          ${clAlias}${ContractLog.TRANSACTION_INDEX},
+          ${clAlias}${ContractLog.PAYER_ACCOUNT_ID}
+        from ${ContractLog.tableName} ${ContractLog.tableAlias}
+        ${whereClause}
+        order by ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} ${order}, ${clAlias}${ContractLog.INDEX} ${order}
+        limit $${limitParam}
+      ) synth_raw
+      left join ${Entity.tableName} ${Entity.tableAlias}
+        on ${Entity.getFullName(Entity.ID)} = synth_raw.${ContractResult.CONTRACT_ID}
+    `;
 
     return [query, params];
   }
@@ -229,16 +327,41 @@ class ContractService extends BaseService {
     whereConditions = [],
     whereParams = [],
     order = orderFilterValues.DESC,
-    limit = defaultLimit
+    limit = defaultLimit,
+    includeSynthetic = false
   ) {
+    const originalWhereParams = [...whereParams];
     const [query, params] = this.getContractResultsByIdAndFiltersQuery(whereConditions, whereParams, order, limit);
     const rows = await super.getRows(query, params);
-    return rows.map((cr) => {
-      return {
-        ...new ContractResult(cr),
-        hash: cr.hash,
-      };
-    });
+
+    if (!includeSynthetic) {
+      return rows.map((cr) => ({...new ContractResult(cr), hash: cr.hash}));
+    }
+
+    const [syntheticQuery, syntheticParams] = this.getSyntheticContractResultsQuery(
+      rows,
+      whereConditions,
+      originalWhereParams,
+      order,
+      limit
+    );
+    const syntheticRows = await super.getRows(syntheticQuery, syntheticParams);
+
+    const isDesc = order === orderFilterValues.DESC;
+    const defaultValue = isDesc ? MIN_LONG : MAX_LONG;
+    const merged = [];
+    let i = 0;
+    let j = 0;
+    while (merged.length < limit && (i < rows.length || j < syntheticRows.length)) {
+      const aTs = i < rows.length ? BigInt(rows[i][ContractResult.CONSENSUS_TIMESTAMP]) : defaultValue;
+      const bTs =
+        j < syntheticRows.length ? BigInt(syntheticRows[j][ContractResult.CONSENSUS_TIMESTAMP]) : defaultValue;
+      const pickA = isDesc ? aTs >= bTs : aTs <= bTs;
+      const cr = pickA ? rows[i++] : syntheticRows[j++];
+      merged.push({...new ContractResult(cr), hash: cr.hash});
+    }
+
+    return merged;
   }
 
   async getContractStateByIdAndFilters(

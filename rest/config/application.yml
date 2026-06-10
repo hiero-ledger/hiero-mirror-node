@@ -63,6 +63,7 @@ hiero:
         maxTransactionsTimestampRange: 60d
         maxValidStartTimestampDrift: 1s
         strictTimestampParam: true
+        syntheticContractResults: true
         topicMessageLookup: false
         transactions:
           precedingTransactionTypes:
