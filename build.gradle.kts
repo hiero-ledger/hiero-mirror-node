@@ -17,11 +17,12 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.34.0")
+    set("blockNodeVersion", "0.35.1")
     set("consensusNodeVersion", "0.75.0-rc.4")
     set("grpcVersion", "1.81.0")
     set("jooq.version", "3.21.4") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
+    set("micrometer.version", "1.17.0") // Temporary until next Spring Boot
     set("netty.version", "4.2.13.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.15.0")
     set("postgresql.version", "42.7.11") // Temporary until next Spring Boot
