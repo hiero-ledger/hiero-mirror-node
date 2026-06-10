@@ -54,13 +54,13 @@ import org.springframework.context.annotation.Primary;
 @NullMarked
 @Primary
 @RequiredArgsConstructor
-public class CompositeEntityListener implements EntityListener {
+final class CompositeEntityListener implements EntityListener {
 
     private final List<EntityListener> entityListeners;
+    private final EntityProperties entityProperties;
 
     private <T> void onEach(BiConsumer<EntityListener, T> consumer, T t) {
-        for (int i = 0; i < entityListeners.size(); ++i) {
-            var entityListener = entityListeners.get(i);
+        for (final var entityListener : entityListeners) {
             if (entityListener.isEnabled()) {
                 consumer.accept(entityListener, t);
             }
@@ -134,6 +134,10 @@ public class CompositeEntityListener implements EntityListener {
 
     @Override
     public void onFileData(FileData fileData) throws ImporterException {
+        if (!entityProperties.getPersist().shouldPersistFileData(fileData.getEntityId())) {
+            return;
+        }
+
         onEach(EntityListener::onFileData, fileData);
     }
 

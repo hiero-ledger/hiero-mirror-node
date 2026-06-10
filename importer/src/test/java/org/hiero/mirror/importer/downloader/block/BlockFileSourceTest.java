@@ -61,6 +61,7 @@ import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 import org.hiero.mirror.importer.reader.block.BlockStreamReaderImpl;
+import org.hiero.mirror.importer.reader.block.InitialStateReader;
 import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
 import org.hiero.mirror.importer.reader.block.record.CompositeRecordFileItemReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -165,7 +166,8 @@ final class BlockFileSourceTest {
                 cutoverService,
                 mock(TssVerifier.class)));
         blockFileSource = new BlockFileSource(
-                new BlockStreamReaderImpl(new CompositeRecordFileItemReader(new SidecarProperties())),
+                new BlockStreamReaderImpl(
+                        mock(InitialStateReader.class), new CompositeRecordFileItemReader(new SidecarProperties())),
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 cutoverService,
@@ -393,7 +395,8 @@ final class BlockFileSourceTest {
         when(streamFileProvider.get(any()))
                 .thenReturn(Mono.delay(Duration.ofMillis(120L)).then(Mono.empty()));
         final var source = new BlockFileSource(
-                new BlockStreamReaderImpl(new CompositeRecordFileItemReader(new SidecarProperties())),
+                new BlockStreamReaderImpl(
+                        mock(InitialStateReader.class), new CompositeRecordFileItemReader(new SidecarProperties())),
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 cutoverService,
@@ -422,7 +425,8 @@ final class BlockFileSourceTest {
         importerProperties.setStartBlockNumber(-1L);
         final var streamFileProvider = mock(StreamFileProvider.class);
         final var source = new BlockFileSource(
-                new BlockStreamReaderImpl(new CompositeRecordFileItemReader(new SidecarProperties())),
+                new BlockStreamReaderImpl(
+                        mock(InitialStateReader.class), new CompositeRecordFileItemReader(new SidecarProperties())),
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 cutoverService,

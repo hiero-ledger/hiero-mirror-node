@@ -14,6 +14,7 @@ import lombok.Data;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -131,6 +132,10 @@ public class EntityProperties {
 
         public boolean shouldPersistEntityNftTransaction(final EntityId entityId) {
             return shouldPersistEntityTransaction(entityId, entityNftTransactions);
+        }
+
+        public boolean shouldPersistFileData(final EntityId fileId) {
+            return files || (systemFiles && DomainUtils.isSystemEntity(fileId));
         }
 
         public boolean shouldPersistTransactionHash(TransactionType transactionType) {
