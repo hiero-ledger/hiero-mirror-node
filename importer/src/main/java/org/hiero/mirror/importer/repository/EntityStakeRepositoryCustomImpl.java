@@ -6,6 +6,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.parser.record.entity.staking.StakingProperties;
@@ -15,6 +16,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 @Named
+@RequiredArgsConstructor
 class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
 
     private static final String CLEANUP_TABLE_SQL = """
@@ -115,17 +117,6 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
     private final JdbcTemplate jdbcTemplate;
     private final StakingProperties stakingProperties;
     private final SystemEntity systemEntity;
-
-    EntityStakeRepositoryCustomImpl(
-            AccountBalanceRepository accountBalanceRepository,
-            JdbcTemplate jdbcTemplate,
-            StakingProperties stakingProperties,
-            SystemEntity systemEntity) {
-        this.accountBalanceRepository = accountBalanceRepository;
-        this.jdbcTemplate = jdbcTemplate;
-        this.stakingProperties = stakingProperties;
-        this.systemEntity = systemEntity;
-    }
 
     @Override
     public void createEntityStateStart(long stakingRewardAccount) {
