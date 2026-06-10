@@ -7,14 +7,12 @@ import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.parser.record.entity.staking.StakingProperties;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Named
 class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
@@ -109,32 +107,29 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
             order by epoch_day
             limit 1
             """;
-    private static final String GET_MAX_ENTITY_ID_SQL = "select coalesce(max(id), 0) from entity";
+    private static final String GET_MAX_ENTITY_ID_SQL =
+            "select max(id) from entity where type in ('ACCOUNT', 'CONTRACT')";
     private static final long ONE_MONTH_IN_NS = Duration.ofDays(31).toNanos();
 
     private final AccountBalanceRepository accountBalanceRepository;
     private final JdbcTemplate jdbcTemplate;
     private final StakingProperties stakingProperties;
     private final SystemEntity systemEntity;
-    private final TransactionTemplate transactionTemplate;
 
     EntityStakeRepositoryCustomImpl(
             AccountBalanceRepository accountBalanceRepository,
             JdbcTemplate jdbcTemplate,
-            PlatformTransactionManager transactionManager,
             StakingProperties stakingProperties,
             SystemEntity systemEntity) {
         this.accountBalanceRepository = accountBalanceRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.stakingProperties = stakingProperties;
         this.systemEntity = systemEntity;
-        this.transactionTemplate = new TransactionTemplate(transactionManager);
-        this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     @Override
     public void createEntityStateStart(long stakingRewardAccount) {
-        transactionTemplate.executeWithoutResult(s -> jdbcTemplate.execute(CLEANUP_TABLE_SQL));
+        jdbcTemplate.execute(CLEANUP_TABLE_SQL);
 
         final var endPeriodTimestamp = getEndPeriodTimestamp(stakingRewardAccount);
         if (endPeriodTimestamp.isEmpty()) {
@@ -152,26 +147,28 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
         }
 
         final long lowerBalanceTimestamp = balanceSnapshotTimestamp.get() - ONE_MONTH_IN_NS;
-        final long maxEntityId = Optional.ofNullable(jdbcTemplate.queryForObject(GET_MAX_ENTITY_ID_SQL, Long.class))
-                .orElse(0L);
+        final Long maxEntityId = jdbcTemplate.queryForObject(GET_MAX_ENTITY_ID_SQL, Long.class);
+        if (maxEntityId == null) {
+            return;
+        }
         final var namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
         final long chunkSize = stakingProperties.getChunkSize();
         final var chunkDelay = stakingProperties.getChunkDelay();
 
-        long minId = 0;
+        final var stakingRewardEntityId = EntityId.of(stakingRewardAccount);
+        long minId = EntityId.of(stakingRewardEntityId.getShard(), stakingRewardEntityId.getRealm(), 0L)
+                .getId();
+
         while (minId <= maxEntityId) {
             final long maxId = Math.min(minId + chunkSize - 1, maxEntityId);
-            final long currentMin = minId;
-            transactionTemplate.executeWithoutResult(s -> {
-                final var params = new MapSqlParameterSource()
-                        .addValue("balanceSnapshotTimestamp", balanceSnapshotTimestamp.get())
-                        .addValue("endPeriodTimestamp", endPeriodTimestamp.get())
-                        .addValue("stakingRewardAccount", stakingRewardAccount)
-                        .addValue("lowerBalanceTimestamp", lowerBalanceTimestamp)
-                        .addValue("minId", currentMin)
-                        .addValue("maxId", maxId);
-                namedParameterJdbcTemplate.update(CREATE_ENTITY_STATE_START_SQL, params);
-            });
+            final var params = new MapSqlParameterSource()
+                    .addValue("balanceSnapshotTimestamp", balanceSnapshotTimestamp.get())
+                    .addValue("endPeriodTimestamp", endPeriodTimestamp.get())
+                    .addValue("stakingRewardAccount", stakingRewardAccount)
+                    .addValue("lowerBalanceTimestamp", lowerBalanceTimestamp)
+                    .addValue("minId", minId)
+                    .addValue("maxId", maxId);
+            namedParameterJdbcTemplate.update(CREATE_ENTITY_STATE_START_SQL, params);
 
             minId = maxId + 1;
 
@@ -179,8 +176,7 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
                 Uninterruptibles.sleepUninterruptibly(chunkDelay);
             }
         }
-
-        transactionTemplate.executeWithoutResult(s -> jdbcTemplate.execute(CREATE_TABLE_INDEX_DDL));
+        jdbcTemplate.execute(CREATE_TABLE_INDEX_DDL);
     }
 
     private Optional<Long> getEndPeriodTimestamp(long stakingRewardAccount) {
