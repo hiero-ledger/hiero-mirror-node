@@ -25,6 +25,7 @@ import {
   ContractState,
   ContractStateChange,
   Entity,
+  FileData,
   TransactionResult,
   TransactionType,
 } from '../model';
@@ -1049,7 +1050,12 @@ class ContractController extends BaseController {
       logger.debug(`getContractResultsByTimestamp returning partial content`);
     }
 
-    this.setContractResultsResponse(
+    let gasPrice = null;
+    if (ethTransaction == null) {
+      gasPrice = await FileDataService.getGasPrice(timestamp);
+    }
+
+    await this.setContractResultsResponse(
       res,
       contractResults[0],
       recordFile,
@@ -1057,7 +1063,8 @@ class ContractController extends BaseController {
       contractLogs,
       contractStateChanges,
       fileData,
-      convertToHbar
+      convertToHbar,
+      gasPrice
     );
   };
 
@@ -1113,18 +1120,29 @@ class ContractController extends BaseController {
       RecordFileService.getRecordFileBlockDetailsFromTimestampArray(timestamps),
     ]);
 
-    response.results = rows.map(
-      (row) =>
-        new ContractResultDetailsViewModel(
-          row,
-          recordFileMap.get(row.consensusTimestamp),
-          ethereumTransactionMap.get(row.consensusTimestamp),
-          null,
-          null,
-          null,
-          convertToHbar
-        )
-    );
+    const nonEthTimestamps = [];
+    rows.forEach((row) => {
+      if (ethereumTransactionMap.get(row.consensusTimestamp) == null) {
+        nonEthTimestamps.push(row.consensusTimestamp);
+      }
+    });
+    const gasPriceMap = await FileDataService.getGasPrices(nonEthTimestamps);
+
+    response.results = rows.map((row) => {
+      const ethTransaction = ethereumTransactionMap.get(row.consensusTimestamp);
+      const gasPrice = ethTransaction == null ? gasPriceMap.get(row.consensusTimestamp) ?? null : null;
+
+      return new ContractResultDetailsViewModel(
+        row,
+        recordFileMap.get(row.consensusTimestamp),
+        ethTransaction,
+        null,
+        null,
+        null,
+        convertToHbar,
+        gasPrice
+      );
+    });
 
     const isEnd = response.results.length !== limit;
     const lastRow = last(response.results);
@@ -1212,7 +1230,12 @@ class ContractController extends BaseController {
       fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
     }
 
-    this.setContractResultsResponse(
+    let gasPrice = null;
+    if (ethTransaction == null) {
+      gasPrice = await FileDataService.getGasPrice(contractResult.consensusTimestamp);
+    }
+
+    await this.setContractResultsResponse(
       res,
       contractResult,
       recordFile,
@@ -1220,7 +1243,8 @@ class ContractController extends BaseController {
       contractLogs,
       contractStateChanges,
       fileData,
-      convertToHbar
+      convertToHbar,
+      gasPrice
     );
 
     if (isNil(contractResult.callResult)) {
@@ -1326,7 +1350,8 @@ class ContractController extends BaseController {
     contractLogs,
     contractStateChanges,
     fileData,
-    convertToHbar = true
+    convertToHbar,
+    gasPrice
   ) => {
     res.locals[responseDataLabel] = new ContractResultDetailsViewModel(
       contractResult,
@@ -1335,7 +1360,8 @@ class ContractController extends BaseController {
       contractLogs,
       contractStateChanges,
       fileData,
-      convertToHbar
+      convertToHbar,
+      gasPrice
     );
   };
 }
