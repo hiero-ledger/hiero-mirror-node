@@ -18,17 +18,10 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.35.1")
-    set("consensusNodeVersion", "0.75.0-rc.4")
-    set("grpcVersion", "1.81.0")
+    set("consensusNodeVersion", "0.75.0-rc.5")
     set("jooq.version", "3.21.5") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
-    set("micrometer.version", "1.17.0") // Temporary until next Spring Boot
-    set("netty.version", "4.2.13.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.16.0")
-    set("postgresql.version", "42.7.11") // Temporary until next Spring Boot
-    set("protobufVersion", "4.35.0")
-    set("springGrpcVersion", "1.0.3")
-    set("tomcat.version", "11.0.22") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
 
@@ -39,10 +32,7 @@ dependencies {
         val besuVersion: String by rootProject.extra
         val blockNodeVersion: String by rootProject.extra
         val consensusNodeVersion: String by rootProject.extra
-        val grpcVersion: String by rootProject.extra
         val mapStructVersion: String by rootProject.extra
-        val protobufVersion: String by rootProject.extra
-        val springGrpcVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
 
         api("com.asarkar.grpc:grpc-test:2.0.0")
@@ -52,7 +42,6 @@ dependencies {
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
         api("com.google.guava:guava:33.6.0-jre")
-        api("com.google.protobuf:protobuf-java:$protobufVersion")
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
@@ -67,7 +56,6 @@ dependencies {
         api("io.cucumber:cucumber-bom:7.34.3")
         api("io.fabric8:kubernetes-client-bom:7.7.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
-        api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.3")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("net.java.dev.jna:jna:5.19.0")
@@ -87,8 +75,6 @@ dependencies {
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
-        api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
-        api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.3")
         api("software.amazon.awssdk:bom:2.46.5")
         api("tech.pegasys:jc-kzg-4844:1.0.0")

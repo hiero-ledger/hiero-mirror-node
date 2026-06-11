@@ -38,8 +38,7 @@ public final class BlockProperties {
     private Path initialLedgerIdPublication;
 
     @NotNull
-    @Valid
-    private List<BlockNodeProperties> nodes = Collections.emptyList();
+    private List<@Valid BlockNodeProperties> nodes = Collections.emptyList();
 
     private boolean persistBytes = false;
 

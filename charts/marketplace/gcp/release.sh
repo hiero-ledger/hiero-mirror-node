@@ -64,7 +64,7 @@ docker buildx build --pull --push -f ./Dockerfile --provenance false -t "${regis
 docker buildx imagetools create "${registry}/postgresql-repmgr:${postgresql_tag}" --tag "${registry}/postgresql-repmgr:${target_tag}" --tag "${registry}/postgresql-repmgr:${target_tag_minor}" --annotation "index,manifest-descriptor:${annotation}"
 
 # Re-tag other images
-retag "bats/bats:${bats_tag}" "test"
+retag "gcr.io/mirrornode/bats:${bats_tag}" "test" # Upstream image has vulnerabilities in base image
 retag "gcr.io/mirrornode/hedera-mirror-grpc:${source_tag}" "grpc"
 retag "gcr.io/mirrornode/hedera-mirror-importer:${source_tag}" ""
 retag "gcr.io/mirrornode/hedera-mirror-rest:${source_tag}" "rest"
