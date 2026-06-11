@@ -75,8 +75,7 @@ public class CommonDownloaderProperties {
     private String secretKey;
 
     @NotNull
-    @Valid
-    private List<StreamSourceProperties> sources = new ArrayList<>();
+    private List<@Valid StreamSourceProperties> sources = new ArrayList<>();
 
     @DurationMin(seconds = 1)
     @NotNull

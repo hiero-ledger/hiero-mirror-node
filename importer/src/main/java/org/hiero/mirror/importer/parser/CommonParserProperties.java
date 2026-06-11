@@ -44,12 +44,10 @@ public class CommonParserProperties {
     private int bufferSize = 32768; // tested max byte size of buffer used by PGCopyOutputStream
 
     @NotNull
-    @Valid
-    private Collection<TransactionFilter> exclude = new ArrayList<>();
+    private Collection<@Valid TransactionFilter> exclude = new ArrayList<>();
 
     @NotNull
-    @Valid
-    private Collection<TransactionFilter> include = new ArrayList<>();
+    private Collection<@Valid TransactionFilter> include = new ArrayList<>();
 
     @Getter(lazy = true)
     private final Predicate<TransactionFilterFields> filter = includeFilter().and(excludeFilter());
@@ -122,7 +120,7 @@ public class CommonParserProperties {
                 return true;
             }
 
-            return entities != null && CollectionUtils.containsAny(entity, entities);
+            return CollectionUtils.containsAny(entity, entities);
         }
 
         private boolean matchesExpression(RecordItem recordItem) {
