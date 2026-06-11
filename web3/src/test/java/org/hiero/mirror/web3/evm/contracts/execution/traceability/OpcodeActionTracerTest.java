@@ -200,7 +200,7 @@ class OpcodeActionTracerTest {
                 if (account != null) {
                     assertThat(account).isEqualTo(recipientAccount);
                 }
-            } catch (final ModificationNotAllowedException e) {
+            } catch (final ModificationNotAllowedException _) {
             }
         } else {
             verify(worldUpdater, never()).getAccount(any());
@@ -429,7 +429,7 @@ class OpcodeActionTracerTest {
         frame = setupInitialFrame(opcodeContext);
 
         // When
-        final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+        final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT);
 
         // Then
         assertThat(opcode.getPc()).isEqualTo(frame.getPC());
@@ -451,7 +451,7 @@ class OpcodeActionTracerTest {
         frame = setupInitialFrame(opcodeContext);
 
         // When
-        final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+        final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT);
 
         // Then
         assertThat(opcode.getReason()).isNull();
@@ -465,7 +465,7 @@ class OpcodeActionTracerTest {
         frame.setRevertReason(Bytes.of("revert reason".getBytes()));
 
         // When
-        final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+        final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT);
 
         // Then
         assertThat(opcode.getReason())
@@ -489,7 +489,7 @@ class OpcodeActionTracerTest {
         final var frameOfPrecompileCall = buildMessageFrameFromAction(contractActionWithRevert);
         frame = setupFrame(frameOfPrecompileCall);
 
-        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT);
 
         // Then
         assertThat(opcodeForPrecompileCall.getReason())
@@ -515,7 +515,7 @@ class OpcodeActionTracerTest {
         final var frameOfPrecompileCall = buildMessageFrameFromAction(contractActionWithRevert);
         frame = setupFrame(frameOfPrecompileCall);
 
-        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT);
 
         // Then
         assertThat(opcodeForPrecompileCall.getReason())
@@ -543,7 +543,7 @@ class OpcodeActionTracerTest {
         final var frameOfPrecompileCall = buildMessageFrameFromAction(contractActionWithRevert);
         frame = setupFrame(frameOfPrecompileCall);
 
-        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT);
 
         // Then
         assertThat(opcodeForPrecompileCall.getReason())
@@ -567,7 +567,7 @@ class OpcodeActionTracerTest {
         final var frameOfPrecompileCall = buildMessageFrameFromAction(contractActionWithRevert);
         frame = setupFrame(frameOfPrecompileCall);
 
-        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT, DEFAULT_OUTPUT);
+        final Opcode opcodeForPrecompileCall = executePrecompileOperation(frame, GAS_REQUIREMENT);
 
         // Then
         assertThat(opcodeForPrecompileCall.getReason()).isNotNull().isEqualTo(Bytes.EMPTY.toHexString());
@@ -695,7 +695,7 @@ class OpcodeActionTracerTest {
         return expectedOpcode;
     }
 
-    private Opcode executePrecompileOperation(final MessageFrame frame, final long gasRequirement, final Bytes output) {
+    private Opcode executePrecompileOperation(final MessageFrame frame, final long gasRequirement) {
         if (frame.getState() == NOT_STARTED) {
             tracer.traceContextEnter(frame);
         } else {

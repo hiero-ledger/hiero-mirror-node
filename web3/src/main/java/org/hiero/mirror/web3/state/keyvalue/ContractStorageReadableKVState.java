@@ -17,13 +17,18 @@ import org.hiero.mirror.web3.service.ContractStateService;
 import org.jspecify.annotations.NonNull;
 
 @Named
-final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
+public final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
 
     public static final int STATE_ID = STORAGE_STATE_ID;
 
+    private static final Bytes DUMMY_STORAGE_VALUE = Bytes.wrap(new byte[Bytes32.SIZE]);
+
+    private static final SlotValue DISCOVERY_SLOT_VALUE =
+            SlotValue.newBuilder().value(DUMMY_STORAGE_VALUE).build();
+
     private final ContractStateService contractStateService;
 
-    protected ContractStorageReadableKVState(final ContractStateService contractStateService) {
+    ContractStorageReadableKVState(final ContractStateService contractStateService) {
         super(ContractService.NAME, STORAGE_STATE_ID);
         this.contractStateService = contractStateService;
     }
@@ -34,9 +39,17 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
             return null;
         }
 
-        final var timestamp = ContractCallContext.get().getTimestamp();
         final var contractID = slotKey.contractID();
         final var entityId = EntityIdUtils.entityIdFromContractId(contractID);
+
+        final var ctx = ContractCallContext.get();
+        if (ctx.isStorageDiscoveryMode()) {
+            return DISCOVERY_SLOT_VALUE;
+        } else if (ctx.isStorageDiscoveryModeFinished()) {
+            contractStateService.warmStorageKeys(entityId);
+        }
+
+        final var timestamp = ContractCallContext.get().getTimestamp();
         final var keyBytes = slotKey.key().toByteArray();
         return timestamp
                 .map(t -> contractStateService.findStorageByBlockTimestamp(

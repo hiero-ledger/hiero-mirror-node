@@ -57,6 +57,16 @@ public class ContractCallContext {
     @Setter
     private Supplier<RecordFile> blockSupplier = () -> null;
 
+    /**
+     * When enabled, contract storage reads return dummy values without database access so the EVM can record which
+     * storage slots were accessed in {@link #readCache}.
+     */
+    @Setter
+    private boolean storageDiscoveryMode;
+
+    @Setter
+    private boolean storageDiscoveryModeFinished;
+
     private ContractCallContext() {}
 
     public static ContractCallContext get() {
