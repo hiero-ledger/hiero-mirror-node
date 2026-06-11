@@ -14,6 +14,7 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
 @Named
 @RequiredArgsConstructor
@@ -119,6 +120,7 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
     private final SystemEntity systemEntity;
 
     @Override
+    @Transactional
     public void createEntityStateStart(long stakingRewardAccount) {
         jdbcTemplate.execute(CLEANUP_TABLE_SQL);
 
