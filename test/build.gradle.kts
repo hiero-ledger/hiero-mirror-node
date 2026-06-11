@@ -13,6 +13,10 @@ plugins {
     id("openapi-conventions")
 }
 
+configurations.all {
+    exclude(group = "io.vertx") // Unused and frequently has vulnerabilities
+}
+
 dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
@@ -27,10 +31,9 @@ dependencies {
     testImplementation("com.google.guava:guava")
     testImplementation("com.hedera.hashgraph:sdk")
     testImplementation(project(":common")) {
-        exclude("com.hedera.hashgraph", "hedera-protobuf-java-api")
         exclude("com.google.protobuf", "protobuf-java")
+        exclude("com.hedera.hashgraph", "hedera-protobuf-java-api")
         exclude("org.springframework.boot", "spring-boot-starter-data-jpa")
-        exclude("org.web3j", "core")
     }
     testImplementation("commons-codec:commons-codec")
     testImplementation("io.cucumber:cucumber-junit-platform-engine")
@@ -44,9 +47,8 @@ dependencies {
     testImplementation("org.junit.platform:junit-platform-suite")
     testImplementation("org.springframework.boot:spring-boot-starter-actuator")
     testImplementation("org.springframework.boot:spring-boot-starter-restclient-test")
-    testImplementation("org.springframework.boot:spring-boot-starter-validation")
     testImplementation("org.springframework.boot:spring-boot-starter-web")
-    testImplementation("org.web3j:core")
+    testImplementation("org.web3j:core") { exclude(group = "io.netty") }
 }
 
 // Disable the default test task and only run acceptance tests during the standalone "acceptance"
