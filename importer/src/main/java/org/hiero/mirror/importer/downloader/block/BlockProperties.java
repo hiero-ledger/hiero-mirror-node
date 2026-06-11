@@ -2,12 +2,14 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
@@ -37,7 +39,7 @@ public final class BlockProperties {
 
     @NotNull
     @Valid
-    private Collection<BlockNodeProperties> nodes = Collections.emptyList();
+    private List<BlockNodeProperties> nodes = Collections.emptyList();
 
     private boolean persistBytes = false;
 
@@ -54,5 +56,36 @@ public final class BlockProperties {
         return StringUtils.isNotBlank(bucketName)
                 ? bucketName
                 : ImporterProperties.HederaNetwork.getBlockStreamBucketName(importerProperties.getNetwork());
+    }
+
+    @PostConstruct
+    void validateBlockNodeProperties() {
+        if (nodes.isEmpty()) {
+            return;
+        }
+
+        final var badNodeIndices = new ArrayList<Integer>();
+        for (int i = 0; i < nodes.size(); i++) {
+            final var blockNodeProperties = nodes.get(i);
+            boolean hasStatusApi = false;
+            boolean hasSubscribeStreamApi = false;
+            for (final var endpoint : blockNodeProperties.getEndpoints()) {
+                hasStatusApi |= endpoint.getApis().contains(BlockNodeProperties.Api.STATUS);
+                hasSubscribeStreamApi |= endpoint.getApis().contains(BlockNodeProperties.Api.SUBSCRIBE_STREAM);
+                if (hasStatusApi && hasSubscribeStreamApi) {
+                    break;
+                }
+            }
+
+            if (!hasStatusApi || !hasSubscribeStreamApi) {
+                badNodeIndices.add(i + 1);
+            }
+        }
+
+        if (!badNodeIndices.isEmpty()) {
+            throw new IllegalStateException(
+                    "Block nodes (%s) are missing required Status and / or Subscribe Stream APIs"
+                            .formatted(StringUtils.join(badNodeIndices, ",")));
+        }
     }
 }

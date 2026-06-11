@@ -3,22 +3,32 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyShort;
-import static org.mockito.Mockito.never;
+import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.fullServiceEndpoint;
+import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
+import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleServiceEndpoint;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.List;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.MirrorNodeEndpoint;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.downloader.block.BlockNodeProperties.Api;
 import org.hiero.mirror.importer.repository.RegisteredNodeRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -28,110 +38,155 @@ final class BlockNodeDiscoveryServiceTest {
     @Mock
     private RegisteredNodeRepository registeredNodeRepository;
 
+    private BlockProperties blockProperties;
+    private BlockNodeDiscoveryService service;
+
+    private static BlockNodeEndpoint blockNodeEndpoint(final List<BlockNodeApi> apis) {
+        return BlockNodeEndpoint.builder().endpointApis(apis).build();
+    }
+
     private static RegisteredNode registeredNode(List<RegisteredServiceEndpoint> endpoints) {
         return RegisteredNode.builder().serviceEndpoints(endpoints).build();
+    }
+
+    @BeforeEach
+    void setup() {
+        blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setAutoDiscoveryEnabled(true);
+        blockProperties.setNodes(List.of());
+        service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
     }
 
     @Test
     void discoverReturnsEmptyWhenNoNodes() {
         when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of());
-        final var blockProperties = new BlockProperties(new ImporterProperties());
-        blockProperties.setAutoDiscoveryEnabled(true);
-        blockProperties.setNodes(List.of());
-        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
         assertThat(service.getBlockNodes()).isEmpty();
     }
 
-    @Test
-    void discoverConvertsRegisteredNodeToBlockNodeProperties() {
-        final var endpoints = List.of(RegisteredServiceEndpoint.builder()
-                .blockNode(BlockNodeEndpoint.builder()
-                        .endpointApis(List.of(BlockNodeApi.STATUS, BlockNodeApi.PUBLISH, BlockNodeApi.SUBSCRIBE_STREAM))
-                        .build())
-                .domainName("blocknode.example.com")
-                .port(40840)
-                .build());
-
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            40840, false
+            40900, true
+            """)
+    void discoverConvertsRegisteredNodeToBlockNodeProperties(final int port, final boolean requiresTls) {
+        // given
+        final var endpoints = List.of(
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(blockNodeEndpoint(List.of(BlockNodeApi.STATUS)))
+                        .domainName("blocknode.example.com")
+                        .port(50000)
+                        .requiresTls(false)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(blockNodeEndpoint(List.of(BlockNodeApi.SUBSCRIBE_STREAM)))
+                        .domainName("blocknode.example.com")
+                        .port(50001)
+                        .requiresTls(false)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(blockNodeEndpoint(
+                                List.of(BlockNodeApi.STATUS, BlockNodeApi.PUBLISH, BlockNodeApi.SUBSCRIBE_STREAM)))
+                        .domainName("blocknode.example.com")
+                        .port(port)
+                        .requiresTls(requiresTls)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .domainName("mirrornode.example.com")
+                        .mirrorNode(MirrorNodeEndpoint.INSTANCE)
+                        .port(8080)
+                        .build());
         when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
 
-        final var blockProperties = new BlockProperties(new ImporterProperties());
-        blockProperties.setAutoDiscoveryEnabled(true);
-        blockProperties.setNodes(List.of());
-        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        // when
         final var result = service.getBlockNodes();
 
-        assertThat(result).hasSize(1);
-        final var props = result.getFirst();
-        assertThat(props.getPriority()).isZero();
-        assertThat(props.getHost()).isEqualTo("blocknode.example.com");
-        assertThat(props.getPort()).isEqualTo(40840);
-        assertThat(props.isRequiresTls()).isFalse();
+        // then
+        final var expectedEndpoint = fullServiceEndpoint("blocknode.example.com", port);
+        expectedEndpoint.setRequiresTls(requiresTls);
+        assertThat(result)
+                .hasSize(1)
+                .first()
+                .returns(0, BlockNodeProperties::getPriority)
+                .extracting(BlockNodeProperties::getEndpoints)
+                .asInstanceOf(InstanceOfAssertFactories.SET)
+                .containsExactly(expectedEndpoint);
     }
 
     @Test
-    void discoverSetsRequiresTlsFromEndpoint() {
-        final var endpoints = List.of(RegisteredServiceEndpoint.builder()
-                .blockNode(BlockNodeEndpoint.builder()
-                        .endpointApis(List.of(BlockNodeApi.STATUS, BlockNodeApi.PUBLISH, BlockNodeApi.SUBSCRIBE_STREAM))
-                        .build())
-                .domainName("blocknode.example.com")
-                .port(40840)
-                .requiresTls(true)
-                .build());
-
+    void discoverWhenRegisteredNodeHasMultipleBlockNodeEndpoint() {
+        // given
+        final var endpoints = List.of(
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(blockNodeEndpoint(List.of(BlockNodeApi.STATUS)))
+                        .domainName("blocknode.example.com")
+                        .port(5000)
+                        .requiresTls(false)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(blockNodeEndpoint(List.of(BlockNodeApi.SUBSCRIBE_STREAM)))
+                        .domainName("blocknode.example.com")
+                        .port(5001)
+                        .requiresTls(false)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(blockNodeEndpoint(List.of(BlockNodeApi.PUBLISH)))
+                        .domainName("blocknode.example.com")
+                        .port(5002)
+                        .requiresTls(false)
+                        .build());
         when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
 
-        final var blockProperties = new BlockProperties(new ImporterProperties());
-        blockProperties.setAutoDiscoveryEnabled(true);
-        blockProperties.setNodes(List.of());
-        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        // when
         final var result = service.getBlockNodes();
 
-        assertThat(result).hasSize(1);
-        assertThat(result.getFirst().isRequiresTls()).isTrue();
+        // then
+        final var expectedStatusEndpoint = singleServiceEndpoint(Api.STATUS, "blocknode.example.com", 5000);
+        final var expectedSubscribeStreamEndpoint =
+                singleServiceEndpoint(Api.SUBSCRIBE_STREAM, "blocknode.example.com", 5001);
+        ;
+        assertThat(result)
+                .hasSize(1)
+                .first()
+                .returns(0, BlockNodeProperties::getPriority)
+                .extracting(BlockNodeProperties::getEndpoints)
+                .asInstanceOf(InstanceOfAssertFactories.SET)
+                .containsExactly(expectedStatusEndpoint, expectedSubscribeStreamEndpoint);
     }
 
-    @Test
-    void discoverExcludesNodeMissingStatusApi() {
+    @ParameterizedTest
+    @EnumSource(
+            names = {"PUBLISH", "STATUS", "SUBSCRIBE_STREAM"},
+            value = BlockNodeApi.class)
+    void discoverExcludesNodeMissingRequiredApi(final BlockNodeApi missingApi) {
+        // given
+        final var apis =
+                new ArrayList<>(List.of(BlockNodeApi.PUBLISH, BlockNodeApi.STATUS, BlockNodeApi.SUBSCRIBE_STREAM));
+        apis.remove(missingApi);
         final var endpoints = List.of(RegisteredServiceEndpoint.builder()
-                .blockNode(BlockNodeEndpoint.builder()
-                        .endpointApis(List.of(BlockNodeApi.PUBLISH, BlockNodeApi.SUBSCRIBE_STREAM))
-                        .build())
+                .blockNode(blockNodeEndpoint(apis))
                 .domainName("blocknode.example.com")
                 .port(40840)
                 .build());
-
         when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
 
-        final var blockProperties = new BlockProperties(new ImporterProperties());
-        blockProperties.setAutoDiscoveryEnabled(true);
-        blockProperties.setNodes(List.of());
-        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
-
+        // when, then
         assertThat(service.getBlockNodes()).isEmpty();
     }
 
     @Test
     void discoverExcludesNodeMissingPublishApi() {
         final var endpoints = List.of(RegisteredServiceEndpoint.builder()
-                .blockNode(BlockNodeEndpoint.builder()
-                        .endpointApis(List.of(BlockNodeApi.STATUS, BlockNodeApi.SUBSCRIBE_STREAM))
-                        .build())
+                .blockNode(blockNodeEndpoint(List.of(BlockNodeApi.STATUS, BlockNodeApi.SUBSCRIBE_STREAM)))
                 .domainName("blocknode.example.com")
                 .port(40840)
                 .build());
 
         when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
-
-        final var blockProperties = new BlockProperties(new ImporterProperties());
-        blockProperties.setAutoDiscoveryEnabled(true);
-        blockProperties.setNodes(List.of());
-        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
 
         assertThat(service.getBlockNodes()).isEmpty();
     }
@@ -139,9 +194,7 @@ final class BlockNodeDiscoveryServiceTest {
     @Test
     void discoverExcludesNodeMissingSubscribeStreamApi() {
         final var endpoints = List.of(RegisteredServiceEndpoint.builder()
-                .blockNode(BlockNodeEndpoint.builder()
-                        .endpointApis(List.of(BlockNodeApi.STATUS, BlockNodeApi.PUBLISH))
-                        .build())
+                .blockNode(blockNodeEndpoint(List.of(BlockNodeApi.STATUS, BlockNodeApi.PUBLISH)))
                 .domainName("blocknode.example.com")
                 .port(40840)
                 .build());
@@ -149,90 +202,69 @@ final class BlockNodeDiscoveryServiceTest {
         when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
 
-        final var blockProperties = new BlockProperties(new ImporterProperties());
-        blockProperties.setAutoDiscoveryEnabled(true);
-        blockProperties.setNodes(List.of());
-        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
-
         assertThat(service.getBlockNodes()).isEmpty();
     }
 
     @Test
     void getBlockNodesReturnsSortedResult() {
-        final var nodeB = new BlockNodeProperties();
-        nodeB.setHost("b.example.com");
+        // given
+        final var nodeB = singleEndpointProperties("b.example.com");
         nodeB.setPriority(1);
-        nodeB.setPort(40840);
 
-        final var nodeA = new BlockNodeProperties();
-        nodeA.setHost("a.example.com");
+        final var nodeA = singleEndpointProperties("a.example.com");
         nodeA.setPriority(0);
-        nodeA.setPort(40840);
 
-        final var nodeC = new BlockNodeProperties();
-        nodeC.setHost("c.example.com");
+        final var nodeC = singleEndpointProperties("c.example.com");
         nodeC.setPriority(2);
-        nodeC.setPort(40840);
 
-        final var blockProperties = new BlockProperties(new ImporterProperties());
         blockProperties.setAutoDiscoveryEnabled(false);
         blockProperties.setNodes(List.of(nodeB, nodeA, nodeC));
 
-        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        // when
         final var result = service.getBlockNodes();
 
+        // then
         assertThat(result).containsExactly(nodeA, nodeB, nodeC);
     }
 
     @Test
-    void getBlockNodesSortsByHostWhenPrioritiesEqual() {
-        final var nodeB = new BlockNodeProperties();
-        nodeB.setHost("b.example.com");
-        nodeB.setPriority(0);
-        nodeB.setPort(40840);
-
-        final var nodeA = new BlockNodeProperties();
-        nodeA.setHost("a.example.com");
-        nodeA.setPriority(0);
-        nodeA.setPort(40840);
-
-        final var nodeC = new BlockNodeProperties();
-        nodeC.setHost("c.example.com");
-        nodeC.setPriority(0);
-        nodeC.setPort(40840);
-
-        final var blockProperties = new BlockProperties(new ImporterProperties());
+    void getBlockNodesSortsByEndpointsWhenPrioritiesEqual() {
+        // given
+        final var nodeB = singleEndpointProperties("b.example.com");
+        final var nodeA = singleEndpointProperties("a.example.com");
+        final var nodeC = singleEndpointProperties("c.example.com");
         blockProperties.setAutoDiscoveryEnabled(false);
         blockProperties.setNodes(List.of(nodeC, nodeA, nodeB));
 
-        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        // when
         final var result = service.getBlockNodes();
 
+        // then
         assertThat(result).containsExactly(nodeA, nodeB, nodeC);
+        verifyNoInteractions(registeredNodeRepository);
     }
 
     @Test
     void getBlockNodesPropertiesListReturnsConfigWhenAutoDiscoveryDisabled() {
-        final var blockProperties = new BlockProperties(new ImporterProperties());
+        // given
         blockProperties.setAutoDiscoveryEnabled(false);
         final var configNode = new BlockNodeProperties();
-        configNode.setHost("config.example.com");
-        configNode.setPort(40840);
         blockProperties.setNodes(List.of(configNode));
 
-        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        // when
         final var result = service.getBlockNodes();
 
+        // then
         assertThat(result).containsExactly(configNode);
-        verify(registeredNodeRepository, never()).findAllByDeletedFalseAndTypeContains(anyShort());
+        verifyNoInteractions(registeredNodeRepository);
     }
 
     @Test
     void getBlockNodesPropertiesListMergesConfigWithDiscoveredWhenAutoDiscoveryEnabled() {
+        // given
         final var endpoints = List.of(RegisteredServiceEndpoint.builder()
-                .blockNode(BlockNodeEndpoint.builder()
-                        .endpointApis(List.of(BlockNodeApi.STATUS, BlockNodeApi.PUBLISH, BlockNodeApi.SUBSCRIBE_STREAM))
-                        .build())
+                .blockNode(blockNodeEndpoint(
+                        List.of(BlockNodeApi.STATUS, BlockNodeApi.PUBLISH, BlockNodeApi.SUBSCRIBE_STREAM)))
                 .domainName("discovered.example.com")
                 .port(40840)
                 .build());
@@ -240,20 +272,19 @@ final class BlockNodeDiscoveryServiceTest {
         when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
 
-        final var blockProperties = new BlockProperties(new ImporterProperties());
-        blockProperties.setAutoDiscoveryEnabled(true);
-        final var configNode = new BlockNodeProperties();
-        configNode.setHost("config.example.com");
-        configNode.setPort(40840);
+        final var configNode = BlockNodeTestUtils.singleEndpointProperties("config.example.com");
         blockProperties.setNodes(List.of(configNode));
 
-        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        // when
         final var result = service.getBlockNodes();
 
-        assertThat(result).hasSize(2);
+        // then
+        final var configNodeEndpoint = configNode.getEndpoints().first();
+        final var discoveredEndpoint = fullServiceEndpoint("discovered.example.com", 40840);
         assertThat(result)
-                .extracting(BlockNodeProperties::getEndpoint)
-                .containsExactlyInAnyOrder("config.example.com:40840", "discovered.example.com:40840");
+                .flatExtracting(BlockNodeProperties::getEndpoints)
+                .asInstanceOf(InstanceOfAssertFactories.LIST)
+                .containsExactly(configNodeEndpoint, discoveredEndpoint);
         verify(registeredNodeRepository).findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId());
     }
 
@@ -261,9 +292,8 @@ final class BlockNodeDiscoveryServiceTest {
     void blockNodeConfigPropertiesAreReplacedWithDiscoveredOnesIfMergeKeyMatches() {
         // given
         final var endpoints = List.of(RegisteredServiceEndpoint.builder()
-                .blockNode(BlockNodeEndpoint.builder()
-                        .endpointApis(List.of(BlockNodeApi.STATUS, BlockNodeApi.PUBLISH, BlockNodeApi.SUBSCRIBE_STREAM))
-                        .build())
+                .blockNode(blockNodeEndpoint(
+                        List.of(BlockNodeApi.STATUS, BlockNodeApi.PUBLISH, BlockNodeApi.SUBSCRIBE_STREAM)))
                 .domainName("blocknode.example.com")
                 .port(40840)
                 .requiresTls(false)
@@ -272,69 +302,27 @@ final class BlockNodeDiscoveryServiceTest {
         when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of(registeredNode(endpoints)));
 
-        final var blockProperties = new BlockProperties(new ImporterProperties());
-        blockProperties.setAutoDiscoveryEnabled(true);
-        final var configNode = new BlockNodeProperties();
-        configNode.setHost("blocknode.example.com");
-        configNode.setPort(40840);
-        configNode.setRequiresTls(false);
+        final var configNode = singleEndpointProperties("blocknode.example.com");
+        configNode.setPriority(10);
         blockProperties.setNodes(List.of(configNode));
-
-        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
 
         // when
         final var result = service.getBlockNodes();
 
         // then
-        assertThat(result).hasSize(1);
-        assertThat(result.getFirst().getHost()).isEqualTo("blocknode.example.com");
-        assertThat(result.getFirst().getPort()).isEqualTo(40840);
-        assertThat(result.getFirst().isRequiresTls()).isFalse();
-    }
-
-    @Test
-    void blockNodeConfigPropertiesAreNotReplacedWithDiscoveredOnesIfMergeKeyDoesNotMatch() {
-        // given: discovered node has requiresTls=true, config node has requiresTls=false → different merge keys
-        final var endpoints = List.of(RegisteredServiceEndpoint.builder()
-                .blockNode(BlockNodeEndpoint.builder()
-                        .endpointApis(List.of(BlockNodeApi.STATUS, BlockNodeApi.PUBLISH, BlockNodeApi.SUBSCRIBE_STREAM))
-                        .build())
-                .domainName("blocknode.example.com")
-                .port(40840)
-                .requiresTls(true)
-                .build());
-
-        when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
-                .thenReturn(List.of(registeredNode(endpoints)));
-
-        final var blockProperties = new BlockProperties(new ImporterProperties());
-        blockProperties.setAutoDiscoveryEnabled(true);
-        final var configNode = new BlockNodeProperties();
-        configNode.setHost("blocknode.example.com");
-        configNode.setPort(40840);
-        configNode.setRequiresTls(false);
-        blockProperties.setNodes(List.of(configNode));
-
-        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
-
-        // when
-        final var result = service.getBlockNodes();
-
-        // then
-        assertThat(result).hasSize(2);
         assertThat(result)
-                .extracting(BlockNodeProperties::getMergeKey)
-                .containsExactlyInAnyOrder("blocknode.example.com:40840|false", "blocknode.example.com:40840|true");
+                .hasSize(1)
+                .first()
+                .returns(0, BlockNodeProperties::getPriority)
+                .extracting(BlockNodeProperties::getEndpoints)
+                .asInstanceOf(InstanceOfAssertFactories.SET)
+                .containsExactly(configNode.getEndpoints().first());
     }
 
     @Test
     void onRegisteredNodeChangedInvalidatesCache() {
         when(registeredNodeRepository.findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getId()))
                 .thenReturn(List.of());
-        final var blockProperties = new BlockProperties(new ImporterProperties());
-        blockProperties.setAutoDiscoveryEnabled(true);
-        blockProperties.setNodes(List.of());
-        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
 
         service.getBlockNodes();
         service.getBlockNodes();

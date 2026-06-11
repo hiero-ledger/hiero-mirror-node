@@ -3,8 +3,11 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.importer.downloader.block.BlockNode.ERROR_METRIC_NAME;
+import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
+import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleServiceEndpoint;
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
@@ -22,6 +25,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.TreeSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
@@ -42,6 +46,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mockito;
 import org.mockito.ThrowingConsumer;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -61,8 +67,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
     @BeforeEach
     void setup() {
-        blockNodeProperties = new BlockNodeProperties();
-        blockNodeProperties.setHost(SERVER);
+        blockNodeProperties = BlockNodeTestUtils.singleEndpointProperties(SERVER);
         streamProperties = new StreamProperties();
         node = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
@@ -373,20 +378,38 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
     @Test
     void stringify() {
-        var expected = String.format("BlockNode(%s)", blockNodeProperties.getEndpoint());
+        var expected = String.format(
+                "BlockNode(%s)", blockNodeProperties.getEndpoints().first());
         assertThat(node.toString()).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            STATUS, SUBSCRIBE_STREAM
+            SUBSCRIBE_STREAM, STATUS
+            """)
+    void throwsWhenMissingApi(final BlockNodeProperties.Api provided, final String missing) {
+        final var endpoint = singleServiceEndpoint(provided, "a", 40840);
+        final var properties = new BlockNodeProperties();
+        properties.setEndpoints(new TreeSet<>(List.of(endpoint)));
+        assertThatCode(() -> new BlockNode(
+                        InProcessManagedChannelBuilderProvider.INSTANCE,
+                        NOOP_GRPC_BUFFER_DISPOSER,
+                        meterRegistry,
+                        properties,
+                        streamProperties))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Block node doesn't provide %s API".formatted(missing));
     }
 
     @Test
     void createsSingleChannel() {
         // given
-        var provider = Mockito.spy(InProcessManagedChannelBuilderProvider.INSTANCE);
-        var properties = new BlockNodeProperties();
-        properties.setHost(SERVER);
-        properties.setPort(40840);
+        final var provider = Mockito.spy(InProcessManagedChannelBuilderProvider.INSTANCE);
 
         // when
-        var blockNode = new BlockNode(provider, NOOP_GRPC_BUFFER_DISPOSER, meterRegistry, properties, streamProperties);
+        var blockNode = new BlockNode(
+                provider, NOOP_GRPC_BUFFER_DISPOSER, meterRegistry, blockNodeProperties, streamProperties);
 
         // then
         Mockito.verify(provider, Mockito.times(1)).get(SERVER, 40840, false);
@@ -473,9 +496,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     private BlockNodeProperties blockNodeProperties(String host, int port, int priority) {
-        var properties = new BlockNodeProperties();
-        properties.setHost(host);
-        properties.setPort(port);
+        final var properties = singleEndpointProperties(host, port);
         properties.setPriority(priority);
         return properties;
     }

@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
+import org.hiero.mirror.importer.downloader.block.BlockNodeProperties.Api;
 import org.springframework.util.CollectionUtils;
 
 public final class BlockNodeSimulator implements AutoCloseable {
@@ -112,9 +114,12 @@ public final class BlockNodeSimulator implements AutoCloseable {
 
     public BlockNodeProperties toClientProperties() {
         validateState(started, "BlockNodeSimulator has not been started");
-        var properties = new BlockNodeProperties();
-        properties.setHost(host);
-        properties.setPort(port);
+        final var properties = new BlockNodeProperties();
+        final var endpoint = new BlockNodeProperties.ServiceEndpoint();
+        endpoint.setApis(new TreeSet<>(List.of(Api.STATUS, Api.SUBSCRIBE_STREAM)));
+        endpoint.setHost(host);
+        endpoint.setPort(port);
+        properties.setEndpoints(new TreeSet<>(List.of(endpoint)));
         properties.setPriority(priority);
         return properties;
     }

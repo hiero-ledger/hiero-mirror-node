@@ -13,6 +13,7 @@ import io.grpc.stub.StreamObserver;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
+import java.util.TreeSet;
 import lombok.SneakyThrows;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusRequest;
@@ -90,8 +91,13 @@ abstract class AbstractSchedulerTest {
                 InProcessServerBuilder.forName(name).addService(service).build().start();
         resources.register(server);
 
+        var endpoint = new BlockNodeProperties.ServiceEndpoint();
+        endpoint.setApis(
+                new TreeSet<>(List.of(BlockNodeProperties.Api.STATUS, BlockNodeProperties.Api.SUBSCRIBE_STREAM)));
+        endpoint.setHost(name);
+
         var properties = new BlockNodeProperties();
-        properties.setHost(name);
+        properties.setEndpoints(new TreeSet<>(List.of(endpoint)));
         properties.setPriority(priority);
         return properties;
     }

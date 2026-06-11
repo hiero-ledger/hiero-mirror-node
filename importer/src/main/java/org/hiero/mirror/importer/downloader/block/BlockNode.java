@@ -16,6 +16,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -45,10 +46,8 @@ import org.jspecify.annotations.Nullable;
 @NullMarked
 public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
-    public static final Comparator<BlockNode> LATENCY_COMPARATOR = Comparator.comparing(BlockNode::getLatency)
-            .thenComparing(b -> b.getProperties().getHost())
-            .thenComparing(b -> b.getProperties().getPort())
-            .thenComparing(b -> b.getProperties().isRequiresTls());
+    public static final Comparator<BlockNode> LATENCY_COMPARATOR =
+            Comparator.comparing(BlockNode::getLatency).thenComparing(b -> b.statusEndpoint);
 
     static final String ERROR_METRIC_NAME = "hiero.mirror.importer.stream.error";
 
@@ -56,8 +55,8 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private static final Range<Long> EMPTY_BLOCK_RANGE = Range.closedOpen(0L, 0L);
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
 
-    private final ManagedChannel channel;
     private final AtomicInteger errors = new AtomicInteger();
+    private final Counter errorsMetric;
     private final Consumer<BlockingClientCall<?, ?>> grpcBufferDisposer;
     private final String name;
 
@@ -68,9 +67,10 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private final BlockNodeProperties properties;
 
     private final AtomicReference<Instant> readmitTime = new AtomicReference<>(Instant.now());
+    private final ManagedChannel statusChannel;
+    private final BlockNodeProperties.ServiceEndpoint statusEndpoint;
     private final StreamProperties streamProperties;
-
-    private final Counter errorsMetric;
+    private final ManagedChannel subscribeStreamChannel;
 
     @Getter
     private boolean active = true;
@@ -81,34 +81,46 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final MeterRegistry meterRegistry,
             final BlockNodeProperties properties,
             final StreamProperties streamProperties) {
-        final int maxInboundMessageSize =
-                (int) streamProperties.getMaxStreamResponseSize().toBytes();
-        this.channel = channelBuilderProvider
-                .get(properties.getHost(), properties.getPort(), properties.isRequiresTls())
-                .maxInboundMessageSize(maxInboundMessageSize)
-                .build();
-
         this.grpcBufferDisposer = grpcBufferDisposer;
-        this.name = String.format("BlockNode(%s)", properties.getEndpoint());
         this.properties = properties;
         this.streamProperties = streamProperties;
-        this.errorsMetric = Counter.builder(ERROR_METRIC_NAME)
+
+        final int maxInboundMessageSize =
+                (int) streamProperties.getMaxStreamResponseSize().toBytes();
+        statusEndpoint = getEndpoint(BlockNodeProperties.Api.STATUS, properties.getEndpoints());
+        final var subscribeStreamEndpoint =
+                getEndpoint(BlockNodeProperties.Api.SUBSCRIBE_STREAM, properties.getEndpoints());
+        statusChannel = buildChannel(channelBuilderProvider, maxInboundMessageSize, statusEndpoint);
+
+        if (subscribeStreamEndpoint == statusEndpoint) {
+            subscribeStreamChannel = statusChannel;
+        } else {
+            subscribeStreamChannel =
+                    buildChannel(channelBuilderProvider, maxInboundMessageSize, subscribeStreamEndpoint);
+        }
+
+        name = String.format("BlockNode(%s)", statusEndpoint);
+        errorsMetric = Counter.builder(ERROR_METRIC_NAME)
                 .description("The number of errors that occurred while streaming from a particular block node.")
                 .tag("type", StreamType.BLOCK.toString())
-                .tag("block_node", properties.getEndpoint())
+                .tag("block_node", statusEndpoint.toString())
                 .register(meterRegistry);
     }
 
     @Override
     public void close() {
-        if (!channel.isShutdown()) {
-            channel.shutdown();
+        if (!statusChannel.isShutdown()) {
+            statusChannel.shutdown();
+        }
+
+        if (subscribeStreamChannel != statusChannel) {
+            subscribeStreamChannel.shutdown();
         }
     }
 
     public Range<Long> getBlockRange() {
         try {
-            final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(channel)
+            final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(statusChannel)
                     .withDeadlineAfter(streamProperties.getResponseTimeout());
             final var response = blockNodeService.serverStatus(SERVER_STATUS_REQUEST);
             final long firstBlockNumber = response.getFirstAvailableBlock();
@@ -136,7 +148,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                     .setStartBlockNumber(blockNumber)
                     .build();
             grpcCall = ClientCalls.blockingV2ServerStreamingCall(
-                    channel,
+                    subscribeStreamChannel,
                     BlockStreamSubscribeServiceGrpc.getSubscribeBlockStreamMethod(),
                     CallOptions.DEFAULT,
                     request);
@@ -201,6 +213,27 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         }
 
         return this;
+    }
+
+    private static ManagedChannel buildChannel(
+            final ManagedChannelBuilderProvider channelBuilderProvider,
+            final int maxInboundMessageSize,
+            final BlockNodeProperties.ServiceEndpoint serviceEndpoint) {
+        return channelBuilderProvider
+                .get(serviceEndpoint.getHost(), serviceEndpoint.getPort(), serviceEndpoint.isRequiresTls())
+                .maxInboundMessageSize(maxInboundMessageSize)
+                .build();
+    }
+
+    private static BlockNodeProperties.ServiceEndpoint getEndpoint(
+            final BlockNodeProperties.Api api, final Collection<BlockNodeProperties.ServiceEndpoint> endpoints) {
+        for (final var endpoint : endpoints) {
+            if (endpoint.getApis().contains(api)) {
+                return endpoint;
+            }
+        }
+
+        throw new IllegalStateException("Block node doesn't provide %s API".formatted(api));
     }
 
     /**
