@@ -90,6 +90,10 @@ public class RecordItem implements StreamItem {
 
     @NonFinal
     @Setter
+    private Integer evmTransactionIndex;
+
+    @NonFinal
+    @Setter
     private Predicate<EntityId> contractTransactionPredicate;
 
     @NonFinal

@@ -137,6 +137,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
     @Override
     protected void doParse(RecordFile recordFile) {
+        computeEvmTransactionIndices(recordFile.getItems());
         var dateRangeFilter = dateRangeCalculator.getFilter(parserProperties.getStreamType());
         var aggregator = new RecordItemAggregator();
         var count = new AtomicLong(0L);
@@ -218,6 +219,29 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
                 log.info("Updated {} blocks with offset {} in {}", count, offset, stopwatch);
             }
         }
+    }
+
+    private void computeEvmTransactionIndices(List<RecordItem> items) {
+        int evmCounter = 0;
+        for (var item : items) {
+            final var type = item.getTransactionType();
+            if (type != TransactionType.CONTRACTCALL.getProtoId()
+                    && type != TransactionType.CONTRACTCREATEINSTANCE.getProtoId()
+                    && type != TransactionType.ETHEREUMTRANSACTION.getProtoId()) {
+                continue;
+            }
+            var contractRelatedParent = item.getContractRelatedParent();
+            if (contractRelatedParent != null && contractRelatedParent.getEvmTransactionIndex() != null) {
+                item.setEvmTransactionIndex(contractRelatedParent.getEvmTransactionIndex());
+            } else if (isTopLevelEvmItem(item)) {
+                item.setEvmTransactionIndex(evmCounter++);
+            }
+        }
+    }
+
+    private boolean isTopLevelEvmItem(RecordItem item) {
+        var txId = item.getTransactionRecord().getTransactionID();
+        return txId.getNonce() == 0 || txId.getScheduled();
     }
 
     private class RecordItemAggregator implements Consumer<RecordItem> {
