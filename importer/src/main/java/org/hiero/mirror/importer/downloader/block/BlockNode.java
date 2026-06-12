@@ -34,6 +34,7 @@ import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.mirror.common.domain.StreamType;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.block.scheduler.Latency;
 import org.hiero.mirror.importer.exception.BlockStreamException;
@@ -87,9 +88,8 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
         final int maxInboundMessageSize =
                 (int) streamProperties.getMaxStreamResponseSize().toBytes();
-        statusEndpoint = getEndpoint(BlockNodeProperties.Api.STATUS, properties.getEndpoints());
-        final var subscribeStreamEndpoint =
-                getEndpoint(BlockNodeProperties.Api.SUBSCRIBE_STREAM, properties.getEndpoints());
+        statusEndpoint = getEndpoint(BlockNodeApi.STATUS, properties.getEndpoints());
+        final var subscribeStreamEndpoint = getEndpoint(BlockNodeApi.SUBSCRIBE_STREAM, properties.getEndpoints());
         statusChannel = buildChannel(channelBuilderProvider, maxInboundMessageSize, statusEndpoint);
 
         if (subscribeStreamEndpoint == statusEndpoint) {
@@ -226,7 +226,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     }
 
     private static BlockNodeProperties.ServiceEndpoint getEndpoint(
-            final BlockNodeProperties.Api api, final Collection<BlockNodeProperties.ServiceEndpoint> endpoints) {
+            final BlockNodeApi api, final Collection<BlockNodeProperties.ServiceEndpoint> endpoints) {
         for (final var endpoint : endpoints) {
             if (endpoint.getApis().contains(api)) {
                 return endpoint;

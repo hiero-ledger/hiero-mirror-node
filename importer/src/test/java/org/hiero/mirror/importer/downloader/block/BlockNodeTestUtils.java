@@ -4,7 +4,8 @@ package org.hiero.mirror.importer.downloader.block;
 
 import java.util.List;
 import java.util.TreeSet;
-import org.hiero.mirror.importer.downloader.block.BlockNodeProperties.Api;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
+import org.testcontainers.shaded.com.google.common.collect.ImmutableSortedSet;
 
 public final class BlockNodeTestUtils {
 
@@ -16,9 +17,9 @@ public final class BlockNodeTestUtils {
     }
 
     public static BlockNodeProperties.ServiceEndpoint singleServiceEndpoint(
-            final Api api, final String host, final int port) {
+            final BlockNodeApi api, final String host, final int port) {
         final var endpoint = new BlockNodeProperties.ServiceEndpoint();
-        endpoint.setApis(new TreeSet<>(List.of(api)));
+        endpoint.setApis(ImmutableSortedSet.of(api));
         endpoint.setHost(host);
         endpoint.setPort(port);
         return endpoint;

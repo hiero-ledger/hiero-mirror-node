@@ -8,10 +8,10 @@ import jakarta.validation.constraints.NotNull;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -38,7 +38,7 @@ public final class BlockProperties {
     private Path initialLedgerIdPublication;
 
     @NotNull
-    private List<@Valid BlockNodeProperties> nodes = Collections.emptyList();
+    private List<@Valid BlockNodeProperties> nodes = List.of();
 
     private boolean persistBytes = false;
 
@@ -69,8 +69,8 @@ public final class BlockProperties {
             boolean hasStatusApi = false;
             boolean hasSubscribeStreamApi = false;
             for (final var endpoint : blockNodeProperties.getEndpoints()) {
-                hasStatusApi |= endpoint.getApis().contains(BlockNodeProperties.Api.STATUS);
-                hasSubscribeStreamApi |= endpoint.getApis().contains(BlockNodeProperties.Api.SUBSCRIBE_STREAM);
+                hasStatusApi |= endpoint.getApis().contains(BlockNodeApi.STATUS);
+                hasSubscribeStreamApi |= endpoint.getApis().contains(BlockNodeApi.SUBSCRIBE_STREAM);
                 if (hasStatusApi && hasSubscribeStreamApi) {
                     break;
                 }

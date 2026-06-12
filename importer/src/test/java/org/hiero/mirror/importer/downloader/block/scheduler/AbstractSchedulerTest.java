@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
 import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
@@ -13,7 +14,6 @@ import io.grpc.stub.StreamObserver;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
-import java.util.TreeSet;
 import lombok.SneakyThrows;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusRequest;
@@ -91,13 +91,7 @@ abstract class AbstractSchedulerTest {
                 InProcessServerBuilder.forName(name).addService(service).build().start();
         resources.register(server);
 
-        var endpoint = new BlockNodeProperties.ServiceEndpoint();
-        endpoint.setApis(
-                new TreeSet<>(List.of(BlockNodeProperties.Api.STATUS, BlockNodeProperties.Api.SUBSCRIBE_STREAM)));
-        endpoint.setHost(name);
-
-        var properties = new BlockNodeProperties();
-        properties.setEndpoints(new TreeSet<>(List.of(endpoint)));
+        final var properties = singleEndpointProperties(name);
         properties.setPriority(priority);
         return properties;
     }

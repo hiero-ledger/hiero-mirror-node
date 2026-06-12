@@ -11,6 +11,7 @@ import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.sing
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
@@ -25,7 +26,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.TreeSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
@@ -39,6 +39,7 @@ import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
@@ -388,10 +389,10 @@ final class BlockNodeTest extends BlockNodeTestBase {
             STATUS, SUBSCRIBE_STREAM
             SUBSCRIBE_STREAM, STATUS
             """)
-    void throwsWhenMissingApi(final BlockNodeProperties.Api provided, final String missing) {
+    void throwsWhenMissingApi(final BlockNodeApi provided, final String missing) {
         final var endpoint = singleServiceEndpoint(provided, "a", 40840);
         final var properties = new BlockNodeProperties();
-        properties.setEndpoints(new TreeSet<>(List.of(endpoint)));
+        properties.setEndpoints(ImmutableSortedSet.of(endpoint));
         assertThatCode(() -> new BlockNode(
                         InProcessManagedChannelBuilderProvider.INSTANCE,
                         NOOP_GRPC_BUFFER_DISPOSER,

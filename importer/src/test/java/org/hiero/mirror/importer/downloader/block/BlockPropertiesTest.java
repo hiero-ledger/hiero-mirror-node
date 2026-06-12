@@ -8,9 +8,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
 
 import java.util.List;
-import java.util.TreeSet;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.junit.jupiter.api.Test;
+import org.testcontainers.shaded.com.google.common.collect.ImmutableSortedSet;
 
 final class BlockPropertiesTest {
 
@@ -41,9 +42,9 @@ final class BlockPropertiesTest {
     void validateBlockNodePropertiesThrowsMissingRequiredApi() {
         final var blockProperties = new BlockProperties(new ImporterProperties());
         final var node1 = singleEndpointProperties("a");
-        node1.getEndpoints().first().setApis(new TreeSet<>(List.of(BlockNodeProperties.Api.STATUS)));
+        node1.getEndpoints().first().setApis(ImmutableSortedSet.of(BlockNodeApi.STATUS));
         final var node2 = singleEndpointProperties("b");
-        node2.getEndpoints().first().setApis(new TreeSet<>(List.of(BlockNodeProperties.Api.SUBSCRIBE_STREAM)));
+        node2.getEndpoints().first().setApis(ImmutableSortedSet.of(BlockNodeApi.SUBSCRIBE_STREAM));
         blockProperties.setNodes(List.of(node1, node2));
         assertThatThrownBy(blockProperties::validateBlockNodeProperties)
                 .isInstanceOf(IllegalStateException.class)

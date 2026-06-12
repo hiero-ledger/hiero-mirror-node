@@ -2,23 +2,27 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import com.google.common.collect.ImmutableSortedSet;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.SortedSet;
-import java.util.TreeSet;
 import lombok.Data;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
 public final class BlockNodeProperties implements Comparable<BlockNodeProperties> {
+
+    public static final Set<BlockNodeApi> FULL_BLOCK_NODE_APIS =
+            EnumSet.of(BlockNodeApi.STATUS, BlockNodeApi.SUBSCRIBE_STREAM);
 
     private static final Comparator<BlockNodeProperties> COMPARATOR = Comparator.comparing(
                     BlockNodeProperties::getPriority)
@@ -47,11 +51,6 @@ public final class BlockNodeProperties implements Comparable<BlockNodeProperties
         };
     }
 
-    public enum Api {
-        STATUS,
-        SUBSCRIBE_STREAM
-    }
-
     @Data
     @Validated
     public static final class ServiceEndpoint implements Comparable<ServiceEndpoint> {
@@ -62,8 +61,7 @@ public final class BlockNodeProperties implements Comparable<BlockNodeProperties
                 .thenComparing(ServiceEndpoint::isRequiresTls);
 
         @NotEmpty
-        private SortedSet<@NotNull Api> apis =
-                Collections.unmodifiableSortedSet(new TreeSet<>(List.of(Api.STATUS, Api.SUBSCRIBE_STREAM)));
+        private SortedSet<@NotNull BlockNodeApi> apis = ImmutableSortedSet.copyOf(FULL_BLOCK_NODE_APIS);
 
         @NotBlank
         private String host;

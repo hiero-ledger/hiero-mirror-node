@@ -2,6 +2,9 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.hiero.mirror.importer.downloader.block.BlockNodeProperties.FULL_BLOCK_NODE_APIS;
+
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import jakarta.inject.Named;
 import java.util.ArrayList;
@@ -9,9 +12,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 import java.util.SortedSet;
-import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
-import org.hiero.mirror.importer.downloader.block.BlockNodeProperties.Api;
 import org.hiero.mirror.importer.parser.record.RegisteredNodeChangedEvent;
 import org.hiero.mirror.importer.repository.RegisteredNodeRepository;
 import org.identityconnectors.common.CollectionUtil;
@@ -40,8 +40,6 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public final class BlockNodeDiscoveryService {
 
     private static final List<BlockNodeProperties> CLEARED = Collections.emptyList();
-    private static final Set<BlockNodeApi> FULL_BLOCK_NODE_APIS =
-            EnumSet.of(BlockNodeApi.STATUS, BlockNodeApi.SUBSCRIBE_STREAM);
 
     private final BlockProperties blockProperties;
     private final AtomicReference<List<BlockNodeProperties>> cache = new AtomicReference<>(CLEARED);
@@ -122,16 +120,15 @@ public final class BlockNodeDiscoveryService {
             return null;
         }
 
-        final var apis = new TreeSet<Api>();
+        final var apis = new ArrayList<BlockNodeApi>();
         for (final var api : endpoint.getBlockNode().getEndpointApis()) {
-            switch (api) {
-                case BlockNodeApi.STATUS -> apis.add(Api.STATUS);
-                case BlockNodeApi.SUBSCRIBE_STREAM -> apis.add(Api.SUBSCRIBE_STREAM);
+            if (api == BlockNodeApi.STATUS || api == BlockNodeApi.SUBSCRIBE_STREAM) {
+                apis.add(api);
             }
         }
 
         final var serviceEndpoint = new BlockNodeProperties.ServiceEndpoint();
-        serviceEndpoint.setApis(apis);
+        serviceEndpoint.setApis(ImmutableSortedSet.copyOf(apis));
         serviceEndpoint.setHost(host);
         serviceEndpoint.setPort(endpoint.getPort());
         serviceEndpoint.setRequiresTls(endpoint.isRequiresTls());
@@ -184,10 +181,8 @@ public final class BlockNodeDiscoveryService {
 
     private static BlockNodeProperties toBlockNodeProperties(
             final BlockNodeProperties.ServiceEndpoint... serviceEndpoints) {
-        final var endpoints = new TreeSet<BlockNodeProperties.ServiceEndpoint>();
-        Collections.addAll(endpoints, serviceEndpoints);
         final var properties = new BlockNodeProperties();
-        properties.setEndpoints(endpoints);
+        properties.setEndpoints(ImmutableSortedSet.copyOf(serviceEndpoints));
         return properties;
     }
 }

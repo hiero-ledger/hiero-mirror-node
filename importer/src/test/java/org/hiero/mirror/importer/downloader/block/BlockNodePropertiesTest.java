@@ -7,7 +7,7 @@ import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.full
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleServiceEndpoint;
 
-import org.hiero.mirror.importer.downloader.block.BlockNodeProperties.Api;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.junit.jupiter.api.Test;
 
 final class BlockNodePropertiesTest {
@@ -27,8 +27,8 @@ final class BlockNodePropertiesTest {
 
     @Test
     void compareServiceEndpoint() {
-        final var serviceEndpointA = singleServiceEndpoint(Api.STATUS, "a", 40840);
-        final var serviceEndpointB = singleServiceEndpoint(Api.SUBSCRIBE_STREAM, "a", 40840);
+        final var serviceEndpointA = singleServiceEndpoint(BlockNodeApi.STATUS, "a", 40840);
+        final var serviceEndpointB = singleServiceEndpoint(BlockNodeApi.SUBSCRIBE_STREAM, "a", 40840);
         final var serviceEndpointC = fullServiceEndpoint("a", 40840);
         final var serviceEndpointD = fullServiceEndpoint("b", 40840);
         final var serviceEndpointE = fullServiceEndpoint("a", 40841);
@@ -36,6 +36,6 @@ final class BlockNodePropertiesTest {
         assertThat(serviceEndpointA.compareTo(serviceEndpointB)).isNegative();
         assertThat(serviceEndpointA.compareTo(serviceEndpointC)).isNegative();
         assertThat(serviceEndpointC.compareTo(serviceEndpointD)).isNegative();
-        assertThat(serviceEndpointC.compareTo(serviceEndpointD)).isNegative();
+        assertThat(serviceEndpointC.compareTo(serviceEndpointE)).isNegative();
     }
 }

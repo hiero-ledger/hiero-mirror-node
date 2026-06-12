@@ -21,7 +21,6 @@ import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeAp
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.MirrorNodeEndpoint;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.downloader.block.BlockNodeProperties.Api;
 import org.hiero.mirror.importer.repository.RegisteredNodeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -143,10 +142,9 @@ final class BlockNodeDiscoveryServiceTest {
         final var result = service.getBlockNodes();
 
         // then
-        final var expectedStatusEndpoint = singleServiceEndpoint(Api.STATUS, "blocknode.example.com", 5000);
+        final var expectedStatusEndpoint = singleServiceEndpoint(BlockNodeApi.STATUS, "blocknode.example.com", 5000);
         final var expectedSubscribeStreamEndpoint =
-                singleServiceEndpoint(Api.SUBSCRIBE_STREAM, "blocknode.example.com", 5001);
-        ;
+                singleServiceEndpoint(BlockNodeApi.SUBSCRIBE_STREAM, "blocknode.example.com", 5001);
         assertThat(result)
                 .hasSize(1)
                 .first()
