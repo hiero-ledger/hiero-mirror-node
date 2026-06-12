@@ -25,7 +25,8 @@
     "wrap-ansi": "9.0.2"
   },
   "overrides": {
-    "@tootallnate/once": "3.0.1"
+    "@tootallnate/once": "3.0.1",
+    "uuid": "11.1.1"
   },
   "type": "module"
 }

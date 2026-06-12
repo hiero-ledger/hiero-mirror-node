@@ -34,8 +34,7 @@ public class PublishProperties {
     private Duration nodeMaxBackoff = Duration.ofMinutes(1L);
 
     @NotNull
-    @Valid
-    private Map<String, PublishScenarioProperties> scenarios = new LinkedHashMap<>();
+    private Map<String, @Valid PublishScenarioProperties> scenarios = new LinkedHashMap<>();
 
     @DurationMin(seconds = 1L)
     @NotNull
