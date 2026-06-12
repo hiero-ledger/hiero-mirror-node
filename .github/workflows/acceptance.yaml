@@ -165,11 +165,15 @@ jobs:
         run: |
           set -ex
 
+          export PROFILES=$( [[ "${{ matrix.stream-type }}" == "BLOCK" ]] && echo "blocknode" || echo "" )
           cat <<EOF > mirror.yaml
           global:
             image:
               registry: gcr.io
           grpc:
+            env:
+              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_ENDPOINTS_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
+              SPRING_PROFILES_ACTIVE: '${PROFILES}'
             image:
               repository: mirrornode/hedera-mirror-grpc
             resources:
@@ -216,12 +220,6 @@ jobs:
 
           APPLICATION_PROPERTIES_FLAG=()
           if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
-            cat <<EOF >> mirror.yaml
-          importer:
-            env:
-              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_ENDPOINTS_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
-              SPRING_PROFILES_ACTIVE: 'blocknode'
-          EOF
             cat $(which solo | xargs dirname)/../lib/node_modules/@hashgraph/solo/resources/templates/application.properties \
               > application.properties
             cat <<EOF >> application.properties
