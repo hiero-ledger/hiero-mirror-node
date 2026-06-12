@@ -25,13 +25,7 @@ configurations.all {
 
 repositories { maven { url = uri("https://hyperledger.jfrog.io/artifactory/besu-maven/") } }
 
-dependencyManagement {
-    imports {
-        val grpcVersion: String by rootProject.extra
-        mavenBom("io.grpc:grpc-bom:${grpcVersion}")
-        mavenBom(SpringBootPlugin.BOM_COORDINATES)
-    }
-}
+dependencyManagement { imports { mavenBom(SpringBootPlugin.BOM_COORDINATES) } }
 
 val mockitoAgent = configurations.register("mockitoAgent")
 

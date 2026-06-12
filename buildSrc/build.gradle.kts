@@ -33,14 +33,21 @@ dependencies {
     implementation("org.jooq:jooq-postgres-extensions:${jooqVersion}")
     implementation("org.openapitools:openapi-generator-gradle-plugin:7.22.0")
     implementation("org.owasp:dependency-check-gradle:12.2.2")
-    implementation("org.springframework.boot:spring-boot-gradle-plugin:4.0.6")
+    implementation("org.springframework.boot:spring-boot-gradle-plugin:4.1.0")
     implementation("org.testcontainers:testcontainers-postgresql:2.0.5")
     implementation("org.web3j:web3j-gradle-plugin:5.0.2")
+}
+
+// These transitive dependencies are vulnerable and not used
+configurations.all {
+    exclude(group = "io.netty")
+    exclude(group = "io.vertx")
 }
 
 val gitHook =
     tasks.register<Exec>("gitHook") {
         commandLine("git", "config", "core.hookspath", "buildSrc/src/main/resources/hooks")
+        description = "Adds our git hook that runs Spotless apply"
     }
 
 tasks.processResources { dependsOn(gitHook) }
