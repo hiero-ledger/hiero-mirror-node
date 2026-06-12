@@ -172,13 +172,13 @@ jobs:
           grpc:
             image:
               repository: mirrornode/hedera-mirror-grpc
-            resource:
+            resources:
               limits:
                 memory: 300Mi
           importer:
             image:
               repository: mirrornode/hedera-mirror-importer
-            resource:
+            resources:
               limits:
                 memory: 300Mi
           monitor:
@@ -189,7 +189,7 @@ jobs:
           restjava:
             image:
               repository: mirrornode/hedera-mirror-rest-java
-            resource:
+            resources:
               limits:
                 memory: 300Mi
           test:
@@ -201,7 +201,7 @@ jobs:
           web3:
             image:
               repository: mirrornode/hedera-mirror-web3
-            resource:
+            resources:
               limits:
                 memory: 300Mi
           EOF
