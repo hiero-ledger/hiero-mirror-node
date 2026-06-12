@@ -3,17 +3,26 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
+import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleServiceEndpoint;
 
+import com.google.common.collect.ImmutableSortedSet;
+import jakarta.validation.Validation;
+import jakarta.validation.ValidatorFactory;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableSortedSet;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 final class BlockPropertiesTest {
+
+    @AutoClose
+    private static final ValidatorFactory VALIDATOR_FACTORY = Validation.buildDefaultValidatorFactory();
 
     @Test
     void getBucketName() {
@@ -26,28 +35,55 @@ final class BlockPropertiesTest {
     }
 
     @Test
-    void validateBlockNodePropertiesWhenEmpty() {
+    void hasValidEndpointsWhenNoNodes() {
         final var blockProperties = new BlockProperties(new ImporterProperties());
-        assertThatCode(blockProperties::validateBlockNodeProperties).doesNotThrowAnyException();
+        assertThat(violationPaths(blockProperties)).doesNotContain("validEndpoints");
     }
 
     @Test
-    void validateBlockNodePropertiesWhenNotEmpty() {
+    void hasValidEndpointsWhenBothApisInSingleEndpoint() {
         final var blockProperties = new BlockProperties(new ImporterProperties());
         blockProperties.setNodes(List.of(singleEndpointProperties("a")));
-        assertThatCode(blockProperties::validateBlockNodeProperties).doesNotThrowAnyException();
+        assertThat(violationPaths(blockProperties)).doesNotContain("validEndpoints");
     }
 
     @Test
-    void validateBlockNodePropertiesThrowsMissingRequiredApi() {
+    void hasValidEndpointsWhenApisSplitAcrossEndpoints() {
+        final var statusEndpoint = singleServiceEndpoint(BlockNodeApi.STATUS, "a", 40840);
+        final var subscribeEndpoint = singleServiceEndpoint(BlockNodeApi.SUBSCRIBE_STREAM, "a", 40841);
+        final var node = new BlockNodeProperties();
+        node.setEndpoints(ImmutableSortedSet.of(statusEndpoint, subscribeEndpoint));
         final var blockProperties = new BlockProperties(new ImporterProperties());
-        final var node1 = singleEndpointProperties("a");
-        node1.getEndpoints().first().setApis(ImmutableSortedSet.of(BlockNodeApi.STATUS));
-        final var node2 = singleEndpointProperties("b");
-        node2.getEndpoints().first().setApis(ImmutableSortedSet.of(BlockNodeApi.SUBSCRIBE_STREAM));
+        blockProperties.setNodes(List.of(node));
+        assertThat(violationPaths(blockProperties)).doesNotContain("validEndpoints");
+    }
+
+    @Test
+    void hasValidEndpointsWhenApisSplitAcrossNodes() {
+        final var node1 = new BlockNodeProperties();
+        node1.setEndpoints(ImmutableSortedSet.of(singleServiceEndpoint(BlockNodeApi.STATUS, "a", 40840)));
+        final var node2 = new BlockNodeProperties();
+        node2.setEndpoints(ImmutableSortedSet.of(singleServiceEndpoint(BlockNodeApi.SUBSCRIBE_STREAM, "b", 40840)));
+        final var blockProperties = new BlockProperties(new ImporterProperties());
         blockProperties.setNodes(List.of(node1, node2));
-        assertThatThrownBy(blockProperties::validateBlockNodeProperties)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("Block nodes (1,2) are missing required Status and / or Subscribe Stream APIs");
+        assertThat(violationPaths(blockProperties)).contains("validEndpoints");
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            names = {"STATUS", "SUBSCRIBE_STREAM"},
+            value = BlockNodeApi.class)
+    void hasValidEndpointsWhenOnlyOneApi(final BlockNodeApi provided) {
+        final var node = new BlockNodeProperties();
+        node.setEndpoints(ImmutableSortedSet.of(singleServiceEndpoint(provided, "a", 40840)));
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setNodes(List.of(node));
+        assertThat(violationPaths(blockProperties)).contains("validEndpoints");
+    }
+
+    private static Set<String> violationPaths(BlockProperties properties) {
+        return VALIDATOR_FACTORY.getValidator().validate(properties).stream()
+                .map(v -> v.getPropertyPath().toString())
+                .collect(Collectors.toSet());
     }
 }

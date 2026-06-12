@@ -2,16 +2,17 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
-import jakarta.annotation.PostConstruct;
+import static org.hiero.mirror.importer.downloader.block.BlockNodeProperties.FULL_BLOCK_NODE_APIS;
+
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
-import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -57,34 +58,11 @@ public final class BlockProperties {
                 : ImporterProperties.HederaNetwork.getBlockStreamBucketName(importerProperties.getNetwork());
     }
 
-    @PostConstruct
-    void validateBlockNodeProperties() {
-        if (nodes.isEmpty()) {
-            return;
-        }
-
-        final var badNodeIndices = new ArrayList<Integer>();
-        for (int i = 0; i < nodes.size(); i++) {
-            final var blockNodeProperties = nodes.get(i);
-            boolean hasStatusApi = false;
-            boolean hasSubscribeStreamApi = false;
-            for (final var endpoint : blockNodeProperties.getEndpoints()) {
-                hasStatusApi |= endpoint.getApis().contains(BlockNodeApi.STATUS);
-                hasSubscribeStreamApi |= endpoint.getApis().contains(BlockNodeApi.SUBSCRIBE_STREAM);
-                if (hasStatusApi && hasSubscribeStreamApi) {
-                    break;
-                }
-            }
-
-            if (!hasStatusApi || !hasSubscribeStreamApi) {
-                badNodeIndices.add(i + 1);
-            }
-        }
-
-        if (!badNodeIndices.isEmpty()) {
-            throw new IllegalStateException(
-                    "Block nodes (%s) are missing required Status and / or Subscribe Stream APIs"
-                            .formatted(StringUtils.join(badNodeIndices, ",")));
-        }
+    @AssertTrue(message = "Each node must contain both STATUS and SUBSCRIBE_STREAM capable endpoints")
+    private boolean hasValidEndpoints() {
+        return nodes.stream().allMatch(n -> n.getEndpoints().stream()
+                .flatMap(e -> e.getApis().stream())
+                .collect(Collectors.toSet())
+                .containsAll(FULL_BLOCK_NODE_APIS));
     }
 }
