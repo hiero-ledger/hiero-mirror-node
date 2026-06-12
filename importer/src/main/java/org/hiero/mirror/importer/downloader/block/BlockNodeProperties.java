@@ -10,8 +10,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.util.Comparator;
-import java.util.EnumSet;
-import java.util.Set;
 import java.util.SortedSet;
 import lombok.Data;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
@@ -21,8 +19,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public final class BlockNodeProperties implements Comparable<BlockNodeProperties> {
 
-    public static final Set<BlockNodeApi> FULL_BLOCK_NODE_APIS =
-            EnumSet.of(BlockNodeApi.STATUS, BlockNodeApi.SUBSCRIBE_STREAM);
+    public static final SortedSet<BlockNodeApi> FULL_BLOCK_NODE_APIS =
+            ImmutableSortedSet.of(BlockNodeApi.STATUS, BlockNodeApi.SUBSCRIBE_STREAM);
 
     private static final Comparator<BlockNodeProperties> COMPARATOR = Comparator.comparing(
                     BlockNodeProperties::getPriority)
@@ -61,7 +59,7 @@ public final class BlockNodeProperties implements Comparable<BlockNodeProperties
                 .thenComparing(ServiceEndpoint::isRequiresTls);
 
         @NotEmpty
-        private SortedSet<@NotNull BlockNodeApi> apis = ImmutableSortedSet.copyOf(FULL_BLOCK_NODE_APIS);
+        private SortedSet<@NotNull BlockNodeApi> apis = FULL_BLOCK_NODE_APIS;
 
         @NotBlank
         private String host;
