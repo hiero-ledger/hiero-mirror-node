@@ -174,13 +174,13 @@ jobs:
               repository: mirrornode/hedera-mirror-grpc
             resources:
               limits:
-                memory: 300Mi
+                memory: 500Mi
           importer:
             image:
               repository: mirrornode/hedera-mirror-importer
             resources:
               limits:
-                memory: 300Mi
+                memory: 500Mi
           monitor:
             env:
               HIERO_MIRROR_MONITOR_HEALTH_RELEASE_FAILWHENINACTIVE: "true"
@@ -191,7 +191,7 @@ jobs:
               repository: mirrornode/hedera-mirror-rest-java
             resources:
               limits:
-                memory: 300Mi
+                memory: 500Mi
           test:
             env:
               HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
@@ -203,7 +203,7 @@ jobs:
               repository: mirrornode/hedera-mirror-web3
             resources:
               limits:
-                memory: 300Mi
+                memory: 500Mi
           EOF
 
           solo init
