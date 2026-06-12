@@ -38,9 +38,16 @@ dependencies {
     implementation("org.web3j:web3j-gradle-plugin:5.0.2")
 }
 
+// These transitive dependencies are vulnerable and not used
+configurations.all {
+    exclude(group = "io.netty")
+    exclude(group = "io.vertx")
+}
+
 val gitHook =
     tasks.register<Exec>("gitHook") {
         commandLine("git", "config", "core.hookspath", "buildSrc/src/main/resources/hooks")
+        description = "Adds our git hook that runs Spotless apply"
     }
 
 tasks.processResources { dependsOn(gitHook) }
