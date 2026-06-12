@@ -78,7 +78,7 @@ jobs:
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
         with:
           cluster_name: ${{ env.SOLO_CLUSTER_NAME }}
-          kubectl_version: v1.34.9
+          kubectl_version: v1.36.2
           version: v0.32.0
 
       - name: Install JDK
@@ -172,9 +172,15 @@ jobs:
           grpc:
             image:
               repository: mirrornode/hedera-mirror-grpc
+            resource:
+              limits:
+                memory: 300Mi
           importer:
             image:
               repository: mirrornode/hedera-mirror-importer
+            resource:
+              limits:
+                memory: 300Mi
           monitor:
             env:
               HIERO_MIRROR_MONITOR_HEALTH_RELEASE_FAILWHENINACTIVE: "true"
@@ -183,6 +189,9 @@ jobs:
           restjava:
             image:
               repository: mirrornode/hedera-mirror-rest-java
+            resource:
+              limits:
+                memory: 300Mi
           test:
             env:
               HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
@@ -192,6 +201,9 @@ jobs:
           web3:
             image:
               repository: mirrornode/hedera-mirror-web3
+            resource:
+              limits:
+                memory: 300Mi
           EOF
 
           solo init
