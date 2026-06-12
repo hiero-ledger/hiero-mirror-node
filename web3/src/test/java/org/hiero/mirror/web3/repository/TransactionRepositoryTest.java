@@ -41,8 +41,8 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
         }
 
         // When
-        final var transactions = transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
-                senderEntityId, validStartNs);
+        final var transactions = transactionRepository.findByPayerAccountIdAndValidStartNs(
+                senderEntityId.getId(), validStartNs, validStartNs, parentConsensusTimestamp + 10);
 
         // Then
         var expectedConsensusTimestamp = parentConsensusTimestamp;

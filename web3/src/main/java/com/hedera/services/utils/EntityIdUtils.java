@@ -152,10 +152,27 @@ public final class EntityIdUtils {
                         .build();
     }
 
+    public static com.hedera.hapi.node.base.AccountID toAccountID(final Address address) {
+        var entity = fromEvmAddress(address.toArrayUnsafe());
+        return entity == null
+                ? null
+                : com.hedera.hapi.node.base.AccountID.newBuilder()
+                        .shardNum(entity.getShard())
+                        .realmNum(entity.getRealm())
+                        .accountNum(entity.getNum())
+                        .build();
+    }
+
     public static EntityId entityIdFromContractId(final com.hedera.hapi.node.base.ContractID id) {
-        if (id == null || id.contractNum() == null) {
+        if (id == null) {
             return null;
         }
-        return EntityId.of(id.shardNum(), id.realmNum(), id.contractNum());
+        if (id.hasContractNum()) {
+            return EntityId.of(id.shardNum(), id.realmNum(), id.contractNum());
+        }
+        if (id.hasEvmAddress()) {
+            return fromEvmAddress(id.evmAddress().toByteArray());
+        }
+        return null;
     }
 }

@@ -17,13 +17,13 @@ import org.hiero.mirror.web3.service.ContractStateService;
 import org.jspecify.annotations.NonNull;
 
 @Named
-final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
+public final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
 
     public static final int STATE_ID = STORAGE_STATE_ID;
 
     private final ContractStateService contractStateService;
 
-    protected ContractStorageReadableKVState(final ContractStateService contractStateService) {
+    ContractStorageReadableKVState(final ContractStateService contractStateService) {
         super(ContractService.NAME, STORAGE_STATE_ID);
         this.contractStateService = contractStateService;
     }

@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.CommonUtils.instant;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.controller.OpcodesController.MISSING_GZIP_HEADER_MESSAGE;
+import static org.hiero.mirror.web3.service.TraceService.MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
 import static org.hiero.mirror.web3.utils.Constants.OPCODES_URI;
 import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -47,6 +48,7 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tuweni.bytes.Bytes;
 import org.hamcrest.core.StringContains;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -305,9 +307,14 @@ class OpcodesControllerTest {
                 .build());
 
         when(contractTransactionHashRepository.findByHash(hash)).thenReturn(Optional.of(contractTransactionHash));
-        when(transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
-                        payerAccountId, validStartNs))
-                .thenReturn(List.of(transaction));
+        if (payerAccountId != null) {
+            when(transactionRepository.findByPayerAccountIdAndValidStartNs(
+                            payerAccountId.getId(),
+                            validStartNs,
+                            validStartNs,
+                            validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS))
+                    .thenReturn(List.of(transaction));
+        }
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(
                         contractTransactionHash.getConsensusTimestamp(),
                         EntityId.of(contractTransactionHash.getPayerAccountId())))
@@ -421,8 +428,12 @@ class OpcodesControllerTest {
                     }
                     case TransactionIdParameter parameter -> {
                         reset(transactionRepository);
-                        when(transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
-                                        parameter.payerAccountId(), convertToNanosMax(parameter.validStart())))
+                        when(transactionRepository.findByPayerAccountIdAndValidStartNs(
+                                        parameter.payerAccountId().getId(),
+                                        convertToNanosMax(parameter.validStart()),
+                                        convertToNanosMax(parameter.validStart()),
+                                        convertToNanosMax(parameter.validStart())
+                                                + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS))
                                 .thenReturn(Collections.emptyList());
                         yield new GenericErrorResponse(message, "Transaction not found: " + parameter);
                     }
@@ -614,7 +625,6 @@ class OpcodesControllerTest {
 
         private static OpcodesProcessingResult successfulOpcodesProcessingResult(
                 final ContractDebugParameters params, final OpcodeContext options) {
-            final Address recipient = params != null ? params.getReceiver() : Address.ZERO;
             final List<Opcode> opcodes = opcodes(options);
             final long gasUsed =
                     opcodes.stream().map(Opcode::getGas).reduce(Long::sum).orElse(0L);
@@ -741,19 +751,21 @@ class OpcodesControllerTest {
         OpcodeService opcodeService(
                 final RecordFileService recordFileService,
                 final ContractDebugService contractDebugService,
-                final ContractTransactionHashRepository contractTransactionHashRepository,
                 final EthereumTransactionRepository ethereumTransactionRepository,
-                final TransactionRepository transactionRepository,
                 final ContractResultRepository contractResultRepository,
-                final CommonEntityAccessor commonEntityAccessor) {
+                final CommonEntityAccessor commonEntityAccessor,
+                final ContractTransactionHashRepository contractTransactionHashRepository,
+                final TransactionRepository transactionRepository,
+                final CommonProperties commonProperties) {
             return new OpcodeServiceImpl(
-                    recordFileService,
                     contractDebugService,
-                    contractTransactionHashRepository,
+                    commonEntityAccessor,
+                    commonProperties,
+                    recordFileService,
                     ethereumTransactionRepository,
-                    transactionRepository,
                     contractResultRepository,
-                    commonEntityAccessor);
+                    contractTransactionHashRepository,
+                    transactionRepository);
         }
 
         @Bean

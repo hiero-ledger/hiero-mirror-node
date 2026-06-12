@@ -19,7 +19,6 @@ import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.service.ContractStateService;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -45,9 +44,6 @@ class ContractStorageReadableKVStateTest {
 
     @InjectMocks
     private ContractStorageReadableKVState contractStorageReadableKVState;
-
-    @Mock
-    private ContractStateRepository contractStateRepository;
 
     @Mock
     private ContractStateService contractStateService;
@@ -119,5 +115,18 @@ class ContractStorageReadableKVStateTest {
     @Test
     void testSize() {
         assertThat(contractStorageReadableKVState.size()).isZero();
+    }
+
+    @Test
+    void touchedStorageNotUpdatedWhenContextIsNull() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
+                .thenReturn(Optional.of(BYTES.toByteArray()));
+
+        final var result = contractStorageReadableKVState.get(SLOT_KEY);
+
+        assertThat(result).isNotNull();
+        assertThat(result).returns(BYTES, SlotValue::value);
+        assertThat(contractCallContext.getPrestateContext()).isNull();
     }
 }
