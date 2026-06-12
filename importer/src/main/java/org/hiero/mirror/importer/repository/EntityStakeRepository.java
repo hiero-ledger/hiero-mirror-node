@@ -101,15 +101,10 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
                 where ns.consensus_timestamp = ending_period.consensus_timestamp
               ) node_stake on es.staked_node_id_start = node_id
             ), forfeited_period as (
-              select distinct on(node_id) node_id, reward_rate
+              select distinct on(node_id) consensus_timestamp, node_id, reward_rate
               from node_stake
               where epoch_day = (select epoch_day from ending_period) - 365
               order by node_id, consensus_timestamp
-            ), stake_total_start_whole_bar_history as (
-              select distinct on (id) id, (stake_total_start / 100000000) as stake_total_start_whole_bar
-              from entity_stake_history
-              where end_stake_period = (select epoch_day from ending_period) - 366
-              order by id, lower(timestamp_range)
             ), proxy_staking as (
               select staked_account_id, sum(balance) as staked_to_me
               from entity_state_start
@@ -129,7 +124,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
                  when epoch_day - ess.stake_period_start > 365
                    then pending_reward + reward_rate * stake_total_start_whole_bar
                      - coalesce((select reward_rate from forfeited_period where node_id = staked_node_id_start), 0)
-                       * coalesce((select fsh.stake_total_start_whole_bar from stake_total_start_whole_bar_history fsh where fsh.id = ess.id), 0)
+                       * coalesce((select stake_total_start / 100000000 from entity_stake_history as esh where esh.id = ess.id and lower(esh.timestamp_range) < (select consensus_timestamp from forfeited_period where node_id = staked_node_id_start) order by lower(esh.timestamp_range) desc limit 1), 0)
                  else pending_reward + reward_rate * stake_total_start_whole_bar
                 end) as pending_reward,
               ess.staked_node_id as staked_node_id_start,
