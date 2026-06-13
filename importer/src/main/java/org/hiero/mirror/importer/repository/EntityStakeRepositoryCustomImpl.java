@@ -6,6 +6,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.Optional;
+import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -16,6 +17,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
+@CustomLog
 @Named
 @RequiredArgsConstructor
 class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
@@ -168,7 +170,10 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
             if (minId <= maxEntityId && !chunkDelay.isZero()) {
                 Uninterruptibles.sleepUninterruptibly(chunkDelay);
             }
+
+            log.info("Loaded entity_state_start for id up to {}", maxId);
         }
+
         jdbcTemplate.execute(CREATE_TABLE_INDEX_DDL);
     }
 

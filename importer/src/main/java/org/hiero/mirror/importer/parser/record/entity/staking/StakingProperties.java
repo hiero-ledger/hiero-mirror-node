@@ -15,10 +15,10 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties("hiero.mirror.importer.parser.record.entity.staking")
 public class StakingProperties {
 
-    @Min(1)
-    private int chunkSize = 1000000;
-
     @NotNull
     @DurationMin(millis = 100)
-    private Duration chunkDelay = Duration.ofMillis(500L);
+    private Duration chunkDelay = Duration.ofSeconds(10);
+
+    @Min(10000)
+    private int chunkSize = 500000;
 }
