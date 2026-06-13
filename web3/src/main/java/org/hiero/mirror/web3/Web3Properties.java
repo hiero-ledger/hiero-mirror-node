@@ -13,6 +13,9 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "hiero.mirror.web3")
 @Validated
 public class Web3Properties {
+
+    private boolean enableStateOverrides = false;
+
     @Positive
     private int maxPayloadLogSize = 300;
 

@@ -2,22 +2,25 @@
 
 package org.hiero.mirror.web3.state;
 
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
+
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.KeyList;
 import com.hedera.hapi.node.base.Timestamp;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import java.math.BigInteger;
 import java.time.Instant;
 import lombok.experimental.UtilityClass;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.jspecify.annotations.NonNull;
 
 @UtilityClass
 public class Utils {
 
     public static final long DEFAULT_AUTO_RENEW_PERIOD = 7776000L;
-    public static final int EVM_ADDRESS_LEN = 20;
     public static final Key EMPTY_KEY_LIST =
             Key.newBuilder().keyList(KeyList.DEFAULT).build();
     public static final Key DEFAULT_KEY = Key.newBuilder()
@@ -57,6 +60,20 @@ public class Utils {
     public static long getCurrentTimestamp() {
         final var now = Instant.now();
         return DomainUtils.convertToNanos(now.getEpochSecond(), now.getNano());
+    }
+
+    /** Parses a hex-encoded string (with or without {@code 0x} prefix) into tinybars, clamped to {@link Long#MAX_VALUE}. */
+    public static long hexStringToLong(@NonNull String hex) {
+        var hexWithoutPrefix = hex.startsWith(HEX_PREFIX) || hex.startsWith("0X") ? hex.substring(2) : hex;
+        if (hexWithoutPrefix.isEmpty()) {
+            return 0L;
+        }
+        try {
+            final var bigInt = new BigInteger(hexWithoutPrefix, 16);
+            return bigInt.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0 ? Long.MAX_VALUE : bigInt.longValue();
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
     }
 
     public static FileID toFileID(final EntityId entityId) {

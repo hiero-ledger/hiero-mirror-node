@@ -5,6 +5,8 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ACCOUNTS_STATE_ID;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.state.Utils.hexStringToLong;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
@@ -80,7 +82,8 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             return getDummySystemAccountIfApplicable(key).orElse(null);
         }
 
-        final var timestamp = ContractCallContext.get().getTimestamp();
+        final var context = ContractCallContext.get();
+        final var timestamp = context.getTimestamp();
         return commonEntityAccessor
                 .get(key, timestamp)
                 .filter(entity -> entity.getType() == ACCOUNT || entity.getType() == CONTRACT)
@@ -93,7 +96,35 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     return account;
                 })
                 .or(() -> getDummySystemAccountIfApplicable(key))
+                .map(account -> applyStateOverride(context, key, account))
                 .orElse(null);
+    }
+
+    /**
+     * Applies {@code balance} and {@code nonce} state overrides (if any) to the account fetched from the DB.
+     * When the account does not exist in the DB but an override is present, a synthetic account is created so
+     * that the EVM can execute against the overridden state.
+     */
+    private Account applyStateOverride(final ContractCallContext context, @NonNull AccountID key, Account account) {
+        final var overrides = context.getStateOverrides();
+        if (overrides == null || overrides.isEmpty()) {
+            return account;
+        }
+
+        final var evmAddr = toAddress(key.accountNum()).toHexString();
+        final var override = overrides.get(evmAddr);
+        if (override == null || (override.getBalance() == null && override.getNonce() == null)) {
+            return account;
+        }
+
+        final var builder = account.copyBuilder();
+        if (override.getBalance() != null) {
+            builder.tinybarBalance(hexStringToLong(override.getBalance()));
+        }
+        if (override.getNonce() != null) {
+            builder.ethereumNonce(hexStringToLong(override.getNonce()));
+        }
+        return builder.build();
     }
 
     /**
