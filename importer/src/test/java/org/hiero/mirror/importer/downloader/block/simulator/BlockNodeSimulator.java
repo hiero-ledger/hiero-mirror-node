@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block.simulator;
 
+import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
+
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.ForwardingServerBuilder;
 import io.grpc.Server;
@@ -112,9 +114,7 @@ public final class BlockNodeSimulator implements AutoCloseable {
 
     public BlockNodeProperties toClientProperties() {
         validateState(started, "BlockNodeSimulator has not been started");
-        var properties = new BlockNodeProperties();
-        properties.setHost(host);
-        properties.setPort(port);
+        final var properties = singleEndpointProperties(host, port);
         properties.setPriority(priority);
         return properties;
     }
