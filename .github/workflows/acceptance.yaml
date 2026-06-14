@@ -142,10 +142,10 @@ jobs:
 
       - name: Setup Gradle
         if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs.changes != '[]'
-        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v4
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v4
 
       - name: Login to Docker Hub
-        uses: step-security/docker-login-action@870af644803bf9f204aed474adbad2958fec048b # v4.1.0
+        uses: step-security/docker-login-action@164e21d7e52229904128e2f946001cb88278c33d # v4.2.0
         if: vars.DOCKERHUB_USERNAME != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
