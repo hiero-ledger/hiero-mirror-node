@@ -107,12 +107,13 @@ public class SDKClient implements Cleanable {
     public void clean() {
         if (topicId != null) {
             try {
+                final var stopwatch = Stopwatch.createStarted();
                 var response = new TopicDeleteTransaction()
                         .setTopicId(topicId)
                         .freezeWith(client)
                         .sign(defaultOperator.getPrivateKey())
                         .execute(client);
-                log.info("Deleted startup probe topic {} via {}", topicId, response.transactionId);
+                log.info("Deleted startup probe topic {} via {} in {}", topicId, response.transactionId, stopwatch);
             } catch (Exception e) {
                 log.warn("Unable to delete startup probe topic {}", topicId, e);
             }
@@ -197,6 +198,7 @@ public class SDKClient implements Cleanable {
         try {
             if (acceptanceTestProperties.isCreateOperatorAccount()) {
                 // Use the same operator key in case we need to later manually update/delete any created entities.
+                final var stopwatch = Stopwatch.createStarted();
                 final var privateKey = defaultOperator.getPrivateKey();
                 final var publicKey = privateKey.getPublicKey();
                 final var balance = convert(acceptanceTestProperties.getOperatorBalance());
@@ -216,10 +218,11 @@ public class SDKClient implements Cleanable {
 
                 final var accountId = queryReceipt.accountId;
                 log.info(
-                        "Created operator account {} with public key {} via {}",
+                        "Created operator account {} with public key {} via {} in {}",
                         accountId,
                         publicKey,
-                        response.transactionId);
+                        response.transactionId,
+                        stopwatch);
                 return new ExpandedAccountId(accountId, privateKey);
             }
         } catch (Exception e) {

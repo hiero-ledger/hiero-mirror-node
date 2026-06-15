@@ -637,6 +637,7 @@ public class MirrorNodeClient {
             final int percentage)
             throws ExecutionException, InterruptedException {
 
+        final var stopwatch = Stopwatch.createStarted();
         final long calculatedContractCallGas = calculateGasLimit(actualGas, percentage);
 
         var gasEstimateQuery = buildEstimateGasQueryWithParams(contractId, functionName, params);
@@ -646,13 +647,16 @@ public class MirrorNodeClient {
         }
         value.ifPresent(gasEstimateQuery::setValue);
 
-        return gasEstimateQuery.execute(queryClient);
+        final long gas = gasEstimateQuery.execute(queryClient);
+        log.info("Estimated gas for {} in {}: {}", contractId, stopwatch, gas);
+        return gas;
     }
 
     public long estimateGasQueryWithoutParams(
             final ContractId contractId, final String functionName, final AccountId sender, final int actualGas)
             throws ExecutionException, InterruptedException {
 
+        final var stopwatch = Stopwatch.createStarted();
         final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
 
         var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
@@ -664,13 +668,16 @@ public class MirrorNodeClient {
             gasEstimateQuery.setSender(sender);
         }
 
-        return gasEstimateQuery.execute(queryClient);
+        final long gas = gasEstimateQuery.execute(queryClient);
+        log.info("Estimated gas for {} in {}: {}", contractId, stopwatch, gas);
+        return gas;
     }
 
     public long estimateGasQueryRawData(
             final ContractId contractId, final ByteString params, final AccountId sender, final int actualGas)
             throws ExecutionException, InterruptedException {
 
+        final var stopwatch = Stopwatch.createStarted();
         final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
 
         var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
@@ -682,7 +689,9 @@ public class MirrorNodeClient {
             gasEstimateQuery.setSender(sender);
         }
 
-        return gasEstimateQuery.execute(queryClient);
+        final long gas = gasEstimateQuery.execute(queryClient);
+        log.info("Estimated gas for {} in {}: {}", contractId, stopwatch, gas);
+        return gas;
     }
 
     public long estimateGasQueryNestedCall(
