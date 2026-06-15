@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -10,11 +9,9 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.convert.BlockTypeDeserializer;
@@ -49,8 +46,9 @@ public class ContractCallRequest {
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH, allowEmpty = true)
     private String to;
 
-    @JsonIgnore
-    private Map<String, @Valid StateOverride> stateOverrides;
+    @JsonProperty("state_overrides")
+    @NotNull
+    private List<@Valid StateOverride> stateOverrides = List.of();
 
     @PositiveOrZero
     private long value;
@@ -64,20 +62,5 @@ public class ContractCallRequest {
     private boolean hasTo() {
         boolean isValidToField = value <= 0 || from == null || StringUtils.isNotEmpty(to);
         return BytecodeUtils.isValidInitBytecode(data) || isValidToField;
-    }
-
-    @JsonProperty("state_overrides")
-    public List<StateOverride> getStateOverridesList() {
-        return stateOverrides != null ? new ArrayList<>(stateOverrides.values()) : null;
-    }
-
-    @JsonProperty("state_overrides")
-    public void setStateOverrides(List<StateOverride> overrides) {
-        if (overrides != null) {
-            stateOverrides = new HashMap<>();
-            for (final var override : overrides) {
-                stateOverrides.put(override.getAddress(), override);
-            }
-        }
     }
 }

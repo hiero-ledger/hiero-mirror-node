@@ -6,6 +6,7 @@ import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
+import java.util.HashMap;
 import java.util.Objects;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
@@ -16,6 +17,7 @@ import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 
 @CustomLog
 @Named
@@ -61,9 +63,14 @@ public class ContractExecutionService extends ContractCallService {
             try {
                 updateGasLimitMetric(params);
 
-                if (params.getStateOverrides() != null
-                        && !params.getStateOverrides().isEmpty()) {
-                    ctx.setStateOverrides(params.getStateOverrides());
+                if (!params.getStateOverrides().isEmpty()) {
+                    final var addressToAccounts = new HashMap<Bytes, StateOverride>();
+                    for (final var stateOverride : params.getStateOverrides()) {
+                        addressToAccounts.put(
+                                Bytes.fromHexString(stateOverride.getAddress().toLowerCase()), stateOverride);
+                    }
+
+                    ctx.setStateOverrides(addressToAccounts);
                 }
 
                 Bytes result;

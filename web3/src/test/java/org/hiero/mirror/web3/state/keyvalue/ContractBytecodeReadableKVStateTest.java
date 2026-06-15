@@ -138,7 +138,8 @@ class ContractBytecodeReadableKVStateTest {
 
     @Test
     void whenStateOverrideHasCodeForMirrorEvmAddressReturnsOverrideBytecode() {
-        contractCallContext.setStateOverrides(Map.of(HEX, stateOverrideWithCode(OVERRIDE_CODE_HEX)));
+        contractCallContext.setStateOverrides(
+                Map.of(org.apache.tuweni.bytes.Bytes.fromHexString(HEX), stateOverrideWithCode(OVERRIDE_CODE_HEX)));
 
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_MIRROR_EVM_ADDRESS))
                 .isEqualTo(OVERRIDE_BYTECODE);
@@ -147,8 +148,9 @@ class ContractBytecodeReadableKVStateTest {
 
     @Test
     void whenStateOverrideHasCodeTakesPrecedenceOverDatabaseBytecode() {
-        contractCallContext.setStateOverrides(
-                Map.of(CONTRACT_ID_WITH_NUM_ADDRESS, stateOverrideWithCode(OVERRIDE_CODE_HEX)));
+        contractCallContext.setStateOverrides(Map.of(
+                org.apache.tuweni.bytes.Bytes.fromHexString(CONTRACT_ID_WITH_NUM_ADDRESS),
+                stateOverrideWithCode(OVERRIDE_CODE_HEX)));
         lenient()
                 .when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
@@ -159,7 +161,9 @@ class ContractBytecodeReadableKVStateTest {
 
     @Test
     void whenStateOverrideExistsButCodeIsNullFallsThroughToDatabase() {
-        contractCallContext.setStateOverrides(Map.of(CONTRACT_ID_WITH_NUM_ADDRESS, stateOverrideWithBalance("0x1")));
+        contractCallContext.setStateOverrides(Map.of(
+                org.apache.tuweni.bytes.Bytes.fromHexString(CONTRACT_ID_WITH_NUM_ADDRESS),
+                stateOverrideWithBalance("0x1")));
         when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
 
@@ -168,8 +172,9 @@ class ContractBytecodeReadableKVStateTest {
 
     @Test
     void whenStateOverridesExistButNoMatchingAddressFallsThroughToDatabase() {
-        contractCallContext.setStateOverrides(
-                Map.of("0x000000000000000000000000000000000000dead", stateOverrideWithCode(OVERRIDE_CODE_HEX)));
+        contractCallContext.setStateOverrides(Map.of(
+                org.apache.tuweni.bytes.Bytes.fromHexString("0x000000000000000000000000000000000000dead"),
+                stateOverrideWithCode(OVERRIDE_CODE_HEX)));
         when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
 

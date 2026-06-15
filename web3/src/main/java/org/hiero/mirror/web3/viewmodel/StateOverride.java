@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.Data;
 import org.hiero.mirror.web3.validation.Hex;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * Per-address state override for {@code /api/v1/contracts/call}. All fields are optional except {@code address}.
@@ -19,7 +20,10 @@ import org.hiero.mirror.web3.validation.Hex;
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
+@Validated
 public class StateOverride {
+
+    private static final int DECIMAL_MAX_LENGTH = 16;
 
     /** EVM address (40 hex characters, optional {@code 0x} prefix) of the account to override. */
     @NotNull
@@ -27,7 +31,7 @@ public class StateOverride {
     private String address;
 
     /** Hex-encoded balance override in tinybars (Hedera's smallest denomination). */
-    @Hex
+    @Hex(maxLength = DECIMAL_MAX_LENGTH)
     private String balance;
 
     /** Hex-encoded runtime bytecode override. */
@@ -35,7 +39,7 @@ public class StateOverride {
     private String code;
 
     /** Hex-encoded Ethereum nonce override. */
-    @Hex
+    @Hex(maxLength = DECIMAL_MAX_LENGTH)
     private String nonce;
 
     /**
@@ -43,8 +47,8 @@ public class StateOverride {
      * All existing storage for this address is discarded; only these slots exist.
      * Mutually exclusive with {@link #stateDiff}.
      */
-    @Valid
-    private List<@Valid StorageEntry> state;
+    @NotNull
+    private List<@Valid StorageEntry> state = List.of();
 
     /**
      * Storage patch: list of slot key-value pairs.
@@ -52,8 +56,8 @@ public class StateOverride {
      * Mutually exclusive with {@link #state}.
      */
     @JsonProperty("state_diff")
-    @Valid
-    private List<@Valid StorageEntry> stateDiff;
+    @NotNull
+    private List<@Valid StorageEntry> stateDiff = List.of();
 
     @AssertTrue(message = "state and state_diff are mutually exclusive")
     private boolean hasValidStorage() {

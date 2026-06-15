@@ -10,7 +10,6 @@ import com.hedera.hapi.node.base.KeyList;
 import com.hedera.hapi.node.base.Timestamp;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import java.math.BigInteger;
 import java.time.Instant;
 import lombok.experimental.UtilityClass;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -64,14 +63,21 @@ public class Utils {
 
     /** Parses a hex-encoded string (with or without {@code 0x} prefix) into tinybars, clamped to {@link Long#MAX_VALUE}. */
     public static long hexStringToLong(@NonNull String hex) {
-        var hexWithoutPrefix = hex.startsWith(HEX_PREFIX) || hex.startsWith("0X") ? hex.substring(2) : hex;
-        if (hexWithoutPrefix.isEmpty()) {
-            return 0L;
+        var start = hex.startsWith(HEX_PREFIX) ? 2 : 0;
+        while (start < hex.length() && hex.charAt(start) == '0') {
+            start++;
+        }
+
+        if (hex.length() - start > 16) {
+            throw new NumberFormatException();
         }
         try {
-            final var bigInt = new BigInteger(hexWithoutPrefix, 16);
-            return bigInt.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0 ? Long.MAX_VALUE : bigInt.longValue();
-        } catch (NumberFormatException e) {
+            final var value = Long.parseUnsignedLong(hex, start, hex.length(), 16);
+            if (value < 0) {
+                throw new NumberFormatException();
+            }
+            return value;
+        } catch (NumberFormatException _) {
             return 0L;
         }
     }

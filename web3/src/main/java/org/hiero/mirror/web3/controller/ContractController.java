@@ -46,7 +46,7 @@ class ContractController {
 
             final var params = constructServiceParameters(request);
 
-            if (params.getStateOverrides() != null && !web3Properties.isEnableStateOverrides()) {
+            if (!params.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
             }
 

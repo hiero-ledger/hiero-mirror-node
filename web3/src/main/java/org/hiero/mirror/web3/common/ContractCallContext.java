@@ -12,6 +12,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -62,7 +63,7 @@ public class ContractCallContext {
      * Per-address state overrides for the current call.
      */
     @Setter
-    private Map<String, StateOverride> stateOverrides;
+    private Map<Bytes, StateOverride> stateOverrides;
 
     private ContractCallContext() {}
 

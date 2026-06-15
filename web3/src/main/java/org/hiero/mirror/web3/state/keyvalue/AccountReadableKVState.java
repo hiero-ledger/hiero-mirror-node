@@ -5,7 +5,7 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ACCOUNTS_STATE_ID;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
-import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.state.Utils.hexStringToLong;
 
 import com.hedera.hapi.node.base.AccountID;
@@ -15,6 +15,7 @@ import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.util.Optional;
 import java.util.Set;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
@@ -27,6 +28,7 @@ import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.utils.AccountDetector;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -96,7 +98,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     return account;
                 })
                 .or(() -> getDummySystemAccountIfApplicable(key))
-                .map(account -> applyStateOverride(context, key, account))
+                .map(account -> applyStateOverride(context, account))
                 .orElse(null);
     }
 
@@ -105,24 +107,34 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
      * When the account does not exist in the DB but an override is present, a synthetic account is created so
      * that the EVM can execute against the overridden state.
      */
-    private Account applyStateOverride(final ContractCallContext context, @NonNull AccountID key, Account account) {
+    private Account applyStateOverride(final ContractCallContext context, Account account) {
         final var overrides = context.getStateOverrides();
         if (overrides == null || overrides.isEmpty()) {
             return account;
         }
 
-        final var evmAddr = toAddress(key.accountNum()).toHexString();
-        final var override = overrides.get(evmAddr);
-        if (override == null || (override.getBalance() == null && override.getNonce() == null)) {
+        Bytes accountAddress;
+        StateOverride stateOverride;
+        if (!com.hedera.pbj.runtime.io.buffer.Bytes.EMPTY.equals(account.alias())) {
+            accountAddress = Bytes.wrap(account.alias().toByteArray());
+            stateOverride = overrides.get(accountAddress);
+        } else if (account.accountId() != null) {
+            accountAddress = Bytes.wrap(toEvmAddress(account.accountId().accountNum()));
+            stateOverride = overrides.get(accountAddress);
+        } else {
+            stateOverride = null;
+        }
+
+        if (stateOverride == null || (stateOverride.getBalance() == null && stateOverride.getNonce() == null)) {
             return account;
         }
 
         final var builder = account.copyBuilder();
-        if (override.getBalance() != null) {
-            builder.tinybarBalance(hexStringToLong(override.getBalance()));
+        if (stateOverride.getBalance() != null) {
+            builder.tinybarBalance(hexStringToLong(stateOverride.getBalance()));
         }
-        if (override.getNonce() != null) {
-            builder.ethereumNonce(hexStringToLong(override.getNonce()));
+        if (stateOverride.getNonce() != null) {
+            builder.ethereumNonce(hexStringToLong(stateOverride.getNonce()));
         }
         return builder.build();
     }

@@ -137,8 +137,9 @@ class ContractStorageReadableKVStateTest {
 
     @Test
     void whenStateOverrideHasFullStateReturnsNullForUnlistedSlot() {
-        contractCallContext.setStateOverrides(
-                Map.of(CONTRACT_ID_WITH_NUM_ADDRESS, stateOverrideWithState(OTHER_SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
+        contractCallContext.setStateOverrides(Map.of(
+                org.apache.tuweni.bytes.Bytes.fromHexString(CONTRACT_ID_WITH_NUM_ADDRESS),
+                stateOverrideWithState(OTHER_SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
 
         assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isNull();
         verify(contractStateService, never()).findStorage(any(), any());
@@ -146,8 +147,9 @@ class ContractStorageReadableKVStateTest {
 
     @Test
     void whenStateOverrideHasFullStateTakesPrecedenceOverDatabase() {
-        contractCallContext.setStateOverrides(
-                Map.of(CONTRACT_ID_WITH_NUM_ADDRESS, stateOverrideWithState(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
+        contractCallContext.setStateOverrides(Map.of(
+                org.apache.tuweni.bytes.Bytes.fromHexString(CONTRACT_ID_WITH_NUM_ADDRESS),
+                stateOverrideWithState(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
         lenient()
                 .when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
@@ -158,8 +160,9 @@ class ContractStorageReadableKVStateTest {
 
     @Test
     void whenStateOverrideHasStateDiffReturnsOverrideValue() {
-        contractCallContext.setStateOverrides(
-                Map.of(CONTRACT_ID_WITH_NUM_ADDRESS, stateOverrideWithStateDiff(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
+        contractCallContext.setStateOverrides(Map.of(
+                org.apache.tuweni.bytes.Bytes.fromHexString(CONTRACT_ID_WITH_NUM_ADDRESS),
+                stateOverrideWithStateDiff(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
 
         assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isEqualTo(OVERRIDE_SLOT_VALUE);
         verify(contractStateService, never()).findStorage(any(), any());
@@ -168,7 +171,8 @@ class ContractStorageReadableKVStateTest {
     @Test
     void whenStateOverrideHasStateDiffFallsThroughToDatabaseForUnlistedSlot() {
         contractCallContext.setStateOverrides(Map.of(
-                CONTRACT_ID_WITH_NUM_ADDRESS, stateOverrideWithStateDiff(OTHER_SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
+                org.apache.tuweni.bytes.Bytes.fromHexString(CONTRACT_ID_WITH_NUM_ADDRESS),
+                stateOverrideWithStateDiff(OTHER_SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
@@ -178,7 +182,9 @@ class ContractStorageReadableKVStateTest {
 
     @Test
     void whenStateOverrideExistsButNoStorageFieldsFallsThroughToDatabase() {
-        contractCallContext.setStateOverrides(Map.of(CONTRACT_ID_WITH_NUM_ADDRESS, stateOverrideWithBalance("0x1")));
+        contractCallContext.setStateOverrides(Map.of(
+                org.apache.tuweni.bytes.Bytes.fromHexString(CONTRACT_ID_WITH_NUM_ADDRESS),
+                stateOverrideWithBalance("0x1")));
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
@@ -189,7 +195,7 @@ class ContractStorageReadableKVStateTest {
     @Test
     void whenStateOverridesExistButNoMatchingAddressFallsThroughToDatabase() {
         contractCallContext.setStateOverrides(Map.of(
-                "0x000000000000000000000000000000000000dead",
+                org.apache.tuweni.bytes.Bytes.fromHexString("0x000000000000000000000000000000000000dead"),
                 stateOverrideWithState(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))

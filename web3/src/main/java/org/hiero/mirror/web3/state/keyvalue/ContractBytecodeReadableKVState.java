@@ -5,8 +5,8 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.BYTECODE_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.entityIdFromContractId;
 import static org.hiero.mirror.common.util.DomainUtils.isLongZeroAddress;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
-import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.Bytecode;
@@ -20,6 +20,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractRepository;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.jspecify.annotations.NonNull;
 
 @Named
@@ -42,7 +43,7 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
     protected Bytecode readFromDataSource(@NonNull ContractID contractID) {
         final var entityId = toEntityId(contractID);
         // Check code override first so it takes precedence over DB bytecode.
-        final var stateOverride = applyStateOverride(entityId);
+        final var stateOverride = applyStateOverride(contractID);
         if (stateOverride != null) {
             return stateOverride;
         }
@@ -54,14 +55,23 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
                 .orElse(null);
     }
 
-    private Bytecode applyStateOverride(@NonNull EntityId entityId) {
+    private Bytecode applyStateOverride(@NonNull ContractID contractID) {
         final var ctx = ContractCallContext.get();
         final var stateOverrides = ctx.getStateOverrides();
         if (stateOverrides != null && !stateOverrides.isEmpty()) {
-            final var evmAddr = toAddress(entityId).toHexString();
-            final var override = stateOverrides.get(evmAddr);
-            if (override != null && override.getCode() != null) {
-                return new Bytecode(Bytes.wrap(hexToBytes(override.getCode())));
+            org.apache.tuweni.bytes.Bytes contractAddress;
+            StateOverride stateOverride;
+            if (contractID.evmAddress() != null && !Bytes.EMPTY.equals(contractID.evmAddress())) {
+                contractAddress = org.apache.tuweni.bytes.Bytes.wrap(
+                        contractID.evmAddress().toByteArray());
+                stateOverride = stateOverrides.get(contractAddress);
+            } else {
+                contractAddress = org.apache.tuweni.bytes.Bytes.wrap(toEvmAddress(contractID.contractNum()));
+                stateOverride = stateOverrides.get(contractAddress);
+            }
+
+            if (stateOverride != null && stateOverride.getCode() != null) {
+                return new Bytecode(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(hexToBytes(stateOverride.getCode())));
             }
         }
         return null;

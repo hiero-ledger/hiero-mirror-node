@@ -42,7 +42,6 @@ import java.math.BigInteger;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -1082,7 +1081,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 .isStatic(false)
                 .receiver(receiverAddress)
                 .sender(senderAddress)
-                .value(value);
+                .value(value)
+                .stateOverrides(List.of());
     }
 
     @SuppressWarnings("unchecked")
@@ -1239,7 +1239,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             Address.fromHexString(contract.getContractAddress()),
                             ETH_CALL,
                             0L)
-                    .stateOverrides(Map.of(stateOverride.getAddress(), stateOverride))
+                    .stateOverrides(List.of(stateOverride))
                     .build();
 
             // When
@@ -1273,7 +1273,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             Address.fromHexString(contract.getContractAddress()),
                             ETH_CALL,
                             0L)
-                    .stateOverrides(Map.of(stateOverride.getAddress(), stateOverride))
+                    .stateOverrides(List.of(stateOverride))
                     .build();
 
             // When
@@ -1304,7 +1304,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             Address.fromHexString(contract.getContractAddress()),
                             ETH_CALL,
                             0L)
-                    .stateOverrides(Map.of(stateOverride.getAddress(), stateOverride))
+                    .stateOverrides(List.of(stateOverride))
                     .build();
 
             // When
@@ -1333,7 +1333,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             Address.fromHexString(contract.getContractAddress()),
                             ETH_CALL,
                             0L)
-                    .stateOverrides(Map.of(stateOverride.getAddress(), stateOverride))
+                    .stateOverrides(List.of(stateOverride))
                     .build();
 
             // Then: The random bytecode gets executed, which results in CONTRACT_EXECUTION_EXCEPTION
@@ -1363,7 +1363,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             Address.fromHexString(contract.getContractAddress()),
                             ETH_CALL,
                             0L)
-                    .stateOverrides(Map.of(stateOverride.getAddress(), stateOverride))
+                    .stateOverrides(List.of(stateOverride))
                     .build();
 
             // When
@@ -1409,7 +1409,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             Address.fromHexString(contract.getContractAddress()),
                             ETH_CALL,
                             0L)
-                    .stateOverrides(Map.of(stateOverride.getAddress(), stateOverride))
+                    .stateOverrides(List.of(stateOverride))
                     .build();
 
             // When

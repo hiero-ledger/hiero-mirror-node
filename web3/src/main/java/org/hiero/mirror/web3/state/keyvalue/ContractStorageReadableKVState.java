@@ -3,11 +3,9 @@
 package org.hiero.mirror.web3.state.keyvalue;
 
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.STORAGE_STATE_ID;
-import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
-import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
-import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.SlotKey;
@@ -16,6 +14,7 @@ import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -46,11 +45,11 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
         final var override = findStateOverride(context, slotKey.contractID());
         if (override != null) {
             // Replace all slots from state overrides and don't go to DB, if set.
-            if (override.getState() != null) {
+            if (!override.getState().isEmpty()) {
                 return slotValueFromStateOverrides(override.getState(), slotKey);
             }
             // Replace only the existing slots from state_diff overrides, if set.
-            if (override.getStateDiff() != null) {
+            if (!override.getStateDiff().isEmpty()) {
                 final var patched = slotValueFromStateOverrides(override.getStateDiff(), slotKey);
                 // Return the patched value only if found.
                 if (patched != null) {
@@ -72,8 +71,19 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
         if (stateOverrides == null || stateOverrides.isEmpty()) {
             return null;
         }
-        final var evmAddr = toAddress(contractID.contractNum()).toHexString();
-        return stateOverrides.get(evmAddr);
+
+        org.apache.tuweni.bytes.Bytes contractAddress;
+        StateOverride stateOverride;
+        if (contractID.evmAddress() != null
+                && !com.hedera.pbj.runtime.io.buffer.Bytes.EMPTY.equals(contractID.evmAddress())) {
+            contractAddress =
+                    org.apache.tuweni.bytes.Bytes.wrap(contractID.evmAddress().toByteArray());
+            stateOverride = stateOverrides.get(contractAddress);
+        } else {
+            contractAddress = org.apache.tuweni.bytes.Bytes.wrap(toEvmAddress(contractID.contractNum()));
+            stateOverride = stateOverrides.get(contractAddress);
+        }
+        return stateOverride;
     }
 
     private SlotValue readStorageFromDatabase(@NonNull ContractCallContext context, @NonNull SlotKey slotKey) {
@@ -91,17 +101,15 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
     }
 
     private SlotValue slotValueFromStateOverrides(@NonNull List<StorageEntry> storage, @NonNull SlotKey slotKey) {
-        final var slotHex = storageSlotHex(slotKey);
+        final var slotKeyBytes = slotKey.key().toByteArray();
         for (var entry : storage) {
-            if (slotHex.equals(entry.getKey())) {
+            final var normalizedKey =
+                    org.apache.tuweni.bytes.Bytes.fromHexString(entry.getKey().toLowerCase());
+            if (Arrays.equals(slotKeyBytes, normalizedKey.toArray())) {
                 return hexToSlotValue(entry.getValue());
             }
         }
         return null;
-    }
-
-    private String storageSlotHex(@NonNull SlotKey slotKey) {
-        return HEX_PREFIX + bytesToHex(leftPadBytes(slotKey.key().toByteArray(), Bytes32.SIZE));
     }
 
     /** Converts a validated 32-byte hex value string to a {@link SlotValue}. */
