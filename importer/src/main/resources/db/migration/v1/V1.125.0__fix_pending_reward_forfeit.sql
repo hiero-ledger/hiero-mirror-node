@@ -1,12 +1,13 @@
 -- Repair pending_reward over-deducted by the forfeit bug for accounts staking continuously for over 365 days.
-create temporary table entity_stake_reward_correction on commit drop as
+-- Only entity_stake is updated; entity_stake_history is read for lag/replay and historical stake lookup but not modified.
+create temporary table if not exists entity_stake_reward_correction on commit drop as
 with stake_row as (
-  select 'history'::text as source, id, end_stake_period, staked_node_id_start, stake_total_start,
-         lower(timestamp_range) as period_ts
+  select id, end_stake_period, staked_node_id_start, stake_total_start, lower(timestamp_range) as period_ts,
+         false as is_current
   from entity_stake_history
   union all
-  select 'current'::text as source, id, end_stake_period, staked_node_id_start, stake_total_start,
-         lower(timestamp_range) as period_ts
+  select id, end_stake_period, staked_node_id_start, stake_total_start, lower(timestamp_range) as period_ts,
+         true as is_current
   from entity_stake
 ), ordered as (
   select s.*,
@@ -55,22 +56,17 @@ with stake_row as (
     end as over_deduction
   from with_metadata m
 ), corrected as (
-  select source, id, period_ts,
+  select id, period_ts, is_current,
     sum(over_deduction) over (
       partition by id order by end_stake_period
       rows between unbounded preceding and current row) as correction
   from over_deduction
 )
-select source, id, period_ts, correction
+select id, period_ts, correction
 from corrected
-where correction <> 0;
-
-update entity_stake_history esh
-set pending_reward = esh.pending_reward + c.correction
-from entity_stake_reward_correction c
-where c.source = 'history' and c.id = esh.id and lower(esh.timestamp_range) = c.period_ts;
+where is_current and correction <> 0;
 
 update entity_stake es
 set pending_reward = es.pending_reward + c.correction
 from entity_stake_reward_correction c
-where c.source = 'current' and c.id = es.id and lower(es.timestamp_range) = c.period_ts;
+where c.id = es.id and lower(es.timestamp_range) = c.period_ts;
