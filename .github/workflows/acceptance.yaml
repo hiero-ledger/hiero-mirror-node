@@ -43,7 +43,7 @@ jobs:
     timeout-minutes: 50
     env:
       BLOCK_NODE_VERSION: v0.34.0
-      CONSENSUS_NODE_VERSION: v0.75.0-rc.3
+      CONSENSUS_NODE_VERSION: v0.75.0-rc.5
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
@@ -142,11 +142,11 @@ jobs:
 
       - name: Setup Gradle
         if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs.changes != '[]'
-        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v4
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v4
 
       - name: Login to Docker Hub
-        uses: step-security/docker-login-action@870af644803bf9f204aed474adbad2958fec048b # v4.1.0
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: step-security/docker-login-action@164e21d7e52229904128e2f946001cb88278c33d # v4.2.0
+        if: vars.DOCKERHUB_USERNAME != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -191,7 +191,7 @@ jobs:
             cat <<EOF >> mirror.yaml
           importer:
             env:
-              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
+              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_ENDPOINTS_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
               SPRING_PROFILES_ACTIVE: 'blocknode'
           EOF
             cat $(which solo | xargs dirname)/../lib/node_modules/@hashgraph/solo/resources/templates/application.properties \

@@ -24,12 +24,12 @@ dependencies {
     implementation(project(":common"))
     implementation("com.bucket4j:bucket4j-core")
     implementation("com.hedera.hashgraph:app") {
+        exclude(group = "com.hedera.hashgraph", module = "consensus-pces-noop-impl")
         exclude(group = "io.netty")
         exclude(group = "io.opentelemetry")
         exclude(group = "io.prometheus")
         exclude(group = "org.assertj")
         exclude("org.junit")
-        exclude(group = "com.hedera.hashgraph", module = "consensus-pces-noop-impl")
     }
     implementation("com.hedera.hashgraph:app-service-entity-id-impl") {
         exclude(group = "io.netty")
@@ -51,7 +51,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-postgresql")
-    testImplementation("org.web3j:core")
+    testImplementation("org.web3j:core") { exclude(group = "io.netty") }
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

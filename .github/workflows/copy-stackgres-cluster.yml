@@ -265,7 +265,7 @@ jobs:
 
       - name: Setup Testkube CLI
         if: ${{ inputs.run_k6_test == true }}
-        uses: kubeshop/setup-testkube@3deb6ba0cd26e0d890e278d59f996bd30d58b567 # v1.0.12
+        uses: kubeshop/setup-testkube@da4b4be0ae108ecdb0d1a7a546438b97c244acd0 # v1.0.13
         with:
           version: v2.3.0
 

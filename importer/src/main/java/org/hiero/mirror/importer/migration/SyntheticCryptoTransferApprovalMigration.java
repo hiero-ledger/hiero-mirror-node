@@ -205,10 +205,10 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
                     var updateParams = new MapSqlParameterSource()
                             .addValue("consensus_timestamp", transfer.consensusTimestamp)
                             .addValue("payer_account_id", transfer.payerAccountId);
-                    if (transfer.transferType == TRANSFER_TYPE.CRYPTO_TRANSFER) {
+                    if (transfer.transferType == TransferType.CRYPTO_TRANSFER) {
                         updateSql = UPDATE_CRYPTO_TRANSFER_SQL;
                         updateParams.addValue("sender", transfer.sender);
-                    } else if (transfer.transferType == TRANSFER_TYPE.NFT_TRANSFER) {
+                    } else if (transfer.transferType == TransferType.NFT_TRANSFER) {
                         updateSql = UPDATE_NFT_TRANSFER_SQL;
                         updateParams.addValue("index", transfer.index);
                     } else {
@@ -293,6 +293,12 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
         this.executed.set(executed);
     }
 
+    private enum TransferType {
+        CRYPTO_TRANSFER,
+        NFT_TRANSFER,
+        TOKEN_TRANSFER
+    }
+
     @Data
     static class ApprovalTransfer {
         private long consensusTimestamp;
@@ -302,12 +308,6 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
         private long payerAccountId;
         private long sender;
         private Long tokenId;
-        private TRANSFER_TYPE transferType;
-    }
-
-    private enum TRANSFER_TYPE {
-        CRYPTO_TRANSFER,
-        NFT_TRANSFER,
-        TOKEN_TRANSFER
+        private TransferType transferType;
     }
 }
