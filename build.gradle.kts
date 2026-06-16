@@ -17,17 +17,11 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.34.0")
-    set("consensusNodeVersion", "0.75.0-rc.3")
-    set("grpcVersion", "1.81.0")
-    set("jooq.version", "3.21.4") // Must match buildSrc/build.gradle.kts
+    set("blockNodeVersion", "0.35.1")
+    set("consensusNodeVersion", "0.75.0-rc.5")
+    set("jooq.version", "3.21.5") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
-    set("netty.version", "4.2.13.Final") // Temporary until next Spring Boot
-    set("nodeJsVersion", "24.15.0")
-    set("postgresql.version", "42.7.11") // Temporary until next Spring Boot
-    set("protobufVersion", "4.35.0")
-    set("springGrpcVersion", "1.0.3")
-    set("tomcat.version", "11.0.22") // Temporary until next Spring Boot
+    set("nodeJsVersion", "24.16.0")
     set("tuweniVersion", "2.3.1")
 }
 
@@ -38,38 +32,33 @@ dependencies {
         val besuVersion: String by rootProject.extra
         val blockNodeVersion: String by rootProject.extra
         val consensusNodeVersion: String by rootProject.extra
-        val grpcVersion: String by rootProject.extra
         val mapStructVersion: String by rootProject.extra
-        val protobufVersion: String by rootProject.extra
-        val springGrpcVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
 
         api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-9")
+        api("com.github.luben:zstd-jni:1.5.7-11")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
         api("com.google.guava:guava:33.6.0-jre")
-        api("com.google.protobuf:protobuf-java:$protobufVersion")
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.8.1")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.9.0")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.72.0")
+        api("com.hedera.hashgraph:sdk:2.73.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
         api("io.cucumber:cucumber-bom:7.34.3")
         api("io.fabric8:kubernetes-client-bom:7.7.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
-        api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.2")
+        api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.3")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
-        api("net.java.dev.jna:jna:5.18.1")
+        api("net.java.dev.jna:jna:5.19.0")
         api("org.apache.commons:commons-collections4:4.5.0")
         api("org.apache.commons:commons-compress:1.28.0")
         api("org.apache.commons:commons-math3:3.6.1")
@@ -86,10 +75,8 @@ dependencies {
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
-        api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
-        api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.3")
-        api("software.amazon.awssdk:bom:2.45.1")
+        api("software.amazon.awssdk:bom:2.46.10")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

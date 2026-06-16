@@ -23,7 +23,7 @@ fi
 
 annotation="com.googleapis.cloudmarketplace.product.service.name=services/hedera-mirror-node-mirror-node-public.cloudpartnerservices.goog"
 bats_tag="1.13.0"
-postgresql_tag="18.3.0-debian-12-r14"
+postgresql_tag="18.4.0-debian-12-r10"
 registry="gcr.io/mirror-node-public/hedera-mirror-node"
 target_tag="${target_tag#v}" # Strip v prefix if present
 target_tag_minor="${target_tag%\.*}"
@@ -64,7 +64,7 @@ docker buildx build --pull --push -f ./Dockerfile --provenance false -t "${regis
 docker buildx imagetools create "${registry}/postgresql-repmgr:${postgresql_tag}" --tag "${registry}/postgresql-repmgr:${target_tag}" --tag "${registry}/postgresql-repmgr:${target_tag_minor}" --annotation "index,manifest-descriptor:${annotation}"
 
 # Re-tag other images
-retag "bats/bats:${bats_tag}" "test"
+retag "gcr.io/mirrornode/bats:${bats_tag}" "test" # Upstream image has vulnerabilities in base image
 retag "gcr.io/mirrornode/hedera-mirror-grpc:${source_tag}" "grpc"
 retag "gcr.io/mirrornode/hedera-mirror-importer:${source_tag}" ""
 retag "gcr.io/mirrornode/hedera-mirror-rest:${source_tag}" "rest"

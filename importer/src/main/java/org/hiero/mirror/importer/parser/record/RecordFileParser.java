@@ -25,6 +25,8 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
+import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
@@ -37,9 +39,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
     private final ApplicationEventPublisher applicationEventPublisher;
-    private final RecordItemListener recordItemListener;
     private final DateRangeCalculator dateRangeCalculator;
+    private final EntityListener entityListener;
+    private final EntityProperties entityProperties;
     private final ParserContext parserContext;
+    private final RecordItemListener recordItemListener;
 
     // Metrics
     private final Map<Integer, Timer> latencyMetrics;
@@ -49,19 +53,23 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
     @SuppressWarnings("java:S107")
     public RecordFileParser(
-            ApplicationEventPublisher applicationEventPublisher,
-            MeterRegistry meterRegistry,
-            RecordParserProperties parserProperties,
-            StreamFileRepository<RecordFile, Long> streamFileRepository,
-            RecordItemListener recordItemListener,
-            RecordStreamFileListener recordStreamFileListener,
-            DateRangeCalculator dateRangeCalculator,
-            ParserContext parserContext) {
+            final ApplicationEventPublisher applicationEventPublisher,
+            final DateRangeCalculator dateRangeCalculator,
+            final EntityListener entityListener,
+            final EntityProperties entityProperties,
+            final MeterRegistry meterRegistry,
+            final ParserContext parserContext,
+            final RecordParserProperties parserProperties,
+            final RecordItemListener recordItemListener,
+            final RecordStreamFileListener recordStreamFileListener,
+            final StreamFileRepository<RecordFile, Long> streamFileRepository) {
         super(meterRegistry, parserProperties, recordStreamFileListener, streamFileRepository);
         this.applicationEventPublisher = applicationEventPublisher;
-        this.recordItemListener = recordItemListener;
         this.dateRangeCalculator = dateRangeCalculator;
+        this.entityListener = entityListener;
+        this.entityProperties = entityProperties;
         this.parserContext = parserContext;
+        this.recordItemListener = recordItemListener;
 
         // build transaction latency metrics
         ImmutableMap.Builder<Integer, Timer> latencyMetricsBuilder = ImmutableMap.builder();
@@ -137,6 +145,8 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         final var logIndex = new AtomicInteger(0);
 
         applicationEventPublisher.publishEvent(new RecordFileParsedEvent(this, recordFile.getConsensusEnd()));
+
+        parseInitialState(recordFile);
         recordFile.getItems().forEach(recordItem -> {
             if (shouldLog) {
                 logItem(recordItem);
@@ -169,6 +179,20 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         } else if (log.isDebugEnabled()) {
             log.debug("Parsing transaction with consensus timestamp {}", recordItem.getConsensusTimestamp());
         }
+    }
+
+    private void parseInitialState(final RecordFile recordFile) {
+        final var initialState = recordFile.getInitialState();
+        if (initialState == null) {
+            return;
+        }
+
+        if (entityProperties.getPersist().isContracts()) {
+            initialState.contracts().forEach(entityListener::onContract);
+        }
+
+        initialState.entities().forEach(entityListener::onEntity);
+        initialState.fileDatum().forEach(entityListener::onFileData);
     }
 
     private void recordMetrics(RecordItem recordItem) {
