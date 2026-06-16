@@ -975,7 +975,7 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
         assertThat(contractStateRepository.findAll()).containsExactlyInAnyOrderElementsOf(contractStates);
     }
 
-    // Mirrors RecordFileParser.computeEvmTransactionIndices() for the single-item case used in these tests.
+    // Mirrors RecordFileParser.setEvmTransactionIndex() for the single-item case used in these tests.
     private void simulateEvmTransactionIndex(RecordItem recordItem) {
         final var type = recordItem.getTransactionType();
         if (type != TransactionType.CONTRACTCALL.getProtoId()

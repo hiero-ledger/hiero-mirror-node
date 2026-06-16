@@ -23,7 +23,8 @@ import org.junit.jupiter.api.Test;
 @DisableRepeatableSqlMigration
 @RequiredArgsConstructor
 @Tag("migration")
-class FixEvmTransactionIndexMigrationTest extends AbstractAsyncJavaMigrationTest<FixEvmTransactionIndexMigration> {
+final class FixEvmTransactionIndexMigrationTest
+        extends AbstractAsyncJavaMigrationTest<FixEvmTransactionIndexMigration> {
 
     @Getter
     private final FixEvmTransactionIndexMigration migration;
@@ -140,6 +141,32 @@ class FixEvmTransactionIndexMigrationTest extends AbstractAsyncJavaMigrationTest
         // then
         assertContractResultIndexNull(hookContractResult.getConsensusTimestamp());
         assertContractLogIndexNull(hookContractLog.getConsensusTimestamp());
+    }
+
+    @Test
+    void nestedHookEvmTransactionsGetNullIndex() {
+        // given
+        final var block = persistBlock(0);
+        final var cryptoTransferTimestamp = block.getConsensusStart() + 100;
+        final var hookCallTimestamp = block.getConsensusStart() + 200;
+        final var nestedHookCallTimestamp = block.getConsensusStart() + 300;
+
+        persistTransaction(cryptoTransferTimestamp, TransactionType.CRYPTOTRANSFER, 0, false, null);
+        persistTransaction(hookCallTimestamp, TransactionType.CONTRACTCALL, 1, false, cryptoTransferTimestamp);
+        persistTransaction(nestedHookCallTimestamp, TransactionType.CONTRACTCALL, 1, false, hookCallTimestamp);
+
+        final var hookContractResult = persistContractResult(hookCallTimestamp, 42);
+        final var nestedHookContractResult = persistContractResult(nestedHookCallTimestamp, 43);
+        final var nestedHookContractLog = persistContractLog(nestedHookCallTimestamp, 43);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndexNull(hookContractResult.getConsensusTimestamp());
+        assertContractResultIndexNull(nestedHookContractResult.getConsensusTimestamp());
+        assertContractLogIndexNull(nestedHookContractLog.getConsensusTimestamp());
     }
 
     @Test

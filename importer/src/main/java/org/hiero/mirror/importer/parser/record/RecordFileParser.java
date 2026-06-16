@@ -137,12 +137,12 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
     @Override
     protected void doParse(RecordFile recordFile) {
-        computeEvmTransactionIndices(recordFile.getItems());
         var dateRangeFilter = dateRangeCalculator.getFilter(parserProperties.getStreamType());
         var aggregator = new RecordItemAggregator();
         var count = new AtomicLong(0L);
         boolean shouldLog = log.isDebugEnabled() || log.isTraceEnabled();
         final var logIndex = new AtomicInteger(0);
+        final var evmTransactionIndex = new AtomicInteger(0);
 
         applicationEventPublisher.publishEvent(new RecordFileParsedEvent(this, recordFile.getConsensusEnd()));
 
@@ -153,6 +153,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             }
 
             aggregator.accept(recordItem);
+            setEvmTransactionIndex(recordItem, evmTransactionIndex);
 
             if (dateRangeFilter.filter(recordItem.getConsensusTimestamp())) {
                 recordItem.setLogIndex(logIndex);
@@ -221,27 +222,25 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         }
     }
 
-    private void computeEvmTransactionIndices(List<RecordItem> items) {
-        int evmCounter = 0;
-        for (var item : items) {
-            final var type = item.getTransactionType();
-            if (type != TransactionType.CONTRACTCALL.getProtoId()
-                    && type != TransactionType.CONTRACTCREATEINSTANCE.getProtoId()
-                    && type != TransactionType.ETHEREUMTRANSACTION.getProtoId()) {
-                continue;
-            }
-            var contractRelatedParent = item.getContractRelatedParent();
-            if (contractRelatedParent != null && contractRelatedParent.getEvmTransactionIndex() != null) {
-                item.setEvmTransactionIndex(contractRelatedParent.getEvmTransactionIndex());
-            } else if (isTopLevelEvmItem(item)) {
-                item.setEvmTransactionIndex(evmCounter++);
-            }
+    private void setEvmTransactionIndex(RecordItem recordItem, AtomicInteger evmTransactionIndex) {
+        final var type = recordItem.getTransactionType();
+        if (type != TransactionType.CONTRACTCALL.getProtoId()
+                && type != TransactionType.CONTRACTCREATEINSTANCE.getProtoId()
+                && type != TransactionType.ETHEREUMTRANSACTION.getProtoId()) {
+            return;
+        }
+
+        final var contractRelatedParent = recordItem.getContractRelatedParent();
+        if (contractRelatedParent != null && contractRelatedParent.getEvmTransactionIndex() != null) {
+            recordItem.setEvmTransactionIndex(contractRelatedParent.getEvmTransactionIndex());
+        } else if (isTopLevelEvmItem(recordItem)) {
+            recordItem.setEvmTransactionIndex(evmTransactionIndex.getAndIncrement());
         }
     }
 
-    private boolean isTopLevelEvmItem(RecordItem item) {
-        var txId = item.getTransactionRecord().getTransactionID();
-        return txId.getNonce() == 0 || txId.getScheduled();
+    private boolean isTopLevelEvmItem(RecordItem recordItem) {
+        final var transactionId = recordItem.getTransactionRecord().getTransactionID();
+        return transactionId.getNonce() == 0 || transactionId.getScheduled();
     }
 
     private class RecordItemAggregator implements Consumer<RecordItem> {
