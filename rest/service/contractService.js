@@ -280,6 +280,27 @@ class ContractService extends BaseService {
     const limitParam = params.length;
 
     const query = `
+      with synth_raw as (
+        select distinct on (${clAlias}${ContractLog.CONSENSUS_TIMESTAMP})
+          ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP},
+          coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) as ${
+      ContractResult.CONTRACT_ID
+    },
+          ${clAlias}${ContractLog.TRANSACTION_HASH},
+          ${clAlias}${ContractLog.TRANSACTION_INDEX},
+          ${clAlias}${ContractLog.PAYER_ACCOUNT_ID}
+        from ${ContractLog.tableName} ${ContractLog.tableAlias}
+        ${whereClause}
+        order by ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} ${order}, ${clAlias}${ContractLog.INDEX} ${order}
+        limit $${limitParam}
+      ), contract_evm_address as (
+        select ${Entity.getFullName(Entity.ID)}, ${Entity.getFullName(Entity.EVM_ADDRESS)}
+        from synth_raw
+        join ${Entity.tableName} ${Entity.tableAlias} on synth_raw.${ContractResult.CONTRACT_ID} = ${Entity.getFullName(
+      Entity.ID
+    )}
+        group by synth_raw.${ContractResult.CONTRACT_ID}, ${Entity.getFullName(Entity.ID)}
+      )
       select
         null::bigint as ${ContractResult.AMOUNT},
         null::bytea as ${ContractResult.BLOOM},
@@ -300,23 +321,11 @@ class ContractService extends BaseService {
         synth_raw.${ContractResult.TRANSACTION_INDEX},
         0::integer as ${ContractResult.TRANSACTION_NONCE},
         ${successTransactionResult}::smallint as ${ContractResult.TRANSACTION_RESULT},
-        coalesce(${Entity.getFullName(Entity.EVM_ADDRESS)}, '') as ${Entity.EVM_ADDRESS}
-      from (
-        select distinct on (${clAlias}${ContractLog.CONSENSUS_TIMESTAMP})
-          ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP},
-          coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) as ${
+        coalesce((select ${Entity.EVM_ADDRESS} from contract_evm_address where ${Entity.ID} = synth_raw.${
       ContractResult.CONTRACT_ID
-    },
-          ${clAlias}${ContractLog.TRANSACTION_HASH},
-          ${clAlias}${ContractLog.TRANSACTION_INDEX},
-          ${clAlias}${ContractLog.PAYER_ACCOUNT_ID}
-        from ${ContractLog.tableName} ${ContractLog.tableAlias}
-        ${whereClause}
-        order by ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} ${order}, ${clAlias}${ContractLog.INDEX} ${order}
-        limit $${limitParam}
-      ) synth_raw
-      left join ${Entity.tableName} ${Entity.tableAlias}
-        on ${Entity.getFullName(Entity.ID)} = synth_raw.${ContractResult.CONTRACT_ID}
+    }), '') as ${Entity.EVM_ADDRESS}
+      from synth_raw
+      order by synth_raw.${ContractResult.CONSENSUS_TIMESTAMP} ${order}
     `;
 
     return [query, params];
