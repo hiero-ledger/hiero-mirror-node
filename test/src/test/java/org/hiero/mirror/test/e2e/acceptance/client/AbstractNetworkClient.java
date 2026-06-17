@@ -4,6 +4,7 @@ package org.hiero.mirror.test.e2e.acceptance.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.base.Stopwatch;
 import com.hedera.hashgraph.sdk.AccountBalanceQuery;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Client;
@@ -138,11 +139,12 @@ abstract class AbstractNetworkClient implements Cleanable {
 
     public NetworkTransactionResponse executeTransactionAndRetrieveReceipt(
             Transaction<?> transaction, KeyList keyList, ExpandedAccountId payer) {
+        final var stopwatch = Stopwatch.createStarted();
         var transactionId = executeTransaction(transaction, keyList, payer);
         var transactionReceipt = getTransactionReceipt(transactionId);
-        log.debug("Executed {} {}", transaction.getClass().getSimpleName(), transactionId);
+        log.debug("Executed {} {} in {}", transaction.getClass().getSimpleName(), transactionId, stopwatch);
 
-        return new NetworkTransactionResponse(transactionId, transactionReceipt);
+        return new NetworkTransactionResponse(stopwatch, transactionId, transactionReceipt);
     }
 
     public NetworkTransactionResponse executeTransactionAndRetrieveReceipt(

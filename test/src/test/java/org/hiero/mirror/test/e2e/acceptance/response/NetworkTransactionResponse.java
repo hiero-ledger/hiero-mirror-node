@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.test.e2e.acceptance.response;
 
+import com.google.common.base.Stopwatch;
 import com.hedera.hashgraph.sdk.TransactionId;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
 import lombok.Value;
@@ -10,6 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 @Value
 public class NetworkTransactionResponse {
 
+    private final Stopwatch stopwatch;
     private final TransactionId transactionId;
     private final TransactionReceipt receipt;
 
@@ -20,7 +22,6 @@ public class NetworkTransactionResponse {
     }
 
     public String getValidStartString() {
-
         // left pad nanos with zeros where applicable
         return transactionId.validStart.getEpochSecond() + "." + getPaddedNanos();
     }
