@@ -4,13 +4,9 @@ declare
   rec record;
 begin
   for rec in
-    select distinct s.id
-    from (
-      select id, staked_node_id_start from entity_stake_history
-      union all
-      select id, staked_node_id_start from entity_stake
-    ) s
-    where coalesce(s.staked_node_id_start, -1) <> -1
+    select distinct id
+    from entity_stake_history
+    where coalesce(staked_node_id_start, -1) <> -1
   loop
     with stake_row as (
       select id, end_stake_period, staked_node_id_start, stake_total_start, lower(timestamp_range) as period_ts,
@@ -60,10 +56,10 @@ begin
           then m.forfeit_reward_rate * (
                 (m.prev_stake_total_start / 100000000)
                 - coalesce((
-                    select esh.stake_total_start / 100000000
-                    from entity_stake_history esh
-                    where esh.id = m.id and lower(esh.timestamp_range) < m.forfeit_ts
-                    order by lower(esh.timestamp_range) desc
+                    select sr.stake_total_start / 100000000
+                    from stake_row sr
+                    where sr.id = m.id and not sr.is_current and sr.period_ts < m.forfeit_ts
+                    order by sr.period_ts desc
                     limit 1), 0))
           else 0
         end as over_deduction
