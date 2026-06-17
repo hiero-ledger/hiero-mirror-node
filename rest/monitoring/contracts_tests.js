@@ -117,13 +117,7 @@ const postContractCall = async (server) => {
 const getContractResults = async (server) => {
   let contractId = config[resource].contractId;
   if (!contractId) {
-    // HAPI transactions (e.g. tokenBurn) have bloom='0x' (empty byte array) while EVM-originated
-    // transactions (ContractCall/ContractCreate/EthereumTransaction) carry a 256-byte bloom filter
-    let evmResult;
-    if (!evmResult) {
-      const {url: nextUrl, evmResult: found, error} = await findEvmContractResult(server);
-      evmResult = found;
-    }
+    const evmResult = await findEvmContractResult(server);
 
     if (!evmResult) {
       logger.info('EVM contract result is undefined and no contractId is set, skipping test');
@@ -286,11 +280,7 @@ const getContractResultsByTransaction = async (server) => {
   // appear in the /contracts/results list with a hash but return 404 at /contracts/results/{hash}.
   // EVM-originated results have carry a 256-byte bloom filter
   const evmPredicate = (r) => r.result === 'SUCCESS' && r.bloom !== '0x';
-  let evmResult;
-  if (!evmResult) {
-    const {url: nextUrl, evmResult: found, error} = await findEvmContractResult(server, evmPredicate);
-    evmResult = found;
-  }
+  const evmResult = await findEvmContractResult(server, evmPredicate);
 
   const transactionHash = evmResult?.hash;
   if (transactionHash === undefined) {
@@ -412,6 +402,9 @@ async function getContractsResultsList(server, pathOrNext = '/contracts/results'
 /**
  * Paginates through /contracts/results until a result matching the predicate is found
  * or all pages have been exhausted.
+ * HAPI transactions (e.g. tokenBurn) have bloom='0x' (empty byte array) while EVM-originated
+ * transactions (ContractCall/ContractCreate/EthereumTransaction) carry a 256-byte bloom filter.
+ * That's why this is the default predicate used.
  * @param {string} server API host endpoint
  * @param {Function} predicate Predicate to match the desired result
  * @returns {{url: string, evmResult: Object|null, error: Error|null}}
@@ -424,12 +417,12 @@ async function findEvmContractResult(server, predicate = (r) => r.bloom !== '0x'
     const {url, contractsResults, next, result} = await getContractsResultsList(server, pathOrNext);
 
     if (!result.passed) {
-      return {url, evmResult: null, error: new Error(result.message)};
+      return evmResult;
     }
 
     evmResult = contractsResults.find(predicate);
     if (evmResult) {
-      return {url, evmResult, error: null};
+      return evmResult;
     }
 
     if (!next) {
@@ -440,7 +433,7 @@ async function findEvmContractResult(server, predicate = (r) => r.bloom !== '0x'
     pathOrNext = next;
   }
 
-  return {url: getUrl(server, pathOrNext), evmResult: null, error: null};
+  return evmResult;
 }
 
 /**
