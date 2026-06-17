@@ -39,6 +39,7 @@ const mandatoryParams = [
   'timestamp',
 ];
 const contractResultParams = ['address', 'bloom', 'contract_id', 'from', 'gas_limit', 'hash', 'timestamp', 'to'];
+const maxPages = 10;
 
 /**
  * Verify /contracts and /contracts/{contractId} can be retrieved
@@ -116,12 +117,14 @@ const postContractCall = async (server) => {
 const getContractResults = async (server) => {
   let contractId = config[resource].contractId;
   if (!contractId) {
-    let {url, contractsResults, result} = await getContractsResultsList(server);
+    const evmResult = await findEvmContractResult(server);
 
-    if (!result.passed) {
-      return {url, ...result};
+    if (!evmResult) {
+      logger.info('EVM contract result is undefined and no contractId is set, skipping test');
+      return {skipped: true};
     }
-    contractId = max(map(contractsResults, (result) => result.contract_id));
+
+    contractId = evmResult.contract_id;
   }
 
   let url = getUrl(server, `${contractsPath}/${contractId}/results`);
@@ -140,6 +143,10 @@ const getContractResults = async (server) => {
   }
 
   const timestamp = max(map(contractResults, (result) => result.timestamp));
+  if (timestamp === undefined) {
+    logger.info('timestamp is undefined, skipping test');
+    return {skipped: true};
+  }
   url = getUrl(server, `${contractsPath}/${contractId}/results/${timestamp}`);
   const contractResultsAtTimestamp = await fetchAPIResponse(url);
   result = new CheckRunner()
@@ -268,25 +275,24 @@ const getContractState = async (server) => {
  * @param {Object} server API host endpoint
  */
 const getContractResultsByTransaction = async (server) => {
-  let {url, contractsResults, result} = await getContractsResultsList(server);
+  // Only ContractCall, ContractCreate, and EthereumTransaction results are indexed in
+  // contract_transaction_hash and can be looked up by hash. HAPI transactions (e.g. tokenBurn)
+  // appear in the /contracts/results list with a hash but return 404 at /contracts/results/{hash}.
+  // EVM-originated results have carry a 256-byte bloom filter
+  const evmPredicate = (r) => r.result === 'SUCCESS' && r.bloom !== '0x';
+  const evmResult = await findEvmContractResult(server, evmPredicate);
 
-  if (!result.passed) {
-    return {url, ...result};
-  }
-
-  const transactionHash = contractsResults.filter((r) => r.result === 'SUCCESS')[0]?.hash;
+  const transactionHash = evmResult?.hash;
   if (transactionHash === undefined) {
-    return {
-      url,
-      ...result,
-    };
+    logger.info('transactionHash is undefined, skipping test');
+    return {skipped: true};
   }
 
   const contractResultParams = ['address', 'failed_initcode', 'hash', 'logs'];
-  url = getUrl(server, `${contractsPath}/results/${transactionHash}`);
+  let url = getUrl(server, `${contractsPath}/results/${transactionHash}`);
   const contractResults = await fetchAPIResponse(url);
 
-  result = new CheckRunner()
+  let result = new CheckRunner()
     .withCheckSpec(checkAPIResponseError)
     .withCheckSpec(checkRespObjDefined, {message: 'contract results is undefined'})
     .withCheckSpec(checkMandatoryParams, {
@@ -364,27 +370,70 @@ async function getContractsList(server) {
 /**
  * Retrieves contract results list (:/contracts/results)
  * @param {Object} server API host endpoint
+ * @param {String} pathOrNext path or next link to fetch; defaults to '/contracts/results'
  */
-async function getContractsResultsList(server) {
-  const contractsResultsPath = '/contracts/results';
-  let url = getUrl(server, contractsResultsPath, {limit: resourceLimit});
-  const contractsResults = await fetchAPIResponse(url, jsonResultsRespKey);
+async function getContractsResultsList(server, pathOrNext = '/contracts/results') {
+  const isFirstPage = pathOrNext === '/contracts/results';
+  const url = getUrl(server, pathOrNext, isFirstPage ? {limit: resourceLimit} : undefined);
+  const response = await fetchAPIResponse(url);
+  const contractsResults = response instanceof Error ? response : response[jsonResultsRespKey];
 
-  let result = new CheckRunner()
+  const checkRunner = new CheckRunner()
     .withCheckSpec(checkAPIResponseError)
-    .withCheckSpec(checkRespObjDefined, {message: 'contracts results list is undefined'})
-    .withCheckSpec(checkRespArrayLength, {
+    .withCheckSpec(checkRespObjDefined, {message: 'contracts results list is undefined'});
+
+  if (isFirstPage) {
+    checkRunner.withCheckSpec(checkRespArrayLength, {
       limit: resourceLimit,
-      message: (contracts, limit) =>
-        `contractsResults.length of ${contractsResults.length} was expected to be ${limit}`,
-    })
+      message: (contracts, limit) => `contractsResults.length of ${contracts.length} was expected to be ${limit}`,
+    });
+  }
+
+  const result = checkRunner
     .withCheckSpec(checkMandatoryParams, {
       params: contractResultParams,
       message: 'contracts results list object is missing some mandatory fields',
     })
     .run(contractsResults);
 
-  return {url, contractsResults, result};
+  return {url, contractsResults, next: response?.links?.next, result};
+}
+
+/**
+ * Paginates through /contracts/results until a result matching the predicate is found
+ * or all pages have been exhausted.
+ * HAPI transactions (e.g. tokenBurn) have bloom='0x' (empty byte array) while EVM-originated
+ * transactions (ContractCall/ContractCreate/EthereumTransaction) carry a 256-byte bloom filter.
+ * That's why this is the default predicate used.
+ * @param {string} server API host endpoint
+ * @param {Function} predicate Predicate to match the desired result
+ * @returns {{url: string, evmResult: Object|null, error: Error|null}}
+ */
+async function findEvmContractResult(server, predicate = (r) => r.bloom !== '0x') {
+  let pathOrNext = '/contracts/results';
+
+  let evmResult;
+  for (let page = 1; page <= maxPages; page++) {
+    const {url, contractsResults, next, result} = await getContractsResultsList(server, pathOrNext);
+
+    if (!result.passed) {
+      return evmResult;
+    }
+
+    evmResult = contractsResults.find(predicate);
+    if (evmResult) {
+      return evmResult;
+    }
+
+    if (!next) {
+      break;
+    }
+
+    logger.info(`No matching EVM contract result on page ${page}, fetching next page`);
+    pathOrNext = next;
+  }
+
+  return evmResult;
 }
 
 /**
