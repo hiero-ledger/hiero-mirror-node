@@ -117,26 +117,17 @@ const postContractCall = async (server) => {
 const getContractResults = async (server) => {
   let contractId = config[resource].contractId;
   if (!contractId) {
-    let {url, contractsResults, result} = await getContractsResultsList(server);
-
-    if (!result.passed) {
-      return {url, ...result};
-    }
     // HAPI transactions (e.g. tokenBurn) have bloom='0x' (empty byte array) while EVM-originated
     // transactions (ContractCall/ContractCreate/EthereumTransaction) carry a 256-byte bloom filter
-    let evmResult = contractsResults.find((r) => r.bloom !== '0x');
+    let evmResult;
     if (!evmResult) {
       const {url: nextUrl, evmResult: found, error} = await findEvmContractResult(server);
-
-      if (error) {
-        logger.info('getContractResults: error found during fetching of contract results, skipping test');
-        return {skipped: true};
-      }
-      if (!found) {
-        logger.info('getContractResults: no EVM contract results found after paginating, skipping test');
-        return {skipped: true};
-      }
       evmResult = found;
+    }
+
+    if (!evmResult) {
+      logger.info('EVM contract result is undefined and no contractId is set, skipping test');
+      return {skipped: true};
     }
 
     contractId = evmResult.contract_id;
@@ -159,7 +150,7 @@ const getContractResults = async (server) => {
 
   const timestamp = max(map(contractResults, (result) => result.timestamp));
   if (timestamp === undefined) {
-    logger.info('getContractResults: timestamp is not valid, skipping test');
+    logger.info('timestamp is undefined, skipping test');
     return {skipped: true};
   }
   url = getUrl(server, `${contractsPath}/${contractId}/results/${timestamp}`);
@@ -290,40 +281,28 @@ const getContractState = async (server) => {
  * @param {Object} server API host endpoint
  */
 const getContractResultsByTransaction = async (server) => {
-  let {url, contractsResults, result} = await getContractsResultsList(server);
-
-  if (!result.passed) {
-    return {url, ...result};
-  }
-
   // Only ContractCall, ContractCreate, and EthereumTransaction results are indexed in
   // contract_transaction_hash and can be looked up by hash. HAPI transactions (e.g. tokenBurn)
   // appear in the /contracts/results list with a hash but return 404 at /contracts/results/{hash}.
   // EVM-originated results have carry a 256-byte bloom filter
   const evmPredicate = (r) => r.result === 'SUCCESS' && r.bloom !== '0x';
-  let evmResult = contractsResults.find(evmPredicate);
-
+  let evmResult;
   if (!evmResult) {
     const {url: nextUrl, evmResult: found, error} = await findEvmContractResult(server, evmPredicate);
-
-    if (error) {
-      logger.info('getContractResultsByTransaction: error during fetching of contract results, skipping test');
-      return {skipped: true};
-    }
     evmResult = found;
   }
 
   const transactionHash = evmResult?.hash;
   if (transactionHash === undefined) {
-    logger.info('getContractResultsByTransaction: transactionHash is undefined, skipping test');
+    logger.info('transactionHash is undefined, skipping test');
     return {skipped: true};
   }
 
   const contractResultParams = ['address', 'failed_initcode', 'hash', 'logs'];
-  url = getUrl(server, `${contractsPath}/results/${transactionHash}`);
+  let url = getUrl(server, `${contractsPath}/results/${transactionHash}`);
   const contractResults = await fetchAPIResponse(url);
 
-  result = new CheckRunner()
+  let result = new CheckRunner()
     .withCheckSpec(checkAPIResponseError)
     .withCheckSpec(checkRespObjDefined, {message: 'contract results is undefined'})
     .withCheckSpec(checkMandatoryParams, {
@@ -401,27 +380,33 @@ async function getContractsList(server) {
 /**
  * Retrieves contract results list (:/contracts/results)
  * @param {Object} server API host endpoint
+ * @param {String} pathOrNext path or next link to fetch; defaults to '/contracts/results'
  */
-async function getContractsResultsList(server) {
-  const contractsResultsPath = '/contracts/results';
-  let url = getUrl(server, contractsResultsPath, {limit: resourceLimit});
-  const contractsResults = await fetchAPIResponse(url, jsonResultsRespKey);
+async function getContractsResultsList(server, pathOrNext = '/contracts/results') {
+  const isFirstPage = pathOrNext === '/contracts/results';
+  const url = getUrl(server, pathOrNext, isFirstPage ? {limit: resourceLimit} : undefined);
+  const response = await fetchAPIResponse(url);
+  const contractsResults = response instanceof Error ? response : response[jsonResultsRespKey];
 
-  let result = new CheckRunner()
+  const checkRunner = new CheckRunner()
     .withCheckSpec(checkAPIResponseError)
-    .withCheckSpec(checkRespObjDefined, {message: 'contracts results list is undefined'})
-    .withCheckSpec(checkRespArrayLength, {
+    .withCheckSpec(checkRespObjDefined, {message: 'contracts results list is undefined'});
+
+  if (isFirstPage) {
+    checkRunner.withCheckSpec(checkRespArrayLength, {
       limit: resourceLimit,
-      message: (contracts, limit) =>
-        `contractsResults.length of ${contractsResults.length} was expected to be ${limit}`,
-    })
+      message: (contracts, limit) => `contractsResults.length of ${contracts.length} was expected to be ${limit}`,
+    });
+  }
+
+  const result = checkRunner
     .withCheckSpec(checkMandatoryParams, {
       params: contractResultParams,
       message: 'contracts results list object is missing some mandatory fields',
     })
     .run(contractsResults);
 
-  return {url, contractsResults, result};
+  return {url, contractsResults, next: response?.links?.next, result};
 }
 
 /**
@@ -432,32 +417,30 @@ async function getContractsResultsList(server) {
  * @returns {{url: string, evmResult: Object|null, error: Error|null}}
  */
 async function findEvmContractResult(server, predicate = (r) => r.bloom !== '0x') {
-  let url = getUrl(server, '/contracts/results', {limit: resourceLimit});
+  let pathOrNext = '/contracts/results';
 
+  let evmResult;
   for (let page = 1; page <= maxPages; page++) {
-    const response = await fetchAPIResponse(url);
-    if (response instanceof Error) {
-      return {url, evmResult: null, error: response};
+    const {url, contractsResults, next, result} = await getContractsResultsList(server, pathOrNext);
+
+    if (!result.passed) {
+      return {url, evmResult: null, error: new Error(result.message)};
     }
 
-    const results = response[jsonResultsRespKey];
-    if (Array.isArray(results)) {
-      const evmResult = results.find(predicate);
-      if (evmResult) {
-        return {url, evmResult, error: null};
-      }
+    evmResult = contractsResults.find(predicate);
+    if (evmResult) {
+      return {url, evmResult, error: null};
     }
 
-    const next = response.links?.next;
     if (!next) {
       break;
     }
 
     logger.info(`No matching EVM contract result on page ${page}, fetching next page`);
-    url = `${server}${next}`;
+    pathOrNext = next;
   }
 
-  return {url, evmResult: null, error: null};
+  return {url: getUrl(server, pathOrNext), evmResult: null, error: null};
 }
 
 /**
