@@ -133,8 +133,6 @@ import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.NftId;
-import com.hedera.hashgraph.sdk.PrecheckStatusException;
-import com.hedera.hashgraph.sdk.ReceiptStatusException;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.TokenUpdateTransaction;
 import com.hedera.hashgraph.sdk.proto.ResponseCodeEnum;
@@ -149,7 +147,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -161,7 +158,6 @@ import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.ExecuteContrac
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
-import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 
 @RequiredArgsConstructor
@@ -1632,31 +1628,35 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     }
 
     @And("I update the account and token keys")
-    public void updateAccountAndTokenKeys() throws PrecheckStatusException, TimeoutException, ReceiptStatusException {
+    public void updateAccountAndTokenKeys() {
         var keyList = KeyList.of(admin.getPublicKey(), deployedEstimatePrecompileContract.contractId())
                 .setThreshold(1);
-        new AccountUpdateTransaction()
+        final var response1 = accountClient.executeTransactionAndRetrieveReceipt(new AccountUpdateTransaction()
                 .setAccountId(admin.getAccountId())
-                .setKey(keyList)
-                .freezeWith(accountClient.getClient())
-                .sign(admin.getPrivateKey())
-                .execute(accountClient.getClient());
-        new TokenUpdateTransaction()
+                .setKey(keyList));
+        log.info(
+                "Updated account {} via {} in {}",
+                admin.getAccountId(),
+                response1.getTransactionId(),
+                response1.getStopwatch());
+        final var response2 = accountClient.executeTransactionAndRetrieveReceipt(new TokenUpdateTransaction()
                 .setTokenId(fungibleTokenId)
                 .setSupplyKey(keyList)
-                .setAdminKey(keyList)
-                .freezeWith(accountClient.getClient())
-                .sign(admin.getPrivateKey())
-                .execute(accountClient.getClient());
-        var tokenUpdate = new TokenUpdateTransaction()
+                .setAdminKey(keyList));
+        log.info(
+                "Updated fungible token {} via {} in {}",
+                fungibleTokenId,
+                response2.getTransactionId(),
+                response2.getStopwatch());
+        networkTransactionResponse = accountClient.executeTransactionAndRetrieveReceipt(new TokenUpdateTransaction()
                 .setTokenId(nonFungibleTokenId)
                 .setSupplyKey(keyList)
-                .setAdminKey(keyList)
-                .freezeWith(accountClient.getClient())
-                .sign(admin.getPrivateKey())
-                .execute(accountClient.getClient());
-        networkTransactionResponse = new NetworkTransactionResponse(
-                tokenUpdate.transactionId, tokenUpdate.getReceipt(accountClient.getClient()));
+                .setAdminKey(keyList));
+        log.info(
+                "Updated non-fungible token {} via {} in {}",
+                nonFungibleTokenId,
+                networkTransactionResponse.getTransactionId(),
+                networkTransactionResponse.getStopwatch());
     }
 
     @Then("I call estimateGas with transferToken function and verify the estimated gas against HAPI")
