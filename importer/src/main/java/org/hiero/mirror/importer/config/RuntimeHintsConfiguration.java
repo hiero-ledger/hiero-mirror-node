@@ -18,6 +18,7 @@ import org.apache.velocity.runtime.resource.ResourceManagerImpl;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
 import org.apache.velocity.util.introspection.TypeConversionHandlerImpl;
 import org.apache.velocity.util.introspection.UberspectImpl;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -43,6 +44,7 @@ final class RuntimeHintsConfiguration {
             registerReflectionTypes(
                     hints,
                     CONSTRUCTORS_AND_METHODS,
+                    BlockProperties.class.getName(),
                     "org.hiero.mirror.importer.config.MetricsConfiguration$TableMetrics",
                     "org.hiero.mirror.importer.config.MetricsConfiguration$TableAttributes");
 
