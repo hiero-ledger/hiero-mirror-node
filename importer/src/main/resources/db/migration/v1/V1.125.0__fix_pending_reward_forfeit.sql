@@ -1,6 +1,15 @@
 -- Repair pending_reward over-deducted by the forfeit bug for accounts staking continuously for over 365 days.
--- Only entity_stake is updated; entity_stake_history is read for lag/replay and historical stake lookup but not modified.
-create temporary table if not exists entity_stake_reward_correction on commit drop as
+--
+-- When an account had been staking to the same node for over 365 days, updateEntityStake forfeits the reward it earned
+-- in the staking period 365 days earlier. The buggy logic computed the forfeited amount using the account's stake total
+-- whole bar at the start of the ending period (the prior entity_stake row's stake_total_start) instead of the stake
+-- total it actually had during the forfeited period:
+--   buggy:   pending(N) = pending(N-1) + reward_rate(N) * stake_wb(N-1) - forfeit_rate(N-365) * stake_wb(N-1)
+--   correct: pending(N) = pending(N-1) + reward_rate(N) * stake_wb(N-1) - forfeit_rate(N-365) * stake_wb_hist(N-365)
+-- The per-period over-deduction forfeit_rate(N-365) * (stake_wb(N-1) - stake_wb_hist(N-365)) accumulates period over
+-- period, so the running sum of all over-deductions is added back into the current entity_stake.pending_reward.
+-- entity_stake_history is read only (for the prior-period multiplier and the historical stake at the forfeited period);
+-- it is not modified by this migration.
 with stake_row as (
   select id, end_stake_period, staked_node_id_start, stake_total_start, lower(timestamp_range) as period_ts,
          false as is_current
@@ -62,11 +71,7 @@ with stake_row as (
       rows between unbounded preceding and current row) as correction
   from over_deduction
 )
-select id, period_ts, correction
-from corrected
-where is_current and correction <> 0;
-
 update entity_stake es
 set pending_reward = es.pending_reward + c.correction
-from entity_stake_reward_correction c
-where c.id = es.id and lower(es.timestamp_range) = c.period_ts;
+from corrected c
+where c.is_current and c.correction <> 0 and c.id = es.id and lower(es.timestamp_range) = c.period_ts;
