@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.common;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
+import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -12,7 +13,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;

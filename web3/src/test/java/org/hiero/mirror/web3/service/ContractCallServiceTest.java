@@ -1081,8 +1081,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 .isStatic(false)
                 .receiver(receiverAddress)
                 .sender(senderAddress)
-                .value(value)
-                .stateOverrides(List.of());
+                .value(value);
     }
 
     @SuppressWarnings("unchecked")

@@ -74,9 +74,8 @@ class AccountReadableKVStateTest {
     private static final long TOKEN_NUM = 1253L;
     private static final AccountID ACCOUNT_ID =
             new AccountID(SHARD, REALM, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, NUM));
-    private static final String LONG_ZERO_ADDRESS = toAddress(NUM).toHexString();
-    private static final org.apache.tuweni.bytes.Bytes LONG_ZERO_ADDRESS_BYTES =
-            org.apache.tuweni.bytes.Bytes.fromHexString(LONG_ZERO_ADDRESS);
+    private static final String LONG_ZERO_ADDRESS = toAddress(NUM).toUnprefixedHexString();
+    private static final Bytes LONG_ZERO_ADDRESS_BYTES = Bytes.fromHex(LONG_ZERO_ADDRESS);
     private static final AccountID ACCOUNT_ID_TOKEN =
             new AccountID(SHARD, REALM, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, TOKEN_NUM));
     private static final EntityId AUTO_RENEW_ACCOUNT_ID = EntityId.of(SHARD, REALM, NUM + 1);
@@ -731,7 +730,7 @@ class AccountReadableKVStateTest {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
         contractCallContext.setStateOverrides(Map.of(
-                org.apache.tuweni.bytes.Bytes.fromHexString("0x000000000000000000000000000000000000dead"),
+                Bytes.fromHex("000000000000000000000000000000000000dead"),
                 stateOverride(OVERRIDE_BALANCE_HEX, null, null)));
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID))

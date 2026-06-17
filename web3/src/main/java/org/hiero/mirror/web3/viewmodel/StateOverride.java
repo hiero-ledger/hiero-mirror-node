@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.Data;
 import org.hiero.mirror.web3.validation.Hex;
@@ -48,6 +49,7 @@ public class StateOverride {
      * Mutually exclusive with {@link #stateDiff}.
      */
     @NotNull
+    @Size(max = 100)
     private List<@Valid StorageEntry> state = List.of();
 
     /**
@@ -57,6 +59,7 @@ public class StateOverride {
      */
     @JsonProperty("state_diff")
     @NotNull
+    @Size(max = 100)
     private List<@Valid StorageEntry> stateDiff = List.of();
 
     @AssertTrue(message = "state and state_diff are mutually exclusive")

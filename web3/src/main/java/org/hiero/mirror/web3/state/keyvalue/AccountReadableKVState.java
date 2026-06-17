@@ -10,12 +10,12 @@ import static org.hiero.mirror.web3.state.Utils.hexStringToLong;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
+import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.node.app.service.token.TokenService;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.util.Optional;
 import java.util.Set;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
@@ -113,16 +113,16 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             return account;
         }
 
-        Bytes accountAddress;
-        StateOverride stateOverride;
-        if (!com.hedera.pbj.runtime.io.buffer.Bytes.EMPTY.equals(account.alias())) {
-            accountAddress = Bytes.wrap(account.alias().toByteArray());
+        com.hedera.pbj.runtime.io.buffer.Bytes accountAddress;
+        StateOverride stateOverride = null;
+        if (!com.hedera.pbj.runtime.io.buffer.Bytes.EMPTY.equals(account.alias())
+                && ConversionUtils.isEvmAddress(account.alias())) {
+            accountAddress = account.alias();
             stateOverride = overrides.get(accountAddress);
         } else if (account.accountId() != null) {
-            accountAddress = Bytes.wrap(toEvmAddress(account.accountId().accountNum()));
+            accountAddress = com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
+                    toEvmAddress(account.accountId().accountNum()));
             stateOverride = overrides.get(accountAddress);
-        } else {
-            stateOverride = null;
         }
 
         if (stateOverride == null || (stateOverride.getBalance() == null && stateOverride.getNonce() == null)) {

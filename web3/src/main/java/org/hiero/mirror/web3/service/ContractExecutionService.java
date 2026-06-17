@@ -64,10 +64,14 @@ public class ContractExecutionService extends ContractCallService {
                 updateGasLimitMetric(params);
 
                 if (!params.getStateOverrides().isEmpty()) {
-                    final var addressToAccounts = new HashMap<Bytes, StateOverride>();
+                    final var addressToAccounts = new HashMap<com.hedera.pbj.runtime.io.buffer.Bytes, StateOverride>(
+                            params.getStateOverrides().size());
                     for (final var stateOverride : params.getStateOverrides()) {
+                        final var address = stateOverride.getAddress();
+                        final var unprefixed =
+                                (address.startsWith("0x") || address.startsWith("0X")) ? address.substring(2) : address;
                         addressToAccounts.put(
-                                Bytes.fromHexString(stateOverride.getAddress().toLowerCase()), stateOverride);
+                                com.hedera.pbj.runtime.io.buffer.Bytes.fromHex(unprefixed), stateOverride);
                     }
 
                     ctx.setStateOverrides(addressToAccounts);

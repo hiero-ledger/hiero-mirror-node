@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ContextExtension;
@@ -37,7 +36,6 @@ class ContractCallContextTest {
                 .block(BlockType.LATEST)
                 .callData(new byte[0])
                 .gasPrice(0L)
-                .stateOverrides(List.of())
                 .build());
 
         assertThat(context.getTimestamp()).isEmpty();
@@ -52,7 +50,6 @@ class ContractCallContextTest {
                 .block(BlockType.EARLIEST)
                 .callData(new byte[0])
                 .gasPrice(0L)
-                .stateOverrides(List.of())
                 .build());
 
         assertThat(context.getTimestamp()).isEqualTo(Optional.of(timestamp));

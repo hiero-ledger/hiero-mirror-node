@@ -293,7 +293,6 @@ public class TestWeb3jService implements Web3jService {
                 .callType(callType)
                 .isEstimate(ETH_ESTIMATE_GAS == callType)
                 .block(block)
-                .stateOverrides(List.of())
                 .build();
     }
 
@@ -310,7 +309,6 @@ public class TestWeb3jService implements Web3jService {
                 .callType(callType)
                 .isEstimate(ETH_ESTIMATE_GAS == callType)
                 .block(block)
-                .stateOverrides(List.of())
                 .build();
     }
 
@@ -328,7 +326,6 @@ public class TestWeb3jService implements Web3jService {
                 .callType(callType)
                 .isEstimate(ETH_ESTIMATE_GAS == callType)
                 .block(blockType)
-                .stateOverrides(List.of())
                 .build();
     }
 

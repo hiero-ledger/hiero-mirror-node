@@ -648,15 +648,17 @@ class ContractControllerTest {
 
     @Test
     void callWithStateOverrideUpperCaseAddressPrefix() throws Exception {
+        web3Properties.setEnableStateOverrides(true);
+
         final var override = new StateOverride();
         override.setAddress("0X00000000000000000000000000000000000004e4");
         override.setBalance("0x1");
         final var request = request();
         request.setStateOverrides(List.of(override));
 
-        contractCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string(new StringContains(MESSAGE)));
+        contractCall(request).andExpect(status().isOk());
+
+        web3Properties.setEnableStateOverrides(false);
     }
 
     @Test

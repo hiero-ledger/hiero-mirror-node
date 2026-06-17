@@ -307,7 +307,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .receiver(receiverAddress)
                 .sender(senderAddress)
                 .value(value)
-                .stateOverrides(List.of())
                 .build();
     }
 

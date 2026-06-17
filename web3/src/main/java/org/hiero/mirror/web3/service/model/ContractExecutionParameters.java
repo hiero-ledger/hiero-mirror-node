@@ -22,7 +22,9 @@ public class ContractExecutionParameters implements CallServiceParameters {
     private final boolean isStatic;
     private final Address receiver;
     private final Address sender;
-    private final List<StateOverride> stateOverrides;
+
+    @Builder.Default
+    private final List<StateOverride> stateOverrides = List.of();
 
     private final TracerType tracerType = TracerType.OPERATION;
     private final long value;

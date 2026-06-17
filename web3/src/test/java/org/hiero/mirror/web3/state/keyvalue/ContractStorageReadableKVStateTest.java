@@ -47,7 +47,7 @@ class ContractStorageReadableKVStateTest {
     private static final ContractID CONTRACT_ID =
             new ContractID(1L, 0L, new OneOf<>(ContractOneOfType.CONTRACT_NUM, 1L));
     private static final String CONTRACT_ID_WITH_NUM_ADDRESS =
-            toAddress(CONTRACT_ID.contractNum()).toHexString();
+            toAddress(CONTRACT_ID.contractNum()).toUnprefixedHexString();
     private static final Bytes BYTES = Bytes.wrap(leftPadBytes("123456".getBytes(), Bytes32.SIZE));
     private static final SlotKey SLOT_KEY = new SlotKey(CONTRACT_ID, BYTES);
     private static final EntityId ENTITY_ID =
@@ -138,7 +138,7 @@ class ContractStorageReadableKVStateTest {
     @Test
     void whenStateOverrideHasFullStateReturnsNullForUnlistedSlot() {
         contractCallContext.setStateOverrides(Map.of(
-                org.apache.tuweni.bytes.Bytes.fromHexString(CONTRACT_ID_WITH_NUM_ADDRESS),
+                Bytes.fromHex(CONTRACT_ID_WITH_NUM_ADDRESS),
                 stateOverrideWithState(OTHER_SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
 
         assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isNull();
@@ -148,8 +148,7 @@ class ContractStorageReadableKVStateTest {
     @Test
     void whenStateOverrideHasFullStateTakesPrecedenceOverDatabase() {
         contractCallContext.setStateOverrides(Map.of(
-                org.apache.tuweni.bytes.Bytes.fromHexString(CONTRACT_ID_WITH_NUM_ADDRESS),
-                stateOverrideWithState(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
+                Bytes.fromHex(CONTRACT_ID_WITH_NUM_ADDRESS), stateOverrideWithState(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
         lenient()
                 .when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
@@ -161,7 +160,7 @@ class ContractStorageReadableKVStateTest {
     @Test
     void whenStateOverrideHasStateDiffReturnsOverrideValue() {
         contractCallContext.setStateOverrides(Map.of(
-                org.apache.tuweni.bytes.Bytes.fromHexString(CONTRACT_ID_WITH_NUM_ADDRESS),
+                Bytes.fromHex(CONTRACT_ID_WITH_NUM_ADDRESS),
                 stateOverrideWithStateDiff(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
 
         assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isEqualTo(OVERRIDE_SLOT_VALUE);
@@ -171,7 +170,7 @@ class ContractStorageReadableKVStateTest {
     @Test
     void whenStateOverrideHasStateDiffFallsThroughToDatabaseForUnlistedSlot() {
         contractCallContext.setStateOverrides(Map.of(
-                org.apache.tuweni.bytes.Bytes.fromHexString(CONTRACT_ID_WITH_NUM_ADDRESS),
+                Bytes.fromHex(CONTRACT_ID_WITH_NUM_ADDRESS),
                 stateOverrideWithStateDiff(OTHER_SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
@@ -182,9 +181,8 @@ class ContractStorageReadableKVStateTest {
 
     @Test
     void whenStateOverrideExistsButNoStorageFieldsFallsThroughToDatabase() {
-        contractCallContext.setStateOverrides(Map.of(
-                org.apache.tuweni.bytes.Bytes.fromHexString(CONTRACT_ID_WITH_NUM_ADDRESS),
-                stateOverrideWithBalance("0x1")));
+        contractCallContext.setStateOverrides(
+                Map.of(Bytes.fromHex(CONTRACT_ID_WITH_NUM_ADDRESS), stateOverrideWithBalance("0x1")));
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
@@ -195,7 +193,7 @@ class ContractStorageReadableKVStateTest {
     @Test
     void whenStateOverridesExistButNoMatchingAddressFallsThroughToDatabase() {
         contractCallContext.setStateOverrides(Map.of(
-                org.apache.tuweni.bytes.Bytes.fromHexString("0x000000000000000000000000000000000000dead"),
+                Bytes.fromHex("000000000000000000000000000000000000dead"),
                 stateOverrideWithState(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))

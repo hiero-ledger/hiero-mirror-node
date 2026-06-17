@@ -6,6 +6,7 @@ import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSch
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
+import static org.hiero.mirror.web3.state.Utils.hexEqualsBytes;
 
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.SlotKey;
@@ -14,7 +15,6 @@ import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
-import java.util.Arrays;
 import java.util.List;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -72,18 +72,13 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
             return null;
         }
 
-        org.apache.tuweni.bytes.Bytes contractAddress;
-        StateOverride stateOverride;
-        if (contractID.evmAddress() != null
-                && !com.hedera.pbj.runtime.io.buffer.Bytes.EMPTY.equals(contractID.evmAddress())) {
-            contractAddress =
-                    org.apache.tuweni.bytes.Bytes.wrap(contractID.evmAddress().toByteArray());
-            stateOverride = stateOverrides.get(contractAddress);
+        final Bytes contractAddress;
+        if (contractID.evmAddress() != null && !Bytes.EMPTY.equals(contractID.evmAddress())) {
+            contractAddress = contractID.evmAddress();
         } else {
-            contractAddress = org.apache.tuweni.bytes.Bytes.wrap(toEvmAddress(contractID.contractNum()));
-            stateOverride = stateOverrides.get(contractAddress);
+            contractAddress = Bytes.wrap(toEvmAddress(contractID.contractNum()));
         }
-        return stateOverride;
+        return stateOverrides.get(contractAddress);
     }
 
     private SlotValue readStorageFromDatabase(@NonNull ContractCallContext context, @NonNull SlotKey slotKey) {
@@ -101,11 +96,9 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
     }
 
     private SlotValue slotValueFromStateOverrides(@NonNull List<StorageEntry> storage, @NonNull SlotKey slotKey) {
-        final var slotKeyBytes = slotKey.key().toByteArray();
+        final var keyBytes = slotKey.key();
         for (var entry : storage) {
-            final var normalizedKey =
-                    org.apache.tuweni.bytes.Bytes.fromHexString(entry.getKey().toLowerCase());
-            if (Arrays.equals(slotKeyBytes, normalizedKey.toArray())) {
+            if (hexEqualsBytes(entry.getKey(), keyBytes)) {
                 return hexToSlotValue(entry.getValue());
             }
         }

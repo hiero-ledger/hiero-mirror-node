@@ -59,14 +59,13 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
         final var ctx = ContractCallContext.get();
         final var stateOverrides = ctx.getStateOverrides();
         if (stateOverrides != null && !stateOverrides.isEmpty()) {
-            org.apache.tuweni.bytes.Bytes contractAddress;
+            final Bytes contractAddress;
             StateOverride stateOverride;
             if (contractID.evmAddress() != null && !Bytes.EMPTY.equals(contractID.evmAddress())) {
-                contractAddress = org.apache.tuweni.bytes.Bytes.wrap(
-                        contractID.evmAddress().toByteArray());
+                contractAddress = contractID.evmAddress();
                 stateOverride = stateOverrides.get(contractAddress);
             } else {
-                contractAddress = org.apache.tuweni.bytes.Bytes.wrap(toEvmAddress(contractID.contractNum()));
+                contractAddress = Bytes.wrap(toEvmAddress(contractID.contractNum()));
                 stateOverride = stateOverrides.get(contractAddress);
             }
 

@@ -1055,7 +1055,6 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                 .receiver(Address.fromHexString(contract.getContractAddress()))
                 .sender(testWeb3jService.getSender())
                 .value(value)
-                .stateOverrides(List.of())
                 .build();
     }
 

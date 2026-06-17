@@ -10,7 +10,6 @@ import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -239,7 +238,6 @@ final class ContractCallNativePrecompileTest extends Web3IntegrationTest {
                 .callType(ETH_CALL)
                 .value(0L)
                 .block(BlockType.LATEST)
-                .stateOverrides(List.of())
                 .build();
     }
 
