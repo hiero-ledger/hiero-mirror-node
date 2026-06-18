@@ -174,7 +174,6 @@ jobs:
           importer:
             env:
               HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_ENDPOINTS_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
-              SPRING_PROFILES_ACTIVE: 'blocknode'
             image:
               repository: mirrornode/hedera-mirror-importer
             resources:
@@ -253,10 +252,46 @@ jobs:
           echo "Installed hedera-mirror chart version $APP_VERSION"
 
       - name: Run acceptance tests
-        timeout-minutes: 8
+        timeout-minutes: 10
         run: |
           helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
             --timeout 10m | tee output_log.txt
+
+      - name: Switch to Ingest Recordstream Files
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+
+          # scale down importer so no more writes to the database
+          kubectl scale deployment "${HELM_RELEASE_NAME}-importer" -n "${SOLO_NAMESPACE}" --replicas=0
+          kubectl wait -n "${SOLO_NAMESPACE}" --for=delete -l app.kubernetes.io/name=importer --timeout=300s pod
+
+          LAST_TIMESTAMP=$(curl -s 'http://localhost:38081/api/v1/transactions?limit=1' | \
+            jq -r .transactions[0].consensus_timestamp)
+
+          .github/workflows/scripts/backup_and_reset_database.sh "${SOLO_NAMESPACE}"
+
+          # solo sets block.enabled=true and downloader.record.enabled=false for importer if a BN is detected
+          # flip the two configs with env var overrides
+          kubectl -n "${SOLO_NAMESPACE}" set env deployment "${HELM_RELEASE_NAME}-importer" \
+            HIERO_MIRROR_IMPORTER_BLOCK_ENABLED=false \
+            HIERO_MIRROR_IMPORTER_DOWNLOADER_RECORD_ENABLED=true
+          kubectl scale deployment "${HELM_RELEASE_NAME}-importer" -n "${SOLO_NAMESPACE}" --replicas=1
+          kubectl rollout status deployment "${HELM_RELEASE_NAME}-importer" -n "${SOLO_NAMESPACE}" --timeout=300s
+
+          CURRENT_TIMESTAMP=$(curl -s 'http://localhost:38081/api/v1/transactions?limit=1' | \
+            jq -r '.transactions[0].consensus_timestamp // 0.0')
+          until [[ "${CURRENT_TIMESTAMP}" = "${LAST_TIMESTAMP}" || "${CURRENT_TIMESTAMP}" > "${LAST_TIMESTAMP}" ]]
+          do
+            echo "Current timestamp ${CURRENT_TIMESTAMP} is behind the timestamp of the previous run ${LAST_TIMESTAMP}"
+            sleep 5
+            CURRENT_TIMESTAMP=$(curl -s 'http://localhost:38081/api/v1/transactions?limit=1' | \
+              jq -r '.transactions[0].consensus_timestamp // 0.0')
+          done
+
+          echo "importer has synced to ${CURRENT_TIMESTAMP}"
+          kubectl scale deployment "${HELM_RELEASE_NAME}-importer" -n "${SOLO_NAMESPACE}" --replicas=0
+          kubectl wait -n "${SOLO_NAMESPACE}" --for=delete -l app.kubernetes.io/name=importer --timeout=300s pod
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
