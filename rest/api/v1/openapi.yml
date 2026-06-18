@@ -3354,6 +3354,10 @@ components:
           minimum: 0
         previous_hash:
           type: string
+        receipts_root:
+          description: A hex encoded 32-byte receipts root with 0x prefix
+          type: [string, "null"]
+          pattern: ^0x[0-9a-fA-F]{64}$
         size:
           type: [integer, "null"]
         timestamp:
@@ -3367,6 +3371,7 @@ components:
         name: "2022-05-03T06_46_26.060890949Z.rcd"
         number: 77
         previous_hash: "0xf7d6481f659c866c35391ee230c374f163642ebf13a5e604e04a95a9ca48a298dc2dfa10f51bcbaab8ae23bc6d662a0b"
+        receipts_root: "0x56e91f271bcc54a6ff8345e692c0f86e5b48e21b936caed001722fb5e363b425"
         size: 8192
         timestamp:
           from: "1651560386.060890949"
