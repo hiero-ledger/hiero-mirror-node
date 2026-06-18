@@ -2286,6 +2286,64 @@ components:
       items:
         type: string
       type: array
+    TracerResponse:
+      type: object
+      properties:
+        actions:
+          description: The list of all contract actions related to the transaction execution traced by callTracer
+          type: object
+          properties:
+            calls:
+              description: The list of all nested contract actions related to the transaction execution
+              items:
+                $ref: "#/components/schemas/ActionResponse"
+              type: array
+            topLevelCall:
+              description: The top level action related to the transaction execution
+              $ref: "#/components/schemas/ActionResponse"
+        opcodes:
+          description: List of opcodes traced by opcodeLogger
+          $ref: "#/components/schemas/OpcodesResponse"
+        preimage:
+          description: List of keccak256 hashes and memory slices traced by keccak256PreimageTracer
+        prestate:
+          description: List of basic information about accounts and contracts touched during transaction execution traced by prestateTracer
+    ActionResponse:
+      type: object
+      properties:
+        error:
+          description: The error message for the call action
+          type: [string, "null"]
+        from:
+          description: The sender address for the call action
+          type: string
+        gas:
+          description: Hexadecimal value of the gas sent for the execution
+          type: string
+        gas_used:
+          description: Hexadecimal value of the actually used gas
+          type: string
+        input:
+          description: The input for the call action
+          type: [string, "null"]
+        output:
+          description: The output for the given call action
+          type: [string, "null"]
+        revert_reason:
+          description: The reason for the call action revert, if available
+          type: [string, "null"]
+        to:
+          description: The recipient address for the call action
+          type: string
+        type:
+          description: The type of the call operation
+          enum:
+            [CALL, CALLCODE, CREATE, CREATE2, DELEGATECALL, STATICCALL, UNKNOWN]
+          example: CALL
+          type: string
+        value:
+          description: The hexadecimal value passed for the contract action in tinybars
+          type: string
     ContractAction:
       type: object
       properties:
@@ -2806,6 +2864,8 @@ components:
           format: int64
           minimum: 0
           type: [integer, "null"]
+        tracerConfig:
+          $ref: "#/components/schemas/TracerConfig"
       required:
         - to
     ContractCallResponse:
@@ -4229,6 +4289,35 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/TopicMessage"
+    TracerConfig:
+      type: object
+      properties:
+        code:
+          description: Whether to include contract bytecode in the response. Applicable only for prestateTracer
+          type: boolean
+        diff:
+          description: Whether to include additional array in the response with account changes reflecting state after call execution. Applicable only for prestateTracer
+          type: boolean
+        memory:
+          description: Whether to include EVM memory information in the response. Applicable only for opcodeLogger
+          type: boolean
+        onlyTopCall:
+          description: Whether to include only call action information about the root message frame in the response. Applicable only for callTracer
+          type: boolean
+        stack:
+          description: Whether to include EVM stack information in the response. Applicable only for opcodeLogger
+          type: boolean
+        storage:
+          description: Whether to include contract storage information in the response. Applicable for prestateTracer and opcodeLogger
+          type: boolean
+        timeout:
+          description: Representation of a time unit and value that should determine whether transaction tracing should be terminated
+          example: 5s
+          type: string
+        tracer:
+          enum:
+            [callTracer, prestateTracer, keccak256PreimageTracer, opcodeLogger]
+          default: opcodeLogger
     Transaction:
       type: object
       properties:

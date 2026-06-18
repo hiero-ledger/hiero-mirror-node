@@ -7,15 +7,20 @@ import jakarta.inject.Named;
 import jakarta.validation.Valid;
 import java.util.Optional;
 import lombok.CustomLog;
+import org.hiero.mirror.rest.model.TracerResponse;
+import org.hiero.mirror.rest.model.TracerResponseActions;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
+import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
+import org.hiero.mirror.web3.service.model.TraceRequest;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.springframework.validation.annotation.Validated;
@@ -47,7 +52,7 @@ public class ContractDebugService extends ContractCallService {
 
     public OpcodesProcessingResult processOpcodeCall(
             final @Valid ContractDebugParameters params, final OpcodeContext opcodeContext) {
-        ContractCallContext ctx = ContractCallContext.get();
+        final var ctx = ContractCallContext.get();
         ctx.setTimestamp(Optional.of(params.getConsensusTimestamp() - 1));
         ctx.setOpcodeContext(opcodeContext);
         ctx.getOpcodeContext()
@@ -56,6 +61,27 @@ public class ContractDebugService extends ContractCallService {
         final var ethCallTxnResult = callContract(params, ctx);
         return new OpcodesProcessingResult(
                 ethCallTxnResult, params.getReceiver(), ctx.getOpcodeContext().getOpcodes());
+    }
+
+    public TracerResponse processTraceCall(
+            final @Valid ContractExecutionParameters params, final TraceRequest traceRequest) {
+        final var ctx = ContractCallContext.get();
+        final var actionContext = new ActionContext();
+        ctx.setActionContext(actionContext);
+
+        callContract(params, ctx);
+
+        final var actions = ctx.getActionContext().getActions();
+        final var topLevelAction = actions.getLast();
+
+        final var tracerResponseActions = new TracerResponseActions();
+        if (actions.size() > 1 && !traceRequest.isOnlyTopCall()) {
+            actions.removeLast();
+            tracerResponseActions.calls(actions);
+        }
+
+        tracerResponseActions.topLevelCall(topLevelAction);
+        return new TracerResponse().actions(tracerResponseActions);
     }
 
     @Override

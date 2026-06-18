@@ -16,6 +16,7 @@ import lombok.Setter;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
+import org.hiero.mirror.web3.viewmodel.TracerConfig;
 
 /**
  * Properties for tracing opcodes
@@ -45,25 +46,15 @@ public final class OpcodeContext {
 
     private RootProxyWorldUpdater rootProxyWorldUpdater;
 
-    /**
-     * Include stack information
-     */
-    private final boolean stack;
-
-    /**
-     * Include memory information
-     */
-    private final boolean memory;
-
-    /**
-     * Include storage information
-     */
-    private final boolean storage;
+    private TracerConfig tracerConfig;
 
     public OpcodeContext(final OpcodeRequest opcodeRequest, final int opcodesSize) {
-        this.stack = opcodeRequest.isStack();
-        this.memory = opcodeRequest.isMemory();
-        this.storage = opcodeRequest.isStorage();
+        this.tracerConfig = TracerConfig.builder()
+                .stack(opcodeRequest.isStack())
+                .memory(opcodeRequest.isMemory())
+                .storage(opcodeRequest.isStorage())
+                .tracerType(TracerType.OPCODE)
+                .build();
         this.opcodes = new ArrayList<>(opcodesSize);
     }
 

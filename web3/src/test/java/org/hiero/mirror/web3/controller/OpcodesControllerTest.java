@@ -237,9 +237,9 @@ class OpcodesControllerTest {
                 };
 
         return opcodesRequest(transactionIdOrHash)
-                .queryParam("stack", String.valueOf(options.isStack()))
-                .queryParam("memory", String.valueOf(options.isMemory()))
-                .queryParam("storage", String.valueOf(options.isStorage()));
+                .queryParam("stack", String.valueOf(options.getTracerConfig().isStack()))
+                .queryParam("memory", String.valueOf(options.getTracerConfig().isMemory()))
+                .queryParam("storage", String.valueOf(options.getTracerConfig().isStorage()));
     }
 
     private MockHttpServletRequestBuilder opcodesRequest(final String transactionIdOrHash) {
@@ -386,9 +386,18 @@ class OpcodesControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
 
-        assertThat(tracerOptionsCaptor.getValue()).isEqualTo(options);
+        verifyTracerOptionsMatch(tracerOptionsCaptor.getValue(), options);
         assertThat(callServiceParametersCaptor.getValue())
                 .isEqualTo(expectedCallServiceParameters.get().toBuilder().build());
+    }
+
+    private void verifyTracerOptionsMatch(final OpcodeContext actual, final OpcodeContext expected) {
+        assertThat(actual.getTracerConfig().isStack())
+                .isEqualTo(expected.getTracerConfig().isStack());
+        assertThat(actual.getTracerConfig().isMemory())
+                .isEqualTo(expected.getTracerConfig().isMemory());
+        assertThat(actual.getTracerConfig().isStorage())
+                .isEqualTo(expected.getTracerConfig().isStorage());
     }
 
     @ParameterizedTest
@@ -648,13 +657,13 @@ class OpcodesControllerTest {
                             .gasCost(3L)
                             .depth(2)
                             .stack(
-                                    options.isStack()
+                                    options.getTracerConfig().isStack()
                                             ? List.of(
                                                     "0x000000000000000000000000000000000000000000000000000000004700d305",
                                                     "0x00000000000000000000000000000000000000000000000000000000000000a7")
                                             : Collections.emptyList())
                             .memory(
-                                    options.isMemory()
+                                    options.getTracerConfig().isMemory()
                                             ? List.of(
                                                     "0x4e487b7100000000000000000000000000000000000000000000000000000000",
                                                     "0x0000001200000000000000000000000000000000000000000000000000000000")
@@ -668,13 +677,13 @@ class OpcodesControllerTest {
                             .gasCost(0L)
                             .depth(2)
                             .stack(
-                                    options.isStack()
+                                    options.getTracerConfig().isStack()
                                             ? List.of(
                                                     "0x000000000000000000000000000000000000000000000000000000004700d305",
                                                     "0x00000000000000000000000000000000000000000000000000000000000000a7")
                                             : Collections.emptyList())
                             .memory(
-                                    options.isMemory()
+                                    options.getTracerConfig().isMemory()
                                             ? List.of(
                                                     "0x4e487b7100000000000000000000000000000000000000000000000000000000",
                                                     "0x0000001200000000000000000000000000000000000000000000000000000000")
@@ -688,19 +697,19 @@ class OpcodesControllerTest {
                             .gasCost(3L)
                             .depth(1)
                             .stack(
-                                    options.isStack()
+                                    options.getTracerConfig().isStack()
                                             ? List.of(
                                                     "0x000000000000000000000000000000000000000000000000000000000135b7d0",
                                                     "0x00000000000000000000000000000000000000000000000000000000000000a0")
                                             : Collections.emptyList())
                             .memory(
-                                    options.isMemory()
+                                    options.getTracerConfig().isMemory()
                                             ? List.of(
                                                     "0x0000000000000000000000000000000000000000000000000000000000000000",
                                                     "0x0000000000000000000000000000000000000000000000000000000000000000")
                                             : Collections.emptyList())
                             .storage(
-                                    options.isStorage()
+                                    options.getTracerConfig().isStorage()
                                             ? ImmutableSortedMap.of(
                                                     "0x0000000000000000000000000000000000000000000000000000000000000000",
                                                     "0x0000000000000000000000000000000000000000000000000000000000000014")
