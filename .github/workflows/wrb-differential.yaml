@@ -28,7 +28,7 @@ env:
   LC_ALL: C.UTF-8
 
 jobs:
-  acceptance:
+  differential:
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 50
     env:
@@ -174,6 +174,7 @@ jobs:
           importer:
             env:
               HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_ENDPOINTS_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
+              SPRING_PROFILES_ACTIVE: 'blocknode'
             image:
               repository: mirrornode/hedera-mirror-importer
             resources:
@@ -243,6 +244,13 @@ jobs:
           solo consensus node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 --release-tag "${CONSENSUS_NODE_VERSION}"
           solo consensus node start --deployment "${SOLO_DEPLOYMENT}" -i node1
 
+          # remove block-node pod before deploying mirror node to avoid running into the situation that block node waits
+          # too long for the RSA roster from /network/nodes REST api and ends up skipping some blocks at the beginning
+          echo "Removing block-node pod"
+          kubectl scale sts block-node-1 -n "${SOLO_NAMESPACE}" --replicas 0
+          kubectl wait pod -n "${SOLO_NAMESPACE}" --for=delete -l block-node.hiero.com/type=block-node --timeout=300s
+          echo "Removed block-node pod"
+
           helm dependency update charts/hedera-mirror
           DISABLE_IMPORTER_SPRING_PROFILES=true solo mirror node add --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
             --deployment "${SOLO_DEPLOYMENT}" \
@@ -250,6 +258,11 @@ jobs:
           APP_VERSION=$(helm ls -n "${SOLO_NAMESPACE}" -o json \
             | jq -r '.[] | select (.chart | test("hedera-mirror-.*")) | .app_version')
           echo "Installed hedera-mirror chart version $APP_VERSION"
+
+          echo "Scale up block-node sts"
+          kubectl scale sts block-node-1 -n "${SOLO_NAMESPACE}" --replicas 1
+          kubectl wait sts block-node-1 -n "${SOLO_NAMESPACE}" --for=jsonpath='{.status.readyReplicas}'=1 --timeout=300s
+          echo "Scaled up block-node sts"
 
       - name: Run acceptance tests
         timeout-minutes: 10
@@ -267,15 +280,12 @@ jobs:
           kubectl wait -n "${SOLO_NAMESPACE}" --for=delete -l app.kubernetes.io/name=importer --timeout=300s pod
 
           LAST_TIMESTAMP=$(curl -s 'http://localhost:38081/api/v1/transactions?limit=1' | \
-            jq -r .transactions[0].consensus_timestamp)
+            jq -r '.transactions[0].consensus_timestamp')
 
           .github/workflows/scripts/backup_and_reset_database.sh "${SOLO_NAMESPACE}"
 
-          # solo sets block.enabled=true and downloader.record.enabled=false for importer if a BN is detected
-          # flip the two configs with env var overrides
-          kubectl -n "${SOLO_NAMESPACE}" set env deployment "${HELM_RELEASE_NAME}-importer" \
-            HIERO_MIRROR_IMPORTER_BLOCK_ENABLED=false \
-            HIERO_MIRROR_IMPORTER_DOWNLOADER_RECORD_ENABLED=true
+          # reconfig importer to ingest recordstream files 
+          kubectl -n "${SOLO_NAMESPACE}" set env deployment "${HELM_RELEASE_NAME}-importer" SPRING_PROFILES_ACTIVE-
           kubectl scale deployment "${HELM_RELEASE_NAME}-importer" -n "${SOLO_NAMESPACE}" --replicas=1
           kubectl rollout status deployment "${HELM_RELEASE_NAME}-importer" -n "${SOLO_NAMESPACE}" --timeout=300s
 
@@ -291,14 +301,12 @@ jobs:
 
           echo "importer has synced to ${CURRENT_TIMESTAMP}"
           kubectl scale deployment "${HELM_RELEASE_NAME}-importer" -n "${SOLO_NAMESPACE}" --replicas=0
-          kubectl wait -n "${SOLO_NAMESPACE}" --for=delete -l app.kubernetes.io/name=importer --timeout=300s pod
+          kubectl wait pod -n "${SOLO_NAMESPACE}" --for=delete -l app.kubernetes.io/name=importer --timeout=300s
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
         if: ${{ failure() }}
         run: |
-          helm -n ${SOLO_NAMESPACE} get values ${HELM_RELEASE_NAME}
-
           echo "--------------------------------------------------"
           echo "Workflow failed. Collecting logs for debugging..."
           echo "--------------------------------------------------"
