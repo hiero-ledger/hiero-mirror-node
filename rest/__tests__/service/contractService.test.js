@@ -212,6 +212,21 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
       10
     );
     const expected = `
+      with synth_raw as (
+        select distinct on (cl.consensus_timestamp)
+          cl.consensus_timestamp,
+          coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
+          cl.transaction_hash, cl.transaction_index, cl.payer_account_id
+        from contract_log cl
+        where cl.synthetic is true
+        order by cl.consensus_timestamp desc, cl.index desc
+        limit $1
+      ), contract_evm_address as (
+        select e.id, e.evm_address
+        from synth_raw
+        join entity e on synth_raw.contract_id = e.id
+        group by synth_raw.contract_id, e.id
+      )
       select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
@@ -221,18 +236,9 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
         null::bigint as gas_used, synth_raw.payer_account_id, null::bigint as sender_id,
         synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
         22::smallint as transaction_result,
-        coalesce(e.evm_address, '') as evm_address
-      from (
-        select distinct on (cl.consensus_timestamp)
-          cl.consensus_timestamp,
-          coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
-          cl.transaction_hash, cl.transaction_index, cl.payer_account_id
-        from contract_log cl
-        where cl.synthetic is true
-        order by cl.consensus_timestamp desc, cl.index desc
-        limit $1
-      ) synth_raw
-      left join entity e on e.id = synth_raw.contract_id
+        coalesce((select evm_address from contract_evm_address where id = synth_raw.contract_id), '') as evm_address
+      from synth_raw
+      order by synth_raw.consensus_timestamp desc
     `;
     assertSqlQueryEqual(query, expected);
     expect(params).toEqual([10]);
@@ -247,22 +253,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
       10
     );
     const expected = `
-      select
-        null::bigint as amount,
-        null::bytea as bloom,
-        null::bytea as call_result,
-        synth_raw.consensus_timestamp,
-        synth_raw.contract_id,
-        null::bigint[] as created_contract_ids,
-        null::text as error_message,
-        null::bytea as failed_initcode,
-        '\\x'::bytea as function_parameters,
-        null::bytea as function_result, null::bigint as gas_consumed, 0::bigint as gas_limit,
-        null::bigint as gas_used, synth_raw.payer_account_id, null::bigint as sender_id,
-        synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
-        22::smallint as transaction_result,
-        coalesce(e.evm_address, '') as evm_address
-      from (
+      with synth_raw as (
         select distinct on (cl.consensus_timestamp)
           cl.consensus_timestamp,
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
@@ -271,8 +262,24 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
         where cl.consensus_timestamp >= $1 and cl.consensus_timestamp <= $2 and cl.synthetic is true
         order by cl.consensus_timestamp desc, cl.index desc
         limit $3
-      ) synth_raw
-      left join entity e on e.id = synth_raw.contract_id
+      ), contract_evm_address as (
+        select e.id, e.evm_address
+        from synth_raw
+        join entity e on synth_raw.contract_id = e.id
+        group by synth_raw.contract_id, e.id
+      )
+      select
+        null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
+        synth_raw.consensus_timestamp, synth_raw.contract_id,
+        null::bigint[] as created_contract_ids, null::text as error_message,
+        null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
+        null::bytea as function_result, null::bigint as gas_consumed, 0::bigint as gas_limit,
+        null::bigint as gas_used, synth_raw.payer_account_id, null::bigint as sender_id,
+        synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
+        22::smallint as transaction_result,
+        coalesce((select evm_address from contract_evm_address where id = synth_raw.contract_id), '') as evm_address
+      from synth_raw
+      order by synth_raw.consensus_timestamp desc
     `;
     assertSqlQueryEqual(query, expected);
     expect(params).toEqual([1000, 2000, 10]);
@@ -287,6 +294,21 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
       1
     );
     const expected = `
+      with synth_raw as (
+        select distinct on (cl.consensus_timestamp)
+          cl.consensus_timestamp,
+          coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
+          cl.transaction_hash, cl.transaction_index, cl.payer_account_id
+        from contract_log cl
+        where cl.consensus_timestamp >= $1 and cl.synthetic is true and cl.consensus_timestamp != all($2)
+        order by cl.consensus_timestamp desc, cl.index desc
+        limit $3
+      ), contract_evm_address as (
+        select e.id, e.evm_address
+        from synth_raw
+        join entity e on synth_raw.contract_id = e.id
+        group by synth_raw.contract_id, e.id
+      )
       select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
@@ -296,18 +318,9 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
         null::bigint as gas_used, synth_raw.payer_account_id, null::bigint as sender_id,
         synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
         22::smallint as transaction_result,
-        coalesce(e.evm_address, '') as evm_address
-      from (
-        select distinct on (cl.consensus_timestamp)
-          cl.consensus_timestamp,
-          coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
-          cl.transaction_hash, cl.transaction_index, cl.payer_account_id
-        from contract_log cl
-        where cl.consensus_timestamp >= $1 and cl.synthetic is true and cl.consensus_timestamp != all($2)
-        order by cl.consensus_timestamp desc, cl.index desc
-        limit $3
-      ) synth_raw
-      left join entity e on e.id = synth_raw.contract_id
+        coalesce((select evm_address from contract_evm_address where id = synth_raw.contract_id), '') as evm_address
+      from synth_raw
+      order by synth_raw.consensus_timestamp desc
     `;
     assertSqlQueryEqual(query, expected);
     expect(params).toEqual(['5', ['5'], 1]);
