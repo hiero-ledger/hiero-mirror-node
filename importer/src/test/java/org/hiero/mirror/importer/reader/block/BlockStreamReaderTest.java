@@ -145,6 +145,7 @@ public final class BlockStreamReaderTest {
                             "initialState",
                             "items",
                             "previousWrappedRecordBlockHash",
+                            "receiptsRoot",
                             "wrappedRecordBlockHash")
                     .build();
 
