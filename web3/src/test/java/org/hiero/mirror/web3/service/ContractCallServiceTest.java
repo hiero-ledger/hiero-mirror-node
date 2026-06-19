@@ -1442,8 +1442,9 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             assertThat(result.gasUsed()).isPositive();
         }
 
-        @Test
-        void processCallWithGasAppliesAccountNonceOverride() {
+        @ParameterizedTest
+        @ValueSource(booleans = {true, false})
+        void processCallWithGasAppliesAccountNonceOverride(final boolean unhex) {
             // Given
             final var account = accountEntityPersistCustomizable(
                     e -> e.ethereumNonce(1L).evmAddress(null).alias(null));
@@ -1464,7 +1465,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .get(eq(accountId));
 
             final var stateOverride = new StateOverride();
-            stateOverride.setAddress(accountAddress.toHexString());
+            stateOverride.setAddress(unhex ? accountAddress.toUnprefixedHexString() : accountAddress.toHexString());
             stateOverride.setNonce("0x2a");
             final var params = contractExecutionParametersBuilder(
                             BlockType.LATEST,
