@@ -80,11 +80,9 @@ final class FixEvmTransactionIndexMigrationTest
     void scheduledEvmTransactionGetsOwnIndex() {
         // given
         final var block = persistBlock(0);
-        final var cryptoTransferTimestamp = block.getConsensusStart() + 100;
-        final var scheduledCallTimestamp = block.getConsensusStart() + 200;
+        final var scheduledCallTimestamp = block.getConsensusStart() + 100;
 
-        persistTransaction(cryptoTransferTimestamp, TransactionType.CRYPTOTRANSFER, 0, false, null);
-        persistTransaction(scheduledCallTimestamp, TransactionType.CONTRACTCALL, 1, true, cryptoTransferTimestamp);
+        persistTransaction(scheduledCallTimestamp, TransactionType.CONTRACTCALL, 0, true, null);
 
         final var contractResult = persistContractResult(scheduledCallTimestamp, 99);
         final var contractLog = persistContractLog(scheduledCallTimestamp, 99);
