@@ -427,6 +427,36 @@ resource "grafana_rule_group" "rule_group_grpc" {
     }
     is_paused = false
   }
+  rule {
+    name      = "GrpcNoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-grpc-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No gRPC API instances are currently running in {{ $labels.namespace }}"
+      summary     = "No gRPC API instances running"
+    }
+    labels = {
+      area        = "resource"
+      application = "grpc"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
 }
 resource "grafana_rule_group" "rule_group_importer" {
   disable_provenance = false
@@ -1039,6 +1069,36 @@ resource "grafana_rule_group" "rule_group_importer" {
     }
     is_paused = false
   }
+  rule {
+    name      = "ImporterNoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-importer-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No importer instances are currently ready in {{ $labels.namespace }}"
+      summary     = "No importer instances are ready"
+    }
+    labels = {
+      area        = "resource"
+      application = "importer"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
 }
 resource "grafana_rule_group" "rule_group_monitor" {
   disable_provenance = false
@@ -1343,6 +1403,36 @@ resource "grafana_rule_group" "rule_group_monitor" {
     }
     is_paused = false
   }
+  rule {
+    name      = "MonitorNoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-monitor-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No monitor instances are currently running in {{ $labels.namespace }}"
+      summary     = "No monitor instances running"
+    }
+    labels = {
+      area        = "resource"
+      application = "monitor"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
 }
 resource "grafana_rule_group" "rule_group_rest" {
   disable_provenance = false
@@ -1467,6 +1557,36 @@ resource "grafana_rule_group" "rule_group_rest" {
     }
     is_paused = false
   }
+  rule {
+    name      = "RestNoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-rest-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No REST API instances are currently running in {{ $labels.namespace }}"
+      summary     = "No REST API instances running"
+    }
+    labels = {
+      area        = "resource"
+      application = "rest"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
 }
 resource "grafana_rule_group" "rule_group_restjava" {
   disable_provenance = false
@@ -1527,6 +1647,7 @@ resource "grafana_rule_group" "rule_group_restjava" {
       summary     = "Mirror Java REST API CPU usage exceeds 80%"
     }
     labels = {
+      area        = "resource"
       application = "rest-java"
       severity    = "critical"
     }
@@ -1738,6 +1859,36 @@ resource "grafana_rule_group" "rule_group_restjava" {
     }
     is_paused = false
   }
+  rule {
+    name      = "RestJavaNoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-rest-java-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No Java REST API instances are currently running in {{ $labels.namespace }}"
+      summary     = "No Java REST API instances running"
+    }
+    labels = {
+      application = "rest-java"
+      area        = "resource"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
 }
 resource "grafana_rule_group" "rule_group_web3" {
   disable_provenance = false
@@ -1798,6 +1949,7 @@ resource "grafana_rule_group" "rule_group_web3" {
       summary     = "Mirror Web3 API CPU usage exceeds 80%"
     }
     labels = {
+      area        = "resource"
       application = "web3"
       severity    = "critical"
     }
@@ -2001,6 +2153,36 @@ resource "grafana_rule_group" "rule_group_web3" {
     annotations = {
       description = "{{ $labels.pod }} file descriptor usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
       summary     = "Mirror Web3 API file descriptor usage exceeds 80%"
+    }
+    labels = {
+      application = "web3"
+      area        = "resource"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "Web3NoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-web3-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No Web3 API instances are currently running in {{ $labels.namespace }}"
+      summary     = "No Web3 API instances running"
     }
     labels = {
       application = "web3"

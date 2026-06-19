@@ -114,7 +114,8 @@ public class AccountClient extends AbstractNetworkClient {
                     .freezeWith(client)
                     .sign(accountId.getPrivateKey());
             final var response = executeTransactionAndRetrieveReceipt(accountDeleteTransaction);
-            log.info("Deleted account {} via {}", accountId, response.getTransactionId());
+            log.info(
+                    "Deleted account {} via {} in {}", accountId, response.getTransactionId(), response.getStopwatch());
             return response;
         } catch (Exception e) {
             log.warn(
@@ -165,11 +166,12 @@ public class AccountClient extends AbstractNetworkClient {
                 .setTransactionMemo(getMemo("Approved transfer"));
         var response = executeTransactionAndRetrieveReceipt(transferTransaction, spender);
         log.info(
-                "Approved transfer {} from {} to {} via {}",
+                "Approved transfer {} from {} to {} via {} in {}",
                 hbarAmount,
                 spender,
                 recipient,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -178,7 +180,13 @@ public class AccountClient extends AbstractNetworkClient {
         final var transaction = getCryptoTransferTransaction(sender.getAccountId(), recipient, hbarAmount);
         var response = executeTransactionAndRetrieveReceipt(
                 transaction, privateKey == null ? null : KeyList.of(privateKey), sender);
-        log.info("Transferred {} from {} to {} via {}", hbarAmount, sender, recipient, response.getTransactionId());
+        log.info(
+                "Transferred {} from {} to {} via {} in {}",
+                hbarAmount,
+                sender,
+                recipient,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -191,8 +199,15 @@ public class AccountClient extends AbstractNetworkClient {
         // first try to reclaim the fund with the default operator as the transaction payer
         try {
             final var transaction = getCryptoTransferTransaction(senderId, recipientId, amount);
-            executeTransactionAndRetrieveReceipt(transaction, KeyList.of(sender.getPrivateKey()), operator);
-            log.info("Reclaimed {} from {} to {} via {}", amount, sender, operator, transaction.getTransactionId());
+            final var response =
+                    executeTransactionAndRetrieveReceipt(transaction, KeyList.of(sender.getPrivateKey()), operator);
+            log.info(
+                    "Reclaimed {} from {} to {} via {} in {}",
+                    amount,
+                    sender,
+                    operator,
+                    transaction.getTransactionId(),
+                    response.getStopwatch());
             return;
         } catch (final Exception ex) {
             log.error("Unable to transfer fund from {} to {} with {} as the payer", sender, operator, operator, ex);
@@ -206,15 +221,14 @@ public class AccountClient extends AbstractNetworkClient {
             try {
                 final var transferAmount = Hbar.fromTinybars(remainingAmount);
                 final var transaction = getCryptoTransferTransaction(senderId, recipientId, transferAmount);
-                log.info("Trying to reclaim {} from {}", transferAmount, sender);
-
-                executeTransactionAndRetrieveReceipt(transaction, null, sender);
+                final var response = executeTransactionAndRetrieveReceipt(transaction, null, sender);
                 log.info(
-                        "Reclaimed {} from {} to {} via {}",
+                        "Reclaimed {} from {} to {} via {} in {}",
                         transferAmount,
                         sender,
                         operator,
-                        transaction.getTransactionId());
+                        transaction.getTransactionId(),
+                        response.getStopwatch());
                 break;
             } catch (final Exception ex) {
                 log.error("Attempt {}/5: Unable to reclaim fund from {}", attempt, sender, ex);
@@ -306,21 +320,28 @@ public class AccountClient extends AbstractNetworkClient {
 
         var accountName = AccountNameEnum.of(memo).map(a -> a + " ").orElse("");
         log.info(
-                "Created new {} account {}{} with {} via {}",
+                "Created new {} account {}{} with {} via {} in {}",
                 keyType,
                 accountName,
                 newAccountId,
                 initialBalance,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         var accountId = new ExpandedAccountId(newAccountId, privateKey);
         accountIds.add(accountId);
         return accountId;
     }
 
     public NetworkTransactionResponse approveCryptoAllowance(AccountId spender, Hbar hbarAmount) {
-        var transaction = new AccountAllowanceApproveTransaction().approveHbarAllowance(null, spender, hbarAmount);
-        var response = executeTransactionAndRetrieveReceipt(transaction);
-        log.info("Approved spender {} an allowance of {} via {}", spender, hbarAmount, response.getTransactionId());
+        final var transaction =
+                new AccountAllowanceApproveTransaction().approveHbarAllowance(null, spender, hbarAmount);
+        final var response = executeTransactionAndRetrieveReceipt(transaction);
+        log.info(
+                "Approved spender {} an allowance of {} via {} in {}",
+                spender,
+                hbarAmount,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -331,11 +352,12 @@ public class AccountClient extends AbstractNetworkClient {
 
         var response = executeTransactionAndRetrieveReceipt(transaction);
         log.info(
-                "Approved spender {} a NFT allowance on {} and serial {} via {}",
+                "Approved spender {} a NFT allowance on {} and serial {} via {} in {}",
                 spender,
                 nftId.tokenId,
                 nftId.serial,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -346,11 +368,12 @@ public class AccountClient extends AbstractNetworkClient {
 
         var response = executeTransactionAndRetrieveReceipt(transaction);
         log.info(
-                "Approved spender {} a token allowance on {} of {} via {}",
+                "Approved spender {} a token allowance on {} of {} via {} in {}",
                 spender,
                 tokenId,
                 amount,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -361,10 +384,11 @@ public class AccountClient extends AbstractNetworkClient {
 
         var response = executeTransactionAndRetrieveReceipt(transaction);
         log.info(
-                "Approved spender {} an allowance for all serial numbers on {} via {}",
+                "Approved spender {} an allowance for all serial numbers on {} via {} in {}",
                 spender,
                 tokenId,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -373,11 +397,12 @@ public class AccountClient extends AbstractNetworkClient {
                 new AccountAllowanceDeleteTransaction().deleteAllTokenNftAllowances(nftId, spender.getAccountId());
         var response = executeTransactionAndRetrieveReceipt(transaction, KeyList.of(spender.getPrivateKey()));
         log.info(
-                "Deleted allowance for spender {} on NFT {} for serial {} via {}",
+                "Deleted allowance for spender {} on NFT {} for serial {} via {} in {}",
                 spender,
                 nftId.tokenId,
                 nftId.serial,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -388,10 +413,11 @@ public class AccountClient extends AbstractNetworkClient {
                 .approveTokenNftAllowanceAllSerials(tokenId, ownerAccountId, AccountId.fromBytes(spender.toBytes()));
         var response = executeTransactionAndRetrieveReceipt(transaction);
         log.info(
-                "Approved spender {} an allowance for all serial numbers on {} via {}",
+                "Approved spender {} an allowance for all serial numbers on {} via {} in {}",
                 spender,
                 tokenId,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -401,11 +427,12 @@ public class AccountClient extends AbstractNetworkClient {
                 new AccountAllowanceApproveTransaction().deleteTokenNftAllowanceAllSerials(tokenId, owner, spender);
         var response = executeTransactionAndRetrieveReceipt(transaction);
         log.info(
-                "Deleted allowance for owner {} and spender {} on {} via {}",
+                "Deleted allowance for owner {} and spender {} on {} via {} in {}",
                 owner,
                 spender,
                 tokenId,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -418,7 +445,7 @@ public class AccountClient extends AbstractNetworkClient {
                 .freezeWith(client)
                 .sign(accountId.getPrivateKey());
         var response = executeTransactionAndRetrieveReceipt(accountUpdateTransaction);
-        log.info(" account updated via {}", response.getTransactionId());
+        log.info("Account {} updated via {} in {}", accountId, response.getTransactionId(), response.getStopwatch());
         return response;
     }
 
@@ -458,7 +485,13 @@ public class AccountClient extends AbstractNetworkClient {
 
         batch.setMaxTransactionFee(Hbar.from(5));
 
-        return executeTransactionAndRetrieveReceipt(batch, (KeyList) null);
+        final var response = executeTransactionAndRetrieveReceipt(batch, (KeyList) null);
+        log.info(
+                "Batch hollow account create of {} via {} in {}",
+                hollowAliasAccountId,
+                response.getTransactionId(),
+                response.getStopwatch());
+        return response;
     }
 
     /**
@@ -474,11 +507,16 @@ public class AccountClient extends AbstractNetworkClient {
 
         final var hollowPayer = new ExpandedAccountId(hollowResolvedAccountId, hollowAccountPrivateKey);
         final var keys = KeyList.of(hollowAccountPrivateKey);
-        final var completionResponse = executeTransactionAndRetrieveReceipt(completionTx, keys, hollowPayer);
+        final var response = executeTransactionAndRetrieveReceipt(completionTx, keys, hollowPayer);
+        log.info(
+                "Hollow account completion of {} via {} in {}",
+                hollowResolvedAccountId,
+                response.getTransactionId(),
+                response.getStopwatch());
 
         accountIds.add(hollowPayer);
 
-        return completionResponse;
+        return response;
     }
 
     @RequiredArgsConstructor

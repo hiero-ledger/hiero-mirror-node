@@ -1,9 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
-alertmanager:
-  inhibitRules:
-    enabled: true
-
 global:
   middleware: true
 
@@ -25,17 +21,12 @@ graphql:
     priorityClassName: high
 
 grpc:
-  alertmanager:
-    inhibitRules:
-      enabled: true
   hpa:
     enabled: true
     minReplicas: 2
   podDisruptionBudget:
     enabled: true
   priorityClassName: medium
-  prometheusRules:
-    enabled: true
   resources:
     requests:
       cpu: 1000m
@@ -44,23 +35,13 @@ grpc:
     enabled: true
 
 importer:
-  alertmanager:
-    inhibitRules:
-      enabled: true
   podMonitor:
     enabled: true
   priorityClassName: high
-  prometheusRules:
-    enabled: true
   replicas: 1
 
 monitor:
-  alertmanager:
-    inhibitRules:
-      enabled: true
   priorityClassName: medium
-  prometheusRules:
-    enabled: true
   serviceMonitor:
     enabled: true
 
@@ -87,9 +68,6 @@ redis:
     replicaCount: 3
 
 rest:
-  alertmanager:
-    inhibitRules:
-      enabled: true
   hpa:
     minReplicas: 2
   monitor:
@@ -98,25 +76,18 @@ rest:
   podDisruptionBudget:
     enabled: true
   priorityClassName: medium
-  prometheusRules:
-    enabled: true
   serviceMonitor:
     enabled: true
   test:
     priorityClassName: high
 
 restjava:
-  alertmanager:
-    inhibitRules:
-      enabled: true
   hpa:
     enabled: true
     minReplicas: 2
   podDisruptionBudget:
     enabled: true
   priorityClassName: medium
-  prometheusRules:
-    enabled: true
   serviceMonitor:
     enabled: true
   test:
@@ -204,9 +175,6 @@ test:
   priorityClassName: high
 
 web3:
-  alertmanager:
-    inhibitRules:
-      enabled: true
   hpa:
     enabled: true
     gasUsed:
@@ -215,8 +183,6 @@ web3:
   podDisruptionBudget:
     enabled: true
   priorityClassName: medium
-  prometheusRules:
-    enabled: true
   serviceMonitor:
     enabled: true
   test:
