@@ -676,6 +676,21 @@ class AccountReadableKVStateTest {
     }
 
     @Test
+    void whenAccountMissingAndStateOverridePresentCreatesSyntheticAccount() {
+        final var missingAccount = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 4001L));
+        final var missingAccountAddress = toAddress(missingAccount.accountNum()).toUnprefixedHexString();
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(missingAccount, Optional.empty())).thenReturn(Optional.empty());
+        contractCallContext.setStateOverrides(Map.of(
+                Bytes.fromHex(missingAccountAddress), stateOverride(OVERRIDE_BALANCE_HEX, OVERRIDE_NONCE_HEX, null)));
+
+        assertThat(accountReadableKVState.get(missingAccount)).satisfies(account -> assertThat(account)
+                .returns(missingAccount, Account::accountId)
+                .returns(OVERRIDE_BALANCE, Account::tinybarBalance)
+                .returns(OVERRIDE_NONCE, Account::ethereumNonce));
+    }
+
+    @Test
     void whenStateOverrideHasNonceReturnsOverriddenNonce() {
         entity.setEvmAddress(null);
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());

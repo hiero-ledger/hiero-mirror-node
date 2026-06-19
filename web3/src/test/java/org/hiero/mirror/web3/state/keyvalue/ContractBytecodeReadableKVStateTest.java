@@ -53,12 +53,16 @@ class ContractBytecodeReadableKVStateTest {
     private static final String HEX = "0x00000000000000000000000000000000000004e4";
     private static final Address MIRROR_ADDRESS = Address.fromHexString(HEX);
     private static final Address EVM_ADDRESS = Address.fromHexString("0xb794f5ea0ba39494ce839613fffba74279579268");
+    private static final Address MISSING_EVM_ADDRESS =
+            Address.fromHexString("0x8d12a197cb00d4747a1fe03395095ce2a5cc6819");
     private static final ContractID CONTRACT_ID_WITH_MIRROR_EVM_ADDRESS = new ContractID(
             1L, 0L, new OneOf<>(ContractOneOfType.EVM_ADDRESS, Bytes.wrap(MIRROR_ADDRESS.toArrayUnsafe())));
     private static final EntityId ENTITY_ID_WITH_MIRROR_EVM_ADDRESS =
             EntityId.of(entityIdNumFromEvmAddress(MIRROR_ADDRESS));
     private static final ContractID CONTRACT_ID_WITH_EVM_ADDRESS =
             new ContractID(1L, 0L, new OneOf<>(ContractOneOfType.EVM_ADDRESS, Bytes.wrap(EVM_ADDRESS.toArrayUnsafe())));
+    private static final ContractID CONTRACT_ID_WITH_MISSING_EVM_ADDRESS = new ContractID(
+            1L, 0L, new OneOf<>(ContractOneOfType.EVM_ADDRESS, Bytes.wrap(MISSING_EVM_ADDRESS.toArrayUnsafe())));
     private static final Entity ENTITY = Entity.builder()
             .evmAddress(EVM_ADDRESS.toArrayUnsafe())
             .shard(1L)
@@ -156,6 +160,31 @@ class ContractBytecodeReadableKVStateTest {
 
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM)).isEqualTo(OVERRIDE_BYTECODE);
         verify(contractRepository, never()).findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId());
+    }
+
+    @Test
+    void whenStateOverrideHasCodeForMissingContractReturnsOverrideBytecode() {
+        contractCallContext.setStateOverrides(Map.of(
+                Bytes.fromHex(MISSING_EVM_ADDRESS.toHexString().substring(2)),
+                stateOverrideWithCode(OVERRIDE_CODE_HEX)));
+
+        assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_MISSING_EVM_ADDRESS))
+                .isEqualTo(OVERRIDE_BYTECODE);
+        verify(commonEntityAccessor, never())
+                .getEntityByEvmAddressAndTimestamp(MISSING_EVM_ADDRESS.toArrayUnsafe(), Optional.empty());
+    }
+
+    @Test
+    void whenStateOverrideHasCodeCachesOverrideBytecodeInWriteCache() {
+        contractCallContext.setStateOverrides(Map.of(
+                Bytes.fromHex(MISSING_EVM_ADDRESS.toHexString().substring(2)),
+                stateOverrideWithCode(OVERRIDE_CODE_HEX)));
+
+        assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_MISSING_EVM_ADDRESS))
+                .isEqualTo(OVERRIDE_BYTECODE);
+        org.assertj.core.api.Assertions.assertThat(
+                        contractCallContext.getWriteCacheState(ContractBytecodeReadableKVState.STATE_ID))
+                .containsEntry(CONTRACT_ID_WITH_MISSING_EVM_ADDRESS, OVERRIDE_BYTECODE);
     }
 
     @Test

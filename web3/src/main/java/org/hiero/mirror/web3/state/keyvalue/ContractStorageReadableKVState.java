@@ -30,7 +30,7 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
 
     private final ContractStateService contractStateService;
 
-    protected ContractStorageReadableKVState(final ContractStateService contractStateService) {
+    ContractStorageReadableKVState(final ContractStateService contractStateService) {
         super(ContractService.NAME, STORAGE_STATE_ID);
         this.contractStateService = contractStateService;
     }
@@ -46,19 +46,33 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
         if (override != null) {
             // Replace all slots from state overrides and don't go to DB, if set.
             if (!override.getState().isEmpty()) {
-                return slotValueFromStateOverrides(override.getState(), slotKey);
+                return cacheSlotValue(context, slotKey, slotValueFromStateOverrides(override.getState(), slotKey));
             }
             // Replace only the existing slots from state_diff overrides, if set.
             if (!override.getStateDiff().isEmpty()) {
                 final var patched = slotValueFromStateOverrides(override.getStateDiff(), slotKey);
                 // Return the patched value only if found.
                 if (patched != null) {
-                    return patched;
+                    return cacheSlotValue(context, slotKey, patched);
                 }
             }
         }
 
         return readStorageFromDatabase(context, slotKey);
+    }
+
+    /**
+     * Persists an overridden slot value into the write cache so subsequent {@link
+     * com.swirlds.state.spi.WritableKVState#get(Object)} lookups resolve it within the same request without
+     * re-evaluating {@link #readFromDataSource(SlotKey)}, mirroring {@link AccountReadableKVState}. The slot is
+     * absent from (or overridden in) the DB, so caching the override value keeps it available for future searches.
+     */
+    private SlotValue cacheSlotValue(
+            @NonNull ContractCallContext context, @NonNull SlotKey slotKey, final SlotValue slotValue) {
+        if (slotValue != null) {
+            context.getWriteCacheState(STATE_ID).put(slotKey, slotValue);
+        }
+        return slotValue;
     }
 
     @Override

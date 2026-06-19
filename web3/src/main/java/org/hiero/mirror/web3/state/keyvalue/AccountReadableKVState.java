@@ -9,6 +9,8 @@ import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.state.Utils.hexStringToLong;
 
 import com.hedera.hapi.node.base.AccountID;
+import com.hedera.hapi.node.base.ContractID;
+import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.node.app.service.token.TokenService;
@@ -98,30 +100,48 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     return account;
                 })
                 .or(() -> getDummySystemAccountIfApplicable(key))
-                .map(account -> applyStateOverride(context, account))
-                .orElse(null);
+                .map(account -> applyStateOverride(context, account, null))
+                .orElseGet(() -> applyStateOverride(context, null, key));
     }
 
     /**
      * Applies {@code balance} and {@code nonce} state overrides (if any) to the account fetched from the DB.
      * When the account does not exist in the DB but an override is present, a synthetic account is created so
-     * that the EVM can execute against the overridden state.
+     * that the EVM can execute against the overridden state, and is persisted in the WritableKVState write
+     * cache (via {@link org.hiero.mirror.web3.common.ContractCallContext#getWriteCacheState}) so that
+     * subsequent {@code WritableKVState.get()} lookups can find it within the same request.
+     *
+     * @param account the account loaded from the DB, or {@code null} when no DB record exists
+     * @param key     the {@link AccountID} used for the lookup; must be non-null when {@code account} is null
+     *                so the EVM address can be derived and the synthetic account can be keyed correctly
      */
-    private Account applyStateOverride(final ContractCallContext context, Account account) {
+    private Account applyStateOverride(final ContractCallContext context, final Account account, final AccountID key) {
         final var overrides = context.getStateOverrides();
         if (overrides == null || overrides.isEmpty()) {
             return account;
         }
 
-        com.hedera.pbj.runtime.io.buffer.Bytes accountAddress;
+        com.hedera.pbj.runtime.io.buffer.Bytes accountAddress = null;
         StateOverride stateOverride = null;
-        if (!com.hedera.pbj.runtime.io.buffer.Bytes.EMPTY.equals(account.alias())
-                && ConversionUtils.isEvmAddress(account.alias())) {
-            accountAddress = account.alias();
-            stateOverride = overrides.get(accountAddress);
-        } else if (account.accountId() != null) {
-            accountAddress = com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                    toEvmAddress(account.accountId().accountNum()));
+        if (account != null) {
+            if (!com.hedera.pbj.runtime.io.buffer.Bytes.EMPTY.equals(account.alias())
+                    && ConversionUtils.isEvmAddress(account.alias())) {
+                accountAddress = account.alias();
+            } else if (account.accountId() != null) {
+                accountAddress = com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
+                        toEvmAddress(account.accountId().accountNum()));
+            }
+        } else if (key != null) {
+            // Derive the EVM address from the lookup key so we can resolve the override
+            // for an account that has no DB record yet.
+            if (key.hasAlias() && ConversionUtils.isEvmAddress(key.alias())) {
+                accountAddress = key.alias();
+            } else if (key.hasAccountNum()) {
+                accountAddress = com.hedera.pbj.runtime.io.buffer.Bytes.wrap(toEvmAddress(key.accountNum()));
+            }
+        }
+
+        if (accountAddress != null) {
             stateOverride = overrides.get(accountAddress);
         }
 
@@ -129,14 +149,45 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             return account;
         }
 
-        final var builder = account.copyBuilder();
-        if (stateOverride.getBalance() != null) {
+        final var hasBalance = stateOverride.getBalance() != null;
+        final var hasNonce = stateOverride.getNonce() != null;
+        final var hasCode = stateOverride.getCode() != null;
+
+        Account.Builder builder;
+        if (account == null) {
+            builder = Account.newBuilder().accountId(key).alias(accountAddress);
+        } else {
+            builder = account.copyBuilder();
+        }
+
+        if (hasBalance) {
             builder.tinybarBalance(hexStringToLong(stateOverride.getBalance()));
         }
-        if (stateOverride.getNonce() != null) {
+        if (hasNonce) {
             builder.ethereumNonce(hexStringToLong(stateOverride.getNonce()));
         }
-        return builder.build();
+        if (hasCode) {
+            builder.smartContract(true).key(contractKey(key));
+        }
+
+        final var result = builder.build();
+
+        context.getWriteCacheState(STATE_ID).put(key, result);
+        return result;
+    }
+
+    /**
+     * Builds a {@link Key} backed by the contract id corresponding to the given account id, mirroring the key a
+     * persisted contract entity would have (see {@code AbstractAliasedAccountReadableKVState#getKey}).
+     */
+    private Key contractKey(final AccountID accountId) {
+        return Key.newBuilder()
+                .contractID(ContractID.newBuilder()
+                        .shardNum(accountId.shardNum())
+                        .realmNum(accountId.realmNum())
+                        .contractNum(accountId.accountNumOrElse(0L))
+                        .build())
+                .build();
     }
 
     /**

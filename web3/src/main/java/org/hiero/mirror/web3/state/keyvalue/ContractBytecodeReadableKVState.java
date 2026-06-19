@@ -32,7 +32,7 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
 
     private final CommonEntityAccessor commonEntityAccessor;
 
-    protected ContractBytecodeReadableKVState(
+    ContractBytecodeReadableKVState(
             final ContractRepository contractRepository, CommonEntityAccessor commonEntityAccessor) {
         super(ContractService.NAME, STATE_ID);
         this.contractRepository = contractRepository;
@@ -41,12 +41,13 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
 
     @Override
     protected Bytecode readFromDataSource(@NonNull ContractID contractID) {
-        final var entityId = toEntityId(contractID);
         // Check code override first so it takes precedence over DB bytecode.
         final var stateOverride = applyStateOverride(contractID);
         if (stateOverride != null) {
             return stateOverride;
         }
+
+        final var entityId = toEntityId(contractID);
 
         return contractRepository
                 .findRuntimeBytecode(entityId.getId())
@@ -70,7 +71,14 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
             }
 
             if (stateOverride != null && stateOverride.getCode() != null) {
-                return new Bytecode(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(hexToBytes(stateOverride.getCode())));
+                final var bytecode =
+                        new Bytecode(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(hexToBytes(stateOverride.getCode())));
+                // The contract has no bytecode in the DB (or it is being overridden), so persist the
+                // overridden bytecode into the write cache. This lets subsequent WritableKVState.get()
+                // lookups resolve it within the same request without re-evaluating readFromDataSource,
+                // mirroring AccountReadableKVState.
+                ctx.getWriteCacheState(STATE_ID).put(contractID, bytecode);
+                return bytecode;
             }
         }
         return null;

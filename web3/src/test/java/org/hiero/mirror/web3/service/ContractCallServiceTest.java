@@ -1315,6 +1315,41 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         }
 
         @Test
+        void processCallWithGasAppliesBytecodeAndStorageOverridesForMissingContract() {
+            // Given: The contract address is not persisted, but overrides provide bytecode and storage
+            final var contract = testWeb3jService.deployWithoutPersist(StorageContract::deploy);
+            meterRegistry.clear();
+            final var functionCall = contract.call_slot0();
+
+            final var storageEntry = new StorageEntry();
+            final var slotValue = "33".repeat(32);
+            storageEntry.setKey(STORAGE_SLOT_0_KEY);
+            storageEntry.setValue(HEX_PREFIX + slotValue);
+
+            final var stateOverride = new StateOverride();
+            stateOverride.setAddress(contract.getContractAddress().toLowerCase());
+            stateOverride.setCode(BytecodeUtils.extractRuntimeBytecode(StorageContract.BINARY));
+            stateOverride.setState(List.of(storageEntry));
+
+            final var params = contractExecutionParametersBuilder(
+                            BlockType.LATEST,
+                            functionCall.encodeFunctionCall(),
+                            Address.ZERO,
+                            Address.fromHexString(contract.getContractAddress()),
+                            ETH_CALL,
+                            0L)
+                    .stateOverrides(List.of(stateOverride))
+                    .build();
+
+            // When
+            final var result = contractExecutionService.processCallWithGas(params);
+
+            // Then
+            assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(new BigInteger(slotValue, 16));
+            assertThat(result.gasUsed()).isPositive();
+        }
+
+        @Test
         void processCallWithGasAppliesBytecodeOverrideNegative() {
             // Given: StorageContract is deployed, but its bytecode is overridden with random bytecode
             final var overrideBytecode = "0x123456";
@@ -1373,6 +1408,37 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .isEqualTo(new BigInteger(overrideBalanceHex.substring(2), 16));
             assertThat(decodeFirst(result.result(), Uint256.class).getValue())
                     .isNotEqualTo(BigInteger.valueOf(DEFAULT_SMALL_ACCOUNT_BALANCE));
+            assertThat(result.gasUsed()).isPositive();
+        }
+
+        @Test
+        void processCallWithGasAppliesAccountOverrideForMissingAccount() {
+            // Given
+            final var contract = testWeb3jService.deploy(EthCall::deploy);
+            meterRegistry.clear();
+            final var missingAccountAddress = toAddress(9000L);
+            final var functionCall = contract.call_getAccountBalance(missingAccountAddress.toHexString());
+
+            final var stateOverride = new StateOverride();
+            stateOverride.setAddress(missingAccountAddress.toHexString());
+            stateOverride.setBalance("0x64");
+            stateOverride.setNonce("0x2a");
+
+            final var params = contractExecutionParametersBuilder(
+                            BlockType.LATEST,
+                            functionCall.encodeFunctionCall(),
+                            Address.ZERO,
+                            Address.fromHexString(contract.getContractAddress()),
+                            ETH_CALL,
+                            0L)
+                    .stateOverrides(List.of(stateOverride))
+                    .build();
+
+            // When
+            final var result = contractExecutionService.processCallWithGas(params);
+
+            // Then
+            assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(BigInteger.valueOf(100L));
             assertThat(result.gasUsed()).isPositive();
         }
 

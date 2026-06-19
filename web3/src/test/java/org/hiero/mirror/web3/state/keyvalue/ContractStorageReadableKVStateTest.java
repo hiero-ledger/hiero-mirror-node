@@ -48,6 +48,9 @@ class ContractStorageReadableKVStateTest {
             new ContractID(1L, 0L, new OneOf<>(ContractOneOfType.CONTRACT_NUM, 1L));
     private static final String CONTRACT_ID_WITH_NUM_ADDRESS =
             toAddress(CONTRACT_ID.contractNum()).toUnprefixedHexString();
+    private static final String MISSING_CONTRACT_ADDRESS = "0x00000000000000000000000000000000000000aa";
+    private static final ContractID MISSING_CONTRACT_ID = new ContractID(
+            1L, 0L, new OneOf<>(ContractOneOfType.EVM_ADDRESS, Bytes.fromHex(MISSING_CONTRACT_ADDRESS.substring(2))));
     private static final Bytes BYTES = Bytes.wrap(leftPadBytes("123456".getBytes(), Bytes32.SIZE));
     private static final SlotKey SLOT_KEY = new SlotKey(CONTRACT_ID, BYTES);
     private static final EntityId ENTITY_ID =
@@ -60,6 +63,7 @@ class ContractStorageReadableKVStateTest {
     private static final SlotValue OVERRIDE_SLOT_VALUE = new SlotValue(
             Bytes.wrap(leftPadBytes(hexToBytes(OVERRIDE_VALUE_HEX), Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY);
     private static final SlotValue DATABASE_SLOT_VALUE = new SlotValue(BYTES, Bytes.EMPTY, Bytes.EMPTY);
+    private static final SlotKey MISSING_SLOT_KEY = new SlotKey(MISSING_CONTRACT_ID, BYTES);
     private static MockedStatic<ContractCallContext> contextMockedStatic;
 
     @InjectMocks
@@ -155,6 +159,41 @@ class ContractStorageReadableKVStateTest {
 
         assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isEqualTo(OVERRIDE_SLOT_VALUE);
         verify(contractStateService, never()).findStorage(ENTITY_ID, BYTES.toByteArray());
+    }
+
+    @Test
+    void whenMissingContractAndOverrideHasStateReturnsOverride() {
+        contractCallContext.setStateOverrides(Map.of(
+                Bytes.fromHex(MISSING_CONTRACT_ADDRESS.substring(2)),
+                stateOverrideWithState(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
+
+        assertThat(contractStorageReadableKVState.get(MISSING_SLOT_KEY)).isEqualTo(OVERRIDE_SLOT_VALUE);
+        verify(contractStateService, never()).findStorage(any(), any());
+        verify(contractStateService, never()).findStorageByBlockTimestamp(any(), any(), anyLong());
+    }
+
+    @Test
+    void whenMissingContractAndOverrideHasStateCachesOverrideInWriteCache() {
+        contractCallContext.setStateOverrides(Map.of(
+                Bytes.fromHex(MISSING_CONTRACT_ADDRESS.substring(2)),
+                stateOverrideWithState(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
+
+        assertThat(contractStorageReadableKVState.get(MISSING_SLOT_KEY)).isEqualTo(OVERRIDE_SLOT_VALUE);
+        org.assertj.core.api.Assertions.assertThat(
+                        contractCallContext.getWriteCacheState(ContractStorageReadableKVState.STATE_ID))
+                .containsEntry(MISSING_SLOT_KEY, OVERRIDE_SLOT_VALUE);
+    }
+
+    @Test
+    void whenStateOverrideHasStateDiffCachesOverrideInWriteCache() {
+        contractCallContext.setStateOverrides(Map.of(
+                Bytes.fromHex(CONTRACT_ID_WITH_NUM_ADDRESS),
+                stateOverrideWithStateDiff(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
+
+        assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isEqualTo(OVERRIDE_SLOT_VALUE);
+        org.assertj.core.api.Assertions.assertThat(
+                        contractCallContext.getWriteCacheState(ContractStorageReadableKVState.STATE_ID))
+                .containsEntry(SLOT_KEY, OVERRIDE_SLOT_VALUE);
     }
 
     @Test
