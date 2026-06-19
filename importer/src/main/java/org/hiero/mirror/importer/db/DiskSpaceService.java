@@ -65,21 +65,20 @@ public class DiskSpaceService {
             }
 
             lastUsedBytes = usedBytes;
-            boolean exceeded = usedBytes >= diskSpaceProperties.getMaxBytes();
+            boolean wasExceeded = this.exceeded;
+            this.exceeded = usedBytes >= diskSpaceProperties.getMaxBytes();
 
-            if (exceeded && !this.exceeded) {
+            if (this.exceeded && !wasExceeded) {
                 log.warn(
                         "Database disk usage {} bytes is at or above the threshold of {} bytes, halting ingest",
                         usedBytes,
                         diskSpaceProperties.getMaxBytes());
-            } else if (!exceeded && this.exceeded) {
+            } else if (!this.exceeded && wasExceeded) {
                 log.info(
                         "Database disk usage {} bytes is below the threshold of {} bytes, resuming ingest",
                         usedBytes,
                         diskSpaceProperties.getMaxBytes());
             }
-
-            this.exceeded = exceeded;
         } catch (Exception e) {
             log.warn("Unable to query database disk space", e);
         }
