@@ -975,16 +975,13 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
         assertThat(contractStateRepository.findAll()).containsExactlyInAnyOrderElementsOf(contractStates);
     }
 
-    // Mirrors RecordFileParser.setEvmTransactionIndex() for the single-item case used in these tests.
+    // Mirrors RecordFileParser.setEvmTransactionIndex() for the single-item case used in these tests: with no
+    // preceding items, getContractRelatedParent() is always null, so every EVM item is its own root.
     private void simulateEvmTransactionIndex(RecordItem recordItem) {
         final var type = recordItem.getTransactionType();
-        if (type != TransactionType.CONTRACTCALL.getProtoId()
-                && type != TransactionType.CONTRACTCREATEINSTANCE.getProtoId()
-                && type != TransactionType.ETHEREUMTRANSACTION.getProtoId()) {
-            return;
-        }
-        final var txId = recordItem.getTransactionRecord().getTransactionID();
-        if (txId.getNonce() == 0 || txId.getScheduled()) {
+        if (type == TransactionType.CONTRACTCALL.getProtoId()
+                || type == TransactionType.CONTRACTCREATEINSTANCE.getProtoId()
+                || type == TransactionType.ETHEREUMTRANSACTION.getProtoId()) {
             recordItem.setEvmTransactionIndex(0);
         }
     }

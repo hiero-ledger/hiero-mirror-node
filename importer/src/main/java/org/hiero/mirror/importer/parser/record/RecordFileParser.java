@@ -233,14 +233,9 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         final var contractRelatedParent = recordItem.getContractRelatedParent();
         if (contractRelatedParent != null && contractRelatedParent.getEvmTransactionIndex() != null) {
             recordItem.setEvmTransactionIndex(contractRelatedParent.getEvmTransactionIndex());
-        } else if (isTopLevelEvmItem(recordItem)) {
+        } else {
             recordItem.setEvmTransactionIndex(evmTransactionIndex.getAndIncrement());
         }
-    }
-
-    private boolean isTopLevelEvmItem(RecordItem recordItem) {
-        final var transactionId = recordItem.getTransactionRecord().getTransactionID();
-        return transactionId.getNonce() == 0 || transactionId.getScheduled();
     }
 
     private class RecordItemAggregator implements Consumer<RecordItem> {

@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -262,6 +263,54 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
                 () -> verify(recordItemListener, times(1)).onItem(recordItem2),
                 () -> verify(recordItemListener, times(1)).onItem(recordItem3));
         verifyNoInteractions(entityListener);
+    }
+
+    @Test
+    void evmTransactionIndexForHookExecutions() {
+        // given
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        long timestamp = ++count;
+        RecordItem cryptoTransfer = cryptoTransferRecordItem(timestamp);
+
+        var hookContractId = ContractID.newBuilder()
+                .setContractNum(RecordItem.HOOK_CONTRACT_NUM)
+                .build();
+        RecordItem hookExecution1 = hookContractCall(hookContractId, timestamp + 1, timestamp, 1, cryptoTransfer);
+        RecordItem nestedHookChild = hookContractCall(contractId(), timestamp + 2, timestamp, 2, hookExecution1);
+        RecordItem hookExecution2 = hookContractCall(hookContractId, timestamp + 3, timestamp, 3, nestedHookChild);
+
+        var items = List.of(cryptoTransfer, hookExecution1, nestedHookChild, hookExecution2);
+        var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
+                () -> assertThat(cryptoTransfer.getEvmTransactionIndex()).isNull(),
+                () -> assertThat(hookExecution1.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(nestedHookChild.getEvmTransactionIndex()).isEqualTo(0),
+                () -> assertThat(hookExecution2.getEvmTransactionIndex()).isEqualTo(1));
+        verifyNoInteractions(entityListener);
+    }
+
+    private ContractID contractId() {
+        return ContractID.newBuilder().setContractNum(999).build();
+    }
+
+    private RecordItem hookContractCall(
+            ContractID contractId, long timestamp, long parentTimestamp, int transactionIdNonce, RecordItem previous) {
+        return recordItemBuilder
+                .contractCall(contractId)
+                .record(builder -> builder.setConsensusTimestamp(
+                                Timestamp.newBuilder().setNanos((int) timestamp))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder().setNanos((int) parentTimestamp))
+                        .setTransactionID(TransactionID.newBuilder()
+                                .setNonce(transactionIdNonce)
+                                .build()))
+                .recordItem(r -> r.previous(previous))
+                .build();
     }
 
     @ParameterizedTest(name = "startDate with offset {0}ns")
