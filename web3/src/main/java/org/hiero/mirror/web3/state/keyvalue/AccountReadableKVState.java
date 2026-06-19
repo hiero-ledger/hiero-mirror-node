@@ -100,7 +100,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     return account;
                 })
                 .or(() -> getDummySystemAccountIfApplicable(key))
-                .map(account -> applyStateOverride(context, account, null))
+                .map(account -> applyStateOverride(context, account, key))
                 .orElseGet(() -> applyStateOverride(context, null, key));
     }
 
@@ -112,8 +112,8 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
      * subsequent {@code WritableKVState.get()} lookups can find it within the same request.
      *
      * @param account the account loaded from the DB, or {@code null} when no DB record exists
-     * @param key     the {@link AccountID} used for the lookup; must be non-null when {@code account} is null
-     *                so the EVM address can be derived and the synthetic account can be keyed correctly
+     * @param key     the {@link AccountID} used for the lookup; must be non-null. It is the key under which the
+     *                (possibly synthetic) account is stored in the write cache
      */
     private Account applyStateOverride(final ContractCallContext context, final Account account, final AccountID key) {
         final var overrides = context.getStateOverrides();
@@ -145,13 +145,15 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             stateOverride = overrides.get(accountAddress);
         }
 
-        if (stateOverride == null || (stateOverride.getBalance() == null && stateOverride.getNonce() == null)) {
+        if (stateOverride == null || stateOverride.getAddress().isEmpty()) {
             return account;
         }
 
         final var hasBalance = stateOverride.getBalance() != null;
         final var hasNonce = stateOverride.getNonce() != null;
-        final var hasCode = stateOverride.getCode() != null;
+        final var isSmartContract = stateOverride.getCode() != null
+                || stateOverride.getState() != null
+                || stateOverride.getStateDiff() != null;
 
         Account.Builder builder;
         if (account == null) {
@@ -166,8 +168,8 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
         if (hasNonce) {
             builder.ethereumNonce(hexStringToLong(stateOverride.getNonce()));
         }
-        if (hasCode) {
-            builder.smartContract(true).key(contractKey(key));
+        if (isSmartContract) {
+            builder.smartContract(true);
         }
 
         final var result = builder.build();

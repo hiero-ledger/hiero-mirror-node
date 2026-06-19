@@ -26,10 +26,11 @@ import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.service.ContractStateService;
+import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hiero.mirror.web3.viewmodel.StorageEntry;
+import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,6 +56,8 @@ class ContractStorageReadableKVStateTest {
     private static final SlotKey SLOT_KEY = new SlotKey(CONTRACT_ID, BYTES);
     private static final EntityId ENTITY_ID =
             EntityId.of(CONTRACT_ID.shardNum(), CONTRACT_ID.realmNum(), CONTRACT_ID.contractNum());
+    private static final Address EVM_ALIAS_ADDRESS =
+            Address.fromHexString("0xb794f5ea0ba39494ce839613fffba74279579268");
     private static final String SLOT_KEY_HEX = "0x0000000000000000000000000000000000000000000000000000313233343536";
     private static final String OTHER_SLOT_KEY_HEX =
             "0x0000000000000000000000000000000000000000000000000000000000000002";
@@ -70,10 +73,10 @@ class ContractStorageReadableKVStateTest {
     private ContractStorageReadableKVState contractStorageReadableKVState;
 
     @Mock
-    private ContractStateRepository contractStateRepository;
+    private ContractStateService contractStateService;
 
     @Mock
-    private ContractStateService contractStateService;
+    private CommonEntityAccessor commonEntityAccessor;
 
     @Spy
     private ContractCallContext contractCallContext;
@@ -159,6 +162,18 @@ class ContractStorageReadableKVStateTest {
 
         assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isEqualTo(OVERRIDE_SLOT_VALUE);
         verify(contractStateService, never()).findStorage(ENTITY_ID, BYTES.toByteArray());
+    }
+
+    @Test
+    void whenAliasFoundInDBReturnsOverride() {
+        // The override is keyed by the contract's non-long-zero EVM alias even though the lookup uses contractNum.
+        contractCallContext.setStateOverrides(Map.of(
+                Bytes.wrap(EVM_ALIAS_ADDRESS.toArrayUnsafe()),
+                stateOverrideWithState(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
+        when(commonEntityAccessor.evmAddressFromId(ENTITY_ID, Optional.empty())).thenReturn(EVM_ALIAS_ADDRESS);
+
+        assertThat(contractStorageReadableKVState.get(SLOT_KEY)).isEqualTo(OVERRIDE_SLOT_VALUE);
+        verify(contractStateService, never()).findStorage(any(), any());
     }
 
     @Test

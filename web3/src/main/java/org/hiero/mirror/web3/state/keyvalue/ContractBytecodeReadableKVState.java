@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.BYTECODE_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.entityIdFromContractId;
 import static org.hiero.mirror.common.util.DomainUtils.isLongZeroAddress;
-import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 
 import com.hedera.hapi.node.base.ContractID;
@@ -20,23 +19,19 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractRepository;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
-import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.jspecify.annotations.NonNull;
 
 @Named
-final class ContractBytecodeReadableKVState extends AbstractReadableKVState<ContractID, Bytecode> {
+final class ContractBytecodeReadableKVState extends AbstractContractReadableKVState<ContractID, Bytecode> {
 
     public static final int STATE_ID = BYTECODE_STATE_ID;
 
     private final ContractRepository contractRepository;
 
-    private final CommonEntityAccessor commonEntityAccessor;
-
     ContractBytecodeReadableKVState(
             final ContractRepository contractRepository, CommonEntityAccessor commonEntityAccessor) {
-        super(ContractService.NAME, STATE_ID);
+        super(ContractService.NAME, STATE_ID, commonEntityAccessor);
         this.contractRepository = contractRepository;
-        this.commonEntityAccessor = commonEntityAccessor;
     }
 
     @Override
@@ -59,27 +54,17 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
     private Bytecode applyStateOverride(@NonNull ContractID contractID) {
         final var ctx = ContractCallContext.get();
         final var stateOverrides = ctx.getStateOverrides();
-        if (stateOverrides != null && !stateOverrides.isEmpty()) {
-            final Bytes contractAddress;
-            StateOverride stateOverride;
-            if (contractID.evmAddress() != null && !Bytes.EMPTY.equals(contractID.evmAddress())) {
-                contractAddress = contractID.evmAddress();
-                stateOverride = stateOverrides.get(contractAddress);
-            } else {
-                contractAddress = Bytes.wrap(toEvmAddress(contractID.contractNum()));
-                stateOverride = stateOverrides.get(contractAddress);
-            }
+        if (stateOverrides == null || stateOverrides.isEmpty()) {
+            return null;
+        }
 
-            if (stateOverride != null && stateOverride.getCode() != null) {
-                final var bytecode =
-                        new Bytecode(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(hexToBytes(stateOverride.getCode())));
-                // The contract has no bytecode in the DB (or it is being overridden), so persist the
-                // overridden bytecode into the write cache. This lets subsequent WritableKVState.get()
-                // lookups resolve it within the same request without re-evaluating readFromDataSource,
-                // mirroring AccountReadableKVState.
-                ctx.getWriteCacheState(STATE_ID).put(contractID, bytecode);
-                return bytecode;
-            }
+        final var stateOverride = findStateOverride(ctx, contractID);
+        if (stateOverride != null && stateOverride.getCode() != null) {
+            final var bytecode = new Bytecode(Bytes.wrap(hexToBytes(stateOverride.getCode())));
+            // The contract has no bytecode in the DB (or it is being overridden), so persist the
+            // overridden bytecode into the write cache
+            ctx.getWriteCacheState(STATE_ID).put(contractID, bytecode);
+            return bytecode;
         }
         return null;
     }

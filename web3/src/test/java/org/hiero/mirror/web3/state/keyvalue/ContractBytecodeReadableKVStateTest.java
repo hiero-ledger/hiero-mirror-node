@@ -163,6 +163,18 @@ class ContractBytecodeReadableKVStateTest {
     }
 
     @Test
+    void whenAliasFoundInDBReturnsOverride() {
+        // The override is keyed by the contract's non-long-zero EVM alias even though the lookup uses contractNum.
+        contractCallContext.setStateOverrides(
+                Map.of(Bytes.wrap(EVM_ADDRESS.toArrayUnsafe()), stateOverrideWithCode(OVERRIDE_CODE_HEX)));
+        when(commonEntityAccessor.evmAddressFromId(ENTITY_ID_WITH_NUM, Optional.empty()))
+                .thenReturn(EVM_ADDRESS);
+
+        assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM)).isEqualTo(OVERRIDE_BYTECODE);
+        verify(contractRepository, never()).findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId());
+    }
+
+    @Test
     void whenStateOverrideHasCodeForMissingContractReturnsOverrideBytecode() {
         contractCallContext.setStateOverrides(Map.of(
                 Bytes.fromHex(MISSING_EVM_ADDRESS.toHexString().substring(2)),
