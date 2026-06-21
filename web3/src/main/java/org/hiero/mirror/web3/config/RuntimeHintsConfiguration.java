@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.config;
 
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_FIELDS;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.NONE;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerAnnotatedPackage;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
@@ -14,6 +15,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
+import org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.aot.hint.RuntimeHints;
@@ -44,6 +46,13 @@ final class RuntimeHintsConfiguration {
                     "com.esaulpaugh.headlong.abi.Quintuple[]",
                     "com.esaulpaugh.headlong.abi.Sextuple[]",
                     "com.esaulpaugh.headlong.abi.Triple[]");
+
+            registerReflectionTypes(
+                    hints,
+                    CONSTRUCTORS_AND_FIELDS,
+                    LibSecp256k1.secp256k1_ecdsa_recoverable_signature.class,
+                    LibSecp256k1.secp256k1_ecdsa_signature.class,
+                    LibSecp256k1.secp256k1_pubkey.class);
 
             registerReflectionTypes(
                     hints,
