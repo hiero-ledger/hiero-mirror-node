@@ -62,6 +62,9 @@ spec:
           enabled: false
         MonitorSubscribeLatency:
           enabled: false
+    rest:
+      env:
+        HIERO_MIRROR_REST_CHAINID: "0x129"
     stackgres:
       coordinator:
         persistentVolume:
