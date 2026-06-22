@@ -36,7 +36,7 @@ jobs:
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      SOLO_VERSION: v0.78.0
+      SOLO_VERSION: v0.77.0
     permissions:
       pull-requests: read
     steps:
