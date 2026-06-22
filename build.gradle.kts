@@ -29,11 +29,11 @@ extra.apply {
 // using a dependency
 dependencies {
     constraints {
-        val besuVersion: String by rootProject.extra
-        val blockNodeVersion: String by rootProject.extra
-        val consensusNodeVersion: String by rootProject.extra
-        val mapStructVersion: String by rootProject.extra
-        val tuweniVersion: String by rootProject.extra
+        val besuVersion = rootProject.extra["besuVersion"] as String
+        val blockNodeVersion = rootProject.extra["blockNodeVersion"] as String
+        val consensusNodeVersion = rootProject.extra["consensusNodeVersion"] as String
+        val mapStructVersion = rootProject.extra["mapStructVersion"] as String
+        val tuweniVersion = rootProject.extra["tuweniVersion"] as String
 
         api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:13.3.1")
@@ -93,7 +93,7 @@ idea {
 
 // Spotless uses Prettier and it requires Node.js
 node {
-    val nodeJsVersion: String by rootProject.extra
+    val nodeJsVersion = rootProject.extra["nodeJsVersion"] as String
     download = true
     version = nodeJsVersion
     workDir = rootDir.resolve(".gradle").resolve("nodejs")

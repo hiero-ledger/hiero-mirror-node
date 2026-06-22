@@ -56,7 +56,7 @@ dependencies {
 tasks.named("test") { enabled = false }
 
 val maxParallelism = project.property("maxParallelism") as String
-val test by testing.suites.existing(JvmTestSuite::class)
+val test = testing.suites.named<JvmTestSuite>("test")
 
 tasks.register<Test>("acceptance") {
     classpath = files(test.map { it.sources.runtimeClasspath })
