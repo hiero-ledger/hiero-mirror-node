@@ -36,7 +36,7 @@ jobs:
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      SOLO_VERSION: v0.77.0
+      SOLO_VERSION: v0.78.0
     permissions:
       pull-requests: read
     steps:
@@ -145,6 +145,17 @@ jobs:
             kind load docker-image "gcr.io/mirrornode/hedera-mirror-${module}:${TAG}" -n "${SOLO_CLUSTER_NAME}"
           done
 
+      - name: Install yq
+        env:
+          BINARY: yq_linux_amd64
+          TARGET: /home/runner/.local/bin
+          VERSION: v4.53.3
+        run: |
+          mkdir -p "${TARGET}"
+          cd "${TARGET}"
+          curl -sL https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY}.tar.gz --output - | tar -xvz
+          mv ${BINARY} yq
+
       - name: Setup Solo Cluster
         run: |
           set -ex
@@ -157,76 +168,11 @@ jobs:
             names: "facility-messaging,block-access-service,health,server-status,stream-publisher,stream-subscriber,verification,blocks-file-historic,blocks-file-recent,backfill,roster-bootstrap-rsa"
           EOF
 
-          cat <<EOF > mirror.yaml
-          global:
-            image:
-              registry: gcr.io
-          grpc:
-            image:
-              repository: mirrornode/hedera-mirror-grpc
-            resources:
-              limits:
-                cpu: 2
-                memory: 2048Mi
-          importer:
-            env:
-              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_ENDPOINTS_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
-              HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONBYTES: 'true'
-              HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONRECORDBYTES: 'true'
-              SPRING_PROFILES_ACTIVE: 'blocknode'
-            image:
-              repository: mirrornode/hedera-mirror-importer
-            resources:
-              limits:
-                cpu: 2
-                memory: 2048Mi
-          monitor:
-            enabled: true
-            env:
-              HIERO_MIRROR_MONITOR_HEALTH_RELEASE_FAILWHENINACTIVE: "true"
-            resources:
-              limits:
-                cpu: 500m
-                memory: 768Mi
-            test:
-              enabled: true
-          pinger:
-            enabled: false
-          rest:
-            image:
-              repository: mirrornode/hedera-mirror-rest
-            resources:
-              limits:
-                cpu: 250m
-                memory: 256Mi
-          restjava:
-            image:
-              repository: mirrornode/hedera-mirror-rest-java
-            resources:
-              limits:
-                cpu: 2
-                memory: 2048Mi
-          test:
-            env:
-              HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
-              HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
-            enabled: true
-            image:
-              repository: mirrornode/hedera-mirror-test
-            resources:
-              limits:
-                cpu: 3
-                memory: 4096Mi
-          web3:
-            env:
-              HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
-            image:
-              repository: mirrornode/hedera-mirror-web3
-            resources:
-              limits:
-                cpu: 2
-                memory: 2048Mi
-          EOF
+          envsubst < .github/workflows/resources/mirror-block-node.yaml > mirror.yaml
+          yq -i '. *= load(".github/workflows/resources/mirror.yaml")' mirror.yaml
+          yq -i 'with(.importer.env; \
+            .HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONBYTES="true", \
+            .HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONRECORDBYTES="true")' mirror.yaml
 
           solo cluster-ref config connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
             --context kind-"${SOLO_CLUSTER_NAME}"
@@ -281,7 +227,7 @@ jobs:
           LAST_TIMESTAMP=$(curl -s 'http://localhost:38081/api/v1/transactions?limit=1' | \
             jq -r '.transactions[0].consensus_timestamp')
 
-          .github/workflows/scripts/backup_and_reset_database.sh "${SOLO_NAMESPACE}"
+          .github/workflows/resources/backup_and_reset_database.sh "${SOLO_NAMESPACE}"
 
           # reconfig importer to ingest recordstream files
           kubectl -n "${SOLO_NAMESPACE}" set env deployment "${HELM_RELEASE_NAME}-importer" SPRING_PROFILES_ACTIVE-

@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: Apache-2.0
+
+global:
+  image:
+    registry: gcr.io
+grpc:
+  image:
+    repository: mirrornode/hedera-mirror-grpc
+  resources:
+    limits:
+      cpu: 2
+      memory: 2048Mi
+importer:
+  image:
+    repository: mirrornode/hedera-mirror-importer
+  resources:
+    limits:
+      cpu: 2
+      memory: 2048Mi
+monitor:
+  enabled: true
+  env:
+    HIERO_MIRROR_MONITOR_HEALTH_RELEASE_FAILWHENINACTIVE: "true"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 768Mi
+  test:
+    enabled: true
+pinger:
+  enabled: false
+rest:
+  image:
+    repository: mirrornode/hedera-mirror-rest
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+restjava:
+  image:
+    repository: mirrornode/hedera-mirror-rest-java
+  resources:
+    limits:
+      cpu: 2
+      memory: 2048Mi
+test:
+  env:
+    HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
+    HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
+  enabled: true
+  image:
+    repository: mirrornode/hedera-mirror-test
+  resources:
+    limits:
+      cpu: 3
+      memory: 4096Mi
+web3:
+  env:
+    HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
+  image:
+    repository: mirrornode/hedera-mirror-web3
+  resources:
+    limits:
+      cpu: 2
+      memory: 2048Mi

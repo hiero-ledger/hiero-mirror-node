@@ -174,6 +174,9 @@ final class WrbVerificationTest {
                 WRB, () -> transactionRepository.findByConsensusTimestampBetween(0, maxConsensusEnd, pageable));
         log.info("Comparing {} transaction rows", recordStream.size());
         softly.assertThat(recordStream)
+                .allMatch(transaction ->
+                        transaction.getTransactionBytes() != null && transaction.getTransactionRecordBytes() != null);
+        softly.assertThat(recordStream)
                 .usingRecursiveComparison()
                 .comparingOnlyFields("consensusTimestamp", "transactionBytes", "transactionRecordBytes")
                 .isEqualTo(wrb);
