@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.importer.test.verification.wrb;
+package org.hiero.mirror.importer.test.verification.wrb.config;
 
-final class DataSourceContextHolder {
+public final class DataSourceContextHolder {
+
+    public static final String RECORDSTREAM = "recordStream";
+    public static final String WRB = "wrb";
 
     private static final ThreadLocal<String> CONTEXT = new ThreadLocal<>();
 
@@ -17,7 +20,4 @@ final class DataSourceContextHolder {
     public static void clear() {
         CONTEXT.remove();
     }
-
-    public static final String RECORDSTREAM = "recordStream";
-    public static final String WRB = "wrb";
 }
