@@ -4,7 +4,7 @@ import fs from 'fs';
 import {jest} from '@jest/globals';
 import os from 'os';
 import path from 'path';
-import yaml from 'js-yaml';
+import {dump} from 'js-yaml';
 import _ from 'lodash';
 
 let tempDir;
@@ -63,7 +63,7 @@ const assertCustomConfig = (actual, customConfig) => {
 const loadConfig = async () => (await import('../config')).getMirrorConfig();
 
 const loadCustomConfig = async (customConfig, filename = 'application.yml') => {
-  fs.writeFileSync(path.join(tempDir, filename), yaml.dump(customConfig));
+  fs.writeFileSync(path.join(tempDir, filename), dump(customConfig));
   return loadConfig();
 };
 
@@ -76,7 +76,7 @@ describe('Load YAML configuration:', () => {
   });
 
   test('./application.yml', async () => {
-    fs.writeFileSync(path.join('.', 'application.yml'), yaml.dump(custom));
+    fs.writeFileSync(path.join('.', 'application.yml'), dump(custom));
     const config = await loadConfig();
     assertCustomConfig(config, custom);
   });
@@ -348,7 +348,7 @@ describe('users config validation', () => {
       },
     };
     const configFile = path.join(tempDir, 'application.yml');
-    fs.writeFileSync(configFile, yaml.dump(validConfig));
+    fs.writeFileSync(configFile, dump(validConfig));
     const config = (await import('../config')).default;
     expect(config.users).toEqual([
       {username: 'user1', password: 'pass1', limit: 100},
@@ -367,7 +367,7 @@ describe('users config validation', () => {
       },
     };
     const configFile = path.join(tempDir, 'application.yml');
-    fs.writeFileSync(configFile, yaml.dump(validConfig));
+    fs.writeFileSync(configFile, dump(validConfig));
     const config = (await import('../config')).default;
     expect(config.users).toEqual([]);
   });
@@ -383,7 +383,7 @@ describe('users config validation', () => {
       },
     };
     const configFile = path.join(tempDir, 'application.yml');
-    fs.writeFileSync(configFile, yaml.dump(validConfig));
+    fs.writeFileSync(configFile, dump(validConfig));
     const config = (await import('../config')).default;
     expect(config.users).toEqual([{username: 'user1', password: 'pass1'}]);
   });

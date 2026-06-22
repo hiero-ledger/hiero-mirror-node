@@ -2,7 +2,7 @@
 
 import extend from 'extend';
 import fs from 'fs';
-import yaml from 'js-yaml';
+import {load as yamlLoad} from 'js-yaml';
 import parseDuration from 'parse-duration';
 import path from 'path';
 import {fileURLToPath} from 'url';
@@ -37,7 +37,7 @@ function load(configPath, configName) {
 
 function loadYaml(configFile) {
   try {
-    const doc = yaml.load(fs.readFileSync(configFile, 'utf8'));
+    const doc = yamlLoad(fs.readFileSync(configFile, 'utf8'));
     logger.info(`Loaded configuration source: ${configFile}`);
     extend(true, config, doc);
 

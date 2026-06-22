@@ -88,8 +88,7 @@
     "multer": "2.2.0",
     "path-to-regexp": "8.4.2",
     "protobufjs": "7.6.4",
-    "test-exclude": "8.0.0",
-    "undici": "8.5.0"
+    "test-exclude": "8.0.0"
   },
   "bundleDependencies": true
 }
