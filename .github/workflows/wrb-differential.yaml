@@ -170,9 +170,9 @@ jobs:
 
           yq '(.. | select(tag == "!!str")) |= envsubst' .github/workflows/resources/mirror-block-node.yaml > mirror.yaml
           yq -i '. *= load(".github/workflows/resources/mirror.yaml")' mirror.yaml
-          yq -i 'with(.importer.env; \
-            .HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONBYTES="true", \
-            .HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONRECORDBYTES="true")' mirror.yaml
+          yq -i 'with(.importer.env; '\
+          '.HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONBYTES="true", '\
+          '.HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONRECORDBYTES="true")' mirror.yaml
 
           solo cluster-ref config connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
             --context kind-"${SOLO_CLUSTER_NAME}"
