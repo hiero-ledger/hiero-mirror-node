@@ -29,13 +29,6 @@ monitor:
     enabled: true
 pinger:
   enabled: false
-rest:
-  image:
-    repository: mirrornode/hedera-mirror-rest
-  resources:
-    limits:
-      cpu: 250m
-      memory: 256Mi
 restjava:
   image:
     repository: mirrornode/hedera-mirror-rest-java
@@ -47,9 +40,8 @@ test:
   env:
     HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
     HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
+    HIERO_MIRROR_TEST_ACCEPTANCE_SKIPENTITIESCLEANUP: "true"
   enabled: true
-  image:
-    repository: mirrornode/hedera-mirror-test
   resources:
     limits:
       cpu: 3
