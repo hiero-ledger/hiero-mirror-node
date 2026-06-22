@@ -444,19 +444,8 @@ describe('extractContractResultsByIdQuery', () => {
     },
   ];
 
-  // Global endpoint cases (no contractId → includeSynthetic: true)
+  // Global endpoint cases (no contractId, no from filter → includeSynthetic mirrors the flag)
   const globalSpecs = [
-    {
-      name: 'global endpoint - no contractId → includeSynthetic true',
-      input: {filter: [], contractId: undefined},
-      expected: {
-        conditions: ['cr.transaction_nonce = 0'],
-        includeSynthetic: true,
-        params: [],
-        order: constants.orderFilterValues.DESC,
-        limit: defaultLimit,
-      },
-    },
     {
       name: 'global endpoint - from filter disables includeSynthetic',
       input: {
@@ -481,13 +470,31 @@ describe('extractContractResultsByIdQuery', () => {
     });
   });
 
+  test('global endpoint - syntheticContractResults flag enabled, no contractId → includeSynthetic true', async () => {
+    const originalValue = config.query.syntheticContractResults;
+    config.query.syntheticContractResults = true;
+    try {
+      const result = await contracts.extractContractResultsByIdQuery([], undefined);
+      expect(result).toEqual({
+        conditions: ['cr.transaction_nonce = 0'],
+        includeSynthetic: true,
+        params: [],
+        order: constants.orderFilterValues.DESC,
+        limit: defaultLimit,
+      });
+    } finally {
+      config.query.syntheticContractResults = originalValue;
+    }
+  });
+
   test('global endpoint - syntheticContractResults flag disabled → includeSynthetic false', async () => {
+    const originalValue = config.query.syntheticContractResults;
     config.query.syntheticContractResults = false;
     try {
       const result = await contracts.extractContractResultsByIdQuery([], undefined);
       expect(result.includeSynthetic).toBe(false);
     } finally {
-      config.query.syntheticContractResults = true;
+      config.query.syntheticContractResults = originalValue;
     }
   });
 });
