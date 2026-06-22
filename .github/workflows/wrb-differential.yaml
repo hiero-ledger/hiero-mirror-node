@@ -311,7 +311,7 @@ jobs:
 
           SERVICE_NAME=$(kubectl get service -l app.kubernetes.io/name=postgres -n "${SOLO_NAMESPACE}" -o json | \
             jq -r '.items[] | select (.spec.clusterIP != "None") | .metadata.name')
-          kubectl port-forward service "${SERVICE_NAME}" -n "${SOLO_NAMESPACE}" 5432:5432 &
+          kubectl port-forward service/"${SERVICE_NAME}" -n "${SOLO_NAMESPACE}" 5432:5432 &
 
           export HIERO_MIRROR_IMPORTER_DB_OWNERPASSWORD=$(kubectl get secret mirror-passwords -n \
             "${SOLO_NAMESPACE}" -o json | jq -r '.data.HIERO_MIRROR_IMPORTER_DB_OWNERPASSWORD' | base64 -d)
