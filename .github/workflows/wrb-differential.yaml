@@ -6,12 +6,9 @@ on:
   pull_request:
     branches:
       - "main"
-      - "release/**"
     paths:
       - ".github/workflows/wrb-differential.yaml"
   push:
-    branches:
-      - 13347-wrb-differential-testing
     tags:
       - "v*"
   schedule:
