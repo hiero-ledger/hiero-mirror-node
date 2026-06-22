@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-name: The wrapped record block (WRB) differential test
+name: WRB Differential
 
 on:
   pull_request:
@@ -168,7 +168,7 @@ jobs:
             names: "facility-messaging,block-access-service,health,server-status,stream-publisher,stream-subscriber,verification,blocks-file-historic,blocks-file-recent,backfill,roster-bootstrap-rsa"
           EOF
 
-          envsubst < .github/workflows/resources/mirror-block-node.yaml > mirror.yaml
+          yq '(.. | select(tag == "!!str")) |= envsubst' .github/workflows/resources/mirror-block-node.yaml > mirror.yaml
           yq -i '. *= load(".github/workflows/resources/mirror.yaml")' mirror.yaml
           yq -i 'with(.importer.env; \
             .HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONBYTES="true", \

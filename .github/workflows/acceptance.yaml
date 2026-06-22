@@ -185,7 +185,8 @@ jobs:
 
           APPLICATION_PROPERTIES_FLAG=()
           if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
-            envsubst < .github/workflows/resources/mirror-block-node.yaml > mirror-block-node.yaml
+            yq '(.. | select(tag == "!!str")) |= envsubst' .github/workflows/resources/mirror-block-node.yaml > \
+              mirror-block-node.yaml
             yq -i '. *= load("mirror-block-node.yaml")' mirror.yaml
             cat $(which solo | xargs dirname)/../lib/node_modules/@hashgraph/solo/resources/templates/application.properties \
               > application.properties
