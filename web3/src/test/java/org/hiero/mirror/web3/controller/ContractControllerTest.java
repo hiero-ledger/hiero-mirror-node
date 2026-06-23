@@ -80,7 +80,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 @ExtendWith({MockitoExtension.class, SpringExtension.class, OutputCaptureExtension.class})
 @WebMvcTest(controllers = ContractController.class)
-class ContractControllerTest {
+final class ContractControllerTest {
 
     private static final String CALL_URI = "/api/v1/contracts/call";
     private static final long THROTTLE_GAS_LIMIT = 10_000_000L;
@@ -400,6 +400,13 @@ class ContractControllerTest {
         final var request = request();
         request.setBlock(new BlockType(HEX_PREFIX + "ef".repeat(48), BlockType.BLOCK_HASH_SENTINEL));
 
+        contractCall(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void callBlockTypeNull() throws Exception {
+        final var request = request();
+        request.setBlock(null);
         contractCall(request).andExpect(status().isOk());
     }
 

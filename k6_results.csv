@@ -1,0 +1,6 @@
+"scenario","suite","url","Overall RPS","Pass RPS","Avg. Pass Request Duration","Pass Rate"
+contractsResults,REST,/contracts/results?timestamp=lte:1781218027.518552946&limit=100,125.6,125.6,10961.7,100.0
+contractsResultsId,REST,/contracts/results/0x8cc7f0036115d677ed3168b2812d8d78519788d0919e3975e067b8b172ca8a28,1750.9,1750.9,854.8,100.0
+contractsResultsIdActions,REST,/contracts/results/0x8cc7f0036115d677ed3168b2812d8d78519788d0919e3975e067b8b172ca8a28/actions?limit=100,7846.9,7846.9,160.3,100.0
+contractsResultsLogs,REST,/contracts/results/logs?timestamp=lte:1781218027.518552946&limit=100,647.5,647.5,2289.2,100.0
+rampUp,REST,/accounts?limit=100,297.4,296.7,2403.9,99.8

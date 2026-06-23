@@ -9,7 +9,7 @@ configurations.all {
 }
 
 dependencies {
-    val testClasses by configurations.registering
+    val testClasses = configurations.register("testClasses")
     annotationProcessor("jakarta.persistence:jakarta.persistence-api")
     api("com.fasterxml.jackson.core:jackson-databind")
     api("com.fasterxml.jackson.dataformat:jackson-dataformat-csv")

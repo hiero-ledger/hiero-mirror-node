@@ -60,22 +60,12 @@ val historicalSolidityVersion = "0.8.7"
 
 val requestedTasks = gradle.startParameter.taskNames
 
-val isNativeBuild =
-    requestedTasks.any {
-        it.contains("native", ignoreCase = true)
-        it.contains("bootBuildImage", ignoreCase = true)
-    }
+val isNativeBuild = requestedTasks.any {
+    it.contains("native", ignoreCase = true)
+    it.contains("bootBuildImage", ignoreCase = true)
+}
 
-val isTestExecution =
-    !isNativeBuild &&
-        requestedTasks.any {
-            it.contains("test", ignoreCase = true)
-            it.contains("check", ignoreCase = true)
-            it.contains("build", ignoreCase = true)
-        }
-
-if (isTestExecution) {
-
+if (!isNativeBuild) {
     pluginManager.apply("org.web3j")
     pluginManager.apply("org.web3j.solidity")
 

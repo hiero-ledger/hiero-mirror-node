@@ -4,7 +4,8 @@ package org.hiero.mirror.web3.viewmodel;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
@@ -14,7 +15,6 @@ import jakarta.validation.constraints.PositiveOrZero;
 import java.util.List;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
-import org.hiero.mirror.web3.convert.BlockTypeDeserializer;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.validation.Hex;
@@ -26,7 +26,8 @@ public class ContractCallRequest {
     public static final int ADDRESS_LENGTH = 40;
 
     @JsonSerialize(using = BlockTypeSerializer.class)
-    @JsonDeserialize(using = BlockTypeDeserializer.class)
+    @JsonSetter(nulls = Nulls.SKIP)
+    @NotNull
     private BlockType block = BlockType.LATEST;
 
     @Hex
