@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
 import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
@@ -90,8 +91,7 @@ abstract class AbstractSchedulerTest {
                 InProcessServerBuilder.forName(name).addService(service).build().start();
         resources.register(server);
 
-        var properties = new BlockNodeProperties();
-        properties.setHost(name);
+        final var properties = singleEndpointProperties(name);
         properties.setPriority(priority);
         return properties;
     }

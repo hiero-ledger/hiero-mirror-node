@@ -55,7 +55,7 @@ jobs:
           echo VERSION=${VERSION} >> $GITHUB_ENV
 
       - name: Checkout Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: deploy
           token: ${{ secrets.HEDERA_BOT_TOKEN }}
@@ -64,7 +64,7 @@ jobs:
         env:
           BINARY: yq_linux_amd64
           TARGET: /home/runner/.local/bin
-          VERSION: v4.46.1
+          VERSION: v4.53.3
         run: |
           mkdir -p "${TARGET}"
           cd "${TARGET}"

@@ -77,80 +77,6 @@ loki:
   ruler:
     replicas: 0
   rules:
-    - name: grpc
-      rules:
-        - alert: GrpcLogErrors
-          annotations:
-            description: "Logs for {{ $labels.cluster }}/{{ $labels.namespace }}/{{ $labels.pod }} have reached {{ $value }} error messages/s in a 3m period"
-            summary: High rate of errors in logs
-          expr: >
-            sum(rate({component="grpc"}
-              | regexp `(?P<timestamp>\S+)\s+(?P<level>\S+)\s+(?P<thread>\S+)\s+(?P<class>\S+)\s+(?P<message>.+)`
-              | level = "ERROR"
-              != "reactor.core.publisher"
-              != "drainError"
-              != "org.springframework"
-              != "connection validation failed"
-              != "Stream closed before write could take place"
-              != "Connection unexpectedly closed"
-              != "Unknown error subscribing to topic"
-              != "Error has been observed at the following"
-              != "ReactorNettyClient$PostgresConnectionClosedException: Connection closed"
-              != "i.g.n.s.i.g.n.NettyServerHandler Stream Error"
-              != "Http2Exception.streamError"
-              != "readAddress(..) failed: Connection reset by peer"
-              != "i.r.p.c.ReactorNettyClient Connection Error"
-              != "i.n.u.ResourceLeakDetector LEAK: ByteBuf.release()"
-              != "Not a valid topic"
-              != "Must be greater than or equal to 0"
-              != "Topic does not exist"
-            [1m])) by (cluster, namespace, pod) > 1
-          for: 3m
-          labels:
-            severity: critical
-    - name: importer
-      rules:
-        - alert: ImporterLogErrors
-          annotations:
-            description: "Logs for {{ $labels.cluster }}/{{ $labels.namespace }}/{{ $labels.pod }} have reached {{ $value }} error messages/s in a 5m period"
-            summary: High rate of errors in logs
-          expr: >
-            sum(rate({component="importer"}
-              | regexp `(?P<timestamp>\S+)\s+(?P<level>\S+)\s+(?P<thread>\S+)\s+(?P<class>\S+)\s+(?P<message>.+)`
-              | level = "ERROR"
-              != "UnusedChannelExceptionHandler"
-              | message =~ ".*(Exception|hash mismatch for file|Unknown record file delimiter|Unknown file delimiter|Error parsing record file|Expecting previous file hash|Unable to extract hash and signature from file|Failed to verify record files|Account balance dataset timestamp mismatch!|ERRORS processing account balances file|does not exist in the database|Unable to connect to database|Address book file).*"
-            [1m])) by (cluster, namespace, pod) > 0.5
-          for: 5m
-          labels:
-            severity: critical
-        - alert: ImporterRecoverableErrors
-          annotations:
-            description: "Recoverable Error Logs for {{ $labels.cluster }}/{{ $labels.namespace }}/{{ $labels.pod }} have reached {{ $value }} error messages/s in a 1m period"
-            summary: Recoverable Error found in logs
-          expr: >
-            sum(count_over_time({component="importer"}
-              | regexp `(?P<timestamp>\S+)\s+(?P<level>\S+)\s+(?P<thread>\S+)\s+(?P<class>\S+)\s+(?P<message>.+)`
-              | level = "ERROR"
-              | message =~ ".*Recoverable error.*"
-            [1m])) by (cluster, namespace, pod) > 0
-          labels:
-            severity: critical
-    - name: rest
-      rules:
-        - alert: RestLogErrors
-          annotations:
-            description: "Logs for {{ $labels.cluster }}/{{ $labels.namespace }}/{{ $labels.pod }} have reached {{ $value }} error messages/s in a 1m period"
-            summary: "High rate of log errors"
-          expr: >
-            sum(rate({component="rest"}
-              | regexp `(?P<timestamp>\S+)\s+(?P<level>\S+)\s+(?P<requestId>\S+)\s+(?P<message>.+)`
-              | level = "ERROR" or level = "FATAL"
-              != "canceling statement due to statement timeout"
-            [1m])) by (cluster, namespace, pod) > 0.04
-          for: 1m
-          labels:
-            severity: critical
     - name: rosetta
       rules:
         - alert: RosettaLogErrors
@@ -253,53 +179,12 @@ prometheus-adapter:
 
 prometheus:
   alertmanager:
-    alertmanagerSpec:
-      alertmanagerConfigSelector:
-        matchLabels:
-          app.kubernetes.io/part-of: hedera-mirror-node
-      priorityClassName: low
-      resources:
-        limits:
-          cpu: 50m
-          memory: 80Mi
-        requests:
-          cpu: 30m
-          memory: 30Mi
-    config:
-      receivers:
-        - name: 'null'
-      route:
-        group_by:
-          - namespace
-          - alertname
-        group_wait: 30s
-        receiver: 'null'
-        repeat_interval: 7d
-        routes: []
-      templates:
-        - '/etc/alertmanager/config/slack.tmpl'
-    enabled: true
-    templateFiles:
-      slack.tmpl: |-
-        {{- define "slack.title" -}}
-        {{- .Status | title }} {{ .CommonLabels.alertname }}{{ if .CommonLabels.namespace }} in {{ with .CommonLabels.cluster }}{{ . }}/{{ end }}{{ .CommonLabels.namespace }}{{ end }}
-        {{- end -}}
-
-        {{- define "slack.text" -}}
-        {{ range .Alerts -}}
-        *Summary:* {{ with .Annotations.summary }}{{ . }}{{ else }}{{ .Annotations.message }}{{ end }} <{{ .GeneratorURL }}|:fire:> {{- with .Annotations.dashboard_url }}<{{ . }}|:chart_with_upwards_trend:>{{ end }} {{- with .Annotations.runbook_url }}<{{ . }}|:notebook:>{{ end }}{{"\n"}}
-        {{- with .Annotations.description -}} *Description:* {{ . }}{{"\n"}}{{ end }}
-        {{ end }}
-        {{- end -}}
+    enabled: false
   coreDns:
     enabled: false
   enabled: true
   grafana:
     additionalDataSources:
-      - name: AlertManager
-        type: camptocamp-prometheus-alertmanager-datasource
-        access: proxy
-        url: http://{{ .Release.Name }}-prometheus-alertmanager:9093
       - name: Loki
         type: loki
         access: proxy
@@ -308,8 +193,6 @@ prometheus:
           maxLines: 500
     adminPassword: ""  # Randomly generated if left blank
     defaultDashboardsEnabled: true
-    plugins:
-      - camptocamp-prometheus-alertmanager-datasource
     resources:
       limits:
         cpu: 300m
@@ -512,91 +395,6 @@ stackgres:
   operator:
     image:
       name: gcr.io/mirrornode/stackgres-operator
-  prometheusRules:
-    enabled: true
-    DatabaseStorageFull:
-      annotations:
-        description: Storage for {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} is {{ $value | humanizePercentage }} full
-        summary: Database storage is full
-      enabled: true
-      expr: kubelet_volume_stats_used_bytes{node=~".*(worker|coord).*"} / kubelet_volume_stats_capacity_bytes{node=~".*(worker|coord).*"} >= .80
-      for: 1m
-      labels:
-        severity: critical
-        application: hedera-mirror-common
-        area: resource
-    DatabaseInstanceDown:
-      annotations:
-        summary: "Postgres server instance is down"
-        description: "Postgres has not been responding for the past minute on {{ $labels.pod }}"
-        title: "Postgres server instance {{ $labels.pod }} is down"
-      expr: sum(pg_up) by (namespace, pod) == 0
-      for: 5m
-      labels:
-        severity: critical
-        application: hedera-mirror-common
-        area: resource
-    DatabaseExporterErrors:
-      expr: sum(pg_exporter_last_scrape_error) by (namespace, pod) == 1
-      for: 10m
-      labels:
-        severity: warning
-        application: hedera-mirror-common
-        area: resource
-      annotations:
-        summary: "Postgres Exporter is down or is showing errors"
-        description: "postgres-exporter is not running or it is showing errors {{ $labels.pod }}"
-    DatabaseReplicationLagSizeTooLarge:
-      expr: sum(pg_replication_status_lag_size) by (namespace, pod) > 1e+09
-      for: 5m
-      labels:
-        severity: critical
-        application: hedera-mirror-common
-        area: resource
-      annotations:
-        summary: "Postgres replication lag size is too large"
-        description: "Replication lag size on {{$labels.pod}} is currently {{ $value | humanize1024 }}B behind the leader"
-    DatabaseInactiveReplicationSlots:
-      expr: sum(pg_replication_slots_active) by (namespace, pod) == 0
-      for: 30m
-      labels:
-        severity: warning
-        application: hedera-mirror-common
-        area: resource
-      annotations:
-        summary: "There are inactive replications slots"
-        description: "The are some inactive replication slots on {{$labels.pod}}"
-    DatabaseDemotedNode:
-      annotations:
-        summary: "Postgresql demoted node"
-        description: "Instance {{ $labels.pod }} has been demoted to a replica"
-      expr: sum(pg_replication_is_replica) by (namespace, pod) == 1 and sum(changes(pg_replication_is_replica[2m])) by (namespace, pod) > 0
-      for: 1m
-      labels:
-        application: hedera-mirror-common
-        area: resource
-        severity: warning
-    DatabaseWaitingClients:
-      annotations:
-        summary: PgBouncer has waiting clients on instance {{ $labels.pod }}
-        description: "PgBouncer instance has {{ $value }} waiting clients"
-      expr: sum(pgbouncer_show_pools_cl_waiting) by (namespace, pod) > 0
-      for: 5m
-      labels:
-        application: hedera-mirror-common
-        area: resource
-        severity: critical
-    DatabaseQueryTimeTooHigh:
-      annotations:
-        summary: PgBouncer average query duration more than 3 seconds on {{ $labels.pod }} in pool {{ $labels.pool_mode }} for user {{$labels.user}}
-        description: "PgBouncer average query duration {{ $value }} is more than 3 seconds"
-      expr: sum(pgbouncer_show_stats_avg_query_time) by (namespace, pod) > 3e+6
-      for: 5m
-      labels:
-        application: hedera-mirror-common
-        area: resource
-        severity: critical
-
 testkube:
   enabled: false
   executor:

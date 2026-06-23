@@ -43,4 +43,12 @@ final class BlockFileTest {
         blockFile = BlockFile.builder().onNewRound(1L).onNewRound(2L).build();
         assertThat(blockFile).returns(1L, BlockFile::getRoundStart).returns(2L, BlockFile::getRoundEnd);
     }
+
+    @Test
+    void receiptsRoot() {
+        var receiptsRoot = new byte[] {1, 2, 3, 4};
+        var blockFile = BlockFile.builder().receiptsRoot(receiptsRoot).build();
+        assertThat(blockFile.getReceiptsRoot()).isEqualTo(receiptsRoot);
+        assertThat(blockFile.toString()).doesNotContain("receiptsRoot");
+    }
 }

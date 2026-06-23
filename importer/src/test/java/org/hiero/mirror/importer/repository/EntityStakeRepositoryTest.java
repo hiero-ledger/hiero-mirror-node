@@ -9,6 +9,7 @@ import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
 import static org.hiero.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Range;
 import java.time.Duration;
 import java.util.Collections;
@@ -19,15 +20,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalance.Id;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityStake;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.parser.record.entity.staking.StakingProperties;
 import org.hiero.mirror.importer.util.Utility;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -47,9 +52,16 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
     private final EntityRepository entityRepository;
     private final EntityStakeRepository entityStakeRepository;
+    private final StakingProperties stakingProperties;
     private final TransactionOperations transactionOperations;
 
     private long stakingRewardAccountId;
+
+    @AfterEach
+    void resetProperties() {
+        stakingProperties.setChunkDelay(Duration.ZERO);
+        stakingProperties.setChunkSize(Integer.MAX_VALUE);
+    }
 
     @BeforeEach
     void setup() {
@@ -451,6 +463,143 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
             // then
             assertEntityStartStart(List.of(expectedAlice, expectedStakingRewardAccount, expectedTreasury));
         });
+    }
+
+    @Test
+    void createEntityStateStartWithChunking() {
+        // given: two entities whose IDs are in different chunks
+        final int chunkSize = 400;
+        final long accountId = 100L;
+        stakingProperties.setChunkSize(chunkSize);
+
+        final long epochDay = 1000L;
+        final long nodeStakeTimestamp =
+                DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp).epochDay(epochDay))
+                .persist();
+        final var stakingRewardAccount = domainBuilder
+                .entity(stakingRewardAccountId, nodeStakeTimestamp - 10)
+                .persist();
+        final var account = domainBuilder
+                .entity(accountId, nodeStakeTimestamp - 5)
+                .customize(e -> e.stakedNodeId(1L))
+                .persist();
+        final long balanceTimestamp = nodeStakeTimestamp - 100;
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
+                .persist();
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.balance(500L).id(new Id(balanceTimestamp, account.toEntityId())))
+                .persist();
+
+        final var expectedStakingRewardAccount =
+                stakingRewardAccount.toBuilder().balance(0L).stakedAccountId(0L).build();
+        final var expectedAccount =
+                account.toBuilder().balance(500L).stakedAccountId(0L).build();
+
+        // when
+        entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+
+        // then: entities from both chunks appear with correct values
+        assertEntityStartStart(List.of(expectedAccount, expectedStakingRewardAccount));
+    }
+
+    @Test
+    void createEntityStateStartWithChunkDelay() {
+        // given: two chunks separated by a measurable delay
+        final var chunkDelay = Duration.ofMillis(50);
+        final int chunkSize = 400;
+        final long accountId = 100L;
+        stakingProperties.setChunkSize(chunkSize);
+        stakingProperties.setChunkDelay(chunkDelay);
+
+        final long epochDay = 1000L;
+        final long nodeStakeTimestamp =
+                DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp).epochDay(epochDay))
+                .persist();
+        final var stakingRewardAccount = domainBuilder
+                .entity(stakingRewardAccountId, nodeStakeTimestamp - 10)
+                .persist();
+        final var account = domainBuilder
+                .entity(accountId, nodeStakeTimestamp - 5)
+                .customize(e -> e.stakedNodeId(1L))
+                .persist();
+        final long balanceTimestamp = nodeStakeTimestamp - 100;
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
+                .persist();
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.balance(500L).id(new Id(balanceTimestamp, account.toEntityId())))
+                .persist();
+
+        final var expectedStakingRewardAccount =
+                stakingRewardAccount.toBuilder().balance(0L).stakedAccountId(0L).build();
+        final var expectedAccount =
+                account.toBuilder().balance(500L).stakedAccountId(0L).build();
+
+        // when
+        final var stopwatch = Stopwatch.createStarted();
+        entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+        final var elapsed = stopwatch.elapsed();
+
+        // then: inter-chunk delay was applied (at least one delay between the two chunks)
+        assertThat(elapsed).isGreaterThanOrEqualTo(chunkDelay);
+        // then: correct result regardless of chunking
+        assertEntityStartStart(List.of(expectedAccount, expectedStakingRewardAccount));
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 100
+            1023, 100
+            """)
+    void createEntityStateStartWithNonZeroShardAndRealm(long shard, long realm) {
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
+        stakingRewardAccountId =
+                new SystemEntity(commonProperties).stakingRewardAccount().getId();
+
+        final long epochDay = 1000L;
+        final long nodeStakeTimestamp =
+                DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp).epochDay(epochDay))
+                .persist();
+        final var stakingRewardAccount = domainBuilder
+                .entity(stakingRewardAccountId, nodeStakeTimestamp - 10)
+                .persist();
+        final var account = domainBuilder
+                .entity(EntityId.of(shard, realm, domainBuilder.number()), nodeStakeTimestamp - 5)
+                .customize(e -> e.stakedNodeId(1L))
+                .persist();
+        final long balanceTimestamp = nodeStakeTimestamp - 100;
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
+                .persist();
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.balance(500L).id(new Id(balanceTimestamp, account.toEntityId())))
+                .persist();
+
+        final var expectedStakingRewardAccount =
+                stakingRewardAccount.toBuilder().balance(0L).stakedAccountId(0L).build();
+        final var expectedAccount =
+                account.toBuilder().balance(500L).stakedAccountId(0L).build();
+
+        entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+
+        assertEntityStartStart(List.of(expectedAccount, expectedStakingRewardAccount));
     }
 
     @Test

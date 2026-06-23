@@ -154,6 +154,7 @@ public class EvmProperties {
 
     private Map<String, String> buildTransactionProperties() {
         var props = new HashMap<String, String>();
+        props.put("blockStream.writerMode", "FILE");
         props.put("contracts.chainId", network.getChainId().toBigInteger().toString());
         props.put("contracts.evm.version", "v" + evmVersion.major() + "." + evmVersion.minor());
         props.put("contracts.maxRefundPercentOfGasLimit", String.valueOf(maxGasRefundPercentage));

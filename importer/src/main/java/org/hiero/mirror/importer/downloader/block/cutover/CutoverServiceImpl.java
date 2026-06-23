@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.downloader.block.cutover;
 import static java.util.function.Predicate.not;
 import static org.hiero.mirror.common.domain.StreamType.BLOCK;
 import static org.hiero.mirror.common.domain.StreamType.RECORD;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOCK_NUMBER;
 
 import com.google.common.base.Stopwatch;
 import jakarta.inject.Named;

@@ -204,7 +204,7 @@
         "block_number": 10,
         "bloom": "0x0105",
         "call_result": "0x0206",
-        "chain_id": null,
+        "chain_id": "0x128",
         "contract_id": "0.0.6001",
         "created_contract_ids": ["0.0.7001"],
         "error_message": null,
@@ -226,7 +226,7 @@
         "timestamp": "187654.000123490",
         "to": "0x0000000000000000000000000000000000001771",
         "transaction_index": 1,
-        "type": null,
+        "type": 0,
         "v": null
       },
       {

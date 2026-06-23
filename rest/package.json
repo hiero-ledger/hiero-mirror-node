@@ -1,6 +1,6 @@
 {
   "name": "@hiero-ledger/mirror-rest",
-  "version": "0.157.0-SNAPSHOT",
+  "version": "0.158.0-SNAPSHOT",
   "description": "Mirror Node REST API",
   "type": "module",
   "main": "server.js",
@@ -23,7 +23,7 @@
     "@bufbuild/protobuf": "2.12.0",
     "@godaddy/terminus": "4.12.1",
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/exporter-prometheus": "^0.218.0",
+    "@opentelemetry/exporter-prometheus": "^0.219.0",
     "@opentelemetry/sdk-metrics": "^2.6.1",
     "asn1js": "3.0.10",
     "basic-auth": "2.0.1",
@@ -33,8 +33,8 @@
     "express-http-context": "2.0.1",
     "express-openapi-validator": "5.6.2",
     "extend": "3.0.2",
-    "ioredis": "5.10.1",
-    "js-yaml": "4.1.1",
+    "ioredis": "5.11.1",
+    "js-yaml": "4.2.0",
     "json-bigint": "1.0.0",
     "lodash": "4.18.1",
     "negotiator": "1.0.0",
@@ -44,17 +44,17 @@
     "qs": "6.15.2",
     "quick-lru": "7.3.0",
     "rfc4648": "1.5.4",
-    "sql-formatter": "15.8.0",
+    "sql-formatter": "15.8.1",
     "swagger-ui-express": "5.0.1",
     "tsscmp": "1.0.6"
   },
   "devDependencies": {
-    "@bufbuild/buf": "1.69.0",
+    "@bufbuild/buf": "1.70.0",
     "@bufbuild/protoc-gen-es": "2.12.0",
-    "@testcontainers/postgresql": "12.0.0",
+    "@testcontainers/postgresql": "12.0.2",
     "cross-env": "10.1.0",
     "crypto-random-string": "5.0.0",
-    "esbuild": "^0.28.0",
+    "esbuild": "^0.28.1",
     "extensionless": "2.0.6",
     "jest": "30.4.2",
     "jest-extended": "7.0.0",
@@ -64,7 +64,7 @@
     "pgsql-parser": "17.9.15",
     "sinon": "22.0.0",
     "supertest": "7.2.2",
-    "tar": "7.5.15"
+    "tar": "7.5.16"
   },
   "peerDependencies": {
     "ansi-regex": "6.2.2",
@@ -82,14 +82,14 @@
   "baseUrlPath": "/api/v1",
   "overrides": {
     "brace-expansion": "5.0.6",
-    "fast-uri": "3.1.2",
+    "fast-uri": "4.0.0",
+    "form-data": "4.0.6",
     "glob": "13.0.6",
-    "@istanbuljs/load-nyc-config": {
-      "js-yaml": "3.14.2"
-    },
-    "multer": "2.1.1",
-    "path-to-regexp": "8.4.0",
-    "test-exclude": "8.0.0"
+    "multer": "2.2.0",
+    "path-to-regexp": "8.4.2",
+    "protobufjs": "7.6.4",
+    "test-exclude": "8.0.0",
+    "undici": "8.5.0"
   },
   "bundleDependencies": true
 }

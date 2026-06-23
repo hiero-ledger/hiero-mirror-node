@@ -28,10 +28,15 @@ import org.web3j.utils.Numeric;
 
 @Named
 public class EthereumClient extends AbstractNetworkClient {
-    @Autowired
-    private AcceptanceTestProperties acceptanceTestProperties;
+
+    public static final BigInteger WEIBARS_TO_TINYBARS = BigInteger.valueOf(10_000_000_000L);
 
     private final Map<PrivateKey, BigInteger> accountNonce = new ConcurrentHashMap<>();
+    private final BigInteger maxFeePerGas = WEIBARS_TO_TINYBARS.multiply(BigInteger.valueOf(60L));
+    private final BigInteger gasPrice = WEIBARS_TO_TINYBARS.multiply(BigInteger.valueOf(50L));
+
+    @Autowired
+    private AcceptanceTestProperties acceptanceTestProperties;
 
     public EthereumClient(
             SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
@@ -48,12 +53,6 @@ public class EthereumClient extends AbstractNetworkClient {
         return BigInteger.valueOf(
                 acceptanceTestProperties.getFeatureProperties().getMaxContractFunctionGas());
     }
-
-    public static final BigInteger WEIBARS_TO_TINYBARS = BigInteger.valueOf(10_000_000_000L);
-
-    private final BigInteger maxFeePerGas = WEIBARS_TO_TINYBARS.multiply(BigInteger.valueOf(60L));
-
-    private final BigInteger gasPrice = WEIBARS_TO_TINYBARS.multiply(BigInteger.valueOf(50L));
 
     public NetworkTransactionResponse createContract(
             PrivateKey signerKey, FileId fileId, String fileContents, long initialBalance) {
@@ -74,7 +73,12 @@ public class EthereumClient extends AbstractNetworkClient {
 
         var response = executeTransactionAndRetrieveReceipt(ethereumTransaction, null, null);
         var contractId = response.getReceipt().contractId;
-        log.info("Created new contract {} with memo '{}' via {}", contractId, memo, response.getTransactionId());
+        log.info(
+                "Created new contract {} with memo '{}' via {} in {}",
+                contractId,
+                memo,
+                response.getTransactionId(),
+                response.getStopwatch());
 
         TransactionRecord transactionRecord = getTransactionRecord(response.getTransactionId());
         logContractFunctionResult("constructor", transactionRecord.contractFunctionResult);
@@ -117,7 +121,14 @@ public class EthereumClient extends AbstractNetworkClient {
                 .setMaxGasAllowanceHbar(Hbar.from(100L))
                 .setEthereumData(TransactionEncoder.signMessage(rawTransaction, credentials));
 
-        return executeTransactionAndRetrieveReceipt(ethereumTransaction, null, null);
+        final var response = executeTransactionAndRetrieveReceipt(ethereumTransaction, null, null);
+        log.info(
+                "Transferred {} to {} via {} in {}",
+                value,
+                toEvmAddress,
+                response.getTransactionId(),
+                response.getStopwatch());
+        return response;
     }
 
     public ContractClient.ExecuteContractResult executeContract(
@@ -170,7 +181,12 @@ public class EthereumClient extends AbstractNetworkClient {
         TransactionRecord transactionRecord = getTransactionRecord(response.getTransactionId());
         logContractFunctionResult(functionName, transactionRecord.contractFunctionResult);
 
-        log.info("Called contract {} function {} via {}", contractId, functionName, response.getTransactionId());
+        log.info(
+                "Called contract {} function {} via {} in {}",
+                contractId,
+                functionName,
+                response.getTransactionId(),
+                response.getStopwatch());
         return new ContractClient.ExecuteContractResult(transactionRecord.contractFunctionResult, response);
     }
 
