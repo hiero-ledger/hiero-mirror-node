@@ -2,8 +2,7 @@
 
 package org.hiero.mirror.web3.service;
 
-import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
-import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX_CAPITAL;
+import static org.hiero.mirror.web3.state.Utils.parseHex;
 
 import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -71,12 +70,8 @@ public class ContractExecutionService extends ContractCallService {
                             params.getStateOverrides().size());
                     for (final var stateOverride : params.getStateOverrides()) {
                         final var address = stateOverride.getAddress();
-                        final var unprefixed =
-                                (address.startsWith(HEX_PREFIX) || address.startsWith(HEX_PREFIX_CAPITAL))
-                                        ? address.substring(2)
-                                        : address;
                         addressToAccounts.put(
-                                com.hedera.pbj.runtime.io.buffer.Bytes.fromHex(unprefixed), stateOverride);
+                                com.hedera.pbj.runtime.io.buffer.Bytes.wrap(parseHex(address)), stateOverride);
                     }
 
                     ctx.setStateOverrides(addressToAccounts);

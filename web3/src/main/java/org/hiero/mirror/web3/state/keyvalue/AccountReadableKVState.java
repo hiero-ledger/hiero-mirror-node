@@ -9,8 +9,6 @@ import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.state.Utils.hexStringToLong;
 
 import com.hedera.hapi.node.base.AccountID;
-import com.hedera.hapi.node.base.ContractID;
-import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.node.app.service.token.TokenService;
@@ -124,8 +122,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
         com.hedera.pbj.runtime.io.buffer.Bytes accountAddress = null;
         StateOverride stateOverride = null;
         if (account != null) {
-            if (!com.hedera.pbj.runtime.io.buffer.Bytes.EMPTY.equals(account.alias())
-                    && ConversionUtils.isEvmAddress(account.alias())) {
+            if (ConversionUtils.isEvmAddress(account.alias())) {
                 accountAddress = account.alias();
             } else if (account.accountId() != null) {
                 accountAddress = com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
@@ -176,20 +173,6 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
 
         context.getWriteCacheState(STATE_ID).put(key, result);
         return result;
-    }
-
-    /**
-     * Builds a {@link Key} backed by the contract id corresponding to the given account id, mirroring the key a
-     * persisted contract entity would have (see {@code AbstractAliasedAccountReadableKVState#getKey}).
-     */
-    private Key contractKey(final AccountID accountId) {
-        return Key.newBuilder()
-                .contractID(ContractID.newBuilder()
-                        .shardNum(accountId.shardNum())
-                        .realmNum(accountId.realmNum())
-                        .contractNum(accountId.accountNumOrElse(0L))
-                        .build())
-                .build();
     }
 
     /**

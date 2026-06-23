@@ -103,6 +103,27 @@ public class Utils {
         return true;
     }
 
+    public static byte[] parseHex(String hex) {
+        int i = 0;
+        int len = hex.length();
+
+        if (len >= 2 && hex.charAt(0) == '0' && (hex.charAt(1) == 'x' || hex.charAt(1) == 'X')) {
+            i = 2;
+        }
+
+        int nibbles = len - i;
+        byte[] result = new byte[(nibbles + 1) / 2];
+        int j = 0;
+
+        if (nibbles % 2 != 0) {
+            result[j++] = (byte) Character.digit(hex.charAt(i++), 16);
+        }
+        while (i < len) {
+            result[j++] = (byte) ((Character.digit(hex.charAt(i++), 16) << 4) | Character.digit(hex.charAt(i++), 16));
+        }
+        return result;
+    }
+
     public static FileID toFileID(final EntityId entityId) {
         return FileID.newBuilder()
                 .shardNum(entityId.getShard())
