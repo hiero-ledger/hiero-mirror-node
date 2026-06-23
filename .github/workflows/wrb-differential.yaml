@@ -1,25 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
-name: End-to-end Tests
+name: WRB Differential
 
 on:
   pull_request:
     branches:
       - "main"
-      - "release/**"
     paths:
-      - ".github/workflows/acceptance.yaml"
-      - "test/**"
+      - ".github/workflows/wrb-differential.yaml"
   push:
-    branches:
-      - "main"
-      - "release/**"
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: "Branch"
-        required: true
-        type: string
+    tags:
+      - "v*"
+  schedule:
+    - cron: "0 23 * * *"
 
 permissions:
   contents: read
@@ -32,14 +25,8 @@ env:
   LC_ALL: C.UTF-8
 
 jobs:
-  acceptance:
+  differential:
     runs-on: hiero-mirror-node-linux-large
-    strategy:
-      fail-fast: false
-      matrix:
-        stream-type:
-          - RECORD
-          - BLOCK
     timeout-minutes: 50
     env:
       BLOCK_NODE_VERSION: v0.35.1
@@ -60,8 +47,6 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
 
       - name: Setup Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -87,7 +72,7 @@ jobs:
           java-version: 25
 
       - name: Install Solo CLI via npm
-        run: npm install -g @hashgraph/solo@${SOLO_VERSION}
+        run: npm install -g @hiero-ledger/solo@${SOLO_VERSION}
 
       - name: Determine base and tag
         timeout-minutes: 15
@@ -120,7 +105,7 @@ jobs:
 
       - name: Find changed modules
         id: changeset
-        if: env.TRIGGERED_BY_TAG != 'true'
+        if: env.TRIGGERED_BY_TAG != 'true' && github.event_name != 'schedule'
         uses: step-security/paths-filter@5c5241b8233e77b55b9046daf88f1cb7560281de # v4.0.1
         with:
           base: ${{ env.BASE }}
@@ -141,7 +126,7 @@ jobs:
             - 'web3/**'
 
       - name: Setup Gradle
-        if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs.changes != '[]'
+        if: steps.changeset.outcome != 'skipped' && steps.changeset.outputs.changes != '[]'
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v4
 
       - name: Login to Docker Hub
@@ -152,7 +137,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build images
-        if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs.changes != '[]'
+        if: steps.changeset.outcome != 'skipped' && steps.changeset.outputs.changes != '[]'
         run: |
           set -ex
           echo '${{ steps.changeset.outputs.changes }}' | jq -r '.[]' | while read module; do
@@ -175,67 +160,108 @@ jobs:
         run: |
           set -ex
 
-          cp .github/workflows/resources/mirror.yaml mirror.yaml
+          cat <<EOF > block-node.yaml
+          blockNode:
+            config:
+              ROSTER_BOOTSTRAP_RSA_MIRROR_NODE_BASE_URL: http://${HELM_RELEASE_NAME}-restjava.${SOLO_NAMESPACE}.svc.cluster.local
+          plugins:
+            names: "facility-messaging,block-access-service,health,server-status,stream-publisher,stream-subscriber,verification,blocks-file-historic,blocks-file-recent,backfill,roster-bootstrap-rsa"
+          EOF
+
+          yq '(.. | select(tag == "!!str")) |= envsubst' .github/workflows/resources/mirror-block-node.yaml > mirror.yaml
+          yq -i '. *= load(".github/workflows/resources/mirror.yaml")' mirror.yaml
+          yq -i 'with(.importer.env; '\
+          '.HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONBYTES="true", '\
+          '.HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONRECORDBYTES="true")' mirror.yaml
+
           solo cluster-ref config connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
             --context kind-"${SOLO_CLUSTER_NAME}"
           solo deployment config create --deployment "${SOLO_DEPLOYMENT}" --namespace "${SOLO_NAMESPACE}"
           solo deployment cluster attach --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
             --num-consensus-nodes 1
           solo cluster-ref config setup --cluster-ref kind-"${SOLO_CLUSTER_NAME}"
-
-          APPLICATION_PROPERTIES_FLAG=()
-          if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
-            yq '(.. | select(tag == "!!str")) |= envsubst' .github/workflows/resources/mirror-block-node.yaml > \
-              mirror-block-node.yaml
-            yq -i '. *= load("mirror-block-node.yaml")' mirror.yaml
-            cat $(which solo | xargs dirname)/../lib/node_modules/@hashgraph/solo/resources/templates/application.properties \
-              > application.properties
-            cat <<EOF >> application.properties
-          blockStream.writerMode=FILE_AND_GRPC
-          blockStream.streamWrappedRecordBlocks=false
-
-          tss.hintsEnabled=true
-          tss.historyEnabled=true
-          tss.forceMockSignatures=false
-          tss.wrapsEnabled=true
-          EOF
-            APPLICATION_PROPERTIES_FLAG=(--application-properties application.properties)
-            solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
-              --chart-version "${BLOCK_NODE_VERSION}" --release-tag "${CONSENSUS_NODE_VERSION}"
-          fi
-
+          # block node
+          solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
+            --chart-version "${BLOCK_NODE_VERSION}" --release-tag "${CONSENSUS_NODE_VERSION}" -f block-node.yaml
+          # consensus node
           solo keys consensus generate --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1
-          solo consensus network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_NODE_VERSION}" \
-            "${APPLICATION_PROPERTIES_FLAG[@]}"
+          solo consensus network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_NODE_VERSION}"
           solo consensus node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 --release-tag "${CONSENSUS_NODE_VERSION}"
           solo consensus node start --deployment "${SOLO_DEPLOYMENT}" -i node1
 
+          # remove block-node pod before deploying mirror node to avoid running into the situation that block node waits
+          # too long for the RSA roster from /network/nodes REST api and ends up skipping some blocks at the beginning
+          echo "Removing block-node pod"
+          kubectl scale sts block-node-1 -n "${SOLO_NAMESPACE}" --replicas 0
+          kubectl wait pod -n "${SOLO_NAMESPACE}" --for=delete -l block-node.hiero.com/type=block-node --timeout=300s
+          echo "Removed block-node pod"
+
           helm dependency update charts/hedera-mirror
-          solo mirror node add --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --deployment "${SOLO_DEPLOYMENT}" \
+          DISABLE_IMPORTER_SPRING_PROFILES=true solo mirror node add --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
+            --deployment "${SOLO_DEPLOYMENT}" \
             -f mirror.yaml --mirror-node-chart-dir ./charts --pinger --enable-ingress
           APP_VERSION=$(helm ls -n "${SOLO_NAMESPACE}" -o json \
             | jq -r '.[] | select (.chart | test("hedera-mirror-.*")) | .app_version')
           echo "Installed hedera-mirror chart version $APP_VERSION"
 
-      - name: Run REST monitor test
-        run: |
-          helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
-            --filter name="${HELM_RELEASE_NAME}-rest-monitor-test" --timeout 5m
+          echo "Scale up block-node sts"
+          kubectl scale sts block-node-1 -n "${SOLO_NAMESPACE}" --replicas 1
+          kubectl wait sts block-node-1 -n "${SOLO_NAMESPACE}" --for=jsonpath='{.status.readyReplicas}'=1 --timeout=300s
+          echo "Scaled up block-node sts"
 
       - name: Run acceptance tests
+        timeout-minutes: 10
         run: |
           helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
-            --timeout 20m | tee output_log.txt
+            --timeout 10m | tee output_log.txt
 
-      - name: Run k6 tests
-        if: ${{ matrix.stream-type != 'BLOCK' }}
-        env:
-          BASE_URL: "http://127.0.0.1:38081"
-          DEFAULT_DURATION: "3s"
-          DEFAULT_GRACEFUL_STOP: "1s"
-          DEFAULT_VUS: 2
-          RUN_OPCODE_TESTS: "true"
-        uses: ./.github/actions/k6
+      - name: Switch to Ingest Recordstream Files
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+
+          # scale down importer so no more writes to the database
+          kubectl scale deployment "${HELM_RELEASE_NAME}-importer" -n "${SOLO_NAMESPACE}" --replicas=0
+          kubectl wait -n "${SOLO_NAMESPACE}" --for=delete -l app.kubernetes.io/name=importer --timeout=300s pod
+
+          LAST_TIMESTAMP=$(curl -s 'http://localhost:38081/api/v1/transactions?limit=1' | \
+            jq -r '.transactions[0].consensus_timestamp')
+
+          .github/workflows/resources/backup_and_reset_database.sh "${SOLO_NAMESPACE}"
+
+          # reconfig importer to ingest recordstream files
+          kubectl -n "${SOLO_NAMESPACE}" set env deployment "${HELM_RELEASE_NAME}-importer" SPRING_PROFILES_ACTIVE-
+          kubectl scale deployment "${HELM_RELEASE_NAME}-importer" -n "${SOLO_NAMESPACE}" --replicas=1
+          kubectl rollout status deployment "${HELM_RELEASE_NAME}-importer" -n "${SOLO_NAMESPACE}" --timeout=300s
+
+          CURRENT_TIMESTAMP=$(curl -s 'http://localhost:38081/api/v1/transactions?limit=1' | \
+            jq -r '.transactions[0].consensus_timestamp // 0.0')
+          until [[ "${CURRENT_TIMESTAMP}" = "${LAST_TIMESTAMP}" || "${CURRENT_TIMESTAMP}" > "${LAST_TIMESTAMP}" ]]
+          do
+            echo "Current timestamp ${CURRENT_TIMESTAMP} is behind the timestamp of the previous run ${LAST_TIMESTAMP}"
+            sleep 5
+            CURRENT_TIMESTAMP=$(curl -s 'http://localhost:38081/api/v1/transactions?limit=1' | \
+              jq -r '.transactions[0].consensus_timestamp // 0.0')
+          done
+
+          echo "importer has synced to ${CURRENT_TIMESTAMP}"
+          kubectl scale deployment "${HELM_RELEASE_NAME}-importer" -n "${SOLO_NAMESPACE}" --replicas=0
+          kubectl wait pod -n "${SOLO_NAMESPACE}" --for=delete -l app.kubernetes.io/name=importer --timeout=300s
+
+      - name: Run Verification
+        run: |
+          set -euo pipefail
+
+          SERVICE_NAME=$(kubectl get service -l app.kubernetes.io/name=postgres -n "${SOLO_NAMESPACE}" -o json | \
+            jq -r '.items[] | select (.spec.clusterIP != "None") | .metadata.name')
+          kubectl port-forward service/"${SERVICE_NAME}" -n "${SOLO_NAMESPACE}" 5432:5432 &
+
+          export HIERO_MIRROR_IMPORTER_DB_OWNERPASSWORD=$(kubectl get secret mirror-passwords -n \
+            "${SOLO_NAMESPACE}" -o json | jq -r '.data.HIERO_MIRROR_IMPORTER_DB_OWNERPASSWORD' | base64 -d)
+          export HIERO_MIRROR_IMPORTER_DB_PASSWORD=$(kubectl get secret mirror-passwords -n \
+            "${SOLO_NAMESPACE}" -o json | jq -r '.data.HIERO_MIRROR_IMPORTER_DB_PASSWORD' | base64 -d)
+          export WRB_TEST_ENABLED=true
+          ./gradlew :importer:test --tests '*WrbVerificationTest' --info
 
       - name: Show Pod Logs on Failure
         continue-on-error: true

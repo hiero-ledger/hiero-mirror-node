@@ -109,6 +109,9 @@ public class RecordFile implements StreamFile<RecordItem> {
     @ToString.Exclude
     private byte[] previousWrappedRecordBlockHash;
 
+    @ToString.Exclude
+    private byte[] receiptsRoot;
+
     private Long roundEnd;
 
     private Long roundStart;
