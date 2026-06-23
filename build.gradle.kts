@@ -19,7 +19,7 @@ extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.35.1")
     set("consensusNodeVersion", "0.75.0-rc.5")
-    set("jooq.version", "3.21.5") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.21.6") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.16.0")
     set("tuweniVersion", "2.3.1")
@@ -29,11 +29,11 @@ extra.apply {
 // using a dependency
 dependencies {
     constraints {
-        val besuVersion: String by rootProject.extra
-        val blockNodeVersion: String by rootProject.extra
-        val consensusNodeVersion: String by rootProject.extra
-        val mapStructVersion: String by rootProject.extra
-        val tuweniVersion: String by rootProject.extra
+        val besuVersion = rootProject.extra["besuVersion"] as String
+        val blockNodeVersion = rootProject.extra["blockNodeVersion"] as String
+        val consensusNodeVersion = rootProject.extra["consensusNodeVersion"] as String
+        val mapStructVersion = rootProject.extra["mapStructVersion"] as String
+        val tuweniVersion = rootProject.extra["tuweniVersion"] as String
 
         api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:13.3.1")
@@ -67,7 +67,7 @@ dependencies {
         api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.bouncycastle:bcpkix-jdk18on:1.84") // Temporary until next hedera-app
         api("org.bouncycastle:bcprov-jdk18on:1.84")
-        api("org.gaul:s3proxy:3.1.0")
+        api("org.gaul:s3proxy:3.2.0")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
@@ -76,7 +76,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:5.0.3")
-        api("software.amazon.awssdk:bom:2.46.10")
+        api("software.amazon.awssdk:bom:2.46.15")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
@@ -93,7 +93,7 @@ idea {
 
 // Spotless uses Prettier and it requires Node.js
 node {
-    val nodeJsVersion: String by rootProject.extra
+    val nodeJsVersion = rootProject.extra["nodeJsVersion"] as String
     download = true
     version = nodeJsVersion
     workDir = rootDir.resolve(".gradle").resolve("nodejs")

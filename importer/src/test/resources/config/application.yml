@@ -97,6 +97,20 @@ hiero:
                     type: CRYPTOTRANSFER
                   - tps: 21
                     type: CONTRACTCALL
+        wrb:
+          datasource:
+            name: mirror_node_wrb
+            password: ${hiero.mirror.importer.db.password}
+            url: jdbc:postgresql://${hiero.mirror.importer.db.host}:${hiero.mirror.importer.db.port}/${hiero.mirror.importer.test.wrb.datasource.name}?tcpKeepAlive=true
+            username: ${hiero.mirror.importer.db.username}
+            hikari:
+              connection-init-sql: ${hiero.mirror.importer.db.connectionInitSql}
+              data-source-properties:
+                #loggerLevel: TRACE
+                logUnclosedConnections: true
+                reWriteBatchedInserts: true
+                sslmode: ${hiero.mirror.importer.db.sslMode}
+              maximumPoolSize: 20
 spring:
   flyway:
     placeholders:

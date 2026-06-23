@@ -14,7 +14,7 @@ configurations.all {
 }
 
 dependencies {
-    val blockNodeVersion: String by rootProject.extra
+    val blockNodeVersion = rootProject.extra["blockNodeVersion"] as String
 
     implementation(platform("software.amazon.awssdk:bom"))
     implementation(project(":common"))

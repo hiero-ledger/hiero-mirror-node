@@ -40,4 +40,12 @@ class RecordFileTest {
         assertThat(RecordFile.EMPTY.isEmpty()).isTrue();
         assertThat(new RecordFile().isEmpty()).isFalse();
     }
+
+    @Test
+    void testReceiptsRoot() {
+        final var receiptsRoot = new byte[] {1, 2, 3, 4};
+        final var recordFile = RecordFile.builder().receiptsRoot(receiptsRoot).build();
+        assertThat(recordFile.getReceiptsRoot()).isEqualTo(receiptsRoot);
+        assertThat(recordFile.toString()).doesNotContain("receiptsRoot");
+    }
 }
