@@ -33,34 +33,6 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
     private static final String V2_PROPERTY = "set citus.max_intermediate_result_size = -1;";
 
-    private static final String NULLIFY_CONTRACT_RESULT_SQL = """
-            update contract_result cr
-            set transaction_index = null
-            where cr.consensus_timestamp >= :consensusStart
-              and cr.consensus_timestamp <= :lastConsensusEnd
-              and cr.consensus_timestamp in (
-                select t.consensus_timestamp
-                from transaction t
-                where t.consensus_timestamp >= :consensusStart
-                  and t.consensus_timestamp <= :lastConsensusEnd
-                  and t.type in (7, 8, 50)
-              )
-            """;
-
-    private static final String NULLIFY_CONTRACT_LOG_SQL = """
-            update contract_log cl
-            set transaction_index = null
-            where cl.consensus_timestamp >= :consensusStart
-              and cl.consensus_timestamp <= :lastConsensusEnd
-              and cl.consensus_timestamp in (
-                select t.consensus_timestamp
-                from transaction t
-                where t.consensus_timestamp >= :consensusStart
-                  and t.consensus_timestamp <= :lastConsensusEnd
-                  and t.type in (7, 8, 50)
-              )
-            """;
-
     // 38-bit entity num mask, see EntityId.NUM_BITS. RecordItem.HOOK_CONTRACT_NUM is compared against this masked
     // value (i.e. against ContractID.getContractNum(), ignoring shard/realm), so the same masking is used here.
     private static final long ENTITY_NUM_MASK = (1L << 38) - 1;
@@ -73,17 +45,15 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
     // parented back to the original trigger rather than to the hook itself.
     private static final String EVM_INDEX_CTE = """
             with parent_timestamps_with_contract_result as (
-                select consensus_timestamp
+                select consensus_timestamp, contract_id
                 from contract_result
                 where consensus_timestamp >= :consensusStart
                   and consensus_timestamp <= :lastConsensusEnd
             ),
             hook_dispatch_timestamps as (
                 select consensus_timestamp
-                from contract_result
-                where consensus_timestamp >= :consensusStart
-                  and consensus_timestamp <= :lastConsensusEnd
-                  and (contract_id & %1$d) = %2$d
+                from parent_timestamps_with_contract_result
+                where (contract_id & %1$d) = %2$d
             ),
             evm_candidates as (
                 select
@@ -139,22 +109,24 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
             )
             """.formatted(ENTITY_NUM_MASK, RecordItem.HOOK_CONTRACT_NUM);
 
-    private static final String UPDATE_CONTRACT_RESULT_SQL = EVM_INDEX_CTE + """
-            update contract_result cr
-            set transaction_index = ei.evm_index
-            from evm_index ei
-            where cr.consensus_timestamp = ei.consensus_timestamp
-              and cr.consensus_timestamp >= :consensusStart
-              and cr.consensus_timestamp <= :lastConsensusEnd
-            """;
-
-    private static final String UPDATE_CONTRACT_LOG_SQL = EVM_INDEX_CTE + """
-            update contract_log cl
-            set transaction_index = ei.evm_index
-            from evm_index ei
-            where cl.consensus_timestamp = ei.consensus_timestamp
-              and cl.consensus_timestamp >= :consensusStart
-              and cl.consensus_timestamp <= :lastConsensusEnd
+    private static final String UPDATE_EVM_TRANSACTION_INDEX_SQL = EVM_INDEX_CTE + """
+            , updated_contract_result as (
+                update contract_result cr
+                set transaction_index = ei.evm_index
+                from evm_index ei
+                where cr.consensus_timestamp = ei.consensus_timestamp
+                returning cr.consensus_timestamp
+            ),
+            updated_contract_log as (
+                update contract_log cl
+                set transaction_index = ei.evm_index
+                from evm_index ei
+                where cl.consensus_timestamp = ei.consensus_timestamp
+                returning cl.consensus_timestamp
+            )
+            select
+                (select count(*) from updated_contract_result) as updated_results,
+                (select count(*) from updated_contract_log) as updated_logs
             """;
 
     private static final String SELECT_LAST_TIMESTAMP = """
@@ -180,6 +152,8 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
             """;
 
     private static final RowMapper<RecordFileSlice> ROW_MAPPER = new DataClassRowMapper<>(RecordFileSlice.class);
+    private static final RowMapper<UpdateCounts> UPDATE_COUNTS_ROW_MAPPER =
+            new DataClassRowMapper<>(UpdateCounts.class);
 
     @Getter(lazy = true)
     private final TransactionOperations transactionOperations = transactionOperations();
@@ -239,15 +213,13 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
             if (v2) {
                 getJdbcOperations().execute(V2_PROPERTY);
             }
-            getNamedParameterJdbcOperations().update(NULLIFY_CONTRACT_RESULT_SQL, params);
-            getNamedParameterJdbcOperations().update(NULLIFY_CONTRACT_LOG_SQL, params);
-            final var updatedResults = getNamedParameterJdbcOperations().update(UPDATE_CONTRACT_RESULT_SQL, params);
-            final var updatedLogs = getNamedParameterJdbcOperations().update(UPDATE_CONTRACT_LOG_SQL, params);
-            if (updatedResults > 0 || updatedLogs > 0) {
+            final var counts = getNamedParameterJdbcOperations()
+                    .queryForObject(UPDATE_EVM_TRANSACTION_INDEX_SQL, params, UPDATE_COUNTS_ROW_MAPPER);
+            if (counts.updatedResults() > 0 || counts.updatedLogs() > 0) {
                 log.info(
                         "Fixed EVM transaction index for {} contract_result and {} contract_log rows in range [{}, {}]",
-                        updatedResults,
-                        updatedLogs,
+                        counts.updatedResults(),
+                        counts.updatedLogs(),
                         slice.minConsensusTimestamp(),
                         slice.maxConsensusTimestamp());
             }
@@ -270,4 +242,6 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
     }
 
     private record RecordFileSlice(long minConsensusTimestamp, long maxConsensusTimestamp) {}
+
+    private record UpdateCounts(long updatedResults, long updatedLogs) {}
 }
