@@ -8,6 +8,8 @@ import java.util.Objects;
 import java.util.Optional;
 import lombok.Getter;
 import org.flywaydb.core.api.MigrationVersion;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
@@ -33,81 +35,42 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
     private static final String V2_PROPERTY = "set citus.max_intermediate_result_size = -1;";
 
-    // 38-bit entity num mask, see EntityId.NUM_BITS. RecordItem.HOOK_CONTRACT_NUM is compared against this masked
-    // value (i.e. against ContractID.getContractNum(), ignoring shard/realm), so the same masking is used here.
-    private static final long ENTITY_NUM_MASK = (1L << 38) - 1;
-
-    // A descendant (at any depth) inherits its nearest preceding root's index. Since a root always increments the
-    // running count and a descendant never does, "count of roots seen so far, minus 1" gives every row -- root or
-    // descendant -- the correct index in a single pass, mirroring how RecordFileParser.setEvmTransactionIndex()
-    // only increments its counter for items whose RecordItem.getContractRelatedParent() is null. is_root mirrors
-    // that same null check, including the RecordItem.hookParent backward-scan exception for hook descendants
-    // parented back to the original trigger rather than to the hook itself.
+    // Each descendant inherits the index of its nearest preceding root via a running count of roots seen so far.
     private static final String EVM_INDEX_CTE = """
-            with parent_timestamps_with_contract_result as (
-                select consensus_timestamp, contract_id
-                from contract_result
+            with atomic_batch_timestamps as (
+                select consensus_timestamp
+                from transaction
                 where consensus_timestamp >= :consensusStart
                   and consensus_timestamp <= :lastConsensusEnd
-            ),
-            hook_dispatch_timestamps as (
-                select consensus_timestamp
-                from parent_timestamps_with_contract_result
-                where (contract_id & %1$d) = %2$d
+                  and type = 74
             ),
             evm_candidates as (
                 select
                     t.consensus_timestamp,
-                    t.parent_consensus_timestamp,
-                    t.consensus_timestamp in (select consensus_timestamp from hook_dispatch_timestamps)
-                        as is_hook_dispatch,
                     (
                         t.parent_consensus_timestamp is null
-                        or t.parent_consensus_timestamp not in (
-                            select consensus_timestamp from parent_timestamps_with_contract_result
+                        or t.entity_id = :hookContractId
+                        or t.parent_consensus_timestamp in (
+                            select consensus_timestamp from atomic_batch_timestamps
                         )
-                    ) as is_orphaned_parent
+                    ) as is_root
                 from transaction t
                 where t.consensus_timestamp >= :consensusStart
                   and t.consensus_timestamp <= :lastConsensusEnd
                   and t.type in (7, 8, 50)
             ),
-            hook_attribution as (
-                select
-                    consensus_timestamp,
-                    max(case when is_hook_dispatch then consensus_timestamp end) over (
-                        partition by parent_consensus_timestamp
-                        order by consensus_timestamp
-                    ) as nearest_hook_timestamp
-                from evm_candidates
-                where is_orphaned_parent
-                  and parent_consensus_timestamp is not null
-            ),
-            evm_roots as (
-                select
-                    ec.consensus_timestamp,
-                    case
-                        when not ec.is_orphaned_parent then false
-                        when ec.parent_consensus_timestamp is null then true
-                        when ec.is_hook_dispatch then true
-                        when ha.nearest_hook_timestamp is null then true
-                        else false
-                    end as is_root
-                from evm_candidates ec
-                left join hook_attribution ha on ha.consensus_timestamp = ec.consensus_timestamp
-            ),
             evm_index as (
                 select
-                    er.consensus_timestamp,
-                    sum(case when er.is_root then 1 else 0 end) over (
+                    ec.consensus_timestamp,
+                    sum(case when ec.is_root then 1 else 0 end) over (
                         partition by rf.consensus_end
-                        order by er.consensus_timestamp
+                        order by ec.consensus_timestamp
                     ) - 1 as evm_index
-                from evm_roots er
+                from evm_candidates ec
                 join record_file rf
-                    on er.consensus_timestamp between rf.consensus_start and rf.consensus_end
+                    on ec.consensus_timestamp between rf.consensus_start and rf.consensus_end
             )
-            """.formatted(ENTITY_NUM_MASK, RecordItem.HOOK_CONTRACT_NUM);
+            """;
 
     private static final String UPDATE_EVM_TRANSACTION_INDEX_SQL = EVM_INDEX_CTE + """
             , updated_contract_result as (
@@ -137,18 +100,13 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
             """;
 
     private static final String SELECT_RECORD_FILES_RANGE = """
-            select consensus_start as min_consensus_timestamp, max_consensus_timestamp
-            from record_file
-            join (
-              select rf.consensus_end
-              from record_file as rf
-              where rf.consensus_end > :consensusEndLowerBound and rf.consensus_end <= :consensusEndUpperBound
-              order by rf.consensus_end desc
-              limit 1
-            ) as t(max_consensus_timestamp) on true
-            where consensus_end > :consensusEndLowerBound and consensus_end <= :consensusEndUpperBound
-            order by consensus_end
-            limit 1
+            select
+                (select consensus_start from record_file
+                    where consensus_end between :consensusEndLowerBound and :consensusEndUpperBound
+                    order by consensus_end limit 1) as min_consensus_timestamp,
+                (select consensus_end from record_file
+                    where consensus_end between :consensusEndLowerBound and :consensusEndUpperBound
+                    order by consensus_end desc limit 1) as max_consensus_timestamp
             """;
 
     private static final RowMapper<RecordFileSlice> ROW_MAPPER = new DataClassRowMapper<>(RecordFileSlice.class);
@@ -157,6 +115,13 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
     @Getter(lazy = true)
     private final TransactionOperations transactionOperations = transactionOperations();
+
+    @Getter(lazy = true)
+    private final long hookContractId = EntityId.of(
+                    CommonProperties.getInstance().getShard(),
+                    CommonProperties.getInstance().getRealm(),
+                    RecordItem.HOOK_CONTRACT_NUM)
+            .getId();
 
     private final EntityProperties entityProperties;
     private final boolean v2;
@@ -198,7 +163,7 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 .addValue("consensusEndLowerBound", consensusStartTimestamp);
         final var slice = queryForObjectOrNull(SELECT_RECORD_FILES_RANGE, sliceParams, ROW_MAPPER);
 
-        if (slice == null) {
+        if (slice == null || slice.minConsensusTimestamp() == null || slice.maxConsensusTimestamp() == null) {
             log.info(
                     "No more record files remaining to process. Last consensus end timestamp: {}.",
                     consensusEndTimestamp);
@@ -207,7 +172,8 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
         final var params = new MapSqlParameterSource()
                 .addValue("consensusStart", slice.minConsensusTimestamp())
-                .addValue("lastConsensusEnd", slice.maxConsensusTimestamp());
+                .addValue("lastConsensusEnd", slice.maxConsensusTimestamp())
+                .addValue("hookContractId", getHookContractId());
 
         getTransactionOperations().executeWithoutResult(status -> {
             if (v2) {
@@ -225,7 +191,7 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
             }
         });
 
-        return Optional.of(consensusStartTimestamp);
+        return Optional.of(slice.minConsensusTimestamp());
     }
 
     @Override
@@ -241,7 +207,7 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
         return new TransactionTemplate(transactionManager);
     }
 
-    private record RecordFileSlice(long minConsensusTimestamp, long maxConsensusTimestamp) {}
+    private record RecordFileSlice(Long minConsensusTimestamp, Long maxConsensusTimestamp) {}
 
     private record UpdateCounts(long updatedResults, long updatedLogs) {}
 }

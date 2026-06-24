@@ -187,8 +187,8 @@ final class FixEvmTransactionIndexMigrationTest
         final var hookCall2Timestamp = block.getConsensusStart() + 300;
 
         persistTransaction(cryptoTransferTimestamp, TransactionType.CRYPTOTRANSFER, 0, false, null);
-        persistTransaction(hookCall1Timestamp, TransactionType.CONTRACTCALL, 1, false, cryptoTransferTimestamp);
-        persistTransaction(hookCall2Timestamp, TransactionType.CONTRACTCALL, 2, false, cryptoTransferTimestamp);
+        persistHookDispatchTransaction(hookCall1Timestamp, 1, cryptoTransferTimestamp);
+        persistHookDispatchTransaction(hookCall2Timestamp, 2, cryptoTransferTimestamp);
 
         final var hookContractResult1 = persistHookDispatchContractResult(hookCall1Timestamp, 42);
         final var hookContractLog1 = persistContractLog(hookCall1Timestamp, 42);
@@ -213,7 +213,7 @@ final class FixEvmTransactionIndexMigrationTest
         final var nestedHookCallTimestamp = block.getConsensusStart() + 300;
 
         persistTransaction(cryptoTransferTimestamp, TransactionType.CRYPTOTRANSFER, 0, false, null);
-        persistTransaction(hookCallTimestamp, TransactionType.CONTRACTCALL, 1, false, cryptoTransferTimestamp);
+        persistHookDispatchTransaction(hookCallTimestamp, 1, cryptoTransferTimestamp);
         // Parented directly to the hook call, which does have a contract_result, so it inherits the hook's index.
         persistTransaction(nestedHookCallTimestamp, TransactionType.CONTRACTCALL, 2, false, hookCallTimestamp);
 
@@ -241,7 +241,7 @@ final class FixEvmTransactionIndexMigrationTest
         final var unrelatedTopLevelCallTimestamp = block.getConsensusStart() + 400;
 
         persistTransaction(cryptoTransferTimestamp, TransactionType.CRYPTOTRANSFER, 0, false, null);
-        persistTransaction(hookCallTimestamp, TransactionType.CONTRACTCALL, 1, false, cryptoTransferTimestamp);
+        persistHookDispatchTransaction(hookCallTimestamp, 1, cryptoTransferTimestamp);
         persistTransaction(hookInternalCallTimestamp, TransactionType.CONTRACTCALL, 2, false, cryptoTransferTimestamp);
         persistTransaction(unrelatedTopLevelCallTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
 
@@ -302,7 +302,8 @@ final class FixEvmTransactionIndexMigrationTest
     void processesMultipleBatchIntervals() {
         // given
         final var earlyBlock = persistBlock(0);
-        final var recentBase = earlyBlock.getConsensusEnd() + INTERVAL + 1;
+        final var recentBase =
+                earlyBlock.getConsensusEnd() + INTERVAL - Duration.ofSeconds(1).toNanos();
         final var recentBlock = domainBuilder
                 .recordFile()
                 .customize(r -> r.index(1L)
@@ -350,7 +351,20 @@ final class FixEvmTransactionIndexMigrationTest
                         .type(type.getProtoId())
                         .nonce(nonce)
                         .scheduled(scheduled)
-                        .parentConsensusTimestamp(parentConsensusTimestamp))
+                        .parentConsensusTimestamp(parentConsensusTimestamp)
+                        .entityId(null))
+                .persist();
+    }
+
+    private void persistHookDispatchTransaction(long consensusTimestamp, int nonce, Long parentConsensusTimestamp) {
+        domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(consensusTimestamp)
+                        .type(TransactionType.CONTRACTCALL.getProtoId())
+                        .nonce(nonce)
+                        .scheduled(false)
+                        .parentConsensusTimestamp(parentConsensusTimestamp)
+                        .entityId(EntityId.of(0L, 0L, RecordItem.HOOK_CONTRACT_NUM)))
                 .persist();
     }
 
