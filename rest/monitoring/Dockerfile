@@ -1,4 +1,4 @@
-FROM node:24.16.0-trixie-slim
+FROM node:24.18.0-trixie-slim
 LABEL maintainer="mirrornode@hedera.com"
 
 # Setup
