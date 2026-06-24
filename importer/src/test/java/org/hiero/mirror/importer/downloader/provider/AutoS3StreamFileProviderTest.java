@@ -29,6 +29,7 @@ class AutoS3StreamFileProviderTest extends AbstractHip679S3StreamFileProviderTes
 
         properties.setPathType(PathType.AUTO);
         properties.setPathRefreshInterval(Duration.ofSeconds(0L));
+        properties.setTimeout(Duration.ofSeconds(30L));
     }
 
     @Override

@@ -21,7 +21,7 @@ extra.apply {
     set("consensusNodeVersion", "0.75.0-rc.5")
     set("jooq.version", "3.21.5") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
-    set("nodeJsVersion", "24.16.0")
+    set("nodeJsVersion", "24.18.0")
     set("tuweniVersion", "2.3.1")
 }
 
