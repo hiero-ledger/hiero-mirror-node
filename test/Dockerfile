@@ -1,4 +1,4 @@
-FROM eclipse-temurin:25-jre-noble
+FROM eclipse-temurin:25-jre-resolute
 
 ENV JDK_JAVA_OPTIONS="-XX:MaxRAMPercentage=80"
 WORKDIR /app
