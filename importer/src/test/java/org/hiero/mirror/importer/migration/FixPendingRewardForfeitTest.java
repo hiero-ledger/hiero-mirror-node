@@ -9,23 +9,23 @@ import com.google.common.collect.Range;
 import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.apache.commons.io.FileUtils;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
-import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.TestUtils;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
+import org.springframework.boot.test.util.TestPropertyValues;
+import org.springframework.context.ApplicationContextInitializer;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.Profiles;
 import org.springframework.jdbc.core.JdbcOperations;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.util.StreamUtils;
+import org.springframework.test.context.ContextConfiguration;
 
-@EnabledIfV1
+@ContextConfiguration(initializers = FixPendingRewardForfeitTest.Initializer.class)
 @RequiredArgsConstructor
 @Tag("migration")
-@TestPropertySource(properties = "spring.flyway.target=1.124.0")
 @DisableRepeatableSqlMigration
 class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
 
@@ -34,9 +34,6 @@ class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
 
     private final JdbcOperations jdbcOperations;
 
-    @Value("classpath:db/migration/v1/V1.125.1__fix_pending_reward_forfeit.sql")
-    private final Resource migrationSql;
-
     private long endStakePeriod;
     private long consensusTimestamp;
     private long forfeitedEpochDay;
@@ -44,7 +41,7 @@ class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
 
     @Test
     void empty() {
-        migrate();
+        runMigration();
         assertThat(jdbcOperations.queryForObject("select count(*) from entity_stake", Long.class))
                 .isZero();
     }
@@ -71,7 +68,7 @@ class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
         persistStakeHistory(accountId, endStakePeriod - 1, currentStakeTotal, consensusTimestamp - 1000);
 
         // when
-        migrate();
+        runMigration();
 
         // then
         var expectedPendingReward = correctPendingReward(
@@ -100,7 +97,7 @@ class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
         persistStakeHistory(accountId, endStakePeriod - 1, stakeTotal, consensusTimestamp - 1000);
 
         // when
-        migrate();
+        runMigration();
 
         // then
         var expectedPendingReward =
@@ -148,7 +145,7 @@ class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
         persistStakeHistory(contractId.getId(), endStakePeriod - 1, stakeTotal, consensusTimestamp - 1000);
 
         // when
-        migrate();
+        runMigration();
 
         // then
         var expectedPendingReward =
@@ -168,7 +165,7 @@ class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
         persistNodeStake(endStakePeriod, 100L);
 
         // when
-        migrate();
+        runMigration();
 
         // then
         assertPendingReward(accountId, unchangedPendingReward);
@@ -194,7 +191,7 @@ class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
         persistStakeHistory(accountId, endStakePeriod - 1, 10L * TINYBARS_IN_ONE_HBAR, consensusTimestamp - 1000);
 
         // when
-        migrate();
+        runMigration();
 
         // then
         assertPendingReward(accountId, unchangedPendingReward);
@@ -222,7 +219,7 @@ class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
         persistStakeHistory(accountId, endStakePeriod - 1, stakeTotal, consensusTimestamp - 1000);
 
         // when
-        migrate();
+        runMigration();
 
         // then
         long expectedPendingReward =
@@ -244,7 +241,7 @@ class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
         persistStakeHistory(accountId, endStakePeriod - 1, 60L * TINYBARS_IN_ONE_HBAR, consensusTimestamp - 1000);
 
         // when
-        migrate();
+        runMigration();
 
         // then
         assertPendingReward(accountId, unchangedPendingReward);
@@ -377,9 +374,20 @@ class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
     }
 
     @SneakyThrows
-    private void migrate() {
-        try (var inputStream = migrationSql.getInputStream()) {
-            jdbcOperations.update(StreamUtils.copyToString(inputStream, StandardCharsets.UTF_8));
+    private void runMigration() {
+        final var migrationFilepath =
+                isV1() ? "v1/V1.125.1__fix_pending_reward_forfeit.sql" : "v2/V2.30.1__fix_pending_reward_forfeit.sql";
+        final var file = TestUtils.getResource("db/migration/" + migrationFilepath);
+        ownerJdbcTemplate.execute(FileUtils.readFileToString(file, StandardCharsets.UTF_8));
+    }
+
+    static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+
+        @Override
+        public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
+            var environment = configurableApplicationContext.getEnvironment();
+            String version = environment.acceptsProfiles(Profiles.of("v2")) ? "2.30.1" : "1.125.1";
+            TestPropertyValues.of("spring.flyway.target=" + version).applyTo(environment);
         }
     }
 }
