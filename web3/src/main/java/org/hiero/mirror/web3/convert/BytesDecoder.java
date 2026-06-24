@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.convert;
 
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX_CAPITAL;
 
 import com.esaulpaugh.headlong.abi.ABIType;
 import com.esaulpaugh.headlong.abi.Tuple;
@@ -80,7 +81,9 @@ public class BytesDecoder {
         if (hexString == null || hexString.isEmpty() || hexString.equals(HEX_PREFIX)) {
             return EMPTY_BYTES;
         }
-        var hex = hexString.toLowerCase().startsWith(HEX_PREFIX) ? hexString.substring(2) : hexString;
+        var hex = (hexString.startsWith(HEX_PREFIX) || hexString.startsWith(HEX_PREFIX_CAPITAL))
+                ? hexString.substring(2)
+                : hexString;
         try {
             return org.apache.commons.codec.binary.Hex.decodeHex(hex);
         } catch (DecoderException e) {

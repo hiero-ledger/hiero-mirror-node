@@ -12,6 +12,7 @@ import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.node.app.service.token.TokenService;
+import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.util.Optional;
@@ -119,14 +120,13 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             return account;
         }
 
-        com.hedera.pbj.runtime.io.buffer.Bytes accountAddress = null;
+        Bytes accountAddress = null;
         StateOverride stateOverride = null;
         if (account != null) {
             if (ConversionUtils.isEvmAddress(account.alias())) {
                 accountAddress = account.alias();
             } else if (account.accountId() != null) {
-                accountAddress = com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                        toEvmAddress(account.accountId().accountNum()));
+                accountAddress = Bytes.wrap(toEvmAddress(account.accountId().accountNum()));
             }
         } else if (key != null) {
             // Derive the EVM address from the lookup key so we can resolve the override
@@ -134,7 +134,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             if (key.hasAlias() && ConversionUtils.isEvmAddress(key.alias())) {
                 accountAddress = key.alias();
             } else if (key.hasAccountNum()) {
-                accountAddress = com.hedera.pbj.runtime.io.buffer.Bytes.wrap(toEvmAddress(key.accountNum()));
+                accountAddress = Bytes.wrap(toEvmAddress(key.accountNum()));
             }
         }
 
