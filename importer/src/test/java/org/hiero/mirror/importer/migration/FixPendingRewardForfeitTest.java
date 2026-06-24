@@ -386,7 +386,7 @@ class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
         @Override
         public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
             var environment = configurableApplicationContext.getEnvironment();
-            String version = environment.acceptsProfiles(Profiles.of("v2")) ? "2.30.1" : "1.125.1";
+            String version = environment.acceptsProfiles(Profiles.of("v2")) ? "2.30.0" : "1.125.0";
             TestPropertyValues.of("spring.flyway.target=" + version).applyTo(environment);
         }
     }
