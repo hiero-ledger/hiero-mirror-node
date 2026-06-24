@@ -37,23 +37,10 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
     // Each descendant inherits the index of its nearest preceding root via a running count of roots seen so far.
     private static final String EVM_INDEX_CTE = """
-            with atomic_batch_timestamps as (
-                select consensus_timestamp
-                from transaction
-                where consensus_timestamp >= :consensusStart
-                  and consensus_timestamp <= :lastConsensusEnd
-                  and type = 74
-            ),
-            evm_candidates as (
+            with evm_candidates as (
                 select
                     t.consensus_timestamp,
-                    (
-                        t.parent_consensus_timestamp is null
-                        or t.entity_id = :hookContractId
-                        or t.parent_consensus_timestamp in (
-                            select consensus_timestamp from atomic_batch_timestamps
-                        )
-                    ) as is_root
+                    (t.nonce = 0 or t.entity_id = :hookContractId) as is_root
                 from transaction t
                 where t.consensus_timestamp >= :consensusStart
                   and t.consensus_timestamp <= :lastConsensusEnd
