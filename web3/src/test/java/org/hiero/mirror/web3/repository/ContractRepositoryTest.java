@@ -36,4 +36,24 @@ class ContractRepositoryTest extends Web3IntegrationTest {
         long id = contract.getId();
         assertThat(contractRepository.findRuntimeBytecode(++id)).isEmpty();
     }
+
+    @Test
+    void findByConsensusTimestamp() {
+        final var entity = domainBuilder
+                .entity()
+                .customize(e -> e.type(org.hiero.mirror.common.domain.entity.EntityType.CONTRACT))
+                .persist();
+        final var contract =
+                domainBuilder.contract().customize(c -> c.id(entity.getId())).persist();
+        domainBuilder.contract().persist();
+
+        assertThat(contractRepository.findByConsensusTimestamp(entity.getTimestampLower()))
+                .hasSize(1)
+                .first()
+                .returns(contract.getId(), Contract::getId)
+                .returns(contract.getRuntimeBytecode(), Contract::getRuntimeBytecode);
+
+        assertThat(contractRepository.findByConsensusTimestamp(entity.getTimestampLower() - 1))
+                .isEmpty();
+    }
 }

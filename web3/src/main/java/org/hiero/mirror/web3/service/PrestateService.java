@@ -9,12 +9,12 @@ import org.jspecify.annotations.NonNull;
 public interface PrestateService {
 
     /**
-     * A method that we will use the provided {@link PrestateRequest} to execute a transaction and trace the state for
-     * all accounts that were touched during the execution.
+     * Uses the provided {@link PrestateRequest} to load account and contract state from the database for all entities
+     * touched by the transaction sidecars.
      *
      * @param prestateRequest The {@link PrestateRequest} used to trace the transaction
      * @return {@link PrestateResponse} containing the list of account traces including pre and post execution state
      * changes
-     * */
+     */
     PrestateResponse processPrestateCall(@NonNull PrestateRequest prestateRequest);
 }

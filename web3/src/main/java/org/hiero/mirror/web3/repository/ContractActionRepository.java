@@ -9,6 +9,8 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface ContractActionRepository extends CrudRepository<ContractAction, Long> {
 
+    List<ContractAction> findByConsensusTimestamp(long consensusTimestamp);
+
     // result_data_type = 12 corresponds to ContractAction.ResultDataCase.REVERT_REASON (proto field number)
     @Query(
             value =

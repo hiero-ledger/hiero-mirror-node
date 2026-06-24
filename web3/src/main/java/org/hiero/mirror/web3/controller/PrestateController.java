@@ -33,10 +33,6 @@ public class PrestateController {
      * fields about each account. The endpoint supports a {@code diff} mode where it also returns the delta information
      * about how accounts have changed during the execution.
      * </p>
-     * <p>
-     * Note that to provide the output, the transaction needs to be re-executed on the EVM several times and this
-     * might slow down execution, especially if {@code storage} is enabled.
-     * </p>
      *
      * @param transactionIdOrHash The transaction ID or hash
      * @param diff               Include information for account changes after the transaction execution

@@ -2,10 +2,14 @@
 
 package org.hiero.mirror.web3.repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.web3.repository.projections.AccountBalanceSnapshot;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 
 public interface AccountBalanceRepository extends CrudRepository<AccountBalance, AccountBalance.Id> {
 
@@ -85,4 +89,50 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
                     """, nativeQuery = true)
     Optional<Long> findHistoricalAccountBalanceUpToTimestamp(
             long accountId, long blockTimestamp, long treasuryAccountId);
+
+    /**
+     * Finds historical account balances for multiple account IDs at a specific block timestamp.
+     * Uses the same algorithm as {@link #findHistoricalAccountBalanceUpToTimestamp(long, long, long)}.
+     *
+     * @param accountIds        the account IDs
+     * @param blockTimestamp    the block timestamp used to filter the results
+     * @param treasuryAccountId the treasury account ID used to locate balance snapshots
+     * @return balances for the requested accounts
+     */
+    @Query(value = """
+                    with balance_timestamp as (
+                        select consensus_timestamp
+                        from account_balance
+                        where account_id = :treasuryAccountId and
+                            consensus_timestamp > :blockTimestamp - 2678400000000000 and
+                            consensus_timestamp <= :blockTimestamp
+                        order by consensus_timestamp desc
+                        limit 1
+                    ), balance_snapshots as (
+                        select distinct on (ab.account_id) ab.account_id, ab.balance, ab.consensus_timestamp
+                        from account_balance as ab, balance_timestamp as bt
+                        where ab.account_id in (:accountIds) and
+                            ab.consensus_timestamp > bt.consensus_timestamp - 2678400000000000 and
+                            ab.consensus_timestamp <= bt.consensus_timestamp
+                        order by ab.account_id, ab.consensus_timestamp desc
+                    ), change as (
+                        select ct.entity_id as account_id, sum(amount) as amount
+                        from crypto_transfer as ct
+                        left join balance_snapshots as bs on bs.account_id = ct.entity_id
+                        where ct.entity_id in (:accountIds) and
+                            ct.consensus_timestamp > coalesce(bs.consensus_timestamp, 0) and
+                            ct.consensus_timestamp <= :blockTimestamp and
+                            (ct.errata is null or ct.errata <> 'DELETE')
+                        group by ct.entity_id
+                    )
+                    select
+                        coalesce(bs.account_id, c.account_id) as accountId,
+                        coalesce(bs.balance, 0) + coalesce(c.amount, 0) as balance
+                    from balance_snapshots bs
+                    full outer join change c on c.account_id = bs.account_id
+                    """, nativeQuery = true)
+    List<AccountBalanceSnapshot> findHistoricalAccountBalancesUpToTimestamp(
+            @Param("accountIds") Collection<Long> accountIds,
+            @Param("blockTimestamp") long blockTimestamp,
+            @Param("treasuryAccountId") long treasuryAccountId);
 }
