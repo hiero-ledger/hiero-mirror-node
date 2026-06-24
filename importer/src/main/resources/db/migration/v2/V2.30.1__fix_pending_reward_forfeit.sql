@@ -1,5 +1,5 @@
 -- Repair pending_reward for accounts/contracts that staked to a node for more than 365 days.
-create temp table corrected_pending_reward as
+create temp table corrected_pending_reward on commit drop as
 with latest_staking_period as (
   select end_stake_period, lower(timestamp_range) as consensus_timestamp
   from entity_stake

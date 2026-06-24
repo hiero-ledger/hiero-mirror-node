@@ -378,7 +378,7 @@ class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
         final var migrationFilepath =
                 isV1() ? "v1/V1.125.1__fix_pending_reward_forfeit.sql" : "v2/V2.30.1__fix_pending_reward_forfeit.sql";
         final var file = TestUtils.getResource("db/migration/" + migrationFilepath);
-        ownerJdbcTemplate.execute(FileUtils.readFileToString(file, StandardCharsets.UTF_8));
+        ownerJdbcTemplate.update(FileUtils.readFileToString(file, StandardCharsets.UTF_8));
     }
 
     static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
