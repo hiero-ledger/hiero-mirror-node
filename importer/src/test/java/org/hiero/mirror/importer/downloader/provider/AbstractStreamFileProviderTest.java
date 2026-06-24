@@ -65,6 +65,7 @@ abstract class AbstractStreamFileProviderTest {
         importerProperties.setDataPath(dataPath);
         blockProperties = new BlockProperties(importerProperties);
         properties = new CommonDownloaderProperties(importerProperties);
+        properties.setTimeout(Duration.ofSeconds(30L));
     }
 
     protected FileCopier createDefaultFileCopier() {
