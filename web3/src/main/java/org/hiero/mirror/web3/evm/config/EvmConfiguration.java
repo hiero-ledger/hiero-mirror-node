@@ -104,13 +104,6 @@ public class EvmConfiguration {
         return caffeineCacheManager;
     }
 
-    @Bean(CACHE_MANAGER_SLOTS_PER_CONTRACT)
-    CaffeineCacheManager cacheManagerSlotsPerContract() {
-        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheSpecification(cacheProperties.getSlotsPerContract());
-        return caffeineCacheManager;
-    }
-
     @Bean(CACHE_MANAGER_TOKEN)
     CacheManager cacheManagerToken() {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();

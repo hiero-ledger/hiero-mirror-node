@@ -14,6 +14,14 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class Web3Properties {
     @Positive
+    private int batchSize = 100;
+
+    @DurationMin(millis = 10L)
+    private Duration contractCallRetryDelay = Duration.ofMillis(200L);
+
+    private boolean contractCallStorageRetryEnabled = true;
+
+    @Positive
     private int maxPayloadLogSize = 300;
 
     @DurationMin(seconds = 1L)

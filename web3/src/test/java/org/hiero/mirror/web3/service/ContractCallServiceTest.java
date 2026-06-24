@@ -50,6 +50,7 @@ import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
@@ -57,7 +58,6 @@ import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
-import org.hiero.mirror.web3.state.SystemFileLoader;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -87,7 +87,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
     private final RecordFileService recordFileService;
     private final ThrottleProperties throttleProperties;
     private final TransactionExecutionService transactionExecutionService;
-    private final SystemFileLoader systemFileLoader;
+    private final Web3Properties web3Properties;
 
     @MockitoBean
     private ThrottleManager throttleManager;
@@ -832,7 +832,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 throttleProperties,
                 throttleManager,
                 evmProperties,
-                transactionExecutionService);
+                transactionExecutionService,
+                web3Properties);
 
         // When
         try {
@@ -868,7 +869,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 throttleProperties,
                 throttleManager,
                 evmProperties,
-                transactionExecutionService);
+                transactionExecutionService,
+                web3Properties);
 
         // When
         try {
@@ -901,7 +903,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 throttleProperties,
                 throttleManager,
                 evmProperties,
-                transactionExecutionService);
+                transactionExecutionService,
+                web3Properties);
 
         // When
         try {
@@ -1175,8 +1178,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             EvmProperties spyEvmProperties = spy(evmProperties);
             TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
 
-            ContractCallService contractCallService =
-                    new ContractCallService(null, null, null, null, spyEvmProperties, txnExecutionService) {};
+            ContractCallService contractCallService = new ContractCallService(
+                    null, null, null, null, spyEvmProperties, txnExecutionService, web3Properties) {};
 
             var params = ContractExecutionParameters.builder().build();
             when(txnExecutionService.execute(params, estimatedGas))
