@@ -5,10 +5,14 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ACCOUNTS_STATE_ID;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.web3.state.Utils.hexStringToLong;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
+import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.node.app.service.token.TokenService;
+import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.util.Optional;
@@ -25,6 +29,7 @@ import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.utils.AccountDetector;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -80,7 +85,8 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             return getDummySystemAccountIfApplicable(key).orElse(null);
         }
 
-        final var timestamp = ContractCallContext.get().getTimestamp();
+        final var context = ContractCallContext.get();
+        final var timestamp = context.getTimestamp();
         return commonEntityAccessor
                 .get(key, timestamp)
                 .filter(entity -> entity.getType() == ACCOUNT || entity.getType() == CONTRACT)
@@ -93,7 +99,80 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     return account;
                 })
                 .or(() -> getDummySystemAccountIfApplicable(key))
-                .orElse(null);
+                .map(account -> applyStateOverride(context, account, key))
+                .orElseGet(() -> applyStateOverride(context, null, key));
+    }
+
+    /**
+     * Applies {@code balance} and {@code nonce} state overrides (if any) to the account fetched from the DB.
+     * When the account does not exist in the DB but an override is present, a synthetic account is created so
+     * that the EVM can execute against the overridden state, and is persisted in the WritableKVState write
+     * cache (via {@link org.hiero.mirror.web3.common.ContractCallContext#getWriteCacheState}) so that
+     * subsequent {@code WritableKVState.get()} lookups can find it within the same request.
+     *
+     * @param account the account loaded from the DB, or {@code null} when no DB record exists
+     * @param key     the {@link AccountID} used for the lookup; must be non-null. It is the key under which the
+     *                (possibly synthetic) account is stored in the write cache
+     */
+    private Account applyStateOverride(final ContractCallContext context, final Account account, final AccountID key) {
+        final var overrides = context.getStateOverrides();
+        if (overrides == null || overrides.isEmpty()) {
+            return account;
+        }
+
+        Bytes accountAddress = null;
+        StateOverride stateOverride = null;
+        if (account != null) {
+            if (ConversionUtils.isEvmAddress(account.alias())) {
+                accountAddress = account.alias();
+            } else if (account.accountId() != null) {
+                accountAddress = Bytes.wrap(toEvmAddress(account.accountId().accountNum()));
+            }
+        } else if (key != null) {
+            // Derive the EVM address from the lookup key so we can resolve the override
+            // for an account that has no DB record yet.
+            if (key.hasAlias() && ConversionUtils.isEvmAddress(key.alias())) {
+                accountAddress = key.alias();
+            } else if (key.hasAccountNum()) {
+                accountAddress = Bytes.wrap(toEvmAddress(key.accountNum()));
+            }
+        }
+
+        if (accountAddress != null) {
+            stateOverride = overrides.get(accountAddress);
+        }
+
+        if (stateOverride == null || stateOverride.getAddress().isEmpty()) {
+            return account;
+        }
+
+        final var hasBalance = stateOverride.getBalance() != null;
+        final var hasNonce = stateOverride.getNonce() != null;
+        final var isSmartContract = stateOverride.getCode() != null
+                || stateOverride.getState() != null
+                || stateOverride.getStateDiff() != null;
+
+        Account.Builder builder;
+        if (account == null) {
+            builder = Account.newBuilder().accountId(key).alias(accountAddress);
+        } else {
+            builder = account.copyBuilder();
+        }
+
+        if (hasBalance) {
+            builder.tinybarBalance(hexStringToLong(stateOverride.getBalance()));
+        }
+        if (hasNonce) {
+            builder.ethereumNonce(hexStringToLong(stateOverride.getNonce()));
+        }
+        if (isSmartContract) {
+            builder.smartContract(true);
+        }
+
+        final var result = builder.build();
+
+        context.getWriteCacheState(STATE_ID).put(key, result);
+        return result;
     }
 
     /**

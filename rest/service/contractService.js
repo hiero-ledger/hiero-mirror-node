@@ -222,7 +222,7 @@ class ContractService extends BaseService {
     return [query, params];
   }
 
-  getSyntheticContractResultsQuery(contractResultRows, whereConditions, whereParams, order, limit) {
+  getSyntheticContractResultsQuery(whereConditions, whereParams, order, limit) {
     const params = [...whereParams];
     const contractResultAlias = `${ContractResult.tableAlias}.`;
     const clAlias = `${ContractLog.tableAlias}.`;
@@ -257,23 +257,7 @@ class ContractService extends BaseService {
         return condition;
       });
 
-    if (contractResultRows.length >= limit) {
-      const lastTs = contractResultRows[contractResultRows.length - 1][ContractResult.CONSENSUS_TIMESTAMP];
-      params.push(lastTs);
-      const boundParamIndex = params.length;
-      if (order === orderFilterValues.DESC) {
-        allConditions.push(`${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} >= $${boundParamIndex}`);
-      } else {
-        allConditions.push(`${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} <= $${boundParamIndex}`);
-      }
-    }
-
     allConditions.push(`${clAlias}${ContractLog.SYNTHETIC} is true`);
-    if (contractResultRows.length > 0) {
-      const knownTimestamps = contractResultRows.map((r) => r[ContractResult.CONSENSUS_TIMESTAMP]);
-      params.push(knownTimestamps);
-      allConditions.push(`${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} != all($${params.length})`);
-    }
 
     const whereClause = `where ${allConditions.join(' and ')}`;
     params.push(limit);
@@ -316,7 +300,7 @@ class ContractService extends BaseService {
         0::bigint as ${ContractResult.GAS_LIMIT},
         null::bigint as ${ContractResult.GAS_USED},
         synth_raw.${ContractResult.PAYER_ACCOUNT_ID},
-        null::bigint as ${ContractResult.SENDER_ID},
+        synth_raw.${ContractResult.PAYER_ACCOUNT_ID} as ${ContractResult.SENDER_ID},
         synth_raw.${ContractResult.TRANSACTION_HASH},
         synth_raw.${ContractResult.TRANSACTION_INDEX},
         0::integer as ${ContractResult.TRANSACTION_NONCE},
@@ -340,27 +324,35 @@ class ContractService extends BaseService {
   ) {
     const originalWhereParams = [...whereParams];
     const [query, params] = this.getContractResultsByIdAndFiltersQuery(whereConditions, whereParams, order, limit);
-    const rows = await super.getRows(query, params);
 
     if (!includeSynthetic) {
+      const rows = await super.getRows(query, params);
       return rows.map((cr) => ({...new ContractResult(cr), hash: cr.hash}));
     }
 
     const [syntheticQuery, syntheticParams] = this.getSyntheticContractResultsQuery(
-      rows,
       whereConditions,
       originalWhereParams,
       order,
       limit
     );
-    const syntheticRows = await super.getRows(syntheticQuery, syntheticParams);
+    const [rows, syntheticRows] = await Promise.all([
+      super.getRows(query, params),
+      super.getRows(syntheticQuery, syntheticParams),
+    ]);
 
     const isDesc = order === orderFilterValues.DESC;
     const defaultValue = isDesc ? MIN_LONG : MAX_LONG;
+    const knownTimestamps = new Set(rows.map((row) => row[ContractResult.CONSENSUS_TIMESTAMP]));
     const merged = [];
     let i = 0;
     let j = 0;
     while (merged.length < limit && (i < rows.length || j < syntheticRows.length)) {
+      if (j < syntheticRows.length && knownTimestamps.has(syntheticRows[j][ContractResult.CONSENSUS_TIMESTAMP])) {
+        j++;
+        continue;
+      }
+
       const aTs = i < rows.length ? BigInt(rows[i][ContractResult.CONSENSUS_TIMESTAMP]) : defaultValue;
       const bTs =
         j < syntheticRows.length ? BigInt(syntheticRows[j][ContractResult.CONSENSUS_TIMESTAMP]) : defaultValue;

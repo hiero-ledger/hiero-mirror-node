@@ -4,6 +4,8 @@ package org.hiero.mirror.web3.state.keyvalue;
 
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.STORAGE_STATE_ID;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
+import static org.hiero.mirror.web3.state.Utils.hexEqualsBytes;
 
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
@@ -11,20 +13,24 @@ import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
+import java.util.List;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.service.ContractStateService;
+import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.jspecify.annotations.NonNull;
 
 @Named
-final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
+final class ContractStorageReadableKVState extends AbstractContractReadableKVState<SlotKey, SlotValue> {
 
     public static final int STATE_ID = STORAGE_STATE_ID;
 
     private final ContractStateService contractStateService;
 
-    protected ContractStorageReadableKVState(final ContractStateService contractStateService) {
-        super(ContractService.NAME, STORAGE_STATE_ID);
+    ContractStorageReadableKVState(
+            final ContractStateService contractStateService, final CommonEntityAccessor commonEntityAccessor) {
+        super(ContractService.NAME, STORAGE_STATE_ID, commonEntityAccessor);
         this.contractStateService = contractStateService;
     }
 
@@ -34,10 +40,50 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
             return null;
         }
 
-        final var timestamp = ContractCallContext.get().getTimestamp();
+        final var context = ContractCallContext.get();
+        final var override = findStateOverride(context, slotKey.contractID());
+        if (override != null) {
+            // Replace all slots from state overrides and don't go to DB, if set.
+            if (!override.getState().isEmpty()) {
+                return cacheSlotValue(context, slotKey, slotValueFromStateOverrides(override.getState(), slotKey));
+            }
+            // Replace only the existing slots from state_diff overrides, if set.
+            if (!override.getStateDiff().isEmpty()) {
+                final var patched = slotValueFromStateOverrides(override.getStateDiff(), slotKey);
+                // Return the patched value only if found.
+                if (patched != null) {
+                    return cacheSlotValue(context, slotKey, patched);
+                }
+            }
+        }
+
+        return readStorageFromDatabase(context, slotKey);
+    }
+
+    /**
+     * Persists an overridden slot value into the write cache so subsequent {@link
+     * com.swirlds.state.spi.WritableKVState#get(Object)} lookups resolve it within the same request without
+     * re-evaluating {@link #readFromDataSource(SlotKey)}, mirroring {@link AccountReadableKVState}. The slot is
+     * absent from (or overridden in) the DB, so caching the override value keeps it available for future searches.
+     */
+    private SlotValue cacheSlotValue(
+            @NonNull ContractCallContext context, @NonNull SlotKey slotKey, final SlotValue slotValue) {
+        if (slotValue != null) {
+            context.getWriteCacheState(STATE_ID).put(slotKey, slotValue);
+        }
+        return slotValue;
+    }
+
+    @Override
+    public String getServiceName() {
+        return ContractService.NAME;
+    }
+
+    private SlotValue readStorageFromDatabase(@NonNull ContractCallContext context, @NonNull SlotKey slotKey) {
         final var contractID = slotKey.contractID();
         final var entityId = EntityIdUtils.entityIdFromContractId(contractID);
         final var keyBytes = slotKey.key().toByteArray();
+        final var timestamp = context.getTimestamp();
         return timestamp
                 .map(t -> contractStateService.findStorageByBlockTimestamp(
                         entityId, Bytes32.wrap(keyBytes).trimLeadingZeros().toArrayUnsafe(), t))
@@ -47,8 +93,18 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
                 .orElse(null);
     }
 
-    @Override
-    public String getServiceName() {
-        return ContractService.NAME;
+    private SlotValue slotValueFromStateOverrides(@NonNull List<StorageEntry> storage, @NonNull SlotKey slotKey) {
+        final var keyBytes = slotKey.key();
+        for (var entry : storage) {
+            if (hexEqualsBytes(entry.getKey(), keyBytes)) {
+                return hexToSlotValue(entry.getValue());
+            }
+        }
+        return null;
+    }
+
+    /** Converts a validated 32-byte hex value string to a {@link SlotValue}. */
+    private SlotValue hexToSlotValue(@NonNull String hexValue) {
+        return new SlotValue(Bytes.wrap(hexToBytes(hexValue)), Bytes.EMPTY, Bytes.EMPTY);
     }
 }
