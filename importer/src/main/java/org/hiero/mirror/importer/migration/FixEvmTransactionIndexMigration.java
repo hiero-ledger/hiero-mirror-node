@@ -40,7 +40,7 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
             with evm_candidates as (
                 select
                     t.consensus_timestamp,
-                    (t.nonce = 0 or t.entity_id = :hookContractId) as is_root
+                    (t.nonce = 0 or coalesce(t.entity_id, 0) = :hookContractId) as is_root
                 from transaction t
                 where t.consensus_timestamp >= :consensusStart
                   and t.consensus_timestamp <= :lastConsensusEnd
@@ -56,6 +56,7 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 from evm_candidates ec
                 join record_file rf
                     on ec.consensus_timestamp between rf.consensus_start and rf.consensus_end
+                where rf.consensus_end between :consensusStart and :lastConsensusEnd
             )
             """;
 
