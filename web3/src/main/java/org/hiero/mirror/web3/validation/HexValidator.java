@@ -10,6 +10,7 @@ public class HexValidator implements ConstraintValidator<Hex, String> {
 
     public static final String MESSAGE = "invalid hexadecimal string";
     public static final String HEX_PREFIX = "0x";
+    public static final String HEX_PREFIX_CAPITAL = "0X";
 
     private boolean allowEmpty;
     private long minLength;
@@ -19,7 +20,7 @@ public class HexValidator implements ConstraintValidator<Hex, String> {
     public void initialize(Hex hex) {
         allowEmpty = hex.allowEmpty();
         minLength = hex.minLength();
-        pattern = Pattern.compile("^(0x)?[0-9a-fA-F]{%d,%d}$".formatted(minLength, hex.maxLength()));
+        pattern = Pattern.compile("^(0[xX])?[0-9a-fA-F]{%d,%d}$".formatted(minLength, hex.maxLength()));
     }
 
     @Override

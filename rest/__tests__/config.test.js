@@ -183,6 +183,13 @@ describe('Load environment configuration:', () => {
     process.env['HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE'] = null;
     await expect(loadConfig()).rejects.toThrowErrorMatchingSnapshot();
   });
+
+  test('Hexadecimal environment variable', async () => {
+    const expected = '0x129';
+    process.env['HIERO_MIRROR_REST_CHAINID'] = expected;
+    const config = await loadConfig();
+    expect(config.rest.chainId).toBe(expected);
+  });
 });
 
 describe('Override query config', () => {

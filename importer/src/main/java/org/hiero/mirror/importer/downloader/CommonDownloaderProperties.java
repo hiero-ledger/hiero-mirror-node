@@ -79,7 +79,7 @@ public class CommonDownloaderProperties {
 
     @DurationMin(seconds = 1)
     @NotNull
-    private Duration timeout = Duration.ofSeconds(30L);
+    private Duration timeout = Duration.ofSeconds(5L);
 
     @PostConstruct
     public void init() {

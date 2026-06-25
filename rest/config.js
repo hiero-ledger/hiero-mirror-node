@@ -16,6 +16,7 @@ global.logger = new Logger();
 const config = {};
 const defaultConfigName = 'application';
 const hederaPrefix = 'hedera';
+const hexadecimal = /^(0x)[0-9a-f]+$/i;
 const hieroPrefix = 'hiero';
 let loaded = false;
 
@@ -97,9 +98,12 @@ function setConfigValue(propertyPath, value) {
           found = true;
           break;
         } else {
-          current[k] = convertType(value);
+          const convertedValue = convertType(value);
+          current[k] = convertedValue;
           const cleanedValue =
-            property.includes('password') || property.includes('key') || property.includes('uri') ? '******' : value;
+            property.includes('password') || property.includes('key') || property.includes('uri')
+              ? '******'
+              : convertedValue;
           logger.info(`Override config with environment variable ${propertyPath}=${cleanedValue}`);
           return;
         }
@@ -113,7 +117,7 @@ function setConfigValue(propertyPath, value) {
 }
 
 function convertType(value) {
-  if (value !== null && value !== '' && !isNaN(value)) {
+  if (value !== null && value !== '' && !isNaN(value) && !hexadecimal.test(value)) {
     return +value;
   } else if (value === 'true' || value === 'false') {
     return value === 'true';

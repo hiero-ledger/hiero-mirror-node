@@ -3,13 +3,16 @@
 package org.hiero.mirror.web3.viewmodel;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import java.util.List;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
@@ -43,6 +46,10 @@ public class ContractCallRequest {
 
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH, allowEmpty = true)
     private String to;
+
+    @JsonProperty("state_overrides")
+    @NotNull
+    private List<@Valid StateOverride> stateOverrides = List.of();
 
     @PositiveOrZero
     private long value;
