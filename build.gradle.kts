@@ -18,7 +18,7 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.35.1")
-    set("consensusNodeVersion", "0.75.0-rc.5")
+    set("consensusNodeVersion", "0.76.0-rc.1")
     set("jackson-2-bom.version", "2.21.4") // Temporary until next Spring Boot
     set("jooq.version", "3.21.6") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
