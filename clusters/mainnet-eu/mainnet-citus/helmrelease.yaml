@@ -79,6 +79,8 @@ spec:
         MonitorSubscribeLatency:
           enabled: false
     rest:
+      env:
+        HIERO_MIRROR_REST_CHAINID: "0x127"
       ingress:
         enabled: true
       monitor:
