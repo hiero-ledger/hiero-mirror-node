@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -37,9 +36,7 @@ public class PrestateContext {
 
     private final long consensusTimestamp;
 
-    private final Set<EntityId> accounts = new LinkedHashSet<>();
-
-    private final Set<Long> createdContractIds = new HashSet<>();
+    private final Set<Long> accounts = new LinkedHashSet<>();
 
     private final Map<Long, Map<String, String>> preStorageByContract = new HashMap<>();
 
@@ -61,15 +58,14 @@ public class PrestateContext {
     }
 
     public void addAccount(final EntityId accountId) {
-        if (!EntityId.isEmpty(accountId)) {
-            accounts.add(accountId);
+        if (accountId != null) {
+            accounts.add(accountId.getId());
         }
     }
 
-    public void addCreatedContract(final EntityId contractId) {
-        if (!EntityId.isEmpty(contractId)) {
-            createdContractIds.add(contractId.getId());
-            addAccount(contractId);
+    public void addAccount(final Long accountId) {
+        if (accountId != null) {
+            accounts.add(accountId);
         }
     }
 
@@ -101,9 +97,5 @@ public class PrestateContext {
         if (bytecode != null) {
             postBytecodeByContract.put(contractId, bytecode);
         }
-    }
-
-    public boolean isCreatedContract(final long contractId) {
-        return createdContractIds.contains(contractId);
     }
 }

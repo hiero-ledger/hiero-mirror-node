@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import lombok.CustomLog;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.contract.ContractResult;
@@ -123,66 +124,53 @@ public class PrestateServiceImpl implements PrestateService {
         final var consensusTimestamp = prestateContext.getConsensusTimestamp();
         final var preBlockTimestamp = consensusTimestamp - 1;
 
-        final var entityIds = new ArrayList<Long>(accounts.size());
-        for (final var account : accounts) {
-            entityIds.add(account.getId());
-        }
-
         final var preSnapshotById =
-                toSnapshotById(entityRepository.findActiveSnapshotsByIdsAndTimestamp(entityIds, preBlockTimestamp));
-        final Map<Long, EntitySnapshot> postSnapshotById = prestateContext.isDiff()
-                ? toSnapshotById(entityRepository.findActiveSnapshotsByIdsAndTimestamp(entityIds, consensusTimestamp))
+                toSnapshotById(entityRepository.findActiveSnapshotsByIdsAndTimestamp(accounts, preBlockTimestamp));
+        final var postSnapshotById = prestateContext.isDiff()
+                ? toSnapshotById(entityRepository.findActiveSnapshotsByIdsAndTimestamp(accounts, consensusTimestamp))
                 : null;
 
-        final var preBalances = loadBalances(entityIds, preBlockTimestamp);
-        final Map<Long, Long> postBalances =
-                prestateContext.isDiff() ? loadBalances(entityIds, consensusTimestamp) : null;
+        final var preBalances = loadBalances(accounts, preBlockTimestamp);
+        final var postBalances = prestateContext.isDiff() ? loadBalances(accounts, consensusTimestamp) : null;
 
         Map<Long, byte[]> preBytecodes = null;
         Map<Long, byte[]> postBytecodes = null;
         if (prestateContext.isCode()) {
-            final var loadedBytecodes = loadBytecodes(prestateContext);
+            preBytecodes = loadBytecodes(accounts, preBlockTimestamp);
+            preBytecodes.putAll(prestateContext.getPreBytecodeByContract());
             if (prestateContext.isDiff()) {
-                preBytecodes = new HashMap<>(loadedBytecodes);
-                for (final var contractId :
-                        prestateContext.getPostBytecodeByContract().keySet()) {
-                    preBytecodes.remove(contractId);
-                }
-                preBytecodes.putAll(prestateContext.getPreBytecodeByContract());
-
-                postBytecodes = new HashMap<>(loadedBytecodes);
+                postBytecodes = loadBytecodes(accounts, consensusTimestamp);
                 postBytecodes.putAll(prestateContext.getPostBytecodeByContract());
-            } else {
-                preBytecodes = new HashMap<>(loadedBytecodes);
-                preBytecodes.putAll(prestateContext.getPreBytecodeByContract());
             }
         }
 
-        final Map<Long, Map<String, String>> preStorageByContract =
-                prestateContext.isStorage() ? prestateContext.getPreStorageByContract() : null;
-        final Map<Long, Map<String, String>> postStorageByContract =
-                prestateContext.isDiff() && prestateContext.isStorage()
-                        ? prestateContext.getPostStorageByContract()
-                        : null;
+        Map<Long, Map<String, String>> preStorageByContract = null;
+        Map<Long, Map<String, String>> postStorageByContract = null;
+        if (prestateContext.isStorage()) {
+            preStorageByContract = prestateContext.getPreStorageByContract();
 
-        for (int i = 0, n = entityIds.size(); i < n; i++) {
-            final var entityId = entityIds.get(i);
-            final var preSnapshot = preSnapshotById.get(entityId);
+            if (prestateContext.isDiff()) {
+                postStorageByContract = prestateContext.getPostStorageByContract();
+            }
+        }
+
+        for (final var accountId : accounts) {
+            final var preSnapshot = preSnapshotById.get(accountId);
             if (preSnapshot != null) {
                 final var preAccountTrace = buildAccountTrace(
-                        preSnapshot,
-                        preBalances.get(entityId),
-                        preBytecodes,
-                        preStorageByContract,
-                        prestateContext.isCreatedContract(entityId));
+                        prestateContext, preSnapshot, preBalances.get(accountId), preBytecodes, preStorageByContract);
                 prestateContext.getPreAccountTraces().put(preAccountTrace.getAddress(), preAccountTrace);
             }
 
             if (prestateContext.isDiff()) {
-                final var postSnapshot = postSnapshotById.get(entityId);
+                final var postSnapshot = postSnapshotById.get(accountId);
                 if (postSnapshot != null) {
                     final var postAccountTrace = buildAccountTrace(
-                            postSnapshot, postBalances.get(entityId), postBytecodes, postStorageByContract, false);
+                            prestateContext,
+                            postSnapshot,
+                            postBalances.get(accountId),
+                            postBytecodes,
+                            postStorageByContract);
                     prestateContext.getPostAccountTraces().put(postAccountTrace.getAddress(), postAccountTrace);
                 }
             }
@@ -199,11 +187,11 @@ public class PrestateServiceImpl implements PrestateService {
     }
 
     private AccountTrace buildAccountTrace(
+            final PrestateContext prestateContext,
             final EntitySnapshot snapshot,
             final Long balance,
             final Map<Long, byte[]> bytecodes,
-            final Map<Long, Map<String, String>> storageByContract,
-            final boolean excludeBytecode) {
+            final Map<Long, Map<String, String>> storageByContract) {
         final var entityId = snapshot.getId();
         final var accountTrace = new AccountTrace();
         accountTrace.setAddress(resolveAddress(snapshot));
@@ -213,13 +201,13 @@ public class PrestateServiceImpl implements PrestateService {
         accountTrace.setNonce(nonce != null ? nonce : 0L);
 
         if (CONTRACT.name().equalsIgnoreCase(snapshot.getType())) {
-            if (bytecodes != null && !excludeBytecode) {
+            if (prestateContext.isCode() && bytecodes != null) {
                 final var bytecode = bytecodes.get(entityId);
                 if (bytecode != null) {
                     accountTrace.setCode(Bytes.wrap(bytecode).toHex());
                 }
             }
-            if (storageByContract != null) {
+            if (prestateContext.isStorage() && storageByContract != null) {
                 final var contractStorage = storageByContract.get(entityId);
                 if (contractStorage != null && !contractStorage.isEmpty()) {
                     accountTrace.setStorage(contractStorage);
@@ -230,19 +218,14 @@ public class PrestateServiceImpl implements PrestateService {
         return accountTrace;
     }
 
-    private Map<Long, byte[]> loadBytecodes(final PrestateContext prestateContext) {
-        final var accounts = prestateContext.getAccounts();
-        final var entityIds = new ArrayList<Long>(accounts.size());
-        for (final var account : accounts) {
-            entityIds.add(account.getId());
-        }
+    private Map<Long, byte[]> loadBytecodes(final Set<Long> entityIds, final long timestamp) {
         if (entityIds.isEmpty()) {
-            return Collections.emptyMap();
+            return new HashMap<>();
         }
 
-        final var snapshots = contractRepository.findRuntimeBytecodesByIds(entityIds);
+        final var snapshots = contractRepository.findRuntimeBytecodesByIds(entityIds, timestamp);
         final var bytecodes = new HashMap<Long, byte[]>(snapshots.size());
-        for (int i = 0, n = snapshots.size(); i < n; i++) {
+        for (var i = 0; i < snapshots.size(); i++) {
             final var snapshot = snapshots.get(i);
             final var runtimeBytecode = snapshot.getRuntimeBytecode();
             if (runtimeBytecode != null) {
@@ -252,17 +235,18 @@ public class PrestateServiceImpl implements PrestateService {
         return bytecodes;
     }
 
-    private Map<Long, Long> loadBalances(final List<Long> accountIds, final long blockTimestamp) {
-        final var snapshots = accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(
-                accountIds, blockTimestamp, treasuryAccountId);
-        if (snapshots.isEmpty()) {
+    private Map<Long, Long> loadBalances(final Set<Long> accountIds, final long blockTimestamp) {
+        if (accountIds.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        final var balances = new HashMap<Long, Long>(snapshots.size());
-        for (int i = 0, n = snapshots.size(); i < n; i++) {
-            final var snapshot = snapshots.get(i);
-            balances.put(snapshot.getAccountId(), snapshot.getBalance());
+        final var balances = new HashMap<Long, Long>(accountIds.size());
+        for (final var accountId : accountIds) {
+            balances.put(
+                    accountId,
+                    accountBalanceRepository
+                            .findHistoricalAccountBalanceUpToTimestamp(accountId, blockTimestamp, treasuryAccountId)
+                            .orElse(0L));
         }
         return balances;
     }
@@ -277,13 +261,13 @@ public class PrestateServiceImpl implements PrestateService {
 
     private void populateTouchedEntitiesFromContractResult(
             final PrestateContext prestateContext, final ContractResult contractResult) {
-        prestateContext.addAccount(EntityId.of(contractResult.getContractId()));
-        prestateContext.addAccount(contractResult.getSenderId());
+        prestateContext.addAccount(contractResult.getContractId());
+        prestateContext.addAccount(contractResult.getSenderId().getId());
 
-        final var createdContractIds = contractResult.getCreatedContractIds();
-        for (int i = 0, n = createdContractIds.size(); i < n; i++) {
-            prestateContext.addCreatedContract(EntityId.of(createdContractIds.get(i)));
-        }
+        //        final var createdContractIds = contractResult.getCreatedContractIds();
+        //        for (int i = 0, n = createdContractIds.size(); i < n; i++) {
+        //            prestateContext.addCreatedContract(createdContractIds.get(i));
+        //        }
     }
 
     private void populateTouchedEntitiesFromActions(
@@ -311,7 +295,7 @@ public class PrestateServiceImpl implements PrestateService {
         for (var i = 0; i < stateChanges.size(); i++) {
             final var stateChange = stateChanges.get(i);
             final var contractId = stateChange.getContractId();
-            prestateContext.addAccount(EntityId.of(contractId));
+            prestateContext.addAccount(contractId);
             if (prestateContext.isStorage()) {
                 prestateContext.addPreStorageSlot(contractId, stateChange.getSlot(), stateChange.getValueRead());
                 if (prestateContext.isDiff()) {
@@ -329,10 +313,12 @@ public class PrestateServiceImpl implements PrestateService {
             for (int i = 0, n = contracts.size(); i < n; i++) {
                 final var contract = contracts.get(i);
                 final var contractId = contract.getId();
-                prestateContext.addAccount(EntityId.of(contractId));
+                prestateContext.addAccount(contractId);
                 final var runtimeBytecode = contract.getRuntimeBytecode();
                 if (prestateContext.isDiff()) {
                     prestateContext.addPostBytecode(contractId, runtimeBytecode);
+                } else {
+                    prestateContext.addPreBytecode(contractId, runtimeBytecode);
                 }
             }
         }
@@ -348,7 +334,7 @@ public class PrestateServiceImpl implements PrestateService {
                         .flatMap(entityId -> entityRepository.findByIdAndDeletedIsFalse(entityId.getId()))
                 : entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(recipientAddress);
 
-        entityOptional.ifPresent(entity -> prestateContext.addAccount(entity.toEntityId()));
+        entityOptional.ifPresent(entity -> prestateContext.addAccount(entity.getId()));
     }
 
     private static String resolveAddress(final EntitySnapshot snapshot) {

@@ -34,7 +34,6 @@ import org.hiero.mirror.web3.repository.ContractStateChangeRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
-import org.hiero.mirror.web3.repository.projections.AccountBalanceSnapshot;
 import org.hiero.mirror.web3.repository.projections.ContractBytecodeSnapshot;
 import org.hiero.mirror.web3.repository.projections.EntitySnapshot;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
@@ -113,13 +112,8 @@ class PrestateServiceTest {
                 .thenReturn(List.of(entitySnapshot(ACCOUNT_ID, 1L, 100L)));
         when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
                 .thenReturn(List.of(entitySnapshot(ACCOUNT_ID, 2L, 100L)));
-        when(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(anyCollection(), anyLong(), anyLong()))
-                .thenAnswer(invocation -> {
-                    final long timestamp = invocation.getArgument(1);
-                    final long balance = timestamp < CONSENSUS_TIMESTAMP ? 100L : 100L;
-                    final long nonce = timestamp < CONSENSUS_TIMESTAMP ? 1L : 2L;
-                    return List.of(balanceSnapshot(ACCOUNT_ID.getId(), balance));
-                });
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.of(100L));
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -136,8 +130,8 @@ class PrestateServiceTest {
         setupSidecars();
         when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
                 .thenReturn(List.of(entitySnapshot(ACCOUNT_ID, 1L, 100L)));
-        when(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(anyCollection(), anyLong(), anyLong()))
-                .thenReturn(List.of(balanceSnapshot(ACCOUNT_ID.getId(), 100L)));
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.of(100L));
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -155,8 +149,8 @@ class PrestateServiceTest {
         final var unchangedSnapshot = entitySnapshot(ACCOUNT_ID, 5L, 100L);
         when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), anyLong()))
                 .thenReturn(List.of(unchangedSnapshot));
-        when(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(anyCollection(), anyLong(), anyLong()))
-                .thenReturn(List.of(balanceSnapshot(ACCOUNT_ID.getId(), 100L)));
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.of(100L));
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -175,9 +169,9 @@ class PrestateServiceTest {
                 .thenReturn(Collections.emptyList());
         when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
                 .thenReturn(List.of(contractSnapshot(CONTRACT_ID, 1L)));
-        when(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(anyCollection(), anyLong(), anyLong()))
-                .thenReturn(List.of(balanceSnapshot(CONTRACT_ID.getId(), 50L)));
-        when(contractRepository.findRuntimeBytecodesByIds(List.of(CONTRACT_ID.getId())))
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.of(50L));
+        when(contractRepository.findRuntimeBytecodesByIds(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
                 .thenReturn(List.of(bytecodeSnapshot(CONTRACT_ID.getId(), new byte[] {0x60, 0x40})));
 
         final var response = prestateService.processPrestateCall(request);
@@ -207,8 +201,8 @@ class PrestateServiceTest {
                         .build()));
         when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
                 .thenReturn(List.of(contractSnapshot(CONTRACT_ID, 1L)));
-        when(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(anyCollection(), anyLong(), anyLong()))
-                .thenReturn(List.of(balanceSnapshot(CONTRACT_ID.getId(), 50L)));
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.of(50L));
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -241,8 +235,8 @@ class PrestateServiceTest {
                 .thenReturn(List.of(contractSnapshot(CONTRACT_ID, 1L)));
         when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
                 .thenReturn(List.of(contractSnapshot(CONTRACT_ID, 2L)));
-        when(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(anyCollection(), anyLong(), anyLong()))
-                .thenReturn(List.of(balanceSnapshot(CONTRACT_ID.getId(), 50L)));
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.of(50L));
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -296,17 +290,10 @@ class PrestateServiceTest {
         when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
                 .thenReturn(List.of(
                         entitySnapshot(changedAccount, 100L, 100L), entitySnapshot(unchangedAccount, 2L, 200L)));
-        when(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(anyCollection(), anyLong(), anyLong()))
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenAnswer(invocation -> {
-                    final long timestamp = invocation.getArgument(1);
-                    if (timestamp < CONSENSUS_TIMESTAMP) {
-                        return List.of(
-                                balanceSnapshot(changedAccount.getId(), 100L),
-                                balanceSnapshot(unchangedAccount.getId(), 200L));
-                    }
-                    return List.of(
-                            balanceSnapshot(changedAccount.getId(), 100L),
-                            balanceSnapshot(unchangedAccount.getId(), 200L));
+                    final long accountId = invocation.getArgument(0);
+                    return Optional.of(accountId == changedAccount.getId() ? 100L : 200L);
                 });
 
         final var response = prestateService.processPrestateCall(request);
@@ -334,9 +321,10 @@ class PrestateServiceTest {
                         .build()));
         when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
                 .thenReturn(List.of(contractSnapshot(BYTECODE_CONTRACT_ID, 1L)));
-        when(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(anyCollection(), anyLong(), anyLong()))
-                .thenReturn(List.of(balanceSnapshot(BYTECODE_CONTRACT_ID.getId(), 50L)));
-        when(contractRepository.findRuntimeBytecodesByIds(anyCollection())).thenReturn(Collections.emptyList());
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.of(50L));
+        when(contractRepository.findRuntimeBytecodesByIds(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(Collections.emptyList());
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -365,9 +353,11 @@ class PrestateServiceTest {
                 .thenReturn(List.of(contractSnapshot(BYTECODE_CONTRACT_ID, 1L)));
         when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
                 .thenReturn(List.of(contractSnapshot(BYTECODE_CONTRACT_ID, 1L)));
-        when(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(anyCollection(), anyLong(), anyLong()))
-                .thenReturn(List.of(balanceSnapshot(BYTECODE_CONTRACT_ID.getId(), 50L)));
-        when(contractRepository.findRuntimeBytecodesByIds(anyCollection()))
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.of(50L));
+        when(contractRepository.findRuntimeBytecodesByIds(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(Collections.emptyList());
+        when(contractRepository.findRuntimeBytecodesByIds(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
                 .thenReturn(List.of(bytecodeSnapshot(BYTECODE_CONTRACT_ID.getId(), runtimeBytecode)));
 
         final var response = prestateService.processPrestateCall(request);
@@ -401,8 +391,8 @@ class PrestateServiceTest {
         when(entityRepository.findByIdAndDeletedIsFalse(mirrorAccount.getId())).thenReturn(Optional.of(entity));
         when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
                 .thenReturn(List.of(entitySnapshot(mirrorAccount, 1L, 100L)));
-        when(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(anyCollection(), anyLong(), anyLong()))
-                .thenReturn(List.of(balanceSnapshot(mirrorAccount.getId(), 100L)));
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.of(100L));
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -428,8 +418,8 @@ class PrestateServiceTest {
         setupSidecars();
         when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), anyLong()))
                 .thenReturn(List.of(entitySnapshot(ACCOUNT_ID, 1L, 100L)));
-        when(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(anyCollection(), anyLong(), anyLong()))
-                .thenReturn(List.of(balanceSnapshot(ACCOUNT_ID.getId(), 100L)));
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.of(100L));
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -541,20 +531,6 @@ class PrestateServiceTest {
             @Override
             public String getType() {
                 return EntityType.CONTRACT.name();
-            }
-        };
-    }
-
-    private static AccountBalanceSnapshot balanceSnapshot(final long accountId, final long balance) {
-        return new AccountBalanceSnapshot() {
-            @Override
-            public long getAccountId() {
-                return accountId;
-            }
-
-            @Override
-            public long getBalance() {
-                return balance;
             }
         };
     }

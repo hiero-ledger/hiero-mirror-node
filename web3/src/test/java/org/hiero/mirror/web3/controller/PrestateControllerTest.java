@@ -156,8 +156,8 @@ class PrestateControllerTest {
         when(contractRepository.findByConsensusTimestamp(consensusTimestamp)).thenReturn(Collections.emptyList());
         when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), anyLong()))
                 .thenReturn(Collections.emptyList());
-        when(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(anyCollection(), anyLong(), anyLong()))
-                .thenReturn(Collections.emptyList());
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.empty());
 
         if (ethTransaction != null) {
             return new TransactionHashParameter(Bytes.of(hash));
