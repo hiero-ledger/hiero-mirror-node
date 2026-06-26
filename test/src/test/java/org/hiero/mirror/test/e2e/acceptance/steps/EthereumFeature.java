@@ -34,6 +34,7 @@ import org.hiero.mirror.test.e2e.acceptance.client.EthereumClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
+import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.http.HttpStatus;
 import org.web3j.crypto.transaction.type.TransactionType;
@@ -45,8 +46,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
     protected final EthereumClient ethereumClient;
     protected final AccountClient accountClient;
     private final Web3Properties web3Properties;
-    protected AccountId ethereumSignerAccount;
-    protected PrivateKey ethereumSignerPrivateKey;
+    protected ExpandedAccountId signerAccount;
     private String account;
     private byte[] childContractBytecodeFromParent;
     private long estimatedGasForHollowAccountCreation;
@@ -54,11 +54,9 @@ public class EthereumFeature extends AbstractEstimateFeature {
     @Given("I successfully created a signer account with an EVM address alias")
     public void createAccountWithEvmAddressAlias() {
         // Create new signer account with EVM address and ECDSA key
-        var signerAccount = accountClient.createNewAccount(INITIAL_BALANCE, AccountNameEnum.BOB);
-        ethereumSignerAccount = signerAccount.getAccountId();
-        ethereumSignerPrivateKey = signerAccount.getPrivateKey();
+        signerAccount = accountClient.createNewAccount(INITIAL_BALANCE, AccountNameEnum.BOB);
 
-        var accountInfo = mirrorClient.getAccountDetailsByAccountId(ethereumSignerAccount);
+        var accountInfo = mirrorClient.getAccountDetailsByAccountId(signerAccount.getAccountId());
         account = accountInfo.getAccount();
     }
 
@@ -139,7 +137,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
         // Prepare a non-existing EVM address (hollow account alias) as the recipient
         var hollowAccountKey = PrivateKey.generateECDSA();
         var hollowAccountEvmAddress = hollowAccountKey.getPublicKey().toEvmAddress();
-        var senderEvmAddress = ethereumSignerAccount.toEvmAddress();
+        var senderEvmAddress = signerAccount.getAccountId().toEvmAddress();
         var value = EthereumClient.WEIBARS_TO_TINYBARS.multiply(BigInteger.ONE);
 
         // Estimate gas on the mirror node for a value transfer that will trigger hollow account creation
@@ -155,8 +153,8 @@ public class EthereumFeature extends AbstractEstimateFeature {
                 Bytes.fromHexString(estimateResponse.getResult()).toBigInteger().longValue();
 
         // Send the actual ethereum transaction to the consensus node
-        networkTransactionResponse = ethereumClient.transferValue(
-                ethereumSignerPrivateKey, hollowAccountEvmAddress.toString(), value, EIP1559);
+        networkTransactionResponse =
+                ethereumClient.transferValue(signerAccount, hollowAccountEvmAddress.toString(), value, EIP1559);
 
         // Compare the mirror estimate with the actual gas used
         var txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
@@ -209,7 +207,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
             var fileId = persistContractBytes(fileContent);
 
             networkTransactionResponse = ethereumClient.createContract(
-                    ethereumSignerPrivateKey, fileId, fileContent, contractResource.getInitialBalance());
+                    signerAccount.getPrivateKey(), fileId, fileContent, contractResource.getInitialBalance());
             ContractId createdContractId = verifyCreateContractNetworkResponse();
             return new DeployedContract(fileId, createdContractId, compiledSolidityArtifact);
         } catch (IOException e) {
@@ -221,8 +219,8 @@ public class EthereumFeature extends AbstractEstimateFeature {
     private ContractClient.ExecuteContractResult executeEthereumTransaction(
             ContractId contractId, String functionName, ContractFunctionParameters parameters, TransactionType type) {
 
-        ContractClient.ExecuteContractResult executeContractResult =
-                ethereumClient.executeContract(ethereumSignerPrivateKey, contractId, functionName, parameters, type);
+        ContractClient.ExecuteContractResult executeContractResult = ethereumClient.executeContract(
+                signerAccount.getPrivateKey(), contractId, functionName, parameters, type);
 
         networkTransactionResponse = executeContractResult.networkTransactionResponse();
         assertThat(networkTransactionResponse.getTransactionId()).isNotNull();
