@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.migration;
 
 import jakarta.inject.Named;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.Getter;
@@ -17,8 +18,7 @@ import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
+import org.springframework.boot.convert.DurationStyle;
 import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,12 +31,36 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Named
 final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
-    static final long INTERVAL = Duration.ofDays(7).toNanos();
+    static final String DEFAULT_BATCH_INTERVAL = "12h";
+    static final long INTERVAL = Duration.ofHours(12).toNanos();
 
-    private static final String V2_PROPERTY = "set citus.max_intermediate_result_size = -1;";
+    private static final String BATCH_INTERVAL_PROPERTIES_KEY = "batchInterval";
+
+    private static final String CREATE_PROGRESS_TABLE = """
+            create table if not exists fix_evm_transaction_index_progress_temp(
+                upper_bound bigint not null
+            );
+            """;
+
+    private static final String DROP_PROGRESS_TABLE = """
+            drop table if exists fix_evm_transaction_index_progress_temp;
+            """;
+
+    private static final String SELECT_UPPER_BOUND = """
+            select coalesce(
+                (select upper_bound from fix_evm_transaction_index_progress_temp limit 1),
+                (select max(consensus_end) from record_file)
+            )
+            """;
+
+    private static final String CHECKPOINT_SQL = """
+            with clear_table as (delete from fix_evm_transaction_index_progress_temp)
+            insert into fix_evm_transaction_index_progress_temp(upper_bound)
+            values (:upperBound)
+            """;
 
     // Each descendant inherits the index of its nearest preceding root via a running count of roots seen so far.
-    private static final String EVM_INDEX_CTE = """
+    private static final String UPDATE_EVM_TRANSACTION_INDEX_SQL = """
             with evm_candidates as (
                 select
                     t.consensus_timestamp,
@@ -57,15 +81,13 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 join record_file rf
                     on ec.consensus_timestamp between rf.consensus_start and rf.consensus_end
                 where rf.consensus_end between :consensusStart and :lastConsensusEnd
-            )
-            """;
-
-    private static final String UPDATE_EVM_TRANSACTION_INDEX_SQL = EVM_INDEX_CTE + """
-            , updated_contract_result as (
+            ),
+            updated_contract_result as (
                 update contract_result cr
                 set transaction_index = ei.evm_index
                 from evm_index ei
                 where cr.consensus_timestamp = ei.consensus_timestamp
+                  and cr.consensus_timestamp between :consensusStart and :lastConsensusEnd
                 returning cr.consensus_timestamp
             ),
             updated_contract_log as (
@@ -73,18 +95,12 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 set transaction_index = ei.evm_index
                 from evm_index ei
                 where cl.consensus_timestamp = ei.consensus_timestamp
+                  and cl.consensus_timestamp between :consensusStart and :lastConsensusEnd
                 returning cl.consensus_timestamp
             )
             select
                 (select count(*) from updated_contract_result) as updated_results,
                 (select count(*) from updated_contract_log) as updated_logs
-            """;
-
-    private static final String SELECT_LAST_TIMESTAMP = """
-            select coalesce(
-                (select consensus_end from record_file order by consensus_end desc limit 1),
-                0
-            )
             """;
 
     private static final String SELECT_RECORD_FILES_RANGE = """
@@ -111,18 +127,24 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                     RecordItem.HOOK_CONTRACT_NUM)
             .getId();
 
+    private final long batchInterval;
     private final EntityProperties entityProperties;
-    private final boolean v2;
+    private long initialUpperBound = -1L;
 
     FixEvmTransactionIndexMigration(
-            Environment environment,
             DBProperties dbProperties,
             ImporterProperties importerProperties,
             @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider,
             EntityProperties entityProperties) {
         super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
         this.entityProperties = entityProperties;
-        this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
+        batchInterval = DurationStyle.SIMPLE
+                .parse(
+                        migrationProperties
+                                .getParams()
+                                .getOrDefault(BATCH_INTERVAL_PROPERTIES_KEY, DEFAULT_BATCH_INTERVAL),
+                        ChronoUnit.HOURS)
+                .toNanos();
     }
 
     @Override
@@ -137,15 +159,33 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
     @Override
     protected Long getInitial() {
-        final var endTimestamp = getJdbcOperations().queryForObject(SELECT_LAST_TIMESTAMP, Long.class);
-        log.info("Starting EVM transaction index fix with initial timestamp: {}.", endTimestamp);
-        return endTimestamp;
+        return initialUpperBound;
+    }
+
+    @Override
+    protected boolean performSynchronousSteps() {
+        final var persistProperties = entityProperties.getPersist();
+        if (!persistProperties.isContracts() || !persistProperties.isContractResults()) {
+            return false;
+        }
+
+        getJdbcOperations().execute(CREATE_PROGRESS_TABLE);
+
+        final var upperBound = getJdbcOperations().queryForObject(SELECT_UPPER_BOUND, Long.class);
+        if (upperBound == null) {
+            log.info("No record files to process, skipping migration");
+            return false;
+        }
+
+        initialUpperBound = upperBound;
+        log.info("Starting EVM transaction index fix with initial timestamp: {}", upperBound);
+        return true;
     }
 
     @NonNull
     @Override
     protected Optional<Long> migratePartial(Long consensusEndTimestamp) {
-        final var consensusStartTimestamp = consensusEndTimestamp - INTERVAL;
+        final var consensusStartTimestamp = consensusEndTimestamp - batchInterval;
         final var sliceParams = new MapSqlParameterSource()
                 .addValue("consensusEndUpperBound", consensusEndTimestamp)
                 .addValue("consensusEndLowerBound", consensusStartTimestamp);
@@ -155,6 +195,7 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
             log.info(
                     "No more record files remaining to process. Last consensus end timestamp: {}.",
                     consensusEndTimestamp);
+            getJdbcOperations().execute(DROP_PROGRESS_TABLE);
             return Optional.empty();
         }
 
@@ -163,29 +204,20 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 .addValue("lastConsensusEnd", slice.maxConsensusTimestamp())
                 .addValue("hookContractId", getHookContractId());
 
-        getTransactionOperations().executeWithoutResult(status -> {
-            if (v2) {
-                getJdbcOperations().execute(V2_PROPERTY);
-            }
-            final var counts = getNamedParameterJdbcOperations()
-                    .queryForObject(UPDATE_EVM_TRANSACTION_INDEX_SQL, params, UPDATE_COUNTS_ROW_MAPPER);
-            if (counts.updatedResults() > 0 || counts.updatedLogs() > 0) {
-                log.info(
-                        "Fixed EVM transaction index for {} contract_result and {} contract_log rows in range [{}, {}]",
-                        counts.updatedResults(),
-                        counts.updatedLogs(),
-                        slice.minConsensusTimestamp(),
-                        slice.maxConsensusTimestamp());
-            }
-        });
+        final var counts = getNamedParameterJdbcOperations()
+                .queryForObject(UPDATE_EVM_TRANSACTION_INDEX_SQL, params, UPDATE_COUNTS_ROW_MAPPER);
+        if (counts.updatedResults() > 0 || counts.updatedLogs() > 0) {
+            log.info(
+                    "Fixed EVM transaction index for {} contract_result and {} contract_log rows in range [{}, {}]",
+                    counts.updatedResults(),
+                    counts.updatedLogs(),
+                    slice.minConsensusTimestamp(),
+                    slice.maxConsensusTimestamp());
+        }
 
+        getNamedParameterJdbcOperations()
+                .update(CHECKPOINT_SQL, new MapSqlParameterSource("upperBound", slice.minConsensusTimestamp()));
         return Optional.of(slice.minConsensusTimestamp());
-    }
-
-    @Override
-    protected boolean performSynchronousSteps() {
-        final var persistProperties = entityProperties.getPersist();
-        return persistProperties.isContracts() && persistProperties.isContractResults();
     }
 
     private TransactionOperations transactionOperations() {
