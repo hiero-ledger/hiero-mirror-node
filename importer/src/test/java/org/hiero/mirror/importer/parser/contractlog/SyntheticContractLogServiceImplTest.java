@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.parser.contractlog;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogServiceImpl.HAPI_SYNTHETIC_LOG_VERSION;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,6 +32,7 @@ import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
@@ -1078,6 +1080,82 @@ final class SyntheticContractLogServiceImplTest {
             builder.addTransfers(t);
         }
         return builder.build();
+    }
+
+    @Test
+    @DisplayName(
+            "Should persist TransactionHash for first HAPI-origin log when transaction type is excluded from transactionHashTypes")
+    void hapiOriginFirstLogPersistsTransactionHashForExcludedType() {
+        // CONSENSUSSUBMITMESSAGE is explicitly excluded from transactionHashTypes — needs TransactionHash emitted here
+        final var csm = recordItemBuilder.consensusSubmitMessage().build();
+
+        syntheticContractLogService.create(new TransferContractLog(csm, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener, times(1)).onContractLog(any());
+        verify(parserContext, times(1))
+                .add(argThat(arg -> arg instanceof TransactionHash txh
+                        && Arrays.equals(txh.getHash(), csm.getTransactionHash())
+                        && txh.getConsensusTimestamp() == csm.getConsensusTimestamp()
+                        && txh.getPayerAccountId() == csm.getPayerAccountId().getId()));
+    }
+
+    @Test
+    @DisplayName("Should persist TransactionHash only once for multiple logs from the same excluded-type transaction")
+    void hapiOriginSubsequentLogsDoNotRepersistTransactionHash() {
+        final var csm = recordItemBuilder.consensusSubmitMessage().build();
+
+        syntheticContractLogService.create(new TransferContractLog(csm, entityTokenId, senderId, receiverId, amount));
+        syntheticContractLogService.create(new TransferContractLog(csm, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener, times(2)).onContractLog(any());
+        verify(parserContext, times(1)).add(any(TransactionHash.class));
+    }
+
+    @Test
+    @DisplayName(
+            "Should NOT persist TransactionHash for HAPI-origin log when transaction type is already in transactionHashTypes")
+    void hapiOriginLogSkipsTransactionHashForIncludedType() {
+        // tokenMint (TOKENMINT) is NOT excluded — the regular onTransaction() path already writes TransactionHash
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener, times(1)).onContractLog(any());
+        verify(parserContext, times(0)).add(any(TransactionHash.class));
+    }
+
+    @Test
+    @DisplayName("Should not persist TransactionHash when transaction hash persistence is disabled")
+    void hapiOriginLogSkipsTransactionHashWhenDisabled() {
+        entityProperties.getPersist().setTransactionHash(false);
+        final var csm = recordItemBuilder.consensusSubmitMessage().build();
+
+        syntheticContractLogService.create(new TransferContractLog(csm, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener, times(1)).onContractLog(any());
+        verify(parserContext, times(0)).add(any(TransactionHash.class));
+    }
+
+    @Test
+    @DisplayName("Should not persist TransactionHash when synthetic log has a contract-related parent")
+    void contractOriginLogDoesNotPersistTransactionHash() {
+        final var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .recordItem(r -> r.hapiVersion(OLD_HAPI_VERSION))
+                .build();
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                        .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
+                        .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentRecordItem).hapiVersion(OLD_HAPI_VERSION))
+                .build();
+
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener, times(1)).onContractLog(any());
+        verify(parserContext, times(0)).add(any(TransactionHash.class));
     }
 
     private byte[] entityIdToBytes(EntityId entityId) {

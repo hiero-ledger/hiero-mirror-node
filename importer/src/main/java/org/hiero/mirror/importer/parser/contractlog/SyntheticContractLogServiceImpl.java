@@ -9,6 +9,8 @@ import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.TransactionHash;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
@@ -71,6 +73,20 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
             transactionHash = recordItem.getTransactionHash();
             contractId = log.getEntityId();
             rootContractId = log.getEntityId();
+
+            final var transactionType = TransactionType.of(recordItem.getTransactionType());
+            if (logIndex == 0
+                    && entityProperties.getPersist().isTransactionHash()
+                    && !entityProperties.getPersist().shouldPersistTransactionHash(transactionType)) {
+                final var txHash = TransactionHash.builder()
+                        .consensusTimestamp(consensusTimestamp)
+                        .hash(transactionHash)
+                        .payerAccountId(recordItem.getPayerAccountId().getId())
+                        .build();
+                if (txHash.hashIsValid()) {
+                    parserContext.add(txHash);
+                }
+            }
         }
 
         ContractLog contractLog = new ContractLog();
