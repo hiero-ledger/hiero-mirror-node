@@ -82,7 +82,7 @@ final class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
     // In the releases-comparator.yml there is a comparison for newly added schemas.
     private final Map<String, List<Schema<?>>> serviceSchemas = Map.of(
             BlockRecordService.NAME, List.of(new V0490BlockRecordSchema(), new V0560BlockRecordSchema()),
-            BlockStreamService.NAME, List.of(new V0560BlockStreamSchema(t -> {})),
+            BlockStreamService.NAME, List.of(new V0560BlockStreamSchema()),
             CongestionThrottleService.NAME, List.of(new V0490CongestionThrottleSchema()),
             ContractService.NAME, List.of(new V0490ContractSchema(), new V065ContractSchema()),
             EntityIdService.NAME, List.of(new V0490EntityIdSchema(), new V0590EntityIdSchema()),
