@@ -34,7 +34,7 @@ class DiskSpaceServiceTest {
     @BeforeEach
     void setup() {
         diskSpaceProperties = new DiskSpaceProperties();
-        diskSpaceProperties.setCheckFrequency(Duration.ofSeconds(30));
+        diskSpaceProperties.setCheckFrequency(Duration.ofMillis(200));
         when(jdbcOperations.queryForObject(CITUS_CHECK_QUERY, Boolean.class)).thenReturn(false);
         diskSpaceService = new DiskSpaceService(diskSpaceProperties, jdbcOperations, new SimpleMeterRegistry());
         diskSpaceService.init();
