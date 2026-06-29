@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hiero.mirror.importer.migration.FixEvmTransactionIndexMigration.INTERVAL;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -28,6 +27,8 @@ import org.junit.jupiter.api.Test;
 @Tag("migration")
 final class FixEvmTransactionIndexMigrationTest
         extends AbstractAsyncJavaMigrationTest<FixEvmTransactionIndexMigration> {
+
+    private static final long INTERVAL = Duration.ofHours(12).toNanos();
 
     @Getter
     private final FixEvmTransactionIndexMigration migration;

@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.migration;
 
 import jakarta.inject.Named;
-import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
@@ -32,7 +31,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
     static final String DEFAULT_BATCH_INTERVAL = "12h";
-    static final long INTERVAL = Duration.ofHours(12).toNanos();
 
     private static final String BATCH_INTERVAL_PROPERTIES_KEY = "batchInterval";
 
@@ -46,12 +44,10 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
             drop table if exists fix_evm_transaction_index_progress_temp;
             """;
 
-    private static final String SELECT_UPPER_BOUND = """
-            select coalesce(
-                (select upper_bound from fix_evm_transaction_index_progress_temp limit 1),
-                (select max(consensus_end) from record_file)
-            )
-            """;
+    private static final String SELECT_MAX_CONSENSUS_END = "select max(consensus_end) from record_file";
+
+    private static final String SELECT_PROGRESS_UPPER_BOUND =
+            "select (select upper_bound from fix_evm_transaction_index_progress_temp limit 1)";
 
     private static final String CHECKPOINT_SQL = """
             with clear_table as (delete from fix_evm_transaction_index_progress_temp)
@@ -169,16 +165,17 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
             return false;
         }
 
-        getJdbcOperations().execute(CREATE_PROGRESS_TABLE);
-
-        final var upperBound = getJdbcOperations().queryForObject(SELECT_UPPER_BOUND, Long.class);
-        if (upperBound == null) {
+        final var maxConsensusEnd = getJdbcOperations().queryForObject(SELECT_MAX_CONSENSUS_END, Long.class);
+        if (maxConsensusEnd == null) {
             log.info("No record files to process, skipping migration");
             return false;
         }
 
-        initialUpperBound = upperBound;
-        log.info("Starting EVM transaction index fix with initial timestamp: {}", upperBound);
+        getJdbcOperations().execute(CREATE_PROGRESS_TABLE);
+
+        final var savedProgress = getJdbcOperations().queryForObject(SELECT_PROGRESS_UPPER_BOUND, Long.class);
+        initialUpperBound = savedProgress != null ? savedProgress : maxConsensusEnd;
+        log.info("Starting EVM transaction index fix with initial timestamp: {}", initialUpperBound);
         return true;
     }
 
