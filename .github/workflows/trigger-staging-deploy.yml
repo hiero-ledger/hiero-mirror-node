@@ -6,8 +6,8 @@ on:
   push:
     branches: [deploy]
     paths:
-      - do-not-exist/nothing.yaml
-      # - clusters/mainnet-staging-na/mainnet-citus/helmrelease.yaml
+      # - do-not-exist/nothing.yaml
+      - clusters/mainnet-staging-na/mainnet-citus/helmrelease.yaml
 
 permissions:
   id-token: write
