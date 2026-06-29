@@ -236,6 +236,16 @@ public class EntityRecordItemListener implements RecordItemListener {
 
         var payerAccount = recordItem.getPayerAccountId();
         var transfers = body.getCryptoTransfer().getTransfers().getAccountAmountsList();
+
+        long spenderId = payerAccount.getId();
+        if (!transfers.isEmpty() && recordItem.getTransactionRecord().hasContractCallResult()) {
+            spenderId = EntityId.of(recordItem
+                            .getTransactionRecord()
+                            .getContractCallResult()
+                            .getSenderId())
+                    .getId();
+        }
+
         for (var aa : transfers) {
             var entityId = entityIdService.lookup(aa.getAccountID()).orElse(EntityId.EMPTY);
             if (EntityId.isEmpty(entityId)) {
@@ -259,7 +269,7 @@ public class EntityRecordItemListener implements RecordItemListener {
                         .amount(aa.getAmount())
                         .owner(entityId.getId())
                         .payerAccountId(payerAccount)
-                        .spender(payerAccount.getId())
+                        .spender(spenderId)
                         .build();
                 entityListener.onCryptoAllowance(cryptoAllowance);
             }

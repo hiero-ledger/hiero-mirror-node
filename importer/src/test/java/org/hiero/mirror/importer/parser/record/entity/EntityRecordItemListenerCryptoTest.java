@@ -1533,6 +1533,80 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     }
 
     @Test
+    void cryptoTransferUpdatesAllowanceAmountViaContract() {
+        entityProperties.getPersist().setTrackAllowance(true);
+        final var allowanceAmountGranted = 1000L;
+
+        final var contractSpender = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT))
+                .persist()
+                .toEntityId();
+
+        final var cryptoAllowance = domainBuilder
+                .cryptoAllowance()
+                .customize(ca -> {
+                    ca.amountGranted(allowanceAmountGranted).amount(allowanceAmountGranted);
+                    ca.spender(contractSpender.getId());
+                })
+                .persist();
+
+        final var ownerAccountId = EntityId.of(cryptoAllowance.getOwner()).toAccountID();
+        final var cryptoTransfers = List.of(
+                AccountAmount.newBuilder()
+                        .setAmount(-100)
+                        .setAccountID(ownerAccountId)
+                        .setIsApproval(true)
+                        .build(),
+                AccountAmount.newBuilder()
+                        .setAmount(-200)
+                        .setAccountID(ownerAccountId)
+                        .setIsApproval(true)
+                        .build());
+
+        final var transaction = buildTransaction(
+                r -> r.getCryptoTransferBuilder().getTransfersBuilder().addAllAccountAmounts(cryptoTransfers));
+
+        final var transactionBody = getTransactionBody(transaction);
+        final var recordCryptoTransfers = cryptoTransfers.stream()
+                .map(transfer -> transfer.toBuilder().setIsApproval(false).build())
+                .toList();
+        final var txnRecord = buildTransactionRecordWithNoTransactions(
+                builder -> {
+                    builder.getTransferListBuilder().addAllAccountAmounts(recordCryptoTransfers);
+                    buildContractFunctionResult(
+                            builder.getContractCallResultBuilder().setSenderId(contractSpender.toAccountID()));
+                },
+                transactionBody,
+                ResponseCodeEnum.SUCCESS.getNumber());
+
+        final var recordItem = RecordItem.builder()
+                .transactionRecord(txnRecord)
+                .transaction(transaction)
+                .build();
+
+        parseRecordItemAndCommit(recordItem);
+
+        assertAll(
+                () -> assertEquals(1, transactionRepository.count()),
+                () -> assertEquals(1, cryptoAllowanceRepository.count()),
+                () -> {
+                    final var cryptoAllowanceId = new Id();
+                    cryptoAllowanceId.setOwner(EntityId.of(ownerAccountId).getId());
+                    cryptoAllowanceId.setSpender(contractSpender.getId());
+
+                    final var cryptoAllowanceDbOpt = cryptoAllowanceRepository.findById(cryptoAllowanceId);
+                    assertThat(cryptoAllowanceDbOpt).isNotEmpty();
+
+                    final var cryptoAllowanceDb = cryptoAllowanceDbOpt.get();
+                    assertThat(cryptoAllowanceDb.getAmountGranted()).isEqualTo(allowanceAmountGranted);
+                    final var amountTransferred = cryptoTransfers.get(0).getAmount()
+                            + cryptoTransfers.get(1).getAmount();
+                    assertThat(cryptoAllowanceDb.getAmount()).isEqualTo(allowanceAmountGranted + amountTransferred);
+                });
+    }
+
+    @Test
     void cryptoTransferWithAlias() {
         var haltOnError = System.getProperty(HALT_ON_ERROR_PROPERTY, "false");
         System.setProperty(HALT_ON_ERROR_PROPERTY, "true");
