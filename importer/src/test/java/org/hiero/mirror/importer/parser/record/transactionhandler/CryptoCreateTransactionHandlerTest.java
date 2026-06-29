@@ -69,7 +69,7 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new CryptoCreateTransactionHandler(entityIdService, entityListener, evmHookHandler);
+        return new CryptoCreateTransactionHandler(entityIdService, entityListener, entityProperties, evmHookHandler);
     }
 
     @Override
@@ -329,6 +329,49 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
 
         assertEntity(accountId, recordItem.getConsensusTimestamp())
                 .returns(delegationAddress, Entity::getDelegationAddress);
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void updateTransactionBlockstreamDelegationAddressPersistsEthereumNonceFromStateChanges() {
+        var delegationAddress = UtilityTest.EVM_ADDRESS;
+        var recordItem = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(tb -> tb.setDelegationAddress(DomainUtils.fromBytes(delegationAddress)))
+                .recordItem(r -> r.blockstream(true).accountEthereumNonce(4L))
+                .build();
+        var transaction = transaction(recordItem);
+        var accountId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
+
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        assertEntity(accountId, recordItem.getConsensusTimestamp())
+                .returns(delegationAddress, Entity::getDelegationAddress)
+                .returns(4L, Entity::getEthereumNonce);
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void updateTransactionBlockstreamDelegationAddressSkipsNonceWhenTrackNonceDisabled() {
+        entityProperties.getPersist().setTrackNonce(false);
+        var delegationAddress = UtilityTest.EVM_ADDRESS;
+        var recordItem = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(tb -> tb.setDelegationAddress(DomainUtils.fromBytes(delegationAddress)))
+                .recordItem(r -> r.blockstream(true).accountEthereumNonce(4L))
+                .build();
+        var transaction = transaction(recordItem);
+        var accountId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
+
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        assertEntity(accountId, recordItem.getConsensusTimestamp())
+                .returns(delegationAddress, Entity::getDelegationAddress)
+                .returns(null, Entity::getEthereumNonce);
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }

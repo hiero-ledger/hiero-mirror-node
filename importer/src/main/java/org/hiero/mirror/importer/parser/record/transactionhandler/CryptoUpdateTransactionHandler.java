@@ -15,16 +15,22 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.util.Utility;
 
 @Named
 class CryptoUpdateTransactionHandler extends AbstractEntityCrudTransactionHandler {
 
+    private final EntityProperties entityProperties;
     private final EVMHookHandler evmHookHandler;
 
     CryptoUpdateTransactionHandler(
-            EntityIdService entityIdService, EntityListener entityListener, EVMHookHandler evmHookHandler) {
+            EntityIdService entityIdService,
+            EntityListener entityListener,
+            EntityProperties entityProperties,
+            EVMHookHandler evmHookHandler) {
         super(entityIdService, entityListener, TransactionType.CRYPTOUPDATEACCOUNT);
+        this.entityProperties = entityProperties;
         this.evmHookHandler = evmHookHandler;
     }
 
@@ -78,6 +84,11 @@ class CryptoUpdateTransactionHandler extends AbstractEntityCrudTransactionHandle
         // cleared, and we need to persist it as the zero-address in the DB.
         if (!transactionBody.getDelegationAddress().isEmpty()) {
             entity.setDelegationAddress(DomainUtils.toBytes(transactionBody.getDelegationAddress()));
+            if (recordItem.isBlockstream()
+                    && recordItem.getAccountEthereumNonce() != null
+                    && entityProperties.getPersist().isTrackNonce()) {
+                entity.setEthereumNonce(recordItem.getAccountEthereumNonce());
+            }
         }
 
         updateStakingInfo(recordItem, entity);
