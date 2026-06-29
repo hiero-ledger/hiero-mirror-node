@@ -20,7 +20,7 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@bufbuild/protobuf": "2.12.0",
+    "@bufbuild/protobuf": "2.12.1",
     "@godaddy/terminus": "4.12.1",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-prometheus": "^0.219.0",
@@ -34,24 +34,24 @@
     "express-openapi-validator": "5.6.2",
     "extend": "3.0.2",
     "ioredis": "5.11.1",
-    "js-yaml": "5.0.0",
+    "js-yaml": "5.2.0",
     "json-bigint": "1.0.0",
     "lodash": "4.18.1",
     "negotiator": "1.0.0",
     "parse-duration": "2.1.6",
     "pg": "8.22.0",
     "pg-range": "1.1.2",
-    "qs": "6.15.2",
+    "qs": "6.15.3",
     "quick-lru": "7.3.0",
     "rfc4648": "1.5.4",
-    "sql-formatter": "15.8.1",
+    "sql-formatter": "15.8.2",
     "swagger-ui-express": "5.0.1",
     "tsscmp": "1.0.6"
   },
   "devDependencies": {
     "@bufbuild/buf": "1.71.0",
-    "@bufbuild/protoc-gen-es": "2.12.0",
-    "@testcontainers/postgresql": "12.0.3",
+    "@bufbuild/protoc-gen-es": "2.12.1",
+    "@testcontainers/postgresql": "12.0.4",
     "cross-env": "10.1.0",
     "crypto-random-string": "5.0.0",
     "esbuild": "^0.28.1",
@@ -64,7 +64,7 @@
     "pgsql-parser": "17.9.15",
     "sinon": "22.0.0",
     "supertest": "7.2.2",
-    "tar": "7.5.16"
+    "tar": "7.5.19"
   },
   "peerDependencies": {
     "ansi-regex": "6.2.2",
