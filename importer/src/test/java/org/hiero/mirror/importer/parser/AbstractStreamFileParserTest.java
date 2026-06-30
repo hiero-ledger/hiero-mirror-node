@@ -4,10 +4,13 @@ package org.hiero.mirror.importer.parser;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.StreamFile;
+import org.hiero.mirror.importer.db.DiskSpaceService;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,12 +18,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
 @ExtendWith({OutputCaptureExtension.class, MockitoExtension.class})
 public abstract class AbstractStreamFileParserTest<F extends StreamFile<?>, T extends StreamFileParser<F>> {
+
+    @Mock(strictness = LENIENT)
+    protected DiskSpaceService diskSpaceService;
 
     protected T parser;
 
@@ -36,6 +43,7 @@ public abstract class AbstractStreamFileParserTest<F extends StreamFile<?>, T ex
 
     @BeforeEach()
     public void before() {
+        when(diskSpaceService.isExceeded()).thenReturn(false);
         parser = getParser();
         parserProperties = parser.getProperties();
         parserProperties.setEnabled(true);
@@ -85,6 +93,17 @@ public abstract class AbstractStreamFileParserTest<F extends StreamFile<?>, T ex
 
         // then
         assertParsed(streamFile, false, false);
+    }
+
+    @Test
+    void diskSpaceFull() {
+        // given
+        when(diskSpaceService.isExceeded()).thenReturn(true);
+        when(diskSpaceService.getCheckFrequency()).thenReturn(Duration.ZERO);
+        F streamFile = getStreamFile();
+
+        // when / then
+        assertThatThrownBy(() -> parser.parse(streamFile)).isInstanceOf(ParserException.class);
     }
 
     @Test

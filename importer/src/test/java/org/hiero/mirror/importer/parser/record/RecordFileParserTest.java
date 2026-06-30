@@ -127,7 +127,8 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
                 parserProperties,
                 recordItemListener,
                 recordStreamFileListener,
-                recordFileRepository);
+                recordFileRepository,
+                diskSpaceService);
     }
 
     @Override
