@@ -388,9 +388,13 @@ final class FixEvmTransactionIndexMigrationTest
     }
 
     private ContractResult persistContractResult(long consensusTimestamp, int wrongIndex) {
+        final var nonce = jdbcOperations.queryForObject(
+                "select nonce from transaction where consensus_timestamp = ?", Integer.class, consensusTimestamp);
         return domainBuilder
                 .contractResult()
-                .customize(cr -> cr.consensusTimestamp(consensusTimestamp).transactionIndex(wrongIndex))
+                .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
+                        .transactionIndex(wrongIndex)
+                        .transactionNonce(nonce != null ? nonce : 0))
                 .persist();
     }
 
