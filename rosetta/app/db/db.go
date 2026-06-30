@@ -13,9 +13,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// ConnectToDb establishes connection to the Postgres Database
-func ConnectToDb(dbConfig config.Db) interfaces.DbClient {
-	db, err := gorm.Open(postgres.Open(dbConfig.GetDsn()), &gorm.Config{Logger: gormlogrus.New()})
+// ConnectToDb establishes connection to the Postgres Database. It returns the DbClient and a close function which
+// releases the underlying database resources and should be called when the connection is no longer needed.
+func ConnectToDb(dbConfig config.Db) (interfaces.DbClient, func()) {
+	db, err := gorm.Open(postgres.Open(dbConfig.GetDsn()), &gorm.Config{
+		DisableAutomaticPing: true,
+		Logger:               gormlogrus.New()})
 	if err != nil {
 		log.Warn(err)
 	} else {
@@ -25,12 +28,18 @@ func ConnectToDb(dbConfig config.Db) interfaces.DbClient {
 	sqlDb, err := db.DB()
 	if err != nil {
 		log.Errorf("Failed to get sql DB: %s", err)
-		return nil
+		return nil, nil
 	}
 
 	sqlDb.SetMaxIdleConns(dbConfig.Pool.MaxIdleConnections)
 	sqlDb.SetConnMaxLifetime(time.Duration(dbConfig.Pool.MaxLifetime) * time.Minute)
 	sqlDb.SetMaxOpenConns(dbConfig.Pool.MaxOpenConnections)
 
-	return NewDbClient(db, dbConfig.StatementTimeout)
+	closeFn := func() {
+		if err := sqlDb.Close(); err != nil {
+			log.Errorf("Error closing database connection: %v", err)
+		}
+	}
+
+	return NewDbClient(db, dbConfig.StatementTimeout), closeFn
 }
