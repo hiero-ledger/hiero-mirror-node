@@ -48,26 +48,59 @@ public interface CryptoAllowanceRepository extends CrudRepository<CryptoAllowanc
                             ) as all_crypto_allowances
                         ) as grouped_crypto_allowances
                         where row_number = 1 and amount_granted > 0
-                        ), spent as (
-                        select ca.spender, sum(ct.amount) as amount
+                        ), transfers as (
+                        select ca.spender, ct.consensus_timestamp, sum(ct.amount) as amount
                         from crypto_transfer ct
                             join crypto_allowances ca
-                                on ct.entity_id = ca.owner
-                                and ct.consensus_timestamp > lower(ca.timestamp_range)
-                            left join contract_result cr on cr.consensus_timestamp = ct.consensus_timestamp
-                        where ct.is_approval is true
+                            on ct.entity_id = ca.owner
+                                and ct.payer_account_id = ca.spender
+                        where is_approval is true
                             and ct.consensus_timestamp <= :blockTimestamp
-                            and (
-                                ct.payer_account_id = ca.spender
-                                or (cr.sender_id = ca.spender and ct.payer_account_id <> cr.sender_id)
+                            and ct.consensus_timestamp > lower(ca.timestamp_range)
+                        group by ca.spender, ct.consensus_timestamp
+                        ), contract_results_filtered as (
+                        select sender_id, consensus_timestamp
+                        from contract_result cr
+                        where cr.consensus_timestamp <= :blockTimestamp
+                            and cr.consensus_timestamp in (
+                                select consensus_timestamp
+                                from crypto_transfer
                             )
-                        group by ca.spender
+                        ), contract_call_transfers as (
+                        select cr.sender_id, ct.consensus_timestamp, sum(ct.amount) as amount
+                        from crypto_transfer ct
+                            join crypto_allowances ca on ct.entity_id = ca.owner
+                            join contract_results_filtered cr on ct.is_approval is true
+                                and cr.sender_id = ca.spender
+                                and ct.consensus_timestamp = cr.consensus_timestamp
+                                and ct.consensus_timestamp <= :blockTimestamp
+                                and ct.consensus_timestamp > lower(ca.timestamp_range)
+                        group by cr.sender_id, ct.consensus_timestamp
                         )
-                    select ca.amount_granted, ca.owner, ca.payer_account_id, ca.spender, ca.timestamp_range,
-                        ca.amount_granted + coalesce(s.amount, 0) as amount
-                    from crypto_allowances ca
-                        left join spent s on s.spender = ca.spender
-                    where ca.amount_granted + coalesce(s.amount, 0) > 0
+                    select *
+                    from (
+                        select amount_granted, owner, payer_account_id, spender, timestamp_range, amount_granted
+                            + coalesce(
+                                (
+                                    select sum(amount)
+                                    from contract_call_transfers cct
+                                    where cct.sender_id = ca.spender
+                                ),
+                                0)
+                            + coalesce(
+                                (
+                                    select sum(amount)
+                                    from transfers tr
+                                    where tr.spender = ca.spender
+                                        and tr.consensus_timestamp not in (
+                                            select consensus_timestamp
+                                            from contract_call_transfers
+                                        )
+                                ),
+                                0) as amount
+                        from crypto_allowances ca
+                    ) result
+                    where amount > 0
                     """, nativeQuery = true)
     List<CryptoAllowance> findByOwnerAndTimestamp(long owner, long blockTimestamp);
 }

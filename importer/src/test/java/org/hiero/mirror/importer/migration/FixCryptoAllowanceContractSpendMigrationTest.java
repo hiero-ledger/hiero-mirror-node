@@ -24,6 +24,7 @@ import org.springframework.test.context.ContextConfiguration;
 
 @RequiredArgsConstructor
 @Tag("migration")
+@DisablePartitionMaintenance
 @DisableRepeatableSqlMigration
 @ContextConfiguration(initializers = FixCryptoAllowanceContractSpendMigrationTest.Initializer.class)
 class FixCryptoAllowanceContractSpendMigrationTest extends ImporterIntegrationTest {
