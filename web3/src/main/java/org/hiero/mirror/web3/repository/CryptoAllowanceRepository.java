@@ -48,23 +48,26 @@ public interface CryptoAllowanceRepository extends CrudRepository<CryptoAllowanc
                             ) as all_crypto_allowances
                         ) as grouped_crypto_allowances
                         where row_number = 1 and amount_granted > 0
-                        ), transfers as (
-                        select spender, sum(ct.amount) as amount
+                        ), spent as (
+                        select ca.spender, sum(ct.amount) as amount
                         from crypto_transfer ct
                             join crypto_allowances ca
-                            on ct.entity_id = ca.owner
-                                and ct.payer_account_id = ca.spender
-                        where is_approval is true
-                            and consensus_timestamp <= :blockTimestamp
-                            and consensus_timestamp > lower(ca.timestamp_range)
-                        group by spender
+                                on ct.entity_id = ca.owner
+                                and ct.consensus_timestamp > lower(ca.timestamp_range)
+                            left join contract_result cr on cr.consensus_timestamp = ct.consensus_timestamp
+                        where ct.is_approval is true
+                            and ct.consensus_timestamp <= :blockTimestamp
+                            and (
+                                ct.payer_account_id = ca.spender
+                                or (cr.sender_id = ca.spender and ct.payer_account_id <> cr.sender_id)
+                            )
+                        group by ca.spender
                         )
-                    select *
-                    from (
-                        select amount_granted, owner, payer_account_id, spender, timestamp_range, amount_granted + coalesce((select amount from transfers tr where tr.spender = ca.spender), 0) as amount
-                        from crypto_allowances ca
-                    ) result
-                    where amount > 0
+                    select ca.amount_granted, ca.owner, ca.payer_account_id, ca.spender, ca.timestamp_range,
+                        ca.amount_granted + coalesce(s.amount, 0) as amount
+                    from crypto_allowances ca
+                        left join spent s on s.spender = ca.spender
+                    where ca.amount_granted + coalesce(s.amount, 0) > 0
                     """, nativeQuery = true)
     List<CryptoAllowance> findByOwnerAndTimestamp(long owner, long blockTimestamp);
 }

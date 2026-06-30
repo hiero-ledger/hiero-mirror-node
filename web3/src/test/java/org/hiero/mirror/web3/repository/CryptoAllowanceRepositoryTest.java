@@ -220,6 +220,94 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findByOwnerAndTimestampWithContractInitiatedTransfer() {
+        final long spender = 1L;
+        final long ownerId = 2L;
+        final long relayer = 3L;
+        final long cryptoAllowanceTimestamp = System.currentTimeMillis();
+        final long cryptoTransferTimestamp = cryptoAllowanceTimestamp + 1;
+        final long blockTimestamp = cryptoAllowanceTimestamp + 2;
+
+        final var allowance = domainBuilder
+                .cryptoAllowance()
+                .customize(a -> a.spender(spender)
+                        .owner(ownerId)
+                        .amountGranted(3L)
+                        .timestampRange(Range.atLeast(cryptoAllowanceTimestamp)))
+                .persist();
+
+        // approved transfer initiated by the contract(payer is the relayer (!= spender))
+        domainBuilder
+                .cryptoTransfer()
+                .customize(c -> c.entityId(ownerId)
+                        .payerAccountId(EntityId.of(relayer))
+                        .amount(-1)
+                        .isApproval(true)
+                        .consensusTimestamp(cryptoTransferTimestamp))
+                .persist();
+
+        // contract result at the same timestamp identifies the spending contract via sender_id
+        domainBuilder
+                .contractResult()
+                .customize(c -> c.senderId(EntityId.of(spender)).consensusTimestamp(cryptoTransferTimestamp))
+                .persist();
+
+        assertThat(cryptoAllowanceRepository
+                        .findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp)
+                        .get(0))
+                .returns(2L, CryptoAllowance::getAmount);
+    }
+
+    @Test
+    void findByOwnerAndTimestampWithDirectAndContractInitiatedTransfers() {
+        final long spender = 1L;
+        final long ownerId = 2L;
+        final long relayer = 3L;
+        final long cryptoAllowanceTimestamp = System.currentTimeMillis();
+        final long directSpendTimestamp = cryptoAllowanceTimestamp + 1;
+        final long contractSpendTimestamp = cryptoAllowanceTimestamp + 2;
+        final long blockTimestamp = cryptoAllowanceTimestamp + 3;
+
+        final var allowance = domainBuilder
+                .cryptoAllowance()
+                .customize(a -> a.spender(spender)
+                        .owner(ownerId)
+                        .amountGranted(5L)
+                        .timestampRange(Range.atLeast(cryptoAllowanceTimestamp)))
+                .persist();
+
+        // direct spend by the spender: payer is the spender
+        domainBuilder
+                .cryptoTransfer()
+                .customize(c -> c.entityId(ownerId)
+                        .payerAccountId(EntityId.of(spender))
+                        .amount(-1)
+                        .isApproval(true)
+                        .consensusTimestamp(directSpendTimestamp))
+                .persist();
+
+        // contract-initiated spend by the same spender: payer is the relayer, contract_result carries the spender
+        domainBuilder
+                .cryptoTransfer()
+                .customize(c -> c.entityId(ownerId)
+                        .payerAccountId(EntityId.of(relayer))
+                        .amount(-2)
+                        .isApproval(true)
+                        .consensusTimestamp(contractSpendTimestamp))
+                .persist();
+        domainBuilder
+                .contractResult()
+                .customize(c -> c.senderId(EntityId.of(spender)).consensusTimestamp(contractSpendTimestamp))
+                .persist();
+
+        // both spends are subtracted: 5 - 1 - 2 = 2
+        assertThat(cryptoAllowanceRepository
+                        .findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp)
+                        .get(0))
+                .returns(2L, CryptoAllowance::getAmount);
+    }
+
+    @Test
     void findByOwnerAndTimestampWithTransferAfterBlockTimestamp() {
         long spender = 1L;
         long owner = 2L;
