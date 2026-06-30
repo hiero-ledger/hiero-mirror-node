@@ -263,11 +263,6 @@ public class PrestateServiceImpl implements PrestateService {
             final PrestateContext prestateContext, final ContractResult contractResult) {
         prestateContext.addAccount(contractResult.getContractId());
         prestateContext.addAccount(contractResult.getSenderId().getId());
-
-        //        final var createdContractIds = contractResult.getCreatedContractIds();
-        //        for (int i = 0, n = createdContractIds.size(); i < n; i++) {
-        //            prestateContext.addCreatedContract(createdContractIds.get(i));
-        //        }
     }
 
     private void populateTouchedEntitiesFromActions(
@@ -308,12 +303,11 @@ public class PrestateServiceImpl implements PrestateService {
 
     private void populateTouchedEntitiesFromBytecode(
             final PrestateContext prestateContext, final long consensusTimestamp) {
-        if (prestateContext.isCode()) {
-            final var contracts = contractRepository.findByConsensusTimestamp(consensusTimestamp);
-            for (int i = 0, n = contracts.size(); i < n; i++) {
-                final var contract = contracts.get(i);
-                final var contractId = contract.getId();
-                prestateContext.addAccount(contractId);
+        final var contracts = contractRepository.findByConsensusTimestamp(consensusTimestamp);
+        for (final var contract : contracts) {
+            final var contractId = contract.getId();
+            prestateContext.addAccount(contractId);
+            if (prestateContext.isCode()) {
                 final var runtimeBytecode = contract.getRuntimeBytecode();
                 if (prestateContext.isDiff()) {
                     prestateContext.addPostBytecode(contractId, runtimeBytecode);

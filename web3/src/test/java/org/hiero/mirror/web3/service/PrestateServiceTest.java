@@ -305,6 +305,35 @@ class PrestateServiceTest {
     }
 
     @Test
+    void callWithoutCodeStillIncludesContractsFromBytecodeSidecarWithBalanceAndNonce() {
+        final var request = createRequest(false, false, false);
+        setupTransactionHashLookup();
+        setupContractResult();
+        when(contractActionRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
+                .thenReturn(Collections.emptyList());
+        when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
+                .thenReturn(Collections.emptyList());
+        when(contractRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
+                .thenReturn(List.of(Contract.builder()
+                        .id(BYTECODE_CONTRACT_ID.getId())
+                        .runtimeBytecode(new byte[] {0x60, 0x40})
+                        .build()));
+        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(List.of(contractSnapshot(BYTECODE_CONTRACT_ID, 3L)));
+        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.of(50L));
+
+        final var response = prestateService.processPrestateCall(request);
+
+        assertThat(response.getPre()).hasSize(1);
+        assertThat(response.getPre().getFirst().getAddress()).isEqualTo(BYTECODE_CONTRACT_ID.toString());
+        assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0x32");
+        assertThat(response.getPre().getFirst().getNonce()).isEqualTo(3L);
+        assertThat(response.getPre().getFirst().getCode()).isNull();
+        assertThat(response.getPre().getFirst().getStorage()).isNull();
+    }
+
+    @Test
     void callIncludesContractsFromBytecodeSidecarAtConsensusTimestamp() {
         final byte[] runtimeBytecode = new byte[] {0x60, 0x40};
         final var request = createRequest(false, true, false);
