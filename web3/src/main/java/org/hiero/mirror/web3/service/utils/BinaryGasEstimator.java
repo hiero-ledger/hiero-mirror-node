@@ -15,58 +15,92 @@ import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 @RequiredArgsConstructor
 @Named
 public class BinaryGasEstimator {
+
+    // EIP-150 call stipend used by ethereum's optimistic gas limit calculation.
+    private static final long CALL_STIPEND = 2_300L;
+
     private final EvmProperties properties;
 
+    /**
+     * Binary search for the smallest gas limit that allows the transaction to execute successfully.
+     *
+     * @param metricUpdater   callback to record total gas used and iteration count
+     * @param call            function that executes the transaction at a given gas limit
+     * @param initialGasUsed  gas consumed by the initial unconstrained execution at the upper bound
+     * @param hi              upper bound for the search (caller gas limit)
+     * @return estimated gas limit
+     */
     public long search(
-            final ObjIntConsumer<Long> metricUpdater, final LongFunction<EvmTransactionResult> call, long lo, long hi) {
-        long prevGasLimit = lo;
-        int iterationsMade = 0;
-        long totalGasUsed = 0;
+            final ObjIntConsumer<Long> metricUpdater,
+            final LongFunction<EvmTransactionResult> call,
+            long initialGasUsed,
+            long hi) {
+        var lo = Math.max(0, initialGasUsed - 1);
+        var iterationsMade = 0;
+        var totalGasUsed = 0L;
 
-        // Now that we also support gas estimates for precompile calls, the default threshold is too low, since
-        // it does not take into account the minimum threshold of 5% higher estimate than the actual gas used.
-        // The default value is working with some calls but that is not the case for precompile calls which have higher
-        // gas consumption.
-        // Configurable tolerance of 10% over 5% is used, since the algorithm fails when using 5%, producing too narrow
-        // threshold. Adjust via estimateGasIterationThresholdPercent value.
-        final long estimateIterationThreshold = (long) (lo * properties.getEstimateGasIterationThresholdPercent());
+        final var errorRatio = properties.getEstimateGasIterationThresholdPercent();
+        final var maxIterations = properties.getMaxGasEstimateRetriesCount();
+        final var contractCallContext = ContractCallContext.get();
 
-        ContractCallContext contractCallContext = ContractCallContext.get();
-        while (lo + 1 < hi && iterationsMade < properties.getMaxGasEstimateRetriesCount()) {
+        // Optimistic gas limit: accounts for gas refunds and the 63/64 call gas forwarding rule.
+        final var optimisticGasLimit = (initialGasUsed + CALL_STIPEND) * 64 / 63;
+        if (optimisticGasLimit < hi) {
+            contractCallContext.reset();
+            final var result = safeCall(optimisticGasLimit, call);
+            iterationsMade++;
+            totalGasUsed += gasUsedOrLimit(result, optimisticGasLimit);
+
+            if (isGasRelatedFailure(result)) {
+                lo = optimisticGasLimit;
+            } else {
+                hi = optimisticGasLimit;
+            }
+        }
+
+        while (lo + 1 < hi && iterationsMade < maxIterations) {
+            // lo = highest gas limit known to fail (too little gas)
+            // hi = lowest gas limit known to succeed (the current best answer, which is what gets returned)
+            // hi - lo = the width of the remaining uncertainty window
+            // (hi - lo) / hi = that window expressed as a fraction of the current answer (the relative width)
+            if (errorRatio > 0 && (double) (hi - lo) / hi < errorRatio) {
+                break;
+            }
+
             contractCallContext.reset();
 
-            long mid = (hi + lo) / 2;
+            var mid = lo + (hi - lo) / 2;
+            if (mid > lo * 2) {
+                // Skew bisection toward the low side; most txs need only slightly more gas than used.
+                mid = lo * 2;
+            }
 
-            // If modularizedServices is true - we call the safeCall function that handles if an exception is thrown
-            final var transactionResult = safeCall(mid, call);
-
+            final var result = safeCall(mid, call);
             iterationsMade++;
+            totalGasUsed += gasUsedOrLimit(result, mid);
 
-            boolean err =
-                    transactionResult == null || !transactionResult.isSuccessful() || transactionResult.gasUsed() < 0;
-            long gasUsed = err ? prevGasLimit : transactionResult.gasUsed();
-            totalGasUsed += gasUsed;
-            if (err || gasUsed == 0) {
+            if (isGasRelatedFailure(result)) {
                 lo = mid;
             } else {
                 hi = mid;
-                if (Math.abs(prevGasLimit - mid) < estimateIterationThreshold) {
-                    lo = hi;
-                }
             }
-            prevGasLimit = mid;
         }
 
         metricUpdater.accept(totalGasUsed, iterationsMade);
-        return hi;
+        return Math.max(hi, (long) Math.ceil(initialGasUsed * 1.05));
     }
 
-    // This method is needed because within the modularized services if the contract call fails an exception is thrown
-    // instead of transaction result with 'failed' status which will result in a failing test. This way we handle the
-    // exception and return estimated gas
-    private EvmTransactionResult safeCall(long mid, LongFunction<EvmTransactionResult> call) {
+    private static long gasUsedOrLimit(final EvmTransactionResult result, final long gasLimit) {
+        return result != null && result.gasUsed() >= 0 ? result.gasUsed() : gasLimit;
+    }
+
+    private static boolean isGasRelatedFailure(final EvmTransactionResult result) {
+        return result == null || !result.isSuccessful() || result.gasUsed() < 0;
+    }
+
+    private EvmTransactionResult safeCall(final long gasLimit, final LongFunction<EvmTransactionResult> call) {
         try {
-            return call.apply(mid);
+            return call.apply(gasLimit);
         } catch (Exception ignored) {
             log.info("Exception while calling contract for gas estimation");
             return null;
