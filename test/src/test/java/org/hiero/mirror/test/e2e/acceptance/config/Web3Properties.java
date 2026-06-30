@@ -23,8 +23,6 @@ public class Web3Properties implements ApiProperties {
 
     private OpcodeTracerProperties opcodeTracer = new OpcodeTracerProperties();
 
-    private boolean simpleFees = true;
-
     public String getBaseUrl() {
         if (baseUrl != null && !baseUrl.endsWith(URL_PREFIX)) {
             return baseUrl + URL_PREFIX;

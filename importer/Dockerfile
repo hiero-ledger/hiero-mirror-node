@@ -1,9 +1,9 @@
-FROM eclipse-temurin:25-jre-noble AS builder
+FROM eclipse-temurin:25-jre-resolute AS builder
 WORKDIR /app
 COPY build/libs/*.jar ./
 RUN java -Djarmode=tools -jar *.jar extract --layers --launcher --destination extracted
 
-FROM eclipse-temurin:25-jre-noble
+FROM eclipse-temurin:25-jre-resolute
 ENV JDK_JAVA_OPTIONS="-XX:MaxRAMPercentage=80"
 HEALTHCHECK --interval=30s --retries=3 --start-period=60s --timeout=2s CMD curl -f http://localhost:8080/actuator/health/liveness
 WORKDIR /app

@@ -4,8 +4,8 @@ go 1.26
 
 require (
 	github.com/Code-Hex/go-generics-cache v1.5.1
-	github.com/coinbase/rosetta-sdk-go v0.11.0
-	github.com/coinbase/rosetta-sdk-go/types v1.7.1
+	github.com/coinbase/rosetta-sdk-go v0.12.0
+	github.com/coinbase/rosetta-sdk-go/types v1.7.2
 	github.com/cucumber/godog v0.15.1
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/go-viper/mapstructure/v2 v2.5.0
@@ -26,7 +26,7 @@ require (
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/postgres v1.6.0
-	gorm.io/gorm v1.31.1
+	gorm.io/gorm v1.31.2
 )
 
 require (
