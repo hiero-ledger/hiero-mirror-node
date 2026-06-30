@@ -3,15 +3,17 @@
 package org.hiero.mirror.web3.service.utils;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.web3.utils.ContractCallTestUtil.GAS_ESTIMATE_MULTIPLIER_LOWER_RANGE;
+import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
-import org.assertj.core.data.Percentage;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -23,20 +25,21 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
     private final EvmProperties properties;
     private final AtomicInteger iterations = new AtomicInteger(0);
 
+    @BeforeEach
+    void resetIterations() {
+        iterations.set(0);
+    }
+
     /**
-     * @link BinaryGasEstimator is using slightly modified binary algorithm which is coupled to some exttend with the
-     * gas used estimation and its metric updates. Here the logic of processing contact calls is replaced with a dummy
-     * function, returning successful/failed HederaEvmTransactionProcessingResult with gasUsed value equal to the low
-     * value, which corresponds to the intial gasUsed in the real world. The metric logic is replaced with a lambda
-     * which counts the iterations count.
+     * {@link BinaryGasEstimator} uses the gas consumed by the initial call as the lower bound, probes an optimistic
+     * EIP-150 gas limit, and then performs a go-ethereum-style binary search. A 5% minimum headroom is applied over the
+     * initial gas used before returning.
      */
     @DisplayName("binarySearch")
     @ParameterizedTest(name = "#{index} (low {0}, high {1}, iterationLimit{2}")
     @CsvSource({
         "23850, 100000, 6",
         "35000, 15_000_000, 14",
-        "55555, 55555, 1",
-        "77777, 77778, 1",
         "1_000_000, 1_000_000_000, 20",
         "21000, 15_000_000, 14",
         "21000, 50_000_000, 15",
@@ -47,13 +50,54 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
         final var regularCall = binaryGasEstimator.search(
                 (a, b) -> iterations.addAndGet(b), unused -> createTxnResult(low, true), low, high);
 
-        assertThat(regularCall).as("result must not go out of bounds").isBetween(low, high);
-
         assertThat(regularCall)
-                .as("result must be within the 20% range of the initial gasUsed(low param)")
-                .isCloseTo(low, Percentage.withPercentage(20));
+                .as("result must include at least 5%% headroom over the initial gas used")
+                .isGreaterThanOrEqualTo((long) Math.ceil(low * GAS_ESTIMATE_MULTIPLIER_LOWER_RANGE));
+        assertThat(regularCall)
+                .as("result must not exceed the caller gas limit when the limit can fit the 5%% headroom")
+                .isLessThanOrEqualTo(high);
 
         assertThat(iterations.get()).as("iteration limit").isLessThanOrEqualTo(iterationLimit);
+    }
+
+    /**
+     * Drives the estimator directly across a wide spread of gas magnitudes and gas limits. Unlike the dummy used by
+     * {@link #binarySearch}, here the call only succeeds once it is given at least the gas the transaction actually
+     * needs (mirroring a real estimation), so the search has to locate that requirement. The resulting estimate must
+     * land in the accepted 5%-20% headroom over the gas actually required.
+     */
+    @DisplayName("estimateStaysWithinExpectedGasRange")
+    @ParameterizedTest(name = "#{index} (gasRequired {0}, gasLimit {1})")
+    @CsvSource({
+        "21000, 1_800_000",
+        "45000, 1_800_000",
+        "120000, 1_800_000",
+        "300000, 1_800_000",
+        "607854, 1_800_000",
+        "750000, 3_000_000",
+        "1_000_000, 5_000_000",
+        "2_500_000, 15_000_000",
+        "5_000_000, 15_000_000",
+        "120000, 250000",
+        "480000, 1_000_000",
+        "33333, 15_000_000"
+    })
+    void estimateStaysWithinExpectedGasRange(final long gasRequired, final long gasLimit) {
+        final var estimate = binaryGasEstimator.search(
+                (a, b) -> iterations.addAndGet(b),
+                gas -> createTxnResult(gasRequired, gas >= gasRequired),
+                gasRequired,
+                gasLimit);
+
+        assertThat(estimate).as("result must not go out of bounds").isBetween(gasRequired, gasLimit);
+        assertThat(iterations.get())
+                .as("iteration limit")
+                .isLessThanOrEqualTo(properties.getMaxGasEstimateRetriesCount());
+        assertThat(isWithinExpectedGasRange(estimate, gasRequired))
+                .as(
+                        "estimate %d must be within the accepted 5%-20% headroom over the gas required %d",
+                        estimate, gasRequired)
+                .isTrue();
     }
 
     @DisplayName("binarySearchWithFailingCalls")
@@ -68,8 +112,12 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
     })
     void binarySearchWithFailingCalls(final long low, final long high, final int regularCallGasUsage) {
         // Call where every second contract call fails
+        final var callCount = new AtomicInteger(0);
         final var callResult = binaryGasEstimator.search(
-                (a, b) -> iterations.addAndGet(b), unused -> createTxnResult(low, failEverySecondCall()), low, high);
+                (a, b) -> iterations.addAndGet(b),
+                unused -> createTxnResult(low, failEverySecondCall(callCount)),
+                low,
+                high);
 
         assertThat(callResult).as("result must not go out of bounds").isBetween(low, high);
         assertThat(iterations.get())
@@ -109,7 +157,7 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
                 ContractFunctionResult.newBuilder().gasUsed(gasUsed).build());
     }
 
-    private boolean failEverySecondCall() {
-        return iterations.get() > 0 && iterations.get() % 2 == 0;
+    private boolean failEverySecondCall(final AtomicInteger callCount) {
+        return callCount.incrementAndGet() % 2 != 0;
     }
 }
