@@ -6,12 +6,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
 import static org.hiero.mirror.common.domain.entity.EntityType.UNKNOWN;
+import static org.mockito.Mockito.mock;
 
 import com.google.common.collect.Range;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
+import org.flywaydb.core.api.configuration.Configuration;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -20,16 +22,21 @@ import org.hiero.mirror.common.domain.transaction.ErrataType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
+import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.hiero.mirror.importer.repository.AccountBalanceRepository;
 import org.hiero.mirror.importer.repository.CryptoTransferRepository;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +44,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @RequiredArgsConstructor
 @Tag("migration")
-class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest {
+final class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest {
 
     private static final String DELETE_ACCOUNT_BALANCE_SQL =
             "delete from account_balance where consensus_timestamp <= ?";
@@ -46,8 +53,11 @@ class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest {
 
     private final AccountBalanceFileRepository accountBalanceFileRepository;
     private final AccountBalanceRepository accountBalanceRepository;
+    private final BlockProperties blockProperties;
+    private final BlockStreamResolver blockStreamResolver;
     private final CryptoTransferRepository cryptoTransferRepository;
     private final EntityRepository entityRepository;
+    private final Environment environment;
     private final ImporterProperties importerProperties;
     private final NamedParameterJdbcOperations namedParameterJdbcOperations;
     private final RecordFileRepository recordFileRepository;
@@ -74,10 +84,17 @@ class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest {
         var transactionTemplateProvider = objectProvider(transactionTemplate);
         migration = new InitializeEntityBalanceMigration(
                 accountBalanceFileRepositoryProvider,
+                blockStreamResolver,
+                environment,
                 importerProperties,
                 namedParameterJdbcOperationsProvider,
                 recordFileRepositoryProvider,
                 transactionTemplateProvider);
+    }
+
+    @AfterEach
+    void teardown() {
+        blockProperties.setEnabled(false);
     }
 
     @Test
@@ -116,6 +133,36 @@ class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest {
         setExpectedBalance();
         assertThat(entityRepository.findAll())
                 .containsExactlyInAnyOrder(account, account2, accountDeleted, contract, topic);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void skipWhenIngestedFromBlockstream(final boolean wrapped) {
+        // given
+        domainBuilder
+                .recordFile()
+                .customize(r -> {
+                    if (wrapped) {
+                        r.wrappedRecordBlockHash(domainBuilder.bytes(48))
+                                .previousWrappedRecordBlockHash(domainBuilder.bytes(48));
+                    } else {
+                        r.version(BlockStreamReader.VERSION);
+                    }
+                })
+                .persist();
+
+        // when, then
+        assertThat(migration.skipMigration(mock(Configuration.class))).isTrue();
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            true, true
+            false, false
+            """)
+    void skipWithBlockStreamConfig(final boolean enabled, final boolean shouldSkip) {
+        blockProperties.setEnabled(enabled);
+        assertThat(migration.skipMigration(mock(Configuration.class))).isEqualTo(shouldSkip);
     }
 
     @Test

@@ -3,12 +3,14 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.IterableAssert;
+import org.flywaydb.core.api.configuration.Configuration;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
@@ -18,7 +20,9 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.hiero.mirror.importer.repository.ContractResultRepository;
 import org.hiero.mirror.importer.repository.CryptoTransferRepository;
@@ -30,11 +34,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @SuppressWarnings("java:S5786")
 @RequiredArgsConstructor
 @Tag("migration")
-public class ErrataMigrationTest extends ImporterIntegrationTest {
+public final class ErrataMigrationTest extends ImporterIntegrationTest {
 
     public static final long BAD_TIMESTAMP1 = 1568415600193620000L;
     private static final long BAD_TIMESTAMP2 = 1568528100472477002L;
@@ -57,6 +64,7 @@ public class ErrataMigrationTest extends ImporterIntegrationTest {
             EXPECTED_ACCOUNT_BALANCE_FILE1, EXPECTED_ACCOUNT_BALANCE_FILE2, EXPECTED_ACCOUNT_BALANCE_FILE_FIXED_OFFSET);
 
     private final AccountBalanceFileRepository accountBalanceFileRepository;
+    private final BlockProperties blockProperties;
     private final ContractResultRepository contractResultRepository;
     private final CryptoTransferRepository cryptoTransferRepository;
     private final EntityProperties entityProperties;
@@ -73,6 +81,7 @@ public class ErrataMigrationTest extends ImporterIntegrationTest {
 
     @AfterEach
     void teardown() {
+        blockProperties.setEnabled(false);
         importerProperties.setEndDate(Utility.MAX_INSTANT_LONG);
         importerProperties.setNetwork(ImporterProperties.HederaNetwork.TESTNET);
         importerProperties.setStartDate(Instant.EPOCH);
@@ -164,6 +173,36 @@ public class ErrataMigrationTest extends ImporterIntegrationTest {
 
         assertThat(entityProperties.getPersist().isEntityHistory()).isTrue();
         assertThat(entityProperties.getPersist().isTrackBalance()).isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void skipWhenIngestedFromBlockstream(final boolean wrapped) {
+        // given
+        domainBuilder
+                .recordFile()
+                .customize(r -> {
+                    if (wrapped) {
+                        r.wrappedRecordBlockHash(domainBuilder.bytes(48))
+                                .previousWrappedRecordBlockHash(domainBuilder.bytes(48));
+                    } else {
+                        r.version(BlockStreamReader.VERSION);
+                    }
+                })
+                .persist();
+
+        // when, then
+        assertThat(errataMigration.skipMigration(mock(Configuration.class))).isTrue();
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            true, true
+            false, false
+            """)
+    void skipWithBlockStreamConfig(final boolean enabled, final boolean shouldSkip) {
+        blockProperties.setEnabled(enabled);
+        assertThat(errataMigration.skipMigration(mock(Configuration.class))).isEqualTo(shouldSkip);
     }
 
     @Test
