@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/persistence/domain"
 	"net/http"
 	"os"
 	"os/signal"
@@ -22,6 +21,7 @@ import (
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/interfaces"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/middleware"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/persistence"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/persistence/domain"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/services"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/services/construction"
 	log "github.com/sirupsen/logrus"
@@ -195,9 +195,15 @@ func main() {
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	var router http.Handler
 	if rosettaConfig.Online {
-		dbClient := db.ConnectToDb(rosettaConfig.Db)
+		dbClient, closeDb := db.ConnectToDb(rosettaConfig.Db)
+		if dbClient == nil {
+			log.Fatal("Failed to connect to database")
+		}
+		defer closeDb()
 
 		router, err = newBlockchainOnlineRouter(asserter, dbClient, network, mirrorConfig, ctx, version)
 		if err != nil {
@@ -235,7 +241,6 @@ func main() {
 	}()
 
 	<-ctx.Done()
-	stop()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), rosettaConfig.ShutdownTimeout)
 	defer cancel()
