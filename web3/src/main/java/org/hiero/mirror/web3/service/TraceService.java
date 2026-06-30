@@ -15,7 +15,6 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -51,7 +50,6 @@ public class TraceService {
     protected final ContractDebugService contractDebugService;
     protected final CommonEntityAccessor commonEntityAccessor;
 
-    private final CommonProperties commonProperties;
     private final RecordFileService recordFileService;
     private final EthereumTransactionRepository ethereumTransactionRepository;
     private final ContractResultRepository contractResultRepository;

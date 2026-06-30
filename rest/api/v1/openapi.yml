@@ -1924,12 +1924,12 @@ components:
       type: object
       properties:
         pre:
-          description: The accounts touched during transaction execution without any modifications
+          description: The accounts/contracts which state is touched during transaction execution
           type: array
           items:
             $ref: "#/components/schemas/AccountTrace"
         post:
-          description: The accounts touched during transaction execution with the applied modifications
+          description: The accounts/contracts which state is touched during transaction execution with their applied changes
           type: array
           items:
             $ref: "#/components/schemas/AccountTrace"

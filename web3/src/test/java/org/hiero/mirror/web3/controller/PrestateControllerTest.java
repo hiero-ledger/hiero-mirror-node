@@ -119,11 +119,11 @@ class PrestateControllerTest {
     private Web3Properties web3Properties;
 
     @Resource
-    private TracerProperties tracerProperties;
+    private PrestateProperties prestateProperties;
 
     @BeforeEach
     void setUp() {
-        tracerProperties.setEnabled(true);
+        prestateProperties.setEnabled(true);
     }
 
     TransactionIdOrHashParameter setUp(final TransactionProviderEnum provider) {
@@ -269,7 +269,7 @@ class PrestateControllerTest {
 
     @Test
     void callWhenTracerDisabled() throws Exception {
-        tracerProperties.setEnabled(false);
+        prestateProperties.setEnabled(false);
         final var transactionIdOrHash = setUp(TransactionProviderEnum.CONTRACT_CALL);
 
         mockMvc.perform(prestateRequest(transactionIdOrHash)).andExpect(status().isNotFound());
@@ -415,8 +415,8 @@ class PrestateControllerTest {
         }
 
         @Bean
-        TracerProperties tracerProperties() {
-            final var tracerProperties = new TracerProperties();
+        PrestateProperties tracerProperties() {
+            final var tracerProperties = new PrestateProperties();
             tracerProperties.setEnabled(true);
 
             return tracerProperties;

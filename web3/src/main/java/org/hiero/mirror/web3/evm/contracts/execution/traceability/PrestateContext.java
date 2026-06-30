@@ -19,36 +19,31 @@ import org.hiero.mirror.web3.service.model.PrestateRequest;
 @Getter
 public class PrestateContext {
 
-    /**
-     * Include storage information
-     */
-    private final boolean storage;
+    private final Set<Long> accounts = new LinkedHashSet<>();
 
     /**
      * Include contract bytecode
      */
     private final boolean code;
 
+    private final long consensusTimestamp;
+
     /**
      * Include pre and post account traces. By default only the pre collection will be populated.
      */
     private final boolean diff;
 
-    private final long consensusTimestamp;
-
-    private final Set<Long> accounts = new LinkedHashSet<>();
-
+    private final Map<String, AccountTrace> preAccountTraces = new LinkedHashMap<>();
+    private final Map<Long, byte[]> preBytecodeByContract = new HashMap<>();
+    private final Map<String, AccountTrace> postAccountTraces = new LinkedHashMap<>();
+    private final Map<Long, byte[]> postBytecodeByContract = new HashMap<>();
     private final Map<Long, Map<String, String>> preStorageByContract = new HashMap<>();
-
     private final Map<Long, Map<String, String>> postStorageByContract = new HashMap<>();
 
-    private final Map<Long, byte[]> preBytecodeByContract = new HashMap<>();
-
-    private final Map<Long, byte[]> postBytecodeByContract = new HashMap<>();
-
-    private final Map<String, AccountTrace> preAccountTraces = new LinkedHashMap<>();
-
-    private final Map<String, AccountTrace> postAccountTraces = new LinkedHashMap<>();
+    /**
+     * Include storage information
+     */
+    private final boolean storage;
 
     public PrestateContext(final PrestateRequest prestateRequest, final long consensusTimestamp) {
         this.code = prestateRequest.isCode();

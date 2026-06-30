@@ -5,7 +5,9 @@ package org.hiero.mirror.web3.service;
 import org.hiero.mirror.rest.model.PrestateResponse;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 
+@NullMarked
 public interface PrestateService {
 
     /**

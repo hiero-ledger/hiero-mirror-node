@@ -39,7 +39,6 @@ import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.repository.projections.EntitySnapshot;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
-import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -78,7 +77,7 @@ public class PrestateServiceImpl implements PrestateService {
     }
 
     @Override
-    public PrestateResponse processPrestateCall(@NonNull final PrestateRequest prestateRequest) {
+    public PrestateResponse processPrestateCall(final PrestateRequest prestateRequest) {
         final var consensusTimestamp = resolveConsensusTimestamp(prestateRequest.getTransactionIdOrHashParameter());
         final var contractResult = contractResultRepository
                 .findById(consensusTimestamp)

@@ -25,7 +25,7 @@ public class PrestateController {
 
     private final PrestateService prestateService;
     private final ThrottleManager throttleManager;
-    private final TracerProperties tracerProperties;
+    private final PrestateProperties prestateProperties;
 
     /**
      * <p>
@@ -46,7 +46,7 @@ public class PrestateController {
             @RequestParam(required = false, defaultValue = "false") boolean diff,
             @RequestParam(required = false, defaultValue = "false") boolean code,
             @RequestParam(required = false, defaultValue = "false") boolean storage) {
-        if (tracerProperties.isEnabled()) {
+        if (prestateProperties.isEnabled()) {
             throttleManager.throttlePrestateRequest();
 
             final var request = new PrestateRequest(transactionIdOrHash, diff, code, storage);
