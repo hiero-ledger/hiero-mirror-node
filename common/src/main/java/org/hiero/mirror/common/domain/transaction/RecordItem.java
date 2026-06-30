@@ -282,7 +282,7 @@ public class RecordItem implements StreamItem {
         return null;
     }
 
-    private boolean hasContractResult() {
+    public boolean hasContractResult() {
         return transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult();
     }
 

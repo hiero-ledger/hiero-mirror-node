@@ -6,7 +6,6 @@ import static org.hiero.mirror.importer.reader.record.ProtoRecordFileReader.VERS
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
-import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -233,7 +232,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         final var contractRelatedParent = recordItem.getContractRelatedParent();
         if (contractRelatedParent != null && contractRelatedParent.getEvmTransactionIndex() != null) {
             recordItem.setEvmTransactionIndex(contractRelatedParent.getEvmTransactionIndex());
-        } else {
+        } else if (recordItem.hasContractResult()) {
             recordItem.setEvmTransactionIndex(evmTransactionIndex.getAndIncrement());
         }
     }
@@ -245,17 +244,12 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
         @Override
         public void accept(RecordItem recordItem) {
-            if (!recordItem.isTopLevel()) {
+            if (!recordItem.isTopLevel() || !recordItem.hasContractResult()) {
                 return;
             }
 
             var rec = recordItem.getTransactionRecord();
             var result = rec.hasContractCreateResult() ? rec.getContractCreateResult() : rec.getContractCallResult();
-
-            if (ContractFunctionResult.getDefaultInstance().equals(result)) {
-                return;
-            }
-
             gasUsed += result.getGasUsed();
             logsBloom.or(DomainUtils.toBytes(result.getBloom()));
         }

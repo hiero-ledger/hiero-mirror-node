@@ -55,7 +55,7 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
             values (:upperBound)
             """;
 
-    // Each descendant inherits the index of its nearest preceding root via a running count of roots seen so far.
+    // Filter to transactions that executed in the EVM so failed roots don't shift the index counter.
     private static final String UPDATE_EVM_TRANSACTION_INDEX_SQL = """
             with evm_candidates as (
                 select
@@ -65,6 +65,12 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 where t.consensus_timestamp >= :consensusStart
                   and t.consensus_timestamp <= :lastConsensusEnd
                   and t.type in (7, 8, 50)
+                  and t.consensus_timestamp in (
+                      select cr.consensus_timestamp
+                      from contract_result cr
+                      where cr.consensus_timestamp >= :consensusStart
+                        and cr.consensus_timestamp <= :lastConsensusEnd
+                  )
             ),
             evm_index as (
                 select

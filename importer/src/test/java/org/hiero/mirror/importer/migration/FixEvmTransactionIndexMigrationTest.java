@@ -162,8 +162,7 @@ final class FixEvmTransactionIndexMigrationTest
         final var innerEthereumTimestamp = block.getConsensusStart() + 300;
 
         persistTransaction(batchTimestamp, TransactionType.ATOMIC_BATCH, 0, false, null);
-        // Inner batch transactions are independently signed, so each keeps nonce 0; the batch itself never has a
-        // contract_result, so each inner EVM transaction is its own hierarchy root.
+        // Each inner transaction is independently signed and keeps nonce 0, so each is treated as a root.
         persistTransaction(innerCallTimestamp, TransactionType.CONTRACTCALL, 0, false, batchTimestamp);
         persistTransaction(innerEthereumTimestamp, TransactionType.ETHEREUMTRANSACTION, 0, false, batchTimestamp);
 
@@ -215,7 +214,6 @@ final class FixEvmTransactionIndexMigrationTest
 
         persistTransaction(cryptoTransferTimestamp, TransactionType.CRYPTOTRANSFER, 0, false, null);
         persistHookDispatchTransaction(hookCallTimestamp, 1, cryptoTransferTimestamp);
-        // Parented directly to the hook call, which does have a contract_result, so it inherits the hook's index.
         persistTransaction(nestedHookCallTimestamp, TransactionType.CONTRACTCALL, 2, false, hookCallTimestamp);
 
         final var hookContractResult = persistHookDispatchContractResult(hookCallTimestamp, 42);
@@ -274,6 +272,26 @@ final class FixEvmTransactionIndexMigrationTest
 
         // then
         assertThat(contractResultRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void failedEvmRootWithoutContractResultDoesNotConsumeIndex() {
+        // given
+        final var block = persistBlock(0);
+        final var failedEthereumTimestamp = block.getConsensusStart() + 100;
+        final var successfulCallTimestamp = block.getConsensusStart() + 200;
+
+        persistTransaction(failedEthereumTimestamp, TransactionType.ETHEREUMTRANSACTION, 0, false, null);
+        persistTransaction(successfulCallTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+
+        final var contractCallResult = persistContractResult(successfulCallTimestamp, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(contractCallResult.getConsensusTimestamp(), 0);
     }
 
     @Test
