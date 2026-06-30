@@ -48,7 +48,6 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tuweni.bytes.Bytes;
 import org.hamcrest.core.StringContains;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -755,12 +754,10 @@ class OpcodesControllerTest {
                 final ContractResultRepository contractResultRepository,
                 final CommonEntityAccessor commonEntityAccessor,
                 final ContractTransactionHashRepository contractTransactionHashRepository,
-                final TransactionRepository transactionRepository,
-                final CommonProperties commonProperties) {
+                final TransactionRepository transactionRepository) {
             return new OpcodeServiceImpl(
                     contractDebugService,
                     commonEntityAccessor,
-                    commonProperties,
                     recordFileService,
                     ethereumTransactionRepository,
                     contractResultRepository,

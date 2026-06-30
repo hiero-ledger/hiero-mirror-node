@@ -330,7 +330,7 @@ class PrestateServiceTest {
         assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0x32");
         assertThat(response.getPre().getFirst().getNonce()).isEqualTo(3L);
         assertThat(response.getPre().getFirst().getCode()).isNull();
-        assertThat(response.getPre().getFirst().getStorage()).isNull();
+        assertThat(response.getPre().getFirst().getStorage()).isEmpty();
     }
 
     @Test

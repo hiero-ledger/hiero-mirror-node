@@ -7,7 +7,6 @@ import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import java.util.ArrayList;
 import java.util.Optional;
 import lombok.CustomLog;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.rest.model.OpcodesResponse;
@@ -30,7 +29,6 @@ public class OpcodeServiceImpl extends TraceService implements OpcodeService {
     public OpcodeServiceImpl(
             final ContractDebugService contractDebugService,
             final CommonEntityAccessor commonEntityAccessor,
-            final CommonProperties commonProperties,
             final RecordFileService recordFileService,
             final EthereumTransactionRepository ethereumTransactionRepository,
             final ContractResultRepository contractResultRepository,
@@ -39,7 +37,6 @@ public class OpcodeServiceImpl extends TraceService implements OpcodeService {
         super(
                 contractDebugService,
                 commonEntityAccessor,
-                commonProperties,
                 recordFileService,
                 ethereumTransactionRepository,
                 contractResultRepository,
