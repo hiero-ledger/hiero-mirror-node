@@ -284,4 +284,17 @@ class ContractStorageReadableKVStateTest {
         override.setBalance(balanceHex);
         return override;
     }
+
+    @Test
+    void touchedStorageNotUpdatedWhenContextIsNull() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
+                .thenReturn(Optional.of(BYTES.toByteArray()));
+
+        final var result = contractStorageReadableKVState.get(SLOT_KEY);
+
+        assertThat(result).isNotNull();
+        assertThat(result).returns(BYTES, SlotValue::value);
+        assertThat(contractCallContext.getPrestateContext()).isNull();
+    }
 }

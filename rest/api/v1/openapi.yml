@@ -710,6 +710,48 @@ paths:
           $ref: "#/components/responses/NotFoundError"
       tags:
         - contracts
+  /api/v1/contracts/results/{transactionIdOrHash}/prestate:
+    get:
+      summary: Get the account traces for a historical transaction on the network with the given transaction ID or hash
+      description: |
+        Re-executes a transaction and returns a result containing detailed information for the accounts needed for the
+        transaction execution with some basic fields about them.
+
+        Note that to provide the output, the transaction needs to be re-executed on the EVM,
+        which may take a significant amount of time to complete if storage information is requested.
+      operationId: getContractPrestate
+      parameters:
+        - $ref: "#/components/parameters/transactionIdOrEthHashPathParam"
+        - $ref: "#/components/parameters/diff"
+        - $ref: "#/components/parameters/code"
+        - $ref: "#/components/parameters/storage"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrestateResponse"
+        400:
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        404:
+          description: Transaction or record file not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        429:
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - contracts
   /api/v1/contracts/results/{transactionIdOrHash}/opcodes:
     get:
       summary: Get the opcode traces for a historical transaction on the network with the given transaction ID or hash
@@ -1874,6 +1916,41 @@ components:
             format: binary
         storage:
           description: The storage slots (keys and values in hex) of the current contract which is read from and written to
+          type: [object, "null"]
+          additionalProperties:
+            type: string
+            format: binary
+    PrestateResponse:
+      type: object
+      properties:
+        pre:
+          description: The accounts/contracts which state is touched during transaction execution
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountTrace"
+        post:
+          description: The accounts/contracts which state is touched during transaction execution with their applied changes
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountTrace"
+    AccountTrace:
+      type: object
+      properties:
+        address:
+          description: the address of the account
+          type: string
+        balance:
+          description: the balance of the account
+          type: string
+        code:
+          description: the bytecode of the account
+          type: string
+        nonce:
+          description: the nonce of the account
+          type: integer
+          format: int64
+        storage:
+          description: The storage slots (keys and values in hex) of the contract which is read from and written to
           type: [object, "null"]
           additionalProperties:
             type: string
@@ -5541,6 +5618,22 @@ components:
       description: If provided and set to true, storage information will be included in the response
       in: query
       example: false
+      schema:
+        type: boolean
+        default: false
+    code:
+      name: code
+      description: If provided and set to true, bytecode information will be included in the response
+      in: query
+      example: true
+      schema:
+        type: boolean
+        default: false
+    diff:
+      name: diff
+      description: If provided and set to true, include account trace information with changes from transaction execution
+      in: query
+      example: true
       schema:
         type: boolean
         default: false

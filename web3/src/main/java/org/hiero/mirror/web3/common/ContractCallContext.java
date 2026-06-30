@@ -9,12 +9,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.PrestateContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
@@ -26,17 +26,20 @@ public class ContractCallContext {
     public static final String CONTEXT_NAME = "ContractCallContext";
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
 
-    @Getter(AccessLevel.NONE)
+    @Getter
     private final Map<Integer, Map<Object, Object>> readCache = new HashMap<>();
 
     @Getter
     private final long startTime = System.currentTimeMillis();
 
-    @Getter(AccessLevel.NONE)
+    @Getter
     private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
 
     @Setter
     private OpcodeContext opcodeContext = null;
+
+    @Setter
+    private PrestateContext prestateContext = null;
 
     @Setter
     private CallServiceParameters callServiceParameters;

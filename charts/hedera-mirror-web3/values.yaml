@@ -139,6 +139,7 @@ ingress:
         # the rest of /api/v1/contracts will still be handled by the REST API logic, except for this one address
         - '/api/v1/contracts/call'
         - '/api/v1/contracts/results/((0x)?[A-Fa-f0-9]{64}|\d+\.\d+\.\d+-\d+-\d+)/opcodes'
+        - '/api/v1/contracts/results/((0x)?[A-Fa-f0-9]{64}|\d+\.\d+\.\d+-\d+-\d+)/prestate'
   tls:
     enabled: false
     secretName: ""

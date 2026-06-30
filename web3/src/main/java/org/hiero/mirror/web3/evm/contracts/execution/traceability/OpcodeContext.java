@@ -30,7 +30,7 @@ public final class OpcodeContext {
      * Populated once via {@link #setActions(List)} to avoid repeated filtering and sorting.
      */
     @Setter(AccessLevel.NONE)
-    private Map<Integer, List<ContractAction>> actionsByDepth = new HashMap<>();
+    private final Map<Integer, List<ContractAction>> actionsByDepth = new HashMap<>();
 
     private List<Opcode> opcodes;
 
@@ -39,7 +39,7 @@ public final class OpcodeContext {
      * Used to correlate EVM re-execution system calls with preloaded reverted sidecar actions.
      */
     @Setter(AccessLevel.NONE)
-    private Map<Integer, Integer> precompileCallCountByDepth = new HashMap<>();
+    private final Map<Integer, Integer> precompileCallCountByDepth = new HashMap<>();
 
     private long gasRemaining;
 
