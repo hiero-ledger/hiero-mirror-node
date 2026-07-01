@@ -2528,3 +2528,210 @@ resource "grafana_rule_group" "rule_group_logs" {
     is_paused = false
   }
 }
+
+###############################################################################
+# Inhibition rules
+#
+# Resource metadata `uid` values must NOT exceed 40 characters (Grafana limitation, returns 400 BadRequest)
+###############################################################################
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_all_when_platform_not_active" {
+  metadata {
+    uid = "inhibit-all-when-platform-not-active"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "MonitorPublishPlatformNotActive" }]
+    target_matchers = [{ type = "=~", label = "application", value = ".*" }]
+    equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_grpc_logerrors_when_errors" {
+  metadata {
+    uid = "inhibit-grpc-logerrors-when-errors"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "GrpcErrors" }]
+    target_matchers = [{ type = "=", label = "alertname", value = "GrpcLogErrors" }]
+    equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_grpc_when_pod_issues" {
+  metadata {
+    uid = "inhibit-grpc-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "grpc" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_grpc_monitor_hilat_when_importer_nopods" {
+  metadata {
+    uid = "inhibit-grpcmon-hilat-when-imp-nopods"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "ImporterNoPodsReady" }]
+    target_matchers = [{ type = "=~", label = "alertname", value = "(GrpcHighLatency|MonitorSubscribeLatency)" }]
+    equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_grpc_monitor_hilat_when_importer_record" {
+  metadata {
+    uid = "inhibit-grpcmon-hilat-when-imp-record"
+  }
+  spec {
+    source_matchers = [
+      { type = "=", label = "application", value = "importer" },
+      { type = "=", label = "type", value = "RECORD" },
+    ]
+    target_matchers = [{ type = "=~", label = "alertname", value = "(GrpcHighLatency|MonitorSubscribeLatency)" }]
+    equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_importer_verificationerrors_when_noconsensus" {
+  metadata {
+    uid = "inhibit-imp-veriferr-when-noconsensus"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "ImporterNoConsensus" }]
+    target_matchers = [{ type = "=", label = "alertname", value = "ImporterFileVerificationErrors" }]
+    equal           = ["type", "namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_importer_cloudlatency_when_clouderror" {
+  metadata {
+    uid = "inhibit-importer-cloudlat-when-clouderr"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "ImporterCloudStorageErrors" }]
+    target_matchers = [{ type = "=", label = "alertname", value = "ImporterCloudStorageLatency" }]
+    equal           = ["type", "namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_log_alerts_when_errors" {
+  metadata {
+    uid = "inhibit-importer-logerr-when-errors"
+  }
+  spec {
+    source_matchers = [{ type = "=~", label = "alertname", value = "Importer[a-zA-Z]+Errors" }]
+    target_matchers = [{ type = "=", label = "alertname", value = "ImporterLogErrors" }]
+    equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_parser_latency_when_parse_or_verification_errors" {
+  metadata {
+    uid = "inhibit-importer-parser-when-errors"
+  }
+  spec {
+    source_matchers = [{ type = "=~", label = "alertname", value = "(ImporterFileVerificationErrors|ImporterParseErrors)" }]
+    target_matchers = [{ type = "=", label = "area", value = "parser" }]
+    equal           = ["type", "namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_stream_alerts_when_cloud_errors" {
+  metadata {
+    uid = "inhibit-importer-stream-when-clouderr"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "cloud" }]
+    target_matchers = [{ type = "=~", label = "area", value = "(parser|downloader)" }]
+    equal           = ["type", "namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_importer_when_pod_issues" {
+  metadata {
+    uid = "inhibit-importer-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "importer" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_monitor_handlelatency_when_publishlatency" {
+  metadata {
+    uid = "inhibit-mon-handlelat-when-publishlat"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "MonitorPublishLatency" }]
+    target_matchers = [{ type = "=", label = "alertname", value = "MonitorPublishToHandleLatency" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_monitor_substopped_when_importer_notx_or_nopods" {
+  metadata {
+    uid = "inhibit-mon-substop-when-imp-notx-nopods"
+  }
+  spec {
+    source_matchers = [{ type = "=~", label = "alertname", value = "(ImporterNoTransactions|ImporterNoPodsReady)" }]
+    target_matchers = [{ type = "=", label = "alertname", value = "MonitorSubscribeStopped" }]
+    equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_monitor_publish_when_stopped" {
+  metadata {
+    uid = "inhibit-monitor-publish-when-stopped"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "MonitorPublishStopped" }]
+    target_matchers = [{ type = "=", label = "mode", value = "publish" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_monitor_when_pod_issues" {
+  metadata {
+    uid = "inhibit-monitor-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "monitor" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_rest_when_pod_issues" {
+  metadata {
+    uid = "inhibit-rest-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "rest" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_restjava_when_pod_issues" {
+  metadata {
+    uid = "inhibit-restjava-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "rest-java" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_web3_when_pod_issues" {
+  metadata {
+    uid = "inhibit-web3-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "web3" }]
+    equal           = ["namespace", "pod"]
+  }
+}

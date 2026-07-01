@@ -10,35 +10,6 @@ affinity:
             matchLabels:
               app.kubernetes.io/component: grpc
 
-alertmanager:
-  inhibitRules:
-    enabled: false
-    InhibitAllWhenPodIssues:
-      enabled: true
-      matches:
-        - sourceMatch:
-            - name: area
-              value: resource
-          targetMatch:
-            - name: application
-              value: grpc
-          equal:
-            - namespace
-            - pod
-
-    InhibitGrpcLogAlertWhenHighErrors:
-      enabled: true
-      matches:
-        - sourceMatch:
-            - name: alertname
-              value: GrpcErrors
-          targetMatch:
-            - name: alertname
-              value: GrpcLogErrors
-          equal:
-            - namespace
-            - pod
-
 annotations: {}
 
 config: {}

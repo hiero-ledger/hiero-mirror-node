@@ -10,22 +10,6 @@ affinity:
             matchLabels:
               app.kubernetes.io/component: rest
 
-alertmanager:
-  inhibitRules:
-    enabled: false
-    InhibitAllWhenPodIssues:
-      enabled: true
-      matches:
-        - sourceMatch:
-            - name: area
-              value: resource
-          targetMatch:
-            - name: application
-              value: rest
-          equal:
-            - namespace
-            - pod
-
 annotations: {}
 
 config: {}

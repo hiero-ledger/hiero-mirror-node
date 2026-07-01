@@ -10,22 +10,6 @@ affinity:
             matchLabels:
               app.kubernetes.io/component: web3
 
-alertmanager:
-  inhibitRules:
-    enabled: false
-    InhibitAllWhenPodIssues:
-      enabled: true
-      matches:
-        - sourceMatch:
-            - name: area
-              value: resource
-          targetMatch:
-            - name: application
-              value: web3
-          equal:
-            - namespace
-            - pod
-
 annotations: {}
 
 config: {}
