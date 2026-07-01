@@ -74,6 +74,7 @@ class ConsensusControllerTest extends GrpcIntegrationTest {
                     iterator.hasNext();
                 })
                 .isInstanceOf(StatusRuntimeException.class)
+                .hasMessageContaining("subscribeTopic.filter.topicId: must not be null")
                 .extracting(t -> ((StatusRuntimeException) t).getStatus().getCode())
                 .isEqualTo(Status.Code.INVALID_ARGUMENT);
     }
