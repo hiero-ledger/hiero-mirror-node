@@ -42,7 +42,7 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new CryptoUpdateTransactionHandler(entityIdService, entityListener, evmHookHandler);
+        return new CryptoUpdateTransactionHandler(entityIdService, entityListener, entityProperties, evmHookHandler);
     }
 
     @Override
@@ -236,6 +236,33 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .build();
         setupForCryptoUpdateTransactionTest(
                 recordItem, t -> assertThat(t).returns(delegationAddressBytes, Entity::getDelegationAddress));
+    }
+
+    @Test
+    void updateTransactionBlockstreamDelegationAddressPersistsEthereumNonceFromStateChanges() {
+        final var delegationAddressBytes = Hex.decode("a94f5374fce5edbc8e2a8697c15331677e6ebf0b");
+        RecordItem recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(body -> body.setDelegationAddress(DomainUtils.fromBytes(delegationAddressBytes)))
+                .recordItem(r -> r.blockstream(true).accountEthereumNonce(7L))
+                .build();
+        setupForCryptoUpdateTransactionTest(recordItem, t -> assertThat(t)
+                .returns(delegationAddressBytes, Entity::getDelegationAddress)
+                .returns(7L, Entity::getEthereumNonce));
+    }
+
+    @Test
+    void updateTransactionBlockstreamDelegationAddressSkipsNonceWhenTrackNonceDisabled() {
+        entityProperties.getPersist().setTrackNonce(false);
+        final var delegationAddressBytes = Hex.decode("a94f5374fce5edbc8e2a8697c15331677e6ebf0b");
+        RecordItem recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(body -> body.setDelegationAddress(DomainUtils.fromBytes(delegationAddressBytes)))
+                .recordItem(r -> r.blockstream(true).accountEthereumNonce(7L))
+                .build();
+        setupForCryptoUpdateTransactionTest(recordItem, t -> assertThat(t)
+                .returns(delegationAddressBytes, Entity::getDelegationAddress)
+                .returns(null, Entity::getEthereumNonce));
     }
 
     private void assertCryptoUpdate(long timestamp, Consumer<Entity> extraAssert) {

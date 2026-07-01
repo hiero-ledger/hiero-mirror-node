@@ -1045,6 +1045,61 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     }
 
     @Test
+    void cryptoCreateBlockstreamDelegationAddressPersistsEthereumNonceFromStateChanges() {
+        // given
+        long expectedNonce = 2L;
+        var payer = domainBuilder.entity().persist();
+        var transactionId = transactionId(payer.toEntityId(), domainBuilder.timestamp());
+
+        // when - blockstream crypto create with delegation address and nonce from state changes
+        var recordItem = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(b -> b.setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .record(r -> r.setTransactionID(transactionId))
+                .recordItem(r -> r.blockstream(true).accountEthereumNonce(expectedNonce))
+                .build();
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        var accountId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
+        assertThat(entityRepository.findById(accountId.getId()))
+                .get()
+                .returns(EVM_ADDRESS, Entity::getDelegationAddress)
+                .returns(expectedNonce, Entity::getEthereumNonce);
+    }
+
+    @Test
+    void cryptoUpdateBlockstreamDelegationAddressPersistsEthereumNonceFromStateChanges() {
+        // given
+        var account = domainBuilder
+                .entity()
+                .customize(e -> e.delegationAddress(null).ethereumNonce(0L))
+                .persist();
+        var protoAccountId = account.toEntityId().toAccountID();
+        long expectedNonce = 3L;
+
+        // when - blockstream crypto update with delegation address and nonce from state changes
+        var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b ->
+                        b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .record(r -> r.setTransactionID(transactionId))
+                .recordItem(r -> r.blockstream(true).accountEthereumNonce(expectedNonce))
+                .build();
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(entityRepository.findById(account.getId()))
+                .get()
+                .returns(EVM_ADDRESS, Entity::getDelegationAddress)
+                .returns(expectedNonce, Entity::getEthereumNonce);
+    }
+
+    @Test
     void cryptoUpdateDelegationAddressSetToZeroAddress() {
         // given - entity with existing non-null delegation address
         var zeroAddress = Hex.decode("0000000000000000000000000000000000000000");

@@ -39,7 +39,19 @@ final class CryptoCreateTransformer extends AbstractBlockTransactionTransformer 
                 .getTransactionOutput(TransactionCase.ACCOUNT_CREATE)
                 .map(TransactionOutput::getAccountCreate)
                 .orElseThrow();
-        recordBuilder.getReceiptBuilder().setAccountID(accountCreate.getCreatedAccountId());
+        var createdAccountId = accountCreate.getCreatedAccountId();
+        recordBuilder.getReceiptBuilder().setAccountID(createdAccountId);
+
+        var transactionBody =
+                blockTransactionTransformation.getTransactionBody().getCryptoCreateAccount();
+        if (!transactionBody.getDelegationAddress().isEmpty()) {
+            blockTransaction
+                    .getStateChangeContext()
+                    .getAccount(createdAccountId)
+                    .ifPresent(account -> blockTransactionTransformation
+                            .recordItemBuilder()
+                            .accountEthereumNonce(account.getEthereumNonce()));
+        }
     }
 
     @Override
