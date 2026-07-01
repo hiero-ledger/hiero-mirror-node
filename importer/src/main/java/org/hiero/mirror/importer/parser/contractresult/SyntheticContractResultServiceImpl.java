@@ -40,7 +40,7 @@ public class SyntheticContractResultServiceImpl implements SyntheticContractResu
         contractResult.setPayerAccountId(recordItem.getPayerAccountId());
         contractResult.setSenderId(result.getSenderId());
         contractResult.setTransactionHash(recordItem.getTransactionHash());
-        contractResult.setTransactionIndex(recordItem.getTransactionIndex());
+        contractResult.setTransactionIndex(recordItem.getEvmTransactionIndex());
         contractResult.setTransactionNonce(transactionBody.getTransactionID().getNonce());
         contractResult.setTransactionResult(transactionRecord.getReceipt().getStatusValue());
 

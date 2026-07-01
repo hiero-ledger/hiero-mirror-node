@@ -121,7 +121,7 @@ final class ContractResultServiceImpl implements ContractResultService {
                 .payerAccountId(payerAccountId)
                 .senderId(payerAccountId)
                 .transactionHash(ethereumTransaction.getHash())
-                .transactionIndex(transaction.getIndex())
+                .transactionIndex(recordItem.getEvmTransactionIndex())
                 .transactionNonce(transaction.getNonce())
                 .transactionResult(transaction.getResult())
                 .build();
@@ -232,7 +232,7 @@ final class ContractResultServiceImpl implements ContractResultService {
         // senderId defaults to payerAccountId
         contractResult.setSenderId(payerAccountId);
         contractResult.setTransactionHash(transactionHash);
-        contractResult.setTransactionIndex(transaction.getIndex());
+        contractResult.setTransactionIndex(recordItem.getEvmTransactionIndex());
         contractResult.setTransactionNonce(transaction.getNonce());
         contractResult.setTransactionResult(transaction.getResult());
         transactionHandler.updateContractResult(contractResult, recordItem);
@@ -298,7 +298,7 @@ final class ContractResultServiceImpl implements ContractResultService {
             contractLog.setTopic2(Utility.getTopic(contractLogInfo, 2));
             contractLog.setTopic3(Utility.getTopic(contractLogInfo, 3));
             contractLog.setTransactionHash(recordItem.getTransactionHash());
-            contractLog.setTransactionIndex(recordItem.getTransactionIndex());
+            contractLog.setTransactionIndex(recordItem.getEvmTransactionIndex());
             entityListener.onContractLog(contractLog);
 
             recordItem.addContractTransaction(contractId);

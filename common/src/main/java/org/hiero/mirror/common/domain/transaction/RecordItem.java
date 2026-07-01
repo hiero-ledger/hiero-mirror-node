@@ -90,6 +90,10 @@ public class RecordItem implements StreamItem {
 
     @NonFinal
     @Setter
+    private Integer evmTransactionIndex;
+
+    @NonFinal
+    @Setter
     private Predicate<EntityId> contractTransactionPredicate;
 
     @NonFinal
@@ -278,7 +282,7 @@ public class RecordItem implements StreamItem {
         return null;
     }
 
-    private boolean hasContractResult() {
+    public boolean hasContractResult() {
         return transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult();
     }
 
