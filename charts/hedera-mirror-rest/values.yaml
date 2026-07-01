@@ -197,65 +197,6 @@ podSecurityContext:
 
 priorityClassName: ""
 
-prometheusRules:
-  enabled: false
-  RestErrors:
-    annotations:
-      description: "REST API 5xx error rate for {{ $labels.namespace }} is {{ $value | humanizePercentage }}"
-      summary: "Mirror REST API error rate exceeds 1%"
-    enabled: true
-    expr: sum(rate(api_request_total{container="rest",code=~"^5.."}[1m])) by (namespace) / sum(rate(api_request_total{container="rest"}[1m])) by (namespace) > 0.01
-    for: 1m
-    labels:
-      severity: critical
-      application: rest
-
-  RestHighCPU:
-    annotations:
-      description: "{{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ $value | humanizePercentage }}"
-      summary: "Mirror REST API CPU usage exceeds 80%"
-    enabled: true
-    expr: sum(nodejs_process_cpu_usage_percentage{container="rest"}) by (namespace, pod) / 100 > 0.8
-    for: 5m
-    labels:
-      severity: critical
-      application: rest
-      area: resource
-
-  RestNoPodsReady:
-    annotations:
-      description: "No REST API instances are currently running in {{ $labels.namespace }}"
-      summary: No REST API instances running
-    enabled: true
-    expr: sum(kube_pod_status_ready{pod=~".*-rest-.*",condition="true"}) by (namespace) < 1
-    for: 2m
-    labels:
-      severity: critical
-      application: rest
-      area: resource
-
-  RestNoRequests:
-    annotations:
-      description: "REST API has not seen any requests to {{ $labels.namespace }} for 5m"
-      summary: "No Mirror REST API requests seen for awhile"
-    enabled: true
-    expr: sum(rate(api_all_request_total{container="rest"}[3m])) by (namespace) <= 0
-    for: 5m
-    labels:
-      severity: warning
-      application: rest
-
-  RestRequestLatency:
-    annotations:
-      description: "{{ $labels.namespace }}/{{ $labels.pod }} is taking {{ $value }} ms to generate a response"
-      summary: "Mirror REST API request latency exceeds 2s"
-    enabled: true
-    expr: sum(rate(api_request_duration_milliseconds_sum{container="rest"}[5m])) by (namespace, pod) / sum(rate(api_request_duration_milliseconds_count{container="rest"}[5m])) by (namespace, pod) > 2000
-    for: 1m
-    labels:
-      severity: warning
-      application: rest
-
 readinessProbe:
   httpGet:
     path: /health/readiness

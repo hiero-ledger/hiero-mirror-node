@@ -10,7 +10,7 @@ plugins {
 }
 
 node {
-    val nodeJsVersion: String by rootProject.extra
+    val nodeJsVersion = rootProject.extra["nodeJsVersion"] as String
     download = true
     version = nodeJsVersion
 }

@@ -4,8 +4,8 @@ go 1.26
 
 require (
 	github.com/Code-Hex/go-generics-cache v1.5.1
-	github.com/coinbase/rosetta-sdk-go v0.11.0
-	github.com/coinbase/rosetta-sdk-go/types v1.7.1
+	github.com/coinbase/rosetta-sdk-go v0.12.0
+	github.com/coinbase/rosetta-sdk-go/types v1.7.2
 	github.com/cucumber/godog v0.15.1
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/go-viper/mapstructure/v2 v2.5.0
@@ -26,7 +26,7 @@ require (
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/postgres v1.6.0
-	gorm.io/gorm v1.31.1
+	gorm.io/gorm v1.31.2
 )
 
 require (
@@ -91,7 +91,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/opencontainers/runc v1.2.8 // indirect
+	github.com/opencontainers/runc v1.3.6 // indirect
 	github.com/opentracing-contrib/go-stdlib v1.0.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect

@@ -43,7 +43,13 @@ public class FileClient extends AbstractNetworkClient {
         var response = executeTransactionAndRetrieveReceipt(fileCreateTransaction, keyList);
 
         var fileId = response.getReceipt().fileId;
-        log.info("Created new file {} with {} B via {}", fileId, content.length, memo, response.getTransactionId());
+        log.info(
+                "Created new file {} with {} B via {} in {}",
+                fileId,
+                content.length,
+                memo,
+                response.getTransactionId(),
+                response.getStopwatch());
         fileIds.add(fileId);
         return response;
     }
@@ -60,7 +66,12 @@ public class FileClient extends AbstractNetworkClient {
         }
 
         var response = executeTransactionAndRetrieveReceipt(fileUpdateTransaction);
-        log.info("Updated file {} with {} B via {}", fileId, count, response.getTransactionId());
+        log.info(
+                "Updated file {} with {} B via {} in {}",
+                fileId,
+                count,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -73,7 +84,12 @@ public class FileClient extends AbstractNetworkClient {
                 .setChunkSize(4096);
 
         var response = executeTransactionAndRetrieveReceipt(fileAppendTransaction);
-        log.info("Appended {} B to file {} via {}", contents.length, fileId, response.getTransactionId());
+        log.info(
+                "Appended {} B to file {} via {} in {}",
+                contents.length,
+                fileId,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -83,7 +99,7 @@ public class FileClient extends AbstractNetworkClient {
                 new FileDeleteTransaction().setFileId(fileId).setTransactionMemo(memo);
 
         var response = executeTransactionAndRetrieveReceipt(fileUpdateTransaction);
-        log.info("Deleted file {} via {}", fileId, response.getTransactionId());
+        log.info("Deleted file {} via {} in {}", fileId, response.getTransactionId(), response.getStopwatch());
         fileIds.remove(fileId);
         return response;
     }

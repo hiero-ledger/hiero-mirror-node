@@ -1383,6 +1383,10 @@ public final class RecordItemBuilder {
         return new Builder<>(TransactionType.HOOKSTORE, body);
     }
 
+    public long id() {
+        return id.incrementAndGet();
+    }
+
     public ByteString bytes(int length) {
         byte[] bytes = randomBytes(length);
         return ByteString.copyFrom(bytes);
@@ -1406,6 +1410,14 @@ public final class RecordItemBuilder {
 
     public ByteString slot() {
         return fromBytes(trim(randomBytes(32)));
+    }
+
+    public TransactionSidecarRecord.Builder contractBytecode(ContractID contractId) {
+        var contractBytecode = ContractBytecode.newBuilder()
+                .setContractId(contractId)
+                .setInitcode(bytes(2048))
+                .setRuntimeBytecode(bytes(3048));
+        return TransactionSidecarRecord.newBuilder().setBytecode(contractBytecode);
     }
 
     public TransactionSidecarRecord.Builder contractStateChanges(ContractID contractId) {
@@ -1473,14 +1485,6 @@ public final class RecordItemBuilder {
                 .setValue(20);
     }
 
-    private TransactionSidecarRecord.Builder contractBytecode(ContractID contractId) {
-        var contractBytecode = ContractBytecode.newBuilder()
-                .setContractId(contractId)
-                .setInitcode(bytes(2048))
-                .setRuntimeBytecode(bytes(3048));
-        return TransactionSidecarRecord.newBuilder().setBytecode(contractBytecode);
-    }
-
     private ContractLoginfo contractLoginfo(ContractID contractId) {
         var topics = IntStream.range(0, 4).mapToObj(x -> bytes(32)).toList();
         return ContractLoginfo.newBuilder()
@@ -1538,10 +1542,6 @@ public final class RecordItemBuilder {
                 .setStake(stake)
                 .setStakeNotRewarded(TINYBARS_IN_ONE_HBAR)
                 .setStakeRewarded(stake - TINYBARS_IN_ONE_HBAR);
-    }
-
-    private long id() {
-        return id.incrementAndGet();
     }
 
     private int port() {

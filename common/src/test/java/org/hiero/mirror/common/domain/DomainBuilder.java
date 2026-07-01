@@ -896,6 +896,7 @@ public class DomainBuilder {
                 .loadStart(now.toEpochMilli())
                 .name(instantString + ".rcd.gz")
                 .previousHash(hash(96))
+                .receiptsRoot(bytes(32))
                 .roundEnd(round)
                 .roundStart(round)
                 .sidecarCount(1)

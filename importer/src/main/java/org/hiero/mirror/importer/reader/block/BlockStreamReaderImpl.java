@@ -13,6 +13,7 @@ import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.STATE_CHANG
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRACE_DATA;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_OUTPUT;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_RESULT;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOCK_NUMBER;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
@@ -40,6 +41,7 @@ import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
@@ -51,6 +53,7 @@ import org.jspecify.annotations.Nullable;
 @RequiredArgsConstructor
 public final class BlockStreamReaderImpl implements BlockStreamReader {
 
+    private final InitialStateReader initialStateReader;
     private final RecordFileItemReader recordFileItemReader;
 
     @Override
@@ -107,6 +110,8 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             recordFile.setLoadStart(blockStream.loadStart());
             recordFile.setPreviousWrappedRecordBlockHash(blockFile.getRawPreviousHash());
             recordFile.setWrappedRecordBlockHash(rootHash);
+
+            readInitialState(context, recordFile);
         }
 
         return blockFile;
@@ -168,6 +173,14 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             readSignedTransactions(context);
             advanced = context.getIndex() != lastIndex;
         } while (advanced);
+    }
+
+    private void readInitialState(final ReaderContext context, final RecordFile recordFile) {
+        if (recordFile.getIndex() != GENESIS_BLOCK_NUMBER || context.getStateChangesList() == null) {
+            return;
+        }
+
+        recordFile.setInitialState(initialStateReader.read(context.getStateChangesList()));
     }
 
     private void readSignedTransactions(final ReaderContext context) {
@@ -251,8 +264,8 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         private BlockFile.BlockFileBuilder blockFile;
         private List<BlockItem> blockItems;
         private BlockRootHashDigest blockRootHashDigest;
-        private String filename;
         private ConsensusTimestampTracker consensusTimestampTracker = new ConsensusTimestampTracker();
+        private String filename;
 
         @NonFinal
         private int batchIndex;
@@ -275,6 +288,10 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         @NonFinal
         @Nullable
         private BlockTransaction lastChildTransaction;
+
+        @NonFinal
+        @Nullable
+        private List<StateChanges> stateChangesList;
 
         ReaderContext(final List<BlockItem> blockItems, final String filename) {
             this.blockFile = BlockFile.builder();
@@ -384,6 +401,14 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         private void consumeBlockItem(final BlockItem blockItem) {
             blockRootHashDigest.addBlockItem(blockItem);
             index++;
+
+            if (blockItem.hasBlockHeader() && blockItem.getBlockHeader().getNumber() == GENESIS_BLOCK_NUMBER) {
+                stateChangesList = new ArrayList<>();
+            }
+
+            if (blockItem.hasStateChanges() && stateChangesList != null) {
+                stateChangesList.add(blockItem.getStateChanges());
+            }
         }
     }
 

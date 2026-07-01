@@ -13,6 +13,12 @@ variable "prometheus_datasource_uid" {
   description = "UID of the Prometheus datasource to query."
 }
 
+variable "loki_datasource_uid" {
+  type        = string
+  default     = "grafanacloud-logs"
+  description = "UID of the Loki (logs) datasource to query."
+}
+
 ###############################################################################
 # Notification policies
 ###############################################################################
@@ -74,6 +80,73 @@ resource "grafana_notification_policy" "root" {
       value = "staging-lg|staging-sm|staging-council"
     }
   }
+
+  # Loki alerts have no env_category, route by "cluster" and the "alert_source=loki" matchers
+  policy {
+    contact_point = var.prod_slack_contact_point
+    matcher {
+      label = "alert_source"
+      match = "="
+      value = "loki"
+    }
+    matcher {
+      label = "severity"
+      match = "=~"
+      value = "warning|critical"
+    }
+    matcher {
+      label = "cluster"
+      match = "=~"
+      value = "mainnet-eu|mainnet-na|testnet-eu|testnet-na|previewnet"
+    }
+  }
+
+  policy {
+    contact_point = var.nonprod_slack_contact_point
+    matcher {
+      label = "alert_source"
+      match = "="
+      value = "loki"
+    }
+    matcher {
+      label = "severity"
+      match = "=~"
+      value = "warning|critical"
+    }
+    matcher {
+      label = "cluster"
+      match = "!~"
+      value = "staging-lg|staging-sm|staging-council"
+    }
+    matcher {
+      label = "namespace"
+      match = "!~"
+      value = "performance-citus"
+    }
+  }
+}
+
+###############################################################################
+# Notification templates
+#
+# The template's 'title' and 'text' fields must be assigned to the contact-points to function
+###############################################################################
+
+resource "grafana_message_template" "mirror_slack_template" {
+  name     = "mirror.slack"
+  template = chomp(<<EOT
+{{ define "mirror.slack.title" -}}
+{{ .Status | toUpper }} {{ .CommonLabels.alertname }}{{ if .CommonLabels.namespace }} in {{ with .CommonLabels.cluster }}{{ . }}/{{ end }}{{ .CommonLabels.namespace }}{{ end }}
+{{- end }}
+
+{{ define "mirror.slack.text" -}}
+{{ range .Alerts -}}
+*Summary:* {{ with .Annotations.summary }}{{ . }}{{ else }}{{ .Annotations.message }}{{ end }} <{{ .GeneratorURL }}|:fire:> {{- with .Annotations.dashboard_url }}<{{ . }}|:chart_with_upwards_trend:>{{ end }} {{- with .Annotations.runbook_url }}<{{ . }}|:notebook:>{{ end }}{{"\n"}}
+{{- with .Annotations.description -}} *Description:* {{ . }}{{"\n"}}{{ end }}
+{{ end }}
+{{- end }}
+EOT
+  )
 }
 
 ###############################################################################
@@ -109,8 +182,8 @@ resource "grafana_rule_group" "rule_group_grpc" {
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ (index $values \"A\").Value | humanizePercentage }} gRPC {{ $labels.statusCode }} error rate for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Mirror gRPC API error rate exceeds 5%"
+      description = "{{ (index $values \"A\").Value | humanizePercentage }} gRPC {{ $labels.statusCode }} error rate for {{ $labels.pod }}"
+      summary     = "Mirror gRPC API error rate exceeds 5%"
     }
     labels = {
       application = "grpc"
@@ -138,8 +211,8 @@ resource "grafana_rule_group" "rule_group_grpc" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror gRPC API CPU usage exceeds 80%"
+      description = "{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror gRPC API CPU usage exceeds 80%"
     }
     labels = {
       application = "grpc"
@@ -168,8 +241,8 @@ resource "grafana_rule_group" "rule_group_grpc" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} is using {{ (index $values \"A\").Value | humanizePercentage }} of available database connections"
-      summary     = "[{{ $labels.cluster }}] Mirror gRPC API database connection utilization exceeds 75%"
+      description = "{{ $labels.pod }} is using {{ (index $values \"A\").Value | humanizePercentage }} of available database connections"
+      summary     = "Mirror gRPC API database connection utilization exceeds 75%"
     }
     labels = {
       application = "grpc"
@@ -198,8 +271,8 @@ resource "grafana_rule_group" "rule_group_grpc" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} file descriptor usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror gRPC API file descriptor usage exceeds 80%"
+      description = "{{ $labels.pod }} file descriptor usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror gRPC API file descriptor usage exceeds 80%"
     }
     labels = {
       application = "grpc"
@@ -228,8 +301,8 @@ resource "grafana_rule_group" "rule_group_grpc" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: High latency of {{ (index $values \"A\").Value | humanizeDuration }} between the main nodes and {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Mirror gRPC API consensus to delivery (C2MD) latency exceeds 15s"
+      description = "High latency of {{ (index $values \"A\").Value | humanizeDuration }} between the main nodes and {{ $labels.pod }}"
+      summary     = "Mirror gRPC API consensus to delivery (C2MD) latency exceeds 15s"
     }
     labels = {
       application = "grpc"
@@ -257,8 +330,8 @@ resource "grafana_rule_group" "rule_group_grpc" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror gRPC API memory usage exceeds 80%"
+      description = "{{ $labels.pod }} memory usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror gRPC API memory usage exceeds 80%"
     }
     labels = {
       application = "grpc"
@@ -280,15 +353,15 @@ resource "grafana_rule_group" "rule_group_grpc" {
       }
 
       datasource_uid = var.prometheus_datasource_uid
-      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (increase(logback_events_total{application=\\\"grpc\\\",level=\\\"error\\\"}[1m])) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (increase(logback_events_total{application=\\\"grpc\\\",level=\\\"error\\\"}[1m])) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
     no_data_state  = "NoData"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
-      description = "{{ $labels.cluster }}: Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ index $values \"A\" }} error messages/s in a 3m period"
-      summary     = "[{{ $labels.cluster }}] High rate of log errors"
+      description = "Logs have reached {{ printf \"%.0f\" (index $values \"A\").Value }} error messages/s in a 3m period"
+      summary     = "High rate of log errors"
     }
     labels = {
       application = "grpc"
@@ -316,8 +389,8 @@ resource "grafana_rule_group" "rule_group_grpc" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }} has {{ index $values \"A\" }} subscribers for {{ $labels.type }}"
-      summary     = "[{{ $labels.cluster }}] Mirror gRPC API has no subscribers"
+      description = "Has {{ index $values \"A\" }} subscribers for {{ $labels.type }}"
+      summary     = "Mirror gRPC API has no subscribers"
     }
     labels = {
       application = "grpc"
@@ -345,12 +418,42 @@ resource "grafana_rule_group" "rule_group_grpc" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: High average database query latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Mirror gRPC API query latency exceeds 1s"
+      description = "High average database query latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.pod }}"
+      summary     = "Mirror gRPC API query latency exceeds 1s"
     }
     labels = {
       application = "grpc"
       severity    = "warning"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GrpcNoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-grpc-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No gRPC API instances are currently running in {{ $labels.namespace }}"
+      summary     = "No gRPC API instances running"
+    }
+    labels = {
+      area        = "resource"
+      application = "grpc"
+      severity    = "critical"
     }
     is_paused = false
   }
@@ -381,8 +484,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
-      description = "{{ $labels.cluster }}: Averaging {{ (index $values \"A\").Value | humanizeDuration }} trying to parse balance stream files for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Took longer than 2m to parse balance stream files"
+      description = "Averaging {{ (index $values \"A\").Value | humanizeDuration }} trying to parse balance stream files for {{ $labels.pod }}"
+      summary     = "Took longer than 2m to parse balance stream files"
     }
     labels = {
       application = "importer"
@@ -412,8 +515,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
-      description = "{{ $labels.cluster }}: The difference between the file timestamp and when it was processed is {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Importer balance stream processing has fallen behind"
+      description = "The difference between the file timestamp and when it was processed is {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.pod }}"
+      summary     = "Mirror Importer balance stream processing has fallen behind"
     }
     labels = {
       application = "importer"
@@ -443,8 +546,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
-      description = "{{ $labels.cluster }}: Averaging {{ (index $values \"A\").Value | humanizePercentage }} error rate trying to {{ if ne $labels.action \"list\" }} retrieve{{ end }} {{ $labels.action }} {{ $labels.type }} files from cloud storage for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Cloud storage error rate exceeds 5%"
+      description = "Averaging {{ (index $values \"A\").Value | humanizePercentage }} error rate trying to {{ if ne $labels.action \"list\" }} retrieve{{ end }} {{ $labels.action }} {{ $labels.type }} files from cloud storage for {{ $labels.pod }}"
+      summary     = "Cloud storage error rate exceeds 5%"
     }
     labels = {
       application = "importer"
@@ -473,8 +576,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
-      description = "{{ $labels.cluster }}: Averaging {{ (index $values \"A\").Value | humanizeDuration }} cloud storage latency trying to {{ if ne $labels.action \"list\" }}retrieve{{ end }} {{ $labels.action }} {{ $labels.type }} files from cloud storage for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Cloud storage latency exceeds 2s"
+      description = "Averaging {{ (index $values \"A\").Value | humanizeDuration }} cloud storage latency trying to {{ if ne $labels.action \"list\" }}retrieve{{ end }} {{ $labels.action }} {{ $labels.type }} files from cloud storage for {{ $labels.pod }}"
+      summary     = "Cloud storage latency exceeds 2s"
     }
     labels = {
       application = "importer"
@@ -503,8 +606,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
-      description = "{{ $labels.cluster }}: Error rate of {{ (index $values \"A\").Value | humanizePercentage }} trying to download and verify {{ $labels.type }} stream files for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] {{ $labels.type }} file verification error rate exceeds 5%"
+      description = "Error rate of {{ (index $values \"A\").Value | humanizePercentage }} trying to download and verify {{ $labels.type }} stream files for {{ $labels.pod }}"
+      summary     = "{{ $labels.type }} file verification error rate exceeds 5%"
     }
     labels = {
       application = "importer"
@@ -533,8 +636,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Importer CPU usage exceeds 80%"
+      description = "{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror Importer CPU usage exceeds 80%"
     }
     labels = {
       application = "importer"
@@ -563,8 +666,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} is using {{ (index $values \"A\").Value | humanizePercentage }} of available database connections"
-      summary     = "[{{ $labels.cluster }}] Mirror Importer database connection utilization exceeds 75%"
+      description = "{{ $labels.pod }} is using {{ (index $values \"A\").Value | humanizePercentage }} of available database connections"
+      summary     = "Mirror Importer database connection utilization exceeds 75%"
     }
     labels = {
       application = "importer"
@@ -593,8 +696,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} file descriptor usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Importer file descriptor usage exceeds 80%"
+      description = "{{ $labels.pod }} file descriptor usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror Importer file descriptor usage exceeds 80%"
     }
     labels = {
       application = "importer"
@@ -623,8 +726,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Importer memory usage exceeds 80%"
+      description = "{{ $labels.pod }} memory usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror Importer memory usage exceeds 80%"
     }
     labels = {
       application = "importer"
@@ -646,15 +749,15 @@ resource "grafana_rule_group" "rule_group_importer" {
       }
 
       datasource_uid = var.prometheus_datasource_uid
-      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (increase(logback_events_total{application=\\\"importer\\\",level=\\\"error\\\"}[2m])) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (increase(logback_events_total{application=\\\"importer\\\",level=\\\"error\\\"}[2m])) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
     no_data_state  = "NoData"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
-      description = "{{ $labels.cluster }}: Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ index $values \"A\" }} error messages/s in a 3m period"
-      summary     = "[{{ $labels.cluster }}] High rate of log errors"
+      description = "Logs have reached {{ printf \"%.0f\" (index $values \"A\").Value }} error messages/s in a 3m period"
+      summary     = "High rate of log errors"
     }
     labels = {
       application = "importer"
@@ -683,8 +786,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: Have not processed a balance stream file in {{ $labels.namespace }} for the last 15 min"
-      summary     = "[{{ $labels.cluster }}] Missing balance stream files"
+      description = "Have not processed a balance stream file for the last 15 min"
+      summary     = "Missing balance stream files"
     }
     labels = {
       application = "importer"
@@ -714,8 +817,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }} only able to achieve {{ (index $values \"A\").Value | humanizePercentage }} consensus during {{ $labels.type }} stream signature verification"
-      summary     = "[{{ $labels.cluster }}] Unable to verify {{ $labels.type }} stream signatures"
+      description = "Only able to achieve {{ (index $values \"A\").Value | humanizePercentage }} consensus during {{ $labels.type }} stream signature verification"
+      summary     = "Unable to verify {{ $labels.type }} stream signatures"
     }
     labels = {
       application = "importer"
@@ -744,8 +847,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
-      description = "{{ $labels.cluster }}: Record stream TPS has dropped to {{ index $values \"A\" }} for {{ $labels.namespace }}. This may be because importer is down, can't connect to cloud storage, main nodes are not uploading, error parsing the streams, no traffic, etc."
-      summary     = "[{{ $labels.cluster }}] No transactions seen for 2m"
+      description = "Record stream TPS has dropped to {{ index $values \"A\" }}. This may be because importer is down, can't connect to cloud storage, main nodes are not uploading, error parsing the streams, no traffic, etc."
+      summary     = "No transactions seen for 2m"
     }
     labels = {
       application = "importer"
@@ -773,10 +876,10 @@ resource "grafana_rule_group" "rule_group_importer" {
 
     no_data_state  = "NoData"
     exec_err_state = "Error"
-    for            = "2m"
+    for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: Encountered {{ (index $values \"A\").Value| humanizePercentage }} errors trying to parse {{ $labels.type }} stream files for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Error rate parsing {{ $labels.type }} exceeds 5%"
+      description = "Encountered {{ (index $values \"A\").Value| humanizePercentage }} errors trying to parse {{ $labels.type }} stream files for {{ $labels.pod }}"
+      summary     = "Error rate parsing {{ $labels.type }} exceeds 5%"
     }
     labels = {
       application = "importer"
@@ -805,8 +908,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: Took {{ (index $values \"A\").Value| humanizeDuration }} to publish {{ $labels.entity }}s to {{ $labels.type }} for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Slow {{ $labels.type }} publishing"
+      description = "Took {{ (index $values \"A\").Value| humanizeDuration }} to publish {{ $labels.entity }}s to {{ $labels.type }} for {{ $labels.pod }}"
+      summary     = "Slow {{ $labels.type }} publishing"
     }
     labels = {
       application = "importer"
@@ -835,8 +938,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: High average database query latency of {{ (index $values \"A\").Value| humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Importer query latency exceeds 1s"
+      description = "High average database query latency of {{ (index $values \"A\").Value| humanizeDuration }} for {{ $labels.pod }}"
+      summary     = "Mirror Importer query latency exceeds 1s"
     }
     labels = {
       application = "importer"
@@ -864,8 +967,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: Unable to reconcile balance information for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Mirror reconciliation job failed"
+      description = "Unable to reconcile balance information for {{ $labels.pod }}"
+      summary     = "Mirror reconciliation job failed"
     }
     labels = {
       application = "importer"
@@ -893,8 +996,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: Averaging {{ (index $values \"A\").Value| humanizeDuration }} trying to parse record stream files for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Took longer than 2s to parse record stream files"
+      description = "Averaging {{ (index $values \"A\").Value| humanizeDuration }} trying to parse record stream files for {{ $labels.pod }}"
+      summary     = "Took longer than 2s to parse record stream files"
     }
     labels = {
       application = "importer"
@@ -924,8 +1027,8 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
-      description = "{{ $labels.cluster }}: The difference between the file timestamp and when it was processed is {{ (index $values \"A\").Value| humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Importer record stream processing has fallen behind"
+      description = "The difference between the file timestamp and when it was processed is {{ (index $values \"A\").Value| humanizeDuration }} for {{ $labels.pod }}"
+      summary     = "Mirror Importer record stream processing has fallen behind"
     }
     labels = {
       application = "importer"
@@ -955,14 +1058,44 @@ resource "grafana_rule_group" "rule_group_importer" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} file stream should close every 2s but is actually {{ (index $values \"A\").Value | humanizeDuration }}. This could just be due to the lack of traffic in the environment, but it could potentially be something more serious to look into."
-      summary     = "[{{ $labels.cluster }}] Record stream close interval exceeds 10s"
+      description = "{{ $labels.pod }} file stream should close every 2s but is actually {{ (index $values \"A\").Value | humanizeDuration }}. This could just be due to the lack of traffic in the environment, but it could potentially be something more serious to look into."
+      summary     = "Record stream close interval exceeds 10s"
     }
     labels = {
       application = "importer"
       area        = "downloader"
       severity    = "critical"
       type        = "RECORD"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "ImporterNoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-importer-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No importer instances are currently ready in {{ $labels.namespace }}"
+      summary     = "No importer instances are ready"
+    }
+    labels = {
+      area        = "resource"
+      application = "importer"
+      severity    = "critical"
     }
     is_paused = false
   }
@@ -993,8 +1126,8 @@ resource "grafana_rule_group" "rule_group_monitor" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Monitor CPU usage exceeds 80%"
+      description = "{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror Monitor CPU usage exceeds 80%"
     }
     labels = {
       application = "monitor"
@@ -1023,8 +1156,8 @@ resource "grafana_rule_group" "rule_group_monitor" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Monitor memory usage exceeds 80%"
+      description = "{{ $labels.pod }} memory usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror Monitor memory usage exceeds 80%"
     }
     labels = {
       application = "monitor"
@@ -1046,15 +1179,15 @@ resource "grafana_rule_group" "rule_group_monitor" {
       }
 
       datasource_uid = var.prometheus_datasource_uid
-      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (increase(logback_events_total{application=\\\"monitor\\\",level=\\\"error\\\"}[2m])) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (increase(logback_events_total{application=\\\"monitor\\\",level=\\\"error\\\"}[2m])) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
     no_data_state  = "NoData"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
-      description = "{{ $labels.cluster }}: Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ index $values \"A\" }} error messages/s in a 3m period"
-      summary     = "[{{ $labels.cluster }}] High rate of log errors"
+      description = "Logs have reached {{ printf \"%.0f\" (index $values \"A\").Value }} error messages/s in a 3m period"
+      summary     = "High rate of log errors"
     }
     labels = {
       application = "monitor"
@@ -1083,8 +1216,8 @@ resource "grafana_rule_group" "rule_group_monitor" {
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
-      description = "{{ $labels.cluster }}: Averaging {{ (index $values \"A\").Value | humanizePercentage }} error rate publishing '{{ $labels.scenario }}' scenario from {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Publish error rate exceeds 50%"
+      description = "Averaging {{ (index $values \"A\").Value | humanizePercentage }} error rate publishing '{{ $labels.scenario }}' scenario from {{ $labels.pod }}"
+      summary     = "Publish error rate exceeds 50%"
     }
     labels = {
       application = "monitor"
@@ -1113,8 +1246,8 @@ resource "grafana_rule_group" "rule_group_monitor" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: Averaging {{ (index $values \"A\").Value | humanizeDuration }} publish latency for '{{ $labels.scenario }}' scenario for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Publish latency exceeds 7s"
+      description = "Averaging {{ (index $values \"A\").Value | humanizeDuration }} publish latency for '{{ $labels.scenario }}' scenario for {{ $labels.pod }}"
+      summary     = "Publish latency exceeds 7s"
     }
     labels = {
       application = "monitor"
@@ -1143,8 +1276,8 @@ resource "grafana_rule_group" "rule_group_monitor" {
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
-      description = "{{ $labels.cluster }}: Averaging {{ (index $values \"A\").Value | humanizePercentage }} PLATFORM_NOT_ACTIVE or UNAVAILABLE errors while attempting to publish in {{ $labels.namespace }}"
-      summary     = "[{{ $labels.cluster }}] Platform is not active"
+      description = "Averaging {{ (index $values \"A\").Value | humanizePercentage }} PLATFORM_NOT_ACTIVE or UNAVAILABLE errors while attempting to publish"
+      summary     = "Platform is not active"
     }
     labels = {
       application = "monitor"
@@ -1172,8 +1305,8 @@ resource "grafana_rule_group" "rule_group_monitor" {
     no_data_state  = "NoData"
     exec_err_state = "Error"
     annotations = {
-      description = "{{ $labels.cluster }}: Publish TPS dropped to {{ index $values \"A\" }} for '{{ $labels.scenario }}' scenario for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Publishing stopped"
+      description = "Publish TPS dropped to {{ index $values \"A\" }} for '{{ $labels.scenario }}' scenario for {{ $labels.pod }}"
+      summary     = "Publishing stopped"
     }
     labels = {
       application = "monitor"
@@ -1202,8 +1335,8 @@ resource "grafana_rule_group" "rule_group_monitor" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: Averaging {{ (index $values \"A\").Value | humanizeDuration }} transaction latency for '{{ $labels.scenario }}' scenario for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Submit to transaction being handled latency exceeds 11s"
+      description = "Averaging {{ (index $values \"A\").Value | humanizeDuration }} transaction latency for '{{ $labels.scenario }}' scenario for {{ $labels.pod }}"
+      summary     = "Submit to transaction being handled latency exceeds 11s"
     }
     labels = {
       application = "monitor"
@@ -1232,8 +1365,8 @@ resource "grafana_rule_group" "rule_group_monitor" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: Latency averaging {{ (index $values \"A\").Value | humanizeDuration }} for '{{ $labels.scenario }}' #{{ $labels.subscriber }} scenario for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] End to end latency exceeds 14s"
+      description = "Latency averaging {{ (index $values \"A\").Value | humanizeDuration }} for '{{ $labels.scenario }}' #{{ $labels.subscriber }} scenario for {{ $labels.pod }}"
+      summary     = "End to end latency exceeds 14s"
     }
     labels = {
       application = "monitor"
@@ -1261,10 +1394,40 @@ resource "grafana_rule_group" "rule_group_monitor" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: TPS dropped to {{ index $values \"A\" }} for '{{ $labels.scenario }}' #{{ $labels.subscriber }} scenario for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Subscription stopped"
+      description = "TPS dropped to {{ index $values \"A\" }} for '{{ $labels.scenario }}' #{{ $labels.subscriber }} scenario for {{ $labels.pod }}"
+      summary     = "Subscription stopped"
     }
     labels = {
+      application = "monitor"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "MonitorNoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-monitor-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No monitor instances are currently running in {{ $labels.namespace }}"
+      summary     = "No monitor instances running"
+    }
+    labels = {
+      area        = "resource"
       application = "monitor"
       severity    = "critical"
     }
@@ -1297,8 +1460,8 @@ resource "grafana_rule_group" "rule_group_rest" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: REST API 5xx error rate for {{ $labels.namespace }} is {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror REST API error rate exceeds 1%"
+      description = "REST API 5xx error rate is {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror REST API error rate exceeds 1%"
     }
     labels = {
       application = "rest"
@@ -1326,8 +1489,8 @@ resource "grafana_rule_group" "rule_group_rest" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror REST API CPU usage exceeds 80%"
+      description = "{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror REST API CPU usage exceeds 80%"
     }
     labels = {
       application = "rest"
@@ -1356,8 +1519,8 @@ resource "grafana_rule_group" "rule_group_rest" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: REST API has not seen any requests to {{ $labels.namespace }} for 5m"
-      summary     = "[{{ $labels.cluster }}] No Mirror REST API requests seen for awhile"
+      description = "REST API has not seen any requests for 5m"
+      summary     = "No Mirror REST API requests seen for awhile"
     }
     labels = {
       application = "rest"
@@ -1385,12 +1548,42 @@ resource "grafana_rule_group" "rule_group_rest" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} is taking {{ $value }} ms to generate a response"
-      summary     = "[{{ $labels.cluster }}] Mirror REST API request latency exceeds 2s"
+      description = "{{ $labels.pod }} is taking {{ $value }} ms to generate a response"
+      summary     = "Mirror REST API request latency exceeds 2s"
     }
     labels = {
       application = "rest"
       severity    = "warning"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "RestNoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-rest-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No REST API instances are currently running in {{ $labels.namespace }}"
+      summary     = "No REST API instances running"
+    }
+    labels = {
+      area        = "resource"
+      application = "rest"
+      severity    = "critical"
     }
     is_paused = false
   }
@@ -1421,8 +1614,8 @@ resource "grafana_rule_group" "rule_group_restjava" {
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ (index $values \"A\").Value | humanizePercentage }} Java REST API error rate for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Java REST API error rate exceeds 5%"
+      description = "{{ (index $values \"A\").Value | humanizePercentage }} Java REST API error rate for {{ $labels.pod }}"
+      summary     = "Mirror Java REST API error rate exceeds 5%"
     }
     labels = {
       application = "rest-java"
@@ -1450,10 +1643,11 @@ resource "grafana_rule_group" "rule_group_restjava" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Java REST API CPU usage exceeds 80%"
+      description = "{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror Java REST API CPU usage exceeds 80%"
     }
     labels = {
+      area        = "resource"
       application = "rest-java"
       severity    = "critical"
     }
@@ -1479,8 +1673,8 @@ resource "grafana_rule_group" "rule_group_restjava" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} is using {{ (index $values \"A\").Value | humanizePercentage }} of available database connections"
-      summary     = "[{{ $labels.cluster }}] Mirror Java REST API database connection utilization exceeds 75%"
+      description = "{{ $labels.pod }} is using {{ (index $values \"A\").Value | humanizePercentage }} of available database connections"
+      summary     = "Mirror Java REST API database connection utilization exceeds 75%"
     }
     labels = {
       application = "rest-java"
@@ -1509,8 +1703,8 @@ resource "grafana_rule_group" "rule_group_restjava" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} file descriptor usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Java REST API file descriptor usage exceeds 80%"
+      description = "{{ $labels.pod }} file descriptor usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror Java REST API file descriptor usage exceeds 80%"
     }
     labels = {
       application = "rest-java"
@@ -1539,8 +1733,8 @@ resource "grafana_rule_group" "rule_group_restjava" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Java REST API memory usage exceeds 80%"
+      description = "{{ $labels.pod }} memory usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror Java REST API memory usage exceeds 80%"
     }
     labels = {
       application = "rest-java"
@@ -1562,15 +1756,15 @@ resource "grafana_rule_group" "rule_group_restjava" {
       }
 
       datasource_uid = var.prometheus_datasource_uid
-      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(increase(logback_events_total{application=\\\"rest-java\\\", level=\\\"error\\\"}[1m])) by (cluster, namespace, env_category, pod) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(increase(logback_events_total{application=\\\"rest-java\\\", level=\\\"error\\\"}[1m])) by (cluster, namespace, env_category) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
     no_data_state  = "NoData"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
-      description = "{{ $labels.cluster }}: Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ index $values \"A\" }} error messages/s in a 3m period"
-      summary     = "[{{ $labels.cluster }}] High rate of log errors"
+      description = "Logs have reached {{ printf \"%.0f\" (index $values \"A\").Value }} error messages/s in a 3m period"
+      summary     = "High rate of log errors"
     }
     labels = {
       application = "rest-java"
@@ -1598,8 +1792,8 @@ resource "grafana_rule_group" "rule_group_restjava" {
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
-      description = "{{ $labels.cluster }}: Java REST API has not seen any requests to {{ $labels.namespace }} for 5m"
-      summary     = "[{{ $labels.cluster }}] No Java REST API requests seen for a while"
+      description = "Java REST API has not seen any requests for 5m"
+      summary     = "No Java REST API requests seen for a while"
     }
     labels = {
       application = "rest-java"
@@ -1620,15 +1814,15 @@ resource "grafana_rule_group" "rule_group_restjava" {
       }
 
       datasource_uid = var.prometheus_datasource_uid
-      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(spring_data_repository_invocations_seconds_sum{application=\\\"rest-java\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application=\\\"rest-java\\\"}[5m])) by (cluster, namespace, env_category, pod) > 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(spring_data_repository_invocations_seconds_sum{application=\\\"rest-java\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application=\\\"rest-java\\\"}[5m])) by (cluster, namespace, env_category, pod) > 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
     no_data_state  = "NoData"
     exec_err_state = "Error"
-    for            = "1m"
+    for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: High average database query latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Java REST API query latency exceeds 1s"
+      description = "High average database query latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.pod }}"
+      summary     = "Mirror Java REST API query latency exceeds 2s"
     }
     labels = {
       application = "rest-java"
@@ -1656,12 +1850,42 @@ resource "grafana_rule_group" "rule_group_restjava" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: High average request latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Rest Java API request latency exceeds 2s"
+      description = "High average request latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.pod }}"
+      summary     = "Mirror Rest Java API request latency exceeds 2s"
     }
     labels = {
       application = "rest-java"
       severity    = "warning"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "RestJavaNoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-rest-java-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No Java REST API instances are currently running in {{ $labels.namespace }}"
+      summary     = "No Java REST API instances running"
+    }
+    labels = {
+      application = "rest-java"
+      area        = "resource"
+      severity    = "critical"
     }
     is_paused = false
   }
@@ -1692,8 +1916,8 @@ resource "grafana_rule_group" "rule_group_web3" {
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ (index $values \"A\").Value  | humanizePercentage }} Web3 server error rate for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Web3 API error rate exceeds 5%"
+      description = "{{ (index $values \"A\").Value  | humanizePercentage }} Web3 server error rate for {{ $labels.pod }}"
+      summary     = "Mirror Web3 API error rate exceeds 5%"
     }
     labels = {
       application = "web3"
@@ -1721,10 +1945,11 @@ resource "grafana_rule_group" "rule_group_web3" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Web3 API CPU usage exceeds 80%"
+      description = "{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror Web3 API CPU usage exceeds 80%"
     }
     labels = {
+      area        = "resource"
       application = "web3"
       severity    = "critical"
     }
@@ -1750,8 +1975,8 @@ resource "grafana_rule_group" "rule_group_web3" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} is using {{ (index $values \"A\").Value | humanizePercentage }} of available database connections"
-      summary     = "[{{ $labels.cluster }}] Mirror Web3 API database connection utilization exceeds 75%"
+      description = "{{ $labels.pod }} is using {{ (index $values \"A\").Value | humanizePercentage }} of available database connections"
+      summary     = "Mirror Web3 API database connection utilization exceeds 75%"
     }
     labels = {
       application = "web3"
@@ -1780,8 +2005,8 @@ resource "grafana_rule_group" "rule_group_web3" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Web3 API memory usage exceeds 80%"
+      description = "{{ $labels.pod }} memory usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror Web3 API memory usage exceeds 80%"
     }
     labels = {
       application = "web3"
@@ -1803,15 +2028,15 @@ resource "grafana_rule_group" "rule_group_web3" {
       }
 
       datasource_uid = var.prometheus_datasource_uid
-      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (increase(logback_events_total{application=\\\"web3\\\",level=\\\"error\\\"}[1m])) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (increase(logback_events_total{application=\\\"web3\\\",level=\\\"error\\\"}[1m])) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
     no_data_state  = "NoData"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
-      description = "{{ $labels.cluster }}: Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ index $values \"A\" }} error messages/s in a 3m period"
-      summary     = "[{{ $labels.cluster }}] High rate of log errors"
+      description = "Logs have reached {{ printf \"%.0f\" (index $values \"A\").Value }} error messages/s in a 3m period"
+      summary     = "High rate of log errors"
     }
     labels = {
       application = "web3"
@@ -1839,8 +2064,8 @@ resource "grafana_rule_group" "rule_group_web3" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: Web3 API has not seen any requests to {{ $labels.namespace }} for 5m"
-      summary     = "[{{ $labels.cluster }}] No Web3 API requests seen for awhile"
+      description = "Web3 API has not seen any requests for 5m"
+      summary     = "No Web3 API requests seen for awhile"
     }
     labels = {
       application = "web3"
@@ -1868,8 +2093,8 @@ resource "grafana_rule_group" "rule_group_web3" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: High average database query latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Web3 API query latency exceeds 1s"
+      description = "High average database query latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.pod }}"
+      summary     = "Mirror Web3 API query latency exceeds 1s"
     }
     labels = {
       application = "web3"
@@ -1897,8 +2122,8 @@ resource "grafana_rule_group" "rule_group_web3" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: High average request latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Web3 API request latency exceeds 2s"
+      description = "High average request latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.pod }}"
+      summary     = "Mirror Web3 API request latency exceeds 2s"
     }
     labels = {
       application = "web3"
@@ -1926,8 +2151,38 @@ resource "grafana_rule_group" "rule_group_web3" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.pod }} file descriptor usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
-      summary     = "[{{ $labels.cluster }}] Mirror Web3 API file descriptor usage exceeds 80%"
+      description = "{{ $labels.pod }} file descriptor usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror Web3 API file descriptor usage exceeds 80%"
+    }
+    labels = {
+      application = "web3"
+      area        = "resource"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "Web3NoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-web3-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No Web3 API instances are currently running in {{ $labels.namespace }}"
+      summary     = "No Web3 API instances running"
     }
     labels = {
       application = "web3"
@@ -1964,8 +2219,8 @@ resource "grafana_rule_group" "rule_group_database" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: Postgres has not been responding for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Postgres server instance is down"
+      description = "Postgres has not been responding for {{ $labels.pod }}"
+      summary     = "Postgres server instance is down"
     }
     labels = {
       application = "hedera-mirror-common"
@@ -1994,8 +2249,8 @@ resource "grafana_rule_group" "rule_group_database" {
     exec_err_state = "OK"
     for            = "10m"
     annotations = {
-      description = "{{ $labels.cluster }}: postgres-exporter is not running or is showing errors for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Postgres exporter is down or showing errors"
+      description = "postgres-exporter is not running or is showing errors for {{ $labels.pod }}"
+      summary     = "Postgres exporter is down or showing errors"
     }
     labels = {
       application = "hedera-mirror-common"
@@ -2024,8 +2279,8 @@ resource "grafana_rule_group" "rule_group_database" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: Replication lag on {{ $labels.namespace }}/{{ $labels.pod }} is currently {{ (index $values \"A\").Value | humanize1024 }}B behind the leader"
-      summary     = "[{{ $labels.cluster }}] Postgres replication lag size exceeds 1GB"
+      description = "Replication lag on {{ $labels.pod }} is currently {{ (index $values \"A\").Value | humanize1024 }}B behind the leader"
+      summary     = "Postgres replication lag size exceeds 1GB"
     }
     labels = {
       application = "hedera-mirror-common"
@@ -2054,8 +2309,8 @@ resource "grafana_rule_group" "rule_group_database" {
     exec_err_state = "Error"
     for            = "30m"
     annotations = {
-      description = "{{ $labels.cluster }}: Inactive replication slots on {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary     = "[{{ $labels.cluster }}] Postgres has inactive replication slots"
+      description = "Inactive replication slots on {{ $labels.pod }}"
+      summary     = "Postgres has inactive replication slots"
     }
     labels = {
       application = "hedera-mirror-common"
@@ -2084,8 +2339,8 @@ resource "grafana_rule_group" "rule_group_database" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: Instance {{ $labels.namespace }}/{{ $labels.pod }} has been demoted to a replica"
-      summary     = "[{{ $labels.cluster }}] Postgres node demoted to replica"
+      description = "Instance {{ $labels.pod }} has been demoted to a replica"
+      summary     = "Postgres node demoted to replica"
     }
     labels = {
       application = "hedera-mirror-common"
@@ -2114,8 +2369,8 @@ resource "grafana_rule_group" "rule_group_database" {
     exec_err_state = "OK"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: PgBouncer {{ $labels.namespace }}/{{ $labels.pod }} has {{ (index $values \"A\").Value }} waiting clients"
-      summary     = "[{{ $labels.cluster }}] PgBouncer has waiting clients"
+      description = "PgBouncer {{ $labels.pod }} has {{ (index $values \"A\").Value }} waiting clients"
+      summary     = "PgBouncer has waiting clients"
     }
     labels = {
       application = "hedera-mirror-common"
@@ -2144,8 +2399,8 @@ resource "grafana_rule_group" "rule_group_database" {
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
-      description = "{{ $labels.cluster }}: PgBouncer {{ $labels.namespace }}/{{ $labels.pod }} average query duration is {{ (index $values \"A\").Value }} microseconds, exceeding 3s"
-      summary     = "[{{ $labels.cluster }}] PgBouncer average query duration exceeds 3s"
+      description = "PgBouncer {{ $labels.pod }} average query duration is {{ (index $values \"A\").Value }} microseconds, exceeding 3s"
+      summary     = "PgBouncer average query duration exceeds 3s"
     }
     labels = {
       application = "hedera-mirror-common"
@@ -2174,13 +2429,101 @@ resource "grafana_rule_group" "rule_group_database" {
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
-      description = "{{ $labels.cluster }}: Storage for {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} is {{ (index $values \"A\").Value | humanizePercentage }} full"
-      summary     = "[{{ $labels.cluster }}] Database storage exceeds 80% capacity"
+      description = "Storage for {{ $labels.persistentvolumeclaim }} is {{ (index $values \"A\").Value | humanizePercentage }} full"
+      summary     = "Database storage exceeds 80% capacity"
     }
     labels = {
       application = "hedera-mirror-common"
       area        = "resource"
       severity    = "critical"
+    }
+    is_paused = false
+  }
+}
+
+###############################################################################
+# Loki (logs) alert rules
+###############################################################################
+
+resource "grafana_rule_group" "rule_group_logs" {
+  disable_provenance = false
+  name               = "Logs"
+  folder_uid         = grafana_folder.mirror.uid
+  interval_seconds   = 60
+
+  rule {
+    name      = "ImporterRecoverableErrors"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.loki_datasource_uid
+      query_type     = "instant"
+      model = jsonencode({
+        editorMode    = "code"
+        expr          = "sum(count_over_time({component=\"importer\"} | regexp `(?P<timestamp>\\S+)\\s+(?P<level>\\S+)\\s+(?P<thread>\\S+)\\s+(?P<class>\\S+)\\s+(?P<message>.+)` | level = \"ERROR\" | message =~ \".*Recoverable error.*\" [1m])) by (cluster, namespace, pod) > 0"
+        queryType     = "instant"
+        intervalMs    = 1000
+        maxDataPoints = 43200
+        refId         = "A"
+      })
+    }
+
+    no_data_state  = "OK"
+    exec_err_state = "Error"
+    annotations = {
+      description = "Recoverable Error Logs for {{ $labels.cluster }}/{{ $labels.namespace }}/{{ $labels.pod }} have reached {{ index $values \"A\" }} error messages/s in a 1m period"
+      summary     = "Recoverable Error found in logs"
+    }
+    labels = {
+      application  = "importer"
+      severity     = "critical"
+      alert_source = "loki"
+    }
+    is_paused = false
+  }
+
+  rule {
+    name      = "RestLogErrors"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.loki_datasource_uid
+      query_type     = "instant"
+      model = jsonencode({
+        editorMode    = "code"
+        expr          = "sum(rate({component=\"rest\"} | regexp `(?P<timestamp>\\S+)\\s+(?P<level>\\S+)\\s+(?P<requestId>\\S+)\\s+(?P<message>.+)` | level = \"ERROR\" or level = \"FATAL\" != \"canceling statement due to statement timeout\" [1m])) by (cluster, namespace, pod) > 0.04"
+        queryType     = "instant"
+        intervalMs    = 1000
+        maxDataPoints = 43200
+        refId         = "A"
+      })
+    }
+
+    no_data_state  = "OK"
+    exec_err_state = "Error"
+    for            = "1m"
+    annotations = {
+      description = "Logs for {{ $labels.cluster }}/{{ $labels.namespace }}/{{ $labels.pod }} have reached {{ index $values \"A\" }} error messages/s in a 1m period"
+      summary     = "High rate of log errors"
+    }
+    labels = {
+      application  = "rest"
+      severity     = "critical"
+      alert_source = "loki"
     }
     is_paused = false
   }

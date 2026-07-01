@@ -14,6 +14,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class Web3Properties {
 
+    private boolean enableStateOverrides = false;
+
     @DurationMin(millis = 10L)
     private Duration contractCallRetryDelay = Duration.ofMillis(200L);
 

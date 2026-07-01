@@ -68,7 +68,12 @@ public class ScheduleClient extends AbstractNetworkClient {
 
         var response = executeTransactionAndRetrieveReceipt(scheduleCreateTransaction);
         var scheduleId = response.getReceipt().scheduleId;
-        log.info("Created new schedule {} with memo '{}' via {}", scheduleId, memo, response.getTransactionId());
+        log.info(
+                "Created new schedule {} with memo '{}' via {} in {}",
+                scheduleId,
+                memo,
+                response.getTransactionId(),
+                response.getStopwatch());
         scheduleIds.add(scheduleId);
         return response;
     }
@@ -79,7 +84,7 @@ public class ScheduleClient extends AbstractNetworkClient {
 
         var keyList = KeyList.of(expandedAccountId.getPrivateKey());
         var response = executeTransactionAndRetrieveReceipt(scheduleSignTransaction, keyList);
-        log.info("Signed schedule {} via {}", scheduleId, response.getTransactionId());
+        log.info("Signed schedule {} via {} in {}", scheduleId, response.getTransactionId(), response.getStopwatch());
         return response;
     }
 
@@ -89,7 +94,7 @@ public class ScheduleClient extends AbstractNetworkClient {
                 .setTransactionMemo(getMemo("Delete schedule"));
 
         var response = executeTransactionAndRetrieveReceipt(scheduleDeleteTransaction);
-        log.info("Deleted schedule {} via {}", scheduleId, response.getTransactionId());
+        log.info("Deleted schedule {} via {} in {}", scheduleId, response.getTransactionId(), response.getStopwatch());
         scheduleIds.remove(scheduleId);
         return response;
     }

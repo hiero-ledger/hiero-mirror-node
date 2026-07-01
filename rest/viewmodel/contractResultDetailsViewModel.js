@@ -31,6 +31,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
    * @param {ContractStateChange[]} contractStateChanges
    * @param {FileData} fileData
    * @param {boolean} convertToHbar - If true, convert weibar to tinybar; if false, return raw weibar
+   * @param {BigInt|null} gasPrice - Gas price in tinybars for non-Ethereum transactions
    */
   constructor(
     contractResult,
@@ -39,7 +40,8 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     contractLogs = null,
     contractStateChanges = null,
     fileData = null,
-    convertToHbar = true
+    convertToHbar = true,
+    gasPrice = null
   ) {
     super(contractResult);
 
@@ -139,8 +141,15 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       } else if (!contractResult.functionParameters.length && !isNil(fileData)) {
         this.function_parameters = utils.toHexStringNonQuantity(fileData.file_data);
       }
-    } else if (!convertToHbar && !isNil(contractResult.amount)) {
-      // ethTransaction is null but caller wants weibar; convert tinybar to weibar
+    }
+
+    // Apply defaults for any fields still null after eth transaction processing
+    this.chain_id = this.chain_id ?? config.chainId;
+    this.type ??= ContractResultDetailsViewModel._LEGACY_TYPE;
+    if (this.gas_price == null && gasPrice != null) {
+      this.gas_price = utils.toHexStringQuantity(gasPrice);
+    }
+    if (isNil(ethTransaction) && !convertToHbar && !isNil(contractResult.amount)) {
       this.amount = BigInt(contractResult.amount) * WEIBARS_TO_TINYBARS;
     }
   }

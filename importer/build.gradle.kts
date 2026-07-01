@@ -14,8 +14,7 @@ configurations.all {
 }
 
 dependencies {
-    val blockNodeVersion: String by rootProject.extra
-    val protobufVersion: String by rootProject.extra
+    val blockNodeVersion = rootProject.extra["blockNodeVersion"] as String
 
     implementation(platform("software.amazon.awssdk:bom"))
     implementation(project(":common"))
@@ -50,7 +49,7 @@ dependencies {
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("com.asarkar.grpc:grpc-test")
     testImplementation("com.github.vertical-blank:sql-formatter")
-    testImplementation("com.google.protobuf:protobuf-java-util:$protobufVersion")
+    testImplementation("com.google.protobuf:protobuf-java-util")
     testImplementation("commons-beanutils:commons-beanutils")
     testImplementation("io.grpc:grpc-inprocess")
     testImplementation("io.grpc:grpc-netty")
@@ -63,15 +62,4 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
-
-protobuf {
-    val grpcVersion: String by rootProject.extra
-    val protobufVersion: String by rootProject.extra
-
-    protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" }
-    plugins { id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:$grpcVersion" } }
-    generateProtoTasks {
-        ofSourceSet("main").forEach { it.plugins { id("grpc") { option("@generated=omit") } } }
-    }
 }

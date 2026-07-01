@@ -466,8 +466,7 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
     }
 
     private BlockNodeProperties blockNodeProperties(int priority, String serverName) {
-        var properties = new BlockNodeProperties();
-        properties.setHost(serverName);
+        var properties = BlockNodeTestUtils.singleEndpointProperties(serverName);
         properties.setPriority(priority);
         return properties;
     }

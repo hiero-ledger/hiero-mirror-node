@@ -167,7 +167,7 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         startAll();
         final var nodes = reversedNodes ? getBlockNodeProperties().reversed() : getBlockNodeProperties();
         blockProperties.setNodes(nodes);
-        var channelBuilderProvider = nodes.getFirst().getPort() == -1
+        var channelBuilderProvider = nodes.getFirst().getEndpoints().first().getPort() == -1
                 ? InProcessManagedChannelBuilderProvider.INSTANCE
                 : managedChannelBuilderProvider;
 
