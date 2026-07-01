@@ -5,15 +5,18 @@ package org.hiero.mirror.importer.migration;
 import com.google.common.base.Stopwatch;
 import jakarta.inject.Named;
 import org.flywaydb.core.api.MigrationVersion;
+import org.flywaydb.core.api.configuration.Configuration;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Named
-public class InitializeEntityBalanceMigration extends AbstractTimestampInfoMigration {
+final class InitializeEntityBalanceMigration extends AbstractTimestampInfoMigration {
 
     private static final String INITIALIZE_ENTITY_BALANCE_SQL = """
             with snapshot as (
@@ -44,8 +47,13 @@ public class InitializeEntityBalanceMigration extends AbstractTimestampInfoMigra
                 balance_timestamp = coalesce(entity.balance_timestamp, excluded.balance_timestamp)
             """;
 
-    public InitializeEntityBalanceMigration(
+    private final BlockStreamResolver blockStreamResolver;
+    private final boolean v2;
+
+    InitializeEntityBalanceMigration(
             ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider,
+            BlockStreamResolver blockStreamResolver,
+            Environment environment,
             ImporterProperties importerProperties,
             ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ObjectProvider<RecordFileRepository> recordFileRepositoryProvider,
@@ -56,6 +64,8 @@ public class InitializeEntityBalanceMigration extends AbstractTimestampInfoMigra
                 jdbcOperationsProvider,
                 recordFileRepositoryProvider,
                 transactionTemplateProvider);
+        this.blockStreamResolver = blockStreamResolver;
+        v2 = environment.acceptsProfiles(Profiles.of("v2"));
     }
 
     @Override
@@ -65,7 +75,7 @@ public class InitializeEntityBalanceMigration extends AbstractTimestampInfoMigra
 
     @Override
     protected MigrationVersion getMinimumVersion() {
-        return MigrationVersion.fromVersion("1.89.2"); // The version which deduplicates balance tables
+        return blockStreamResolver.getMinimumMigrationVersion(v2);
     }
 
     @Override
@@ -73,5 +83,19 @@ public class InitializeEntityBalanceMigration extends AbstractTimestampInfoMigra
         var stopwatch = Stopwatch.createStarted();
         var count = doMigrate(INITIALIZE_ENTITY_BALANCE_SQL);
         log.info("Initialized {} entities balance in {}", count.get(), stopwatch);
+    }
+
+    @Override
+    protected boolean skipMigration(Configuration configuration) {
+        if (super.skipMigration(configuration)) {
+            return true;
+        }
+
+        if (blockStreamResolver.isStartedFromBlockStream()) {
+            log.info("Skip migration since the importer started from the block stream");
+            return true;
+        }
+
+        return false;
     }
 }

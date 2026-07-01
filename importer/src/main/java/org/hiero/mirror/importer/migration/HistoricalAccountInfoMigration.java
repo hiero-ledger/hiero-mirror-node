@@ -19,6 +19,7 @@ import java.util.zip.GZIPInputStream;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -28,19 +29,23 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.core.io.Resource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 
 @Named
-public class HistoricalAccountInfoMigration extends RepeatableMigration {
+final class HistoricalAccountInfoMigration extends RepeatableMigration {
 
     static final Instant EXPORT_DATE = Instant.parse("2019-09-14T00:00:10Z");
 
+    private final BlockStreamResolver blockStreamResolver;
     private final Set<Long> contractIds = new HashSet<>();
     private final ObjectProvider<EntityRepository> entityRepositoryProvider;
     private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final ImporterProperties importerProperties;
+    private final boolean v2;
 
     @Value("classpath:accountInfoContracts.txt")
     private Resource accountInfoContracts;
@@ -48,14 +53,18 @@ public class HistoricalAccountInfoMigration extends RepeatableMigration {
     @Value("classpath:accountInfo.txt.gz")
     private Resource accountInfoPath;
 
-    public HistoricalAccountInfoMigration(
+    HistoricalAccountInfoMigration(
+            BlockStreamResolver blockStreamResolver,
             ObjectProvider<EntityRepository> entityRepositoryProvider,
+            Environment environment,
             ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties) {
         super(importerProperties.getMigration());
+        this.blockStreamResolver = blockStreamResolver;
         this.entityRepositoryProvider = entityRepositoryProvider;
         this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.importerProperties = importerProperties;
+        v2 = environment.acceptsProfiles(Profiles.of("v2"));
     }
 
     @Override
@@ -64,13 +73,8 @@ public class HistoricalAccountInfoMigration extends RepeatableMigration {
     }
 
     @Override
-    protected boolean skipMigration(Configuration configuration) {
-        if (!migrationProperties.isEnabled()) {
-            log.info("Skip migration since it's disabled");
-            return true;
-        }
-
-        return false; // Migrate for both v1 and v2
+    protected MigrationVersion getMinimumVersion() {
+        return blockStreamResolver.getMinimumMigrationVersion(v2);
     }
 
     @Override
@@ -95,6 +99,20 @@ public class HistoricalAccountInfoMigration extends RepeatableMigration {
         loadContractIds();
         fixContractEntities();
         processFile(stopwatch);
+    }
+
+    @Override
+    protected boolean skipMigration(final Configuration configuration) {
+        if (super.skipMigration(configuration)) {
+            return true;
+        }
+
+        if (blockStreamResolver.isInitialStateFromGenesisWrb()) {
+            log.info("Skip migration since initial state is loaded from the genesis wrapped record block");
+            return true;
+        }
+
+        return false;
     }
 
     private void processFile(Stopwatch stopwatch) throws IOException {

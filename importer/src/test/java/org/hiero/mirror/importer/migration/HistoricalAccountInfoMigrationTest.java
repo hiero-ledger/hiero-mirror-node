@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.from;
+import static org.mockito.Mockito.mock;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
@@ -14,20 +15,24 @@ import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
+import org.flywaydb.core.api.configuration.Configuration;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.util.Utility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 @RequiredArgsConstructor
-class HistoricalAccountInfoMigrationTest extends ImporterIntegrationTest {
+final class HistoricalAccountInfoMigrationTest extends ImporterIntegrationTest {
 
     // These are the three accounts present in the test accountInfo.txt.gz
     private static final long ACCOUNT_ID1 = 2977L;
@@ -37,6 +42,7 @@ class HistoricalAccountInfoMigrationTest extends ImporterIntegrationTest {
     private static final int CONTRACT_COUNT = 1;
     private static final int ENTITY_COUNT = 3;
 
+    private final BlockProperties blockProperties;
     private final HistoricalAccountInfoMigration historicalAccountInfoMigration;
     private final EntityRepository entityRepository;
     private final ImporterProperties importerProperties;
@@ -52,8 +58,10 @@ class HistoricalAccountInfoMigrationTest extends ImporterIntegrationTest {
 
     @AfterEach
     void after() {
+        blockProperties.setEnabled(false);
         importerProperties.setImportHistoricalAccountInfo(false);
         importerProperties.setNetwork(network);
+        importerProperties.setStartBlockNumber(null);
     }
 
     @Test
@@ -120,6 +128,37 @@ class HistoricalAccountInfoMigrationTest extends ImporterIntegrationTest {
         historicalAccountInfoMigration.doMigrate();
 
         assertThat(entityRepository.findAll()).containsExactlyInAnyOrderElementsOf(entities);
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, true
+            1, false
+            """)
+    void skipWhenFirstBlockIsWrb(final long blockNumber, final boolean shouldSkip) {
+        // given
+        domainBuilder
+                .recordFile()
+                .customize(r -> r.index(blockNumber).wrappedRecordBlockHash(domainBuilder.bytes(48)))
+                .persist();
+
+        // when / then
+        assertThat(historicalAccountInfoMigration.skipMigration(mock(Configuration.class)))
+                .isEqualTo(shouldSkip);
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            true, , true
+            true, 0, true
+            true, 2, false
+            false, , false
+            """)
+    void skipWithBlockStreamConfig(final boolean blockEnabled, final Long startBlockNumber, final boolean shouldSkip) {
+        blockProperties.setEnabled(blockEnabled);
+        importerProperties.setStartBlockNumber(startBlockNumber);
+        assertThat(historicalAccountInfoMigration.skipMigration(mock(Configuration.class)))
+                .isEqualTo(shouldSkip);
     }
 
     @Test
@@ -259,7 +298,8 @@ class HistoricalAccountInfoMigrationTest extends ImporterIntegrationTest {
 
     @Test
     void skipMigrationFalse() {
-        assertThat(historicalAccountInfoMigration.skipMigration(null)).isFalse();
+        assertThat(historicalAccountInfoMigration.skipMigration(mock(Configuration.class)))
+                .isFalse();
     }
 
     @SuppressWarnings("deprecation")
