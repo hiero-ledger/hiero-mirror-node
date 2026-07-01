@@ -34,6 +34,7 @@ class RecordFile {
   static LOGS_BLOOM = 'logs_bloom';
   static NAME = 'name';
   static PREV_HASH = 'prev_hash';
+  static RECEIPTS_ROOT = 'receipts_root';
   static SIZE = 'size';
   static VERSION = 'version';
 
