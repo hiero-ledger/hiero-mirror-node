@@ -22,18 +22,18 @@ public class TopicMessageFilter {
 
     private Long endTime;
 
-    @Min(0)
+    @Min(value = 0, message = "must be greater than or equal to 0")
     private long limit;
 
-    @Min(0)
-    @NotNull
+    @Min(value = 0, message = "must be greater than or equal to 0")
+    @NotNull(message = "must not be null")
     @Builder.Default
     private long startTime = DomainUtils.now();
 
     @Builder.Default
     private String subscriberId = RandomStringUtils.random(8, 0, 0, true, true, null, RANDOM);
 
-    @NotNull
+    @NotNull(message = "must not be null")
     private EntityId topicId;
 
     public boolean hasLimit() {
