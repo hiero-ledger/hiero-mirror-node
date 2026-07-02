@@ -58,7 +58,7 @@ import org.hyperledger.besu.datatypes.Address;
 public class TransactionExecutionService {
 
     private static final Duration TRANSACTION_DURATION = new Duration(15);
-    private static final long CONTRACT_CREATE_TX_FEES = 1_000_000_000L;
+    private static final long CONTRACT_CREATE_TX_FEES = 4_000_000_000L;
     private static final String SENDER_NOT_FOUND = "Sender account not found.";
 
     private final AccountReadableKVState accountReadableKVState;
