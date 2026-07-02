@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.Optional;
 import lombok.Getter;
 import org.flywaydb.core.api.MigrationVersion;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
@@ -33,6 +34,8 @@ final class SyntheticContractLogTransactionHashMigration extends AsyncJavaMigrat
 
     private static final String SET_CITUS_LIMIT = "set citus.max_intermediate_result_size = -1";
 
+    private static final int CONSENSUS_SUBMIT_MESSAGE_TYPE = TransactionType.CONSENSUSSUBMITMESSAGE.getProtoId();
+
     private static final String CREATE_PROGRESS_TABLE = """
             create table if not exists synthetic_contract_log_transaction_hash_progress_temp(
                 upper_bound bigint not null
@@ -51,9 +54,26 @@ final class SyntheticContractLogTransactionHashMigration extends AsyncJavaMigrat
             )
             """;
 
+    // No consensus submit message could have paid a fungible token custom fee before the first topic ever had one.
     private static final String SELECT_LOWER_BOUND_FLOOR = """
-            select min(consensus_timestamp) from contract_log
-                where synthetic is true and transaction_hash is not null
+            select min(consensus_timestamp)
+            from (
+              (
+                select min(lower(cf.timestamp_range)) as consensus_timestamp
+                from custom_fee as cf
+                join entity on id = entity_id
+                where type = 'TOPIC'
+                  and fixed_fees is not null
+                  and jsonb_array_length(fixed_fees) > 0
+              ) union all (
+                select min(lower(cf.timestamp_range)) as consensus_timestamp
+                from custom_fee_history as cf
+                join entity on id = entity_id
+                where type = 'TOPIC'
+                  and fixed_fees is not null
+                  and jsonb_array_length(fixed_fees) > 0
+              )
+            ) as t(consensus_timestamp)
             """;
 
     private static final String CHECKPOINT_SQL = """
@@ -62,23 +82,28 @@ final class SyntheticContractLogTransactionHashMigration extends AsyncJavaMigrat
             values (:upperBound)
             """;
 
+    // contract_log.transaction_hash is truncated to 32 bytes; sourced from transaction via IN (differing Citus keys).
     private static final String BACKFILL_SQL = """
             with candidates as (
-              select distinct on (cl.transaction_hash)
-                cl.consensus_timestamp,
-                substring(cl.transaction_hash from 1 for 32) as hash,
+              select
+                t.consensus_timestamp,
+                substring(t.transaction_hash from 1 for 32) as hash,
                 case
-                  when octet_length(cl.transaction_hash) > 32
-                    then substring(cl.transaction_hash from 33)
+                  when octet_length(t.transaction_hash) > 32
+                    then substring(t.transaction_hash from 33)
                   else null::bytea
                 end as hash_suffix,
-                cl.payer_account_id
-              from contract_log cl
-              where cl.synthetic is true
-                and cl.transaction_hash is not null
-                and cl.consensus_timestamp >= :lowerBound
-                and cl.consensus_timestamp < :upperBound
-              order by cl.transaction_hash, cl.consensus_timestamp
+                t.payer_account_id
+              from transaction t
+              where t.type = :transactionType
+                and t.consensus_timestamp >= :lowerBound
+                and t.consensus_timestamp < :upperBound
+                and t.consensus_timestamp in (
+                  select consensus_timestamp from contract_log
+                  where synthetic is true
+                    and consensus_timestamp >= :lowerBound
+                    and consensus_timestamp < :upperBound
+                )
             ),
             existing as (
               select hash from transaction_hash
@@ -165,8 +190,10 @@ final class SyntheticContractLogTransactionHashMigration extends AsyncJavaMigrat
     @Override
     protected Optional<Long> migratePartial(Long upperBound) {
         final var lowerBound = upperBound - batchInterval;
-        final var params =
-                new MapSqlParameterSource().addValue("lowerBound", lowerBound).addValue("upperBound", upperBound);
+        final var params = new MapSqlParameterSource()
+                .addValue("lowerBound", lowerBound)
+                .addValue("upperBound", upperBound)
+                .addValue("transactionType", CONSENSUS_SUBMIT_MESSAGE_TYPE);
 
         if (v2) {
             getJdbcOperations().execute(SET_CITUS_LIMIT);

@@ -3,8 +3,11 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.CONSENSUSSUBMITMESSAGE;
 import static org.hiero.mirror.importer.migration.SyntheticContractLogTransactionHashMigration.DEFAULT_BATCH_INTERVAL;
 
+import com.google.common.collect.Range;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +33,12 @@ final class SyntheticContractLogTransactionHashMigrationTest
     @BeforeEach
     void setup() {
         migration.getEntityProperties().getPersist().setTransactionHash(true);
+        // establishes a non-null lower bound floor well below all test timestamps, via a topic with a custom fee
+        var topic = domainBuilder.entity().customize(e -> e.type(TOPIC)).persist();
+        domainBuilder
+                .customFee()
+                .customize(cf -> cf.entityId(topic.getId()).timestampRange(Range.atLeast(1L)))
+                .persist();
     }
 
     @Test
@@ -42,55 +51,35 @@ final class SyntheticContractLogTransactionHashMigrationTest
 
     @Test
     void backfillsSyntheticLogsWithTransactionHash() {
-        final var syntheticHash1 = new byte[32];
-        Arrays.fill(syntheticHash1, (byte) 0x11);
-        final var syntheticHash2 = new byte[32];
-        Arrays.fill(syntheticHash2, (byte) 0x22);
+        final var fullHash1 = domainBuilder.bytes(48);
+        final var fullHash2 = domainBuilder.bytes(48);
         final var payer = EntityId.of(9000001L);
 
-        // two logs from the same transaction (same hash + timestamp) → one transaction_hash entry
-        domainBuilder
-                .contractLog()
-                .customize(cl -> cl.consensusTimestamp(1000L)
-                        .transactionHash(syntheticHash1)
-                        .payerAccountId(payer)
-                        .synthetic(true)
-                        .index(0))
-                .persist();
-        domainBuilder
-                .contractLog()
-                .customize(cl -> cl.consensusTimestamp(1000L)
-                        .transactionHash(syntheticHash1)
-                        .payerAccountId(payer)
-                        .synthetic(true)
-                        .index(1))
-                .persist();
+        // two logs from the same transaction (same timestamp) → one transaction_hash entry
+        persistSyntheticLog(1000L, 0);
+        persistSyntheticLog(1000L, 1);
+        persistConsensusSubmitMessage(1000L, fullHash1, payer);
         // second distinct transaction
-        domainBuilder
-                .contractLog()
-                .customize(cl -> cl.consensusTimestamp(2000L)
-                        .transactionHash(syntheticHash2)
-                        .payerAccountId(payer)
-                        .synthetic(true)
-                        .index(0))
-                .persist();
+        persistSyntheticLog(2000L, 0);
+        persistConsensusSubmitMessage(2000L, fullHash2, payer);
 
         runMigration();
         waitForCompletion();
 
         assertThat(countTransactionHashes()).isEqualTo(2);
-        assertThat(findHashByTimestamp(1000L)).isEqualTo(syntheticHash1);
-        assertThat(findHashByTimestamp(2000L)).isEqualTo(syntheticHash2);
+        assertThat(findHashByTimestamp(1000L)).isEqualTo(Arrays.copyOfRange(fullHash1, 0, 32));
+        assertThat(findHashSuffixByTimestamp(1000L)).isEqualTo(Arrays.copyOfRange(fullHash1, 32, 48));
+        assertThat(findHashByTimestamp(2000L)).isEqualTo(Arrays.copyOfRange(fullHash2, 0, 32));
+        assertThat(findHashSuffixByTimestamp(2000L)).isEqualTo(Arrays.copyOfRange(fullHash2, 32, 48));
     }
 
     @Test
     void skipsNonSyntheticLogs() {
         domainBuilder
                 .contractLog()
-                .customize(cl -> cl.consensusTimestamp(1000L)
-                        .transactionHash(new byte[32])
-                        .synthetic(false))
+                .customize(cl -> cl.consensusTimestamp(1000L).synthetic(false))
                 .persist();
+        persistConsensusSubmitMessage(1000L, domainBuilder.bytes(48), EntityId.of(9000001L));
 
         runMigration();
         waitForCompletion();
@@ -99,12 +88,8 @@ final class SyntheticContractLogTransactionHashMigrationTest
     }
 
     @Test
-    void skipsLogsWithNullTransactionHash() {
-        domainBuilder
-                .contractLog()
-                .customize(
-                        cl -> cl.consensusTimestamp(1000L).transactionHash(null).synthetic(true))
-                .persist();
+    void skipsWhenNoMatchingConsensusSubmitMessageTransaction() {
+        persistSyntheticLog(1000L, 0);
 
         runMigration();
         waitForCompletion();
@@ -115,22 +100,15 @@ final class SyntheticContractLogTransactionHashMigrationTest
     @Test
     void skipsHashesAlreadyPresentInTransactionHashTable() {
         // Simulates TOKENREJECT: already in transaction_hash via the regular onTransaction() path
-        final var syntheticHash = new byte[32];
-        Arrays.fill(syntheticHash, (byte) 0x33);
+        final var fullHash = domainBuilder.bytes(48);
         final var payer = EntityId.of(9000003L);
 
-        domainBuilder
-                .contractLog()
-                .customize(cl -> cl.consensusTimestamp(5000L)
-                        .transactionHash(syntheticHash)
-                        .payerAccountId(payer)
-                        .synthetic(true)
-                        .index(0))
-                .persist();
+        persistSyntheticLog(5000L, 0);
+        persistConsensusSubmitMessage(5000L, fullHash, payer);
 
         domainBuilder
                 .transactionHash()
-                .customize(th -> th.hash(syntheticHash).consensusTimestamp(5000L))
+                .customize(th -> th.hash(Arrays.copyOfRange(fullHash, 0, 32)).consensusTimestamp(5000L))
                 .persist();
 
         runMigration();
@@ -142,18 +120,11 @@ final class SyntheticContractLogTransactionHashMigrationTest
 
     @Test
     void isIdempotent() {
-        final var syntheticHash = new byte[32];
-        Arrays.fill(syntheticHash, (byte) 0xab);
+        final var fullHash = domainBuilder.bytes(48);
         final var payer = EntityId.of(9000002L);
 
-        domainBuilder
-                .contractLog()
-                .customize(cl -> cl.consensusTimestamp(3000L)
-                        .transactionHash(syntheticHash)
-                        .payerAccountId(payer)
-                        .synthetic(true)
-                        .index(0))
-                .persist();
+        persistSyntheticLog(3000L, 0);
+        persistConsensusSubmitMessage(3000L, fullHash, payer);
 
         runMigration();
         waitForCompletion();
@@ -173,16 +144,8 @@ final class SyntheticContractLogTransactionHashMigrationTest
 
     @Test
     void skipsWhenTransactionHashPersistenceDisabled() {
-        final var syntheticHash = new byte[32];
-        Arrays.fill(syntheticHash, (byte) 0xcc);
-
-        domainBuilder
-                .contractLog()
-                .customize(cl -> cl.consensusTimestamp(1000L)
-                        .transactionHash(syntheticHash)
-                        .synthetic(true)
-                        .index(0))
-                .persist();
+        persistSyntheticLog(1000L, 0);
+        persistConsensusSubmitMessage(1000L, domainBuilder.bytes(48), EntityId.of(9000001L));
 
         migration.getEntityProperties().getPersist().setTransactionHash(false);
         runMigration();
@@ -196,32 +159,39 @@ final class SyntheticContractLogTransactionHashMigrationTest
         final long batchIntervalNs = DurationStyle.SIMPLE
                 .parse(DEFAULT_BATCH_INTERVAL, java.time.temporal.ChronoUnit.HOURS)
                 .toNanos();
+        final var payer = EntityId.of(9000001L);
 
-        final var hash1 = new byte[32];
-        Arrays.fill(hash1, (byte) 0xd1);
-        final var hash2 = new byte[32];
-        Arrays.fill(hash2, (byte) 0xd2);
-
-        domainBuilder
-                .contractLog()
-                .customize(cl -> cl.consensusTimestamp(1000L)
-                        .transactionHash(hash1)
-                        .synthetic(true)
-                        .index(0))
-                .persist();
+        persistSyntheticLog(1000L, 0);
+        persistConsensusSubmitMessage(1000L, domainBuilder.bytes(48), payer);
         // second log more than one batch interval away to force multiple iterations
-        domainBuilder
-                .contractLog()
-                .customize(cl -> cl.consensusTimestamp(1000L + batchIntervalNs + 1L)
-                        .transactionHash(hash2)
-                        .synthetic(true)
-                        .index(0))
-                .persist();
+        final long laterTimestamp = 1000L + batchIntervalNs + 1L;
+        persistSyntheticLog(laterTimestamp, 0);
+        persistConsensusSubmitMessage(laterTimestamp, domainBuilder.bytes(48), payer);
 
         runMigration();
         waitForCompletion();
 
         assertThat(countTransactionHashes()).isEqualTo(2);
+    }
+
+    private void persistSyntheticLog(long consensusTimestamp, int index) {
+        domainBuilder
+                .contractLog()
+                .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .synthetic(true)
+                        .index(index))
+                .persist();
+    }
+
+    private void persistConsensusSubmitMessage(long consensusTimestamp, byte[] fullHash, EntityId payer) {
+        domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(consensusTimestamp)
+                        .type(CONSENSUSSUBMITMESSAGE.getProtoId())
+                        .transactionHash(fullHash)
+                        .payerAccountId(payer)
+                        .parentConsensusTimestamp(null))
+                .persist();
     }
 
     private int countTransactionHashes() {
@@ -232,5 +202,11 @@ final class SyntheticContractLogTransactionHashMigrationTest
         final List<Map<String, Object>> rows = ownerJdbcTemplate.queryForList(
                 "select hash from transaction_hash where consensus_timestamp = ?", consensusTimestamp);
         return rows.isEmpty() ? null : (byte[]) rows.get(0).get("hash");
+    }
+
+    private byte[] findHashSuffixByTimestamp(long consensusTimestamp) {
+        final List<Map<String, Object>> rows = ownerJdbcTemplate.queryForList(
+                "select hash_suffix from transaction_hash where consensus_timestamp = ?", consensusTimestamp);
+        return rows.isEmpty() ? null : (byte[]) rows.get(0).get("hash_suffix");
     }
 }
