@@ -1574,9 +1574,8 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
         final var txnRecord = buildTransactionRecordWithNoTransactions(
                 builder -> {
                     builder.getTransferListBuilder().addAllAccountAmounts(recordCryptoTransfers);
-                    final var contractCallResultBuilder = builder.getContractCallResultBuilder();
-                    buildContractFunctionResult(contractCallResultBuilder);
-                    contractCallResultBuilder.setContractID(contractSpender.toContractID());
+                    buildContractFunctionResult(
+                            builder.getContractCallResultBuilder().setSenderId(contractSpender.toAccountID()));
                 },
                 transactionBody,
                 ResponseCodeEnum.SUCCESS.getNumber());

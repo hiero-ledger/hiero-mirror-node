@@ -239,10 +239,12 @@ public class EntityRecordItemListener implements RecordItemListener {
 
         long spenderId = payerAccount.getId();
         if (!transfers.isEmpty() && recordItem.getTransactionRecord().hasContractCallResult()) {
+            // The spender is the sender id of the contract call result, i.e. the immediate EVM caller of the transfer
+            // precompile frame (an EOA or a contract), not the contract id, which is the precompile itself (0x167).
             spenderId = EntityId.of(recordItem
                             .getTransactionRecord()
                             .getContractCallResult()
-                            .getContractID())
+                            .getSenderId())
                     .getId();
         }
 
