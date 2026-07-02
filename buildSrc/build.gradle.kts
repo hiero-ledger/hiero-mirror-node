@@ -5,6 +5,16 @@ plugins { `kotlin-dsl` }
 repositories { gradlePluginPortal() }
 
 dependencies {
+    // Temporary until all plugins upgrade
+    constraints {
+        add("implementation", "com.fasterxml.jackson.core:jackson-databind") {
+            version { require("2.22.0") }
+        }
+        add("implementation", "tools.jackson.core:jackson-databind") {
+            version { require("3.2.0") }
+        }
+    }
+
     val dockerJavaVersion = "3.7.1"
     val jooqVersion = "3.21.6" // Always make the version in project root build.gradle.kts match
 
@@ -25,7 +35,7 @@ dependencies {
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.0")
     implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("org.cyclonedx:cyclonedx-gradle-plugin:3.2.4")
-    implementation("org.flywaydb:flyway-database-postgresql:12.9.0")
+    implementation("org.flywaydb:flyway-database-postgresql:12.10.0")
     implementation("org.graalvm.buildtools:native-gradle-plugin:1.1.3")
     implementation("org.gradle:test-retry-gradle-plugin:1.6.5")
     implementation("org.jooq:jooq-codegen-gradle:$jooqVersion")
