@@ -21,6 +21,7 @@ configurations.all {
 }
 
 dependencies {
+    compileOnly("org.graalvm.nativeimage:svm")
     implementation(project(":common"))
     implementation("com.bucket4j:bucket4j-core")
     implementation("com.hedera.hashgraph:app") {

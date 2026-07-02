@@ -17,7 +17,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.35.1")
+    set("blockNodeVersion", "0.37.0")
     set("consensusNodeVersion", "0.75.0-rc.5")
     set("jackson-2-bom.version", "2.21.4") // Temporary until next Spring Boot
     set("jooq.version", "3.21.6") // Must match buildSrc/build.gradle.kts
@@ -36,7 +36,7 @@ dependencies {
         val mapStructVersion = rootProject.extra["mapStructVersion"] as String
         val tuweniVersion = rootProject.extra["tuweniVersion"] as String
 
-        api("com.asarkar.grpc:grpc-test:2.0.0")
+        api("com.asarkar.grpc:grpc-test:2.0.1")
         api("com.esaulpaugh:headlong:13.3.1")
         api("com.github.luben:zstd-jni:1.5.7-11")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
@@ -46,7 +46,7 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.9.0")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.11.0")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
@@ -54,7 +54,7 @@ dependencies {
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
-        api("io.cucumber:cucumber-bom:7.34.3")
+        api("io.cucumber:cucumber-bom:7.34.4")
         api("io.fabric8:kubernetes-client-bom:7.7.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.3")
@@ -69,6 +69,7 @@ dependencies {
         api("org.bouncycastle:bcpkix-jdk18on:1.84") // Temporary until next hedera-app
         api("org.bouncycastle:bcprov-jdk18on:1.84")
         api("org.gaul:s3proxy:3.2.0")
+        api("org.graalvm.nativeimage:svm:25.0.3")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
@@ -77,7 +78,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:5.0.3")
-        api("software.amazon.awssdk:bom:2.46.15")
+        api("software.amazon.awssdk:bom:2.46.17")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

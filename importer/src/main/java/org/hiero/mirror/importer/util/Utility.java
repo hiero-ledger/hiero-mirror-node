@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.util;
 
+import static org.hiero.mirror.common.util.SignatureUtils.ECDSA_SECP256K1_COMPRESSED_KEY_LENGTH;
+
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
@@ -24,10 +26,8 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.bouncycastle.crypto.digests.KeccakDigest;
-import org.bouncycastle.crypto.ec.CustomNamedCurves;
-import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.slf4j.helpers.MessageFormatter;
 
@@ -43,15 +43,6 @@ public class Utility {
 
     static final String RECOVERABLE_ERROR = "Recoverable error. ";
     static final String HALT_ON_ERROR_DEFAULT = "false";
-
-    private static final int ECDSA_SECP256K1_COMPRESSED_KEY_LENGTH = 33;
-    private static final ECDomainParameters EC_DOMAIN_PARAMETERS;
-
-    static {
-        final var curveParams = CustomNamedCurves.getByName("secp256k1");
-        EC_DOMAIN_PARAMETERS = new ECDomainParameters(
-                curveParams.getCurve(), curveParams.getG(), curveParams.getN(), curveParams.getH());
-    }
 
     /**
      * Converts an ECDSA secp256k1 alias to a 20 byte EVM address by taking the keccak hash of it. Logic copied from
@@ -78,8 +69,9 @@ public class Utility {
             if (key.getKeyCase() == Key.KeyCase.ECDSA_SECP256K1
                     && key.getECDSASecp256K1().size() == ECDSA_SECP256K1_COMPRESSED_KEY_LENGTH) {
                 byte[] rawCompressedKey = DomainUtils.toBytes(key.getECDSASecp256K1());
-                evmAddress = recoverAddressFromPubKey(rawCompressedKey);
-                if (evmAddress == null) {
+                evmAddress = SignatureUtils.recoverAddressFromPubKey(rawCompressedKey);
+                if (evmAddress == null || evmAddress.length == 0) {
+                    evmAddress = null;
                     log.warn("Unable to recover EVM address from {}", Hex.encodeHexString(rawCompressedKey));
                 }
             }
@@ -228,27 +220,6 @@ public class Utility {
         } else {
             log.error(RECOVERABLE_ERROR + message, args);
         }
-    }
-
-    // This method is copied from consensus node's EthTxSigs::recoverAddressFromPubKey and should be kept in sync
-    @SuppressWarnings("java:S1168")
-    private static byte[] recoverAddressFromPubKey(byte[] pubKeyBytes) {
-        final var point = EC_DOMAIN_PARAMETERS.getCurve().decodePoint(pubKeyBytes);
-
-        if (!point.isValid()) {
-            throw new IllegalArgumentException("Invalid public key: point is not on the secp256k1 curve");
-        }
-
-        final var uncompressed = point.normalize().getEncoded(false);
-        final var raw64 = Arrays.copyOfRange(uncompressed, 1, 65);
-
-        final var digest = new KeccakDigest(256);
-        digest.update(raw64, 0, raw64.length);
-
-        final var hash = new byte[32];
-        digest.doFinal(hash, 0);
-
-        return Arrays.copyOfRange(hash, 12, 32);
     }
 
     private static byte[] stripHexPrefix(byte[] data) {
