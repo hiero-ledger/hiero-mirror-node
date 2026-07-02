@@ -45,6 +45,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.hyperledger.besu.internal:algorithms")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("org.flywaydb:flyway-database-postgresql")

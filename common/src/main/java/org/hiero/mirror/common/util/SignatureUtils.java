@@ -15,7 +15,7 @@ import org.jspecify.annotations.Nullable;
 public final class SignatureUtils {
 
     public static final int ECDSA_SECP256K1_COMPRESSED_KEY_LENGTH = 33;
-    private static final ECDomainParameters EC_DOMAIN_PARAMETERS;
+    public static final ECDomainParameters EC_DOMAIN_PARAMETERS;
 
     static {
         final var curveParams = CustomNamedCurves.getByName("secp256k1");
