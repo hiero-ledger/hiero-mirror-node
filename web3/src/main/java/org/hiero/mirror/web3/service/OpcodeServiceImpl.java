@@ -169,13 +169,14 @@ public class OpcodeServiceImpl implements OpcodeService {
                 .consensusTimestamp(consensusTimestamp)
                 .gas(getGasLimit(ethTransaction, contractResult))
                 .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType))
-                .sender(getSenderAddress(contractResult))
+                .sender(getSenderAddress(contractResult, consensusTimestamp))
                 .value(getValue(ethTransaction, contractResult).longValue())
                 .build();
     }
 
-    private Address getSenderAddress(ContractResult contractResult) {
-        final var address = commonEntityAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.empty());
+    private Address getSenderAddress(ContractResult contractResult, long consensusTimestamp) {
+        final var address =
+                commonEntityAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.of(consensusTimestamp));
         return address != null ? address : EMPTY_ADDRESS;
     }
 

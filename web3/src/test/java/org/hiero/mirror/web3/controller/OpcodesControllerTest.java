@@ -316,7 +316,8 @@ class OpcodesControllerTest {
         when(recordFileRepository.findByTimestamp(consensusTimestamp)).thenReturn(Optional.of(recordFile));
         when(commonEntityAccessor.evmAddressFromId(contractId, Optional.empty()))
                 .thenReturn(contractAddress);
-        when(commonEntityAccessor.evmAddressFromId(senderId, Optional.empty())).thenReturn(senderAddress);
+        when(commonEntityAccessor.evmAddressFromId(senderId, Optional.of(consensusTimestamp)))
+                .thenReturn(senderAddress);
         when(commonEntityAccessor.get(contractAddress, Optional.empty()))
                 .thenReturn(Optional.ofNullable(contractEntity));
         when(commonEntityAccessor.get(senderAddress, Optional.empty())).thenReturn(Optional.of(senderEntity));
