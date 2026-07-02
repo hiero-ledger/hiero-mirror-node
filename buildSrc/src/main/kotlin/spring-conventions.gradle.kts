@@ -44,7 +44,8 @@ tasks.bootBuildImage {
 
     val env = System.getenv()
     val repo = env.getOrDefault("GITHUB_REPOSITORY", "hiero-ledger/hiero-mirror-node")
-    val image = "ghcr.io/${repo}/${project.name}"
+    //    val image = "ghcr.io/${repo}/${project.name}"
+    val image = "docker.io/carlie45/${project.name}"
 
     builder = "paketobuildpacks/builder-noble-java-tiny@${builderImageDigest}"
     runImage = "paketobuildpacks/ubuntu-noble-run-tiny@${runImageDigest}"
@@ -66,7 +67,9 @@ tasks.bootBuildImage {
             "-H:NativeLinkerOption=-s",
             "-H:ServiceLoaderFeatureExcludeServices=org.hibernate.bytecode.spi.BytecodeProvider",
             "-H:+StripDebugInfo",
-            "-O3",
+            //            "-O3",
+            "-Ob",
+            "-J-Xmx10g",
         )
     val nativeImageBuildArgs = extraBuildArgs.filter { it.isNotBlank() }.joinToString(" ")
 
