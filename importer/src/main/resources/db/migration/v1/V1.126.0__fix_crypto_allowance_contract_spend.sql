@@ -7,13 +7,14 @@ with missed as (
     and ct.consensus_timestamp > lower(ca.timestamp_range)
     and ct.is_approval is true
     and ct.amount < 0
-  -- the synthetic transfer carries a contract_result at its own timestamp whose sender_id is the spender
+  -- the transfer carries a contract_result at its own timestamp whose contract_id (the called contract, i.e. the
+  -- msg.sender that invoked the transfer precompile) is the spender
   join contract_result cr
     on cr.consensus_timestamp = ct.consensus_timestamp
-    and cr.sender_id = ca.spender
+    and cr.contract_id = ca.spender
   where ca.amount_granted > 0
     -- only debits the importer didn't already attribute to the spender (those would have payer = spender)
-    and ct.payer_account_id <> cr.sender_id
+    and ct.payer_account_id <> cr.contract_id
   group by ca.owner, ca.spender
 )
 update crypto_allowance ca

@@ -242,7 +242,7 @@ public class EntityRecordItemListener implements RecordItemListener {
             spenderId = EntityId.of(recordItem
                             .getTransactionRecord()
                             .getContractCallResult()
-                            .getSenderId())
+                            .getContractID())
                     .getId();
         }
 

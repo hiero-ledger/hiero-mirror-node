@@ -89,10 +89,10 @@ class FixCryptoAllowanceContractSpendMigrationTest extends ImporterIntegrationTe
                 .persist();
     }
 
-    private void persistContractResult(long senderId, long consensusTimestamp) {
+    private void persistContractResult(long contractId, long consensusTimestamp) {
         domainBuilder
                 .contractResult()
-                .customize(cr -> cr.senderId(EntityId.of(senderId)).consensusTimestamp(consensusTimestamp))
+                .customize(cr -> cr.contractId(contractId).consensusTimestamp(consensusTimestamp))
                 .persist();
     }
 

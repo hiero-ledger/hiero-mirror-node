@@ -59,7 +59,7 @@ public interface CryptoAllowanceRepository extends CrudRepository<CryptoAllowanc
                             and ct.consensus_timestamp > lower(ca.timestamp_range)
                         group by ca.spender, ct.consensus_timestamp
                         ), contract_results_filtered as (
-                        select sender_id, consensus_timestamp
+                        select contract_id, consensus_timestamp
                         from contract_result cr
                         where cr.consensus_timestamp <= :blockTimestamp
                             and cr.consensus_timestamp in (
@@ -67,15 +67,15 @@ public interface CryptoAllowanceRepository extends CrudRepository<CryptoAllowanc
                                 from crypto_transfer
                             )
                         ), contract_call_transfers as (
-                        select cr.sender_id, ct.consensus_timestamp, sum(ct.amount) as amount
+                        select cr.contract_id, ct.consensus_timestamp, sum(ct.amount) as amount
                         from crypto_transfer ct
                             join crypto_allowances ca on ct.entity_id = ca.owner
                             join contract_results_filtered cr on ct.is_approval is true
-                                and cr.sender_id = ca.spender
+                                and cr.contract_id = ca.spender
                                 and ct.consensus_timestamp = cr.consensus_timestamp
                                 and ct.consensus_timestamp <= :blockTimestamp
                                 and ct.consensus_timestamp > lower(ca.timestamp_range)
-                        group by cr.sender_id, ct.consensus_timestamp
+                        group by cr.contract_id, ct.consensus_timestamp
                         )
                     select *
                     from (
@@ -84,7 +84,7 @@ public interface CryptoAllowanceRepository extends CrudRepository<CryptoAllowanc
                                 (
                                     select sum(amount)
                                     from contract_call_transfers cct
-                                    where cct.sender_id = ca.spender
+                                    where cct.contract_id = ca.spender
                                 ),
                                 0)
                             + coalesce(

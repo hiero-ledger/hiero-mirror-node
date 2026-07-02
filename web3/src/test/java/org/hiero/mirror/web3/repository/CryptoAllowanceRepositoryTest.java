@@ -246,10 +246,10 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
                         .consensusTimestamp(cryptoTransferTimestamp))
                 .persist();
 
-        // contract result at the same timestamp identifies the spending contract via sender_id
+        // contract result at the same timestamp identifies the spending contract via contract_id
         domainBuilder
                 .contractResult()
-                .customize(c -> c.senderId(EntityId.of(spender)).consensusTimestamp(cryptoTransferTimestamp))
+                .customize(c -> c.contractId(spender).consensusTimestamp(cryptoTransferTimestamp))
                 .persist();
 
         assertThat(cryptoAllowanceRepository
@@ -297,7 +297,7 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
                 .persist();
         domainBuilder
                 .contractResult()
-                .customize(c -> c.senderId(EntityId.of(spender)).consensusTimestamp(contractSpendTimestamp))
+                .customize(c -> c.contractId(spender).consensusTimestamp(contractSpendTimestamp))
                 .persist();
 
         // both spends are subtracted: 5 - 1 - 2 = 2
