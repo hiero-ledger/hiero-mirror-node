@@ -631,6 +631,47 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     }
 
     @Test
+    void ethereumTransactionOpcodesWithDeletedReceiverSucceeds() {
+        // Given
+        final var senderEntity = accountPersistWithAccountBalances();
+        final var treasuryEntity = accountEntityPersist();
+        final var treasuryAddress = toAddress(treasuryEntity.getId());
+
+        final var tokenEntity = persistTokenWithAutoRenewAndTreasuryAccounts(
+                        TokenTypeEnum.FUNGIBLE_COMMON, treasuryEntity)
+                .getLeft();
+        final var tokenAddress = toAddress(tokenEntity.getId());
+        final var contract = testWeb3jService.deployWithoutPersist(DynamicEthCalls::deploy);
+        final var contractAddress = Address.fromHexString(contract.getContractAddress());
+        final var contractEntityId = entityIdFromEvmAddress(contractAddress);
+        final var consensusTimestamp =
+                persistDeletedContractReceiver(contractEntityId, testWeb3jService.getContractRuntime());
+
+        final var functionCall = contract.send_mintTokenGetTotalSupplyAndBalanceOfTreasury(
+                tokenAddress.toHexString(), BigInteger.valueOf(100), List.of(), treasuryAddress.toHexString());
+        final var callData =
+                Bytes.fromHexString(functionCall.encodeFunctionCall()).toArray();
+        final var transactionIdOrHash = setUp(
+                ETHEREUMTRANSACTION,
+                contract,
+                callData,
+                true,
+                true,
+                senderEntity.toEntityId(),
+                ZERO_AMOUNT,
+                consensusTimestamp);
+
+        // When
+        final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
+
+        // Then
+        assertThat(opcodesResponse.getFailed()).isFalse();
+        verifyOpcodesResponse(opcodesResponse, opcodeContext, Address.fromHexString(contract.getContractAddress()));
+    }
+
+    @Test
     void ethereumTransactionOpcodesWithDeletedSenderSucceeds() {
         // Given
         final var senderEntity = persistDeletedSenderWithAccountBalances();
@@ -642,7 +683,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                         TokenTypeEnum.FUNGIBLE_COMMON, treasuryEntity)
                 .getLeft();
         final var tokenAddress = toAddress(tokenEntity.getId());
-        final var contract = testWeb3jService.deploy(DynamicEthCalls::deploy);
+        final var contract = testWeb3jService.deployWithoutPersist(DynamicEthCalls::deploy);
+        persistContractAtTimestamp(
+                entityIdFromEvmAddress(Address.fromHexString(contract.getContractAddress())),
+                testWeb3jService.getContractRuntime(),
+                senderEntity.getCreatedTimestamp());
         final var functionCall = contract.send_mintTokenGetTotalSupplyAndBalanceOfTreasury(
                 tokenAddress.toHexString(), BigInteger.valueOf(100), List.of(), treasuryAddress.toHexString());
 
@@ -1092,6 +1137,39 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                         .payerAccountId(senderEntityId.getId())
                         .transactionResult(contractResult.getTransactionResult()))
                 .persist();
+    }
+
+    private long persistDeletedContractReceiver(final EntityId contractEntityId, final byte[] runtimeBytecode) {
+        final long createdTimestamp = domainBuilder.timestamp();
+        final long deletionTimestamp = createdTimestamp + 20;
+        final long consensusTimestamp = createdTimestamp + 1;
+
+        contractPersistCustomizable(
+                HEX_PREFIX + DomainUtils.bytesToHex(runtimeBytecode), contractEntityId, e -> e.createdTimestamp(
+                                createdTimestamp)
+                        .balanceTimestamp(createdTimestamp)
+                        .deleted(true)
+                        .timestampRange(Range.atLeast(deletionTimestamp)));
+
+        domainBuilder
+                .entityHistory(contractEntityId, createdTimestamp)
+                .customize(e -> e.type(EntityType.CONTRACT)
+                        .balanceTimestamp(createdTimestamp)
+                        .deleted(false)
+                        .timestampRange(Range.closedOpen(createdTimestamp, deletionTimestamp))
+                        .alias(null)
+                        .evmAddress(null))
+                .persist();
+
+        return consensusTimestamp;
+    }
+
+    private void persistContractAtTimestamp(
+            final EntityId contractEntityId, final byte[] runtimeBytecode, final long createdTimestamp) {
+        contractPersistCustomizable(
+                HEX_PREFIX + DomainUtils.bytesToHex(runtimeBytecode),
+                contractEntityId,
+                e -> e.createdTimestamp(createdTimestamp).balanceTimestamp(createdTimestamp));
     }
 
     private Entity persistDeletedSenderWithAccountBalances() {

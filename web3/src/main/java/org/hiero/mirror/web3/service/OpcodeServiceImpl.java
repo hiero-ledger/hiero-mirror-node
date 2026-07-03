@@ -69,7 +69,7 @@ public class OpcodeServiceImpl implements OpcodeService {
             ctx.setOpcodeContext(opcodeContext);
 
             final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
-            return buildOpcodesResponse(result);
+            return buildOpcodesResponse(result, params.getConsensusTimestamp());
         });
     }
 
@@ -117,12 +117,13 @@ public class OpcodeServiceImpl implements OpcodeService {
         return buildCallServiceParameters(consensusTimestamp, transaction, ethereumTransaction);
     }
 
-    private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result) {
+    private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result, long consensusTimestamp) {
         final var recipientAddress = result.recipient();
         Entity recipientEntity = null;
         if (recipientAddress != null && !recipientAddress.equals(EMPTY_ADDRESS)) {
-            recipientEntity =
-                    commonEntityAccessor.get(recipientAddress, Optional.empty()).orElse(null);
+            recipientEntity = commonEntityAccessor
+                    .get(recipientAddress, Optional.of(consensusTimestamp))
+                    .orElse(null);
         }
 
         var address = EMPTY_ADDRESS.toHexString();
@@ -168,7 +169,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                 .ethereumData(getEthereumDataBytes(ethTransaction))
                 .consensusTimestamp(consensusTimestamp)
                 .gas(getGasLimit(ethTransaction, contractResult))
-                .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType))
+                .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType, consensusTimestamp))
                 .sender(getSenderAddress(contractResult, consensusTimestamp))
                 .value(getValue(ethTransaction, contractResult).longValue())
                 .build();
@@ -181,15 +182,19 @@ public class OpcodeServiceImpl implements OpcodeService {
     }
 
     private Address getReceiverAddress(
-            EthereumTransaction ethereumTransaction, ContractResult contractResult, int transactionType) {
+            EthereumTransaction ethereumTransaction,
+            ContractResult contractResult,
+            int transactionType,
+            long consensusTimestamp) {
         if (ethereumTransaction != null) {
             if (ArrayUtils.isEmpty(ethereumTransaction.getToAddress())) {
                 return EMPTY_ADDRESS;
             }
             final var address = Address.wrap(Bytes.wrap(ethereumTransaction.getToAddress()));
             if (ConversionUtils.isLongZero(address)) {
-                final var entity =
-                        commonEntityAccessor.get(address, Optional.empty()).orElse(null);
+                final var entity = commonEntityAccessor
+                        .get(address, Optional.of(consensusTimestamp))
+                        .orElse(null);
                 if (entity != null) {
                     return getEntityAddress(entity);
                 }
@@ -201,7 +206,7 @@ public class OpcodeServiceImpl implements OpcodeService {
             return EMPTY_ADDRESS;
         }
         final var contractId = EntityId.of(contractResult.getContractId());
-        final var address = commonEntityAccessor.evmAddressFromId(contractId, Optional.empty());
+        final var address = commonEntityAccessor.evmAddressFromId(contractId, Optional.of(consensusTimestamp));
         return address != null ? address : EMPTY_ADDRESS;
     }
 
