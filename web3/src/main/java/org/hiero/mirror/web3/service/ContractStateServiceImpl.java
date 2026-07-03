@@ -113,58 +113,53 @@ final class ContractStateServiceImpl implements ContractStateService {
     /**
      * Executes a batch query, returning slotKey-value pairs for contractId, then caches the result. The goal of the
      * query is to preload previously requested data to avoid additional queries against the db. On the first lookup
-     * for a contract, slot keys for indexes {@code 0} through {@code INITIAL_SLOT_INDEXES_TO_CACHE - 1} are loaded
-     * with a primary-key range query. Each lookup also registers the requested slot key and the next
-     * {@value #ADJACENT_SLOTS_TO_CACHE} consecutive slot keys for prefetching.
+     * for a contract, the first {@value #INITIAL_SLOT_INDEXES_TO_CACHE} existing storage slots ordered by slot key are
+     * loaded.
      *
      * @param contractId id of the contract that the slotKey-value pairs are queried for.
      * @return slotKey-value pairs for contractId
      */
     private Optional<byte[]> findStorageBatch(final EntityId contractId, final byte[] key) {
+        byte[] cachedValue = null;
+        cachedValue = contractStateCache.get(generateCacheKey(contractId, key), byte[].class);
+        if (cachedValue != null) {
+            return Optional.of(cachedValue);
+        }
+
         final var contractSlotsCacheForContract = ((CaffeineCache) this.contractSlotsCache.get(
                 contractId, () -> cacheManagerSlotsPerContract.getCache(contractId.toString())));
         final var wrappedKey = ByteBuffer.wrap(key);
-        // Cached slot keys for contract, whose slot values are not present in the contractStateCache
-        final var initialPrefetchDone =
-                contractSlotsCacheForContract.getNativeCache().asMap().isEmpty();
-        if (initialPrefetchDone) {
-            cacheInitialSlotKeys(contractId, contractSlotsCache);
-        }
-        cacheSlotKeyAndAdjacentSlots(contractSlotsCache, key);
+
+        cacheSlotKeyAndAdjacentSlots(contractSlotsCacheForContract, key);
 
         final var cachedSlotKeys =
                 contractSlotsCacheForContract.getNativeCache().asMap().keySet();
+        final var cachedSlots = new ArrayList<byte[]>(cachedSlotKeys.size());
         boolean isKeyEvictedFromCache = true;
-        for (var slot : cachedSlotKeys) {
-            final var slotBytes = ((ByteBuffer) slot).array();
-            if (initialPrefetchDone && isWithinInitialSlotIndexes(slotBytes)) {
-                if (wrappedKey.equals(slot)) {
+        for (var slotKey : cachedSlotKeys) {
+            final var slotBytes = ((ByteBuffer) slotKey).array();
+            if (contractStateCache.get(generateCacheKey(contractId, slotBytes), byte[].class) != null) {
+                if (wrappedKey.equals(slotKey)) {
                     isKeyEvictedFromCache = false;
                 }
                 continue;
             }
-            cachedSlotKeys.add(slotBytes);
-            if (wrappedKey.equals(slot)) {
-                isKeyEvictedFromCache = false;
-            }
+            cachedSlots.add(slotBytes);
         }
 
-        byte[] cachedValue = null;
-        if (initialPrefetchDone && isWithinInitialSlotIndexes(key)) {
-            cachedValue = contractStateCache.get(generateCacheKey(contractId, key), byte[].class);
-        }
-
-        if (!cachedSlotKeys.isEmpty()) {
+        if (!cachedSlots.isEmpty()) {
+            //            log.info(
+            //                    "findStorageBatch contractId={} slotKeys=[{}]",
+            //                    contractId.getId(),
+            //                    formatSlotKeysDecimal(cachedSlots));
             final var contractSlotValues =
-                    contractStateRepository.findStorageBatch(contractId.getId(), cachedSlotKeys.toArray(byte[][]::new));
+                    contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots.toArray(byte[][]::new));
 
             for (final var contractSlotValue : contractSlotValues) {
                 final byte[] slotKey = contractSlotValue.getSlot();
                 final byte[] slotValue = contractSlotValue.getValue();
                 contractStateCache.put(generateCacheKey(contractId, slotKey), slotValue);
-
                 contractSlotsCacheForContract.evictIfPresent(ByteBuffer.wrap(slotKey));
-
                 if (Arrays.equals(slotKey, key)) {
                     cachedValue = slotValue;
                 }
@@ -180,28 +175,10 @@ final class ContractStateServiceImpl implements ContractStateService {
         return Optional.ofNullable(cachedValue);
     }
 
-    private void cacheInitialSlotKeys(final EntityId contractId, final Cache contractSlotsCache) {
-        final var maxSlotIndex = INITIAL_SLOT_INDEXES_TO_CACHE - 1;
-        final var initialSlots = contractStateRepository.findInitialStorageSlots(contractId.getId(), maxSlotIndex);
-
-        for (final var contractSlotValue : initialSlots) {
-            final byte[] slotKey = contractSlotValue.getSlot();
-            contractStateCache.put(generateCacheKey(contractId, slotKey), contractSlotValue.getValue());
-            contractSlotsCache.putIfAbsent(ByteBuffer.wrap(slotKey), EMPTY_VALUE);
-        }
-
-        for (int i = 0; i < INITIAL_SLOT_INDEXES_TO_CACHE; i++) {
-            contractSlotsCache.putIfAbsent(ByteBuffer.wrap(toPaddedSlotKey(BigInteger.valueOf(i))), EMPTY_VALUE);
-        }
-    }
-
-    private boolean isWithinInitialSlotIndexes(final byte[] key) {
-        return new BigInteger(1, key).compareTo(BigInteger.valueOf(INITIAL_SLOT_INDEXES_TO_CACHE)) < 0;
-    }
-
     private void cacheSlotKeyAndAdjacentSlots(final Cache contractSlotsCache, final byte[] key) {
         var slotKey = key;
         contractSlotsCache.putIfAbsent(ByteBuffer.wrap(slotKey), EMPTY_VALUE);
+
         for (int i = 0; i < ADJACENT_SLOTS_TO_CACHE; i++) {
             final var nextSlotKey = incrementSlotKey(slotKey);
             if (nextSlotKey == null) {
@@ -232,5 +209,18 @@ final class ContractStateServiceImpl implements ContractStateService {
     // Generates a cache key emulating the default caching behavior in Spring
     private SimpleKey generateCacheKey(final EntityId contractId, final byte[] slotKey) {
         return new SimpleKey(contractId, slotKey);
+    }
+
+    private String formatSlotKeysDecimal(final Iterable<byte[]> slots) {
+        final var builder = new StringBuilder();
+        var first = true;
+        for (final var slot : slots) {
+            if (!first) {
+                builder.append(", ");
+            }
+            builder.append(new BigInteger(1, slot));
+            first = false;
+        }
+        return builder.toString();
     }
 }

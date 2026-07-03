@@ -36,6 +36,14 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
     List<ContractSlotValue> findInitialStorageSlots(
             @Param("contractId") Long contractId, @Param("maxSlotIndex") int maxSlotIndex);
 
+    @Query(value = """
+                    select slot, value from contract_state
+                    where contract_id = :contractId
+                    order by slot asc
+                    limit :limit
+                    """, nativeQuery = true)
+    List<ContractSlotValue> findFirstStorageSlots(@Param("contractId") Long contractId, @Param("limit") int limit);
+
     /**
      * This method retrieves the most recent contract state storage value up to given block timestamp.
      *

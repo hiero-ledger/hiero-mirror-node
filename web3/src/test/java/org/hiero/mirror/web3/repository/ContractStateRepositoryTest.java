@@ -127,6 +127,32 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findFirstStorageSlotsReturnsSlotsOrderedBySlotKey() {
+        final var contractId = domainBuilder.id();
+        final var slot0 = toPaddedSlotKey(0);
+        final var slot1 = toPaddedSlotKey(1);
+        final var slot100 = toPaddedSlotKey(100);
+
+        final var slot0State = domainBuilder
+                .contractState()
+                .customize(cs -> cs.contractId(contractId).slot(slot0))
+                .persist();
+        domainBuilder
+                .contractState()
+                .customize(cs -> cs.contractId(contractId).slot(slot100))
+                .persist();
+        final var slot1State = domainBuilder
+                .contractState()
+                .customize(cs -> cs.contractId(contractId).slot(slot1))
+                .persist();
+
+        assertThat(contractStateRepository.findFirstStorageSlots(contractId, 2))
+                .containsExactly(
+                        new ContractSlotValue(slot0State.getSlot(), slot0State.getValue()),
+                        new ContractSlotValue(slot1State.getSlot(), slot1State.getValue()));
+    }
+
+    @Test
     void findInitialStorageSlotsReturnsLowIndexSlots() {
         final var contractId = domainBuilder.id();
         final var slot0 = toPaddedSlotKey(0);
