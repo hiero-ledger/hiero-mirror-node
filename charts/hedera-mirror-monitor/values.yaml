@@ -10,49 +10,6 @@ affinity:
             matchLabels:
               app.kubernetes.io/component: monitor
 
-alertmanager:
-  inhibitRules:
-    enabled: false
-
-    InhibitHandleLatencyAlertWhenHighPublishLatency:
-      enabled: true
-      matches:
-        - sourceMatch:
-            - name: alertname
-              value: MonitorPublishLatency
-          targetMatch:
-            - name: alertname
-              value: MonitorPublishToHandleLatency
-          equal:
-            - namespace
-            - pod
-
-    InhibitAllWhenPodIssues:
-      enabled: true
-      matches:
-        - sourceMatch:
-            - name: area
-              value: resource
-          targetMatch:
-            - name: application
-              value: monitor
-          equal:
-            - namespace
-            - pod
-
-    InhibitPublishAlertsWhenPublishStopped:
-      enabled: true
-      matches:
-        - sourceMatch:
-            - name: alertname
-              value: MonitorPublishStopped
-          targetMatch:
-            - name: mode
-              value: publish
-          equal:
-            - namespace
-            - pod
-
 annotations: {}
 
 config: {}
