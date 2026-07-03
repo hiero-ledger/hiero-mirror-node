@@ -28,6 +28,7 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_CONTRACT = "contract";
     public static final String CACHE_MANAGER_CONTRACT_SLOTS = "contractSlots";
     public static final String CACHE_MANAGER_CONTRACT_STATE = "contractState";
+    public static final String CACHE_MANAGER_SEARCHED_ABSENT_SLOTS = "searchedAbsentSlots";
     public static final String CACHE_MANAGER_ENTITY = "entity";
     public static final String CACHE_MANAGER_RECORD_FILE_LATEST = "recordFileLatest";
     public static final String CACHE_MANAGER_RECORD_FILE_EARLIEST = "recordFileEarliest";
@@ -75,6 +76,14 @@ public class EvmConfiguration {
     @Bean(CACHE_MANAGER_CONTRACT_SLOTS)
     CacheManager cacheManagerContractSlots() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+        cacheManager.setCacheNames(Set.of(CACHE_NAME));
+        cacheManager.setCacheSpecification(cacheProperties.getContractSlots());
+        return cacheManager;
+    }
+
+    @Bean(CACHE_MANAGER_SEARCHED_ABSENT_SLOTS)
+    CacheManager cacheManagerSearchedAbsentSlots() {
+        final CaffeineCacheManager cacheManager = new CaffeineCacheManager();
         cacheManager.setCacheNames(Set.of(CACHE_NAME));
         cacheManager.setCacheSpecification(cacheProperties.getContractSlots());
         return cacheManager;

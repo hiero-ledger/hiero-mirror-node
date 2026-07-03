@@ -2,14 +2,10 @@
 
 package org.hiero.mirror.web3.repository;
 
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
-
 import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.web3.state.ContractSlotValue;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -17,8 +13,16 @@ import org.springframework.data.repository.query.Param;
 public interface ContractStateRepository extends CrudRepository<ContractState, Long> {
 
     @Query(value = "select value from contract_state where contract_id = ?1 and slot =?2", nativeQuery = true)
-    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_CONTRACT_STATE)
     Optional<byte[]> findStorage(final Long contractId, final byte[] key);
+
+    @Query(value = """
+                    select slot, value from contract_state
+                    where contract_id = :contractId
+                    and slot >= :minSlot
+                    and slot <= :maxSlot
+                    """, nativeQuery = true)
+    List<ContractSlotValue> findStorageRange(
+            @Param("contractId") Long contractId, @Param("minSlot") byte[] minSlot, @Param("maxSlot") byte[] maxSlot);
 
     @Query(value = """
                     select slot, value from contract_state
@@ -30,7 +34,7 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
     @Query(value = """
                     select slot, value from contract_state
                     where contract_id = :contractId
-                    and slot >= decode(repeat('00', 64), 'hex')
+                    and slot >= decode(repeat('00', 32), 'hex')
                     and slot <= decode(lpad(to_hex(:maxSlotIndex), 64, '0'), 'hex')
                     """, nativeQuery = true)
     List<ContractSlotValue> findInitialStorageSlots(

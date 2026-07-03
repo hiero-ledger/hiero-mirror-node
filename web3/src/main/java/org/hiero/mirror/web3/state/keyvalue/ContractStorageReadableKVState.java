@@ -88,19 +88,16 @@ public final class ContractStorageReadableKVState extends AbstractContractReadab
         final var contractID = slotKey.contractID();
         final var entityId = EntityIdUtils.entityIdFromContractId(contractID);
 
-        // TOOD Reenable
-        //        final var ctx = ContractCallContext.get();
-        //        if (ctx.isStorageDiscoveryMode()) {
-        //            return DISCOVERY_SLOT_VALUE;
-        //        } else if (ctx.isStorageDiscoveryModeFinished()) {
-        //            contractStateService.warmStorageKeys(entityId);
-        //        }
+        if (context.isStorageDiscoveryMode()) {
+            return DISCOVERY_SLOT_VALUE;
+        } else if (context.isStorageDiscoveryModeFinished()) {
+            contractStateService.warmStorageKeys(entityId);
+        }
 
         final var keyBytes = slotKey.key().toByteArray();
         final var timestamp = context.getTimestamp();
         return timestamp
-                .map(t -> contractStateService.findStorageByBlockTimestamp(
-                        entityId, Bytes32.wrap(keyBytes).trimLeadingZeros().toArrayUnsafe(), t))
+                .map(t -> contractStateService.findStorageByBlockTimestamp(entityId, keyBytes, t))
                 .orElse(contractStateService.findStorage(entityId, keyBytes))
                 .map(byteArr ->
                         new SlotValue(Bytes.wrap(leftPadBytes(byteArr, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY))

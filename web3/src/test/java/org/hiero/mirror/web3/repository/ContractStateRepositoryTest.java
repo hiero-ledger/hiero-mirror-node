@@ -179,6 +179,32 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findStorageRangeReturnsSlotsWithinRange() {
+        final var contractId = domainBuilder.id();
+        final var slot0 = toPaddedSlotKey(0);
+        final var slot2 = toPaddedSlotKey(2);
+        final var slot5 = toPaddedSlotKey(5);
+
+        final var slot0State = domainBuilder
+                .contractState()
+                .customize(cs -> cs.contractId(contractId).slot(slot0))
+                .persist();
+        domainBuilder
+                .contractState()
+                .customize(cs -> cs.contractId(contractId).slot(slot5))
+                .persist();
+        final var slot2State = domainBuilder
+                .contractState()
+                .customize(cs -> cs.contractId(contractId).slot(slot2))
+                .persist();
+
+        assertThat(contractStateRepository.findStorageRange(contractId, slot0, toPaddedSlotKey(3)))
+                .containsExactlyInAnyOrder(
+                        new ContractSlotValue(slot0State.getSlot(), slot0State.getValue()),
+                        new ContractSlotValue(slot2State.getSlot(), slot2State.getValue()));
+    }
+
+    @Test
     void findStorageBatchDuplicateKeysDoesNotReturnDuplicateValues() {
         final var contractId = domainBuilder.id();
         final var contractSlotsCount = 2;

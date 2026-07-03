@@ -7,6 +7,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SEARCHED_ABSENT_SLOTS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SLOTS_PER_CONTRACT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
@@ -54,6 +55,9 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     @Qualifier(CACHE_MANAGER_CONTRACT_SLOTS)
     private final CaffeineCacheManager cacheManagerContractSlots;
 
+    @Qualifier(CACHE_MANAGER_SEARCHED_ABSENT_SLOTS)
+    private final CaffeineCacheManager cacheManagerSearchedAbsentSlots;
+
     @Qualifier(CACHE_MANAGER_CONTRACT_STATE)
     private final CaffeineCacheManager cacheManagerContractState;
 
@@ -79,14 +83,14 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         final var slotB = generateSlotKey(2);
         final var slotC = generateSlotKey(3);
 
-        // Requesting the slots while they are missing keeps their keys in the slots cache for the next batch
+        // Requesting missing slots records them in the absent slots cache
         assertThat(contractStateService.findStorage(contractId, slotA)).isEmpty();
         assertThat(contractStateService.findStorage(contractId, slotB)).isEmpty();
-        assertThat(getCachedSlots(contract))
+        assertThat(getCachedAbsentSlots(contract))
                 .asInstanceOf(LIST)
                 .contains(ByteBuffer.wrap(slotA), ByteBuffer.wrap(slotB));
 
-        // When the values are later persisted and any one of the pending slots is requested
+        // When the values are later persisted and each slot is explicitly requested again
         final byte[] valueA = (EXPECTED_SLOT_VALUE + "A").getBytes();
         final byte[] valueB = (EXPECTED_SLOT_VALUE + "B").getBytes();
         final byte[] valueC = (EXPECTED_SLOT_VALUE + "C").getBytes();
@@ -94,52 +98,84 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         persistContractState(contract.getId(), slotB, valueB);
         persistContractState(contract.getId(), slotC, valueC);
 
+        assertThat(contractStateService.findStorage(contractId, slotA)).get().isEqualTo(valueA);
+        assertThat(contractStateService.findStorage(contractId, slotB)).get().isEqualTo(valueB);
         final var result = contractStateService.findStorage(contractId, slotC);
 
-        // Then the requested slot and all previously pending slots are loaded in a single batch and cached
+        // Then the requested slot values are cached
         assertThat(result).get().isEqualTo(valueC);
         assertThat(getCachedState(contractId, slotA)).isEqualTo(valueA);
         assertThat(getCachedState(contractId, slotB)).isEqualTo(valueB);
         assertThat(getCachedState(contractId, slotC)).isEqualTo(valueC);
 
-        // And all found slot keys are evicted from the slots cache
-        assertThat(getCachedSlots(contract))
+        // And found slot keys are evicted from the absent slots cache
+        assertThat(getCachedAbsentSlots(contract))
                 .asInstanceOf(LIST)
                 .doesNotContain(ByteBuffer.wrap(slotA), ByteBuffer.wrap(slotB), ByteBuffer.wrap(slotC));
     }
 
     @Test
-    void verifyTheOldestEntryInTheSlotsCacheIsEvictedWhenMaxSizeExceeded() {
-        // Given a bounded per-contract slots cache
+    void verifyTheOldestEntryInTheAbsentSlotsCacheIsEvictedWhenMaxSizeExceeded() {
+        // Given a bounded per-contract absent slots cache
         final int maxCacheSize = 10;
+        final var initialSlotsPerContractConfig = cacheProperties.getSlotsPerContract();
         cacheProperties.setSlotsPerContract("expireAfterAccess=2s,maximumSize=" + maxCacheSize);
         cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
+        try {
+            final var contract = persistContract();
+            final var contractId = contract.toEntityId();
+
+            // Requesting a slot that does not exist in the DB records it in the absent slots cache
+            final var oldestSlot = generateSlotKey(0);
+            assertThat(contractStateService.findStorage(contractId, oldestSlot)).isEmpty();
+            assertThat(getCachedAbsentSlots(contract)).asInstanceOf(LIST).contains(ByteBuffer.wrap(oldestSlot));
+
+            // When more missing slots are requested than the cache can hold
+            for (int i = 1; i <= maxCacheSize; i++) {
+                assertThat(contractStateService.findStorage(contractId, generateSlotKey(i * 100)))
+                        .isEmpty();
+            }
+
+            // Then the oldest entry is evicted and the cache does not exceed its maximum size
+            getSlotsPerContractCache().cleanUp();
+
+            await("cacheIsEvicted")
+                    .atMost(Durations.TWO_SECONDS)
+                    .pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
+                    .until(() -> getCachedAbsentSlots(contract).size() == maxCacheSize);
+
+            assertThat(getCachedAbsentSlots(contract))
+                    .asInstanceOf(LIST)
+                    .hasSize(maxCacheSize)
+                    .doesNotContain(ByteBuffer.wrap(oldestSlot));
+        } finally {
+            cacheProperties.setSlotsPerContract(initialSlotsPerContractConfig);
+            cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
+        }
+    }
+
+    @Test
+    void verifySearchedAbsentAdjacentSlotsAreExcludedFromSubsequentBatchQueries() {
+        // Given a contract with one existing slot and adjacent slots that do not exist
         final var contract = persistContract();
         final var contractId = contract.toEntityId();
+        final var existingSlot = generateSlotKey(10);
+        persistContractState(contract.getId(), existingSlot, EXPECTED_SLOT_VALUE.getBytes());
 
-        // Requesting a slot that does not exist in the DB keeps its key in the slots cache (it is never found)
-        final var oldestSlot = generateSlotKey(0);
-        assertThat(contractStateService.findStorage(contractId, oldestSlot)).isEmpty();
-        assertThat(getCachedSlots(contract)).asInstanceOf(LIST).hasSize(1).contains(ByteBuffer.wrap(oldestSlot));
+        // When the existing slot is requested, adjacent missing slots are searched once
+        assertThat(contractStateService.findStorage(contractId, existingSlot))
+                .get()
+                .isEqualTo(EXPECTED_SLOT_VALUE.getBytes());
+        final var adjacentSlot = generateSlotKey(11);
+        assertThat(getCachedAbsentSlots(contract)).asInstanceOf(LIST).contains(ByteBuffer.wrap(adjacentSlot));
 
-        // When more missing slots are requested than the cache can hold
-        for (int i = 1; i <= maxCacheSize; i++) {
-            assertThat(contractStateService.findStorage(contractId, generateSlotKey(i)))
-                    .isEmpty();
-        }
-
-        // Then the oldest entry is evicted and the cache does not exceed its maximum size
-        getSlotsPerContractCache().cleanUp();
-
-        await("cacheIsEvicted")
-                .atMost(Durations.TWO_SECONDS)
-                .pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
-                .until(() -> getCachedSlots(contract).size() == maxCacheSize);
-
-        assertThat(getCachedSlots(contract))
+        // When another slot far from the first is requested, previously searched absent adjacent slots are skipped
+        final var otherSlot = generateSlotKey(100);
+        final var otherAdjacentSlot = generateSlotKey(101);
+        assertThat(contractStateService.findStorage(contractId, otherSlot)).isEmpty();
+        assertThat(getCachedAbsentSlots(contract))
                 .asInstanceOf(LIST)
-                .hasSize(maxCacheSize)
-                .doesNotContain(ByteBuffer.wrap(oldestSlot));
+                .contains(ByteBuffer.wrap(adjacentSlot), ByteBuffer.wrap(otherAdjacentSlot));
     }
 
     @Test
@@ -189,27 +225,27 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
-    void verifyMissingSlotKeyRemainsInSlotsCacheWhileFoundSlotKeyIsEvicted() {
+    void verifyMissingSlotKeyIsCachedInAbsentSlotsCacheWhileFoundSlotKeyIsEvicted() {
         // Given a contract with one existing slot
         final var contract = persistContract();
         final var contractId = contract.toEntityId();
         final var existingState = persistContractState(contract.getId(), 1);
         final var missingSlot = generateSlotKey(999);
 
-        // When a missing slot is requested, its key stays in the slots cache (it is never found)
+        // When a missing slot is requested, its key is recorded in the absent slots cache
         assertThat(contractStateService.findStorage(contractId, missingSlot)).isEmpty();
-        assertThat(getCachedSlots(contract)).asInstanceOf(LIST).contains(ByteBuffer.wrap(missingSlot));
+        assertThat(getCachedAbsentSlots(contract)).asInstanceOf(LIST).contains(ByteBuffer.wrap(missingSlot));
 
-        // When an existing slot is requested, its value is cached and the key evicted from the slots cache
+        // When an existing slot is requested, its value is cached and removed from the absent slots cache
         assertThat(contractStateService.findStorage(contractId, existingState.getSlot()))
                 .get()
                 .isEqualTo(existingState.getValue());
         assertThat(getCachedState(contractId, existingState.getSlot())).isEqualTo(existingState.getValue());
 
-        // Then only the missing slot key remains in the slots cache
-        final var cachedSlots = getCachedSlots(contract);
-        assertThat(cachedSlots).asInstanceOf(LIST).contains(ByteBuffer.wrap(missingSlot));
-        assertThat(cachedSlots).asInstanceOf(LIST).doesNotContain(ByteBuffer.wrap(existingState.getSlot()));
+        // Then only the missing slot key remains in the absent slots cache
+        final var cachedAbsentSlots = getCachedAbsentSlots(contract);
+        assertThat(cachedAbsentSlots).asInstanceOf(LIST).contains(ByteBuffer.wrap(missingSlot));
+        assertThat(cachedAbsentSlots).asInstanceOf(LIST).doesNotContain(ByteBuffer.wrap(existingState.getSlot()));
     }
 
     @Test
@@ -573,6 +609,10 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         return ((CaffeineCache) cacheManagerContractSlots.getCache(CACHE_NAME)).getNativeCache();
     }
 
+    private com.github.benmanes.caffeine.cache.Cache<Object, Object> getAbsentSlotsCache() {
+        return ((CaffeineCache) cacheManagerSearchedAbsentSlots.getCache(CACHE_NAME)).getNativeCache();
+    }
+
     private com.github.benmanes.caffeine.cache.Cache<Object, Object> getSlotsPerContractCache() {
         return ((CaffeineCache) cacheManagerSlotsPerContract.getCache(CACHE_NAME)).getNativeCache();
     }
@@ -582,6 +622,17 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         var slotsPerContractCache = slotsCache.asMap().get(contract.toEntityId());
         return slotsPerContractCache != null
                 ? ((CaffeineCache) slotsPerContractCache)
+                        .getNativeCache().asMap().keySet().stream()
+                                .map(slot -> (ByteBuffer) slot)
+                                .collect(Collectors.toList())
+                : List.of();
+    }
+
+    public List<ByteBuffer> getCachedAbsentSlots(Entity contract) {
+        var absentSlotsCache = getAbsentSlotsCache();
+        var absentSlotsPerContractCache = absentSlotsCache.asMap().get(contract.toEntityId());
+        return absentSlotsPerContractCache != null
+                ? ((CaffeineCache) absentSlotsPerContractCache)
                         .getNativeCache().asMap().keySet().stream()
                                 .map(slot -> (ByteBuffer) slot)
                                 .collect(Collectors.toList())
