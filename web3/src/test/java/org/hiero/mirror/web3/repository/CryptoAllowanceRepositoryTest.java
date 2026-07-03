@@ -259,6 +259,49 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findByOwnerAndTimestampReproducesMcveHbarContractSpend() {
+        final long spendOnBehalfContract = 1001L;
+        final long owner = 1002L;
+        final long relayerEoa = 1003L; // EOA that submitted the contract call (tx payer)
+        final long grantedTinybars = 500_000_000L;
+        final long spentTinybars = 100_000_000L;
+        final long expectedRemaining = 400_000_000L;
+
+        final long approvalTimestamp = System.currentTimeMillis();
+        final long spendTimestamp = approvalTimestamp + 1;
+        final long blockTimestamp = approvalTimestamp + 2;
+
+        final var allowance = domainBuilder
+                .cryptoAllowance()
+                .customize(a -> a.spender(spendOnBehalfContract)
+                        .owner(owner)
+                        .amountGranted(grantedTinybars)
+                        .timestampRange(Range.atLeast(approvalTimestamp)))
+                .persist();
+
+        // approved crypto transfer debiting the owner; payer is the EOA relayer, not the spender
+        domainBuilder
+                .cryptoTransfer()
+                .customize(c -> c.entityId(owner)
+                        .payerAccountId(EntityId.of(relayerEoa))
+                        .amount(-spentTinybars)
+                        .isApproval(true)
+                        .consensusTimestamp(spendTimestamp))
+                .persist();
+
+        // contract_result whose sender_id is the SpendOnBehalf contract
+        domainBuilder
+                .contractResult()
+                .customize(c -> c.senderId(EntityId.of(spendOnBehalfContract)).consensusTimestamp(spendTimestamp))
+                .persist();
+
+        assertThat(cryptoAllowanceRepository
+                        .findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp)
+                        .get(0))
+                .returns(expectedRemaining, CryptoAllowance::getAmount);
+    }
+
+    @Test
     void findByOwnerAndTimestampWithDirectAndContractInitiatedTransfers() {
         final long spender = 1L;
         final long ownerId = 2L;

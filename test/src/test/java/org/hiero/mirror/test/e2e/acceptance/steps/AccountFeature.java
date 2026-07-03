@@ -8,6 +8,7 @@ import static org.hiero.mirror.rest.model.TransactionTypes.CRYPTOTRANSFER;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.hedera.hashgraph.sdk.AccountId;
+import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
 import io.cucumber.java.AfterAll;
@@ -54,6 +55,8 @@ public class AccountFeature extends AbstractFeature {
     private ExpandedAccountId senderAccountId;
     private ExpandedAccountId spenderAccountId;
     private long startingBalance;
+    private DeployedContract spendOnBehalfContract;
+    private AccountId contractSpenderAccountId;
 
     @AfterAll
     public static void cleanup() {
@@ -261,6 +264,75 @@ public class AccountFeature extends AbstractFeature {
                 accountClient.approveCryptoAllowance(spenderAccountId.getAccountId(), Hbar.fromTinybars(amount));
         assertNotNull(networkTransactionResponse.getTransactionId());
         assertNotNull(networkTransactionResponse.getReceipt());
+    }
+
+    @Given("I successfully create a spend on behalf contract")
+    public void createSpendOnBehalfContract() {
+        spendOnBehalfContract = getContract(ContractResource.SPEND_ON_BEHALF);
+        // The contract is the allowance spender; its entity id maps directly to an account id.
+        contractSpenderAccountId =
+                AccountId.fromString(spendOnBehalfContract.contractId().toString());
+    }
+
+    @And("I approve the spend on behalf contract to transfer up to {long} tℏ")
+    public void approveContractCryptoAllowance(long amount) {
+        networkTransactionResponse =
+                accountClient.approveCryptoAllowance(contractSpenderAccountId, Hbar.fromTinybars(amount));
+        assertNotNull(networkTransactionResponse.getTransactionId());
+        assertNotNull(networkTransactionResponse.getReceipt());
+    }
+
+    @Then("the mirror node REST API should confirm the approved {long} tℏ crypto allowance for the contract")
+    public void verifyContractApprovedCryptoAllowance(long approvedAmount) {
+        verifyMirrorAPIContractCryptoAllowanceResponse(approvedAmount, 0L);
+    }
+
+    @When("the spend on behalf contract spends {long} tℏ of the approved allowance to {string}")
+    public void contractSpendsApprovedAllowance(long amount, String receiver) {
+        final var owner = accountClient.getClient().getOperatorAccountId();
+        final var receiverId = accountClient
+                .getAccount(AccountClient.AccountNameEnum.valueOf(receiver))
+                .getAccountId();
+        // spendHbar(owner, receiver, amount) debits the owner via the HTS precompile marking isApproval=true,
+        // so the ledger spends the allowance the owner granted to this contract.
+        final var parameters = new ContractFunctionParameters()
+                .addAddress(owner.toEvmAddress())
+                .addAddress(receiverId.toEvmAddress())
+                .addInt64(amount);
+        final var gas = contractClient
+                .getSdkClient()
+                .getAcceptanceTestProperties()
+                .getFeatureProperties()
+                .getMaxContractFunctionGas();
+        final var result =
+                contractClient.executeContract(spendOnBehalfContract.contractId(), gas, "spendHbar", parameters, null);
+        networkTransactionResponse = result.networkTransactionResponse();
+        assertNotNull(networkTransactionResponse.getTransactionId());
+        assertNotNull(networkTransactionResponse.getReceipt());
+    }
+
+    @Then(
+            "the mirror node REST API should confirm the contract approved allowance of {long} tℏ was debited by {long} tℏ")
+    public void verifyContractCryptoAllowanceDebited(long approvedAmount, long transferAmount) {
+        verifyMirrorAPIContractCryptoAllowanceResponse(approvedAmount, transferAmount);
+    }
+
+    private void verifyMirrorAPIContractCryptoAllowanceResponse(long approvedAmount, long transferAmount) {
+        verifyMirrorTransactionsResponse(mirrorClient, HttpStatus.OK.value());
+
+        final var owner = accountClient.getClient().getOperatorAccountId().toString();
+        final var spender = contractSpenderAccountId.toString();
+        final var mirrorCryptoAllowanceResponse = mirrorClient.getAccountCryptoAllowanceBySpender(owner, spender);
+        final var remainingAmount = approvedAmount - transferAmount;
+
+        assertThat(mirrorCryptoAllowanceResponse.getAllowances())
+                .isNotEmpty()
+                .first()
+                .isNotNull()
+                .returns(remainingAmount, CryptoAllowance::getAmount)
+                .returns(approvedAmount, CryptoAllowance::getAmountGranted)
+                .returns(owner, CryptoAllowance::getOwner)
+                .returns(spender, CryptoAllowance::getSpender);
     }
 
     @Then("the mirror node REST API should return the list of accounts")
