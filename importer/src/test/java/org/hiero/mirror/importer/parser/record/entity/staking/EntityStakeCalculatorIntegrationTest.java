@@ -37,18 +37,21 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @RequiredArgsConstructor
-class EntityStakeCalculatorIntegrationTest extends ImporterIntegrationTest {
+final class EntityStakeCalculatorIntegrationTest extends ImporterIntegrationTest {
 
     private final EntityProperties entityProperties;
     private final EntityRecordItemListener entityRecordItemListener;
     private final EntityStakeRepository entityStakeRepository;
     private final RecordItemBuilder recordItemBuilder;
     private final RecordStreamFileListener recordStreamFileListener;
+    private final StakingProperties stakingProperties;
     private final TransactionTemplate transactionTemplate;
 
     @BeforeEach
     void setup() {
         entityProperties.getPersist().setPendingReward(true);
+        stakingProperties.setChunkDelay(Durations.ONE_HUNDRED_MILLISECONDS);
+        stakingProperties.setChunkSize(100_000_000);
     }
 
     @AfterEach
