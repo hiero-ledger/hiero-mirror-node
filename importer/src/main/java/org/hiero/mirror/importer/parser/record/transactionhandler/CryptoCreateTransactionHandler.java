@@ -97,8 +97,7 @@ class CryptoCreateTransactionHandler extends AbstractEntityCrudTransactionHandle
         entity.setReceiverSigRequired(transactionBody.getReceiverSigRequired());
         if (!transactionBody.getDelegationAddress().isEmpty()) {
             entity.setDelegationAddress(DomainUtils.toBytes(transactionBody.getDelegationAddress()));
-            if (recordItem.isBlockstream()
-                    && recordItem.getAccountEthereumNonce() != null
+            if (recordItem.getAccountEthereumNonce() != null
                     && entityProperties.getPersist().isTrackNonce()) {
                 entity.setEthereumNonce(recordItem.getAccountEthereumNonce());
             }

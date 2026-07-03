@@ -84,8 +84,7 @@ class CryptoUpdateTransactionHandler extends AbstractEntityCrudTransactionHandle
         // cleared, and we need to persist it as the zero-address in the DB.
         if (!transactionBody.getDelegationAddress().isEmpty()) {
             entity.setDelegationAddress(DomainUtils.toBytes(transactionBody.getDelegationAddress()));
-            if (recordItem.isBlockstream()
-                    && recordItem.getAccountEthereumNonce() != null
+            if (recordItem.getAccountEthereumNonce() != null
                     && entityProperties.getPersist().isTrackNonce()) {
                 entity.setEthereumNonce(recordItem.getAccountEthereumNonce());
             }

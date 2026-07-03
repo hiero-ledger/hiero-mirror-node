@@ -30,11 +30,7 @@ final class CryptoUpdateTransformer extends AbstractBlockTransactionTransformer 
                 .getReceiptBuilder();
 
         final var resolvedAccountId = resolveAccountId(stateChangeContext, accountIdToUpdate);
-        if (resolvedAccountId.isPresent()) {
-            receiptBuilder.setAccountID(resolvedAccountId.get());
-        } else if (accountIdToUpdate.hasAccountNum()) {
-            receiptBuilder.setAccountID(accountIdToUpdate);
-        }
+        resolvedAccountId.ifPresent(receiptBuilder::setAccountID);
 
         if (!transactionBody.getDelegationAddress().isEmpty()) {
             resolvedAccountId
