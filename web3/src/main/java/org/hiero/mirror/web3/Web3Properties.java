@@ -16,11 +16,6 @@ public class Web3Properties {
 
     private boolean enableStateOverrides = false;
 
-    @DurationMin(millis = 10L)
-    private Duration contractCallRetryDelay = Duration.ofMillis(200L);
-
-    private boolean contractCallStorageRetryEnabled = false;
-
     @Positive
     private int maxPayloadLogSize = 300;
 

@@ -1165,8 +1165,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             EvmProperties spyEvmProperties = spy(evmProperties);
             TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
 
-            ContractCallService contractCallService = new ContractCallService(
-                    null, null, null, null, spyEvmProperties, txnExecutionService, web3Properties) {};
+            ContractCallService contractCallService =
+                    new ContractCallService(null, null, null, null, spyEvmProperties, txnExecutionService) {};
 
             var params = ContractExecutionParameters.builder().build();
             when(txnExecutionService.execute(params, estimatedGas))

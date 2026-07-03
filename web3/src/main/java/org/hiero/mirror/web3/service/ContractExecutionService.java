@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.Objects;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
@@ -36,16 +35,14 @@ public class ContractExecutionService extends ContractCallService {
             ThrottleProperties throttleProperties,
             ThrottleManager throttleManager,
             EvmProperties evmProperties,
-            TransactionExecutionService transactionExecutionService,
-            Web3Properties web3Properties) {
+            TransactionExecutionService transactionExecutionService) {
         super(
                 throttleManager,
                 throttleProperties,
                 meterRegistry,
                 recordFileService,
                 evmProperties,
-                transactionExecutionService,
-                web3Properties);
+                transactionExecutionService);
         this.binaryGasEstimator = binaryGasEstimator;
     }
 

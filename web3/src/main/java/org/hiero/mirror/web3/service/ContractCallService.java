@@ -16,10 +16,7 @@ import io.micrometer.core.instrument.Tags;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.time.YearMonth;
-import lombok.AccessLevel;
 import lombok.CustomLog;
-import lombok.Getter;
-import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
@@ -31,9 +28,6 @@ import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.Suppliers;
 import org.hiero.mirror.web3.viewmodel.BlockType;
-import org.springframework.core.retry.RetryPolicy;
-import org.springframework.core.retry.RetryTemplate;
-import org.springframework.dao.QueryTimeoutException;
 
 @Named
 @CustomLog
@@ -56,10 +50,6 @@ public abstract class ContractCallService {
     private final ThrottleProperties throttleProperties;
     private final ThrottleManager throttleManager;
     private final TransactionExecutionService transactionExecutionService;
-    private final Web3Properties web3Properties;
-
-    @Getter(AccessLevel.PRIVATE)
-    private final RetryTemplate callRetryTemplate;
 
     @SuppressWarnings("java:S107")
     protected ContractCallService(
@@ -68,8 +58,7 @@ public abstract class ContractCallService {
             MeterRegistry meterRegistry,
             RecordFileService recordFileService,
             EvmProperties evmProperties,
-            TransactionExecutionService transactionExecutionService,
-            Web3Properties web3Properties) {
+            TransactionExecutionService transactionExecutionService) {
         this.invocationCounter = Counter.builder(EVM_INVOCATION_METRIC)
                 .description("The number of EVM invocations")
                 .withRegistry(meterRegistry);
@@ -84,13 +73,6 @@ public abstract class ContractCallService {
         this.throttleManager = throttleManager;
         this.evmProperties = evmProperties;
         this.transactionExecutionService = transactionExecutionService;
-        this.web3Properties = web3Properties;
-        this.callRetryTemplate = new RetryTemplate(RetryPolicy.builder()
-                .delay(web3Properties.getContractCallRetryDelay())
-                .maxDelay(web3Properties.getContractCallRetryDelay())
-                .maxRetries(2)
-                .predicate(e -> e instanceof QueryTimeoutException)
-                .build());
     }
 
     @VisibleForTesting
@@ -117,24 +99,7 @@ public abstract class ContractCallService {
      */
     protected final EvmTransactionResult callContract(CallServiceParameters params, ContractCallContext ctx)
             throws MirrorEvmTransactionException {
-        if (!web3Properties.isContractCallStorageRetryEnabled()) {
-            return executeCallInContext(params, ctx);
-        }
-
-        return getCallRetryTemplate().invoke(() -> {
-            try {
-                return executeCallInContext(params, ctx);
-            } catch (QueryTimeoutException e) {
-                if (!ctx.isStorageDiscoveryModeFinished()) {
-                    log.warn("Contract call timed out, running storage discovery before retry");
-                    runStorageDiscovery(params, ctx);
-                    ctx.setStorageDiscoveryMode(false);
-                    ctx.setStorageDiscoveryModeFinished(true);
-                }
-                // Rethrow so the RetryTemplate's predicate triggers a retry against the warmed read cache.
-                throw e;
-            }
-        });
+        return executeCallInContext(params, ctx);
     }
 
     private EvmTransactionResult executeCallInContext(CallServiceParameters params, ContractCallContext ctx)
@@ -144,15 +109,6 @@ public abstract class ContractCallService {
                 recordFileService.findByBlockType(params.getBlock()).orElseThrow(BlockNumberNotFoundException::new)));
 
         return doProcessCall(params, params.getGas(), false);
-    }
-
-    /**
-     * Runs a fast discovery pass that records contract storage slot accesses in the {@link ContractCallContext} read
-     * cache without querying the database.
-     */
-    private void runStorageDiscovery(final CallServiceParameters params, final ContractCallContext ctx) {
-        ctx.setStorageDiscoveryMode(true);
-        executeCallInContext(params, ctx);
     }
 
     protected final EvmTransactionResult doProcessCall(

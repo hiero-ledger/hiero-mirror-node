@@ -7,7 +7,6 @@ import jakarta.inject.Named;
 import jakarta.validation.Valid;
 import java.util.Optional;
 import lombok.CustomLog;
-import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
@@ -35,16 +34,14 @@ public class ContractDebugService extends ContractCallService {
             ThrottleProperties throttleProperties,
             MeterRegistry meterRegistry,
             EvmProperties evmProperties,
-            TransactionExecutionService transactionExecutionService,
-            Web3Properties web3Properties) {
+            TransactionExecutionService transactionExecutionService) {
         super(
                 throttleManager,
                 throttleProperties,
                 meterRegistry,
                 recordFileService,
                 evmProperties,
-                transactionExecutionService,
-                web3Properties);
+                transactionExecutionService);
         this.contractActionRepository = contractActionRepository;
     }
 
