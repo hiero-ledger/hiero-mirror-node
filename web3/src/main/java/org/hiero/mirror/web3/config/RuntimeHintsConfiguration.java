@@ -74,7 +74,7 @@ final class RuntimeHintsConfiguration {
                     "linux-aarch64/**", // besu
                     "linux-x86-64/**", // besu
                     "lib/aarch64/libsecp256k1.so", // besu
-                    "lib/x86-64/libsecp256k1.sof", // besu
+                    "lib/x86-64/libsecp256k1.so", // besu
                     "kzg-trusted-setups/mainnet.txt", // besu
                     "ethereum/ckzg4844/lib/aarch64/**", // pegasys
                     "ethereum/ckzg4844/lib/amd64/**", // pegasys
