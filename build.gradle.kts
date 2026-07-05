@@ -70,7 +70,7 @@ dependencies {
         api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.bouncycastle:bcpkix-jdk18on:1.84") // Temporary until next hedera-app
         api("org.bouncycastle:bcprov-jdk18on:1.84")
-        api("org.gaul:s3proxy:3.2.0")
+        api("org.gaul:s3proxy:3.3.0")
         api("org.graalvm.nativeimage:svm:25.0.3")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
