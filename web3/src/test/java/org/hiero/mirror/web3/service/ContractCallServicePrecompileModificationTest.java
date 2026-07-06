@@ -465,6 +465,34 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
+    @Test
+    void mintTokenWithContractAddressReturnsInvalidTokenId() {
+        // Given - fungible token exists, but mint is called with contract address instead of token address
+        final var treasury = accountEntityPersist();
+        final var token = fungibleTokenPersistWithTreasuryAccount(treasury.toEntityId());
+        tokenAccountPersist(token.getTokenId(), treasury.getId());
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var invalidTokenAddress = contract.getContractAddress();
+
+        final var functionCall =
+                contract.send_mintTokenWithInvalidTokenIdCheck(invalidTokenAddress, BigInteger.ONE, new ArrayList<>());
+
+        final var expectedErrorMessage = "Minting reveted with INVALID_TOKEN_ID";
+        final var contractFunctionProvider = ContractFunctionProviderRecord.builder()
+                .contractAddress(Address.fromHexString(contract.getContractAddress()))
+                .expectedErrorMessage(expectedErrorMessage)
+                .build();
+
+        // Then - eth call and opcode tracer should report INVALID_TOKEN_ID, not UNKNOWN (21)
+        assertThatThrownBy(functionCall::send)
+                .isInstanceOf(MirrorEvmTransactionException.class)
+                .satisfies(ex -> assertThat(((MirrorEvmTransactionException) ex).getDetail())
+                        .isEqualTo(expectedErrorMessage));
+
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
+    }
+
     @ParameterizedTest
     @CsvSource({"true", "false"})
     void mintNFT(final boolean useAlias) throws Exception {

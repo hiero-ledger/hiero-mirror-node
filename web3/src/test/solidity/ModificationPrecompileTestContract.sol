@@ -43,6 +43,16 @@ contract ModificationPrecompileTestContract is HederaTokenService {
         }
     }
 
+    function mintTokenWithInvalidTokenIdCheck(address token, int64 amount, bytes[] memory metadata) external {
+        (int responseCode,,) = HederaTokenService.mintToken(token, amount, metadata);
+        if (responseCode != HederaResponseCodes.SUCCESS) {
+            if (responseCode == HederaResponseCodes.INVALID_TOKEN_ID) {
+                revert("Minting reveted with INVALID_TOKEN_ID");
+            }
+            revert("Minting failed with unexpected response code");
+        }
+    }
+
     function burnTokenExternal(address token, int64 amount, int64[] memory serialNumbers) external
     returns (int responseCode, int64 newTotalSupply)
     {
