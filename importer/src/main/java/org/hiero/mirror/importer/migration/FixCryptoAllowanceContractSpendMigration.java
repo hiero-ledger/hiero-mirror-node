@@ -177,13 +177,12 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
             log.info("Backfilled {} crypto allowances in range [{}, {})", updated, lowerBound, upperBound);
         }
 
-        long nextUpperBound = Math.max(lowerBound, lowerBoundFloor);
-        getNamedParameterJdbcOperations()
-                .update(CHECKPOINT_SQL, new MapSqlParameterSource("upperBound", nextUpperBound));
-
         if (lowerBound <= lowerBoundFloor) {
+            getJdbcOperations().execute(DROP_PROGRESS_TABLE_SQL);
             return Optional.empty();
         }
+
+        getNamedParameterJdbcOperations().update(CHECKPOINT_SQL, new MapSqlParameterSource("upperBound", lowerBound));
 
         return Optional.of(lowerBound);
     }

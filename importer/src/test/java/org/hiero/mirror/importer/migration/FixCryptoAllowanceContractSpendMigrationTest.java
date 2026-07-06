@@ -102,6 +102,8 @@ class FixCryptoAllowanceContractSpendMigrationTest
 
         // then
         waitForCompletion();
+        // The progress table is dropped once the backfill runs to completion
+        assertThat(tableExists(PROGRESS_TABLE)).isFalse();
         // Only the -100 contract-initiated spend is applied: 1000 - 100 = 900
         assertThat(cryptoAllowanceRepository.findById(allowance.getId()))
                 .get()
