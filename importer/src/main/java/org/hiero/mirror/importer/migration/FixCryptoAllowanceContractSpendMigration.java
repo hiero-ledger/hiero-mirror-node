@@ -91,6 +91,37 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
               and w.amount_spent <> 0
             """;
 
+    // Under the old bug, a contract-relayed approved transfer was debited from the relayer/payer's allowance
+    // instead of the contract's. Aggregate those erroneous debits keyed on the payer so they can be reversed.
+    private static final String AGGREGATE_WRONG_SPEND_SQL = """
+            create temp table crypto_allowance_contract_spend_reversal_batch on commit drop as
+            select ct.entity_id as owner, ct.payer_account_id as spender, sum(ct.amount) as amount_spent
+            from crypto_transfer ct
+            join contract_result cr
+              on cr.consensus_timestamp = ct.consensus_timestamp
+            join crypto_allowance ca
+              on ca.owner = ct.entity_id
+              and ca.spender = ct.payer_account_id
+              and ca.amount_granted > 0
+              and ct.consensus_timestamp > lower(ca.timestamp_range)
+            where ct.is_approval is true
+              and ct.amount < 0
+              and ct.payer_account_id <> cr.sender_id
+              and ct.consensus_timestamp >= :lowerBound
+              and ct.consensus_timestamp < :upperBound
+            group by ct.entity_id, ct.payer_account_id
+            """;
+
+    // Add back the wrongly debited amount, capped at the granted amount so the allowance never exceeds its grant.
+    private static final String APPLY_WRONG_SPEND_SQL = """
+            update crypto_allowance ca
+            set amount = least(ca.amount - w.amount_spent, ca.amount_granted)
+            from crypto_allowance_contract_spend_reversal_batch w
+            where ca.owner = w.owner
+              and ca.spender = w.spender
+              and w.amount_spent <> 0
+            """;
+
     private final long batchInterval;
     private final EntityProperties entityProperties;
     private final boolean v2;
@@ -175,6 +206,16 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
         int updated = getJdbcOperations().update(APPLY_MISSED_SPEND_SQL);
         if (updated > 0) {
             log.info("Backfilled {} crypto allowances in range [{}, {})", updated, lowerBound, upperBound);
+        }
+
+        getNamedParameterJdbcOperations().update(AGGREGATE_WRONG_SPEND_SQL, parameters);
+        int reversed = getJdbcOperations().update(APPLY_WRONG_SPEND_SQL);
+        if (reversed > 0) {
+            log.info(
+                    "Reversed {} wrongly debited crypto allowances in range [{}, {})",
+                    reversed,
+                    lowerBound,
+                    upperBound);
         }
 
         if (lowerBound <= lowerBoundFloor) {

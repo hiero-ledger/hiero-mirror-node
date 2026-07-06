@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.collect.Range;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
@@ -108,6 +109,55 @@ class FixCryptoAllowanceContractSpendMigrationTest
         assertThat(cryptoAllowanceRepository.findById(allowance.getId()))
                 .get()
                 .returns(900L, CryptoAllowance::getAmount)
+                .returns(1000L, CryptoAllowance::getAmountGranted);
+    }
+
+    @Test
+    void migrateReversesWronglyDebitedRelayerAllowance() {
+        // given
+        // owner granted an allowance to a contract that the old bug never debited (still at full granted amount)
+        final var contractAllowance = domainBuilder
+                .cryptoAllowance()
+                .customize(a -> a.amount(1000).amountGranted(1000L))
+                .persist();
+        final long owner = contractAllowance.getOwner();
+        final long contract = contractAllowance.getSpender();
+
+        // owner also granted a genuine allowance to the EOA that relays the contract call; under the old bug the
+        // contract-relayed spend was wrongly debited from this allowance, leaving it at 900 instead of 1000
+        final var relayerAllowance = domainBuilder
+                .cryptoAllowance()
+                .customize(a -> a.owner(owner)
+                        .amount(900)
+                        .amountGranted(1000L)
+                        .timestampRange(Range.atLeast(contractAllowance.getTimestampLower())))
+                .persist();
+        final long relayer = relayerAllowance.getSpender();
+
+        // Contract-relayed approved spend: payer is the relayer EOA, sender_id is the contract
+        final long spendTimestamp = contractAllowance.getTimestampLower() + 10;
+        persistApprovedTransfer(owner, relayer, -100, spendTimestamp);
+        persistContractResult(contract, spendTimestamp);
+
+        domainBuilder
+                .recordFile()
+                .customize(rf -> rf.consensusEnd(contractAllowance.getTimestampLower() + 1000))
+                .persist();
+
+        // when
+        runMigration();
+
+        // then
+        waitForCompletion();
+        // The contract allowance gets the missed debit applied: 1000 - 100 = 900
+        assertThat(cryptoAllowanceRepository.findById(contractAllowance.getId()))
+                .get()
+                .returns(900L, CryptoAllowance::getAmount)
+                .returns(1000L, CryptoAllowance::getAmountGranted);
+        // The relayer allowance gets the wrong debit reversed: 900 + 100 = 1000
+        assertThat(cryptoAllowanceRepository.findById(relayerAllowance.getId()))
+                .get()
+                .returns(1000L, CryptoAllowance::getAmount)
                 .returns(1000L, CryptoAllowance::getAmountGranted);
     }
 
