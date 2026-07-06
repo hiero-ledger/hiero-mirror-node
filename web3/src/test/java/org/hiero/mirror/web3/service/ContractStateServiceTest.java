@@ -296,11 +296,11 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         final var contractStates = persistContractStates(contract.getId(), 3);
 
         final var context = ContractCallContext.get();
-        context.setStorageDiscoveryModeFinished(true);
         final var readCache = context.getReadCacheState(ContractStorageReadableKVState.STATE_ID);
         for (final var state : contractStates) {
             readCache.put(toSlotKey(contractId, state.getSlot()), Bytes.EMPTY);
         }
+        context.finishStorageDiscovery(ContractStorageReadableKVState.STATE_ID);
 
         // When
         contractStateService.warmStorageKeys(contractId);
@@ -346,10 +346,10 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         final var otherState = persistContractState(otherContract.getId(), 2);
 
         final var context = ContractCallContext.get();
-        context.setStorageDiscoveryModeFinished(true);
         final var readCache = context.getReadCacheState(ContractStorageReadableKVState.STATE_ID);
         readCache.put(toSlotKey(contractId, matchingState.getSlot()), Bytes.EMPTY);
         readCache.put(toSlotKey(otherContractId, otherState.getSlot()), Bytes.EMPTY);
+        context.finishStorageDiscovery(ContractStorageReadableKVState.STATE_ID);
 
         // When loading only for the first contract
         contractStateService.warmStorageKeys(contractId);

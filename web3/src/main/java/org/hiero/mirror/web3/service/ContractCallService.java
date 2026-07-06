@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import static java.time.ZoneOffset.UTC;
 import static org.apache.logging.log4j.util.Strings.EMPTY;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
+import static org.hiero.mirror.web3.state.keyvalue.ContractStorageReadableKVState.STATE_ID;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -21,6 +22,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
+import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.Utils;
@@ -50,6 +52,7 @@ public abstract class ContractCallService {
     private final ThrottleProperties throttleProperties;
     private final ThrottleManager throttleManager;
     private final TransactionExecutionService transactionExecutionService;
+    private final CacheProperties cacheProperties;
 
     @SuppressWarnings("java:S107")
     protected ContractCallService(
@@ -58,7 +61,8 @@ public abstract class ContractCallService {
             MeterRegistry meterRegistry,
             RecordFileService recordFileService,
             EvmProperties evmProperties,
-            TransactionExecutionService transactionExecutionService) {
+            TransactionExecutionService transactionExecutionService,
+            CacheProperties cacheProperties) {
         this.invocationCounter = Counter.builder(EVM_INVOCATION_METRIC)
                 .description("The number of EVM invocations")
                 .withRegistry(meterRegistry);
@@ -73,6 +77,7 @@ public abstract class ContractCallService {
         this.throttleManager = throttleManager;
         this.evmProperties = evmProperties;
         this.transactionExecutionService = transactionExecutionService;
+        this.cacheProperties = cacheProperties;
     }
 
     @VisibleForTesting
@@ -99,16 +104,39 @@ public abstract class ContractCallService {
      */
     protected final EvmTransactionResult callContract(CallServiceParameters params, ContractCallContext ctx)
             throws MirrorEvmTransactionException {
+        if (cacheProperties.isEnableBatchContractSlotCaching()) {
+            runStorageDiscovery(params, ctx);
+            ctx.finishStorageDiscovery(STATE_ID);
+        }
         return executeCallInContext(params, ctx);
     }
 
     private EvmTransactionResult executeCallInContext(CallServiceParameters params, ContractCallContext ctx)
             throws MirrorEvmTransactionException {
+        prepareCallContext(params, ctx);
+        return doProcessCall(params, params.getGas(), false);
+    }
+
+    private void prepareCallContext(final CallServiceParameters params, final ContractCallContext ctx) {
         ctx.setCallServiceParameters(params);
         ctx.setBlockSupplier(Suppliers.memoize(() ->
                 recordFileService.findByBlockType(params.getBlock()).orElseThrow(BlockNumberNotFoundException::new)));
+    }
 
-        return doProcessCall(params, params.getGas(), false);
+    /**
+     * Runs a fast discovery pass that records contract storage slot accesses in the {@link ContractCallContext} read
+     * cache without querying the database.
+     */
+    private void runStorageDiscovery(final CallServiceParameters params, final ContractCallContext ctx) {
+        ctx.setStorageDiscoveryMode(true);
+        try {
+            prepareCallContext(params, ctx);
+            doProcessCall(params, params.getGas(), true);
+        } catch (MirrorEvmTransactionException e) {
+            log.debug("Storage discovery pass ended with status {}", e.getMessage());
+        } finally {
+            ctx.setStorageDiscoveryMode(false);
+        }
     }
 
     protected final EvmTransactionResult doProcessCall(

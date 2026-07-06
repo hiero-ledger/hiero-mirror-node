@@ -90,8 +90,6 @@ public final class ContractStorageReadableKVState extends AbstractContractReadab
 
         if (context.isStorageDiscoveryMode()) {
             return DISCOVERY_SLOT_VALUE;
-        } else if (context.isStorageDiscoveryModeFinished()) {
-            contractStateService.warmStorageKeys(entityId);
         }
 
         final var keyBytes = slotKey.key().toByteArray();

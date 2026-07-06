@@ -13,6 +13,7 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
+import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
@@ -34,14 +35,16 @@ public class ContractDebugService extends ContractCallService {
             ThrottleProperties throttleProperties,
             MeterRegistry meterRegistry,
             EvmProperties evmProperties,
-            TransactionExecutionService transactionExecutionService) {
+            TransactionExecutionService transactionExecutionService,
+            CacheProperties cacheProperties) {
         super(
                 throttleManager,
                 throttleProperties,
                 meterRegistry,
                 recordFileService,
                 evmProperties,
-                transactionExecutionService);
+                transactionExecutionService,
+                cacheProperties);
         this.contractActionRepository = contractActionRepository;
     }
 

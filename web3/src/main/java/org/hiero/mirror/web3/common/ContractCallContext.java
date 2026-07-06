@@ -3,16 +3,21 @@
 package org.hiero.mirror.web3.common;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
+import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import com.hedera.services.utils.EntityIdUtils;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -75,6 +80,13 @@ public class ContractCallContext {
     @Setter
     private boolean storageDiscoveryModeFinished;
 
+    /**
+     * Maps a contract id to the queue of storage slot keys discovered for it, preserving the order in which they were
+     * searched. Slot keys searched first are consumed (and queried in the DB) first.
+     */
+    @Getter(AccessLevel.NONE)
+    private final Map<EntityId, Queue<byte[]>> discoveredStorageSlotKeys = new HashMap<>();
+
     private ContractCallContext() {}
 
     public static ContractCallContext get() {
@@ -116,6 +128,32 @@ public class ContractCallContext {
 
     public void reset() {
         writeCache.clear();
+    }
+
+    public Queue<byte[]> getDiscoveredStorageSlotKeys(final EntityId contractId) {
+        return discoveredStorageSlotKeys.get(contractId);
+    }
+
+    /**
+     * Copies storage slot keys discovered during the discovery pass, clears the per-request storage read cache so the
+     * execution pass loads real values, and resets writable state from the discovery pass.
+     */
+    public void finishStorageDiscovery(final int storageStateId) {
+        final var storageCache = readCache.get(storageStateId);
+        if (storageCache != null) {
+            for (final var key : storageCache.keySet()) {
+                if (key instanceof SlotKey slotKey && slotKey.contractID() != null) {
+                    final var contractId = EntityIdUtils.toEntityId(slotKey.contractID());
+                    discoveredStorageSlotKeys
+                            .computeIfAbsent(contractId, _ -> new LinkedList<>())
+                            .add(slotKey.key().toByteArray());
+                }
+            }
+            storageCache.clear();
+        }
+        reset();
+        storageDiscoveryMode = false;
+        storageDiscoveryModeFinished = true;
     }
 
     public boolean useHistorical() {

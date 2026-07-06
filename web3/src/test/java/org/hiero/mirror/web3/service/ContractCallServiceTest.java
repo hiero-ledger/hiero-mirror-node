@@ -54,6 +54,7 @@ import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
+import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
@@ -95,6 +96,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
     private final ThrottleProperties throttleProperties;
     private final TransactionExecutionService transactionExecutionService;
     private final Web3Properties web3Properties;
+    private final CacheProperties cacheProperties;
 
     @MockitoBean
     private ThrottleManager throttleManager;
@@ -843,7 +845,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 throttleManager,
                 evmProperties,
                 transactionExecutionService,
-                web3Properties);
+                cacheProperties);
 
         // When
         try {
@@ -888,7 +890,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 throttleManager,
                 evmProperties,
                 transactionExecutionService,
-                web3Properties);
+                cacheProperties);
 
         // When
         try {
@@ -930,7 +932,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 throttleManager,
                 evmProperties,
                 transactionExecutionService,
-                web3Properties);
+                cacheProperties);
 
         // When
         try {
@@ -1165,8 +1167,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             EvmProperties spyEvmProperties = spy(evmProperties);
             TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
 
-            ContractCallService contractCallService =
-                    new ContractCallService(null, null, null, null, spyEvmProperties, txnExecutionService) {};
+            ContractCallService contractCallService = new ContractCallService(
+                    null, null, null, null, spyEvmProperties, txnExecutionService, cacheProperties) {};
 
             var params = ContractExecutionParameters.builder().build();
             when(txnExecutionService.execute(params, estimatedGas))
