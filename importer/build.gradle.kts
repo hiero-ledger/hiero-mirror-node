@@ -15,10 +15,13 @@ configurations.all {
 
 dependencies {
     val blockNodeVersion = rootProject.extra["blockNodeVersion"] as String
+    val besuVersion = rootProject.extra["besuVersion"] as String
 
     implementation(platform("software.amazon.awssdk:bom"))
     implementation(project(":common"))
     implementation("com.esaulpaugh:headlong")
+    implementation("org.hyperledger.besu.internal:rlp:$besuVersion")
+    implementation("org.hyperledger.besu.internal:trie:$besuVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv")
     implementation("com.hedera.cryptography:hedera-cryptography-wraps")
     implementation("commons-io:commons-io")

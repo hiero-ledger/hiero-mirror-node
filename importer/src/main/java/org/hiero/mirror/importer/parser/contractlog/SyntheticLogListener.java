@@ -43,7 +43,7 @@ import org.hiero.mirror.importer.repository.EntityRepository;
 import org.springframework.core.annotation.Order;
 
 @Named
-@Order(2)
+@Order(1)
 @CustomLog
 @RequiredArgsConstructor
 final class SyntheticLogListener implements EntityListener, RecordStreamFileListener {

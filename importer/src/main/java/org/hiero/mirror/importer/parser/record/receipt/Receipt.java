@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package org.hiero.mirror.importer.parser.record.receipt;
+
+import java.util.List;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * A minimal representation of an Ethereum transaction receipt used to compute a block's
+ * receipts-trie root. Fields mirror the values the JSON-RPC relay uses when it builds the same trie, so the importer
+ * produces a byte-identical {@code receipts_root}.
+ *
+ * @param transactionIndex position of the transaction within the block; also the trie key {@code RLP(index)}
+ * @param type             EIP-2718 transaction type (0 legacy, 1 EIP-2930, 2 EIP-1559); non-EVM transactions are 0
+ * @param success          whether the transaction succeeded; encoded as the receipt status (1 or empty) when
+ *                         {@code root} is null
+ * @param root             the pre-Byzantium post-state root used as the receipt's first field; when non-null it is used
+ *                         verbatim instead of the status. The relay uses 32 zero bytes for synthetic (no contract
+ *                         result) transactions and derives the field from the status otherwise
+ * @param gasUsed          gas used by the transaction; summed into the cumulative gas of the receipt
+ * @param logsBloom        the 256-byte logs bloom (an empty array is treated as 256 zero bytes)
+ * @param logs             the receipt logs in log-index order
+ */
+public record Receipt(
+        int transactionIndex,
+        int type,
+        boolean success,
+        @Nullable byte[] root,
+        long gasUsed,
+        byte[] logsBloom,
+        List<ReceiptLog> logs) {
+
+    /**
+     * A single receipt log.
+     *
+     * @param address the 20-byte contract EVM address
+     * @param topics  the log topics, each left-padded to 32 bytes
+     * @param data    the log data
+     */
+    public record ReceiptLog(byte[] address, List<byte[]> topics, byte[] data) {}
+}
