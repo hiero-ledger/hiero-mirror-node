@@ -18,35 +18,9 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
     @Query(value = """
                     select slot, value from contract_state
                     where contract_id = :contractId
-                    and slot >= :minSlot
-                    and slot <= :maxSlot
-                    """, nativeQuery = true)
-    List<ContractSlotValue> findStorageRange(
-            @Param("contractId") Long contractId, @Param("minSlot") byte[] minSlot, @Param("maxSlot") byte[] maxSlot);
-
-    @Query(value = """
-                    select slot, value from contract_state
-                    where contract_id = :contractId
                     and slot = ANY(CAST(:slots AS bytea[]))
                     """, nativeQuery = true)
     List<ContractSlotValue> findStorageBatch(@Param("contractId") Long contractId, @Param("slots") byte[][] slots);
-
-    @Query(value = """
-                    select slot, value from contract_state
-                    where contract_id = :contractId
-                    and slot >= decode(repeat('00', 32), 'hex')
-                    and slot <= decode(lpad(to_hex(:maxSlotIndex), 64, '0'), 'hex')
-                    """, nativeQuery = true)
-    List<ContractSlotValue> findInitialStorageSlots(
-            @Param("contractId") Long contractId, @Param("maxSlotIndex") int maxSlotIndex);
-
-    @Query(value = """
-                    select slot, value from contract_state
-                    where contract_id = :contractId
-                    order by slot asc
-                    limit :limit
-                    """, nativeQuery = true)
-    List<ContractSlotValue> findFirstStorageSlots(@Param("contractId") Long contractId, @Param("limit") int limit);
 
     /**
      * This method retrieves the most recent contract state storage value up to given block timestamp.

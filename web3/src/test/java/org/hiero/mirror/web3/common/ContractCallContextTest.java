@@ -8,6 +8,7 @@ import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
@@ -50,13 +51,15 @@ class ContractCallContextTest {
         final var context = ContractCallContext.get();
         final var contractId =
                 ContractID.newBuilder().shardNum(0).realmNum(0).contractNum(1).build();
+        final var entityId = EntityId.of(0, 0, 1);
         final var slotKey = new SlotKey(contractId, Bytes.wrap(new byte[32]));
 
         context.getReadCacheState(ContractStorageReadableKVState.STATE_ID).put(slotKey, Bytes.EMPTY);
         context.finishStorageDiscovery(ContractStorageReadableKVState.STATE_ID);
 
         assertThat(context.isStorageDiscoveryModeFinished()).isTrue();
-        assertThat(context.getDiscoveredStorageSlotKeys()).containsExactly(slotKey);
+        assertThat(context.getDiscoveredStorageSlotKeys(entityId))
+                .containsExactly(slotKey.key().toByteArray());
         assertThat(context.getReadCacheState(ContractStorageReadableKVState.STATE_ID))
                 .isEmpty();
     }

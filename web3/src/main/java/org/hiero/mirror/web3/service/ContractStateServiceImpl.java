@@ -102,7 +102,9 @@ final class ContractStateServiceImpl implements ContractStateService {
         final var searchedAbsentSlotsCacheForContract = getSearchedAbsentSlotsCacheForContract(contractId);
         final var wrappedKey = ByteBuffer.wrap(key);
 
-        final var discoveredSlotKeys = ContractCallContext.get().getDiscoveredStorageSlotKeys(contractId);
+        final var discoveredSlotKeys = ContractCallContext.isInitialized()
+                ? ContractCallContext.get().getDiscoveredStorageSlotKeys(contractId)
+                : null;
         if (discoveredSlotKeys != null && !discoveredSlotKeys.isEmpty()) {
             for (int i = 0; i < MAX_SLOT_KEYS_PER_BATCH; i++) {
                 final var discoveredSlotKey = discoveredSlotKeys.poll();
@@ -120,18 +122,15 @@ final class ContractStateServiceImpl implements ContractStateService {
         final var cachedSlotKeys =
                 contractSlotsCacheForContract.getNativeCache().asMap().keySet();
 
-        final var cachedSlots = new ArrayList<byte[]>(cachedSlotKeys.size());
-        boolean isKeyEvictedFromCache = true;
-        boolean requestedKeyQueriedInBatch = false;
+        final var slotKeysToSearch = new ArrayList<byte[]>(cachedSlotKeys.size());
+        var isKeyEvictedFromCache = true;
+        var requestedKeyQueriedInBatch = false;
         for (var slotKey : cachedSlotKeys) {
-            final var slotBytes = ((ByteBuffer) slotKey).array();
-            if (contractStateCache.get(generateCacheKey(contractId, slotBytes), byte[].class) != null) {
-                if (wrappedKey.equals(slotKey)) {
-                    isKeyEvictedFromCache = false;
-                }
-                continue;
-            }
-            if (searchedAbsentSlotsCacheForContract.get(slotKey) != null) {
+            final var slotKeyBytes = ((ByteBuffer) slotKey).array();
+            // The slotKey is present in cache - it has an existing value or it was searched in DB, but no result for it
+            // was returned. Skip searching in DB for this slotKey.
+            if (contractStateCache.get(generateCacheKey(contractId, slotKeyBytes), byte[].class) != null
+                    || searchedAbsentSlotsCacheForContract.get(slotKey) != null) {
                 if (wrappedKey.equals(slotKey)) {
                     isKeyEvictedFromCache = false;
                 }
@@ -140,32 +139,34 @@ final class ContractStateServiceImpl implements ContractStateService {
             if (wrappedKey.equals(slotKey)) {
                 requestedKeyQueriedInBatch = true;
             }
-            cachedSlots.add(slotBytes);
+            slotKeysToSearch.add(slotKeyBytes);
         }
 
-        byte[] cachedValue = null;
-        if (!cachedSlots.isEmpty()) {
-            log.info(
-                    "findStorageBatch contractId={} slotKeys=[{}]",
-                    contractId.getId(),
-                    formatSlotKeysDecimal(cachedSlots));
-            final var contractSlotValues =
-                    contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots.toArray(byte[][]::new));
+        byte[] foundValue = null;
+        if (!slotKeysToSearch.isEmpty()) {
+            final var contractSlotValues = contractStateRepository.findStorageBatch(
+                    contractId.getId(), slotKeysToSearch.toArray(byte[][]::new));
             final var slotValuesByKey = applyBatchSlotQueryResults(
-                    contractId, cachedSlots, contractSlotValues, searchedAbsentSlotsCacheForContract);
+                    contractId,
+                    slotKeysToSearch,
+                    contractSlotValues,
+                    contractSlotsCacheForContract,
+                    searchedAbsentSlotsCacheForContract);
 
             if (slotValuesByKey.containsKey(wrappedKey)) {
-                cachedValue = slotValuesByKey.get(wrappedKey);
+                foundValue = slotValuesByKey.get(wrappedKey);
             }
         }
 
         // If the cache key was evicted and hasn't been requested since, the cached value will be null.
-        // In that case, fall back to the original query.
+        // In that case, fall back to the original query and cache the result so it survives slot cache eviction.
         if (isKeyEvictedFromCache && !requestedKeyQueriedInBatch) {
-            return contractStateRepository.findStorage(contractId.getId(), key);
+            final var value = contractStateRepository.findStorage(contractId.getId(), key);
+            value.ifPresent(v -> contractStateCache.put(generateCacheKey(contractId, key), v));
+            return value;
         }
 
-        return Optional.ofNullable(cachedValue);
+        return Optional.ofNullable(foundValue);
     }
 
     private CaffeineCache getSlotsCacheForContract(final EntityId contractId) {
@@ -182,12 +183,16 @@ final class ContractStateServiceImpl implements ContractStateService {
             final EntityId contractId,
             final Iterable<byte[]> queriedSlots,
             final List<ContractSlotValue> contractSlotValues,
+            final Cache contractSlotsCacheForContract,
             final Cache searchedAbsentSlotsCacheForContract) {
         final var slotValuesByKey = toSlotValuesMap(contractSlotValues);
 
         for (final var entry : slotValuesByKey.entrySet()) {
-            final byte[] slotKey = entry.getKey().array();
+            final var slotKey = entry.getKey().array();
             contractStateCache.put(generateCacheKey(contractId, slotKey), entry.getValue());
+            // The value now lives in the contract state cache, so the slot key no longer needs to be tracked for batch
+            // loading.
+            contractSlotsCacheForContract.evictIfPresent(entry.getKey());
             searchedAbsentSlotsCacheForContract.evictIfPresent(entry.getKey());
         }
 

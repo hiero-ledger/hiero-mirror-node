@@ -104,7 +104,9 @@ public abstract class ContractCallService {
      */
     protected final EvmTransactionResult callContract(CallServiceParameters params, ContractCallContext ctx)
             throws MirrorEvmTransactionException {
-        if (cacheProperties.isEnableBatchContractSlotCaching()) {
+        // Opcode tracing (debug) relies on a single EVM execution, so the storage discovery pass, which executes the
+        // call an additional time, must be skipped for it.
+        if (cacheProperties.isEnableBatchContractSlotCaching() && ctx.getOpcodeContext() == null) {
             runStorageDiscovery(params, ctx);
             ctx.finishStorageDiscovery(STATE_ID);
         }

@@ -29,12 +29,17 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedG
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.longValueOf;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -57,6 +62,7 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
@@ -1173,7 +1179,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             var params = ContractExecutionParameters.builder().build();
             when(txnExecutionService.execute(params, estimatedGas))
                     .thenReturn(new EvmTransactionResult(
-                            ResponseCodeEnum.SUCCESS,
+                            com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS,
                             ContractFunctionResult.newBuilder().gasUsed(100).build()));
 
             contractCallService.doProcessCall(params, estimatedGas, true);

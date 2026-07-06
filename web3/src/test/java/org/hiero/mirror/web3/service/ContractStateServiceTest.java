@@ -4,16 +4,12 @@ package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
-import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SEARCHED_ABSENT_SLOTS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SLOTS_PER_CONTRACT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
-import com.hedera.hapi.node.base.ContractID;
-import com.hedera.hapi.node.state.contract.SlotKey;
-import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,17 +22,14 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.RandomUtils;
-import org.awaitility.Durations;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
-import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
-import org.hiero.mirror.web3.state.keyvalue.ContractStorageReadableKVState;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -119,7 +112,9 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         // Given a bounded per-contract absent slots cache
         final int maxCacheSize = 10;
         final var initialSlotsPerContractConfig = cacheProperties.getSlotsPerContract();
-        cacheProperties.setSlotsPerContract("expireAfterAccess=2s,maximumSize=" + maxCacheSize);
+        // Use a long expiry so only the maximum size (not access expiry) drives eviction, keeping the assertion
+        // deterministic.
+        cacheProperties.setSlotsPerContract("expireAfterAccess=1h,maximumSize=" + maxCacheSize);
         cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
         try {
             final var contract = persistContract();
@@ -136,18 +131,15 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
                         .isEmpty();
             }
 
-            // Then the oldest entry is evicted and the cache does not exceed its maximum size
-            getSlotsPerContractCache().cleanUp();
+            // Then max-size eviction caps the cache at its configured maximum even though many more distinct
+            // missing slots were requested. cleanUp() forces Caffeine to run pending size-based eviction
+            // synchronously. Note that Caffeine (W-TinyLFU) bounds by maximum size but does not guarantee strict
+            // LRU eviction of the oldest entry, so only the bounded size is asserted.
+            final var absentSlotsCacheForContract =
+                    (CaffeineCache) getAbsentSlotsCache().asMap().get(contractId);
+            absentSlotsCacheForContract.getNativeCache().cleanUp();
 
-            await("cacheIsEvicted")
-                    .atMost(Durations.TWO_SECONDS)
-                    .pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
-                    .until(() -> getCachedAbsentSlots(contract).size() == maxCacheSize);
-
-            assertThat(getCachedAbsentSlots(contract))
-                    .asInstanceOf(LIST)
-                    .hasSize(maxCacheSize)
-                    .doesNotContain(ByteBuffer.wrap(oldestSlot));
+            assertThat(getCachedAbsentSlots(contract)).asInstanceOf(LIST).hasSize(maxCacheSize);
         } finally {
             cacheProperties.setSlotsPerContract(initialSlotsPerContractConfig);
             cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
@@ -286,77 +278,6 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
                         olderContractState.getConsensusTimestamp()))
                 .get()
                 .isEqualTo(olderContractState.getValueWritten());
-    }
-
-    @Test
-    void verifyWarmStorageKeysCachesDiscoveredSlots() {
-        // Given
-        final var contract = persistContract();
-        final var contractId = contract.toEntityId();
-        final var contractStates = persistContractStates(contract.getId(), 3);
-
-        final var context = ContractCallContext.get();
-        final var readCache = context.getReadCacheState(ContractStorageReadableKVState.STATE_ID);
-        for (final var state : contractStates) {
-            readCache.put(toSlotKey(contractId, state.getSlot()), Bytes.EMPTY);
-        }
-        context.finishStorageDiscovery(ContractStorageReadableKVState.STATE_ID);
-
-        // When
-        contractStateService.warmStorageKeys(contractId);
-
-        // Then
-        for (final var state : contractStates) {
-            assertThat(getCachedState(contractId, state.getSlot())).isEqualTo(state.getValue());
-        }
-    }
-
-    @Test
-    void verifyWarmStorageKeysDoesNotCacheWhenDiscoveryNotFinished() {
-        // Given
-        final var contract = persistContract();
-        final var contractId = contract.toEntityId();
-        final var contractStates = persistContractStates(contract.getId(), 3);
-
-        final var context = ContractCallContext.get();
-        // storageDiscoveryModeFinished defaults to false, so the discovered keys are ignored
-        final var readCache = context.getReadCacheState(ContractStorageReadableKVState.STATE_ID);
-        for (final var state : contractStates) {
-            readCache.put(toSlotKey(contractId, state.getSlot()), Bytes.EMPTY);
-        }
-
-        // When
-        contractStateService.warmStorageKeys(contractId);
-
-        // Then
-        for (final var state : contractStates) {
-            assertThat(getCachedState(contractId, state.getSlot())).isNull();
-        }
-    }
-
-    @Test
-    void verifyWarmStorageKeysIgnoresSlotsFromOtherContracts() {
-        // Given
-        final var contract = persistContract();
-        final var contractId = contract.toEntityId();
-        final var matchingState = persistContractState(contract.getId(), 1);
-
-        final var otherContract = persistContract();
-        final var otherContractId = otherContract.toEntityId();
-        final var otherState = persistContractState(otherContract.getId(), 2);
-
-        final var context = ContractCallContext.get();
-        final var readCache = context.getReadCacheState(ContractStorageReadableKVState.STATE_ID);
-        readCache.put(toSlotKey(contractId, matchingState.getSlot()), Bytes.EMPTY);
-        readCache.put(toSlotKey(otherContractId, otherState.getSlot()), Bytes.EMPTY);
-        context.finishStorageDiscovery(ContractStorageReadableKVState.STATE_ID);
-
-        // When loading only for the first contract
-        contractStateService.warmStorageKeys(contractId);
-
-        // Then only the first contract's slot is cached
-        assertThat(getCachedState(contractId, matchingState.getSlot())).isEqualTo(matchingState.getValue());
-        assertThat(getCachedState(otherContractId, otherState.getSlot())).isNull();
     }
 
     @Test
@@ -577,15 +498,6 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
                 .persist();
     }
 
-    private SlotKey toSlotKey(final EntityId contractId, final byte[] slot) {
-        final var contractID = ContractID.newBuilder()
-                .shardNum(contractId.getShard())
-                .realmNum(contractId.getRealm())
-                .contractNum(contractId.getNum())
-                .build();
-        return new SlotKey(contractID, Bytes.wrap(slot));
-    }
-
     private Cache getContractStateCache() {
         return cacheManagerContractState.getCache(CACHE_NAME);
     }
@@ -597,7 +509,7 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     private byte[] generateSlotKey(final int index) {
         final byte[] slotKey = new byte[32];
         final byte[] indexBytes = ByteBuffer.allocate(4).putInt(index).array();
-        System.arraycopy(indexBytes, 0, slotKey, 0, indexBytes.length);
+        System.arraycopy(indexBytes, 0, slotKey, slotKey.length - indexBytes.length, indexBytes.length);
         return slotKey;
     }
 
@@ -611,10 +523,6 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
 
     private com.github.benmanes.caffeine.cache.Cache<Object, Object> getAbsentSlotsCache() {
         return ((CaffeineCache) cacheManagerSearchedAbsentSlots.getCache(CACHE_NAME)).getNativeCache();
-    }
-
-    private com.github.benmanes.caffeine.cache.Cache<Object, Object> getSlotsPerContractCache() {
-        return ((CaffeineCache) cacheManagerSlotsPerContract.getCache(CACHE_NAME)).getNativeCache();
     }
 
     public List<ByteBuffer> getCachedSlots(Entity contract) {

@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.math.BigInteger;
 import java.util.LinkedList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -127,84 +126,6 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
-    void findFirstStorageSlotsReturnsSlotsOrderedBySlotKey() {
-        final var contractId = domainBuilder.id();
-        final var slot0 = toPaddedSlotKey(0);
-        final var slot1 = toPaddedSlotKey(1);
-        final var slot100 = toPaddedSlotKey(100);
-
-        final var slot0State = domainBuilder
-                .contractState()
-                .customize(cs -> cs.contractId(contractId).slot(slot0))
-                .persist();
-        domainBuilder
-                .contractState()
-                .customize(cs -> cs.contractId(contractId).slot(slot100))
-                .persist();
-        final var slot1State = domainBuilder
-                .contractState()
-                .customize(cs -> cs.contractId(contractId).slot(slot1))
-                .persist();
-
-        assertThat(contractStateRepository.findFirstStorageSlots(contractId, 2))
-                .containsExactly(
-                        new ContractSlotValue(slot0State.getSlot(), slot0State.getValue()),
-                        new ContractSlotValue(slot1State.getSlot(), slot1State.getValue()));
-    }
-
-    @Test
-    void findInitialStorageSlotsReturnsLowIndexSlots() {
-        final var contractId = domainBuilder.id();
-        final var slot0 = toPaddedSlotKey(0);
-        final var slot99 = toPaddedSlotKey(99);
-        final var slot100 = toPaddedSlotKey(100);
-
-        final var slot0State = domainBuilder
-                .contractState()
-                .customize(cs -> cs.contractId(contractId).slot(slot0))
-                .persist();
-        final var slot99State = domainBuilder
-                .contractState()
-                .customize(cs -> cs.contractId(contractId).slot(slot99))
-                .persist();
-        domainBuilder
-                .contractState()
-                .customize(cs -> cs.contractId(contractId).slot(slot100))
-                .persist();
-
-        assertThat(contractStateRepository.findInitialStorageSlots(contractId, 99))
-                .containsExactlyInAnyOrder(
-                        new ContractSlotValue(slot0State.getSlot(), slot0State.getValue()),
-                        new ContractSlotValue(slot99State.getSlot(), slot99State.getValue()));
-    }
-
-    @Test
-    void findStorageRangeReturnsSlotsWithinRange() {
-        final var contractId = domainBuilder.id();
-        final var slot0 = toPaddedSlotKey(0);
-        final var slot2 = toPaddedSlotKey(2);
-        final var slot5 = toPaddedSlotKey(5);
-
-        final var slot0State = domainBuilder
-                .contractState()
-                .customize(cs -> cs.contractId(contractId).slot(slot0))
-                .persist();
-        domainBuilder
-                .contractState()
-                .customize(cs -> cs.contractId(contractId).slot(slot5))
-                .persist();
-        final var slot2State = domainBuilder
-                .contractState()
-                .customize(cs -> cs.contractId(contractId).slot(slot2))
-                .persist();
-
-        assertThat(contractStateRepository.findStorageRange(contractId, slot0, toPaddedSlotKey(3)))
-                .containsExactlyInAnyOrder(
-                        new ContractSlotValue(slot0State.getSlot(), slot0State.getValue()),
-                        new ContractSlotValue(slot2State.getSlot(), slot2State.getValue()));
-    }
-
-    @Test
     void findStorageBatchDuplicateKeysDoesNotReturnDuplicateValues() {
         final var contractId = domainBuilder.id();
         final var contractSlotsCount = 2;
@@ -223,14 +144,5 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
 
         assertThat(contractStateRepository.findStorageBatch(contractId, contractSlotsList.toArray(byte[][]::new)))
                 .containsAll(contractSlotValuesList);
-    }
-
-    private byte[] toPaddedSlotKey(final int index) {
-        final var bytes = BigInteger.valueOf(index).toByteArray();
-        final var result = new byte[32];
-        final var offset = Math.max(0, bytes.length - 32);
-        final var length = Math.min(bytes.length, 32);
-        System.arraycopy(bytes, offset, result, 32 - length, length);
-        return result;
     }
 }
