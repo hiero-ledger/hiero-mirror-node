@@ -114,9 +114,12 @@ public class ContractCallContext {
 
     /**
      * Returns the set timestamp or the consensus end timestamp from the set record file only if we are in a historical
-     * context. If not - an empty optional is returned.
+     * context. For opcode replay, returns the explicitly set timestamp.
      */
     public Optional<Long> getTimestamp() {
+        if (opcodeContext != null) {
+            return timestamp;
+        }
         if (useHistorical()) {
             return getTimestampOrDefaultFromRecordFile();
         }
