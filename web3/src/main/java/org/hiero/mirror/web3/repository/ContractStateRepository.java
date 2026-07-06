@@ -47,4 +47,27 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
             limit 1
             """, nativeQuery = true)
     Optional<byte[]> findStorageByBlockTimestamp(long id, byte[] slot, long blockTimestamp);
+
+    /**
+     * Returns the most-recent value for each requested slot at or before the given block timestamp, in a single query.
+     * For each slot the row with the highest consensus_timestamp that is still <= blockTimestamp is returned.
+     * The value column is {@code COALESCE(value_written, value_read)}, matching the single-slot variant.
+     *
+     * @param contractId     The ID of the contract.
+     * @param slots          The slot keys to look up.
+     * @param blockTimestamp The consensus timestamp upper bound (inclusive).
+     * @return slot/value pairs for every slot that has a record at or before {@code blockTimestamp}.
+     */
+    @Query(value = """
+            select distinct on (slot) slot, coalesce(value_written, value_read) as value
+            from contract_state_change
+            where contract_id = :contractId
+            and slot = any(cast(:slots as bytea[]))
+            and consensus_timestamp <= :blockTimestamp
+            order by slot, consensus_timestamp desc
+            """, nativeQuery = true)
+    List<ContractSlotValue> findStorageBatchByBlockTimestamp(
+            @Param("contractId") long contractId,
+            @Param("slots") byte[][] slots,
+            @Param("blockTimestamp") long blockTimestamp);
 }

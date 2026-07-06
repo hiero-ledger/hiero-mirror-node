@@ -419,6 +419,224 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
+    void verifyHistoricalFoundSlotValueIsCachedAndSlotKeyEvicted() {
+        // Given
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+        final var contractStateChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()))
+                .persist();
+        final var blockTimestamp = contractStateChange.getConsensusTimestamp();
+
+        // When
+        final var result = contractStateService.findStorageByBlockTimestamp(
+                contractId, contractStateChange.getSlot(), blockTimestamp);
+
+        // Then the value is cached under the (contractId, slot, blockTimestamp) key and the slot key is evicted
+        assertThat(result).get().isEqualTo(contractStateChange.getValueWritten());
+        assertThat(getCachedHistoricalState(contractId, contractStateChange.getSlot(), blockTimestamp))
+                .isEqualTo(contractStateChange.getValueWritten());
+        assertThat(getCachedHistoricalSlots(contractId, blockTimestamp))
+                .asInstanceOf(LIST)
+                .doesNotContain(ByteBuffer.wrap(contractStateChange.getSlot()));
+
+        // When the same slot is requested again at the same block
+        final var result2 = contractStateService.findStorageByBlockTimestamp(
+                contractId, contractStateChange.getSlot(), blockTimestamp);
+
+        // Then it is served from the historical state cache
+        assertThat(result2).get().isEqualTo(contractStateChange.getValueWritten());
+    }
+
+    @Test
+    void verifyHistoricalAbsentSlotIsCachedInAbsentSlotsCache() {
+        // Given a slot change at timestamp T; querying before T should return empty and record the absent slot
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+        final var contractStateChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()))
+                .persist();
+        final var blockTimestamp = contractStateChange.getConsensusTimestamp() - 1;
+
+        // When
+        final var result = contractStateService.findStorageByBlockTimestamp(
+                contractId, contractStateChange.getSlot(), blockTimestamp);
+
+        // Then the absent slot is tracked in the historical absent slots cache for this block
+        assertThat(result).isEmpty();
+        assertThat(getCachedHistoricalAbsentSlots(contractId, blockTimestamp))
+                .asInstanceOf(LIST)
+                .contains(ByteBuffer.wrap(contractStateChange.getSlot()));
+
+        // And nothing leaked into the absent slots cache for a different (future) block
+        assertThat(getCachedHistoricalAbsentSlots(contractId, contractStateChange.getConsensusTimestamp()))
+                .asInstanceOf(LIST)
+                .doesNotContain(ByteBuffer.wrap(contractStateChange.getSlot()));
+    }
+
+    @Test
+    void verifyHistoricalAndLatestCachesAreIsolated() {
+        // Given a slot that exists in both contract_state (latest) and contract_state_change (historical)
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+        final var contractState = persistContractState(contract.getId(), 1);
+        final var contractStateChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(contractState.getSlot()))
+                .persist();
+        final var blockTimestamp = contractStateChange.getConsensusTimestamp();
+
+        // When both latest and historical are queried
+        final var latestResult = contractStateService.findStorage(contractId, contractState.getSlot());
+        final var historicalResult = contractStateService.findStorageByBlockTimestamp(
+                contractId, contractStateChange.getSlot(), blockTimestamp);
+
+        // Then both return a value ...
+        assertThat(latestResult).get().isEqualTo(contractState.getValue());
+        assertThat(historicalResult).get().isEqualTo(contractStateChange.getValueWritten());
+
+        // ... and they are stored under separate cache keys
+        assertThat(getCachedState(contractId, contractState.getSlot())).isEqualTo(contractState.getValue());
+        assertThat(getCachedHistoricalState(contractId, contractStateChange.getSlot(), blockTimestamp))
+                .isEqualTo(contractStateChange.getValueWritten());
+
+        // A different block timestamp for the same slot must NOT share the historical cache entry
+        assertThat(getCachedHistoricalState(contractId, contractStateChange.getSlot(), blockTimestamp - 1))
+                .isNull();
+    }
+
+    @Test
+    void verifyHistoricalBatchFlagPropertyRespected() {
+        // Given
+        cacheProperties.setEnableBatchContractSlotCaching(false);
+        final var contractStateChange = domainBuilder.contractStateChange().persist();
+        final var contractId = EntityId.of(contractStateChange.getContractId());
+
+        // When
+        final var result = contractStateService.findStorageByBlockTimestamp(
+                contractId, contractStateChange.getSlot(), contractStateChange.getConsensusTimestamp());
+
+        // Then the value is returned correctly but nothing is added to the slots cache
+        assertThat(result).get().isEqualTo(contractStateChange.getValueWritten());
+        assertThat(getCacheSizeContractSlot()).isEqualTo(0);
+    }
+
+    @Test
+    void verifyHistoricalAdjacentAbsentSlotsAreExcludedFromSubsequentBatchQueriesOnSameBlock() {
+        // Given a contract with one slot at a specific block
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+        final var existingSlot = generateSlotKey(10);
+        final var contractStateChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(existingSlot))
+                .persist();
+        final var blockTimestamp = contractStateChange.getConsensusTimestamp();
+
+        // When the existing slot is requested, adjacent absent slots are searched and cached once
+        assertThat(contractStateService.findStorageByBlockTimestamp(contractId, existingSlot, blockTimestamp))
+                .get()
+                .isEqualTo(contractStateChange.getValueWritten());
+        final var adjacentSlot = generateSlotKey(11);
+        assertThat(getCachedHistoricalAbsentSlots(contractId, blockTimestamp))
+                .asInstanceOf(LIST)
+                .contains(ByteBuffer.wrap(adjacentSlot));
+
+        // When another slot far from the first is requested at the same block, already-absent adjacent slots are
+        // skipped
+        final var otherSlot = generateSlotKey(100);
+        assertThat(contractStateService.findStorageByBlockTimestamp(contractId, otherSlot, blockTimestamp))
+                .isEmpty();
+        final var otherAdjacentSlot = generateSlotKey(101);
+        assertThat(getCachedHistoricalAbsentSlots(contractId, blockTimestamp))
+                .asInstanceOf(LIST)
+                .contains(ByteBuffer.wrap(adjacentSlot), ByteBuffer.wrap(otherAdjacentSlot));
+    }
+
+    @Test
+    void verifyHistoricalBatchLoadsMultipleSlotsAtSameBlock() {
+        // Given a contract with several slots written at increasing timestamps
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+        final var slotA = generateSlotKey(50);
+        final var slotB = generateSlotKey(100);
+        final var slotC = generateSlotKey(150);
+        final byte[] valueA = (EXPECTED_SLOT_VALUE + "histA").getBytes();
+        final byte[] valueB = (EXPECTED_SLOT_VALUE + "histB").getBytes();
+        final byte[] valueC = (EXPECTED_SLOT_VALUE + "histC").getBytes();
+
+        domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(slotA).valueWritten(valueA))
+                .persist();
+        domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(slotB).valueWritten(valueB))
+                .persist();
+        // Use the last change's timestamp so all three slots are visible at the queried block
+        final var lastChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(slotC).valueWritten(valueC))
+                .persist();
+        final var blockTimestamp = lastChange.getConsensusTimestamp();
+
+        // When each slot is queried at blockTimestamp (they are non-adjacent so each call loads adjacent slots batch)
+        final var resultA = contractStateService.findStorageByBlockTimestamp(contractId, slotA, blockTimestamp);
+        final var resultB = contractStateService.findStorageByBlockTimestamp(contractId, slotB, blockTimestamp);
+        final var resultC = contractStateService.findStorageByBlockTimestamp(contractId, slotC, blockTimestamp);
+
+        // Then all values are found and the historical state cache contains them
+        assertThat(resultA).get().isEqualTo(valueA);
+        assertThat(resultB).get().isEqualTo(valueB);
+        assertThat(resultC).get().isEqualTo(valueC);
+        assertThat(getCachedHistoricalState(contractId, slotA, blockTimestamp)).isEqualTo(valueA);
+        assertThat(getCachedHistoricalState(contractId, slotB, blockTimestamp)).isEqualTo(valueB);
+        assertThat(getCachedHistoricalState(contractId, slotC, blockTimestamp)).isEqualTo(valueC);
+    }
+
+    @Test
+    void verifyHistoricalDifferentBlockTimestampsUseSeparateCaches() {
+        // Given a slot with two different values at two different timestamps
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+        final var slot = generateSlotKey(77);
+        final byte[] olderValue = (EXPECTED_SLOT_VALUE + "older").getBytes();
+        final byte[] newerValue = (EXPECTED_SLOT_VALUE + "newer").getBytes();
+
+        final var olderChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(slot).valueWritten(olderValue))
+                .persist();
+        final var newerChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(slot).valueWritten(newerValue))
+                .persist();
+
+        final var olderTimestamp = olderChange.getConsensusTimestamp();
+        final var newerTimestamp = newerChange.getConsensusTimestamp();
+
+        // When the slot is queried at each block
+        final var olderResult = contractStateService.findStorageByBlockTimestamp(contractId, slot, olderTimestamp);
+        final var newerResult = contractStateService.findStorageByBlockTimestamp(contractId, slot, newerTimestamp);
+
+        // Then each block returns its own value and caches it independently
+        assertThat(olderResult).get().isEqualTo(olderValue);
+        assertThat(newerResult).get().isEqualTo(newerValue);
+        assertThat(getCachedHistoricalState(contractId, slot, olderTimestamp)).isEqualTo(olderValue);
+        assertThat(getCachedHistoricalState(contractId, slot, newerTimestamp)).isEqualTo(newerValue);
+
+        // Caches for distinct blocks are separate – querying one should not affect the other
+        assertThat(getCachedHistoricalSlots(contractId, olderTimestamp))
+                .asInstanceOf(LIST)
+                .doesNotContain(ByteBuffer.wrap(slot));
+        assertThat(getCachedHistoricalSlots(contractId, newerTimestamp))
+                .asInstanceOf(LIST)
+                .doesNotContain(ByteBuffer.wrap(slot));
+    }
+
+    @Test
     void verifyDeletedHistoricalContractSlotIsNotReturned() {
         // Given
         final var olderContractState = domainBuilder.contractStateChange().persist();
@@ -552,5 +770,31 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
             final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
             assertThat(result.get()).isEqualTo(state.getValue());
         }
+    }
+
+    private byte[] getCachedHistoricalState(final EntityId contractId, final byte[] slot, final long blockTimestamp) {
+        return getContractStateCache().get(new SimpleKey(contractId, slot, blockTimestamp), byte[].class);
+    }
+
+    public List<ByteBuffer> getCachedHistoricalSlots(final EntityId contractId, final long blockTimestamp) {
+        var cacheKey = new SimpleKey(contractId, blockTimestamp);
+        var slotsPerContractCache = getSlotsCache().asMap().get(cacheKey);
+        return slotsPerContractCache != null
+                ? ((CaffeineCache) slotsPerContractCache)
+                        .getNativeCache().asMap().keySet().stream()
+                                .map(slot -> (ByteBuffer) slot)
+                                .collect(Collectors.toList())
+                : List.of();
+    }
+
+    public List<ByteBuffer> getCachedHistoricalAbsentSlots(final EntityId contractId, final long blockTimestamp) {
+        var cacheKey = new SimpleKey(contractId, blockTimestamp);
+        var absentSlotsPerContractCache = getAbsentSlotsCache().asMap().get(cacheKey);
+        return absentSlotsPerContractCache != null
+                ? ((CaffeineCache) absentSlotsPerContractCache)
+                        .getNativeCache().asMap().keySet().stream()
+                                .map(slot -> (ByteBuffer) slot)
+                                .collect(Collectors.toList())
+                : List.of();
     }
 }
