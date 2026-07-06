@@ -268,7 +268,7 @@ public class AccountFeature extends AbstractFeature {
 
     @Given("I successfully create a spend on behalf contract")
     public void createSpendOnBehalfContract() {
-        spendOnBehalfContract = getContract(ContractResource.SPEND_ON_BEHALF);
+        spendOnBehalfContract = getContract(ContractResource.PRECOMPILE);
         contractSpenderAccountId =
                 AccountId.fromString(spendOnBehalfContract.contractId().toString());
     }

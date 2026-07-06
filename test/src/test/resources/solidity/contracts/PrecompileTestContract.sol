@@ -562,6 +562,30 @@ contract PrecompileTestContract is HederaTokenService {
             revert(message);
         }
     }
+
+    event HbarTransferExecuted(address indexed owner, address indexed receiver, int64 amount, int responseCode);
+
+    /// Spends HBAR on behalf of the owner using the allowance.
+    /// @param owner The account that authorized the contract (spender)
+    /// @param receiver The recipient of the HBAR
+    /// @param amount The amount of HBAR to transfer in tinybars
+    function spendHbar(address owner, address receiver, int64 amount) external returns (int responseCode) {
+        IHederaTokenService.AccountAmount[] memory transfers = new IHederaTokenService.AccountAmount[](2);
+
+        // Owner sends HBAR (negative amount, isApproval = true)
+        transfers[0] = IHederaTokenService.AccountAmount({accountID: owner, amount: -amount, isApproval: true});
+
+        // Receiver receives HBAR (positive amount, isApproval = false)
+        transfers[1] = IHederaTokenService.AccountAmount({accountID: receiver, amount: amount, isApproval: false});
+
+        IHederaTokenService.TransferList memory transferList = IHederaTokenService.TransferList({transfers: transfers});
+        IHederaTokenService.TokenTransferList[] memory tokenTransfers = new IHederaTokenService.TokenTransferList[](0);
+
+        responseCode = HederaTokenService.cryptoTransfer(transferList, tokenTransfers);
+
+        emit HbarTransferExecuted(owner, receiver, amount, responseCode);
+        handleResponseCode(responseCode, "cryptoTransfer failed for HBAR");
+    }
 }
 
 contract SpenderContract {
