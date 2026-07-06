@@ -92,12 +92,6 @@ class FixCryptoAllowanceContractSpendMigrationTest
         persistApprovedTransfer(domainBuilder.entityId().getId(), relayer.getId(), -33, contractSpendTimestamp + 1);
         persistContractResult(spender, contractSpendTimestamp + 1);
 
-        // The record file establishes the processing frontier the async migration walks back from.
-        domainBuilder
-                .recordFile()
-                .customize(rf -> rf.consensusEnd(allowance.getTimestampLower() + 1000))
-                .persist();
-
         // when
         runMigration();
 
@@ -138,11 +132,6 @@ class FixCryptoAllowanceContractSpendMigrationTest
         final long spendTimestamp = contractAllowance.getTimestampLower() + 10;
         persistApprovedTransfer(owner, relayer, -100, spendTimestamp);
         persistContractResult(contract, spendTimestamp);
-
-        domainBuilder
-                .recordFile()
-                .customize(rf -> rf.consensusEnd(contractAllowance.getTimestampLower() + 1000))
-                .persist();
 
         // when
         runMigration();
@@ -188,7 +177,8 @@ class FixCryptoAllowanceContractSpendMigrationTest
     private void persistContractResult(long senderId, long consensusTimestamp) {
         domainBuilder
                 .contractResult()
-                .customize(cr -> cr.senderId(EntityId.of(senderId)).consensusTimestamp(consensusTimestamp))
+                .customize(cr ->
+                        cr.contractId(0x167).senderId(EntityId.of(senderId)).consensusTimestamp(consensusTimestamp))
                 .persist();
     }
 }

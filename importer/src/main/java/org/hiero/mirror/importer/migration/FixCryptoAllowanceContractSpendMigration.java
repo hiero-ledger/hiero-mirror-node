@@ -46,7 +46,7 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
     private static final String SELECT_UPPER_BOUND_SQL = """
             select coalesce(
                 (select upper_bound from crypto_allowance_contract_spend_progress limit 1),
-                (select max(consensus_end) + 1 from record_file)
+                (select max(consensus_timestamp) + 1 from contract_result where contract_id = 0x167)
             )
             """;
 
