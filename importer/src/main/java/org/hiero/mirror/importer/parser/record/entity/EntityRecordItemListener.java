@@ -239,13 +239,10 @@ public class EntityRecordItemListener implements RecordItemListener {
 
         long spenderId = payerAccount.getId();
         if (!transfers.isEmpty() && recordItem.getTransactionRecord().hasContractCallResult()) {
-            // The spender is the sender id of the contract call result, i.e. the immediate EVM caller of the transfer
-            // precompile frame (an EOA or a contract), not the contract id, which is the precompile itself (0x167).
-            spenderId = EntityId.of(recordItem
-                            .getTransactionRecord()
-                            .getContractCallResult()
-                            .getSenderId())
-                    .getId();
+            final var contractCallResult = recordItem.getTransactionRecord().getContractCallResult();
+            if (contractCallResult.hasSenderId()) {
+                spenderId = EntityId.of(contractCallResult.getSenderId()).getId();
+            }
         }
 
         for (var aa : transfers) {
@@ -544,11 +541,10 @@ public class EntityRecordItemListener implements RecordItemListener {
         var tokenTransfers = recordItem.getTransactionBody().getCryptoTransfer().getTokenTransfersList();
         long spenderId = payerAccountId.getId();
         if (!tokenTransfers.isEmpty() && recordItem.getTransactionRecord().hasContractCallResult()) {
-            spenderId = EntityId.of(recordItem
-                            .getTransactionRecord()
-                            .getContractCallResult()
-                            .getSenderId())
-                    .getId();
+            final var contractCallResult = recordItem.getTransactionRecord().getContractCallResult();
+            if (contractCallResult.hasSenderId()) {
+                spenderId = EntityId.of(contractCallResult.getSenderId()).getId();
+            }
         }
         long transferSpenderId = spenderId;
         tokenTransfers.forEach(tokenTransfer -> {

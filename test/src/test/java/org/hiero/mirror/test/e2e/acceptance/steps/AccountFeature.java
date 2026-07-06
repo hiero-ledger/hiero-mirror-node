@@ -269,7 +269,6 @@ public class AccountFeature extends AbstractFeature {
     @Given("I successfully create a spend on behalf contract")
     public void createSpendOnBehalfContract() {
         spendOnBehalfContract = getContract(ContractResource.SPEND_ON_BEHALF);
-        // The contract is the allowance spender; its entity id maps directly to an account id.
         contractSpenderAccountId =
                 AccountId.fromString(spendOnBehalfContract.contractId().toString());
     }
@@ -293,8 +292,7 @@ public class AccountFeature extends AbstractFeature {
         final var receiverId = accountClient
                 .getAccount(AccountClient.AccountNameEnum.valueOf(receiver))
                 .getAccountId();
-        // spendHbar(owner, receiver, amount) debits the owner via the HTS precompile marking isApproval=true,
-        // so the ledger spends the allowance the owner granted to this contract.
+
         final var parameters = new ContractFunctionParameters()
                 .addAddress(owner.toEvmAddress())
                 .addAddress(receiverId.toEvmAddress())
