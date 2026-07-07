@@ -240,10 +240,6 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
     @Override
     protected Optional<Long> migratePartial(Long upperBound) {
         long lowerBound = upperBound - batchInterval;
-        if (v2) {
-            getJdbcOperations().execute(ENABLE_REPARTITION_JOINS_SQL);
-            getJdbcOperations().execute(SET_INTERMEDIATE_RESULT_SIZE_SQL);
-        }
 
         var parameters = new MapSqlParameterSource()
                 .addValue("lowerBound", lowerBound)
