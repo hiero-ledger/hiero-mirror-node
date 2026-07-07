@@ -47,6 +47,7 @@ final class SyntheticContractLogTransactionHashMigrationTest
         waitForCompletion();
 
         assertThat(countTransactionHashes()).isZero();
+        assertThat(progressTableExists()).isFalse();
     }
 
     @Test
@@ -196,6 +197,13 @@ final class SyntheticContractLogTransactionHashMigrationTest
 
     private int countTransactionHashes() {
         return ownerJdbcTemplate.queryForObject("select count(*)::int from transaction_hash", Integer.class);
+    }
+
+    private boolean progressTableExists() {
+        return ownerJdbcTemplate.queryForObject(
+                "select exists(select 1 from information_schema.tables "
+                        + "where table_name = 'synthetic_contract_log_transaction_hash_progress_temp')",
+                Boolean.class);
     }
 
     private byte[] findHashByTimestamp(long consensusTimestamp) {

@@ -166,12 +166,14 @@ final class SyntheticContractLogTransactionHashMigration extends AsyncJavaMigrat
         final var upperBound = getJdbcOperations().queryForObject(SELECT_UPPER_BOUND, Long.class);
         if (upperBound == null) {
             log.info("No synthetic contract_log rows with transaction_hash to backfill");
+            getJdbcOperations().execute(DROP_PROGRESS_TABLE);
             return false;
         }
 
         final var floor = getJdbcOperations().queryForObject(SELECT_LOWER_BOUND_FLOOR, Long.class);
         if (floor == null) {
             log.info("No synthetic contract_log rows with transaction_hash to backfill");
+            getJdbcOperations().execute(DROP_PROGRESS_TABLE);
             return false;
         }
 
