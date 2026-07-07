@@ -74,7 +74,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private final ManagedChannel subscribeStreamChannel;
 
     @Getter
-    private boolean active = true;
+    private volatile boolean active = true;
 
     public BlockNode(
             final ManagedChannelBuilderProvider channelBuilderProvider,
@@ -109,12 +109,10 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     @Override
     public void close() {
-        if (!statusChannel.isShutdown()) {
-            statusChannel.shutdown();
-        }
+        shutdownChannel(statusChannel);
 
         if (subscribeStreamChannel != statusChannel) {
-            subscribeStreamChannel.shutdown();
+            shutdownChannel(subscribeStreamChannel);
         }
     }
 
@@ -250,6 +248,22 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                     "Marking connection to {} as inactive after {} attempts",
                     this,
                     streamProperties.getMaxSubscribeAttempts());
+        }
+    }
+
+    private void shutdownChannel(final ManagedChannel channel) {
+        if (channel.isShutdown()) {
+            return;
+        }
+
+        channel.shutdown();
+        try {
+            if (!channel.awaitTermination(streamProperties.getShutdownTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
+                channel.shutdownNow();
+            }
+        } catch (final InterruptedException _) {
+            channel.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
 

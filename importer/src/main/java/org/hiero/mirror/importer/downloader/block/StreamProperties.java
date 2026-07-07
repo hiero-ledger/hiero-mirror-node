@@ -33,4 +33,8 @@ public final class StreamProperties {
     @DurationMin(millis = 100)
     @NotNull
     private Duration responseTimeout = Duration.ofMillis(400);
+
+    @DurationMin(seconds = 1)
+    @NotNull
+    private Duration shutdownTimeout = Duration.ofSeconds(5);
 }
