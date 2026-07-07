@@ -2193,6 +2193,338 @@ resource "grafana_rule_group" "rule_group_web3" {
   }
 }
 
+resource "grafana_rule_group" "rule_group_graphql" {
+  disable_provenance = false
+  name               = "GraphQL"
+  folder_uid       = grafana_folder.mirror.uid
+  interval_seconds = 60
+
+  rule {
+    name      = "GraphQLDataFetcherErrors"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(graphql_datafetcher_seconds_count{application=\\\"graphql\\\", outcome=\\\"ERROR\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(graphql_datafetcher_seconds_count{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) > .05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "1m"
+    annotations = {
+      description = "High data fetcher error rate of {{ (index $values \"A\").Value | humanizePercentage }} for {{ $labels.pod }}"
+      summary     = "Mirror GraphQL data fetcher high error rate exceeds 5%"
+    }
+    labels = {
+      application = "graphql"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLErrors"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(graphql_request_seconds_count{application=\\\"graphql\\\", status=\\\"ERROR\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(graphql_request_seconds_count{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) > 0.05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "{{ (index $values \"A\").Value | humanizePercentage }} graphql request error rate for {{ $labels.pod }}"
+      summary     = "Mirror GraphQL request error rate exceeds 5%"
+    }
+    labels = {
+      application = "graphql"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLHighCPU"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(process_cpu_usage{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) / sum(system_cpu_count{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "5m"
+    annotations = {
+      description = "{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror GraphQL API CPU usage exceeds 80%"
+    }
+    labels = {
+      application = "graphql"
+      area        = "resource"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLHighDBConnections"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(hikaricp_connections_active{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) / sum(hikaricp_connections_max{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) > 0.75\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "5m"
+    annotations = {
+      description = "{{ $labels.pod }} is using {{ (index $values \"A\").Value | humanizePercentage }} of available database connections"
+      summary     = "Mirror GraphQL API database connection utilization exceeds 75%"
+    }
+    labels = {
+      application = "graphql"
+      area        = "resource"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLHighFileDescriptors"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (process_files_open_files{application=\\\"graphql\\\"}) / sum by (cluster, namespace, env_category, pod) (process_files_max_files{application=\\\"graphql\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "5m"
+    annotations = {
+      description = "{{ $labels.pod }} file descriptor usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror GraphQL API file descriptor usage exceeds 80%"
+    }
+    labels = {
+      application = "graphql"
+      area        = "resource"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLHighMemory"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(jvm_memory_used_bytes{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) / sum(jvm_memory_max_bytes{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "5m"
+    annotations = {
+      description = "{{ $labels.pod }} memory usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror GraphQL API memory usage exceeds 80%"
+    }
+    labels = {
+      application = "graphql"
+      area        = "resource"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLLogErrors"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(increase(logback_events_total{application=\\\"graphql\\\", level=\\\"error\\\"}[1m])) by (cluster, namespace, env_category) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "3m"
+    annotations = {
+      description = "Logs have reached {{ printf \"%.0f\" (index $values \"A\").Value }} error messages/s in a 3m period"
+      summary     = "High rate of log errors"
+    }
+    labels = {
+      application = "graphql"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLNoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-graphql-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No GraphQL API instances are currently running in {{ $labels.namespace }}"
+      summary     = "No GraphQL API instances running"
+    }
+    labels = {
+      application = "graphql"
+      area        = "resource"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLNoRequests"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(http_server_requests_seconds_count{application=\\\"graphql\\\"}[3m])) by (cluster, namespace, env_category) <= 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "5m"
+    annotations = {
+      description = "GraphQL API has not seen any requests to {{ $labels.namespace }} for 5m"
+      summary     = "No GraphQL API requests seen for awhile"
+    }
+    labels = {
+      application = "graphql"
+      severity    = "warning"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLQueryLatency"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(spring_data_repository_invocations_seconds_sum{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) > 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "1m"
+    annotations = {
+      description = "High average database query latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.pod }}"
+      summary     = "Mirror GraphQL API query latency exceeds 1s"
+    }
+    labels = {
+      application = "graphql"
+      severity    = "warning"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLRequestLatency"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(graphql_request_seconds_sum{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(graphql_request_seconds_count{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) > 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "1m"
+    annotations = {
+      description = "High average request latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.pod }}"
+      summary     = "Mirror GraphQL API request latency exceeds 2s"
+    }
+    labels = {
+      application = "graphql"
+      severity    = "warning"
+    }
+    is_paused = false
+  }
+}
+
 resource "grafana_rule_group" "rule_group_database" {
   disable_provenance = false
   name               = "Database"
@@ -2543,6 +2875,17 @@ resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_all_when_p
     source_matchers = [{ type = "=", label = "alertname", value = "MonitorPublishPlatformNotActive" }]
     target_matchers = [{ type = "=~", label = "application", value = ".*" }]
     equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_graphql_when_pod_issues" {
+  metadata {
+    uid = "inhibit-graphql-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "graphql" }]
+    equal           = ["namespace", "pod"]
   }
 }
 
