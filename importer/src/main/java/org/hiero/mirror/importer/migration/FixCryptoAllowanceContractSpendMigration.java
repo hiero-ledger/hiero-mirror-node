@@ -51,7 +51,6 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
             )
             """;
 
-    // Nothing to backfill before the earliest allowance was granted.
     private static final String SELECT_LOWER_BOUND_FLOOR_SQL =
             "select min(lower(timestamp_range)) from crypto_allowance where amount_granted > 0";
 
@@ -64,7 +63,20 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
 
     private static final String SET_INTERMEDIATE_RESULT_SIZE_SQL = "set local citus.max_intermediate_result_size to -1";
 
-    private static final String HTS_CONTRACT_CALL_CTE = """
+    private static final String CREATE_BATCH_TABLES_SQL = """
+            create temp table crypto_allowance_contract_spend_batch (
+              owner bigint not null,
+              spender bigint not null,
+              amount_spent bigint not null
+            ) on commit drop;
+            create temp table crypto_allowance_contract_spend_reversal_batch (
+              owner bigint not null,
+              spender bigint not null,
+              amount_spent bigint not null
+            ) on commit drop;
+            """;
+
+    private static final String POPULATE_BATCH_TABLES_SQL = """
             with hts_contract_call as (
               select consensus_timestamp, sender_id
               from contract_result
@@ -72,28 +84,43 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
                 and sender_id is not null
                 and consensus_timestamp >= :lowerBound
                 and consensus_timestamp < :upperBound
+            ),
+            approved_contract_spend as (
+              select ct.entity_id as owner,
+                     cr.sender_id as contract,
+                     ct.payer_account_id as payer,
+                     ct.amount,
+                     ct.consensus_timestamp
+              from crypto_transfer ct
+              join hts_contract_call cr
+                on cr.consensus_timestamp = ct.consensus_timestamp
+              where ct.is_approval is true
+                and ct.amount < 0
+                and ct.payer_account_id <> cr.sender_id
+                and ct.consensus_timestamp >= :lowerBound
+                and ct.consensus_timestamp < :upperBound
+            ),
+            matched_allowance as (
+              select s.owner, ca.spender, s.amount, ca.spender = s.contract as contract_spend
+              from approved_contract_spend s
+              join crypto_allowance ca
+                on ca.owner = s.owner
+                and ca.spender in (s.contract, s.payer)
+                and ca.amount_granted > 0
+                and s.consensus_timestamp > lower(ca.timestamp_range)
+            ),
+            missed as (
+              insert into crypto_allowance_contract_spend_batch (owner, spender, amount_spent)
+              select owner, spender, sum(amount)
+              from matched_allowance
+              where contract_spend
+              group by owner, spender
             )
-            """;
-
-    private static final String AGGREGATE_MISSED_SPEND_SQL = "create temp table crypto_allowance_contract_spend_batch"
-            + " on commit drop as "
-            + HTS_CONTRACT_CALL_CTE
-            + """
-            select ct.entity_id as owner, cr.sender_id as spender, sum(ct.amount) as amount_spent
-            from crypto_transfer ct
-            join hts_contract_call cr
-              on cr.consensus_timestamp = ct.consensus_timestamp
-            join crypto_allowance ca
-              on ca.owner = ct.entity_id
-              and ca.spender = cr.sender_id
-              and ca.amount_granted > 0
-              and ct.consensus_timestamp > lower(ca.timestamp_range)
-            where ct.is_approval is true
-              and ct.amount < 0
-              and ct.payer_account_id <> cr.sender_id
-              and ct.consensus_timestamp >= :lowerBound
-              and ct.consensus_timestamp < :upperBound
-            group by ct.entity_id, cr.sender_id
+            insert into crypto_allowance_contract_spend_reversal_batch (owner, spender, amount_spent)
+            select owner, spender, sum(amount)
+            from matched_allowance
+            where not contract_spend
+            group by owner, spender
             """;
 
     private static final String APPLY_MISSED_SPEND_SQL = """
@@ -105,28 +132,6 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
               and w.amount_spent <> 0
             """;
 
-    private static final String AGGREGATE_WRONG_SPEND_SQL =
-            "create temp table crypto_allowance_contract_spend_reversal_batch on commit drop as "
-                    + HTS_CONTRACT_CALL_CTE
-                    + """
-            select ct.entity_id as owner, ct.payer_account_id as spender, sum(ct.amount) as amount_spent
-            from crypto_transfer ct
-            join hts_contract_call cr
-              on cr.consensus_timestamp = ct.consensus_timestamp
-            join crypto_allowance ca
-              on ca.owner = ct.entity_id
-              and ca.spender = ct.payer_account_id
-              and ca.amount_granted > 0
-              and ct.consensus_timestamp > lower(ca.timestamp_range)
-            where ct.is_approval is true
-              and ct.amount < 0
-              and ct.payer_account_id <> cr.sender_id
-              and ct.consensus_timestamp >= :lowerBound
-              and ct.consensus_timestamp < :upperBound
-            group by ct.entity_id, ct.payer_account_id
-            """;
-
-    // Add back the wrongly debited amount, capped at the granted amount so the allowance never exceeds its grant.
     private static final String APPLY_WRONG_SPEND_SQL = """
             update crypto_allowance ca
             set amount = least(ca.amount - w.amount_spent, ca.amount_granted)
@@ -223,13 +228,14 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
                 .addValue("lowerBound", lowerBound)
                 .addValue("upperBound", upperBound)
                 .addValue("htsContractId", htsContractId);
-        getNamedParameterJdbcOperations().update(AGGREGATE_MISSED_SPEND_SQL, parameters);
+        getJdbcOperations().execute(CREATE_BATCH_TABLES_SQL);
+        getNamedParameterJdbcOperations().update(POPULATE_BATCH_TABLES_SQL, parameters);
+
         int updated = getJdbcOperations().update(APPLY_MISSED_SPEND_SQL);
         if (updated > 0) {
             log.info("Backfilled {} crypto allowances in range [{}, {})", updated, lowerBound, upperBound);
         }
 
-        getNamedParameterJdbcOperations().update(AGGREGATE_WRONG_SPEND_SQL, parameters);
         int reversed = getJdbcOperations().update(APPLY_WRONG_SPEND_SQL);
         if (reversed > 0) {
             log.info(
