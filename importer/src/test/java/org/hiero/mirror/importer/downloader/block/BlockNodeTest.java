@@ -13,6 +13,7 @@ import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Range;
+import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.BindableService;
@@ -41,6 +42,8 @@ import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
+import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.junit.jupiter.api.AfterEach;
@@ -49,10 +52,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mockito;
 import org.mockito.ThrowingConsumer;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.util.unit.DataSize;
 
 @ExtendWith({GrpcCleanupExtension.class, OutputCaptureExtension.class})
 final class BlockNodeTest extends BlockNodeTestBase {
@@ -63,6 +68,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
     private BlockNodeProperties blockNodeProperties;
+    private BlockNodeSimulator blockNodeSimulator;
     private BlockNode node;
     private StreamProperties streamProperties;
 
@@ -80,7 +86,13 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
     @AfterEach
     void cleanup() {
-        node.close();
+        if (blockNodeSimulator != null) {
+            blockNodeSimulator.close();
+        }
+
+        if (node != null) {
+            node.close();
+        }
     }
 
     @Test
@@ -377,6 +389,42 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 .hasMessage("Too many block items in a pending block: received 4, limit 2");
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void streamBlockExceedsMaxBlockSize(final boolean compressed) {
+        // Given a 64KB all-zero highly compressible payload, regardless of the compression, the size limit is over the
+        // uncompressed data, so it should hit the limit.
+        streamProperties.setMaxBlockSize(DataSize.ofKilobytes(16));
+        blockNodeSimulator = new BlockNodeSimulator()
+                .withBlocks(compressibleBlock(64 * 1024))
+                .withHttpChannel()
+                .withZstdCompression(compressed)
+                .start();
+        node = httpBlockNode(blockNodeSimulator);
+
+        // when, then
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
+                .isInstanceOf(BlockStreamException.class)
+                .hasMessageContaining("Pending block too large");
+    }
+
+    @Test
+    void streamWithinMaxBlockSize() {
+        // given
+        blockNodeSimulator = new BlockNodeSimulator()
+                .withBlocks(new BlockGenerator(0).next(1))
+                .withHttpChannel()
+                .start();
+        node = httpBlockNode(blockNodeSimulator);
+        final var streamed = new ArrayList<BlockStream>();
+
+        // when
+        node.streamBlocks(0, null, accumulate(streamed), TIMEOUT);
+
+        // then
+        assertThat(streamed).hasSize(1).satisfies(blocks -> assertBlockStream(blocks.getFirst(), 0));
+    }
+
     @Test
     void stringify() {
         var expected = String.format(
@@ -520,6 +568,23 @@ final class BlockNodeTest extends BlockNodeTestBase {
                                 .returns(number, BlockHeader::getNumber),
                         x -> assertThat(x.getLast()).returns(BlockItem.ItemCase.BLOCK_PROOF, BlockItem::getItemCase),
                         extraBlockItemAssert);
+    }
+
+    private List<BlockGenerator.BlockRecord> compressibleBlock(int payloadSize) {
+        final var payload = BlockItem.newBuilder()
+                .setSignedTransaction(ByteString.copyFrom(new byte[payloadSize]))
+                .build();
+        return List.of(new BlockGenerator.BlockRecord(blockItemSet(blockHead(0), payload, blockProof())));
+    }
+
+    private BlockNode httpBlockNode(final BlockNodeSimulator blockNodeSimulator) {
+        final var provider = new ManagedChannelBuilderProviderImpl(meterRegistry, new ZstdCodec());
+        return new BlockNode(
+                provider,
+                NOOP_GRPC_BUFFER_DISPOSER,
+                meterRegistry,
+                blockNodeSimulator.toClientProperties(),
+                streamProperties);
     }
 
     private void runBlockNodeService(Resources resources, Supplier<ServerStatusResponse> responseProvider) {

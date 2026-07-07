@@ -21,6 +21,10 @@ public final class StreamProperties {
 
     @DataSizeUnit(DataUnit.MEGABYTES)
     @NotNull
+    private DataSize maxBlockSize = DataSize.ofMegabytes(512);
+
+    @DataSizeUnit(DataUnit.MEGABYTES)
+    @NotNull
     private DataSize maxStreamResponseSize = DataSize.ofMegabytes(125);
 
     @Min(1)

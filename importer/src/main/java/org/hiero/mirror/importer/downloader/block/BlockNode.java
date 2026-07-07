@@ -8,7 +8,9 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.CallOptions;
+import io.grpc.ClientStreamTracer;
 import io.grpc.ManagedChannel;
+import io.grpc.Metadata;
 import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.ClientCalls;
 import io.micrometer.core.instrument.Counter;
@@ -21,11 +23,13 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.hiero.block.api.protoc.BlockEnd;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
@@ -140,7 +144,9 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
         try {
             final long effectiveEndBlockNumber = endBlockNumber == null ? -1L : endBlockNumber;
-            final var assembler = new BlockAssembler(onBlockStream, effectiveEndBlockNumber, timeout);
+            final var uncompressedBytes = new AtomicLong();
+            final var assembler =
+                    new BlockAssembler(onBlockStream, effectiveEndBlockNumber, timeout, uncompressedBytes);
             final var request = SubscribeStreamRequest.newBuilder()
                     .setEndBlockNumber(effectiveEndBlockNumber)
                     .setStartBlockNumber(blockNumber)
@@ -148,7 +154,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             grpcCall = ClientCalls.blockingV2ServerStreamingCall(
                     subscribeStreamChannel,
                     BlockStreamSubscribeServiceGrpc.getSubscribeBlockStreamMethod(),
-                    CallOptions.DEFAULT,
+                    CallOptions.DEFAULT.withStreamTracerFactory(new UncompressedSizeTracerFactory(uncompressedBytes)),
                     request);
             SubscribeStreamResponse response;
 
@@ -267,6 +273,26 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         }
     }
 
+    /**
+     * A stream tracer factory that accumulates the decompressed size of inbound messages.
+     */
+    @RequiredArgsConstructor
+    private static final class UncompressedSizeTracerFactory extends ClientStreamTracer.Factory {
+
+        private final AtomicLong uncompressedBytes;
+
+        @Override
+        public ClientStreamTracer newClientStreamTracer(
+                final ClientStreamTracer.StreamInfo info, final Metadata headers) {
+            return new ClientStreamTracer() {
+                @Override
+                public void inboundUncompressedSize(final long bytes) {
+                    uncompressedBytes.addAndGet(bytes);
+                }
+            };
+        }
+    }
+
     private final class BlockAssembler {
 
         private final BiFunction<BlockStream, String, Boolean> blockStreamConsumer;
@@ -274,17 +300,21 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         private final List<List<BlockItem>> pending = new ArrayList<>();
         private final Stopwatch stopwatch;
         private final Duration timeout;
+        private final AtomicLong uncompressedBytes;
+        private long blockStartBytes = 0;
         private long loadStart;
         private int pendingCount = 0;
 
         BlockAssembler(
                 final BiFunction<BlockStream, String, Boolean> blockStreamConsumer,
                 final long endBlockNumber,
-                final Duration timeout) {
+                final Duration timeout,
+                final AtomicLong uncompressedBytes) {
             this.blockStreamConsumer = blockStreamConsumer;
             this.endBlockNumber = endBlockNumber;
             this.stopwatch = Stopwatch.createUnstarted();
             this.timeout = timeout;
+            this.uncompressedBytes = uncompressedBytes;
         }
 
         void onBlockItemSet(final BlockItemSet blockItemSet) {
@@ -333,6 +363,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             pending.clear();
             pendingCount = 0;
             stopwatch.reset();
+            blockStartBytes = uncompressedBytes.get();
 
             final var filename = BlockFile.getFilename(blockNumber, false);
             final var blockStream = new BlockStream(block, blockCompleteTime, null, filename, loadStart);
@@ -364,6 +395,13 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                 throw new BlockStreamException(String.format(
                         "Too many block items in a pending block: received %d, limit %d",
                         pendingCount, streamProperties.getMaxBlockItems()));
+            }
+
+            final long blockSize = uncompressedBytes.get() - blockStartBytes;
+            final long maxBlockSize = streamProperties.getMaxBlockSize().toBytes();
+            if (blockSize > maxBlockSize) {
+                throw new BlockStreamException(
+                        String.format("Pending block too large: received %d bytes, limit %d", blockSize, maxBlockSize));
             }
         }
     }
