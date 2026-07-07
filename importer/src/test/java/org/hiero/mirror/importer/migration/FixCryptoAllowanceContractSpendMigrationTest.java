@@ -68,6 +68,22 @@ class FixCryptoAllowanceContractSpendMigrationTest
     }
 
     @Test
+    void nothingToBackfillDoesNotLeaveProgressTable() {
+        // given an allowance but no HTS contract-spend history to backfill from
+        domainBuilder
+                .cryptoAllowance()
+                .customize(a -> a.amount(1000).amountGranted(1000L))
+                .persist();
+
+        // when
+        runMigration();
+
+        // then
+        waitForCompletion();
+        assertThat(tableExists(PROGRESS_TABLE)).isFalse();
+    }
+
+    @Test
     void migrate() {
         // given
         final var allowance = domainBuilder

@@ -44,12 +44,14 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
     private static final String DROP_PROGRESS_TABLE_SQL =
             "drop table if exists crypto_allowance_contract_spend_progress";
 
-    private static final String SELECT_UPPER_BOUND_SQL = """
-            select coalesce(
-                (select upper_bound from crypto_allowance_contract_spend_progress limit 1),
-                (select max(consensus_timestamp) + 1 from contract_result where contract_id = :htsContractId)
-            )
-            """;
+    private static final String PROGRESS_TABLE_EXISTS_SQL =
+            "select to_regclass('crypto_allowance_contract_spend_progress') is not null";
+
+    private static final String SELECT_CHECKPOINT_SQL =
+            "select max(upper_bound) from crypto_allowance_contract_spend_progress";
+
+    private static final String SELECT_MAX_CONTRACT_RESULT_SQL =
+            "select max(consensus_timestamp) + 1 from contract_result where contract_id = :htsContractId";
 
     private static final String SELECT_LOWER_BOUND_FLOOR_SQL =
             "select min(lower(timestamp_range)) from crypto_allowance where amount_granted > 0";
@@ -184,8 +186,6 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
 
     @Override
     protected boolean performSynchronousSteps() {
-        getJdbcOperations().execute(CREATE_PROGRESS_TABLE_SQL);
-
         var floor = getJdbcOperations().queryForObject(SELECT_LOWER_BOUND_FLOOR_SQL, Long.class);
         if (floor == null) {
             log.info("No crypto allowances found, skipping contract-spend backfill");
@@ -193,21 +193,42 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
             return false;
         }
 
-        var upperBound = getNamedParameterJdbcOperations()
-                .queryForObject(
-                        SELECT_UPPER_BOUND_SQL, new MapSqlParameterSource("htsContractId", htsContractId), Long.class);
+        var upperBound = getUpperBound();
         if (upperBound == null || upperBound <= floor) {
             log.info(
                     "No crypto allowance contract-spend history to backfill, upperBound {} floor {}",
                     upperBound,
                     floor);
+            getJdbcOperations().execute(DROP_PROGRESS_TABLE_SQL);
             return false;
         }
 
         lowerBoundFloor = floor;
         initialUpperBound = upperBound;
+        getJdbcOperations().execute(CREATE_PROGRESS_TABLE_SQL);
         log.info("Starting crypto allowance contract-spend backfill from {} down to {}", upperBound, floor);
         return true;
+    }
+
+    /**
+     * Resumes from the last checkpoint if a previous run was interrupted, otherwise starts from the latest HTS
+     * system contract call. The progress table may not exist yet, so guard the read.
+     */
+    private Long getUpperBound() {
+
+        var exists = Boolean.TRUE.equals(getJdbcOperations().queryForObject(PROGRESS_TABLE_EXISTS_SQL, Boolean.class));
+        if (exists) {
+            var checkpoint = getJdbcOperations().queryForObject(SELECT_CHECKPOINT_SQL, Long.class);
+            if (checkpoint != null) {
+                return checkpoint;
+            }
+        }
+
+        return getNamedParameterJdbcOperations()
+                .queryForObject(
+                        SELECT_MAX_CONTRACT_RESULT_SQL,
+                        new MapSqlParameterSource("htsContractId", htsContractId),
+                        Long.class);
     }
 
     @Override
