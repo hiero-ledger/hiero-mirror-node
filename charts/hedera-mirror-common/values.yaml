@@ -37,8 +37,6 @@ loki:
       limits_config:
         retention_period: 1440h
       ruler:
-        alertmanager_url: http://{{ .Release.Name }}-prometheus-alertmanager:9093
-        enable_alertmanager_v2: true
         enable_api: true
         ring:
           kvstore:
@@ -76,21 +74,7 @@ loki:
     enabled: false
   ruler:
     replicas: 0
-  rules:
-    - name: rosetta
-      rules:
-        - alert: RosettaLogErrors
-          annotations:
-            description: "Logs for {{ $labels.cluster }}/{{ $labels.namespace }}/{{ $labels.pod }} have reached {{ $value }} error messages/s in a 1m period"
-            summary: "High rate of log errors"
-          expr: >
-            sum(rate({component="rosetta"}
-              | logfmt
-              | level = "error" or level = "fatal"
-            [1m])) by (cluster, namespace, pod) > 0.04
-          for: 1m
-          labels:
-            severity: critical
+  rules: []
   serviceMonitor:
     enabled: true
   singleBinary:
