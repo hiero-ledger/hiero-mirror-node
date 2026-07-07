@@ -10,6 +10,7 @@ import lombok.CustomLog;
 import lombok.Getter;
 import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.configuration.Configuration;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
@@ -46,7 +47,7 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
     private static final String SELECT_UPPER_BOUND_SQL = """
             select coalesce(
                 (select upper_bound from crypto_allowance_contract_spend_progress limit 1),
-                (select max(consensus_timestamp) + 1 from contract_result where contract_id = 0x167)
+                (select max(consensus_timestamp) + 1 from contract_result where contract_id = :htsContractId)
             )
             """;
 
@@ -63,11 +64,24 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
 
     private static final String SET_INTERMEDIATE_RESULT_SIZE_SQL = "set local citus.max_intermediate_result_size to -1";
 
-    private static final String AGGREGATE_MISSED_SPEND_SQL = """
-            create temp table crypto_allowance_contract_spend_batch on commit drop as
+    private static final String HTS_CONTRACT_CALL_CTE = """
+            with hts_contract_call as (
+              select consensus_timestamp, sender_id
+              from contract_result
+              where contract_id = :htsContractId
+                and sender_id is not null
+                and consensus_timestamp >= :lowerBound
+                and consensus_timestamp < :upperBound
+            )
+            """;
+
+    private static final String AGGREGATE_MISSED_SPEND_SQL = "create temp table crypto_allowance_contract_spend_batch"
+            + " on commit drop as "
+            + HTS_CONTRACT_CALL_CTE
+            + """
             select ct.entity_id as owner, cr.sender_id as spender, sum(ct.amount) as amount_spent
             from crypto_transfer ct
-            join contract_result cr
+            join hts_contract_call cr
               on cr.consensus_timestamp = ct.consensus_timestamp
             join crypto_allowance ca
               on ca.owner = ct.entity_id
@@ -91,13 +105,13 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
               and w.amount_spent <> 0
             """;
 
-    // Under the old bug, a contract-relayed approved transfer was debited from the relayer/payer's allowance
-    // instead of the contract's. Aggregate those erroneous debits keyed on the payer so they can be reversed.
-    private static final String AGGREGATE_WRONG_SPEND_SQL = """
-            create temp table crypto_allowance_contract_spend_reversal_batch on commit drop as
+    private static final String AGGREGATE_WRONG_SPEND_SQL =
+            "create temp table crypto_allowance_contract_spend_reversal_batch on commit drop as "
+                    + HTS_CONTRACT_CALL_CTE
+                    + """
             select ct.entity_id as owner, ct.payer_account_id as spender, sum(ct.amount) as amount_spent
             from crypto_transfer ct
-            join contract_result cr
+            join hts_contract_call cr
               on cr.consensus_timestamp = ct.consensus_timestamp
             join crypto_allowance ca
               on ca.owner = ct.entity_id
@@ -124,6 +138,7 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
 
     private final long batchInterval;
     private final EntityProperties entityProperties;
+    private final long htsContractId;
     private final boolean v2;
 
     private long lowerBoundFloor = 0L;
@@ -137,9 +152,11 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
             ImporterProperties importerProperties,
             DBProperties dbProperties,
             EntityProperties entityProperties,
+            SystemEntity systemEntity,
             @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider) {
         super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
         this.entityProperties = entityProperties;
+        this.htsContractId = systemEntity.hederaTokenServiceContract().getId();
         this.batchInterval = DurationStyle.SIMPLE
                 .parse(
                         migrationProperties
@@ -171,7 +188,9 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
             return false;
         }
 
-        var upperBound = getJdbcOperations().queryForObject(SELECT_UPPER_BOUND_SQL, Long.class);
+        var upperBound = getNamedParameterJdbcOperations()
+                .queryForObject(
+                        SELECT_UPPER_BOUND_SQL, new MapSqlParameterSource("htsContractId", htsContractId), Long.class);
         if (upperBound == null || upperBound <= floor) {
             log.info(
                     "No crypto allowance contract-spend history to backfill, upperBound {} floor {}",
@@ -200,8 +219,10 @@ public class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration
             getJdbcOperations().execute(SET_INTERMEDIATE_RESULT_SIZE_SQL);
         }
 
-        var parameters =
-                new MapSqlParameterSource().addValue("lowerBound", lowerBound).addValue("upperBound", upperBound);
+        var parameters = new MapSqlParameterSource()
+                .addValue("lowerBound", lowerBound)
+                .addValue("upperBound", upperBound)
+                .addValue("htsContractId", htsContractId);
         getNamedParameterJdbcOperations().update(AGGREGATE_MISSED_SPEND_SQL, parameters);
         int updated = getJdbcOperations().update(APPLY_MISSED_SPEND_SQL);
         if (updated > 0) {

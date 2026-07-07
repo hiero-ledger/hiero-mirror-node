@@ -48,7 +48,12 @@ class FixCryptoAllowanceContractSpendMigrationTest
 
     private FixCryptoAllowanceContractSpendMigration createMigration(EntityProperties entityProps) {
         return new FixCryptoAllowanceContractSpendMigration(
-                environment, new ImporterProperties(), dbProperties, entityProps, objectProvider(ownerJdbcTemplate));
+                environment,
+                new ImporterProperties(),
+                dbProperties,
+                entityProps,
+                new SystemEntity(CommonProperties.getInstance()),
+                objectProvider(ownerJdbcTemplate));
     }
 
     @Test
