@@ -55,6 +55,14 @@ public class ContractCallContext {
     @Setter
     private Optional<Long> timestamp = Optional.empty();
 
+    /**
+     * Lazily-computed cache of the resolved historical timestamp. {@code null} means not yet computed; once set to a
+     * non-null value it is reused for all subsequent {@link #getTimestamp()} calls so that the entire request sees a
+     * consistent timestamp even if the Hedera framework resets writable state between inner transactions.
+     */
+    @Getter(AccessLevel.NONE)
+    private Optional<Long> cachedHistoricalTimestamp;
+
     @Setter
     private boolean isBalanceCall;
 
@@ -87,7 +95,33 @@ public class ContractCallContext {
     @Getter(AccessLevel.NONE)
     private final Map<EntityId, Queue<byte[]>> discoveredStorageSlotKeys = new HashMap<>();
 
+    /**
+     * The consensus timestamp at which the storage discovery pass was performed. This is set after discovery finishes
+     * and is used in the execution pass to ensure discovered slot keys are only consumed by batch queries that match
+     * the same timestamp mode (historical vs. latest). {@code null} means the discovery was done in the latest
+     * (non-historical) context.
+     */
+    @Getter
+    @Setter
+    private Long discoveryBlockTimestamp;
+
+    /**
+     * Counts how many times {@code ContractStorageReadableKVState} resolved a slot against the backing store during the
+     * execution (non-discovery) pass of the current request. Used to decide whether a repeated request accesses enough
+     * storage slots to benefit from the storage discovery pass on subsequent invocations.
+     */
+    @Getter
+    private int contractStorageReadCount;
+
     private ContractCallContext() {}
+
+    /**
+     * Increments the per-request contract storage read counter. Invoked from {@code ContractStorageReadableKVState}
+     * whenever a slot is resolved against the backing store outside of the discovery pass.
+     */
+    public void incrementContractStorageReadCount() {
+        contractStorageReadCount++;
+    }
 
     public static ContractCallContext get() {
         return SCOPED_VALUE.get();
@@ -163,13 +197,28 @@ public class ContractCallContext {
     /**
      * Returns the set timestamp or the consensus end timestamp from the set record file only if we are in a historical
      * context. For opcode replay, returns the explicitly set timestamp.
+     *
+     * <p>For historical (non-opcode) requests the resolved timestamp is cached on the first successful lookup so that
+     * all state reads within the same request use a consistent value even if the Hedera framework resets writable state
+     * between inner transactions.
      */
     public Optional<Long> getTimestamp() {
         if (opcodeContext != null) {
             return timestamp;
         }
         if (useHistorical()) {
-            return getTimestampOrDefaultFromRecordFile();
+            // Cache the resolved timestamp to guarantee consistency: once a real timestamp is available every
+            // subsequent storage read in this request sees the same value, even if the Hedera framework resets
+            // writable state (clearing the KV read-cache) between inner sub-transactions. Only cache non-empty
+            // results so that if the RecordFile is not yet reachable on the first call, we retry on the next.
+            if (cachedHistoricalTimestamp == null || cachedHistoricalTimestamp.isEmpty()) {
+                final var resolved = getTimestampOrDefaultFromRecordFile();
+                if (resolved.isPresent()) {
+                    cachedHistoricalTimestamp = resolved;
+                }
+                return resolved;
+            }
+            return cachedHistoricalTimestamp;
         }
         return Optional.empty();
     }

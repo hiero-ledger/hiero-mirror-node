@@ -2,6 +2,9 @@
 
 package org.hiero.mirror.web3.service;
 
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_STORAGE_DISCOVERY_CANDIDATES;
+
+import com.github.benmanes.caffeine.cache.Cache;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
@@ -19,6 +22,7 @@ import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.validation.annotation.Validated;
 
 @CustomLog
@@ -36,7 +40,8 @@ public class ContractDebugService extends ContractCallService {
             MeterRegistry meterRegistry,
             EvmProperties evmProperties,
             TransactionExecutionService transactionExecutionService,
-            CacheProperties cacheProperties) {
+            CacheProperties cacheProperties,
+            @Qualifier(CACHE_STORAGE_DISCOVERY_CANDIDATES) Cache<Long, Boolean> storageDiscoveryCandidates) {
         super(
                 throttleManager,
                 throttleProperties,
@@ -44,7 +49,8 @@ public class ContractDebugService extends ContractCallService {
                 recordFileService,
                 evmProperties,
                 transactionExecutionService,
-                cacheProperties);
+                cacheProperties,
+                storageDiscoveryCandidates);
         this.contractActionRepository = contractActionRepository;
     }
 

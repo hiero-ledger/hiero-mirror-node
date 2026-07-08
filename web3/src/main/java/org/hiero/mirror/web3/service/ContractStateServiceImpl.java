@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SEARCHED_ABSENT_SLOTS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SLOTS_PER_CONTRACT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
@@ -15,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import lombok.CustomLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -32,8 +32,7 @@ import org.springframework.stereotype.Service;
 @Service
 final class ContractStateServiceImpl implements ContractStateService {
 
-    private static final int ADJACENT_SLOTS_TO_CACHE = 6;
-    private static final int MAX_SLOT_KEYS_PER_BATCH = 30;
+    private static final int ADJACENT_SLOTS_TO_CACHE = 3;
     private static final long NO_BLOCK_TIMESTAMP = -1L;
     private static final BigInteger UINT256_MAX = BigInteger.ONE.shiftLeft(256).subtract(BigInteger.ONE);
     private static final byte[] EMPTY_VALUE = new byte[0];
@@ -42,13 +41,11 @@ final class ContractStateServiceImpl implements ContractStateService {
     private final CacheProperties cacheProperties;
     private final Cache contractSlotsCache;
     private final Cache contractStateCache;
-    private final Cache searchedAbsentSlotsCache;
     private final ContractStateRepository contractStateRepository;
 
     ContractStateServiceImpl(
             final @Qualifier(CACHE_MANAGER_CONTRACT_SLOTS) CacheManager cacheManagerContractSlots,
             final @Qualifier(CACHE_MANAGER_CONTRACT_STATE) CacheManager cacheManagerContractState,
-            final @Qualifier(CACHE_MANAGER_SEARCHED_ABSENT_SLOTS) CacheManager cacheManagerSearchedAbsentSlots,
             final @Qualifier(CACHE_MANAGER_SLOTS_PER_CONTRACT) CacheManager cacheManagerSlotsPerContract,
             final CacheProperties cacheProperties,
             final ContractStateRepository contractStateRepository) {
@@ -56,91 +53,86 @@ final class ContractStateServiceImpl implements ContractStateService {
         this.cacheProperties = cacheProperties;
         this.contractSlotsCache = cacheManagerContractSlots.getCache(CACHE_NAME);
         this.contractStateCache = cacheManagerContractState.getCache(CACHE_NAME);
-        this.searchedAbsentSlotsCache = cacheManagerSearchedAbsentSlots.getCache(CACHE_NAME);
         this.contractStateRepository = contractStateRepository;
+    }
+
+    @Override
+    public Optional<byte[]> findStorage(final EntityId contractId, final byte[] key) {
+        return findStorage(contractId, key, NO_BLOCK_TIMESTAMP);
     }
 
     /**
      * Executes findStorageBatch query if the slot value is not cached.
      *
-     * @param contractId Entity ID of the contract that the slot key belongs to
-     * @param key        The slot key of the slot value we are looking for
+     * @param contractId     Entity ID of the contract that the slot key belongs to
+     * @param key            The slot key of the slot value we are looking for
+     * @param blockTimestamp consensus timestamp upper bound, or {@link #NO_BLOCK_TIMESTAMP} for latest state
      * @return slot value as 32-length left padded Bytes
      */
     @Override
-    public Optional<byte[]> findStorage(final EntityId contractId, final byte[] key) {
+    public Optional<byte[]> findStorage(final EntityId contractId, final byte[] key, final long blockTimestamp) {
         if (!cacheProperties.isEnableBatchContractSlotCaching()) {
-            return contractStateRepository.findStorage(contractId.getId(), key);
+            return blockTimestamp == NO_BLOCK_TIMESTAMP
+                    ? contractStateRepository.findStorage(contractId.getId(), key)
+                    : contractStateRepository.findStorageByBlockTimestamp(contractId.getId(), key, blockTimestamp);
         }
 
-        final var cachedValue = contractStateCache.get(generateCacheKey(contractId, key), byte[].class);
+        final var cacheKey = blockTimestamp == NO_BLOCK_TIMESTAMP
+                ? generateCacheKey(contractId, key)
+                : generateHistoricalCacheKey(contractId, key, blockTimestamp);
+        final var cachedValue = contractStateCache.get(cacheKey, byte[].class);
 
         if (cachedValue != null && cachedValue != EMPTY_VALUE) {
             return Optional.of(cachedValue);
         }
 
-        return findStorageBatchInternal(
-                contractId,
-                key,
-                getSlotsCacheForContract(contractId),
-                getSearchedAbsentSlotsCacheForContract(contractId),
-                NO_BLOCK_TIMESTAMP);
-    }
+        final var slotsCache = blockTimestamp == NO_BLOCK_TIMESTAMP
+                ? getSlotsCacheForContract(contractId)
+                : getSlotsCacheForContractAtBlock(contractId, blockTimestamp);
 
-    @Override
-    public Optional<byte[]> findStorageByBlockTimestamp(
-            final EntityId entityId, final byte[] slotKeyByteArray, final long blockTimestamp) {
-        if (!cacheProperties.isEnableBatchContractSlotCaching()) {
-            return contractStateRepository.findStorageByBlockTimestamp(
-                    entityId.getId(), slotKeyByteArray, blockTimestamp);
-        }
-
-        final var cachedValue = contractStateCache.get(
-                generateHistoricalCacheKey(entityId, slotKeyByteArray, blockTimestamp), byte[].class);
-
-        if (cachedValue != null && cachedValue != EMPTY_VALUE) {
-            return Optional.of(cachedValue);
-        }
-
-        return findStorageBatchInternal(
-                entityId,
-                slotKeyByteArray,
-                getSlotsCacheForContractAtBlock(entityId, blockTimestamp),
-                getSearchedAbsentSlotsCacheForContractAtBlock(entityId, blockTimestamp),
-                blockTimestamp);
+        return findStorageBatchInternal(contractId, key, slotsCache, blockTimestamp);
     }
 
     /**
      * Executes a batch query, returning slotKey-value pairs for contractId, then caches the result. The goal of the
      * query is to preload previously requested data to avoid additional queries against the db. If the discovery pass
-     * recorded slot keys for the contract, up to the first {@value #MAX_SLOT_KEYS_PER_BATCH} of them (in search order)
-     * are consumed from the context queue and loaded; otherwise the requested slot and its adjacent slots are loaded.
+     * recorded slot keys for the contract, up to the first {@link CacheProperties#getMaxSlotKeysPerBatch()} of them (in
+     * search order) are consumed from the context queue and loaded; otherwise the requested slot and its adjacent slots
+     * are loaded.
      *
      * <p>When {@code blockTimestamp} equals {@link #NO_BLOCK_TIMESTAMP} the current state table is queried and cache
      * keys are {@code (contractId, slotKey)}. Otherwise the historical {@code contract_state_change} table is queried
      * up to that timestamp and cache keys are {@code (contractId, slotKey, blockTimestamp)}, keeping historical and
      * latest caches fully isolated.
      *
-     * @param contractId       id of the contract
-     * @param key              slot key being looked up
-     * @param slotsCache       per-contract (or per-contract-per-block) slot tracker cache
-     * @param absentSlotsCache per-contract (or per-contract-per-block) absent slot tracker cache
-     * @param blockTimestamp   consensus timestamp upper bound, or {@link #NO_BLOCK_TIMESTAMP} for latest state
+     * @param contractId     id of the contract
+     * @param key            slot key being looked up
+     * @param slotsCache     per-contract (or per-contract-per-block) slot tracker cache
+     * @param blockTimestamp consensus timestamp upper bound, or {@link #NO_BLOCK_TIMESTAMP} for latest state
      * @return slot value if found
      */
     private Optional<byte[]> findStorageBatchInternal(
-            final EntityId contractId,
-            final byte[] key,
-            final CaffeineCache slotsCache,
-            final CaffeineCache absentSlotsCache,
-            final long blockTimestamp) {
+            final EntityId contractId, final byte[] key, final CaffeineCache slotsCache, final long blockTimestamp) {
         final var wrappedKey = ByteBuffer.wrap(key);
 
-        final var discoveredSlotKeys = ContractCallContext.isInitialized()
-                ? ContractCallContext.get().getDiscoveredStorageSlotKeys(contractId)
-                : null;
+        Queue<byte[]> discoveredSlotKeys = null;
+        if (ContractCallContext.isInitialized()) {
+            final var ctx = ContractCallContext.get();
+            // Only consume discovered keys when the current query's timestamp mode matches the mode under which the
+            // discovery pass ran. Mixing historical discovered keys into a latest batch (or vice versa) causes the same
+            // slot to be fetched twice — once with the real timestamp and once with NO_BLOCK_TIMESTAMP — producing
+            // inconsistent results and unnecessary DB round-trips.
+            final Long discoveryTs = ctx.getDiscoveryBlockTimestamp();
+            final boolean timestampModeMatches = blockTimestamp == NO_BLOCK_TIMESTAMP
+                    ? discoveryTs == null
+                    : discoveryTs != null && discoveryTs == blockTimestamp;
+            if (timestampModeMatches) {
+                discoveredSlotKeys = ctx.getDiscoveredStorageSlotKeys(contractId);
+            }
+        }
+        final var maxSlotKeysPerBatch = cacheProperties.getMaxSlotKeysPerBatch();
         if (discoveredSlotKeys != null && !discoveredSlotKeys.isEmpty()) {
-            for (int i = 0; i < MAX_SLOT_KEYS_PER_BATCH; i++) {
+            for (int i = 0; i < maxSlotKeysPerBatch; i++) {
                 final var discoveredSlotKey = discoveredSlotKeys.poll();
                 if (discoveredSlotKey == null) {
                     break;
@@ -148,30 +140,35 @@ final class ContractStateServiceImpl implements ContractStateService {
                 slotsCache.putIfAbsent(ByteBuffer.wrap(discoveredSlotKey), EMPTY_VALUE);
             }
         } else {
-            cacheSlotKeyAndAdjacentSlots(slotsCache, absentSlotsCache, key);
+            cacheSlotKeyAndAdjacentSlots(slotsCache, key);
         }
 
         slotsCache.putIfAbsent(wrappedKey, EMPTY_VALUE);
 
         final var cachedSlotKeys = slotsCache.getNativeCache().asMap().keySet();
 
-        final var slotKeysToSearch = new ArrayList<byte[]>(cachedSlotKeys.size());
+        final var slotKeysToSearch = new ArrayList<byte[]>(Math.min(cachedSlotKeys.size(), maxSlotKeysPerBatch));
         var isKeyEvictedFromCache = true;
         var requestedKeyQueriedInBatch = false;
-        for (var slotKey : cachedSlotKeys) {
-            final var slotKeyBytes = ((ByteBuffer) slotKey).array();
+        for (var cachedSlotKey : cachedSlotKeys) {
+            // Cap the batch at the first maxSlotKeysPerBatch slots to search; any remaining slots (including the
+            // requested key, if beyond the cap) fall back to an individual query below.
+            if (slotKeysToSearch.size() >= maxSlotKeysPerBatch) {
+                break;
+            }
+            final var slotKeyBytes = ((ByteBuffer) cachedSlotKey).array();
             final var stateCacheKey = blockTimestamp == NO_BLOCK_TIMESTAMP
                     ? generateCacheKey(contractId, slotKeyBytes)
                     : generateHistoricalCacheKey(contractId, slotKeyBytes, blockTimestamp);
-            // The slotKey is present in cache - it has an existing value or it was searched in DB, but no result for it
-            // was returned. Skip searching in DB for this slotKey.
-            if (contractStateCache.get(stateCacheKey, byte[].class) != null || absentSlotsCache.get(slotKey) != null) {
-                if (wrappedKey.equals(slotKey)) {
+            // The cachedSlotKey already has a known value in the state cache. Skip searching in DB for this
+            // cachedSlotKey.
+            if (contractStateCache.get(stateCacheKey, byte[].class) != null) {
+                if (wrappedKey.equals(cachedSlotKey)) {
                     isKeyEvictedFromCache = false;
                 }
                 continue;
             }
-            if (wrappedKey.equals(slotKey)) {
+            if (wrappedKey.equals(cachedSlotKey)) {
                 requestedKeyQueriedInBatch = true;
             }
             slotKeysToSearch.add(slotKeyBytes);
@@ -180,12 +177,17 @@ final class ContractStateServiceImpl implements ContractStateService {
         byte[] foundValue = null;
         if (!slotKeysToSearch.isEmpty()) {
             final var slots = slotKeysToSearch.toArray(byte[][]::new);
+            log.info(
+                    "findStorageBatch contractId={} slotKeys=[{}] timestamp={}",
+                    contractId.getId(),
+                    formatSlotKeysDecimal(slotKeysToSearch),
+                    blockTimestamp);
             final var contractSlotValues = blockTimestamp == NO_BLOCK_TIMESTAMP
                     ? contractStateRepository.findStorageBatch(contractId.getId(), slots)
                     : contractStateRepository.findStorageBatchByBlockTimestamp(
                             contractId.getId(), slots, blockTimestamp);
-            final var slotValuesByKey = applyBatchSlotQueryResults(
-                    contractId, slotKeysToSearch, contractSlotValues, slotsCache, absentSlotsCache, blockTimestamp);
+            final var slotValuesByKey =
+                    applyBatchSlotQueryResults(contractId, contractSlotValues, slotsCache, blockTimestamp);
 
             if (slotValuesByKey.containsKey(wrappedKey)) {
                 foundValue = slotValuesByKey.get(wrappedKey);
@@ -210,14 +212,22 @@ final class ContractStateServiceImpl implements ContractStateService {
         return Optional.ofNullable(foundValue);
     }
 
+    private String formatSlotKeysDecimal(final Iterable<byte[]> slots) {
+        final var builder = new StringBuilder();
+        var first = true;
+        for (final var slot : slots) {
+            if (!first) {
+                builder.append(", ");
+            }
+            builder.append(new BigInteger(1, slot));
+            first = false;
+        }
+        return builder.toString();
+    }
+
     private CaffeineCache getSlotsCacheForContract(final EntityId contractId) {
         return (CaffeineCache)
                 contractSlotsCache.get(contractId, () -> cacheManagerSlotsPerContract.getCache(contractId.toString()));
-    }
-
-    private CaffeineCache getSearchedAbsentSlotsCacheForContract(final EntityId contractId) {
-        return (CaffeineCache) searchedAbsentSlotsCache.get(
-                contractId, () -> cacheManagerSlotsPerContract.getCache(contractId + ":searchedAbsent"));
     }
 
     private CaffeineCache getSlotsCacheForContractAtBlock(final EntityId contractId, final long blockTimestamp) {
@@ -226,21 +236,10 @@ final class ContractStateServiceImpl implements ContractStateService {
                 cacheKey, () -> cacheManagerSlotsPerContract.getCache(contractId + ":hist:" + blockTimestamp));
     }
 
-    private CaffeineCache getSearchedAbsentSlotsCacheForContractAtBlock(
-            final EntityId contractId, final long blockTimestamp) {
-        final var cacheKey = new SimpleKey(contractId, blockTimestamp);
-        return (CaffeineCache) searchedAbsentSlotsCache.get(
-                cacheKey,
-                () -> cacheManagerSlotsPerContract.getCache(
-                        contractId + ":hist:" + blockTimestamp + ":searchedAbsent"));
-    }
-
     private Map<ByteBuffer, byte[]> applyBatchSlotQueryResults(
             final EntityId contractId,
-            final Iterable<byte[]> queriedSlots,
             final List<ContractSlotValue> contractSlotValues,
             final Cache slotsCache,
-            final Cache absentSlotsCache,
             final long blockTimestamp) {
         final var slotValuesByKey = toSlotValuesMap(contractSlotValues);
 
@@ -253,14 +252,6 @@ final class ContractStateServiceImpl implements ContractStateService {
             // The value now lives in the contract state cache, so the slot key no longer needs to be tracked for batch
             // loading.
             slotsCache.evictIfPresent(entry.getKey());
-            absentSlotsCache.evictIfPresent(entry.getKey());
-        }
-
-        for (final var slotKey : queriedSlots) {
-            final var wrappedSlot = ByteBuffer.wrap(slotKey);
-            if (!slotValuesByKey.containsKey(wrappedSlot)) {
-                absentSlotsCache.putIfAbsent(wrappedSlot, EMPTY_VALUE);
-            }
         }
 
         return slotValuesByKey;
@@ -274,11 +265,10 @@ final class ContractStateServiceImpl implements ContractStateService {
         return slotValuesByKey;
     }
 
-    private void cacheSlotKeyAndAdjacentSlots(final Cache slotsCache, final Cache absentSlotsCache, final byte[] key) {
+    private void cacheSlotKeyAndAdjacentSlots(final Cache slotsCache, final byte[] key) {
         var slotKey = key;
         final var wrappedSlotKey = ByteBuffer.wrap(slotKey);
         slotsCache.putIfAbsent(wrappedSlotKey, EMPTY_VALUE);
-        absentSlotsCache.evictIfPresent(wrappedSlotKey);
 
         for (int i = 0; i < ADJACENT_SLOTS_TO_CACHE; i++) {
             final var nextSlotKey = incrementSlotKey(slotKey);
@@ -307,12 +297,10 @@ final class ContractStateServiceImpl implements ContractStateService {
         return result;
     }
 
-    // Generates a cache key emulating the default caching behavior in Spring
     private SimpleKey generateCacheKey(final EntityId contractId, final byte[] slotKey) {
         return new SimpleKey(contractId, slotKey);
     }
 
-    // Generates a cache key that incorporates the block timestamp to isolate historical state from latest
     private SimpleKey generateHistoricalCacheKey(
             final EntityId contractId, final byte[] slotKey, final long blockTimestamp) {
         return new SimpleKey(contractId, slotKey, blockTimestamp);

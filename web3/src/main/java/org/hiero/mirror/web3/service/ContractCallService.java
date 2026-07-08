@@ -5,10 +5,13 @@ package org.hiero.mirror.web3.service;
 import static java.time.ZoneOffset.UTC;
 import static org.apache.logging.log4j.util.Strings.EMPTY;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_STORAGE_DISCOVERY_CANDIDATES;
 import static org.hiero.mirror.web3.state.keyvalue.ContractStorageReadableKVState.STATE_ID;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.hash.Hashing;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
@@ -30,6 +33,7 @@ import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.Suppliers;
 import org.hiero.mirror.web3.viewmodel.BlockType;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @Named
 @CustomLog
@@ -54,6 +58,12 @@ public abstract class ContractCallService {
     private final TransactionExecutionService transactionExecutionService;
     private final CacheProperties cacheProperties;
 
+    /**
+     * Application-wide cache of hashes of {@code (callData, receiver)} combinations whose requests accessed enough
+     * contract storage slots to justify running the storage discovery pass on subsequent identical requests.
+     */
+    private final Cache<Long, Boolean> storageDiscoveryCandidates;
+
     @SuppressWarnings("java:S107")
     protected ContractCallService(
             ThrottleManager throttleManager,
@@ -62,7 +72,8 @@ public abstract class ContractCallService {
             RecordFileService recordFileService,
             EvmProperties evmProperties,
             TransactionExecutionService transactionExecutionService,
-            CacheProperties cacheProperties) {
+            CacheProperties cacheProperties,
+            @Qualifier(CACHE_STORAGE_DISCOVERY_CANDIDATES) Cache<Long, Boolean> storageDiscoveryCandidates) {
         this.invocationCounter = Counter.builder(EVM_INVOCATION_METRIC)
                 .description("The number of EVM invocations")
                 .withRegistry(meterRegistry);
@@ -78,6 +89,7 @@ public abstract class ContractCallService {
         this.evmProperties = evmProperties;
         this.transactionExecutionService = transactionExecutionService;
         this.cacheProperties = cacheProperties;
+        this.storageDiscoveryCandidates = storageDiscoveryCandidates;
     }
 
     @VisibleForTesting
@@ -106,17 +118,62 @@ public abstract class ContractCallService {
             throws MirrorEvmTransactionException {
         // Opcode tracing (debug) relies on a single EVM execution, so the storage discovery pass, which executes the
         // call an additional time, must be skipped for it.
-        if (cacheProperties.isEnableBatchContractSlotCaching() && ctx.getOpcodeContext() == null) {
+        final var discoveryEligible =
+                cacheProperties.isEnableBatchContractSlotCaching() && ctx.getOpcodeContext() == null;
+
+        // The discovery pass is only run for requests previously seen to be storage-heavy (their (callData, receiver)
+        // hash is a known candidate), avoiding the extra EVM execution for the common, light-weight case.
+        if (discoveryEligible && isStorageDiscoveryCandidate(params)) {
             runStorageDiscovery(params, ctx);
             ctx.finishStorageDiscovery(STATE_ID);
+            // Record the timestamp mode used during discovery so the execution pass can safely consume the
+            // discovered slot keys only for matching batch queries (historical vs. latest).
+            ctx.setDiscoveryBlockTimestamp(ctx.getTimestamp().orElse(null));
         }
+
         return executeCallInContext(params, ctx);
+    }
+
+    /**
+     * Returns whether a request identified by the hash of its {@code (callData, receiver)} has previously been flagged
+     * as accessing enough contract storage slots to benefit from the storage discovery pass.
+     */
+    private boolean isStorageDiscoveryCandidate(final CallServiceParameters params) {
+        return storageDiscoveryCandidates.getIfPresent(hashCallDataAndReceiver(params)) != null;
+    }
+
+    /**
+     * Flags the request's {@code (callData, receiver)} hash as a storage discovery candidate when the execution pass
+     * resolved more contract storage slots than the configured threshold, so that subsequent identical requests run
+     * the discovery pass and benefit from batch slot preloading.
+     */
+    private void recordStorageDiscoveryCandidate(final CallServiceParameters params, final ContractCallContext ctx) {
+        if (ctx.getContractStorageReadCount() > cacheProperties.getContractStorageDiscoveryThreshold()) {
+            storageDiscoveryCandidates.put(hashCallDataAndReceiver(params), Boolean.TRUE);
+        }
+    }
+
+    /**
+     * Computes a light-weight (murmur3) hash of the request's {@code callData} and {@code receiver} fields, used as the
+     * key into the shared storage discovery candidate cache.
+     */
+    private static long hashCallDataAndReceiver(final CallServiceParameters params) {
+        final var hasher = Hashing.murmur3_128().newHasher();
+        final var callData = params.getCallData();
+        if (callData != null) {
+            hasher.putBytes(callData);
+        }
+        final var receiver = params.getReceiver();
+        if (receiver != null) {
+            hasher.putBytes(receiver.toArrayUnsafe());
+        }
+        return hasher.hash().asLong();
     }
 
     private EvmTransactionResult executeCallInContext(CallServiceParameters params, ContractCallContext ctx)
             throws MirrorEvmTransactionException {
         prepareCallContext(params, ctx);
-        return doProcessCall(params, params.getGas(), false);
+        return doProcessCall(params, params.getGas(), false, ctx);
     }
 
     private void prepareCallContext(final CallServiceParameters params, final ContractCallContext ctx) {
@@ -133,7 +190,7 @@ public abstract class ContractCallService {
         ctx.setStorageDiscoveryMode(true);
         try {
             prepareCallContext(params, ctx);
-            doProcessCall(params, params.getGas(), true);
+            doProcessCall(params, params.getGas(), true, ctx);
         } catch (MirrorEvmTransactionException e) {
             log.debug("Storage discovery pass ended with status {}", e.getMessage());
         } finally {
@@ -142,7 +199,8 @@ public abstract class ContractCallService {
     }
 
     protected final EvmTransactionResult doProcessCall(
-            CallServiceParameters params, long estimatedGas, boolean estimate) throws MirrorEvmTransactionException {
+            CallServiceParameters params, long estimatedGas, boolean estimate, final ContractCallContext ctx)
+            throws MirrorEvmTransactionException {
         EvmTransactionResult result = null;
         var status = ResponseCodeEnum.SUCCESS.toString();
 
@@ -167,6 +225,12 @@ public abstract class ContractCallService {
                 if (result != null) {
                     updateMetrics(params, result.gasUsed(), 1, status);
                 }
+            }
+
+            final var discoveryEligible =
+                    cacheProperties.isEnableBatchContractSlotCaching() && ctx.getOpcodeContext() == null;
+            if (discoveryEligible) {
+                recordStorageDiscoveryCandidate(params, ctx);
             }
         }
         return result;

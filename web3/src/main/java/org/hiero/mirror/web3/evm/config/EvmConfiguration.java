@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.evm.config;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.service.contract.impl.exec.gas.CustomGasCalculator;
@@ -28,13 +29,13 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_CONTRACT = "contract";
     public static final String CACHE_MANAGER_CONTRACT_SLOTS = "contractSlots";
     public static final String CACHE_MANAGER_CONTRACT_STATE = "contractState";
-    public static final String CACHE_MANAGER_SEARCHED_ABSENT_SLOTS = "searchedAbsentSlots";
     public static final String CACHE_MANAGER_ENTITY = "entity";
     public static final String CACHE_MANAGER_RECORD_FILE_LATEST = "recordFileLatest";
     public static final String CACHE_MANAGER_RECORD_FILE_EARLIEST = "recordFileEarliest";
     public static final String CACHE_MANAGER_RECORD_FILE_INDEX = "recordFileIndex";
     public static final String CACHE_MANAGER_RECORD_FILE_TIMESTAMP = "recordFileTimestamp";
     public static final String CACHE_MANAGER_SLOTS_PER_CONTRACT = "slotsPerContract";
+    public static final String CACHE_STORAGE_DISCOVERY_CANDIDATES = "storageDiscoveryCandidates";
     public static final String CACHE_MANAGER_SYSTEM_FILE = "systemFile";
     public static final String CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE = "exchangeRate";
     public static final String CACHE_MANAGER_SYSTEM_ACCOUNT = "systemAccount";
@@ -81,14 +82,6 @@ public class EvmConfiguration {
         return cacheManager;
     }
 
-    @Bean(CACHE_MANAGER_SEARCHED_ABSENT_SLOTS)
-    CacheManager cacheManagerSearchedAbsentSlots() {
-        final CaffeineCacheManager cacheManager = new CaffeineCacheManager();
-        cacheManager.setCacheNames(Set.of(CACHE_NAME));
-        cacheManager.setCacheSpecification(cacheProperties.getContractSlots());
-        return cacheManager;
-    }
-
     @Bean(CACHE_MANAGER_CONTRACT_STATE)
     CacheManager cacheManagerContractState() {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
@@ -118,6 +111,15 @@ public class EvmConfiguration {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
         caffeineCacheManager.setCacheSpecification(cacheProperties.getSlotsPerContract());
         return caffeineCacheManager;
+    }
+
+    /**
+     * Application-wide cache holding hashes of {@code (callData, receiver)} combinations whose requests accessed enough
+     * contract storage slots to benefit from the storage discovery pass on subsequent identical requests.
+     */
+    @Bean(CACHE_STORAGE_DISCOVERY_CANDIDATES)
+    Cache<Long, Boolean> storageDiscoveryCandidatesCache() {
+        return Caffeine.from(cacheProperties.getContractStorageDiscovery()).build();
     }
 
     @Bean(CACHE_MANAGER_TOKEN)

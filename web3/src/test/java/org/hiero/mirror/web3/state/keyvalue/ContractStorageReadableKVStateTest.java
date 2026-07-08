@@ -119,10 +119,15 @@ class ContractStorageReadableKVStateTest {
     void whenTimestampIsNotNullReturnsHistoricalSlot() {
         final var blockTimestamp = 1234567L;
         when(contractCallContext.getTimestamp()).thenReturn(Optional.of(blockTimestamp));
-        when(contractStateService.findStorageByBlockTimestamp(ENTITY_ID, BYTES.toByteArray(), blockTimestamp))
+        when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray(), blockTimestamp))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
         assertThat(contractStorageReadableKVState.get(SLOT_KEY))
                 .satisfies(slotValue -> assertThat(slotValue).returns(BYTES, SlotValue::value));
+
+        // Regression check: Optional.orElse(...) eagerly evaluates its argument, so a naive implementation would
+        // call findStorage (latest, NO_BLOCK_TIMESTAMP) unconditionally even though a historical timestamp was
+        // present, mixing real timestamps and -1 in the same request. Ensure only the historical lookup runs.
+        verify(contractStateService, never()).findStorage(any(), any());
     }
 
     @Test
@@ -137,8 +142,7 @@ class ContractStorageReadableKVStateTest {
     void whenSlotNotFoundReturnsNullForHistoricalBlock() {
         final var blockTimestamp = 1234567L;
         when(contractCallContext.getTimestamp()).thenReturn(Optional.of(blockTimestamp));
-        when(contractStateService.findStorageByBlockTimestamp(any(), any(), anyLong()))
-                .thenReturn(Optional.empty());
+        when(contractStateService.findStorage(any(), any(), anyLong())).thenReturn(Optional.empty());
         assertThat(contractStorageReadableKVState.get(SLOT_KEY))
                 .satisfies(slotValue -> assertThat(slotValue).isNull());
     }
@@ -200,7 +204,7 @@ class ContractStorageReadableKVStateTest {
 
         assertThat(contractStorageReadableKVState.get(MISSING_SLOT_KEY)).isEqualTo(OVERRIDE_SLOT_VALUE);
         verify(contractStateService, never()).findStorage(any(), any());
-        verify(contractStateService, never()).findStorageByBlockTimestamp(any(), any(), anyLong());
+        verify(contractStateService, never()).findStorage(any(), any(), anyLong());
     }
 
     @Test

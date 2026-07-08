@@ -2,8 +2,10 @@
 
 package org.hiero.mirror.web3.service;
 
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_STORAGE_DISCOVERY_CANDIDATES;
 import static org.hiero.mirror.web3.state.Utils.parseHex;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -21,6 +23,7 @@ import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @CustomLog
 @Named
@@ -37,7 +40,8 @@ public class ContractExecutionService extends ContractCallService {
             ThrottleManager throttleManager,
             EvmProperties evmProperties,
             TransactionExecutionService transactionExecutionService,
-            CacheProperties cacheProperties) {
+            CacheProperties cacheProperties,
+            @Qualifier(CACHE_STORAGE_DISCOVERY_CANDIDATES) Cache<Long, Boolean> storageDiscoveryCandidates) {
         super(
                 throttleManager,
                 throttleProperties,
@@ -45,7 +49,8 @@ public class ContractExecutionService extends ContractCallService {
                 recordFileService,
                 evmProperties,
                 transactionExecutionService,
-                cacheProperties);
+                cacheProperties,
+                storageDiscoveryCandidates);
         this.binaryGasEstimator = binaryGasEstimator;
     }
 
@@ -123,7 +128,7 @@ public class ContractExecutionService extends ContractCallService {
         final var status = ResponseCodeEnum.SUCCESS.toString();
         final var estimatedGas = binaryGasEstimator.search(
                 (totalGas, iterations) -> updateMetrics(params, totalGas, iterations, status),
-                gas -> doProcessCall(params, gas, true),
+                gas -> doProcessCall(params, gas, true, context),
                 gasUsedByInitialCall,
                 params.getGas());
 

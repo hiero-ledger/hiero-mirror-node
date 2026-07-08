@@ -27,10 +27,31 @@ public class CacheProperties {
     @NotBlank
     private String contractState = "expireAfterWrite=2s,maximumSize=25000,recordStats";
 
+    /**
+     * Holds hashes of {@code (callData, receiver)} combinations whose requests accessed enough contract storage slots
+     * (see {@link #contractStorageDiscoveryThreshold}) to warrant running the storage discovery pass on subsequent
+     * identical requests.
+     */
+    @NotBlank
+    private String contractStorageDiscovery = "expireAfterWrite=10m,maximumSize=1000,recordStats";
+
+    /**
+     * The number of contract storage slot reads a request must exceed before it is flagged as a storage discovery
+     * candidate.
+     */
+    private int contractStorageDiscoveryThreshold = 15;
+
     private boolean enableBatchContractSlotCaching = true;
 
     @NotBlank
     private String entity = ENTITY_CACHE_CONFIG;
+
+    /**
+     * The maximum number of contract storage slot keys loaded (and searched) in a single {@code findStorageBatch}
+     * query. This caps both how many discovered slot keys are consumed per batch and how many cached slot keys are
+     * fetched from the database at once.
+     */
+    private int maxSlotKeysPerBatch = 200;
 
     @NotBlank
     private String fee = "expireAfterWrite=60m,maximumSize=20,recordStats";

@@ -12,6 +12,9 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_STORAGE_DISCOVERY_CANDIDATES;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
 import static org.hiero.mirror.web3.service.ContractCallService.EVM_INVOCATION_METRIC;
@@ -32,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -39,6 +43,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.services.utils.EntityIdUtils;
@@ -56,6 +61,7 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
@@ -86,6 +92,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.caffeine.CaffeineCache;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.web3j.abi.FunctionReturnDecoder;
@@ -100,15 +109,23 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
     private final BinaryGasEstimator binaryGasEstimator;
     private final RecordFileService recordFileService;
     private final ThrottleProperties throttleProperties;
-    private final TransactionExecutionService transactionExecutionService;
     private final Web3Properties web3Properties;
     private final CacheProperties cacheProperties;
+
+    @Qualifier(CACHE_MANAGER_CONTRACT_SLOTS)
+    private final CaffeineCacheManager cacheManagerContractSlots;
+
+    @Qualifier(CACHE_STORAGE_DISCOVERY_CANDIDATES)
+    private final Cache<Long, Boolean> storageDiscoveryCandidates;
 
     @MockitoBean
     private ThrottleManager throttleManager;
 
     @MockitoSpyBean
     private AccountReadableKVState accountReadableKVState;
+
+    @MockitoSpyBean
+    private TransactionExecutionService transactionExecutionService;
 
     private static Stream<BlockType> provideBlockTypes() {
         return Stream.of(
@@ -851,7 +868,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 throttleManager,
                 evmProperties,
                 transactionExecutionService,
-                cacheProperties);
+                cacheProperties,
+                storageDiscoveryCandidates);
 
         // When
         try {
@@ -896,7 +914,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 throttleManager,
                 evmProperties,
                 transactionExecutionService,
-                cacheProperties);
+                cacheProperties,
+                storageDiscoveryCandidates);
 
         // When
         try {
@@ -938,7 +957,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 throttleManager,
                 evmProperties,
                 transactionExecutionService,
-                cacheProperties);
+                cacheProperties,
+                storageDiscoveryCandidates);
 
         // When
         try {
@@ -1174,7 +1194,14 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
 
             ContractCallService contractCallService = new ContractCallService(
-                    null, null, null, null, spyEvmProperties, txnExecutionService, cacheProperties) {};
+                    null,
+                    null,
+                    null,
+                    null,
+                    spyEvmProperties,
+                    txnExecutionService,
+                    cacheProperties,
+                    storageDiscoveryCandidates) {};
 
             var params = ContractExecutionParameters.builder().build();
             when(txnExecutionService.execute(params, estimatedGas))
@@ -1182,7 +1209,10 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS,
                             ContractFunctionResult.newBuilder().gasUsed(100).build()));
 
-            contractCallService.doProcessCall(params, estimatedGas, true);
+            ContractCallContext.run(ctx -> {
+                contractCallService.doProcessCall(params, estimatedGas, true, ctx);
+                return null;
+            });
 
             verify(txnExecutionService, times(1)).execute(any(), anyLong());
         }
@@ -1240,6 +1270,52 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
             // Then
             assertDoesNotThrow(() -> contractExecutionService.processCall(params));
+        }
+    }
+
+    @Test
+    void repeatedStorageHeavyCallRunsDiscoveryOnSubsequentInvocations() {
+        // Given a storage-reading contract call and a threshold low enough that a single storage read flags the
+        // request as a discovery candidate.
+        final var previousThreshold = cacheProperties.getContractStorageDiscoveryThreshold();
+        cacheProperties.setContractStorageDiscoveryThreshold(0);
+        try {
+            final var contract = testWeb3jService.deploy(StorageContract::deploy);
+            final var contractId = getEntityId(contract.getContractAddress());
+            final var functionCall = contract.call_slot0();
+            final var params = getContractExecutionParameters(functionCall, contract);
+
+            // Reset state accumulated during deployment so the assertions below only observe the request under test.
+            storageDiscoveryCandidates.invalidateAll();
+            clearInvocations(transactionExecutionService);
+            org.assertj.core.api.Assertions.assertThat(storageDiscoveryCandidates.asMap())
+                    .isEmpty();
+
+            // When - 1st run: the (callData, receiver) combination is unknown, so no discovery pass runs.
+            contractExecutionService.processCallWithGas(params);
+
+            // Then - only the execution pass ran (single EVM execution) and the storage-heavy request is now flagged.
+            verify(transactionExecutionService, times(1)).execute(any(), anyLong());
+            org.assertj.core.api.Assertions.assertThat(storageDiscoveryCandidates.asMap())
+                    .hasSize(1);
+
+            // When/Then - 2nd and 3rd runs: the request is a known candidate, so the discovery pass runs (an extra EVM
+            // execution) and the per-contract storage slot cache is populated.
+            for (int run = 2; run <= 3; run++) {
+                clearInvocations(transactionExecutionService);
+
+                contractExecutionService.processCallWithGas(params);
+
+                // A discovery pass plus the execution pass means two EVM executions for the same request.
+                verify(transactionExecutionService, times(2)).execute(any(), anyLong());
+
+                final var slotsCache = (CaffeineCache) cacheManagerContractSlots.getCache(CACHE_NAME);
+                org.assertj.core.api.Assertions.assertThat(
+                                slotsCache.getNativeCache().asMap())
+                        .containsKey(contractId);
+            }
+        } finally {
+            cacheProperties.setContractStorageDiscoveryThreshold(previousThreshold);
         }
     }
 

@@ -103,4 +103,57 @@ class ContractCallContextTest {
 
         assertThat(context.getTimestamp()).isEqualTo(Optional.of(timestamp));
     }
+
+    @Test
+    void testGetTimestampIsCachedAfterFirstSuccessfulResolution() {
+        // Given a historical context resolved via the block supplier
+        var context = ContractCallContext.get();
+        final long blockTimestamp = 999L;
+        context.setBlockSupplier(
+                () -> RecordFile.builder().consensusEnd(blockTimestamp).build());
+        context.setCallServiceParameters(ContractExecutionParameters.builder()
+                .block(BlockType.EARLIEST)
+                .callData(new byte[0])
+                .gasPrice(0L)
+                .build());
+
+        // When the timestamp is resolved the first time
+        final var first = context.getTimestamp();
+        assertThat(first).isEqualTo(Optional.of(blockTimestamp));
+
+        // When the block supplier is swapped out (simulating prepareCallContext being called again)
+        context.setBlockSupplier(
+                () -> RecordFile.builder().consensusEnd(blockTimestamp + 1000L).build());
+
+        // Then the cached value is returned – not recomputed from the new supplier
+        assertThat(context.getTimestamp()).isEqualTo(first);
+    }
+
+    @Test
+    void testGetTimestampRetriesIfFirstResolutionReturnsEmpty() {
+        // Given a historical context where the block supplier initially returns null
+        var context = ContractCallContext.get();
+        context.setBlockSupplier(() -> null);
+        context.setCallServiceParameters(ContractExecutionParameters.builder()
+                .block(BlockType.EARLIEST)
+                .callData(new byte[0])
+                .gasPrice(0L)
+                .build());
+
+        // The first call returns empty (RecordFile not available yet)
+        assertThat(context.getTimestamp()).isEmpty();
+
+        // When the block supplier is updated to return a real RecordFile
+        final long blockTimestamp = 777L;
+        context.setBlockSupplier(
+                () -> RecordFile.builder().consensusEnd(blockTimestamp).build());
+
+        // Then the next call resolves and caches the timestamp
+        assertThat(context.getTimestamp()).isEqualTo(Optional.of(blockTimestamp));
+
+        // And subsequent calls continue to return the cached value
+        context.setBlockSupplier(
+                () -> RecordFile.builder().consensusEnd(blockTimestamp + 1000L).build());
+        assertThat(context.getTimestamp()).isEqualTo(Optional.of(blockTimestamp));
+    }
 }
