@@ -252,6 +252,7 @@ class PollingTopicMessageRetrieverTest extends GrpcIntegrationTest {
     @Test
     void unthrottledShouldKeepPolling() {
         retrieverProperties.getUnthrottled().setMaxPolls(20);
+        domainBuilder.topicMessage().block();
         Flux<TopicMessage> firstBatch = domainBuilder.topicMessages(5, now);
         Flux<TopicMessage> secondBatch = domainBuilder.topicMessages(5, now + 5);
         TopicMessageFilter filter =
@@ -264,7 +265,7 @@ class PollingTopicMessageRetrieverTest extends GrpcIntegrationTest {
                 .then(firstBatch::blockLast)
                 .then(secondBatch::blockLast)
                 .thenAwait(WAIT)
-                .expectNextSequence(LongStream.range(1, 11).boxed().toList())
+                .expectNextSequence(LongStream.range(1, 12).boxed().toList())
                 .expectComplete()
                 .verify(WAIT);
     }
