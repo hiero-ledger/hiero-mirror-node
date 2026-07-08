@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
@@ -10,21 +11,33 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
+import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptAssembler;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootCalculator;
+import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.env.Environment;
+import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.transaction.support.TransactionOperations;
 
 @EnabledIfV1
 @RequiredArgsConstructor
 @Tag("migration")
 class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
 
+    private final DBProperties dbProperties;
+    private final ObjectProvider<EntityRepository> entityRepositoryProvider;
+    private final Environment environment;
+    private final ObjectProvider<JdbcOperations> jdbcOperationsProvider;
     private final BackfillReceiptsRootMigration migration;
     private final RecordFileRepository recordFileRepository;
     private final ReceiptAssembler receiptAssembler;
     private final ReceiptRootCalculator receiptRootCalculator;
+    private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
 
     @Test
     void empty() {
@@ -201,7 +214,7 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
     @Test
     void migrateMultipleBatches() {
         // More blocks than fit in a single batch to exercise the cursor advancing across iterations
-        int blockCount = BackfillReceiptsRootMigration.BATCH_SIZE + 1;
+        int blockCount = BackfillReceiptsRootMigration.DEFAULT_BATCH_SIZE + 1;
         var start = domainBuilder.timestamp();
         for (int i = 0; i < blockCount; i++) {
             persistBlockMissingReceiptsRoot(start, start + 9);
@@ -215,6 +228,53 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
         assertThat(recordFileRepository.findAll()).hasSize(blockCount).allSatisfy(recordFile -> assertThat(
                         recordFile.getReceiptsRoot())
                 .isEqualTo(new byte[32]));
+    }
+
+    @Test
+    void migrateWithCustomBatchSize() {
+        // A batch size of 1 forces one iteration per block
+        var start1 = domainBuilder.timestamp();
+        var end1 = start1 + 10;
+        var block1 = persistBlockMissingReceiptsRoot(start1, end1);
+        var block2 = persistBlockMissingReceiptsRoot(end1 + 1, end1 + 11);
+
+        // when
+        migrationWithBatchSize("1").migrateAsync();
+
+        // then
+        assertThat(recordFileRepository.findById(block1.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(new byte[32]);
+        assertThat(recordFileRepository.findById(block2.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(new byte[32]);
+    }
+
+    @Test
+    void invalidBatchSize() {
+        assertThatThrownBy(() -> migrationWithBatchSize("0"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("batchSize");
+        assertThatThrownBy(() -> migrationWithBatchSize("junk")).isInstanceOf(NumberFormatException.class);
+    }
+
+    private BackfillReceiptsRootMigration migrationWithBatchSize(String batchSize) {
+        var migrationProperties = new MigrationProperties();
+        migrationProperties.getParams().put("batchSize", batchSize);
+        var importerProperties = new ImporterProperties();
+        importerProperties.getMigration().put("backfillReceiptsRootMigration", migrationProperties);
+
+        return new BackfillReceiptsRootMigration(
+                dbProperties,
+                environment,
+                importerProperties,
+                jdbcOperationsProvider,
+                entityRepositoryProvider,
+                transactionOperationsProvider,
+                receiptAssembler,
+                receiptRootCalculator);
     }
 
     private RecordFile persistBlockMissingReceiptsRoot(long consensusStart, long consensusEnd) {

@@ -43,7 +43,8 @@ import org.springframework.transaction.support.TransactionOperations;
 @Named
 public class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
 
-    static final int BATCH_SIZE = 100;
+    static final int DEFAULT_BATCH_SIZE = 100;
+    private static final String BATCH_SIZE_KEY = "batchSize";
 
     private static final String SELECT_BLOCKS = """
             select consensus_start, consensus_end from record_file
@@ -76,6 +77,7 @@ public class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
     private static final String UPDATE_RECEIPTS_ROOT =
             "update record_file set receipts_root = :receiptsRoot where consensus_end = :consensusEnd";
 
+    private final int batchSize;
     private final ObjectProvider<EntityRepository> entityRepositoryProvider;
     private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
     private final ReceiptAssembler receiptAssembler;
@@ -92,6 +94,11 @@ public class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
             ReceiptAssembler receiptAssembler,
             ReceiptRootCalculator receiptRootCalculator) {
         super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
+        this.batchSize = Integer.parseInt(
+                migrationProperties.getParams().getOrDefault(BATCH_SIZE_KEY, String.valueOf(DEFAULT_BATCH_SIZE)));
+        if (batchSize <= 0) {
+            throw new IllegalArgumentException("Invalid non-positive %s %d".formatted(BATCH_SIZE_KEY, batchSize));
+        }
         this.entityRepositoryProvider = entityRepositoryProvider;
         this.transactionOperationsProvider = transactionOperationsProvider;
         this.receiptAssembler = receiptAssembler;
@@ -126,7 +133,7 @@ public class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
         var jdbcOperations = getNamedParameterJdbcOperations();
         var blocks = jdbcOperations.query(
                 SELECT_BLOCKS,
-                Map.of("consensusEnd", lastConsensusEnd, "limit", BATCH_SIZE),
+                Map.of("consensusEnd", lastConsensusEnd, "limit", batchSize),
                 (rs, rowNum) -> new BlockRange(rs.getLong("consensus_start"), rs.getLong("consensus_end")));
         if (blocks.isEmpty()) {
             return Optional.empty();
