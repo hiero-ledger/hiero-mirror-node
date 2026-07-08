@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 
 abstract class AbstractScheduler implements Scheduler {
 
-    private static final int DRAIN_QUEUE_CAPACITY = 256;
+    private static final int DRAIN_QUEUE_CAPACITY = 128;
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -158,7 +158,6 @@ abstract class AbstractScheduler implements Scheduler {
         }
 
         setNodes(nodes);
-
         existing.values().forEach(node -> executor.execute(node::close));
     }
 
