@@ -1,0 +1,228 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package org.hiero.mirror.importer.migration;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.importer.EnabledIfV1;
+import org.hiero.mirror.importer.ImporterIntegrationTest;
+import org.hiero.mirror.importer.parser.record.receipt.ReceiptAssembler;
+import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootCalculator;
+import org.hiero.mirror.importer.repository.RecordFileRepository;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+
+@EnabledIfV1
+@RequiredArgsConstructor
+@Tag("migration")
+class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
+
+    private final BackfillReceiptsRootMigration migration;
+    private final RecordFileRepository recordFileRepository;
+    private final ReceiptAssembler receiptAssembler;
+    private final ReceiptRootCalculator receiptRootCalculator;
+
+    @Test
+    void empty() {
+        migration.migrateAsync();
+        assertThat(recordFileRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void migrate() {
+        // Block 1: no EVM activity, missing receipts_root -> expect the empty root (32 zero bytes)
+        var start1 = domainBuilder.timestamp();
+        var end1 = start1 + 10;
+        var block1 = persistBlockMissingReceiptsRoot(start1, end1);
+
+        // Block 2: a contract call with a log and an ethereum transaction (type 2), missing receipts_root; the log's
+        // contract has an evm address which must be resolved from the entity table
+        var start2 = end1 + 1;
+        var end2 = start2 + 10;
+        var block2 = persistBlockMissingReceiptsRoot(start2, end2);
+        var timestamp2 = start2 + 1;
+        var contract = domainBuilder.entity().persist();
+        var contractResult = domainBuilder
+                .contractResult()
+                .customize(c -> c.consensusTimestamp(timestamp2).transactionIndex(0))
+                .persist();
+        var contractLog = domainBuilder
+                .contractLog()
+                .customize(c -> c.consensusTimestamp(timestamp2)
+                        .contractId(contract.toEntityId())
+                        .index(0)
+                        .transactionIndex(0))
+                .persist();
+        domainBuilder
+                .ethereumTransaction(true)
+                .customize(e -> e.consensusTimestamp(timestamp2).type(2))
+                .persist();
+
+        // Block 3: already has a receipts_root -> must be left untouched
+        var start3 = end2 + 1;
+        var end3 = start3 + 10;
+        var existingRoot = domainBuilder.bytes(32);
+        var block3 = domainBuilder
+                .recordFile()
+                .customize(r -> r.consensusStart(start3).consensusEnd(end3).receiptsRoot(existingRoot))
+                .persist();
+
+        // when
+        migration.migrateAsync();
+
+        // then
+        var expectedBlock2 = receiptRootCalculator.calculate(receiptAssembler.assemble(
+                List.of(contractResult),
+                List.of(contractLog),
+                Map.of(timestamp2, 2),
+                Map.of(contract.getId(), contract.getEvmAddress())));
+
+        assertThat(recordFileRepository.findById(block1.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(new byte[32]);
+        assertThat(recordFileRepository.findById(block2.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(expectedBlock2);
+        assertThat(recordFileRepository.findById(block3.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(existingRoot);
+    }
+
+    @Test
+    void migrateNullTransactionIndex() {
+        // A block with historical rows persisted before the denormalized transaction_index columns existed: two
+        // contract results and a synthetic contract log (no matching contract result) all with a null
+        // transaction_index. The index must be resolved from the transaction table, otherwise the receipts would
+        // collide on trie key 0.
+        var start = domainBuilder.timestamp();
+        var end = start + 10;
+        var block = persistBlockMissingReceiptsRoot(start, end);
+
+        var timestamp1 = start + 1;
+        var timestamp2 = start + 2;
+        var timestamp3 = start + 3;
+        var contractResult1 = domainBuilder
+                .contractResult()
+                .customize(c -> c.consensusTimestamp(timestamp1).transactionIndex(null))
+                .persist();
+        var contractResult2 = domainBuilder
+                .contractResult()
+                .customize(c -> c.consensusTimestamp(timestamp2).transactionIndex(null))
+                .persist();
+        var contractLog = domainBuilder
+                .contractLog()
+                .customize(c -> c.consensusTimestamp(timestamp3).index(0))
+                .persist();
+        jdbcOperations.update(
+                "update contract_log set transaction_index = null where consensus_timestamp = ?", timestamp3);
+
+        domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp1).index(1))
+                .persist();
+        domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp2).index(2))
+                .persist();
+        domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp3).index(3))
+                .persist();
+
+        // when
+        migration.migrateAsync();
+
+        // then
+        contractResult1.setTransactionIndex(1);
+        contractResult2.setTransactionIndex(2);
+        contractLog.setTransactionIndex(3);
+        var expected = receiptRootCalculator.calculate(receiptAssembler.assemble(
+                List.of(contractResult1, contractResult2), List.of(contractLog), Map.of(), Map.of()));
+
+        assertThat(recordFileRepository.findById(block.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void migrateIgnoresRowsOfBlocksAlreadyBackfilled() {
+        // An already-backfilled block with EVM activity sits between two blocks missing the root. The batch's data
+        // queries span its rows, but they must not leak into the neighboring blocks' roots.
+        var start1 = domainBuilder.timestamp();
+        var end1 = start1 + 10;
+        var block1 = persistBlockMissingReceiptsRoot(start1, end1);
+
+        var start2 = end1 + 1;
+        var end2 = start2 + 10;
+        var existingRoot = domainBuilder.bytes(32);
+        var block2 = domainBuilder
+                .recordFile()
+                .customize(r -> r.consensusStart(start2).consensusEnd(end2).receiptsRoot(existingRoot))
+                .persist();
+        domainBuilder
+                .contractResult()
+                .customize(c -> c.consensusTimestamp(start2 + 1).transactionIndex(0))
+                .persist();
+        domainBuilder
+                .contractLog()
+                .customize(c -> c.consensusTimestamp(start2 + 1).index(0).transactionIndex(0))
+                .persist();
+
+        var start3 = end2 + 1;
+        var end3 = start3 + 10;
+        var block3 = persistBlockMissingReceiptsRoot(start3, end3);
+
+        // when
+        migration.migrateAsync();
+
+        // then
+        assertThat(recordFileRepository.findById(block1.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(new byte[32]);
+        assertThat(recordFileRepository.findById(block2.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(existingRoot);
+        assertThat(recordFileRepository.findById(block3.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(new byte[32]);
+    }
+
+    @Test
+    void migrateMultipleBatches() {
+        // More blocks than fit in a single batch to exercise the cursor advancing across iterations
+        int blockCount = BackfillReceiptsRootMigration.BATCH_SIZE + 1;
+        var start = domainBuilder.timestamp();
+        for (int i = 0; i < blockCount; i++) {
+            persistBlockMissingReceiptsRoot(start, start + 9);
+            start += 10;
+        }
+
+        // when
+        migration.migrateAsync();
+
+        // then
+        assertThat(recordFileRepository.findAll()).hasSize(blockCount).allSatisfy(recordFile -> assertThat(
+                        recordFile.getReceiptsRoot())
+                .isEqualTo(new byte[32]));
+    }
+
+    private RecordFile persistBlockMissingReceiptsRoot(long consensusStart, long consensusEnd) {
+        return domainBuilder
+                .recordFile()
+                .customize(r -> r.consensusStart(consensusStart)
+                        .consensusEnd(consensusEnd)
+                        .receiptsRoot(null))
+                .persist();
+    }
+}
