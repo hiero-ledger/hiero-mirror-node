@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import java.net.URI
 import org.gradle.api.file.RegularFile
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Provider
@@ -102,10 +103,61 @@ if (!isNativeBuild) {
         }
     }
 
+    // web3j-sokt 0.6.0 resolves solc by downloading a release index from its main branch and
+    // strict-parsing it.
+    // That upstream file now contains keys the released parser rejects (e.g. linux_arm64_url on the
+    // 0.8.31 entry),
+    // so any solc resolution fails on a cold cache, including CI. SolidityCompile uses its
+    // `executable` directly
+    // when set and skips the sokt resolver, so download pinned solc binaries and point the compile
+    // tasks at them.
+    val testSolidityVersion = "0.8.30"
+    val solcAsset =
+        if (System.getProperty("os.name").lowercase().contains("mac")) "solc-macos"
+        else "solc-static-linux"
+
+    fun provisionSolc(solcVersion: String) =
+        tasks.register("provisionSolc${solcVersion.replace(".", "")}") {
+            description =
+                "Download solc $solcVersion, bypassing the broken web3j-sokt version resolver"
+            val solc = layout.buildDirectory.file("solc/solc-$solcVersion")
+            outputs.file(solc)
+            doLast {
+                val file = solc.get().asFile
+                file.parentFile.mkdirs()
+                val url =
+                    URI(
+                            "https://github.com/ethereum/solidity/releases/download/v$solcVersion/$solcAsset"
+                        )
+                        .toURL()
+                url.openStream().use { input ->
+                    file.outputStream().use { output -> input.copyTo(output) }
+                }
+                file.setExecutable(true)
+            }
+        }
+
+    val provisionTestSolc = provisionSolc(testSolidityVersion)
+    val provisionHistoricalSolc = provisionSolc(historicalSolidityVersion)
+
     val resolveSolidity = tasks.named("resolveSolidity")
 
+    tasks.named<SolidityCompile>("compileTestSolidity") {
+        dependsOn(provisionTestSolc)
+        executable.set(
+            layout.buildDirectory.file("solc/solc-$testSolidityVersion").map {
+                it.asFile.absolutePath
+            }
+        )
+    }
+
     tasks.named<SolidityCompile>("compileTestHistoricalSolidity") {
-        dependsOn(resolveSolidity)
+        dependsOn(resolveSolidity, provisionHistoricalSolc)
+        executable.set(
+            layout.buildDirectory.file("solc/solc-$historicalSolidityVersion").map {
+                it.asFile.absolutePath
+            }
+        )
 
         group = "historical"
         resolvedImports.set(
