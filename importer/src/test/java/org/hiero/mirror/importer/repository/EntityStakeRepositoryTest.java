@@ -38,7 +38,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.transaction.support.TransactionOperations;
 
@@ -1000,9 +999,14 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
+    @CsvSource(textBlock = """
+            true, true
+            true, false
+            false, true
+            false, false
+            """)
     void updateEntityStakePendingRewardExceedsMaxNumberOfStakingPeriods(
-            final boolean multipleNodeStakeUpdatesOnForfeitedPeriod) {
+            final boolean multipleNodeStakeUpdatesOnForfeitedPeriod, final boolean underflow) {
         // given
         long epochDay = Utility.getEpochDay(domainBuilder.timestamp());
         long forfeitedStakingPeriod = epochDay - 365;
@@ -1014,6 +1018,9 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 TestUtils.asStartOfEpochDay(forfeitedStakingPeriod + 1).plusNanos(180));
         long entityLowerTimestamp = DomainUtils.convertToNanosMax(
                 TestUtils.asStartOfEpochDay(forfeitedStakingPeriod).minusNanos(100));
+        long pendingReward = 200_000_000L;
+        long stakeTotalStart = 9_000_000_000L;
+        long latestRewardRate = 200L;
 
         var stakingRewardAccount = domainBuilder
                 .entity(stakingRewardAccountId, entityLowerTimestamp)
@@ -1024,13 +1031,17 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .entity(stakingRewardAccountId + domainBuilder.id(), entityLowerTimestamp + 1)
                 .customize(e -> e.stakedNodeId(forfeitedStakingPeriod - 1))
                 .persist();
-        // The end result is the pending reward will decrease by 100 * stake total start
+        // To make it underflow (pending reward becomes negative after forfeiting), the reward rate needs to be large
+        // enough
+        long forfeitedRewardRate =
+                underflow ? (pendingReward / (stakeTotalStart / TINYBARS_IN_ONE_HBAR) + latestRewardRate * 2) : 300L;
+        long rewardRateDiff = forfeitedRewardRate - latestRewardRate;
         domainBuilder
                 .nodeStake()
                 .customize(ns -> ns.consensusTimestamp(forfeitedNodeStakeTimestamp)
                         .epochDay(forfeitedStakingPeriod)
                         .nodeId(0L)
-                        .rewardRate(300))
+                        .rewardRate(forfeitedRewardRate))
                 .persist();
         if (multipleNodeStakeUpdatesOnForfeitedPeriod) {
             domainBuilder
@@ -1038,7 +1049,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                     .customize(ns -> ns.consensusTimestamp(forfeitedNodeStakeTimestamp + 1)
                             .epochDay(forfeitedStakingPeriod)
                             .nodeId(0L)
-                            .rewardRate(300))
+                            .rewardRate(forfeitedRewardRate))
                     .persist();
         }
 
@@ -1053,9 +1064,9 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .entityStake()
                 .customize(es -> es.endStakePeriod(epochDay - 1)
                         .id(account.getId())
-                        .pendingReward(200_000_000L)
+                        .pendingReward(pendingReward)
                         .stakedNodeIdStart(0L)
-                        .stakeTotalStart(9_000_000_000L)
+                        .stakeTotalStart(stakeTotalStart)
                         .timestampRange(Range.atLeast(previousNodeStakeTimestamp)))
                 .persist();
         var stakingRewardAccountStake = domainBuilder
@@ -1102,8 +1113,11 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .customize(ab -> ab.id(new Id(previousBalanceTimestamp, stakingRewardAccount.toEntityId())))
                 .persist();
         var expectedAccountStake = fromEntity(account, nodeStake, 0, accountStake.getStakeTotalStart());
-        expectedAccountStake.setPendingReward(
-                accountStake.getPendingReward() - 100 * accountStake.getStakeTotalStart() / TINYBARS_IN_ONE_HBAR);
+        long expectedPendingReward = underflow
+                ? 0L
+                : accountStake.getPendingReward()
+                        - rewardRateDiff * (accountStake.getStakeTotalStart() / TINYBARS_IN_ONE_HBAR);
+        expectedAccountStake.setPendingReward(expectedPendingReward);
         var expectedStakingRewardAccountStake = fromEntity(stakingRewardAccount, nodeStake, 0, 0);
         // history rows
         accountStake.setTimestampUpper(nodeStakeTimestamp);
