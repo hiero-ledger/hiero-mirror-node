@@ -192,20 +192,21 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
 
     private OpcodesResponse expectedOpcodesResponse(
             final EvmTransactionResult result, final List<Opcode> opcodes, final Address recipient) {
+        final var timestamp = Optional.of(paramsCaptor.getValue().getConsensusTimestamp());
         return new OpcodesResponse()
                 .address(
                         recipient.equals(Address.ZERO)
                                 ? Address.ZERO.toHexString()
                                 : commonEntityAccessor
-                                        .get(recipient, Optional.empty())
+                                        .get(recipient, timestamp)
                                         .map(this::entityAddress)
                                         .map(Address::toHexString)
-                                        .orElse(null))
+                                        .orElse(Address.ZERO.toHexString()))
                 .contractId(
                         recipient.equals(Address.ZERO)
                                 ? null
                                 : commonEntityAccessor
-                                        .get(recipient, Optional.empty())
+                                        .get(recipient, timestamp)
                                         .map(Entity::toEntityId)
                                         .map(EntityId::toString)
                                         .orElse(null))

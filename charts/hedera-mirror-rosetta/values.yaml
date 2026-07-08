@@ -10,22 +10,6 @@ affinity:
             matchLabels:
               app.kubernetes.io/component: rosetta
 
-alertmanager:
-  inhibitRules:
-    enabled: false
-    RosettaInhibitAll:
-      enabled: true
-      matches:
-        - sourceMatch:
-            - name: area
-              value: resource
-          targetMatch:
-            - name: application
-              value: rosetta
-          equal:
-            - namespace
-            - pod
-
 annotations: {}
 
 config: {}
@@ -184,53 +168,6 @@ podSecurityContext:
     type: RuntimeDefault
 
 priorityClassName: ""
-
-prometheusRules:
-  enabled: false
-  RosettaApiErrors:
-    annotations:
-      description: "Rosetta API 5xx error rate for {{ $labels.namespace }}/{{ $labels.pod }} is {{ $value | humanizePercentage }}"
-      summary: "Mirror Rosetta API error rate exceeds 5%"
-    enabled: true
-    expr: sum(rate(hiero_mirror_rosetta_request_duration_count{application="rosetta",status_code=~"^5.."}[5m])) by (namespace, pod) / sum(rate(hiero_mirror_rosetta_request_duration_count{application="rosetta"}[5m])) by (namespace, pod) > 0.05
-    for: 1m
-    labels:
-      application: rosetta
-      severity: critical
-
-  RosettaNoPodsReady:
-    annotations:
-      description: "No Rosetta API instances are currently running in {{ $labels.namespace }}"
-      summary: No Rosetta API instances running
-    enabled: true
-    expr: sum(kube_pod_status_ready{pod=~".*-rosetta-.*",condition="true"}) by (namespace) < 1
-    for: 2m
-    labels:
-      application: rosetta
-      area: resource
-      severity: critical
-
-  RosettaNoRequests:
-    annotations:
-      description: "Rosetta API has not seen any requests to {{ $labels.namespace }} for 5m"
-      summary: "No Mirror Rosetta API requests seen for awhile"
-    enabled: false
-    expr: sum(rate(hiero_mirror_rosetta_request_duration_count{application="rosetta"}[3m])) by (namespace) <= 0
-    for: 5m
-    labels:
-      application: rosetta
-      severity: warning
-
-  RosettaSlowResponse:
-    annotations:
-      description: "{{ $labels.namespace }}/{{ $labels.pod }} is taking {{ $value | humanizeDuration }} to generate a response"
-      summary: "Mirror Rosetta API is taking too long to respond"
-    enabled: true
-    expr: sum(rate(hiero_mirror_rosetta_request_duration_sum{application="rosetta"}[5m])) by (namespace, pod) / sum(rate(hiero_mirror_rosetta_request_duration_count{application="rosetta"}[5m])) by (namespace, pod) > 2000
-    for: 1m
-    labels:
-      application: rosetta
-      severity: warning
 
 readinessProbe:
   failureThreshold: 5
