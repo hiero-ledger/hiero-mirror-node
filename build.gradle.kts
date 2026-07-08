@@ -24,6 +24,7 @@ extra.apply {
     set("logback.version", "1.5.36") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.18.0")
+    set("postgresql.version", "42.7.13") // Temporary until next Spring Boot
     set("tomcat.version", "11.0.23") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
