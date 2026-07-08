@@ -2,10 +2,17 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.ByteString;
+import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
+import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
+import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
+import com.hedera.hapi.block.stream.output.protoc.StateChange;
+import com.hedera.hapi.block.stream.output.protoc.StateChanges;
+import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.List;
 import java.util.stream.Stream;
@@ -40,7 +47,7 @@ final class CryptoTransformerTest extends AbstractTransformerTest {
         var expectedRecordItem = recordItemBuilder
                 .cryptoCreate()
                 .record(r -> r.setEvmAddress(expectedEvmAddress))
-                .transactionBody(b -> b.setAlias(alias))
+                .transactionBody(b -> b.setAlias(alias).setDelegationAddress(ByteString.EMPTY))
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
@@ -60,6 +67,28 @@ final class CryptoTransformerTest extends AbstractTransformerTest {
         var expectedRecordItem = recordItemBuilder
                 .cryptoCreate()
                 .receipt(r -> r.clearAccountID().setStatus(ResponseCodeEnum.INVALID_TRANSACTION))
+                .customize(this::finalize)
+                .build();
+        var blockTransaction =
+                blockTransactionBuilder.cryptoCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void cryptoCreateDelegationAddressEthereumNonceFromStateChanges() {
+        // given
+        var delegationAddress = ByteString.copyFrom(Hex.decode("a94f5374fce5edbc8e2a8697c15331677e6ebf0b"));
+        long expectedNonce = 2L;
+        var expectedRecordItem = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(b -> b.setDelegationAddress(delegationAddress))
+                .customize(b -> b.recordItem(r -> r.accountEthereumNonce(expectedNonce)))
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
@@ -128,6 +157,7 @@ final class CryptoTransformerTest extends AbstractTransformerTest {
         var expectedRecordItem = recordItemBuilder
                 .cryptoUpdate()
                 .transactionBody(b -> {
+                    b.setDelegationAddress(ByteString.EMPTY);
                     if (hasAlias) {
                         b.getAccountIDToUpdateBuilder().setAlias(recordItemBuilder.bytes(34));
                     }
@@ -143,5 +173,78 @@ final class CryptoTransformerTest extends AbstractTransformerTest {
 
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void cryptoUpdateDelegationAddressEthereumNonceFromStateChanges() {
+        // given
+        var delegationAddress = ByteString.copyFrom(Hex.decode("a94f5374fce5edbc8e2a8697c15331677e6ebf0b"));
+        long expectedNonce = 5L;
+        var expectedRecordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b -> b.setDelegationAddress(delegationAddress))
+                .customize(b -> b.recordItem(r -> r.accountEthereumNonce(expectedNonce)))
+                .customize(this::finalize)
+                .build();
+        final var blockTransaction =
+                blockTransactionBuilder.cryptoUpdate(expectedRecordItem).build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void cryptoUpdateDelegationAddressChildReadsNonceFromParentStateChanges() {
+        // given
+        var delegationAddress = ByteString.copyFrom(Hex.decode("a94f5374fce5edbc8e2a8697c15331677e6ebf0b"));
+        long expectedNonce = 3L;
+        var accountId = recordItemBuilder.accountId();
+
+        var parentRecordItem = recordItemBuilder
+                .ethereumTransaction()
+                .customize(this::finalize)
+                .build();
+        var childRecordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b -> b.setAccountIDToUpdate(accountId).setDelegationAddress(delegationAddress))
+                .receipt(r -> r.setAccountID(accountId))
+                .record(r -> r.setParentConsensusTimestamp(
+                        parentRecordItem.getTransactionRecord().getConsensusTimestamp()))
+                .customize(b -> b.recordItem(item -> item.accountEthereumNonce(expectedNonce)))
+                .customize(this::finalize)
+                .build();
+
+        var parentBlockTx = blockTransactionBuilder
+                .ethereum(parentRecordItem)
+                .stateChanges(sc -> sc.add(StateChanges.newBuilder()
+                        .addStateChanges(StateChange.newBuilder()
+                                .setStateId(STATE_ID_ACCOUNTS_VALUE)
+                                .setMapUpdate(MapUpdateChange.newBuilder()
+                                        .setKey(MapChangeKey.newBuilder().setAccountIdKey(accountId))
+                                        .setValue(MapChangeValue.newBuilder()
+                                                .setAccountValue(Account.newBuilder()
+                                                        .setAccountId(accountId)
+                                                        .setEthereumNonce(expectedNonce)))))
+                        .build()))
+                .build();
+        var childBlockTx = blockTransactionBuilder
+                .cryptoUpdate(childRecordItem)
+                .previous(parentBlockTx)
+                .build();
+        var blockFile =
+                blockFileBuilder.items(List.of(parentBlockTx, childBlockTx)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> {
+            assertThat(items).hasSize(2).allMatch(RecordItem::isBlockstream);
+            assertThat(items.get(1)).returns(expectedNonce, RecordItem::getAccountEthereumNonce);
+        });
     }
 }
