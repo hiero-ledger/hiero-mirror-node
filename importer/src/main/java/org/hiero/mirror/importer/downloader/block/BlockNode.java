@@ -126,14 +126,12 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                     .withDeadlineAfter(streamProperties.getResponseTimeout());
             final var response = blockNodeService.serverStatus(SERVER_STATUS_REQUEST);
 
-            errors.set(0);
             final long firstBlockNumber = response.getFirstAvailableBlock();
             return firstBlockNumber != -1
                     ? Range.closed(firstBlockNumber, response.getLastAvailableBlock())
                     : EMPTY_BLOCK_RANGE;
         } catch (final Exception ex) {
             log.error("Failed to get server status for {}", this, ex);
-            onError();
             return EMPTY_BLOCK_RANGE;
         }
     }
@@ -335,6 +333,10 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
         Boolean onEndOfBlock(final BlockEnd blockEnd) {
             final long blockNumber = blockEnd.getBlockNumber();
+            // Note the size includes the extra bytes from the BlockItemSet message
+            final int blockSize = (int) (uncompressedBytes.get() - blockStartBytes);
+            blockStartBytes = uncompressedBytes.get();
+
             if (pending.isEmpty()) {
                 Utility.handleRecoverableError(
                         "Received end-of-block message for block {} while there's no pending block items", blockNumber);
@@ -364,10 +366,9 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             pending.clear();
             pendingCount = 0;
             stopwatch.reset();
-            blockStartBytes = uncompressedBytes.get();
 
             final var filename = BlockFile.getFilename(blockNumber, false);
-            final var blockStream = new BlockStream(block, blockCompleteTime, null, filename, loadStart);
+            final var blockStream = new BlockStream(block, blockCompleteTime, null, filename, loadStart, blockSize);
 
             // when either condition becomes true, inform the caller to stop sending items for assembling
             return blockStreamConsumer.apply(blockStream, name) || blockHeader.getNumber() == endBlockNumber;

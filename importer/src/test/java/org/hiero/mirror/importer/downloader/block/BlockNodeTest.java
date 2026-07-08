@@ -166,33 +166,6 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     @Test
-    void getBlockRangeMarksNodeInactiveAfterRepeatedFailures(final Resources resources) {
-        // given a status endpoint that always fails
-        runBlockNodeService(resources, List.of(new RuntimeException(), serverStatusResponse(1, 100)));
-        assertThat(node.isActive()).isTrue();
-
-        // when getBlockRange fails, then the range is empty and the node is still active
-        assertThat(node.getBlockRange().isEmpty()).isTrue();
-        assertThat(node.isActive()).isTrue();
-
-        // when getBlockRange returns non-empty range
-        assertThat(node.getBlockRange()).isEqualTo(Range.closed(1L, 100L));
-        assertThat(node.isActive()).isTrue();
-
-        // when server status request fails attempts - 1 times consecutively, node is still active
-        final int attempts = streamProperties.getMaxAttempts();
-        for (int i = 0; i < attempts - 1; i++) {
-            assertThat(node.getBlockRange().isEmpty()).isTrue();
-            assertThat(node.isActive()).isTrue();
-        }
-
-        // when server status request fails one more time, node should be inactive
-        assertThat(node.getBlockRange().isEmpty()).isTrue();
-        assertThat(node.isActive()).isFalse();
-        assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isEqualTo(attempts + 1);
-    }
-
-    @Test
     void isActive() {
         assertThat(node.isActive()).isTrue();
     }
@@ -440,7 +413,9 @@ final class BlockNodeTest extends BlockNodeTestBase {
         node.streamBlocks(0, null, accumulate(streamed), TIMEOUT);
 
         // then
-        assertThat(streamed).hasSize(1).satisfies(blocks -> assertBlockStream(blocks.getFirst(), 0));
+        assertThat(streamed).hasSize(1).first().satisfies(block -> assertBlockStream(block, 0), block -> assertThat(
+                        block.size())
+                .isPositive());
     }
 
     @Test
