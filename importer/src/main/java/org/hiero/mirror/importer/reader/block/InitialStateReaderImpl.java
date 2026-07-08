@@ -55,7 +55,6 @@ final class InitialStateReaderImpl implements InitialStateReader {
         entity.setBalance(account.getTinybarBalance());
         entity.setBalanceTimestamp(consensusTimestamp);
         entity.setDeleted(account.getDeleted());
-        entity.setEthereumNonce(account.getEthereumNonce() > 0 ? account.getEthereumNonce() : null);
         entity.setExpirationTimestamp(account.getExpirationSecond() * NANOS_PER_SECOND);
         entity.setMaxAutomaticTokenAssociations(account.getMaxAutoAssociations());
         entity.setMemo(account.getMemo());
