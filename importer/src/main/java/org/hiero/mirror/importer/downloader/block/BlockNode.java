@@ -125,12 +125,15 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(statusChannel)
                     .withDeadlineAfter(streamProperties.getResponseTimeout());
             final var response = blockNodeService.serverStatus(SERVER_STATUS_REQUEST);
+
+            errors.set(0);
             final long firstBlockNumber = response.getFirstAvailableBlock();
             return firstBlockNumber != -1
                     ? Range.closed(firstBlockNumber, response.getLastAvailableBlock())
                     : EMPTY_BLOCK_RANGE;
-        } catch (Exception ex) {
+        } catch (final Exception ex) {
             log.error("Failed to get server status for {}", this, ex);
+            onError();
             return EMPTY_BLOCK_RANGE;
         }
     }
@@ -184,13 +187,14 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                         throw new BlockStreamException(
                                 "Unknown response case " + response.getResponseCase() + " from " + name);
                 }
-
-                errors.set(0);
             }
-        } catch (BlockStreamException ex) {
+
+            // Only clear errors when the subscription ends gracefully
+            errors.set(0);
+        } catch (final BlockStreamException ex) {
             onError();
             throw ex;
-        } catch (Exception ex) {
+        } catch (final Exception ex) {
             onError();
             throw new BlockStreamException(ex);
         } finally {
@@ -246,14 +250,11 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
      */
     private void onError() {
         errorsMetric.increment();
-        if (errors.incrementAndGet() >= streamProperties.getMaxSubscribeAttempts()) {
+        if (errors.incrementAndGet() >= streamProperties.getMaxAttempts()) {
             active = false;
             errors.set(0);
             readmitTime.set(Instant.now().plus(streamProperties.getReadmitDelay()));
-            log.warn(
-                    "Marking connection to {} as inactive after {} attempts",
-                    this,
-                    streamProperties.getMaxSubscribeAttempts());
+            log.warn("Marking connection to {} as inactive after {} attempts", this, streamProperties.getMaxAttempts());
         }
     }
 

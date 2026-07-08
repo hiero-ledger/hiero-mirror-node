@@ -133,10 +133,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     @Test
     void getBlockRange(Resources resources) {
         // given
-        runBlockNodeService(resources, () -> ServerStatusResponse.newBuilder()
-                .setFirstAvailableBlock(20)
-                .setLastAvailableBlock(100)
-                .build());
+        runBlockNodeService(resources, () -> serverStatusResponse(20, 100));
 
         // when, then
         assertThat(node.getBlockRange()).isEqualTo(Range.closed(20L, 100L));
@@ -145,10 +142,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     @Test
     void getBlockRangeFromEmptyBlockNode(Resources resources) {
         // given
-        runBlockNodeService(resources, () -> ServerStatusResponse.newBuilder()
-                .setFirstAvailableBlock(-1)
-                .setLastAvailableBlock(-1)
-                .build());
+        runBlockNodeService(resources, () -> serverStatusResponse(-1, -1));
 
         // when, then
         assertThat(node.getBlockRange().isEmpty()).isTrue();
@@ -161,10 +155,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockNodeService(resources, () -> {
             try {
                 Thread.sleep(20);
-                return ServerStatusResponse.newBuilder()
-                        .setFirstAvailableBlock(20)
-                        .setLastAvailableBlock(100)
-                        .build();
+                return serverStatusResponse(20, 100);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -172,6 +163,33 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
         // when, then
         assertThat(node.getBlockRange().isEmpty()).isTrue();
+    }
+
+    @Test
+    void getBlockRangeMarksNodeInactiveAfterRepeatedFailures(final Resources resources) {
+        // given a status endpoint that always fails
+        runBlockNodeService(resources, List.of(new RuntimeException(), serverStatusResponse(1, 100)));
+        assertThat(node.isActive()).isTrue();
+
+        // when getBlockRange fails, then the range is empty and the node is still active
+        assertThat(node.getBlockRange().isEmpty()).isTrue();
+        assertThat(node.isActive()).isTrue();
+
+        // when getBlockRange returns non-empty range
+        assertThat(node.getBlockRange()).isEqualTo(Range.closed(1L, 100L));
+        assertThat(node.isActive()).isTrue();
+
+        // when server status request fails attempts - 1 times consecutively, node is still active
+        final int attempts = streamProperties.getMaxAttempts();
+        for (int i = 0; i < attempts - 1; i++) {
+            assertThat(node.getBlockRange().isEmpty()).isTrue();
+            assertThat(node.isActive()).isTrue();
+        }
+
+        // when server status request fails one more time, node should be inactive
+        assertThat(node.getBlockRange().isEmpty()).isTrue();
+        assertThat(node.isActive()).isFalse();
+        assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isEqualTo(attempts + 1);
     }
 
     @Test
@@ -531,6 +549,13 @@ final class BlockNodeTest extends BlockNodeTestBase {
         assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isEqualTo(2);
     }
 
+    private static ServerStatusResponse serverStatusResponse(final long first, final long last) {
+        return ServerStatusResponse.newBuilder()
+                .setFirstAvailableBlock(first)
+                .setLastAvailableBlock(last)
+                .build();
+    }
+
     private BiFunction<BlockStream, String, Boolean> accumulate(Collection<BlockStream> collection) {
         return (blockStream, _) -> {
             collection.add(blockStream);
@@ -594,6 +619,30 @@ final class BlockNodeTest extends BlockNodeTestBase {
                     ServerStatusRequest request, StreamObserver<ServerStatusResponse> responseObserver) {
                 responseObserver.onNext(responseProvider.get());
                 responseObserver.onCompleted();
+            }
+        };
+        startServer(resources, service);
+    }
+
+    private void runBlockNodeService(final Resources resources, final List<Object> responseOrError) {
+        final var iter = responseOrError.iterator();
+        final var service = new BlockNodeServiceGrpc.BlockNodeServiceImplBase() {
+            @Override
+            public void serverStatus(
+                    final ServerStatusRequest request, final StreamObserver<ServerStatusResponse> responseObserver) {
+                if (iter.hasNext()) {
+                    final var object = iter.next();
+                    if (object instanceof ServerStatusResponse serverStatusResponse) {
+                        responseObserver.onNext(serverStatusResponse);
+                        responseObserver.onCompleted();
+                        return;
+                    } else if (object instanceof Throwable error) {
+                        responseObserver.onError(error);
+                        return;
+                    }
+                }
+
+                responseObserver.onError(new RuntimeException("Unknown"));
             }
         };
         startServer(resources, service);
