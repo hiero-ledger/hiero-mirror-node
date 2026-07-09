@@ -3,6 +3,7 @@
 package org.hiero.mirror.grpc.retriever;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
@@ -16,9 +17,13 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties("hiero.mirror.grpc.retriever")
 public class RetrieverProperties {
 
+    public static final int MAX_PAGE_SIZE = 10000;
+    public static final int MIN_PAGE_SIZE = 1;
+
     private boolean enabled = true;
 
-    @Min(32)
+    @Max(MAX_PAGE_SIZE)
+    @Min(MIN_PAGE_SIZE)
     private int maxPageSize = 1000;
 
     @NotNull
@@ -35,7 +40,8 @@ public class RetrieverProperties {
     @Validated
     public static class UnthrottledProperties {
 
-        @Min(1000)
+        @Max(MAX_PAGE_SIZE)
+        @Min(MIN_PAGE_SIZE)
         private int maxPageSize = 5000;
 
         @Min(4)
