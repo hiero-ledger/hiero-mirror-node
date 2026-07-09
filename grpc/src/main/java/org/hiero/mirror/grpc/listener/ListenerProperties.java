@@ -2,6 +2,9 @@
 
 package org.hiero.mirror.grpc.listener;
 
+import static org.hiero.mirror.grpc.retriever.RetrieverProperties.MAX_PAGE_SIZE;
+import static org.hiero.mirror.grpc.retriever.RetrieverProperties.MIN_PAGE_SIZE;
+
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -22,7 +25,8 @@ public class ListenerProperties {
     @Max(65536)
     private int maxBufferSize = 16384;
 
-    @Min(32)
+    @Max(MAX_PAGE_SIZE)
+    @Min(MIN_PAGE_SIZE)
     private int maxPageSize = 5000;
 
     @DurationMin(millis = 50)

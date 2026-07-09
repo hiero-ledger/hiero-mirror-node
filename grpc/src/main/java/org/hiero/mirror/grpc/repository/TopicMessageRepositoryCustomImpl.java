@@ -2,24 +2,23 @@
 
 package org.hiero.mirror.grpc.repository;
 
+import static org.hiero.mirror.grpc.retriever.RetrieverProperties.MAX_PAGE_SIZE;
+import static org.hiero.mirror.grpc.retriever.RetrieverProperties.MIN_PAGE_SIZE;
+
 import jakarta.inject.Named;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.TypedQuery;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
 import java.util.stream.Stream;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.jpa.HibernateHints;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
+import org.hiero.mirror.grpc.retriever.RetrieverProperties;
 
 @CustomLog
 @Named
 @RequiredArgsConstructor
-public class TopicMessageRepositoryCustomImpl implements TopicMessageRepositoryCustom {
+class TopicMessageRepositoryCustomImpl implements TopicMessageRepositoryCustom {
 
     private static final String CONSENSUS_TIMESTAMP = "consensusTimestamp";
     private static final String TOPIC_ID = "topicId";
@@ -28,14 +27,16 @@ public class TopicMessageRepositoryCustomImpl implements TopicMessageRepositoryC
     private static final String TOPIC_MESSAGES_BY_ID_QUERY_HINT = "set local random_page_cost = 0";
 
     private final EntityManager entityManager;
+    private final RetrieverProperties retrieverProperties;
 
     @Override
     public Stream<TopicMessage> findByFilter(TopicMessageFilter filter) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<TopicMessage> query = cb.createQuery(TopicMessage.class);
-        Root<TopicMessage> root = query.from(TopicMessage.class);
+        final var cb = entityManager.getCriteriaBuilder();
+        var query = cb.createQuery(TopicMessage.class);
+        final var root = query.from(TopicMessage.class);
+        final int limit = (int) Math.max(Math.min(filter.getLimit(), MAX_PAGE_SIZE), MIN_PAGE_SIZE);
 
-        Predicate predicate = cb.and(
+        var predicate = cb.and(
                 cb.equal(root.get(TOPIC_ID), filter.getTopicId()),
                 cb.greaterThanOrEqualTo(root.get(CONSENSUS_TIMESTAMP), filter.getStartTime()));
 
@@ -45,12 +46,9 @@ public class TopicMessageRepositoryCustomImpl implements TopicMessageRepositoryC
 
         query = query.select(root).where(predicate).orderBy(cb.asc(root.get(CONSENSUS_TIMESTAMP)));
 
-        TypedQuery<TopicMessage> typedQuery = entityManager.createQuery(query);
+        final var typedQuery = entityManager.createQuery(query);
         typedQuery.setHint(HibernateHints.HINT_READ_ONLY, true);
-
-        if (filter.hasLimit()) {
-            typedQuery.setMaxResults((int) filter.getLimit());
-        }
+        typedQuery.setMaxResults(limit);
 
         if (filter.getLimit() != 1) {
             // only apply the hint when limit is not 1

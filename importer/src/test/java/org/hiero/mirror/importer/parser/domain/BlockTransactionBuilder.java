@@ -394,6 +394,23 @@ public class BlockTransactionBuilder {
     public BlockTransactionBuilder.Builder cryptoCreate(RecordItem recordItem) {
         var transactionRecord = recordItem.getTransactionRecord();
         var accountId = transactionRecord.getReceipt().getAccountID();
+        var transactionBody = recordItem.getTransactionBody().getCryptoCreateAccount();
+        final var account = Account.newBuilder().setAccountId(accountId);
+        if (recordItem.getAccountEthereumNonce() != null) {
+            account.setEthereumNonce(recordItem.getAccountEthereumNonce());
+        }
+        if (!transactionBody.getAlias().isEmpty()) {
+            account.setAlias(transactionBody.getAlias());
+        }
+
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_ACCOUNTS_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setAccountIdKey(accountId))
+                                .setValue(MapChangeValue.newBuilder().setAccountValue(account))))
+                .build();
+
         var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
         if (recordItem.isSuccessful()) {
             transactionOutputs.put(
@@ -409,7 +426,7 @@ public class BlockTransactionBuilder {
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 transactionOutputs,
-                Collections.emptyList(),
+                List.of(stateChanges),
                 Collections.emptyList());
     }
 
@@ -432,6 +449,9 @@ public class BlockTransactionBuilder {
                 recordItem.getTransactionBody().getCryptoUpdateAccount().getAccountIDToUpdate();
         final var accountId = recordItem.getTransactionRecord().getReceipt().getAccountID();
         final var account = Account.newBuilder().setAccountId(accountId);
+        if (recordItem.getAccountEthereumNonce() != null) {
+            account.setEthereumNonce(recordItem.getAccountEthereumNonce());
+        }
         if (accountIdToUpdate.hasAlias()) {
             account.setAlias(accountIdToUpdate.getAlias());
         }
