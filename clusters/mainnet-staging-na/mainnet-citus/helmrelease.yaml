@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.158.0-rc1'
+      version: '0.159.0-rc1'
   dependsOn:
     - name: mirror
       namespace: common
@@ -62,6 +62,7 @@ spec:
     rest:
       env:
         HIERO_MIRROR_REST_CACHE_RESPONSE_ENABLED: "false"
+        HIERO_MIRROR_REST_CHAINID: "0x127"
       hpa:
         metrics:
           - type: Resource
