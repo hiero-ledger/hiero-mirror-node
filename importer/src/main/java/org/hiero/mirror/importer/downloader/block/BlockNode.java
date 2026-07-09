@@ -248,11 +248,14 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
      */
     private void onError() {
         errorsMetric.increment();
-        if (errors.incrementAndGet() >= streamProperties.getMaxAttempts()) {
+        if (errors.incrementAndGet() >= streamProperties.getMaxSubscribeAttempts()) {
             active = false;
             errors.set(0);
             readmitTime.set(Instant.now().plus(streamProperties.getReadmitDelay()));
-            log.warn("Marking connection to {} as inactive after {} attempts", this, streamProperties.getMaxAttempts());
+            log.warn(
+                    "Marking connection to {} as inactive after {} attempts",
+                    this,
+                    streamProperties.getMaxSubscribeAttempts());
         }
     }
 
