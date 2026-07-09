@@ -52,9 +52,10 @@ public class PollingTopicListener implements TopicListener {
         TopicMessageFilter filter = context.getFilter();
         TopicMessage last = context.getLast();
         int limit = filter.hasLimit()
-                ? (int) (filter.getLimit() - context.getCount().get())
+                ? (int) (Math.min(filter.getLimit(), Integer.MAX_VALUE)
+                        - context.getCount().get())
                 : Integer.MAX_VALUE;
-        int pageSize = Math.min(limit, listenerProperties.getMaxPageSize());
+        int pageSize = Math.max(1, Math.min(limit, listenerProperties.getMaxPageSize()));
         long startTime = last != null ? last.getConsensusTimestamp() + 1 : filter.getStartTime();
         var newFilter = filter.toBuilder().limit(pageSize).startTime(startTime).build();
 

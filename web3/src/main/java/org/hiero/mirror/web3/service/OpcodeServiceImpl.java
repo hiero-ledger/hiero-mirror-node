@@ -53,16 +53,17 @@ public class OpcodeServiceImpl extends TraceService implements OpcodeService {
             ctx.setOpcodeContext(opcodeContext);
 
             final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
-            return buildOpcodesResponse(result);
+            return buildOpcodesResponse(result, params.getConsensusTimestamp());
         });
     }
 
-    private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result) {
+    private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result, long consensusTimestamp) {
         final var recipientAddress = result.recipient();
         Entity recipientEntity = null;
         if (recipientAddress != null && !recipientAddress.equals(EMPTY_ADDRESS)) {
-            recipientEntity =
-                    commonEntityAccessor.get(recipientAddress, Optional.empty()).orElse(null);
+            recipientEntity = commonEntityAccessor
+                    .get(recipientAddress, Optional.of(consensusTimestamp))
+                    .orElse(null);
         }
 
         var address = EMPTY_ADDRESS.toHexString();

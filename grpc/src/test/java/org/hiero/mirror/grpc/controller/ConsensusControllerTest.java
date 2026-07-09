@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.hiero.mirror.grpc.domain.ReactiveDomainBuilder.TOPIC_ID;
 
+import com.google.common.base.Stopwatch;
 import com.hedera.mirror.api.proto.ConsensusServiceGrpc;
 import com.hedera.mirror.api.proto.ConsensusTopicQuery;
 import com.hedera.mirror.api.proto.ConsensusTopicResponse;
@@ -16,7 +17,7 @@ import com.hederahashgraph.api.proto.java.TopicID;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import jakarta.annotation.Resource;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,12 +29,12 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.domain.ReactiveDomainBuilder;
 import org.hiero.mirror.grpc.listener.ListenerProperties;
+import org.hiero.mirror.grpc.retriever.RetrieverProperties;
 import org.hiero.mirror.grpc.util.ProtoUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.grpc.client.ImportGrpcClients;
@@ -42,17 +43,14 @@ import org.springframework.grpc.client.ImportGrpcClients;
 @ExtendWith(OutputCaptureExtension.class)
 @ImportGrpcClients(types = {ConsensusServiceGrpc.ConsensusServiceBlockingStub.class})
 @RequiredArgsConstructor
-class ConsensusControllerTest extends GrpcIntegrationTest {
+final class ConsensusControllerTest extends GrpcIntegrationTest {
 
     private final long future = DomainUtils.convertToNanosMax(Instant.now().plusSeconds(10L));
 
     private final ConsensusServiceGrpc.ConsensusServiceBlockingStub blockingService;
-
-    @Autowired
-    private ReactiveDomainBuilder domainBuilder;
-
-    @Resource
-    private ListenerProperties listenerProperties;
+    private final ReactiveDomainBuilder domainBuilder;
+    private final ListenerProperties listenerProperties;
+    private final RetrieverProperties retrieverProperties;
 
     @BeforeEach
     void setup() {
@@ -74,6 +72,7 @@ class ConsensusControllerTest extends GrpcIntegrationTest {
                     iterator.hasNext();
                 })
                 .isInstanceOf(StatusRuntimeException.class)
+                .hasMessageContaining("subscribeTopic.filter.topicId: must not be null")
                 .extracting(t -> ((StatusRuntimeException) t).getStatus().getCode())
                 .isEqualTo(Status.Code.INVALID_ARGUMENT);
     }
@@ -293,6 +292,30 @@ class ConsensusControllerTest extends GrpcIntegrationTest {
                 .containsSequence(grpcResponse(topicMessage))
                 .allSatisfy(t -> assertThat(t.getRunningHashVersion())
                         .isEqualTo(ConsensusController.DEFAULT_RUNNING_HASH_VERSION));
+    }
+
+    @Test
+    void limitOverflow() {
+        final int maxPageSize = retrieverProperties.getMaxPageSize();
+        retrieverProperties.setPollingFrequency(Duration.ofMillis(500L));
+        retrieverProperties.setMaxPageSize(maxPageSize);
+        final var last = domainBuilder.topicMessages(maxPageSize + 1L, 1L).blockLast();
+
+        final var boundedQuery = ConsensusTopicQuery.newBuilder()
+                .setLimit(maxPageSize)
+                .setConsensusStartTime(Timestamp.newBuilder().setSeconds(0).build())
+                .setConsensusEndTime(ProtoUtil.toTimestamp(last.getConsensusTimestamp() + 1L))
+                .setTopicID(TOPIC_ID.toTopicID())
+                .build();
+
+        final var stopwatch1 = Stopwatch.createStarted();
+        assertThat(blockingService.subscribeTopic(boundedQuery)).toIterable().hasSize(maxPageSize);
+        assertThat(stopwatch1.elapsed()).isLessThan(retrieverProperties.getPollingFrequency());
+
+        final var overflowQuery = boundedQuery.toBuilder().setLimit(1L << 31).build();
+        final var stopwatch2 = Stopwatch.createStarted();
+        assertThat(blockingService.subscribeTopic(overflowQuery)).toIterable().hasSize(maxPageSize + 1);
+        assertThat(stopwatch2.elapsed()).isGreaterThanOrEqualTo(retrieverProperties.getPollingFrequency());
     }
 
     @SneakyThrows

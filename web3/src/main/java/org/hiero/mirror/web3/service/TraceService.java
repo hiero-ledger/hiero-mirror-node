@@ -121,27 +121,32 @@ public class TraceService {
                 .ethereumData(getEthereumDataBytes(ethTransaction))
                 .consensusTimestamp(consensusTimestamp)
                 .gas(getGasLimit(ethTransaction, contractResult))
-                .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType))
-                .sender(getSenderAddress(contractResult))
+                .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType, consensusTimestamp))
+                .sender(getSenderAddress(contractResult, consensusTimestamp))
                 .value(getValue(ethTransaction, contractResult).longValue())
                 .build();
     }
 
-    protected Address getSenderAddress(ContractResult contractResult) {
-        final var address = commonEntityAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.empty());
+    private Address getSenderAddress(ContractResult contractResult, long consensusTimestamp) {
+        final var address =
+                commonEntityAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.of(consensusTimestamp));
         return address != null ? address : EMPTY_ADDRESS;
     }
 
     private Address getReceiverAddress(
-            EthereumTransaction ethereumTransaction, ContractResult contractResult, int transactionType) {
+            EthereumTransaction ethereumTransaction,
+            ContractResult contractResult,
+            int transactionType,
+            long consensusTimestamp) {
         if (ethereumTransaction != null) {
             if (ArrayUtils.isEmpty(ethereumTransaction.getToAddress())) {
                 return EMPTY_ADDRESS;
             }
             final var address = Address.wrap(Bytes.wrap(ethereumTransaction.getToAddress()));
             if (ConversionUtils.isLongZero(address)) {
-                final var entity =
-                        commonEntityAccessor.get(address, Optional.empty()).orElse(null);
+                final var entity = commonEntityAccessor
+                        .get(address, Optional.of(consensusTimestamp))
+                        .orElse(null);
                 if (entity != null) {
                     return getEntityAddress(entity);
                 }
@@ -153,7 +158,7 @@ public class TraceService {
             return EMPTY_ADDRESS;
         }
         final var contractId = EntityId.of(contractResult.getContractId());
-        final var address = commonEntityAccessor.evmAddressFromId(contractId, Optional.empty());
+        final var address = commonEntityAccessor.evmAddressFromId(contractId, Optional.of(consensusTimestamp));
         return address != null ? address : EMPTY_ADDRESS;
     }
 

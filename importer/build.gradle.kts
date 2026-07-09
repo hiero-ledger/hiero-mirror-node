@@ -56,7 +56,12 @@ dependencies {
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.apache.commons:commons-math3")
     testImplementation("org.awaitility:awaitility")
-    testImplementation("org.gaul:s3proxy")
+    testImplementation("org.gaul:s3proxy") {
+        exclude(group = "com.github.openstack4j.core")
+        exclude(group = "com.github.openstack4j.core.connectors")
+        exclude(group = "com.google.cloud")
+        exclude(group = "io.opentelemetry")
+    }
     testImplementation("org.junit.platform:junit-platform-launcher")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
