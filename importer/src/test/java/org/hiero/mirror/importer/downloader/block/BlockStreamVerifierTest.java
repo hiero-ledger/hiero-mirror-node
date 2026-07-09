@@ -148,7 +148,7 @@ final class BlockStreamVerifierTest {
         verifyNoInteractions(blockStateProofHasher);
         verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile)));
         verify(ledgerIdPublicationTransactionParser).parse(consensusTimestamp, ledgerIdPublicationTransactionBody);
-        verify(tssVerifier).setLedger(ledger);
+        verify(tssVerifier).setLedger(ledger, false);
         verify(tssVerifier).verify(eq(0L), any(), any());
         verify(recordFileRepository).findLatest();
         assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile.getIndex(), RecordFile::getIndex);

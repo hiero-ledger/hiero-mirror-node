@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import isEmpty from 'lodash/isEmpty';
 import camelCase from 'lodash/camelCase';
 import mapKeys from 'lodash/mapKeys';
 

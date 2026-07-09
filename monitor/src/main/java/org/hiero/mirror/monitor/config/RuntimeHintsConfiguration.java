@@ -2,9 +2,13 @@
 
 package org.hiero.mirror.monitor.config;
 
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionType;
+
 import com.google.protobuf.GeneratedMessageLite;
 import com.hedera.hashgraph.sdk.Transaction;
 import lombok.CustomLog;
+import org.hiero.mirror.common.config.CommonRuntimeHints;
+import org.hiero.mirror.common.util.RuntimeHintsHelper;
 import org.hiero.mirror.monitor.config.RuntimeHintsConfiguration.CustomRuntimeHints;
 import org.hiero.mirror.monitor.publish.transaction.TransactionSupplier;
 import org.hiero.mirror.rest.model.NetworkNodesResponse;
@@ -20,7 +24,7 @@ import org.springframework.core.type.filter.AssignableTypeFilter;
 
 @Configuration(proxyBeanMethods = false)
 @CustomLog
-@ImportRuntimeHints(CustomRuntimeHints.class)
+@ImportRuntimeHints({CommonRuntimeHints.class, CustomRuntimeHints.class})
 final class RuntimeHintsConfiguration {
 
     static final class CustomRuntimeHints implements RuntimeHintsRegistrar {
@@ -30,6 +34,10 @@ final class RuntimeHintsConfiguration {
             registerOpenApi(hints);
             registerProtobufs(hints);
             registerTransactionSuppliers(hints);
+            registerReflectionType(
+                    hints,
+                    "io.fabric8.kubernetes.client.impl.KubernetesClientImpl",
+                    RuntimeHintsHelper.CONSTRUCTORS_ONLY);
         }
 
         /**

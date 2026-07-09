@@ -16,6 +16,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
+import org.flywaydb.core.api.MigrationVersion;
+import org.flywaydb.core.api.configuration.Configuration;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.TokenTransfer;
@@ -32,6 +34,8 @@ import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.jdbc.core.JdbcOperations;
@@ -45,7 +49,7 @@ import org.springframework.transaction.support.TransactionOperations;
  */
 @Named
 @Order(2)
-public class ErrataMigration extends RepeatableMigration implements BalanceStreamFileListener {
+final class ErrataMigration extends RepeatableMigration implements BalanceStreamFileListener {
 
     private static final int ACCOUNT_BALANCE_FILE_FIXED_TIME_OFFSET = 53;
     // The consensus timestamps of the first and the last account balance files in mainnet to add the fixed 53ns offset
@@ -56,6 +60,7 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
     private Resource balanceOffsets;
 
     private final ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider;
+    private final BlockStreamResolver blockStreamResolver;
     private final ObjectProvider<EntityRecordItemListener> entityRecordItemListenerProvider;
     private final EntityProperties entityProperties;
     private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
@@ -63,29 +68,39 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
     private final ObjectProvider<RecordStreamFileListener> recordStreamFileListenerProvider;
     private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
     private final Set<Long> timestamps = new HashSet<>();
+    private final boolean v2;
 
     @SuppressWarnings("java:S107")
-    public ErrataMigration(
+    ErrataMigration(
             ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider,
+            BlockStreamResolver blockStreamResolver,
             ObjectProvider<EntityRecordItemListener> entityRecordItemListenerProvider,
             EntityProperties entityProperties,
+            Environment environment,
             ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties,
             ObjectProvider<RecordStreamFileListener> recordStreamFileListenerProvider,
             ObjectProvider<TransactionOperations> transactionOperationsProvider) {
         super(importerProperties.getMigration());
         this.accountBalanceFileRepositoryProvider = accountBalanceFileRepositoryProvider;
+        this.blockStreamResolver = blockStreamResolver;
         this.entityRecordItemListenerProvider = entityRecordItemListenerProvider;
         this.entityProperties = entityProperties;
         this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.importerProperties = importerProperties;
         this.recordStreamFileListenerProvider = recordStreamFileListenerProvider;
         this.transactionOperationsProvider = transactionOperationsProvider;
+        v2 = environment.acceptsProfiles(Profiles.of("v2"));
     }
 
     @Override
     public String getDescription() {
         return "Add errata information to the database to workaround older, incorrect data";
+    }
+
+    @Override
+    protected MigrationVersion getMinimumVersion() {
+        return blockStreamResolver.getMinimumMigrationVersion(v2);
     }
 
     @Override
@@ -122,6 +137,20 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
                 entityProperties.getPersist().setEntityHistory(entityHistory);
             }
         }
+    }
+
+    @Override
+    protected boolean skipMigration(final Configuration configuration) {
+        if (super.skipMigration(configuration)) {
+            return true;
+        }
+
+        if (blockStreamResolver.isStartedFromBlockStream()) {
+            log.info("Skip migration since the importer started from the block stream");
+            return true;
+        }
+
+        return false;
     }
 
     private void balanceFileAdjustment() {

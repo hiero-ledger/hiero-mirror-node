@@ -14,17 +14,20 @@ import com.google.common.collect.Iterators;
 import io.micrometer.core.annotation.Timed;
 import jakarta.inject.Named;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.contract.ContractLog;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -68,10 +71,47 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         final var logUpdaters = parserContext.getTransient(SyntheticLogUpdater.class);
         final var keys = parserContext.getEvmAddressLookupIds();
         final var entityMap = getEvmCache().getAll(keys);
+        final var updatedContractResults = new HashMap<Long, ContractResult>();
 
-        for (var updater : logUpdaters) {
+        for (final var updater : logUpdaters) {
             updater.updateContractLog(entityMap);
+
+            final var contractLog = updater.getContractLog();
+
+            if (contractLog != null) {
+                final var contractResult = contractLog.getContractResult();
+
+                if (contractResult != null && contractLog.getBloom() != null) {
+                    updatedContractResults.put(contractResult.getConsensusTimestamp(), contractResult);
+                }
+            }
         }
+
+        updateRecordFileBloom(recordFile, updatedContractResults.values());
+    }
+
+    private void updateRecordFileBloom(final RecordFile recordFile, final Collection<ContractResult> contractResults) {
+        if (contractResults.isEmpty()) {
+            return;
+        }
+
+        final var aggregatedBloom = aggregateRecordFileBloom(recordFile, contractResults);
+
+        if (aggregatedBloom.length == LogsBloomFilter.BYTE_SIZE) {
+            recordFile.setLogsBloom(aggregatedBloom);
+        }
+    }
+
+    private byte[] aggregateRecordFileBloom(
+            final RecordFile recordFile, final Collection<ContractResult> contractResults) {
+        var aggregatedBloom =
+                recordFile.getLogsBloom() != null ? recordFile.getLogsBloom() : new byte[LogsBloomFilter.BYTE_SIZE];
+
+        for (final var contractResult : contractResults) {
+            aggregatedBloom = LogsBloomFilter.or(contractResult.getBloom(), aggregatedBloom);
+        }
+
+        return aggregatedBloom;
     }
 
     @Override
@@ -130,6 +170,7 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         }
     }
 
+    @Getter(AccessLevel.PACKAGE)
     @RequiredArgsConstructor
     class SyntheticLogUpdater {
         private final EntityId contractId;

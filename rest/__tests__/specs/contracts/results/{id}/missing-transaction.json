@@ -25,7 +25,15 @@
     "ethereumtransactions": [
       {
         "consensus_timestamp": 167654000123457,
-        "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6393"
+        "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6393",
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ]
       }
     ]
   },

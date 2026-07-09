@@ -161,7 +161,7 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
             totalDurationMetric.record(streamFile.getLoadEnd() - streamFile.getLoadStart(), TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             success = false;
-            log.error("Error parsing file {} in {}: {}", streamFile != null ? streamFile.getName() : "", stopwatch, e);
+            log.error("Error parsing file {} in {}: ", streamFile != null ? streamFile.getName() : "", stopwatch, e);
             throw e;
         } finally {
             Timer timer = success ? parseDurationMetricSuccess : parseDurationMetricFailure;

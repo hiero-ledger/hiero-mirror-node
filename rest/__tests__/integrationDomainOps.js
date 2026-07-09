@@ -763,7 +763,6 @@ const addEthereumTransaction = async (ethereumTransaction) => {
 
   convertByteaFields(
     [
-      'access_list',
       'call_data',
       'chain_id',
       'data',
@@ -779,6 +778,10 @@ const addEthereumTransaction = async (ethereumTransaction) => {
     ],
     ethTx
   );
+
+  if (ethTx.access_list != null) {
+    ethTx.access_list = JSONStringify(ethTx.access_list);
+  }
 
   if (ethTx.authorization_list != null) {
     ethTx.authorization_list = JSONStringify(ethTx.authorization_list);
@@ -1288,6 +1291,7 @@ const contractLogDefaults = {
   index: 0,
   payer_account_id: DEFAULT_PAYER_ACCOUNT_ID,
   root_contract_id: null,
+  synthetic: null,
   topic0: '0x97c1fc0a6ed5551bc831571325e9bdb365d06803100dc20648640ba24ce69750',
   topic1: '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925',
   topic2: '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
@@ -1304,9 +1308,14 @@ const addContractLog = async (contractLogInput) => {
 
   convertByteaFields(['bloom', 'data', 'topic0', 'topic1', 'topic2', 'topic3', 'transaction_hash'], contractLog);
   contractLog.contract_id = encodedIdFromSpecValue(contractLog.contract_id);
+  contractLog.payer_account_id = encodedIdFromSpecValue(contractLog.payer_account_id);
   contractLog.root_contract_id = encodedIdFromSpecValue(contractLog.root_contract_id);
 
   await insertDomainObject('contract_log', Object.keys(contractLog), contractLog);
+};
+
+const addSyntheticContractLog = async (contractLogInput) => {
+  return addContractLog({synthetic: true, ...contractLogInput});
 };
 
 const defaultContractStateChange = {
@@ -1803,6 +1812,7 @@ const isHistory = (entity) => 'timestamp_range' in entity && !entity.timestamp_r
 
 export default {
   addAccount,
+  addSyntheticContractLog,
   addCryptoTransaction,
   addNft,
   addStakingRewardTransfer,

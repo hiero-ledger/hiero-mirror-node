@@ -8,6 +8,7 @@ import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.util.Utility;
 import org.springframework.context.ApplicationEventPublisher;
 
 @Named
@@ -38,6 +39,13 @@ final class RegisteredNodeCreateTransactionHandler extends AbstractRegisteredNod
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
         final long registeredNodeId =
                 recordItem.getTransactionRecord().getReceipt().getRegisteredNodeId();
+
+        if (registeredNodeId < 0) {
+            Utility.handleRecoverableError(
+                    "Invalid registered node id %d from RegisteredNodeCreateTransaction receipt at %d",
+                    registeredNodeId, consensusTimestamp);
+            return null;
+        }
 
         final var adminKey = nodeCreate.hasAdminKey() ? nodeCreate.getAdminKey().toByteArray() : null;
         final var builder = RegisteredNode.builder();

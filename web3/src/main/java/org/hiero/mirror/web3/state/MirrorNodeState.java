@@ -12,6 +12,7 @@ import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ST
 import static com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema.NODE_REWARDS_STATE_ID;
 import static com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSchema.TRANSACTION_RECEIPTS_STATE_ID;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.node.app.service.entityid.EntityIdService;
@@ -33,6 +34,9 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import org.hiero.base.crypto.Hash;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.hiero.mirror.web3.repository.properties.CacheProperties;
+import org.hiero.mirror.web3.state.core.CaffeineWritableKVState;
 import org.hiero.mirror.web3.state.core.FunctionReadableSingletonState;
 import org.hiero.mirror.web3.state.core.FunctionWritableSingletonState;
 import org.hiero.mirror.web3.state.core.ListReadableQueueState;
@@ -55,8 +59,20 @@ public class MirrorNodeState implements State {
     // Key is Service, value is Map of state name to state datasource
     private final Map<String, Map<Integer, Object>> states = new HashMap<>();
 
+    // Shared writable KV states keyed by stateId, used only when sharedWritableState is enabled
+    @SuppressWarnings("rawtypes")
+    private final Map<Integer, CaffeineWritableKVState> sharedWritableKvStates = new ConcurrentHashMap<>();
+
+    private final CacheProperties cacheProperties;
+    private final EvmProperties evmProperties;
+
     public MirrorNodeState(
-            final List<SingletonState<?>> singletonStates, final List<AbstractReadableKVState<?, ?>> readableKVStates) {
+            final List<SingletonState<?>> singletonStates,
+            final List<AbstractReadableKVState<?, ?>> readableKVStates,
+            final CacheProperties cacheProperties,
+            final EvmProperties evmProperties) {
+        this.cacheProperties = cacheProperties;
+        this.evmProperties = evmProperties;
         initSingletonStates(singletonStates);
         initKVStates(readableKVStates);
         initQueueStates();
@@ -101,12 +117,8 @@ public class MirrorNodeState implements State {
                 if (state instanceof Queue<?> queue) {
                     data.put(stateId, new ListWritableQueueState<>(serviceName, stateId, queue));
                 } else if (state instanceof ReadableKVState<?, ?>) {
-                    data.put(
-                            stateId,
-                            new MapWritableKVState<>(
-                                    serviceName,
-                                    stateId,
-                                    getReadableStates(serviceName).get(stateId)));
+                    final var readable = getReadableStates(serviceName).get(stateId);
+                    data.put(stateId, buildWritableKVState(serviceName, stateId, readable));
                 } else if (state instanceof SingletonState<?> ref) {
                     data.put(stateId, new FunctionWritableSingletonState<>(serviceName, stateId, ref));
                 }
@@ -142,6 +154,22 @@ public class MirrorNodeState implements State {
     @VisibleForTesting
     Map<String, Map<Integer, Object>> getStates() {
         return Collections.unmodifiableMap(states);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private <K, V> Object buildWritableKVState(
+            final String serviceName, final int stateId, final ReadableKVState<K, V> readable) {
+        if (evmProperties.isSharedWritableState()) {
+            return sharedWritableKvStates.computeIfAbsent(
+                    stateId,
+                    id -> new CaffeineWritableKVState<>(
+                            serviceName,
+                            id,
+                            readable,
+                            Caffeine.from(cacheProperties.getSharedWritableState())
+                                    .build()));
+        }
+        return new MapWritableKVState<>(serviceName, stateId, readable);
     }
 
     private void initSingletonStates(final List<SingletonState<?>> singletonStates) {

@@ -17,15 +17,13 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.Strings;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnCloudPlatform;
-import org.springframework.boot.cloud.CloudPlatform;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.ReactiveHealthIndicator;
 import org.springframework.boot.health.contributor.Status;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-@ConditionalOnCloudPlatform(CloudPlatform.KUBERNETES)
 @CustomLog
 @Named
 @RequiredArgsConstructor
@@ -45,7 +43,7 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
             .withPlural("helmreleases")
             .withVersion("v2")
             .build();
-    private final KubernetesClient client;
+    private final ObjectProvider<KubernetesClient> kubernetesClientProvider;
     private final ReleaseHealthProperties properties;
     private final MeterRegistry meterRegistry;
 
@@ -71,30 +69,37 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
     }
 
     private Mono<Health> createHelmReleaseHealth() {
-        return Mono.fromCallable(this::getHelmRelease)
+        final var kubernetesClient = kubernetesClientProvider.getIfAvailable();
+        if (kubernetesClient == null) {
+            return UNKNOWN;
+        }
+        return Mono.fromCallable(() -> getHelmRelease(kubernetesClient))
                 .cacheInvalidateIf(v -> false)
                 .doOnError(e -> log.error("Unable to get helm release", e))
                 .onErrorComplete()
-                .flatMap(this::getHelmReleaseReadyStatus)
+                .flatMap(release -> getHelmReleaseReadyStatus(kubernetesClient, release))
                 .doOnError(e -> log.error("Unable to get helm release ready status", e))
                 .onErrorComplete()
                 .switchIfEmpty(UNKNOWN)
                 .cache(properties.getCacheExpiry(), Schedulers.newSingle("helmrelease-health-cache"));
     }
 
-    private String getHelmRelease() {
-        var hostname = System.getenv("HOSTNAME");
-        var labels = client.pods().withName(hostname).get().getMetadata().getLabels();
+    private String getHelmRelease(KubernetesClient kubernetesClient) {
+        final var hostname = System.getenv("HOSTNAME");
+        final var labels =
+                kubernetesClient.pods().withName(hostname).get().getMetadata().getLabels();
         return Objects.requireNonNull(labels.get(INSTANCE_LABEL), "No " + INSTANCE_LABEL + " label");
     }
 
     @SuppressWarnings("unchecked")
-    private Mono<Health> getHelmReleaseReadyStatus(String release) {
-        var resource = client.genericKubernetesResources(RESOURCE_DEFINITION_CONTEXT)
+    private Mono<Health> getHelmReleaseReadyStatus(KubernetesClient kubernetesClient, String release) {
+        final var resource = kubernetesClient
+                .genericKubernetesResources(RESOURCE_DEFINITION_CONTEXT)
                 .withName(release)
                 .get();
-        var status = (Map<String, Object>) resource.getAdditionalProperties().get("status");
-        var conditions = (List<Map<String, String>>) status.get("conditions");
+        final var status =
+                (Map<String, Object>) resource.getAdditionalProperties().get("status");
+        final var conditions = (List<Map<String, String>>) status.get("conditions");
         return conditions.stream()
                 .filter(condition -> Strings.CS.equals(condition.get("type"), "Ready"))
                 .findFirst()
@@ -104,12 +109,12 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
     }
 
     private Mono<Health> mapStatus(Map<String, String> condition) {
-        var status = condition.get("status");
+        final var status = condition.get("status");
         if ("True".equals(status)) {
             return UP;
         }
 
-        var reason = condition.get("reason");
+        final var reason = condition.get("reason");
         if (DEPENDENCY_NOT_READY.equals(reason)) {
             return UNKNOWN;
         }

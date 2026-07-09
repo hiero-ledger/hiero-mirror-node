@@ -32,12 +32,10 @@ public class SubscribeProperties {
     private boolean enabled = true;
 
     @NotNull
-    @Valid
-    private Map<String, GrpcSubscriberProperties> grpc = new LinkedHashMap<>();
+    private Map<String, @Valid GrpcSubscriberProperties> grpc = new LinkedHashMap<>();
 
     @NotNull
-    @Valid
-    private Map<String, RestSubscriberProperties> rest = new LinkedHashMap<>();
+    private Map<String, @Valid RestSubscriberProperties> rest = new LinkedHashMap<>();
 
     @DurationMin(seconds = 1L)
     @NotNull

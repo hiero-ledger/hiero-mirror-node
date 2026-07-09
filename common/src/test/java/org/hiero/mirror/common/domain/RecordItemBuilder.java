@@ -167,6 +167,7 @@ import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -183,7 +184,6 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
@@ -201,8 +201,9 @@ import org.springframework.data.util.Version;
 public final class RecordItemBuilder {
 
     public static final ByteString EVM_ADDRESS = ByteString.fromHex("ebb9a1be370150759408cd7af48e9eda2b8ead57");
-    public static final byte[] LONDON_RAW_TX = Hex.decode(
-            "02f87082012a022f2f83018000947e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181880de0b6b3a764000083123456c001a0df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479a01aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66");
+    public static final byte[] LONDON_RAW_TX = HexFormat.of()
+            .parseHex(
+                    "02f87082012a022f2f83018000947e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181880de0b6b3a764000083123456c001a0df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479a01aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66");
     public static final long DEFAULT_GAS_USED = 100000L;
 
     private static final long INITIAL_ID = 1000L;
@@ -538,6 +539,7 @@ public final class RecordItemBuilder {
                 .setAlias(bytes(20))
                 .setAutoRenewPeriod(duration(30))
                 .setDeclineReward(true)
+                .setDelegationAddress(bytes(20))
                 .setInitialBalance(10_000_000_000_000L)
                 .setKey(key())
                 .setMaxAutomaticTokenAssociations(2)
@@ -657,6 +659,7 @@ public final class RecordItemBuilder {
                 .setAutoRenewPeriod(duration(30))
                 .setAccountIDToUpdate(accountId)
                 .setDeclineReward(BoolValue.of(true))
+                .setDelegationAddress(bytes(20))
                 .setKey(key())
                 .setProxyAccountID(accountId())
                 .setReceiverSigRequired(false)
@@ -1380,6 +1383,10 @@ public final class RecordItemBuilder {
         return new Builder<>(TransactionType.HOOKSTORE, body);
     }
 
+    public long id() {
+        return id.incrementAndGet();
+    }
+
     public ByteString bytes(int length) {
         byte[] bytes = randomBytes(length);
         return ByteString.copyFrom(bytes);
@@ -1403,6 +1410,14 @@ public final class RecordItemBuilder {
 
     public ByteString slot() {
         return fromBytes(trim(randomBytes(32)));
+    }
+
+    public TransactionSidecarRecord.Builder contractBytecode(ContractID contractId) {
+        var contractBytecode = ContractBytecode.newBuilder()
+                .setContractId(contractId)
+                .setInitcode(bytes(2048))
+                .setRuntimeBytecode(bytes(3048));
+        return TransactionSidecarRecord.newBuilder().setBytecode(contractBytecode);
     }
 
     public TransactionSidecarRecord.Builder contractStateChanges(ContractID contractId) {
@@ -1470,14 +1485,6 @@ public final class RecordItemBuilder {
                 .setValue(20);
     }
 
-    private TransactionSidecarRecord.Builder contractBytecode(ContractID contractId) {
-        var contractBytecode = ContractBytecode.newBuilder()
-                .setContractId(contractId)
-                .setInitcode(bytes(2048))
-                .setRuntimeBytecode(bytes(3048));
-        return TransactionSidecarRecord.newBuilder().setBytecode(contractBytecode);
-    }
-
     private ContractLoginfo contractLoginfo(ContractID contractId) {
         var topics = IntStream.range(0, 4).mapToObj(x -> bytes(32)).toList();
         return ContractLoginfo.newBuilder()
@@ -1535,10 +1542,6 @@ public final class RecordItemBuilder {
                 .setStake(stake)
                 .setStakeNotRewarded(TINYBARS_IN_ONE_HBAR)
                 .setStakeRewarded(stake - TINYBARS_IN_ONE_HBAR);
-    }
-
-    private long id() {
-        return id.incrementAndGet();
     }
 
     private int port() {

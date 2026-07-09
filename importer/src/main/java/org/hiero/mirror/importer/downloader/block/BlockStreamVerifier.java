@@ -43,6 +43,7 @@ final class BlockStreamVerifier {
 
     private static final String BLOCK_NODE_TAG = "block_node";
     private static final String HASH_TYPE_PREVIOUS = "Previous";
+    private static final String HASH_TYPE_PREVIOUS_WRAPPED_RECORD_BLOCK = "Previous wrapped record block";
     private static final String WRAPPED_TAG = "wrapped";
 
     private final BlockFileTransformer blockFileTransformer;
@@ -154,7 +155,7 @@ final class BlockStreamVerifier {
         final var ledger = ledgerIdPublicationTransactionParser.parse(
                 transaction.getConsensusTimestamp(),
                 transaction.getTransactionBody().getLedgerIdPublication());
-        tssVerifier.setLedger(ledger);
+        tssVerifier.setLedger(ledger, false);
     }
 
     private void verifyBlockNumber(final BlockFile blockFile) {
@@ -210,11 +211,21 @@ final class BlockStreamVerifier {
             final byte[] previousWrappedRecordBlockHash = last.getWrappedRecordBlockHash();
             if (previousWrappedRecordBlockHash != null
                     && !Arrays.equals(recordFile.getPreviousWrappedRecordBlockHash(), previousWrappedRecordBlockHash)) {
-                throw new HashMismatchException(
-                        recordFile.getName(),
-                        previousWrappedRecordBlockHash,
-                        recordFile.getPreviousWrappedRecordBlockHash(),
-                        "Previous wrapped record block");
+                final var blockProof = blockFile.getBlockProof();
+                if (blockProof.hasBlockStateProof() || blockProof.hasSignedBlockProof()) {
+                    throw new HashMismatchException(
+                            recordFile.getName(),
+                            previousWrappedRecordBlockHash,
+                            recordFile.getPreviousWrappedRecordBlockHash(),
+                            HASH_TYPE_PREVIOUS_WRAPPED_RECORD_BLOCK);
+                } else {
+                    Utility.handleRecoverableError(
+                            "{} hash mismatch for file {}. Expected = {}, Actual = {}",
+                            HASH_TYPE_PREVIOUS_WRAPPED_RECORD_BLOCK,
+                            recordFile.getName(),
+                            Hex.toHexString(previousWrappedRecordBlockHash),
+                            Hex.toHexString(recordFile.getPreviousWrappedRecordBlockHash()));
+                }
             }
         } else {
             // First block after cutover

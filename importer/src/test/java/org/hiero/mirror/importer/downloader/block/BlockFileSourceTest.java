@@ -6,6 +6,7 @@ import static org.apache.commons.lang3.StringUtils.countMatches;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.importer.TestUtils.S3_PROXY_PORT;
+import static org.hiero.mirror.importer.TestUtils.findAllMatches;
 import static org.hiero.mirror.importer.TestUtils.generateRandomByteArray;
 import static org.hiero.mirror.importer.TestUtils.zstd;
 import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_BLOCK_FILES;
@@ -32,10 +33,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Optional;
-import java.util.regex.Pattern;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -63,6 +61,7 @@ import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 import org.hiero.mirror.importer.reader.block.BlockStreamReaderImpl;
+import org.hiero.mirror.importer.reader.block.InitialStateReader;
 import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
 import org.hiero.mirror.importer.reader.block.record.CompositeRecordFileItemReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -167,7 +166,8 @@ final class BlockFileSourceTest {
                 cutoverService,
                 mock(TssVerifier.class)));
         blockFileSource = new BlockFileSource(
-                new BlockStreamReaderImpl(new CompositeRecordFileItemReader(new SidecarProperties())),
+                new BlockStreamReaderImpl(
+                        mock(InitialStateReader.class), new CompositeRecordFileItemReader(new SidecarProperties())),
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 cutoverService,
@@ -395,7 +395,8 @@ final class BlockFileSourceTest {
         when(streamFileProvider.get(any()))
                 .thenReturn(Mono.delay(Duration.ofMillis(120L)).then(Mono.empty()));
         final var source = new BlockFileSource(
-                new BlockStreamReaderImpl(new CompositeRecordFileItemReader(new SidecarProperties())),
+                new BlockStreamReaderImpl(
+                        mock(InitialStateReader.class), new CompositeRecordFileItemReader(new SidecarProperties())),
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 cutoverService,
@@ -424,7 +425,8 @@ final class BlockFileSourceTest {
         importerProperties.setStartBlockNumber(-1L);
         final var streamFileProvider = mock(StreamFileProvider.class);
         final var source = new BlockFileSource(
-                new BlockStreamReaderImpl(new CompositeRecordFileItemReader(new SidecarProperties())),
+                new BlockStreamReaderImpl(
+                        mock(InitialStateReader.class), new CompositeRecordFileItemReader(new SidecarProperties())),
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 cutoverService,
@@ -524,14 +526,5 @@ final class BlockFileSourceTest {
         assertThat(actualFile).isFile();
         final byte[] actual = FileUtils.readFileToByteArray(actualFile);
         assertThat(actual).isEqualTo(expected);
-    }
-
-    private Collection<String> findAllMatches(String message, String pattern) {
-        var matcher = Pattern.compile(pattern).matcher(message);
-        var result = new ArrayList<String>();
-        while (matcher.find()) {
-            result.add(matcher.group());
-        }
-        return result;
     }
 }

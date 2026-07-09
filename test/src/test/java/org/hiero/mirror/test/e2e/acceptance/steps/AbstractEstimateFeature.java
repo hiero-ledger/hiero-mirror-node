@@ -6,8 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.PURE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
-import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.UPDATE_TOKEN_KEYS;
-import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.UPDATE_TOKEN_KEYS_SIMPLE_FEES;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 
 import com.google.common.base.Suppliers;
@@ -117,15 +115,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
         var estimateGasResult =
                 mirrorClient.estimateGasQueryTopLevelCall(contractId, method, params, sender, Optional.empty());
 
-        assertWithinDeviation(
-                UPDATE_TOKEN_KEYS.getSelector().equals(method.getSelector())
-                        ? web3Properties.isSimpleFees()
-                                ? UPDATE_TOKEN_KEYS_SIMPLE_FEES.getActualGas()
-                                : method.getActualGas()
-                        : method.getActualGas(),
-                (int) estimateGasResult,
-                lowerDeviation,
-                upperDeviation);
+        assertWithinDeviation(method.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
 
         if (contractClient
                         .getSdkClient()

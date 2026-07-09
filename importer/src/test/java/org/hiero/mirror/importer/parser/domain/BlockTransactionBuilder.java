@@ -46,7 +46,6 @@ import com.hedera.hapi.block.stream.trace.protoc.ExecutedInitcode;
 import com.hedera.hapi.block.stream.trace.protoc.InitcodeBookends;
 import com.hedera.hapi.block.stream.trace.protoc.SlotRead;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
-import com.hedera.hapi.platform.state.legacy.NodeId;
 import com.hedera.services.stream.proto.ContractStateChanges;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.Account;
@@ -395,6 +394,23 @@ public class BlockTransactionBuilder {
     public Builder cryptoCreate(RecordItem recordItem) {
         var transactionRecord = recordItem.getTransactionRecord();
         var accountId = transactionRecord.getReceipt().getAccountID();
+        var transactionBody = recordItem.getTransactionBody().getCryptoCreateAccount();
+        final var account = Account.newBuilder().setAccountId(accountId);
+        if (recordItem.getAccountEthereumNonce() != null) {
+            account.setEthereumNonce(recordItem.getAccountEthereumNonce());
+        }
+        if (!transactionBody.getAlias().isEmpty()) {
+            account.setAlias(transactionBody.getAlias());
+        }
+
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_ACCOUNTS_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setAccountIdKey(accountId))
+                                .setValue(MapChangeValue.newBuilder().setAccountValue(account))))
+                .build();
+
         var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
         if (recordItem.isSuccessful()) {
             transactionOutputs.put(
@@ -410,7 +426,7 @@ public class BlockTransactionBuilder {
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 transactionOutputs,
-                Collections.emptyList(),
+                List.of(stateChanges),
                 Collections.emptyList());
     }
 
@@ -433,6 +449,9 @@ public class BlockTransactionBuilder {
                 recordItem.getTransactionBody().getCryptoUpdateAccount().getAccountIDToUpdate();
         final var accountId = recordItem.getTransactionRecord().getReceipt().getAccountID();
         final var account = Account.newBuilder().setAccountId(accountId);
+        if (recordItem.getAccountEthereumNonce() != null) {
+            account.setEthereumNonce(recordItem.getAccountEthereumNonce());
+        }
         if (accountIdToUpdate.hasAlias()) {
             account.setAlias(accountIdToUpdate.getAlias());
         }
@@ -556,7 +575,7 @@ public class BlockTransactionBuilder {
         final long registeredNodeId =
                 recordItem.getTransactionRecord().getReceipt().getRegisteredNodeId();
         final var key = MapChangeKey.newBuilder()
-                .setNodeIdKey(NodeId.newBuilder().setId(registeredNodeId))
+                .setEntityNumberKey(UInt64Value.of(registeredNodeId))
                 .build();
         final var value = MapChangeValue.newBuilder()
                 .setRegisteredNodeValue(RegisteredNode.newBuilder().setRegisteredNodeId(registeredNodeId))

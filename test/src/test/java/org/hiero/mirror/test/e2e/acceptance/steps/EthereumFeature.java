@@ -34,6 +34,7 @@ import org.hiero.mirror.test.e2e.acceptance.client.EthereumClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
+import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.http.HttpStatus;
 import org.web3j.crypto.transaction.type.TransactionType;
@@ -41,30 +42,21 @@ import org.web3j.crypto.transaction.type.TransactionType;
 @RequiredArgsConstructor
 public class EthereumFeature extends AbstractEstimateFeature {
 
-    protected final EthereumClient ethereumClient;
-
-    protected final AccountClient accountClient;
-
-    private final Web3Properties web3Properties;
-
-    protected AccountId ethereumSignerAccount;
-    protected PrivateKey ethereumSignerPrivateKey;
-    private String account;
-
-    private byte[] childContractBytecodeFromParent;
-
     private static final BigDecimal INITIAL_BALANCE = BigDecimal.valueOf(1.0); // usd
-
+    protected final EthereumClient ethereumClient;
+    protected final AccountClient accountClient;
+    private final Web3Properties web3Properties;
+    protected ExpandedAccountId signerAccount;
+    private String account;
+    private byte[] childContractBytecodeFromParent;
     private long estimatedGasForHollowAccountCreation;
 
     @Given("I successfully created a signer account with an EVM address alias")
     public void createAccountWithEvmAddressAlias() {
         // Create new signer account with EVM address and ECDSA key
-        var signerAccount = accountClient.createNewAccount(INITIAL_BALANCE, AccountNameEnum.BOB);
-        ethereumSignerAccount = signerAccount.getAccountId();
-        ethereumSignerPrivateKey = signerAccount.getPrivateKey();
+        signerAccount = accountClient.createNewAccount(INITIAL_BALANCE, AccountNameEnum.BOB);
 
-        var accountInfo = mirrorClient.getAccountDetailsByAccountId(ethereumSignerAccount);
+        var accountInfo = mirrorClient.getAccountDetailsByAccountId(signerAccount.getAccountId());
         account = accountInfo.getAccount();
     }
 
@@ -145,13 +137,13 @@ public class EthereumFeature extends AbstractEstimateFeature {
         // Prepare a non-existing EVM address (hollow account alias) as the recipient
         var hollowAccountKey = PrivateKey.generateECDSA();
         var hollowAccountEvmAddress = hollowAccountKey.getPublicKey().toEvmAddress();
-        var senderEvmAddress = ethereumSignerAccount.toEvmAddress();
+        var senderEvmAddress = signerAccount.getAccountId().toEvmAddress();
         var value = EthereumClient.WEIBARS_TO_TINYBARS.multiply(BigInteger.ONE);
 
         // Estimate gas on the mirror node for a value transfer that will trigger hollow account creation
         var contractCallRequest = ModelBuilder.contractCallRequest()
                 .to(hollowAccountEvmAddress.toString())
-                .from(senderEvmAddress.toString())
+                .from(senderEvmAddress)
                 .data("0x") // Empty data for a pure value transfer
                 .estimate(true)
                 .value(value.longValue());
@@ -161,8 +153,8 @@ public class EthereumFeature extends AbstractEstimateFeature {
                 Bytes.fromHexString(estimateResponse.getResult()).toBigInteger().longValue();
 
         // Send the actual ethereum transaction to the consensus node
-        networkTransactionResponse = ethereumClient.transferValue(
-                ethereumSignerPrivateKey, hollowAccountEvmAddress.toString(), value, EIP1559);
+        networkTransactionResponse =
+                ethereumClient.transferValue(signerAccount, hollowAccountEvmAddress.toString(), value, EIP1559);
 
         // Compare the mirror estimate with the actual gas used
         var txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
@@ -170,15 +162,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
         int actualGasUsed = contractResult.getGasConsumed().intValue();
 
         assertWithinDeviation(
-                actualGasUsed,
-                (int)
-                        (web3Properties.isSimpleFees()
-                                ? estimatedGasForHollowAccountCreation
-                                :
-                                // temporarily add more gas to cover the increased expense from enabling simple fees
-                                estimatedGasForHollowAccountCreation + 25_000),
-                lowerDeviation,
-                upperDeviation);
+                actualGasUsed, (int) estimatedGasForHollowAccountCreation, lowerDeviation - 2, upperDeviation);
     }
 
     @And("the mirror node contract results opcodes API should return a non-empty response")
@@ -186,14 +170,19 @@ public class EthereumFeature extends AbstractEstimateFeature {
         if (!web3Properties.getOpcodeTracer().isEnabled()) {
             return;
         }
-        log.info("Opcode tracer is enabled -> verify contract results opcodes against web3.");
-        String txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
-        var opcodes = mirrorClient.getContractResultsOpcodes(txId);
+
+        final var txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
+        final var opcodes = mirrorClient.getContractResultsOpcodes(txId);
+
         assertThat(opcodes).isNotNull();
         // Just verify that a list of opcodes is returned as any other static resource might get
         // quickly out of sync on EVM bumps and this would be hard to maintain and there is already a
         // stricter validation in the web3 module.
         assertThat(opcodes.getOpcodes()).isNotEmpty();
+
+        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
+            System.out.println("TRANSACTION_ID=" + txId);
+        }
     }
 
     @And("I set lower deviation to {int}% and upper deviation to {int}%")
@@ -210,7 +199,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
             var fileId = persistContractBytes(fileContent);
 
             networkTransactionResponse = ethereumClient.createContract(
-                    ethereumSignerPrivateKey, fileId, fileContent, contractResource.getInitialBalance());
+                    signerAccount.getPrivateKey(), fileId, fileContent, contractResource.getInitialBalance());
             ContractId createdContractId = verifyCreateContractNetworkResponse();
             return new DeployedContract(fileId, createdContractId, compiledSolidityArtifact);
         } catch (IOException e) {
@@ -222,8 +211,8 @@ public class EthereumFeature extends AbstractEstimateFeature {
     private ContractClient.ExecuteContractResult executeEthereumTransaction(
             ContractId contractId, String functionName, ContractFunctionParameters parameters, TransactionType type) {
 
-        ContractClient.ExecuteContractResult executeContractResult =
-                ethereumClient.executeContract(ethereumSignerPrivateKey, contractId, functionName, parameters, type);
+        ContractClient.ExecuteContractResult executeContractResult = ethereumClient.executeContract(
+                signerAccount.getPrivateKey(), contractId, functionName, parameters, type);
 
         networkTransactionResponse = executeContractResult.networkTransactionResponse();
         assertThat(networkTransactionResponse.getTransactionId()).isNotNull();

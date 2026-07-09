@@ -4,7 +4,7 @@ import {check, sleep} from 'k6';
 import {vu, scenario as k6Scenario} from 'k6/execution';
 import http from 'k6/http';
 import {SharedArray} from 'k6/data';
-import {sanitizeScenarioName} from '../../lib/common.js';
+import {recordRequestDuration, sanitizeScenarioName} from '../../lib/common.js';
 
 import * as utils from '../../lib/common.js';
 
@@ -101,10 +101,10 @@ function ContractCallTestScenarioBuilder() {
   this._name = null;
   this._selector = null;
   this._scenario = null;
-  this._tags = {};
   this._to = null;
   this._vuData = null;
   this._shouldRevert = false;
+  this._tags = {suite: 'WEB3', url: '/contracts/call'};
   this._blocks = null;
   this._data = null;
   this._estimate = null;
@@ -127,7 +127,7 @@ function ContractCallTestScenarioBuilder() {
       const block = that._blocks[i];
       const sanitized = sanitizeScenarioName(String(block));
       const scenarioName = `${that._name}-${sanitized}`;
-      const options = utils.getOptionsWithScenario(scenarioName, that._scenario);
+      const options = utils.getOptionsWithScenario(scenarioName, that._scenario, that._tags);
 
       if (!combinedOptions) {
         combinedOptions = options;
@@ -168,9 +168,10 @@ function ContractCallTestScenarioBuilder() {
       }
 
       const response = jsonPost(that._url, JSON.stringify(payload));
-      check(response, {
+      const passed = check(response, {
         [`${k6Scenario.name}`]: (r) => (that._shouldRevert ? !isNonErrorResponse(r) : isNonErrorResponse(r)),
       });
+      recordRequestDuration(response, passed);
 
       if (sleepSecs > 0) {
         sleep(sleepSecs);
@@ -197,7 +198,7 @@ function ContractCallTestScenarioBuilder() {
   };
 
   this.tags = function (tags) {
-    this._tags = tags;
+    Object.assign(this._tags, tags);
     return this;
   };
 

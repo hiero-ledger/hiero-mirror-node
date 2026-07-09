@@ -78,7 +78,7 @@ final class ActuatorHttpServer implements InitializingBean, DisposableBean {
             }
             final var resolved = healthResolver.apply(group);
             final var status = resolved != null ? resolved : Status.DOWN;
-            final int httpStatus = HttpCodeStatusMapper.DEFAULT.getStatusCode(status);
+            final int httpStatus = HttpCodeStatusMapper.getDefault().getStatusCode(status);
             final var body = objectMapper.writeValueAsBytes(Map.of("status", status.getCode()));
             exchange.getResponseHeaders().set(CONTENT_TYPE, APPLICATION_JSON);
             exchange.sendResponseHeaders(httpStatus, body.length);

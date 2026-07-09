@@ -66,9 +66,10 @@ public class PollingTopicMessageRetriever implements TopicMessageRetriever {
         TopicMessageFilter filter = context.getFilter();
         TopicMessage last = context.getLast();
         int limit = filter.hasLimit()
-                ? (int) (filter.getLimit() - context.getTotal().get())
+                ? (int) (Math.min(filter.getLimit(), Integer.MAX_VALUE)
+                        - context.getTotal().get())
                 : Integer.MAX_VALUE;
-        int pageSize = Math.min(limit, context.getMaxPageSize());
+        int pageSize = Math.max(1, Math.min(limit, context.getMaxPageSize()));
         var startTime = last != null ? last.getConsensusTimestamp() + 1 : filter.getStartTime();
         context.getPageSize().set(0L);
 
@@ -119,6 +120,10 @@ public class PollingTopicMessageRetriever implements TopicMessageRetriever {
          * @return whether all historic messages have been returned
          */
         boolean isComplete() {
+            if (total.get() == 0L) {
+                return true;
+            }
+
             boolean limitHit = filter.hasLimit() && filter.getLimit() == total.get();
 
             if (throttled) {
@@ -137,10 +142,12 @@ public class PollingTopicMessageRetriever implements TopicMessageRetriever {
         void onComplete() {
             var elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
             var rate = elapsed > 0 ? (int) (1000.0 * total.get() / elapsed) : 0;
+            final long queries = Math.ceilDiv(total.get(), maxPageSize);
             log.info(
-                    "[{}] Finished retrieving {} messages in {} ({}/s)",
+                    "[{}] Finished retrieving {} messages across {} queries in {} ({}/s)",
                     filter.getSubscriberId(),
                     total,
+                    queries,
                     stopwatch,
                     rate);
         }

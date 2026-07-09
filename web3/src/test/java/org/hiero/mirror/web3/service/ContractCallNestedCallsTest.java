@@ -23,6 +23,8 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.web3.service.AbstractContractCallServiceTest.KeyType;
+import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls.HederaToken;
@@ -34,6 +36,11 @@ import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.web3j.abi.FunctionReturnDecoder;
+import org.web3j.abi.TypeReference;
+import org.web3j.abi.datatypes.Bool;
+import org.web3j.abi.datatypes.Type;
+import org.web3j.abi.datatypes.Utf8String;
 
 class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTracerTest {
     private static final String EXPECTED_RESULT_NEGATIVE_TESTS = "hardcodedResult";
@@ -69,8 +76,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                             DELEGATABLE_CONTRACT_ID,    FEE_SCHEDULE_KEY,
                             DELEGATABLE_CONTRACT_ID,    PAUSE_KEY,
                             """)
-    void updateTokenKeysAndGetUpdatedTokenKeyForFungibleToken(final KeyValueType keyValueType, final KeyType keyType)
-            throws Exception {
+    void updateTokenKeysAndGetUpdatedTokenKeyForFungibleToken(final KeyValueType keyValueType, final KeyType keyType) {
         // Given
         final var token = fungibleTokenPersistWithTreasuryAccount(
                 domainBuilder.entity().persist().toEntityId());
@@ -82,17 +88,13 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final var tokenKey = new TokenKey(keyType.getKeyTypeNumeric(), keyValue);
 
         // When
-        final var result = contract.call_updateTokenKeysAndGetUpdatedTokenKey(
-                        tokenAddress.toHexString(), List.of(tokenKey), keyType.getKeyTypeNumeric())
-                .send();
-
-        // Then
-        assertThat(result).isEqualTo(keyValue);
-
         final var functionCall = contract.send_updateTokenKeysAndGetUpdatedTokenKey(
                 tokenAddress.toHexString(), List.of(tokenKey), keyType.getKeyTypeNumeric());
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        // Then
+        final KeyValue decodedKeyValue = decodeFirst(executionResult.result(), KeyValue.class);
+        assertThat(decodedKeyValue).isEqualTo(keyValue);
     }
 
     @ParameterizedTest
@@ -126,8 +128,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                             DELEGATABLE_CONTRACT_ID,    FEE_SCHEDULE_KEY,
                             DELEGATABLE_CONTRACT_ID,    PAUSE_KEY
                             """)
-    void updateTokenKeysAndGetUpdatedTokenKeyForNFT(final KeyValueType keyValueType, final KeyType keyType)
-            throws Exception {
+    void updateTokenKeysAndGetUpdatedTokenKeyForNFT(final KeyValueType keyValueType, final KeyType keyType) {
         // Given
         final var token = nftPersist();
         final var tokenAddress = toAddress(token.getTokenId()).toHexString();
@@ -138,17 +139,13 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final var tokenKey = new TokenKey(keyType.getKeyTypeNumeric(), keyValue);
 
         // When
-        final var result = contract.call_updateTokenKeysAndGetUpdatedTokenKey(
-                        tokenAddress, List.of(tokenKey), keyType.getKeyTypeNumeric())
-                .send();
-
-        // Then
-        assertThat(result).isEqualTo(keyValue);
-
         final var functionCall = contract.send_updateTokenKeysAndGetUpdatedTokenKey(
                 tokenAddress, List.of(tokenKey), keyType.getKeyTypeNumeric());
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        // Then
+        final KeyValue decodedKeyValue = decodeFirst(executionResult.result(), KeyValue.class);
+        assertThat(decodedKeyValue).isEqualTo(keyValue);
     }
 
     @ParameterizedTest
@@ -156,7 +153,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             FUNGIBLE_COMMON
             NON_FUNGIBLE_UNIQUE
             """)
-    void updateTokenExpiryAndGetUpdatedTokenExpiry(final TokenTypeEnum tokenType) throws Exception {
+    void updateTokenExpiryAndGetUpdatedTokenExpiry(final TokenTypeEnum tokenType) {
         // Given
         final var treasury = accountEntityPersist();
         final var tokenWithAutoRenewPair = persistTokenWithAutoRenewAndTreasuryAccounts(tokenType, treasury);
@@ -169,17 +166,13 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 BigInteger.valueOf(8_000_000));
 
         // When
-        final var result = contract.call_updateTokenExpiryAndGetUpdatedTokenExpiry(
-                        tokenAddress.toHexString(), tokenExpiry)
-                .send();
-
-        // Then
-        assertThat(result).isEqualTo(tokenExpiry);
-
         final var functionCall =
                 contract.send_updateTokenExpiryAndGetUpdatedTokenExpiry(tokenAddress.toHexString(), tokenExpiry);
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        // Then
+        assertThat(decodeFirst(executionResult.result(), NestedCalls.Expiry.class))
+                .isEqualTo(tokenExpiry);
     }
 
     @ParameterizedTest
@@ -187,7 +180,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             FUNGIBLE_COMMON
             NON_FUNGIBLE_UNIQUE
             """)
-    void updateTokenInfoAndGetUpdatedTokenInfoSymbol(final TokenTypeEnum tokenType) throws Exception {
+    void updateTokenInfoAndGetUpdatedTokenInfoSymbol(final TokenTypeEnum tokenType) {
         // Given
         final var treasury = accountEntityPersist();
         Pair<Entity, Entity> tokenWithAutoRenewPair = persistTokenWithAutoRenewAndTreasuryAccounts(tokenType, treasury);
@@ -198,17 +191,13 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 contract.getContractAddress(), tokenType, treasury.toEntityId(), tokenWithAutoRenewPair.getRight());
 
         // When
-        final var result = contract.call_updateTokenInfoAndGetUpdatedTokenInfoSymbol(
-                        tokenAddress.toHexString(), tokenInfo)
-                .send();
-
-        // Then
-        assertThat(result).isEqualTo(tokenInfo.symbol);
-
         final var functionCall =
                 contract.send_updateTokenInfoAndGetUpdatedTokenInfoSymbol(tokenAddress.toHexString(), tokenInfo);
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        // Then
+        assertThat(decodeFirst(executionResult.result(), Utf8String.class).getValue())
+                .isEqualTo(tokenInfo.symbol);
     }
 
     @ParameterizedTest
@@ -216,7 +205,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             FUNGIBLE_COMMON
             NON_FUNGIBLE_UNIQUE
             """)
-    void updateTokenInfoAndGetUpdatedTokenInfoName(final TokenTypeEnum tokenType) throws Exception {
+    void updateTokenInfoAndGetUpdatedTokenInfoName(final TokenTypeEnum tokenType) {
         // Given
         final var treasury = accountEntityPersist();
         Pair<Entity, Entity> tokenWithAutoRenewPair = persistTokenWithAutoRenewAndTreasuryAccounts(tokenType, treasury);
@@ -227,17 +216,13 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 contract.getContractAddress(), tokenType, treasury.toEntityId(), tokenWithAutoRenewPair.getRight());
 
         // When
-        final var result = contract.call_updateTokenInfoAndGetUpdatedTokenInfoName(
-                        tokenAddress.toHexString(), tokenInfo)
-                .send();
-
-        // Then
-        assertThat(result).isEqualTo(tokenInfo.name);
-
         final var functionCall =
                 contract.send_updateTokenInfoAndGetUpdatedTokenInfoName(tokenAddress.toHexString(), tokenInfo);
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        // Then
+        assertThat(decodeFirst(executionResult.result(), Utf8String.class).getValue())
+                .isEqualTo(tokenInfo.name);
     }
 
     @ParameterizedTest
@@ -245,7 +230,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             FUNGIBLE_COMMON
             NON_FUNGIBLE_UNIQUE
             """)
-    void updateTokenInfoAndGetUpdatedTokenInfoMemo(final TokenTypeEnum tokenType) throws Exception {
+    void updateTokenInfoAndGetUpdatedTokenInfoMemo(final TokenTypeEnum tokenType) {
         // Given
         final var treasury = accountEntityPersist();
         Pair<Entity, Entity> tokenWithAutoRenewPair = persistTokenWithAutoRenewAndTreasuryAccounts(tokenType, treasury);
@@ -256,17 +241,13 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 contract.getContractAddress(), tokenType, treasury.toEntityId(), tokenWithAutoRenewPair.getRight());
 
         // When
-        final var result = contract.call_updateTokenInfoAndGetUpdatedTokenInfoMemo(
-                        tokenAddress.toHexString(), tokenInfo)
-                .send();
-
-        // Then
-        assertThat(result).isEqualTo(tokenInfo.memo);
-
         final var functionCall =
                 contract.send_updateTokenInfoAndGetUpdatedTokenInfoMemo(tokenAddress.toHexString(), tokenInfo);
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        // Then
+        assertThat(decodeFirst(executionResult.result(), Utf8String.class).getValue())
+                .isEqualTo(tokenInfo.memo);
     }
 
     @ParameterizedTest
@@ -274,7 +255,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             FUNGIBLE_COMMON
             NON_FUNGIBLE_UNIQUE
             """)
-    void deleteTokenAndGetTokenInfoIsDeleted(final TokenTypeEnum tokenType) throws Exception {
+    void deleteTokenAndGetTokenInfoIsDeleted(final TokenTypeEnum tokenType) {
         // Given
         final var treasury = accountEntityPersist();
         final var tokenEntityId = persistTokenWithAutoRenewAndTreasuryAccounts(tokenType, treasury)
@@ -283,15 +264,11 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
 
         // When
-        final var result = contract.call_deleteTokenAndGetTokenInfoIsDeleted(tokenAddress.toHexString())
-                .send();
+        final var functionCall = contract.send_deleteTokenAndGetTokenInfoIsDeleted(tokenAddress.toHexString());
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGas(functionCall, contract);
 
         // Then
-        assertThat(result).isTrue();
-
-        final var functionCall = contract.send_deleteTokenAndGetTokenInfoIsDeleted(tokenAddress.toHexString());
-
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        assertThat(decodeFirst(executionResult.result(), Bool.class).getValue()).isEqualTo(Boolean.TRUE);
     }
 
     @ParameterizedTest
@@ -304,8 +281,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             final boolean withKeys,
             final boolean inheritKey,
             boolean defaultKycStatus,
-            final boolean defaultFreezeStatus)
-            throws Exception {
+            final boolean defaultFreezeStatus) {
         // Given
         final var sender = accountEntityWithSufficientBalancePersist();
         final var treasury = accountEntityWithSufficientBalancePersist();
@@ -321,21 +297,17 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
 
         // When
-        final var result =
-                contract.call_createFungibleTokenAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
-                                tokenInfo, BigInteger.ONE, BigInteger.ONE)
-                        .send();
-
-        // Then
-        assertThat(result.component1()).isEqualTo(defaultKycStatus);
-        assertThat(result.component2()).isEqualTo(defaultFreezeStatus);
-        assertThat(result.component3()).isTrue(); // is a token
-
         final var functionCall =
                 contract.send_createFungibleTokenAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
                         tokenInfo, BigInteger.ONE, BigInteger.ONE, BigInteger.valueOf(CREATE_TOKEN_VALUE));
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGasWithValue(
+                functionCall, contract, toAddress(treasury.getId()), CREATE_TOKEN_VALUE);
 
-        verifyEthCallAndEstimateGasWithValue(functionCall, contract, toAddress(treasury.getId()), CREATE_TOKEN_VALUE);
+        // Then
+        final var decoded = decodeResult(executionResult.result(), Bool.class, Bool.class, Bool.class);
+        assertThat(decoded.get(0).getValue()).isEqualTo(defaultKycStatus);
+        assertThat(decoded.get(1).getValue()).isEqualTo(defaultFreezeStatus);
+        assertThat(decoded.get(2).getValue()).isEqualTo(Boolean.TRUE); // is a token
     }
 
     @ParameterizedTest
@@ -348,8 +320,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             final boolean withKeys,
             final boolean inheritKey,
             boolean defaultKycStatus,
-            final boolean defaultFreezeStatus)
-            throws Exception {
+            final boolean defaultFreezeStatus) {
         // Given
         final var sender = accountEntityWithSufficientBalancePersist();
         final var treasury = accountEntityWithSufficientBalancePersist();
@@ -365,19 +336,16 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
 
         // When
-        final var result = contract.call_createNFTAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
-                        tokenInfo)
-                .send();
-
-        // Then
-        assertThat(result.component1()).isEqualTo(defaultKycStatus);
-        assertThat(result.component2()).isEqualTo(defaultFreezeStatus);
-        assertThat(result.component3()).isTrue(); // is a token
-
         final var functionCall = contract.send_createNFTAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
                 tokenInfo, BigInteger.valueOf(CREATE_TOKEN_VALUE));
+        final ContractExecutionResult executionResult = verifyEthCallAndEstimateGasWithValue(
+                functionCall, contract, toAddress(treasury.getId()), CREATE_TOKEN_VALUE);
 
-        verifyEthCallAndEstimateGasWithValue(functionCall, contract, toAddress(treasury.getId()), CREATE_TOKEN_VALUE);
+        // Then
+        final var decoded = decodeResult(executionResult.result(), Bool.class, Bool.class, Bool.class);
+        assertThat(decoded.get(0).getValue()).isEqualTo(defaultKycStatus);
+        assertThat(decoded.get(1).getValue()).isEqualTo(defaultFreezeStatus);
+        assertThat(decoded.get(2).getValue()).isEqualTo(Boolean.TRUE); // is a token
     }
 
     @Test
@@ -443,6 +411,20 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         assertThat(result.getValue1()).isNotEqualTo(result.getValue2());
         // verify that contract balances are different
         assertThat(result.getValue3()).isNotEqualTo(result.getValue4());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T extends Type> T decodeFirst(final String hexResult, final Class<T> type) {
+        return (T) decodeResult(hexResult, type).get(0);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Type> decodeResult(final String hexResult, final Class<?>... types) {
+        final List<TypeReference<Type>> typeRefs = new ArrayList<>();
+        for (final Class<?> t : types) {
+            typeRefs.add(TypeReference.create((Class<Type>) t));
+        }
+        return FunctionReturnDecoder.decode(hexResult, typeRefs);
     }
 
     private KeyValue getKeyValueForType(final KeyValueType keyValueType, String contractAddress) {

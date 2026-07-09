@@ -6,6 +6,8 @@ set -euo pipefail
 
 source ./utils/utils.sh
 
+requireCommand gcloud
+
 GCP_TARGET_PROJECT="$(readUserInput "Enter GCP Project for target: ")"
 if [[ -z "${GCP_TARGET_PROJECT}" ]]; then
   log "GCP_TARGET_PROJECT is not set and is required. Exiting"

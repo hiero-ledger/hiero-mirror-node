@@ -6,6 +6,8 @@ set -euo pipefail
 
 source ./utils/utils.sh
 
+requireCommand gcloud
+
 normalizeGceSnapshotName() {
   local s="$1" max=63
 
@@ -740,8 +742,7 @@ function patchCitusClusters() {
     shardedClusterName=$(echo "${pvcsInNamespace}" | jq -r '.[0].citusCluster.shardedClusterName')
 
     configureShardedClusterResource "${pvcsInNamespace}" "${shardedClusterName}" "${namespace}"
-    unpauseCitus "${namespace}" "true"
-    updateStackgresCreds "${shardedClusterName}" "${namespace}"
+    unpauseCitus "${namespace}" "true" "true"
     routeTraffic "${namespace}"
   done
 }

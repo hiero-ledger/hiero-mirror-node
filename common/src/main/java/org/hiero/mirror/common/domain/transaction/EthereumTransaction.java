@@ -25,8 +25,9 @@ import org.springframework.data.relational.core.mapping.Table;
 @NoArgsConstructor
 public class EthereumTransaction implements Persistable<Long> {
 
-    @ToString.Exclude
-    private byte[] accessList;
+    // JDBC: Handled by global JSON Writing/Reading converters
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    private List<AccessList> accessList;
 
     // JDBC: Handled by global JSON Writing/Reading converters
     @JsonSerialize(using = ObjectToStringSerializer.class)

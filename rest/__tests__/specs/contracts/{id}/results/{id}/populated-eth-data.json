@@ -119,20 +119,27 @@
     "ethereumtransactions": [
       {
         "_value_description": "3000000000 tinybars = 30000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00",
-        "access_list": "0xabcd",
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ],
         "authorization_list": [
           {
-            "chain_id": "0x0127",
+            "chain_id": "0x127",
             "address": "0x1111111111111111111111111111111111111111",
             "nonce": 5,
-            "y_parity": 1,
+            "y_parity": "0x1",
             "r": "0x2222222222222222222222222222222222222222222222222222222222222222",
             "s": "0x3333333333333333333333333333333333333333333333333333333333333333"
           }
         ],
         "call_data": "0x0606",
         "call_data_id": "5001",
-        "chain_id": "0x0127",
+        "chain_id": "0x127",
         "consensus_timestamp": 167654000123456,
         "gas_limit": 15000,
         "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
@@ -180,14 +187,21 @@
   ],
   "responseStatus": 200,
   "responseJson": {
-    "access_list": "0xabcd",
+    "access_list": [
+      {
+        "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+        "storage_keys": [
+          "0x0000000000000000000000000000000000000000000000000000000000000081"
+        ]
+      }
+    ],
     "amount": 3000000000,
     "authorization_list": [
       {
         "chain_id": "0x127",
         "address": "0x1111111111111111111111111111111111111111",
         "nonce": 5,
-        "y_parity": 1,
+        "y_parity": "0x1",
         "r": "0x2222222222222222222222222222222222222222222222222222222222222222",
         "s": "0x3333333333333333333333333333333333333333333333333333333333333333"
       }

@@ -2,19 +2,24 @@
 
 package org.hiero.mirror.web3.service;
 
+import static org.hiero.mirror.web3.state.Utils.parseHex;
+
 import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
+import java.util.HashMap;
 import java.util.Objects;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
+import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 
 @CustomLog
 @Named
@@ -41,21 +46,46 @@ public class ContractExecutionService extends ContractCallService {
         this.binaryGasEstimator = binaryGasEstimator;
     }
 
+    /**
+     * Backwards compatible method returning only the result hex string.
+     */
     public String processCall(final ContractExecutionParameters params) {
+        return processCallWithGas(params).result();
+    }
+
+    /**
+     * New API that returns both the result and the actual gas used by the execution.
+     */
+    public ContractExecutionResult processCallWithGas(final ContractExecutionParameters params) {
         return ContractCallContext.run(ctx -> {
             var stopwatch = Stopwatch.createStarted();
             var stringResult = "";
+            long gasUsed;
 
             try {
                 updateGasLimitMetric(params);
 
+                if (!params.getStateOverrides().isEmpty()) {
+                    final var addressToAccounts = new HashMap<com.hedera.pbj.runtime.io.buffer.Bytes, StateOverride>(
+                            params.getStateOverrides().size());
+                    for (final var stateOverride : params.getStateOverrides()) {
+                        final var address = stateOverride.getAddress();
+                        addressToAccounts.put(
+                                com.hedera.pbj.runtime.io.buffer.Bytes.wrap(parseHex(address)), stateOverride);
+                    }
+
+                    ctx.setStateOverrides(addressToAccounts);
+                }
+
                 Bytes result;
                 if (params.isEstimate()) {
                     result = estimateGas(params, ctx);
+                    gasUsed = result.toLong();
                 } else {
                     final var ethCallTxnResult = callContract(params, ctx);
                     result = Objects.requireNonNullElse(
                             Bytes.fromHexString(ethCallTxnResult.contractCallResult()), Bytes.EMPTY);
+                    gasUsed = ethCallTxnResult.gasUsed();
                 }
 
                 stringResult = result.toHexString();
@@ -63,7 +93,7 @@ public class ContractExecutionService extends ContractCallService {
                 log.debug("Processed request {} in {}: {}", params, stopwatch, stringResult);
             }
 
-            return stringResult;
+            return new ContractExecutionResult(stringResult, gasUsed);
         });
     }
 

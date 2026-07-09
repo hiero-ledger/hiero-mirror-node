@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {jest} from '@jest/globals';
 import _ from 'lodash';
 
-import {NotFoundError} from '../../errors';
 import {ContractService} from '../../service';
 import {assertSqlQueryEqual} from '../testutils';
 import integrationDomainOps from '../integrationDomainOps';
@@ -39,6 +39,9 @@ const entityId111169 = EntityId.parseString('111169');
 const entityId111276 = EntityId.parseString('111276');
 const entityId111481 = EntityId.parseString('111481');
 const entityId111482 = EntityId.parseString('111482');
+const entityId222001 = EntityId.parseString('222001');
+const entityId222002 = EntityId.parseString('222002');
+const entityId222003 = EntityId.parseString('222003');
 
 describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
   test('Verify simple query', async () => {
@@ -196,6 +199,337 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
     `;
     assertSqlQueryEqual(query, expected);
     expect(params).toEqual([2, 10, 5]);
+  });
+});
+
+describe('ContractService.getSyntheticContractResultsQuery tests', () => {
+  test('No extra conditions', () => {
+    const [query, params] = ContractService.getSyntheticContractResultsQuery(
+      ['cr.transaction_nonce = 0'],
+      [],
+      'desc',
+      10
+    );
+    const expected = `
+      with synth_raw as (
+        select distinct on (cl.consensus_timestamp)
+          cl.consensus_timestamp,
+          coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
+          cl.transaction_hash, cl.transaction_index, cl.payer_account_id
+        from contract_log cl
+        where cl.synthetic is true
+        order by cl.consensus_timestamp desc, cl.index desc
+        limit $1
+      ), contract_evm_address as (
+        select e.id, e.evm_address
+        from synth_raw
+        join entity e on synth_raw.contract_id = e.id
+        group by synth_raw.contract_id, e.id
+      )
+      select
+        null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
+        synth_raw.consensus_timestamp, synth_raw.contract_id,
+        null::bigint[] as created_contract_ids, null::text as error_message,
+        null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
+        null::bytea as function_result, null::bigint as gas_consumed, 0::bigint as gas_limit,
+        null::bigint as gas_used, synth_raw.payer_account_id, synth_raw.payer_account_id as sender_id,
+        synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
+        22::smallint as transaction_result,
+        coalesce((select evm_address from contract_evm_address where id = synth_raw.contract_id), '') as evm_address
+      from synth_raw
+      order by synth_raw.consensus_timestamp desc
+    `;
+    assertSqlQueryEqual(query, expected);
+    expect(params).toEqual([10]);
+  });
+
+  test('With timestamp conditions', () => {
+    const [query, params] = ContractService.getSyntheticContractResultsQuery(
+      ['cr.transaction_nonce = 0', 'cr.consensus_timestamp >= $1', 'cr.consensus_timestamp <= $2'],
+      [1000, 2000],
+      'desc',
+      10
+    );
+    const expected = `
+      with synth_raw as (
+        select distinct on (cl.consensus_timestamp)
+          cl.consensus_timestamp,
+          coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
+          cl.transaction_hash, cl.transaction_index, cl.payer_account_id
+        from contract_log cl
+        where cl.consensus_timestamp >= $1 and cl.consensus_timestamp <= $2 and cl.synthetic is true
+        order by cl.consensus_timestamp desc, cl.index desc
+        limit $3
+      ), contract_evm_address as (
+        select e.id, e.evm_address
+        from synth_raw
+        join entity e on synth_raw.contract_id = e.id
+        group by synth_raw.contract_id, e.id
+      )
+      select
+        null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
+        synth_raw.consensus_timestamp, synth_raw.contract_id,
+        null::bigint[] as created_contract_ids, null::text as error_message,
+        null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
+        null::bytea as function_result, null::bigint as gas_consumed, 0::bigint as gas_limit,
+        null::bigint as gas_used, synth_raw.payer_account_id, synth_raw.payer_account_id as sender_id,
+        synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
+        22::smallint as transaction_result,
+        coalesce((select evm_address from contract_evm_address where id = synth_raw.contract_id), '') as evm_address
+      from synth_raw
+      order by synth_raw.consensus_timestamp desc
+    `;
+    assertSqlQueryEqual(query, expected);
+    expect(params).toEqual([1000, 2000, 10]);
+  });
+
+  test('Transaction index condition is mapped to cl.transaction_index', () => {
+    const [query, params] = ContractService.getSyntheticContractResultsQuery(
+      ['cr.transaction_nonce = 0', 'cr.transaction_index = $1'],
+      [3],
+      'asc',
+      10
+    );
+    expect(query).toContain('cl.transaction_index = $1');
+    expect(query).not.toContain('cr.transaction_index');
+    expect(params).toEqual([3, 10]);
+  });
+});
+
+describe('ContractService.getContractResultsByIdAndFilters - synthetic inclusion tests', () => {
+  test('Synthetic log with no contract_result appears in results', async () => {
+    await integrationDomainOps.addSyntheticContractLog({
+      consensus_timestamp: 1,
+      contract_id: entityId2.num,
+      transaction_hash: Buffer.alloc(32, 0xcc),
+      transaction_index: 2,
+      payer_account_id: entityId500.num,
+    });
+
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['cr.transaction_nonce = 0'],
+      [],
+      'desc',
+      25,
+      true
+    );
+
+    expect(response).toHaveLength(1);
+    expect(response[0]).toMatchObject({
+      contractId: entityId2.getEncodedId(),
+      consensusTimestamp: 1,
+      gasLimit: 0,
+      transactionNonce: 0,
+      payerAccountId: entityId500.getEncodedId(),
+      senderId: entityId500.getEncodedId(),
+    });
+  });
+
+  test('Real contract_result and synthetic log both appear ordered by timestamp', async () => {
+    await integrationDomainOps.loadContractResults([
+      {
+        contract_id: entityId2.num,
+        consensus_timestamp: 10,
+        transaction_nonce: 0,
+      },
+    ]);
+    await integrationDomainOps.addSyntheticContractLog({
+      consensus_timestamp: 20,
+      contract_id: entityId3.num,
+      transaction_hash: Buffer.alloc(32, 0xcc),
+      transaction_index: 2,
+    });
+
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['cr.transaction_nonce = 0'],
+      [],
+      'asc',
+      25,
+      true
+    );
+
+    expect(response).toHaveLength(2);
+    expect(response[0]).toMatchObject({consensusTimestamp: 10, gasLimit: 1000}); // real
+    expect(response[1]).toMatchObject({consensusTimestamp: 20, gasLimit: 0}); // synthetic
+  });
+
+  test('Synthetic log with higher timestamp than real result appears first in desc order', async () => {
+    await integrationDomainOps.loadContractResults([
+      {
+        contract_id: entityId2.num,
+        consensus_timestamp: 10,
+        transaction_nonce: 0,
+      },
+    ]);
+    await integrationDomainOps.addSyntheticContractLog({
+      consensus_timestamp: 20,
+      contract_id: entityId3.num,
+      transaction_hash: Buffer.alloc(32, 0xcc),
+      transaction_index: 2,
+    });
+
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['cr.transaction_nonce = 0'],
+      [],
+      'desc',
+      25,
+      true
+    );
+
+    expect(response).toHaveLength(2);
+    expect(response[0]).toMatchObject({consensusTimestamp: 20, gasLimit: 0}); // synthetic first (higher ts)
+    expect(response[1]).toMatchObject({consensusTimestamp: 10, gasLimit: 1000}); // real second
+  });
+
+  test('Old-style synthetic log (synthetic null) does not appear in results', async () => {
+    // Historical rows (pre-2026-04-16) have synthetic=null; synthetic=true filter excludes them.
+    // A backfill is planned as a follow-up to include these historical rows.
+    await integrationDomainOps.loadContractLogs([
+      {
+        consensus_timestamp: 1,
+        contract_id: entityId2.num,
+        transaction_hash: Buffer.alloc(32, 0xdd),
+        transaction_index: 1,
+        payer_account_id: entityId500.num,
+      },
+    ]);
+
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['cr.transaction_nonce = 0'],
+      [],
+      'desc',
+      25,
+      true
+    );
+
+    expect(response).toHaveLength(0);
+  });
+
+  test('Explicitly non-synthetic log (synthetic=false) without contract_result does not appear', async () => {
+    // Simulates an orphaned EVM log: synthetic=false is an EVM log, not a HAPI transfer.
+    // The synthetic=true filter excludes it even though NOT EXISTS would pass.
+    await integrationDomainOps.loadContractLogs([
+      {
+        consensus_timestamp: 1,
+        contract_id: entityId2.num,
+        synthetic: false,
+      },
+    ]);
+
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['cr.transaction_nonce = 0'],
+      [],
+      'desc',
+      25,
+      true
+    );
+
+    expect(response).toHaveLength(0);
+  });
+
+  test('Log with matching contract_result does not appear as synthetic', async () => {
+    await integrationDomainOps.loadContractResults([
+      {
+        contract_id: entityId2.num,
+        consensus_timestamp: 5,
+        transaction_nonce: 0,
+      },
+    ]);
+    await integrationDomainOps.loadContractLogs([
+      {
+        consensus_timestamp: 5,
+        contract_id: entityId2.num,
+        transaction_hash: Buffer.alloc(32, 0xee),
+      },
+    ]);
+
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['cr.transaction_nonce = 0'],
+      [],
+      'desc',
+      25,
+      true
+    );
+
+    // Only the real contract_result should appear, no synthetic duplicate
+    expect(response).toHaveLength(1);
+    expect(response[0]).toMatchObject({gasLimit: 1000}); // real contract_result has gasLimit from fixture
+  });
+
+  test('Synthetic log with root_contract_id resolves to root contract', async () => {
+    await integrationDomainOps.addSyntheticContractLog({
+      // Production data: synthetic HAPI logs always have root_contract_id = contract_id.
+      // The coalesce(root_contract_id, contract_id) in the SELECT handles the null case identically.
+      consensus_timestamp: 10,
+      contract_id: entityId2.num,
+      root_contract_id: entityId2.num,
+      transaction_hash: Buffer.alloc(32, 0xff),
+      transaction_index: 0,
+      payer_account_id: entityId500.num,
+    });
+
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['cr.transaction_nonce = 0'],
+      [],
+      'desc',
+      25,
+      true
+    );
+
+    expect(response).toHaveLength(1);
+    expect(response[0].contractId).toEqual(entityId2.getEncodedId());
+  });
+
+  test('Synthetic log with matching contract_result is not duplicated', async () => {
+    await integrationDomainOps.loadContractResults([
+      {
+        contract_id: entityId2.num,
+        consensus_timestamp: 1,
+        transaction_nonce: 0,
+      },
+    ]);
+    await integrationDomainOps.loadContractLogs([
+      {
+        consensus_timestamp: 1,
+        contract_id: entityId2.num,
+        synthetic: true,
+      },
+    ]);
+
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['cr.transaction_nonce = 0'],
+      [],
+      'desc',
+      25,
+      true
+    );
+
+    expect(response).toHaveLength(1);
+    expect(response[0]).toMatchObject({gasLimit: 1000}); // real contract_result wins, no duplicate
+  });
+
+  test('Synthetic log respects timestamp bounds', async () => {
+    await integrationDomainOps.addSyntheticContractLog({
+      consensus_timestamp: 10,
+      contract_id: entityId2.num,
+      transaction_hash: Buffer.alloc(32, 0xaa),
+    });
+    await integrationDomainOps.addSyntheticContractLog({
+      consensus_timestamp: 30,
+      contract_id: entityId2.num,
+      transaction_hash: Buffer.alloc(32, 0xbb),
+    });
+
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['cr.transaction_nonce = 0', 'cr.consensus_timestamp >= $1', 'cr.consensus_timestamp <= $2'],
+      [20, 40],
+      'asc',
+      25,
+      true
+    );
+
+    expect(response).toHaveLength(1);
+    expect(response[0]).toMatchObject({consensusTimestamp: 30, gasLimit: 0});
   });
 });
 
@@ -996,9 +1330,7 @@ describe('ContractService.getContractStateChangesByTimestamps tests', () => {
 describe('ContractService.getContractIdByEvmAddress tests', () => {
   test('No match', async () => {
     const evmAddressFilter = {shard: 0, realm: 0, create2_evm_address: 'deadbeaf'};
-    await expect(() => ContractService.getContractIdByEvmAddress(evmAddressFilter)).rejects.toThrow(
-      new NotFoundError(`No contract with the given evm address 0xdeadbeaf has been found.`)
-    );
+    expect(await ContractService.getContractIdByEvmAddress(evmAddressFilter)).toBeNull();
   });
 
   test('Multiple rows match', async () => {
@@ -1058,7 +1390,7 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
 
     const evmAddressFilter = {create2_evm_address: evmAddress};
     await expect(() => ContractService.getContractIdByEvmAddress(evmAddressFilter)).rejects.toThrow(
-      new Error(`More than one contract with the evm address 0x${evmAddress} have been found.`)
+      new Error(`More than one contract or account with the evm address 0x${evmAddress} have been found.`)
     );
   });
 
@@ -1119,6 +1451,143 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
       create2_evm_address: evmAddress,
     });
     expect(contractId.toString()).toEqual(`${entityId111169.getEncodedId()}`);
+  });
+
+  describe('ACCOUNT entities (contractIdByEvmAddressQuery includes ACCOUNT type)', () => {
+    test('One ACCOUNT row match', async () => {
+      const evmAddress = '11aabbcc00000000000000000000000000feedface';
+      await integrationDomainOps.addAccount({
+        num: entityId222001.num,
+        evm_address: evmAddress,
+      });
+
+      const contractId = await ContractService.getContractIdByEvmAddress({
+        create2_evm_address: evmAddress,
+      });
+      expect(contractId.toString()).toEqual(`${entityId222001.getEncodedId()}`);
+    });
+
+    test('Multiple ACCOUNT rows match same evm_address', async () => {
+      const evmAddress = '22bbccdd00000000000000000000000000deadface';
+      await integrationDomainOps.addAccount({
+        num: entityId222001.num,
+        evm_address: evmAddress,
+      });
+      await integrationDomainOps.addAccount({
+        num: entityId222002.num,
+        evm_address: evmAddress,
+      });
+
+      await expect(() => ContractService.getContractIdByEvmAddress({create2_evm_address: evmAddress})).rejects.toThrow(
+        new Error(`More than one contract or account with the evm address 0x${evmAddress} have been found.`)
+      );
+    });
+
+    test('Deleted ACCOUNT is not matched', async () => {
+      const evmAddress = '33ccddee00000000000000000000000000beefface';
+      await integrationDomainOps.addAccount({
+        num: entityId222003.num,
+        evm_address: evmAddress,
+        deleted: true,
+      });
+
+      expect(await ContractService.getContractIdByEvmAddress({create2_evm_address: evmAddress})).toBeNull();
+    });
+
+    test('Two ACCOUNT rows same evm_address but one deleted returns active id', async () => {
+      const evmAddress = '44ddeeff00000000000000000000000000cafef00d';
+      await integrationDomainOps.addAccount({
+        num: entityId222001.num,
+        evm_address: evmAddress,
+        deleted: true,
+      });
+      await integrationDomainOps.addAccount({
+        num: entityId222002.num,
+        evm_address: evmAddress,
+        deleted: false,
+      });
+
+      const contractId = await ContractService.getContractIdByEvmAddress({
+        create2_evm_address: evmAddress,
+      });
+      expect(contractId.toString()).toEqual(`${entityId222002.getEncodedId()}`);
+    });
+  });
+});
+
+const assertComputeContractIdResolvesWithoutEntityEvmLookup = async (contractIdParam, expectedEncodedId) => {
+  const spy = jest.spyOn(ContractService, 'getContractIdByEvmAddress');
+  await expect(ContractService.computeContractIdFromString(contractIdParam)).resolves.toEqual(expectedEncodedId);
+  expect(spy).not.toHaveBeenCalled();
+  spy.mockRestore();
+};
+
+describe('ContractService.computeContractIdFromString', () => {
+  describe('resolves without getContractIdByEvmAddress (no entity table lookup for id)', () => {
+    test('shard.realm.num', async () => {
+      await assertComputeContractIdResolvesWithoutEntityEvmLookup(
+        '0.0.500',
+        EntityId.parseString('0.0.500', {paramName: 'contractId'}).getEncodedId()
+      );
+    });
+
+    test('realm.num (default shard from config)', async () => {
+      await assertComputeContractIdResolvesWithoutEntityEvmLookup(
+        '500',
+        EntityId.parseString('500', {paramName: 'contractId'}).getEncodedId()
+      );
+    });
+
+    test('long-zero 20-byte address (12 zero bytes + entity num), stripped form as in path param', async () => {
+      await assertComputeContractIdResolvesWithoutEntityEvmLookup(
+        '000000000000000000000000000000000000000f',
+        EntityId.parseString('15', {paramName: 'contractId'}).getEncodedId()
+      );
+    });
+
+    test('long-zero address with 0x prefix (parseString strips prefix)', async () => {
+      await assertComputeContractIdResolvesWithoutEntityEvmLookup(
+        '0x000000000000000000000000000000000000000f',
+        EntityId.parseString('15', {paramName: 'contractId'}).getEncodedId()
+      );
+    });
+  });
+
+  describe('opaque / create2-style EVM address uses getContractIdByEvmAddress', () => {
+    test('bare 40-hex address', async () => {
+      const evm = '71eaa748d5252be68c1185588beca495459fdba4';
+      const spy = jest.spyOn(ContractService, 'getContractIdByEvmAddress').mockResolvedValue(99999n);
+      await expect(ContractService.computeContractIdFromString(evm)).resolves.toBe(99999n);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create2_evm_address: evm,
+        })
+      );
+      spy.mockRestore();
+    });
+
+    test('shard.realm.opaque form (0.0.<40 hex>)', async () => {
+      const evm = '71eaa748d5252be68c1185588beca495459fdba4';
+      const param = `0.0.${evm}`;
+      const spy = jest.spyOn(ContractService, 'getContractIdByEvmAddress').mockResolvedValue(88888n);
+      await expect(ContractService.computeContractIdFromString(param)).resolves.toBe(88888n);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create2_evm_address: evm,
+        })
+      );
+      spy.mockRestore();
+    });
+
+    test('returns null when entity lookup finds no row', async () => {
+      const evm = 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
+      const spy = jest.spyOn(ContractService, 'getContractIdByEvmAddress').mockResolvedValue(null);
+      await expect(ContractService.computeContractIdFromString(evm)).resolves.toBeNull();
+      expect(spy).toHaveBeenCalled();
+      spy.mockRestore();
+    });
   });
 });
 

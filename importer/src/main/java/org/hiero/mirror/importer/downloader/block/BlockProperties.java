@@ -2,16 +2,19 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.hiero.mirror.importer.downloader.block.BlockNodeProperties.FULL_BLOCK_NODE_APIS;
+
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
+import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.downloader.block.tss.LedgerProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
@@ -20,7 +23,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties("hiero.mirror.importer.block")
 @Data
 @Validated
-public class BlockProperties {
+public final class BlockProperties {
 
     private final ImporterProperties importerProperties;
 
@@ -33,12 +36,10 @@ public class BlockProperties {
     @NotNull
     private Duration frequency = Duration.ofMillis(100L);
 
-    @Valid
-    private LedgerProperties ledger;
+    private Path initialLedgerIdPublication;
 
     @NotNull
-    @Valid
-    private Collection<BlockNodeProperties> nodes = Collections.emptyList();
+    private List<@Valid BlockNodeProperties> nodes = List.of();
 
     private boolean persistBytes = false;
 
@@ -55,5 +56,13 @@ public class BlockProperties {
         return StringUtils.isNotBlank(bucketName)
                 ? bucketName
                 : ImporterProperties.HederaNetwork.getBlockStreamBucketName(importerProperties.getNetwork());
+    }
+
+    @AssertTrue(message = "Each node must contain both STATUS and SUBSCRIBE_STREAM capable endpoints")
+    private boolean hasValidEndpoints() {
+        return nodes.stream().allMatch(n -> n.getEndpoints().stream()
+                .flatMap(e -> e.getApis().stream())
+                .collect(Collectors.toSet())
+                .containsAll(FULL_BLOCK_NODE_APIS));
     }
 }

@@ -8,6 +8,7 @@ source ./utils/utils.sh
 source ./utils/input-utils.sh
 source ./utils/snapshot-utils.sh
 
+COLLECT_K6_REPORT="${COLLECT_K6_REPORT:-false}"
 CREATE_NEW_BACKUPS="${CREATE_NEW_BACKUPS:-true}"
 DEFAULT_POOL_MAX_PER_ZONE="${DEFAULT_POOL_MAX_PER_ZONE:-5}"
 DEFAULT_POOL_NAME="${DEFAULT_POOL_NAME:-default-pool}"
@@ -308,6 +309,10 @@ function patchBackupPaths() {
 }
 
 function scaleupResources() {
+  if [[ "${REQUIRE_CLEAN_TARGET}" == "false" ]]; then
+    return 0;
+  fi
+
   waitForClusterOperations "${DEFAULT_POOL_NAME}"
 
   gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
@@ -546,9 +551,14 @@ function runK6Test() {
   log "Awaiting k6 results"
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
   if kubectl get helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
-    if [[ "${RESTORE}" == "true" ]]; then
-      waitForHelmReleaseReady "${TEST_KUBE_TARGET_NAMESPACE}"
+    if [[ "${RESTORE}" != "true" && "${RUN_ACCEPTANCE_TEST}" != "true" ]]; then
+      # Resume and reconcile helmrelease, otherwise pods may still run the old images
+      flux resume helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}"
+      flux reconcile helmrelease "${HELM_RELEASE_NAME}" -n "${TEST_KUBE_TARGET_NAMESPACE}" \
+        --timeout "${FLUX_RECONCILE_HR_TIMEOUT}"
     fi
+
+    waitForHelmReleaseReady "${TEST_KUBE_TARGET_NAMESPACE}"
 
     log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${TEST_KUBE_TARGET_NAMESPACE}"
     flux suspend helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}"
@@ -639,37 +649,36 @@ function waitForK6PodExecution() {
     scaleHpaMin "${targetNamespace}" "${hpaName}" "${maxReplicas}"
   fi
 
-  until kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}" --timeout=10m > /dev/null 2>&1; do
+  until [[ $(testkube get executions --limit 4 -o json | jq --arg id "${job}" '[.results[] | select (.id == $id and .status != "running")] | any') == "true" ]]; do
     log "Waiting for job ${job} to complete for test ${testName}"
-    sleep 1
+    sleep 10
   done
-
-  until kubectl get job -n "${TEST_KUBE_NAMESPACE}" "${job}-scraper" >/dev/null 2>&1; do
-    log "Waiting for scraper"
-    sleep 1
-  done
-
-  until kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}-scraper" --timeout=10m > /dev/null 2>&1; do
-    log "Waiting for scraper job to complete"
-    sleep 1
-  done
-
-  log "downloading artifacts for job ${job}"
-  until {
-    rm -f artifacts/report.md 2>/dev/null || true
-    testkube download artifacts "${job}"  >/dev/null 2>&1
-    [[ -s artifacts/report.md ]]
-  }; do
-    log "Waiting for artifacts to be available"
-    sleep 5
-  done
-
-  cat artifacts/report.md
-  mkdir -p "${K6_TEST_REPORT_DIR}"
-  cp artifacts/report.md "${K6_TEST_REPORT_DIR}/${testName}.md"
-  rm -fr artifacts
 
   scaleHpaMin "${targetNamespace}" "${hpaName}"
+
+  if [[ "${COLLECT_K6_REPORT}" == "true" ]]; then
+    log "downloading artifacts for job ${job}"
+    local deadline=$((SECONDS + 120))
+    rm -f artifacts/report.md 2>/dev/null || true
+    while true; do
+      testkube download artifacts "${job}"  >/dev/null 2>&1
+      if [[ -s artifacts/report.md ]]; then
+        cat artifacts/report.md
+        mkdir -p "${K6_TEST_REPORT_DIR}"
+        cp artifacts/report.md "${K6_TEST_REPORT_DIR}/${testName}.md"
+        rm -fr artifacts
+        break
+      fi
+
+      if (( SECONDS >= deadline )); then
+        log "Timed out waiting for artifacts after 120s"
+        break
+      fi
+
+      log "Waiting for artifacts to be available"
+      sleep 5
+    done
+  fi
 }
 
 function waitForHelmReleaseReady() {

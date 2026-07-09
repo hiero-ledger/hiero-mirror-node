@@ -163,6 +163,7 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new JsonbReadingConverters.SqlArrayToShortList(),
                 new JsonbWritingConverters.ItemizedTransferList(),
                 new JsonbWritingConverters.NftTransferList(),
+                new JsonbWritingConverters.AccessListList(),
                 new JsonbWritingConverters.AuthorizationList(),
                 new JsonbWritingConverters.LedgerNodeContributionList(),
                 new JsonbWritingConverters.ServiceEndpointSingle());

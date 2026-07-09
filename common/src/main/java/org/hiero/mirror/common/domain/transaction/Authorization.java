@@ -16,5 +16,5 @@ public class Authorization {
     private Long nonce;
     private String r;
     private String s;
-    private Integer yParity;
+    private String yParity;
 }

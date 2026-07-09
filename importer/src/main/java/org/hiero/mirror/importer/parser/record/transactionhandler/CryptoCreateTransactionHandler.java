@@ -18,16 +18,22 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.util.Utility;
 
 @Named
 class CryptoCreateTransactionHandler extends AbstractEntityCrudTransactionHandler {
 
+    private final EntityProperties entityProperties;
     private final EVMHookHandler evmHookHandler;
 
     CryptoCreateTransactionHandler(
-            EntityIdService entityIdService, EntityListener entityListener, EVMHookHandler evmHookHandler) {
+            EntityIdService entityIdService,
+            EntityListener entityListener,
+            EntityProperties entityProperties,
+            EVMHookHandler evmHookHandler) {
         super(entityIdService, entityListener, TransactionType.CRYPTOCREATEACCOUNT);
+        this.entityProperties = entityProperties;
         this.evmHookHandler = evmHookHandler;
     }
 
@@ -89,6 +95,13 @@ class CryptoCreateTransactionHandler extends AbstractEntityCrudTransactionHandle
         entity.setMaxAutomaticTokenAssociations(transactionBody.getMaxAutomaticTokenAssociations());
         entity.setMemo(transactionBody.getMemo());
         entity.setReceiverSigRequired(transactionBody.getReceiverSigRequired());
+        if (!transactionBody.getDelegationAddress().isEmpty()) {
+            entity.setDelegationAddress(DomainUtils.toBytes(transactionBody.getDelegationAddress()));
+            if (recordItem.getAccountEthereumNonce() != null
+                    && entityProperties.getPersist().isTrackNonce()) {
+                entity.setEthereumNonce(recordItem.getAccountEthereumNonce());
+            }
+        }
 
         updateStakingInfo(recordItem, entity);
         entityListener.onEntity(entity);

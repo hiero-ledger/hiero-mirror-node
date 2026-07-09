@@ -14,3 +14,18 @@ spec:
     kind: {{ .Values.gateway.target.kind }}
     name: {{ include "hedera-mirror-grpc.fullname" . }}
 {{- end }}
+{{- if and .Values.global.gateway.enabled .Values.gateway.gcp.enabled (not (empty .Values.gateway.gcp.streamingBackendPolicy)) }}
+---
+apiVersion: networking.gke.io/v1
+kind: GCPBackendPolicy
+metadata:
+  labels: {{ include "hedera-mirror-grpc.labels" . | nindent 4 }}
+  name: {{ include "hedera-mirror-grpc.fullname" . }}-streaming
+  namespace: {{ include "hedera-mirror-grpc.namespace" . }}
+spec:
+  default: {{ tpl (toYaml .Values.gateway.gcp.streamingBackendPolicy) $ | nindent 4 }}
+  targetRef:
+    group: {{ .Values.gateway.target.group | quote }}
+    kind: {{ .Values.gateway.target.kind }}
+    name: {{ include "hedera-mirror-grpc.fullname" . }}-streaming
+{{- end }}

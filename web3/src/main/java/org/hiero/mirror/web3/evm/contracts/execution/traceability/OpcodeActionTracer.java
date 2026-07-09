@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 
+import com.hedera.hapi.streams.CallOperationType;
 import com.hedera.hapi.streams.ContractAction;
 import com.hedera.hapi.streams.ContractActionType;
 import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
@@ -20,7 +21,9 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
+import org.hyperledger.besu.evm.operation.Operation;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -62,6 +65,21 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
     }
 
     @Override
+    public void tracePerOpcode(MessageFrame frame, long gas, ExceptionalHaltReason halt, Operation op) {
+        // NO-OP
+    }
+
+    @Override
+    public void traceSuspended(MessageFrame parent, MessageFrame child, CallOperationType opCall) {
+        // NO-OP
+    }
+
+    @Override
+    public void traceNotExecuting(MessageFrame child) {
+        // NO-OP
+    }
+
+    @Override
     public void tracePrecompileCall(
             @NonNull final MessageFrame frame, final long gasRequirement, @Nullable final Bytes output) {
         // NO-OP
@@ -99,7 +117,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
 
         final var frameRevertReason = frame.getRevertReason().orElse(null);
         final var revertReason = isCallToSystemContracts(frame, systemContracts)
-                ? getRevertReasonFromContractActions(context)
+                ? getRevertReasonFromContractActions(context, frame.getDepth())
                 : (frameRevertReason != null ? frameRevertReason.toHexString() : null);
 
         context.getOpcodeContext()

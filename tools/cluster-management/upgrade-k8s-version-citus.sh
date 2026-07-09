@@ -6,6 +6,8 @@ set -euo pipefail
 
 source ./utils/utils.sh
 
+requireCommand gcloud
+
 versionGreater() {
   local raw1="$1"
   local raw2="$2"

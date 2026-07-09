@@ -1,0 +1,56 @@
+{
+  "description": "ACCOUNT entity resolved by opaque EVM on /contracts/{id}/results (same as numeric id)",
+  "setup": {
+    "accounts": [
+      {
+        "num": 9101,
+        "evm_address": "01beefdead0000000000000000000000abcd1234"
+      },
+      {
+        "num": 9202
+      }
+    ],
+    "contractresults": [
+      {
+        "amount": 30,
+        "bloom": [3, 3],
+        "call_result": [4, 4],
+        "consensus_timestamp": "987654000123456",
+        "contract_id": 9101,
+        "created_contract_ids": [],
+        "gas_used": 10,
+        "sender_id": 9202,
+        "transaction_nonce": 0
+      }
+    ]
+  },
+  "urls": [
+    "/api/v1/contracts/0x01beefdead0000000000000000000000abcd1234/results",
+    "/api/v1/contracts/0.0.9101/results"
+  ],
+  "responseStatus": 200,
+  "responseJson": {
+    "results": [
+      {
+        "address": "0x01beefdead0000000000000000000000abcd1234",
+        "amount": 30,
+        "bloom": "0x0303",
+        "call_result": "0x0404",
+        "contract_id": "0.0.9101",
+        "created_contract_ids": [],
+        "error_message": null,
+        "from": "0x00000000000000000000000000000000000023f2",
+        "function_parameters": "0x010102020303",
+        "gas_consumed": null,
+        "gas_limit": 1000,
+        "gas_used": 10,
+        "hash": "0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "timestamp": "987654.000123456",
+        "to": "0x000000000000000000000000000000000000238d"
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

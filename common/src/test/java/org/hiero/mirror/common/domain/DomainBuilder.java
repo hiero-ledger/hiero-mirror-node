@@ -119,6 +119,7 @@ import org.hiero.mirror.common.domain.topic.Topic;
 import org.hiero.mirror.common.domain.topic.TopicHistory;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.domain.topic.TopicMessageLookup;
+import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
@@ -560,7 +561,7 @@ public class DomainBuilder {
     public DomainWrapper<EthereumTransaction, EthereumTransaction.EthereumTransactionBuilder> ethereumTransaction(
             boolean hasInitCode) {
         var builder = EthereumTransaction.builder()
-                .accessList(bytes(100))
+                .accessList(accessList())
                 .authorizationList(authorizationList())
                 .chainId(bytes(1))
                 .consensusTimestamp(timestamp())
@@ -895,6 +896,7 @@ public class DomainBuilder {
                 .loadStart(now.toEpochMilli())
                 .name(instantString + ".rcd.gz")
                 .previousHash(hash(96))
+                .receiptsRoot(bytes(32))
                 .roundEnd(round)
                 .roundStart(round)
                 .sidecarCount(1)
@@ -1274,6 +1276,10 @@ public class DomainBuilder {
         return bytes(20);
     }
 
+    public List<AccessList> accessList() {
+        return List.of(new AccessList(hash(40), List.of(hash(64))));
+    }
+
     public List<Authorization> authorizationList() {
         return List.of(Authorization.builder()
                 .address("0x" + hash(40))
@@ -1281,7 +1287,7 @@ public class DomainBuilder {
                 .nonce(number())
                 .r("0x" + hash(64))
                 .s("0x" + hash(64))
-                .yParity(0x01)
+                .yParity("0x01")
                 .build());
     }
 

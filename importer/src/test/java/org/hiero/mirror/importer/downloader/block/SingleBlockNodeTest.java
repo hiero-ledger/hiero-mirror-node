@@ -8,32 +8,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
-import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
-import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
-    @AutoClose
-    private BlockNodeSimulator simulator;
-
-    @AutoClose
-    private BlockNodeSubscriber subscriber;
-
     @Test
     void multipleBlocks() {
         // given
-        final var generator = new BlockGenerator(0);
-        simulator = new BlockNodeSimulator()
-                .withChunksPerBlock(2)
-                .withBlocks(generator.next(10))
-                .start();
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+        var generator = new BlockGenerator(0);
+        addSimulatorWithBlocks(generator.next(10)).withChunksPerBlock(2).withInProcessChannel();
+        subscriber = getBlockNodeSubscriber();
 
         // when
         subscriber.get();
@@ -46,12 +34,8 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     void outOfOrder() {
         // given
         var generator = new BlockGenerator(0);
-        simulator = new BlockNodeSimulator()
-                .withBlocks(generator.next(10))
-                .withHttpChannel()
-                .withOutOfOrder()
-                .start();
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+        addSimulatorWithBlocks(generator.next(10)).withOutOfOrder();
+        subscriber = getBlockNodeSubscriber();
 
         // when, then
         assertThatThrownBy(subscriber::get)
@@ -62,13 +46,9 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     @Test
     void missingBlock() {
         // given
-        final var generator = new BlockGenerator(0);
-        simulator = new BlockNodeSimulator()
-                .withBlocks(generator.next(10))
-                .withHttpChannel()
-                .withMissingBlock()
-                .start();
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+        var generator = new BlockGenerator(0);
+        addSimulatorWithBlocks(generator.next(10)).withMissingBlock();
+        subscriber = getBlockNodeSubscriber();
 
         // when, then
         assertThatThrownBy(subscriber::get)
@@ -84,17 +64,15 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         var blocks = new ArrayList<>(generator.next(2));
 
         var block0 = blocks.getFirst();
-        var itemsWithoutHeader = block0.getBlockItemsList().stream()
+        var itemsWithoutHeader = block0.block().getBlockItemsList().stream()
                 .filter(it -> it.getItemCase() != ItemCase.BLOCK_HEADER)
                 .toList();
         var block0WithoutHeader =
                 BlockItemSet.newBuilder().addAllBlockItems(itemsWithoutHeader).build();
-        blocks.set(0, block0WithoutHeader);
+        blocks.set(0, new BlockGenerator.BlockRecord(block0WithoutHeader));
 
-        simulator =
-                new BlockNodeSimulator().withBlocks(blocks).withHttpChannel().start();
-
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+        addSimulatorWithBlocks(blocks);
+        subscriber = getBlockNodeSubscriber();
 
         // when, then
         // Detect missing header and fail
@@ -115,7 +93,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
         var blocks = new ArrayList<>(generator.next(2));
         var blockOne = blocks.get(1);
-        var blockOneItems = blockOne.getBlockItemsList();
+        var blockOneItems = blockOne.block().getBlockItemsList();
         var blockOneEventHeaderItem = blockOneItems.stream()
                 .filter(it -> it.getItemCase() == ItemCase.EVENT_HEADER)
                 .findFirst()
@@ -132,13 +110,10 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         Collections.swap(wrongOrderBlockItems, blockOneEventHeaderItemIndex, blockOneEventTxnItemIndex);
         builder.addAllBlockItems(wrongOrderBlockItems);
         blocks.remove(1);
-        blocks.add(builder.build());
+        blocks.add(new BlockGenerator.BlockRecord(builder.build()));
 
-        simulator = new BlockNodeSimulator()
-                .withChunksPerBlock(2)
-                .withBlocks(blocks)
-                .start();
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
+        addSimulatorWithBlocks(blocks).withChunksPerBlock(2);
+        subscriber = getBlockNodeSubscriber();
 
         // when, then
         assertThatThrownBy(subscriber::get)

@@ -10,22 +10,6 @@ affinity:
             matchLabels:
               app.kubernetes.io/component: graphql
 
-alertmanager:
-  inhibitRules:
-    enabled: false
-    InhibitAllWhenPodIssues:
-      enabled: true
-      matches:
-        - sourceMatch:
-            - name: area
-              value: resource
-          targetMatch:
-            - name: application
-              value: graphql
-          equal:
-            - namespace
-            - pod
-
 annotations: {}
 
 config: {}
@@ -53,10 +37,9 @@ gateway:
         drainingTimeoutSec: 10
       logging:
         enabled: false
-      maxRatePerEndpoint: 250  # Requires a change to HPA to take effect
       sessionAffinity:
         type: CLIENT_IP
-      timeoutSec: 20
+      timeoutSec: 15
     enabled: true
     healthCheckPolicy:
       config:
@@ -164,134 +147,6 @@ podSecurityContext:
     type: RuntimeDefault
 
 priorityClassName: ""
-
-prometheusRules:
-  enabled: false
-  GraphQLErrors:
-    annotations:
-      description: "{{ $value | humanizePercentage }} graphql request error rate for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary: "Mirror GraphQL request error rate exceeds 5%"
-    enabled: true
-    expr: sum(rate(graphql_request_seconds_count{application="graphql", status="ERROR"}[5m])) by (namespace, pod) / sum(rate(graphql_request_seconds_count{application="graphql"}[5m])) by (namespace, pod) > 0.05
-    for: 2m
-    labels:
-      application: graphql
-      severity: critical
-
-  GraphQLDataFetcherErrors:
-    annotations:
-      description: "High data fetcher error rate of {{ $value | humanizePercentage }} for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary: "Mirror GraphQL data fetcher high error rate exceeds 5%"
-    enabled: true
-    expr: sum(rate(graphql_datafetcher_seconds_count{application="graphql", outcome="ERROR"}[5m])) by (namespace, pod) / sum(rate(graphql_datafetcher_seconds_count{application="graphql"}[5m])) by (namespace, pod) > .05
-    for: 1m
-    labels:
-      application: graphql
-      severity: critical
-
-  GraphQLHighCPU:
-    annotations:
-      description: "{{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ $value | humanizePercentage }}"
-      summary: "Mirror GraphQL API CPU usage exceeds 80%"
-    enabled: true
-    expr: sum(process_cpu_usage{application="graphql"}) by (namespace, pod) / sum(system_cpu_count{application="graphql"}) by (namespace, pod) > 0.8
-    for: 5m
-    labels:
-      application: graphql
-      area: resource
-      severity: critical
-
-  GraphQLHighDBConnections:
-    annotations:
-      description: "{{ $labels.namespace }}/{{ $labels.pod }} is using {{ $value | humanizePercentage }} of available database connections"
-      summary: "Mirror GraphQL API database connection utilization exceeds 75%"
-    enabled: true
-    expr: sum(hikaricp_connections_active{application="graphql"}) by (namespace, pod) / sum(hikaricp_connections_max{application="graphql"}) by (namespace, pod) > 0.75
-    for: 5m
-    labels:
-      application: graphql
-      area: resource
-      severity: critical
-
-  GraphQLHighFileDescriptors:
-    annotations:
-      description: "{{ $labels.namespace }}/{{ $labels.pod }} file descriptor usage reached {{ $value | humanizePercentage }}"
-      summary: "Mirror GraphQL API file descriptor usage exceeds 80%"
-    enabled: true
-    expr: sum(process_files_open_files{application="graphql"}) by (namespace, pod) / sum(process_files_max_files{application="graphql"}) by (namespace, pod) > 0.8
-    for: 5m
-    labels:
-      application: graphql
-      area: resource
-      severity: critical
-
-  GraphQLHighMemory:
-    annotations:
-      description: "{{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ $value | humanizePercentage }}"
-      summary: "Mirror GraphQL API memory usage exceeds 80%"
-    enabled: true
-    expr: sum(jvm_memory_used_bytes{application="graphql"}) by (namespace, pod) / sum(jvm_memory_max_bytes{application="graphql"}) by (namespace, pod) > 0.8
-    for: 5m
-    labels:
-      application: graphql
-      area: resource
-      severity: critical
-
-  GraphQLLogErrors:
-    annotations:
-      description: "Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ $value }} error messages/s in a 3m period"
-      summary: "High rate of log errors"
-    enabled: true
-    expr: sum(increase(logback_events_total{application="graphql", level="error"}[1m])) by (namespace, pod) >= 2
-    for: 3m
-    labels:
-      application: graphql
-      severity: critical
-
-  GraphQLNoPodsReady:
-    annotations:
-      description: "No GraphQL API instances are currently running in {{ $labels.namespace }}"
-      summary: No GraphQL API instances running
-    enabled: true
-    expr: sum(kube_pod_status_ready{pod=~".*-graphql-.*",condition="true"}) by (namespace) < 1
-    for: 2m
-    labels:
-      application: graphql
-      area: resource
-      severity: critical
-
-  GraphQLNoRequests:
-    annotations:
-      description: "GraphQL API has not seen any requests to {{ $labels.namespace }} for 5m"
-      summary: "No GraphQL API requests seen for awhile"
-    enabled: true
-    expr: sum(rate(http_server_requests_seconds_count{application="graphql"}[3m])) by (namespace) <= 0
-    for: 5m
-    labels:
-      application: graphql
-      severity: warning
-
-  GraphQLQueryLatency:
-    annotations:
-      description: "High average database query latency of {{ $value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary: "Mirror GraphQL API query latency exceeds 1s"
-    enabled: true
-    expr: sum(rate(spring_data_repository_invocations_seconds_sum{application="graphql"}[5m])) by (namespace, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application="graphql"}[5m])) by (namespace, pod) > 1
-    for: 1m
-    labels:
-      application: graphql
-      severity: warning
-
-  GraphQLRequestLatency:
-    annotations:
-      description: "High average request latency of {{ $value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
-      summary: "Mirror GraphQL API request latency exceeds 2s"
-    enabled: true
-    expr: sum(rate(graphql_request_seconds_sum{application="graphql"}[5m])) by (namespace, pod) / sum(rate(graphql_request_seconds_count{application="graphql"}[5m])) by (namespace, pod) > 2
-    for: 1m
-    labels:
-      application: graphql
-      severity: warning
 
 readinessProbe:
   httpGet:

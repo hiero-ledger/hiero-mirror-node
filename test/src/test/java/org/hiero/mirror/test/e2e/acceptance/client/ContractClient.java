@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.test.e2e.acceptance.client;
 
+import com.google.common.base.Stopwatch;
 import com.google.protobuf.ByteString;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractCallQuery;
@@ -76,7 +77,12 @@ public class ContractClient extends AbstractNetworkClient {
 
         var response = executeTransactionAndRetrieveReceipt(contractCreateTransaction);
         var contractId = response.getReceipt().contractId;
-        log.info("Created new contract {} with memo '{}' via {}", contractId, memo, response.getTransactionId());
+        log.info(
+                "Created new contract {} with memo '{}' via {} in {}",
+                contractId,
+                memo,
+                response.getTransactionId(),
+                response.getStopwatch());
 
         TransactionRecord transactionRecord = getTransactionRecord(response.getTransactionId());
         logContractFunctionResult("constructor", transactionRecord.contractFunctionResult);
@@ -93,7 +99,12 @@ public class ContractClient extends AbstractNetworkClient {
                 .setTransactionMemo(memo);
 
         var response = executeTransactionAndRetrieveReceipt(contractUpdateTransaction);
-        log.info("Updated contract {} with memo '{}' via {}", contractId, memo, response.getTransactionId());
+        log.info(
+                "Updated contract {} with memo '{}' via {} in {}",
+                contractId,
+                memo,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -113,7 +124,7 @@ public class ContractClient extends AbstractNetworkClient {
         }
 
         var response = executeTransactionAndRetrieveReceipt(contractDeleteTransaction);
-        log.info("Deleted contract {} via {}", contractId, response.getTransactionId());
+        log.info("Deleted contract {} via {} in {}", contractId, response.getTransactionId(), response.getStopwatch());
         contractMap.remove(contractId);
         return response;
     }
@@ -145,7 +156,12 @@ public class ContractClient extends AbstractNetworkClient {
         TransactionRecord transactionRecord = getTransactionRecord(response.getTransactionId());
         logContractFunctionResult(functionName, transactionRecord.contractFunctionResult);
 
-        log.info("Called contract {} function {} via {}", contractId, functionName, response.getTransactionId());
+        log.info(
+                "Called contract {} function {} via {} in {}",
+                contractId,
+                functionName,
+                response.getTransactionId(),
+                response.getStopwatch());
         return new ExecuteContractResult(transactionRecord.contractFunctionResult, response);
     }
 
@@ -172,13 +188,19 @@ public class ContractClient extends AbstractNetworkClient {
         TransactionRecord transactionRecord = getTransactionRecord(response.getTransactionId());
         logContractFunctionResult(functionName, transactionRecord.contractFunctionResult);
 
-        log.info("Called contract {} function {} via {}", contractId, functionName, response.getTransactionId());
+        log.info(
+                "Called contract {} function {} via {} in {}",
+                contractId,
+                functionName,
+                response.getTransactionId(),
+                response.getStopwatch());
         return new ExecuteContractResult(transactionRecord.contractFunctionResult, response);
     }
 
     public ContractFunctionResult executeContractQuery(
             ContractId contractId, String functionName, Long gas, byte[] data)
             throws PrecheckStatusException, TimeoutException {
+        final var stopwatch = Stopwatch.createStarted();
         ContractCallQuery contractCallQuery =
                 new ContractCallQuery().setContractId(contractId).setGas(gas);
 
@@ -191,10 +213,8 @@ public class ContractClient extends AbstractNetworkClient {
 
         contractCallQuery.setQueryPayment(Hbar.fromTinybars(totalPaymentInTinybars));
 
-        ContractFunctionResult functionResult = contractCallQuery.execute(client);
-
-        log.info("Executed query on contract {} function {}, result: {}", contractId, functionName, functionResult);
-
+        final var functionResult = contractCallQuery.execute(client);
+        log.info("Queried contract {} function {} in {}", contractId, functionName, stopwatch);
         return functionResult;
     }
 

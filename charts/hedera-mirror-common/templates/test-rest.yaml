@@ -26,9 +26,11 @@ spec:
       - --out
       - experimental-prometheus-rw
       {{- end }}
+    {{- if not $.Values.testkube.prometheus.enabled }}
     artifactRequest:
       storageClassName: standard
       volumeMountPath: /share
+    {{- end }}
     envConfigMaps:
       - mapToVariables: true
         mount: false

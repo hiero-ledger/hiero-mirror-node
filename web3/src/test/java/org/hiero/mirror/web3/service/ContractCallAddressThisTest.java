@@ -10,6 +10,7 @@ import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.longValueOf;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -92,7 +93,7 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
                 .contractCallResult();
 
         // Then
-        final var successfulResponse = "0x" + StringUtils.leftPad(result.substring(2), 64, '0');
+        final var successfulResponse = HEX_PREFIX + StringUtils.leftPad(result.substring(2), 64, '0');
         assertThat(successfulResponse)
                 .isEqualTo(Bytes.wrap(output.toByteArray()).toHexString());
     }

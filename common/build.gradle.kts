@@ -9,7 +9,8 @@ configurations.all {
 }
 
 dependencies {
-    val testClasses by configurations.registering
+    val testClasses = configurations.register("testClasses")
+    annotationProcessor("jakarta.persistence:jakarta.persistence-api")
     api("org.postgresql:postgresql")
     api("org.springframework.data:spring-data-relational")
     api("org.springframework.boot:spring-boot-starter-data-jdbc")

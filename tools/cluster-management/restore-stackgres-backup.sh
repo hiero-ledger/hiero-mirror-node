@@ -266,8 +266,7 @@ function recreateManagedCluster() {
     flux resume helmrelease -n "${CURRENT_NAMESPACE}" "${HELM_RELEASE_NAME}" --timeout 30m
   fi
 
-  unpauseCitus "${CURRENT_NAMESPACE}"
-  updateStackgresCreds "${CLUSTER}" "${CURRENT_NAMESPACE}"
+  unpauseCitus "${CURRENT_NAMESPACE}" "false" "true"
   routeTraffic "${CURRENT_NAMESPACE}"
   log "SGShardedCluster ${CLUSTER} is ready"
 }
@@ -282,8 +281,7 @@ function restoreBackup() {
   log "Creating SGShardedCluster with the restore configuration"
   echo "${CLUSTER_CONFIG}" | kubectl apply -f -
 
-  unpauseCitus "${CURRENT_NAMESPACE}"
-  updateStackgresCreds "${CLUSTER}" "${CURRENT_NAMESPACE}"
+  unpauseCitus "${CURRENT_NAMESPACE}" "false" "true"
   checkCitusMetadataSyncStatus "${CURRENT_NAMESPACE}"
   checkCoordinatorReplica
 

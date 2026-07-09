@@ -18,5 +18,7 @@ public interface CutoverService extends StreamFileNotifier {
      */
     void get(StreamType streamType, Runnable task);
 
+    long getNextBlockNumber();
+
     Optional<RecordFile> getLastRecordFile();
 }

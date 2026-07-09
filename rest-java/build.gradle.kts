@@ -17,6 +17,7 @@ dependencies {
         exclude(group = "io.prometheus")
         exclude(group = "org.assertj")
         exclude("org.junit")
+        exclude(group = "com.hedera.hashgraph", module = "consensus-pces-noop-impl")
     }
     implementation("com.hedera.hashgraph:app-service-entity-id-impl") {
         exclude(group = "io.netty")

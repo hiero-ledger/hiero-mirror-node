@@ -35,8 +35,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-@NullUnmarked
 @ExtendWith(MockitoExtension.class)
+@NullUnmarked
 final class CutoverServiceTest {
 
     private static final Duration CUTOVER_THRESHOLD = Duration.ofMillis(200);
@@ -44,6 +44,7 @@ final class CutoverServiceTest {
     private BlockProperties blockProperties;
     private CutoverProperties cutoverProperties;
     private CutoverService cutoverService;
+    private ImporterProperties importerProperties;
     private RecordDownloaderProperties recordDownloaderProperties;
 
     @Mock
@@ -57,7 +58,7 @@ final class CutoverServiceTest {
 
     @BeforeEach
     void setup() {
-        final var importerProperties = new ImporterProperties();
+        importerProperties = new ImporterProperties();
         importerProperties.setNetwork(ImporterProperties.HederaNetwork.MAINNET);
         blockProperties = new BlockProperties(importerProperties);
         cutoverProperties = new CutoverProperties();
@@ -86,6 +87,28 @@ final class CutoverServiceTest {
                 .get()
                 .isEqualTo(recordFile)
                 .isNotSameAs(recordFile);
+    }
+
+    @ParameterizedTest
+    @CsvSource({", 0", "1, 1"})
+    void getNextBlockNumberWithEmptyDb(Long startBlockNumber, long expected) {
+        // given
+        importerProperties.setStartBlockNumber(startBlockNumber);
+        doReturn(Optional.empty()).when(recordFileRepository).findLatest();
+
+        // when, then
+        assertThat(cutoverService.getNextBlockNumber()).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({",", "1"})
+    void getNextBlockNumberWithDataInDb(Long startBlockNumber) {
+        // given
+        importerProperties.setStartBlockNumber(startBlockNumber);
+        doReturn(Optional.of(recordFile(10, false))).when(recordFileRepository).findLatest();
+
+        // when, then
+        assertThat(cutoverService.getNextBlockNumber()).isEqualTo(11L);
     }
 
     @Test
@@ -172,6 +195,43 @@ final class CutoverServiceTest {
         // then
         verifyNoInteractions(blockStreamTask, recordStreamTask);
         verifyNoInteractions(recordFileRepository);
+    }
+
+    @Test
+    void getBeforeLastHapiVersion() {
+        // given
+        final var recordFile = recordFile(100, false);
+        recordFile.setHapiVersionMinor(75);
+        doReturn(Optional.of(recordFile)).when(recordFileRepository).findLatest();
+
+        // when
+        cutoverService.get(StreamType.BLOCK, blockStreamTask);
+        cutoverService.get(StreamType.RECORD, recordStreamTask);
+
+        // then
+        verify(recordFileRepository, atLeast(1)).findLatest();
+        verifyNoInteractions(blockStreamTask);
+        verify(recordStreamTask).run();
+    }
+
+    @Test
+    void getWhenNoRecordFiles() {
+        // when
+        cutoverService.get(StreamType.BLOCK, blockStreamTask);
+        cutoverService.get(StreamType.RECORD, recordStreamTask);
+
+        // then
+        verify(recordFileRepository, atLeast(1)).findLatest();
+        verifyNoInteractions(blockStreamTask);
+        verify(recordStreamTask).run();
+
+        // then
+        await().atMost(CUTOVER_THRESHOLD.multipliedBy(2))
+                .pollInterval(Duration.ofMillis(10))
+                .untilAsserted(() -> {
+                    cutoverService.get(StreamType.BLOCK, blockStreamTask);
+                    verify(blockStreamTask).run();
+                });
     }
 
     @ParameterizedTest
@@ -484,6 +544,9 @@ final class CutoverServiceTest {
         return RecordFile.builder()
                 .consensusStart(consensusStart)
                 .consensusEnd(consensusStart + 2000L)
+                .hapiVersionMajor(0)
+                .hapiVersionMinor(76)
+                .hapiVersionPatch(0)
                 .index(index)
                 .version(isBlockStream ? BlockStreamReader.VERSION : ProtoRecordFileReader.VERSION)
                 .build();

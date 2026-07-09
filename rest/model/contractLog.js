@@ -30,6 +30,7 @@ class ContractLog {
   static TOPIC1 = 'topic1';
   static TOPIC2 = 'topic2';
   static TOPIC3 = 'topic3';
+  static SYNTHETIC = 'synthetic';
   static TRANSACTION_HASH = 'transaction_hash';
   static TRANSACTION_INDEX = 'transaction_index';
 

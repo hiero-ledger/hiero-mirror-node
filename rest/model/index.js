@@ -2,7 +2,6 @@
 
 import AccountBalanceFile from './accountBalanceFile';
 import AssessedCustomFee from './assessedCustomFee';
-import AuthorizationListItem from './authorizationListItem.js';
 import CachedApiResponse from './cachedApiResponse';
 import CachedToken from './cachedToken';
 import Contract from './contract';
@@ -19,6 +18,7 @@ import Entity from './entity';
 import EntityTransaction from './entityTransaction.js';
 import EthereumTransaction from './ethereumTransaction';
 import ExchangeRate from './exchangeRate';
+import FeeSchedule from './feeSchedule';
 import FileData from './fileData';
 import FixedFee from './fixedFee';
 import Nft from './nft';
@@ -48,7 +48,6 @@ import ContractState from './contractState';
 export {
   AccountBalanceFile,
   AssessedCustomFee,
-  AuthorizationListItem,
   CachedApiResponse,
   CachedToken,
   Contract,
@@ -65,6 +64,7 @@ export {
   EntityTransaction,
   EthereumTransaction,
   ExchangeRate,
+  FeeSchedule,
   FileData,
   FixedFee,
   Nft,

@@ -14,8 +14,7 @@ configurations.all {
 }
 
 dependencies {
-    val blockNodeVersion: String by rootProject.extra
-    val protobufVersion: String by rootProject.extra
+    val blockNodeVersion = rootProject.extra["blockNodeVersion"] as String
 
     implementation(platform("software.amazon.awssdk:bom"))
     implementation(project(":common"))
@@ -47,33 +46,27 @@ dependencies {
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:sts")
     protobuf("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
-    runtimeOnly("com.github.luben:zstd-jni")
+    implementation("com.github.luben:zstd-jni")
     runtimeOnly("io.grpc:grpc-netty")
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("com.asarkar.grpc:grpc-test")
     testImplementation("com.github.vertical-blank:sql-formatter")
-    testImplementation("com.google.protobuf:protobuf-java-util:$protobufVersion")
+    testImplementation("com.google.protobuf:protobuf-java-util")
     testImplementation("commons-beanutils:commons-beanutils")
     testImplementation("io.grpc:grpc-inprocess")
     testImplementation("io.grpc:grpc-netty")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.apache.commons:commons-math3")
     testImplementation("org.awaitility:awaitility")
-    testImplementation("org.gaul:s3proxy")
+    testImplementation("org.gaul:s3proxy") {
+        exclude(group = "com.github.openstack4j.core")
+        exclude(group = "com.github.openstack4j.core.connectors")
+        exclude(group = "com.google.cloud")
+        exclude(group = "io.opentelemetry")
+    }
     testImplementation("org.junit.platform:junit-platform-launcher")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
-
-protobuf {
-    val grpcVersion: String by rootProject.extra
-    val protobufVersion: String by rootProject.extra
-
-    protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" }
-    plugins { id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:$grpcVersion" } }
-    generateProtoTasks {
-        ofSourceSet("main").forEach { it.plugins { id("grpc") { option("@generated=omit") } } }
-    }
 }

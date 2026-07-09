@@ -26,6 +26,7 @@ import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
+import java.util.List;
 import java.util.Map;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
@@ -44,6 +45,8 @@ import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls;
 import org.hiero.mirror.web3.web3j.generated.ERCTestContractHistorical;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
@@ -76,7 +79,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 @ExtendWith({MockitoExtension.class, SpringExtension.class, OutputCaptureExtension.class})
 @WebMvcTest(controllers = ContractController.class)
-class ContractControllerTest {
+final class ContractControllerTest {
 
     private static final String CALL_URI = "/api/v1/contracts/call";
     private static final long THROTTLE_GAS_LIMIT = 10_000_000L;
@@ -87,6 +90,9 @@ class ContractControllerTest {
 
     @Resource
     private ObjectMapper objectMapper;
+
+    @Resource
+    private Web3Properties web3Properties;
 
     @MockitoBean
     private ContractExecutionService service;
@@ -400,6 +406,13 @@ class ContractControllerTest {
         contractCall(request).andExpect(status().isOk());
     }
 
+    @Test
+    void callBlockTypeNull() throws Exception {
+        final var request = request();
+        request.setBlock(null);
+        contractCall(request).andExpect(status().isOk());
+    }
+
     @NullAndEmptySource
     @ParameterizedTest
     @ValueSource(strings = {"earliest", "latest", "0", "pending", "safe", "finalized"})
@@ -541,6 +554,132 @@ class ContractControllerTest {
         contractCall(request)
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(content().string(convert(new GenericErrorResponse("Service Unavailable"))));
+    }
+
+    // ── State override tests ──────────────────────────────────────────────────
+
+    @Test
+    void callWithStateOverrideBalance() throws Exception {
+        final var override = new StateOverride();
+        override.setAddress("0x00000000000000000000000000000000000004e2");
+        override.setBalance("0xde0b6b3a7640000"); // 1 HBAR in tinybars hex
+        final var request = request();
+        request.setStateOverrides(List.of(override));
+
+        contractCall(request)
+                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
+    }
+
+    @Test
+    void callWithStateOverrideNonce() throws Exception {
+        final var override = new StateOverride();
+        override.setAddress("0x00000000000000000000000000000000000004e2");
+        override.setNonce("0x2a");
+        final var request = request();
+        request.setStateOverrides(List.of(override));
+
+        contractCall(request)
+                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
+    }
+
+    @Test
+    void callWithStateOverrideCode() throws Exception {
+        final var override = new StateOverride();
+        override.setAddress("0x00000000000000000000000000000000000004e4");
+        override.setCode("0x6080604052");
+        final var request = request();
+        request.setStateOverrides(List.of(override));
+
+        contractCall(request)
+                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
+    }
+
+    @Test
+    void callWithStateOverrideStateDiff() throws Exception {
+        final var entry = new StorageEntry();
+        entry.setKey("0x0000000000000000000000000000000000000000000000000000000000000001");
+        entry.setValue("0x0000000000000000000000000000000000000000000000000000000000000064");
+        final var override = new StateOverride();
+        override.setAddress("0x00000000000000000000000000000000000004e4");
+        override.setStateDiff(List.of(entry));
+        final var request = request();
+        request.setStateOverrides(List.of(override));
+
+        contractCall(request)
+                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
+    }
+
+    @Test
+    void callWithStateOverrideFullState() throws Exception {
+        final var entry = new StorageEntry();
+        entry.setKey("0x0000000000000000000000000000000000000000000000000000000000000000");
+        entry.setValue("0x00000000000000000000000000000000000000000000000000000000deadbeef");
+        final var override = new StateOverride();
+        override.setAddress("0x00000000000000000000000000000000000004e4");
+        override.setState(List.of(entry));
+        final var request = request();
+        request.setStateOverrides(List.of(override));
+
+        contractCall(request)
+                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
+    }
+
+    @Test
+    void callWithStateOverrideMutuallyExclusiveStateAndStateDiff() throws Exception {
+        final var stateEntry = new StorageEntry();
+        stateEntry.setKey("0x0000000000000000000000000000000000000000000000000000000000000001");
+        stateEntry.setValue("0x0000000000000000000000000000000000000000000000000000000000000001");
+        final var diffEntry = new StorageEntry();
+        diffEntry.setKey("0x0000000000000000000000000000000000000000000000000000000000000002");
+        diffEntry.setValue("0x0000000000000000000000000000000000000000000000000000000000000002");
+        final var override = new StateOverride();
+        override.setAddress("0x00000000000000000000000000000000000004e4");
+        override.setState(List.of(stateEntry));
+        override.setStateDiff(List.of(diffEntry));
+        final var request = request();
+        request.setStateOverrides(List.of(override));
+
+        contractCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("state and state_diff are mutually exclusive")));
+    }
+
+    @Test
+    void callWithStateOverrideInvalidAddressKey() throws Exception {
+        final var override = new StateOverride();
+        override.setAddress("0x1234"); // too short (not 40 hex chars)
+        override.setBalance("0x1");
+        final var request = request();
+        request.setStateOverrides(List.of(override));
+
+        contractCall(request).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void callWithStateOverrideUpperCaseAddressPrefix() throws Exception {
+        web3Properties.setEnableStateOverrides(true);
+
+        final var override = new StateOverride();
+        override.setAddress("0X00000000000000000000000000000000000004e4");
+        override.setBalance("0x1");
+        final var request = request();
+        request.setStateOverrides(List.of(override));
+
+        contractCall(request).andExpect(status().isOk());
+
+        web3Properties.setEnableStateOverrides(false);
+    }
+
+    @Test
+    void callWithStateOverrideInvalidNonce() throws Exception {
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"to\": \"0x00000000000000000000000000000000000004e4\","
+                                + "\"state_overrides\": [{\"address\":"
+                                + "\"0x00000000000000000000000000000000000004e2\","
+                                + "\"nonce\": \"-1\"}]}"))
+                .andExpect(status().isBadRequest());
     }
 
     private ContractCallRequest request() {

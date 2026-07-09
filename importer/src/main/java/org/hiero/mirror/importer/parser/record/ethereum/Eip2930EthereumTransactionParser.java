@@ -56,7 +56,7 @@ public final class Eip2930EthereumTransactionParser extends AbstractEthereumTran
                 .toAddress(rlpItems.get(4).data())
                 .value(rlpItems.get(5).asBigInt().toByteArray())
                 .callData(rlpItems.get(6).data())
-                .accessList(rlpItems.get(7).data())
+                .accessList(parseAccessList(rlpItems.get(7), TRANSACTION_TYPE_NAME))
                 .recoveryId((int) rlpItems.get(8).asByte())
                 .signatureR(rlpItems.get(9).data())
                 .signatureS(rlpItems.get(10).data())

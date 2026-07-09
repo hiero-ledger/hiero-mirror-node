@@ -17,6 +17,7 @@ import org.hiero.mirror.common.domain.token.FractionalFeesHolder;
 import org.hiero.mirror.common.domain.token.NftTransfer;
 import org.hiero.mirror.common.domain.token.RoyaltyFee;
 import org.hiero.mirror.common.domain.token.RoyaltyFeesHolder;
+import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
 import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
@@ -105,6 +106,14 @@ public final class JsonbWritingConverters {
     public static final class NftTransferList implements Converter<List<NftTransfer>, PGobject> {
         @Override
         public PGobject convert(List<NftTransfer> source) {
+            return toJsonb(source);
+        }
+    }
+
+    @WritingConverter
+    public static final class AccessListList implements Converter<List<AccessList>, PGobject> {
+        @Override
+        public PGobject convert(List<AccessList> source) {
             return toJsonb(source);
         }
     }

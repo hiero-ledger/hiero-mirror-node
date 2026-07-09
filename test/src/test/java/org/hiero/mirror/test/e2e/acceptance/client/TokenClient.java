@@ -55,6 +55,7 @@ import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.core.retry.RetryTemplate;
+import org.springframework.util.CollectionUtils;
 
 @Named
 public class TokenClient extends AbstractNetworkClient {
@@ -221,7 +222,7 @@ public class TokenClient extends AbstractNetworkClient {
             transaction.setKycKey(adminKey);
         }
 
-        if (customFees != null && adminKey != null) {
+        if ((!CollectionUtils.isEmpty(customFees) || tokenNameEnum.forceFeeScheduleKey) && adminKey != null) {
             transaction.setCustomFees(customFees).setFeeScheduleKey(adminKey);
         }
 
@@ -256,10 +257,11 @@ public class TokenClient extends AbstractNetworkClient {
         var response = executeTransactionAndRetrieveReceipt(tokenCreateTransaction, keyList);
         var tokenId = response.getReceipt().tokenId;
         log.info(
-                "Created new fungible token {} with symbol {} via {}",
+                "Created new fungible token {} with symbol {} via {} in {}",
                 tokenId,
                 tokenNameEnum.symbol,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         tokenIds.add(tokenId);
         associations.put(new TokenAccount(tokenId, treasuryAccount), response);
         return response;
@@ -272,7 +274,6 @@ public class TokenClient extends AbstractNetworkClient {
             TokenSupplyType tokenSupplyType,
             long maxSupply,
             List<CustomFee> customFees) {
-        log.debug("Create new non-fungible token with symbol {}", tokenNameEnum.symbol);
         TokenCreateTransaction tokenCreateTransaction = getTokenCreateTransaction(
                 tokenNameEnum,
                 expandedAccountId,
@@ -286,7 +287,11 @@ public class TokenClient extends AbstractNetworkClient {
         var response = executeTransactionAndRetrieveReceipt(tokenCreateTransaction, keyList);
         var tokenId = response.getReceipt().tokenId;
         log.info(
-                "Created new NFT {} with symbol {} via {}", tokenId, tokenNameEnum.symbol, response.getTransactionId());
+                "Created new NFT {} with symbol {} via {} in {}",
+                tokenId,
+                tokenNameEnum.symbol,
+                response.getTransactionId(),
+                response.getStopwatch());
         tokenIds.add(tokenId);
         associations.put(new TokenAccount(tokenId, treasuryAccount), response);
         return response;
@@ -313,7 +318,12 @@ public class TokenClient extends AbstractNetworkClient {
             NetworkTransactionResponse response =
                     executeTransactionAndRetrieveReceipt(tokenAssociateTransaction, keyList);
 
-            log.info("Associated account {} with token {} via {}", accountId, token, response.getTransactionId());
+            log.info(
+                    "Associated account {} with token {} via {} in {}",
+                    accountId,
+                    token,
+                    response.getTransactionId(),
+                    response.getStopwatch());
 
             return response;
         });
@@ -338,7 +348,12 @@ public class TokenClient extends AbstractNetworkClient {
         }
 
         var response = executeTransactionAndRetrieveReceipt(tokenMintTransaction);
-        log.info("Minted {} tokens to {} via {}", amount, tokenId, response.getTransactionId());
+        log.info(
+                "Minted {} tokens to {} via {} in {}",
+                amount,
+                tokenId,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -352,10 +367,11 @@ public class TokenClient extends AbstractNetworkClient {
 
         var response = executeTransactionAndRetrieveReceipt(tokenUpdateNftsTransaction, KeyList.of(metadataKey));
         log.info(
-                "Updated NFT metadata on NFT serial numbers {} for token {} via {}",
+                "Updated NFT metadata on NFT serial numbers {} for token {} via {} in {}",
                 serialNumbers,
                 tokenId,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -366,7 +382,12 @@ public class TokenClient extends AbstractNetworkClient {
                 .setTransactionMemo(getMemo("Freeze token account"));
 
         var response = executeTransactionAndRetrieveReceipt(tokenFreezeAccountTransaction);
-        log.info("Froze account {} with token {} via {}", accountId, tokenId, response.getTransactionId());
+        log.info(
+                "Froze account {} with token {} via {} in {}",
+                accountId,
+                tokenId,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -377,7 +398,12 @@ public class TokenClient extends AbstractNetworkClient {
                 .setTransactionMemo(getMemo("Unfreeze token account"));
 
         var response = executeTransactionAndRetrieveReceipt(tokenUnfreezeTransaction);
-        log.info("Unfroze account {} with token {} via {}", accountId, tokenId, response.getTransactionId());
+        log.info(
+                "Unfroze account {} with token {} via {} in {}",
+                accountId,
+                tokenId,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -388,7 +414,12 @@ public class TokenClient extends AbstractNetworkClient {
                 .setTransactionMemo(getMemo("Grant kyc for token"));
 
         var response = executeTransactionAndRetrieveReceipt(tokenGrantKycTransaction);
-        log.info("Granted KYC for account {} with token {} via {}", accountId, tokenId, response.getTransactionId());
+        log.info(
+                "Granted KYC for account {} with token {} via {} in {}",
+                accountId,
+                tokenId,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -399,7 +430,12 @@ public class TokenClient extends AbstractNetworkClient {
                 .setTransactionMemo(getMemo("Revoke kyc for token"));
 
         var response = executeTransactionAndRetrieveReceipt(tokenRevokeKycTransaction);
-        log.info("Revoked KYC for account {} with token {} via {}", accountId, tokenId, response.getTransactionId());
+        log.info(
+                "Revoked KYC for account {} with token {} via {} in {}",
+                accountId,
+                tokenId,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -408,7 +444,7 @@ public class TokenClient extends AbstractNetworkClient {
                 new TokenPauseTransaction().setTokenId(tokenId).setTransactionMemo(getMemo("Pause token"));
 
         var response = executeTransactionAndRetrieveReceipt(tokenPauseTransaction);
-        log.info("Paused token {} via {}", tokenId, response.getTransactionId());
+        log.info("Paused token {} via {} in {}", tokenId, response.getTransactionId(), response.getStopwatch());
         return response;
     }
 
@@ -417,7 +453,7 @@ public class TokenClient extends AbstractNetworkClient {
                 new TokenUnpauseTransaction().setTokenId(tokenId).setTransactionMemo(getMemo("Unpause token"));
 
         var response = executeTransactionAndRetrieveReceipt(tokenUnpauseTransaction);
-        log.info("Un-paused token {} via {}", tokenId, response.getTransactionId());
+        log.info("Un-paused token {} via {} in {}", tokenId, response.getTransactionId(), response.getStopwatch());
         return response;
     }
 
@@ -475,13 +511,13 @@ public class TokenClient extends AbstractNetworkClient {
         var response = executeTransactionAndRetrieveReceipt(
                 transaction, privateKey == null ? null : KeyList.of(privateKey), sender);
         log.info(
-                "Transferred {} tokens of {} from {} to {} via {}, isApproval {}",
+                "Transferred {} tokens of {} from {} to {} via {} in {}",
                 amount,
                 tokenId,
                 sender,
                 recipient,
                 response.getTransactionId(),
-                isApproval);
+                response.getStopwatch());
         return response;
     }
 
@@ -498,13 +534,13 @@ public class TokenClient extends AbstractNetworkClient {
         var response = executeTransactionAndRetrieveReceipt(
                 transaction, privateKey == null ? null : KeyList.of(privateKey), sender);
         log.info(
-                "Transferred serial numbers {} of token {} from {} to {} via {}, isApproval {}",
+                "Transferred serial numbers {} of token {} from {} to {} via {} in {}",
                 serialNumbers,
                 tokenId,
                 sender,
                 recipient,
                 response.getTransactionId(),
-                isApproval);
+                response.getStopwatch());
         return response;
     }
 
@@ -526,7 +562,12 @@ public class TokenClient extends AbstractNetworkClient {
                 .setWipeKey(publicKey);
 
         var response = executeTransactionAndRetrieveReceipt(tokenUpdateTransaction);
-        log.info("Updated token {} with new symbol '{}' via {}", tokenId, newSymbol, response.getTransactionId());
+        log.info(
+                "Updated token {} with new symbol '{}' via {} in {}",
+                tokenId,
+                newSymbol,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -538,11 +579,12 @@ public class TokenClient extends AbstractNetworkClient {
 
         var response = executeTransactionAndRetrieveReceipt(tokenUpdateTransaction);
         log.info(
-                "Updated token {} with new metadata key {} [{}] via {}",
+                "Updated token {} with new metadata key {} [{}] via {} in {}",
                 tokenId,
                 metadataPublicKey,
                 Hex.encodeHexString(metadataPublicKey.toBytes()),
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -553,10 +595,11 @@ public class TokenClient extends AbstractNetworkClient {
 
         var response = executeTransactionAndRetrieveReceipt(tokenUpdateTransaction, KeyList.of(metadataKey));
         log.info(
-                "Updated token {} with new metadata [{}] via {}",
+                "Updated token {} with new metadata [{}] via {} in {}",
                 tokenId,
                 Hex.encodeHexString(newMetadata),
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -572,10 +615,11 @@ public class TokenClient extends AbstractNetworkClient {
         KeyList keyList = KeyList.of(newTreasuryId.getPrivateKey());
         var response = executeTransactionAndRetrieveReceipt(tokenUpdateTransaction, keyList);
         log.info(
-                "Updated token {} treasury account to {} via {}",
+                "Updated token {} treasury account to {} via {} in {}",
                 tokenId,
                 treasuryAccountId,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -588,7 +632,12 @@ public class TokenClient extends AbstractNetworkClient {
                 getTokenBurnTransaction(tokenId).setAmount(amount).setTransactionMemo(getMemo("Token burn"));
 
         var response = executeTransactionAndRetrieveReceipt(tokenBurnTransaction);
-        log.info("Burned amount {} from token {} via {}", amount, tokenId, response.getTransactionId());
+        log.info(
+                "Burned amount {} from token {} via {} in {}",
+                amount,
+                tokenId,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -597,7 +646,12 @@ public class TokenClient extends AbstractNetworkClient {
                 getTokenBurnTransaction(tokenId).addSerial(serialNumber).setTransactionMemo(getMemo("Token burn"));
 
         var response = executeTransactionAndRetrieveReceipt(tokenBurnTransaction);
-        log.info("Burned serial number {} from token {} via {}", serialNumber, tokenId, response.getTransactionId());
+        log.info(
+                "Burned serial number {} from token {} via {} in {}",
+                serialNumber,
+                tokenId,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -613,7 +667,12 @@ public class TokenClient extends AbstractNetworkClient {
                 getTokenWipeTransaction(tokenId, expandedAccountId).setAmount(amount);
 
         var response = executeTransactionAndRetrieveReceipt(transaction);
-        log.info("Wiped {} tokens from account {} via {}", amount, expandedAccountId, response.getTransactionId());
+        log.info(
+                "Wiped {} tokens from account {} via {} in {}",
+                amount,
+                expandedAccountId,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -624,11 +683,12 @@ public class TokenClient extends AbstractNetworkClient {
 
         var response = executeTransactionAndRetrieveReceipt(transaction);
         log.info(
-                "Wiped serial {} from token {} account {} via {}",
+                "Wiped serial {} from token {} account {} via {} in {}",
                 serialNumber,
                 tokenId,
                 expandedAccountId,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -640,7 +700,12 @@ public class TokenClient extends AbstractNetworkClient {
 
         var keyList = KeyList.of(accountId.getPrivateKey());
         var response = executeTransactionAndRetrieveReceipt(tokenDissociateTransaction, keyList);
-        log.info("Dissociated account {} from token {} via {}", accountId, token, response.getTransactionId());
+        log.info(
+                "Dissociated account {} from token {} via {} in {}",
+                accountId,
+                token,
+                response.getTransactionId(),
+                response.getStopwatch());
         associations.remove(new TokenAccount(token, accountId));
         return response;
     }
@@ -651,7 +716,7 @@ public class TokenClient extends AbstractNetworkClient {
 
         var keyList = KeyList.of(accountId.getPrivateKey());
         var response = executeTransactionAndRetrieveReceipt(tokenDissociateTransaction, keyList);
-        log.info("Deleted token {} via {}", tokenId, response.getTransactionId());
+        log.info("Deleted token {} via {} in {}", tokenId, response.getTransactionId(), response.getStopwatch());
         tokenIds.remove(tokenId);
         tokenMap.values().removeIf(tokenResponse -> tokenId.equals(tokenResponse.tokenId));
         return response;
@@ -664,7 +729,11 @@ public class TokenClient extends AbstractNetworkClient {
                 .setTokenId(tokenId)
                 .setTransactionMemo(getMemo("Update token fee schedule"));
         var response = executeTransactionAndRetrieveReceipt(transaction, KeyList.of(expandedAccountId.getPrivateKey()));
-        log.info("Updated custom fees schedule for token {} via {}", tokenId, response.getTransactionId());
+        log.info(
+                "Updated custom fees schedule for token {} via {} in {}",
+                tokenId,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -674,7 +743,12 @@ public class TokenClient extends AbstractNetworkClient {
                 .setTokenIds(tokenIds)
                 .setTransactionMemo(getMemo("Reject Fungible token"));
         var response = executeTransactionAndRetrieveReceipt(tokenRejectTransaction, KeyList.of(owner.getPrivateKey()));
-        log.info("Owner {} rejected fungible tokens {} via {}", owner, tokenIds, response.getTransactionId());
+        log.info(
+                "Owner {} rejected fungible tokens {} via {} in {}",
+                owner,
+                tokenIds,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -684,7 +758,12 @@ public class TokenClient extends AbstractNetworkClient {
                 .setOwnerId(owner.getAccountId())
                 .setTransactionMemo(getMemo("Reject NFT"));
         var response = executeTransactionAndRetrieveReceipt(tokenRejectTransaction, KeyList.of(owner.getPrivateKey()));
-        log.info("Owner {} rejected NFT tokens {} via {}", owner, nftIds, response.getTransactionId());
+        log.info(
+                "Owner {} rejected NFT tokens {} via {} in {}",
+                owner,
+                nftIds,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -693,12 +772,13 @@ public class TokenClient extends AbstractNetworkClient {
         var transaction = getFungibleTokenAirdropTransaction(tokenId, sender.getAccountId(), recipient, amount);
         var response = executeTransactionAndRetrieveReceipt(transaction, KeyList.of(sender.getPrivateKey()), sender);
         log.info(
-                "Airdropped {} tokens of {} from {} to {} via {}",
+                "Airdropped {} tokens of {} from {} to {} via {} in {}",
                 amount,
                 tokenId,
                 sender,
                 recipient,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -708,12 +788,13 @@ public class TokenClient extends AbstractNetworkClient {
                 getNftAirdropTransaction(tokenId, sender.getAccountId(), receiver.getAccountId(), serialNumber);
         var response = executeTransactionAndRetrieveReceipt(transaction, KeyList.of(sender.getPrivateKey()), sender);
         log.info(
-                "Airdropped serial numbers {} of {} from {} to {} via {}",
+                "Airdropped serial numbers {} of {} from {} to {} via {} in {}",
                 serialNumber,
                 tokenId,
                 sender,
                 receiver,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -732,7 +813,12 @@ public class TokenClient extends AbstractNetworkClient {
         var pendingAirdropIds = getPendingAirdropIds(sender.getAccountId(), receiver, tokenId);
         var transaction = getCancelTokenAirdropTransaction(pendingAirdropIds);
         var response = executeTransactionAndRetrieveReceipt(transaction, KeyList.of(sender.getPrivateKey()), sender);
-        log.info("Cancel pending Airdrop from {} to {} via {}", sender, receiver, response.getTransactionId());
+        log.info(
+                "Cancel pending Airdrop from {} to {} via {} in {}",
+                sender,
+                receiver,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -743,11 +829,12 @@ public class TokenClient extends AbstractNetworkClient {
         var transaction = getCancelTokenAirdropTransaction(pendingAirdropIds);
         var response = executeTransactionAndRetrieveReceipt(transaction, KeyList.of(sender.getPrivateKey()), sender);
         log.info(
-                "Cancel pending Airdrop for {} from {} to {} via {}",
+                "Cancel pending Airdrop for {} from {} to {} via {} in {}",
                 nftId,
                 sender,
                 receiver,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -757,7 +844,12 @@ public class TokenClient extends AbstractNetworkClient {
         var transaction = getClaimTokenAirdropsTransaction(pendingAirdropIds);
         var response =
                 executeTransactionAndRetrieveReceipt(transaction, KeyList.of(receiver.getPrivateKey()), receiver);
-        log.info("Claim pending Airdrop from {} to {} via {}", sender, receiver, response.getTransactionId());
+        log.info(
+                "Claim pending Airdrop from {} to {} via {} in {}",
+                sender,
+                receiver,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -769,11 +861,12 @@ public class TokenClient extends AbstractNetworkClient {
         var response =
                 executeTransactionAndRetrieveReceipt(transaction, KeyList.of(receiver.getPrivateKey()), receiver);
         log.info(
-                "Claim pending Airdrop for {} from {} to {} via {}",
+                "Claim pending Airdrop for {} from {} to {} via {} in {}",
                 nftId,
                 sender,
                 receiver,
-                response.getTransactionId());
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -813,24 +906,28 @@ public class TokenClient extends AbstractNetworkClient {
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         FUNGIBLEHISTORICAL(
                 "fungible_historical",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         FUNGIBLE_DELETABLE(
                 "fungible_deletable",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         FUNGIBLE_FOR_ETH_CALL(
                 "fungible",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         // used in tokenAllowance.feature and not using snake_case because cucumber cannot detect the enum
         ALLOWANCEFUNGIBLE(
@@ -838,102 +935,119 @@ public class TokenClient extends AbstractNetworkClient {
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         FUNGIBLE_WITH_CUSTOM_FEES(
                 "fungible_custom_fees",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         ALLOWANCE_NON_FUNGIBLE(
                 "allowance_non_fungible",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         NFT(
                 "non_fungible",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         NFT_FOR_ETH_CALL(
                 "non_fungible",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         NFT_ERC(
                 "non_fungible_erc",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
+                false,
                 false),
         NFTHISTORICAL(
                 "non_fungible_historical",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         NFT_AIRDROP(
                 "non_fungible_airdrop",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
-                true),
+                true,
+                false),
         NFT_DELETABLE(
                 "non_fungible_deletable",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.FreezeNotApplicable,
-                true),
+                true,
+                false),
         FUNGIBLE_KYC_UNFROZEN(
                 "fungible_kyc_unfrozen",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
-                false),
+                false,
+                true),
         FUNGIBLE_KYC_UNFROZEN_2(
                 "fungible_kyc_unfrozen_2",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
-                true),
+                true,
+                false),
         FUNGIBLE_KYC_UNFROZEN_FOR_ETH_CALL(
                 "fungible_kyc_unfrozen_for_eth_call",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         FUNGIBLE_KYC_NOT_APPLICABLE_UNFROZEN(
                 "fungible_kyc_not_applicable_unfrozen",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         FUNGIBLE_AIRDROP(
                 "fungible_airdrop",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         NFT_KYC_NOT_APPLICABLE_UNFROZEN(
                 "nft_kyc_not_applicable_unfrozen",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.KycNotApplicable,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         NFT_KYC_UNFROZEN(
                 "nft_kyc_unfrozen",
                 TokenType.NON_FUNGIBLE_UNIQUE,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false),
         FUNGIBLE_FOR_CUSTOM_FEE(
                 "fungible_for_custom_fee",
                 TokenType.FUNGIBLE_COMMON,
                 TokenKycStatus.Granted,
                 TokenFreezeStatus.Unfrozen,
+                false,
                 false);
 
         private final String symbol;
@@ -941,6 +1055,7 @@ public class TokenClient extends AbstractNetworkClient {
         private final TokenKycStatus tokenKycStatus;
         private final TokenFreezeStatus tokenFreezeStatus;
         private final boolean createWithMetadata;
+        private final boolean forceFeeScheduleKey;
 
         @Override
         public String toString() {

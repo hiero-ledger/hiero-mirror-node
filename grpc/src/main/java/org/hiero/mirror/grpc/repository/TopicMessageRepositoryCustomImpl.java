@@ -2,6 +2,9 @@
 
 package org.hiero.mirror.grpc.repository;
 
+import static org.hiero.mirror.grpc.retriever.RetrieverProperties.MAX_PAGE_SIZE;
+import static org.hiero.mirror.grpc.retriever.RetrieverProperties.MIN_PAGE_SIZE;
+
 import jakarta.inject.Named;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -18,7 +21,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 @CustomLog
 @Named
 @RequiredArgsConstructor
-public class TopicMessageRepositoryCustomImpl implements TopicMessageRepositoryCustom {
+class TopicMessageRepositoryCustomImpl implements TopicMessageRepositoryCustom {
 
     // make the cost estimation of using the index on (topic_id, consensus_timestamp) lower than that of
     // the primary key so pg planner will choose the better index when querying topic messages by id
@@ -48,6 +51,8 @@ public class TopicMessageRepositoryCustomImpl implements TopicMessageRepositoryC
                 and consensus_timestamp >= :startTime
                 """);
 
+        final int limit = (int) Math.max(Math.min(filter.getLimit(), MAX_PAGE_SIZE), MIN_PAGE_SIZE);
+
         var params = new MapSqlParameterSource()
                 .addValue("topicId", filter.getTopicId().getId())
                 .addValue("startTime", filter.getStartTime());
@@ -57,12 +62,8 @@ public class TopicMessageRepositoryCustomImpl implements TopicMessageRepositoryC
             params.addValue("endTime", filter.getEndTime());
         }
 
-        sql.append("order by consensus_timestamp asc");
-
-        if (filter.hasLimit()) {
-            sql.append("\nlimit :limit");
-            params.addValue("limit", filter.getLimit());
-        }
+        sql.append("order by consensus_timestamp asc\nlimit :limit");
+        params.addValue("limit", limit);
 
         if (filter.getLimit() != 1) {
             // only apply the hint when limit is not 1

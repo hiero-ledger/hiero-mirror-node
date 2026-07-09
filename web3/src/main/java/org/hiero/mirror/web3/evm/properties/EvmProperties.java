@@ -87,6 +87,8 @@ public class EvmProperties {
     @NotNull
     private Map<String, String> properties = new HashMap<>();
 
+    private boolean sharedWritableState = false;
+
     // Contains the default properties merged with the user defined properties to pass to the consensus node library
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
@@ -152,6 +154,7 @@ public class EvmProperties {
 
     private Map<String, String> buildTransactionProperties() {
         var props = new HashMap<String, String>();
+        props.put("blockStream.writerMode", "FILE");
         props.put("contracts.chainId", network.getChainId().toBigInteger().toString());
         props.put("contracts.evm.version", "v" + evmVersion.major() + "." + evmVersion.minor());
         props.put("contracts.maxRefundPercentOfGasLimit", String.valueOf(maxGasRefundPercentage));
@@ -160,7 +163,6 @@ public class EvmProperties {
         props.put("contracts.throttle.throttleByGas", "false");
         props.put("contracts.systemContract.scheduleService.scheduleCall.enabled", "true");
         props.put("executor.disableThrottles", "true");
-        props.put("fees.simpleFeesEnabled", "false");
         props.put("hedera.realm", String.valueOf(CommonProperties.getInstance().getRealm()));
         props.put("hedera.shard", String.valueOf(CommonProperties.getInstance().getShard()));
         props.put("jumboTransactions.allowedHederaFunctionalities", "ContractCall,ContractCreate,EthereumTransaction");

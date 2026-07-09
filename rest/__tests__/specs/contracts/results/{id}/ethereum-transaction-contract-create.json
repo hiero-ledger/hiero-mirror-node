@@ -56,7 +56,15 @@
         "payer_account_id": "8001",
         "value": "0x0001158e460913d00000",
         "_value_description": "2000000000 tinybars = 20000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00",
-        "to_address": "47e8474502a5466f0d47d30ca5c98659cdb92fb1"
+        "to_address": "47e8474502a5466f0d47d30ca5c98659cdb92fb1",
+        "access_list": [
+          {
+            "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+            "storage_keys": [
+              "0x0000000000000000000000000000000000000000000000000000000000000081"
+            ]
+          }
+        ]
       }
     ]
   },
@@ -69,7 +77,14 @@
   ],
   "responseStatus": 200,
   "responseJson": {
-    "access_list": "0x",
+    "access_list": [
+      {
+        "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
+        "storage_keys": [
+          "0x0000000000000000000000000000000000000000000000000000000000000081"
+        ]
+      }
+    ],
     "amount": 2000000000,
     "authorization_list": [],
     "block_gas_used": 50000000,

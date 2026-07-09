@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package org.hiero.mirror.importer.downloader.block;
+
+import com.github.luben.zstd.ZstdInputStream;
+import com.github.luben.zstd.ZstdOutputStream;
+import io.grpc.Codec;
+import jakarta.inject.Named;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
+@Named
+final class ZstdCodec implements Codec {
+
+    @Override
+    public String getMessageEncoding() {
+        return "zstd";
+    }
+
+    @Override
+    public OutputStream compress(OutputStream os) throws IOException {
+        return new ZstdOutputStream(os);
+    }
+
+    @Override
+    public InputStream decompress(InputStream is) throws IOException {
+        return new ZstdInputStream(is);
+    }
+}

@@ -22,7 +22,7 @@ const params = {
   },
 };
 
-const {options, run} = new MultiIdScenarioBuilder(transactionIds)
+const {options, run} = new MultiIdScenarioBuilder(transactionIds, 'WEB3')
   .name('opcodesAllEnabled')
   .url(`${baseUrl}/contracts/results/{id}/opcodes?stack=true&memory=true&storage=true`)
   .request((url) => http.get(url, params))

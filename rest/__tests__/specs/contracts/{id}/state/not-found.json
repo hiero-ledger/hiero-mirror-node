@@ -14,14 +14,11 @@
   "urls": [
     "/api/v1/contracts/0x5e17c988cc14ae5f0bf328245eaf88f081c3a614/state"
   ],
-  "responseStatus": 404,
+  "responseStatus": 200,
   "responseJson": {
-    "_status": {
-      "messages": [
-        {
-          "message": "No contract with the given evm address 0x5e17c988cc14ae5f0bf328245eaf88f081c3a614 has been found."
-        }
-      ]
+    "state": [],
+    "links": {
+      "next": null
     }
   }
 }

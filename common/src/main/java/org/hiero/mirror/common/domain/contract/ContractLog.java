@@ -8,9 +8,12 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.LogsBloomFilter;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
@@ -18,8 +21,9 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Table("contract_log")
+@EqualsAndHashCode(exclude = "contractResult")
 @NoArgsConstructor
+@Table("contract_log")
 public class ContractLog implements Persistable<ContractLog.Id> {
 
     @ToString.Exclude
@@ -51,6 +55,15 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     private int transactionIndex;
 
     private boolean synthetic;
+
+    /**
+     * Transient reference to the ContractResult this log belongs to.
+     * Used for updating the bloom filter in the correct ContractResult during synthetic log processing.
+     */
+    @JsonIgnore
+    @Transient
+    @ToString.Exclude
+    private ContractResult contractResult;
 
     public void setConsensusTimestamp(long consensusTimestamp) {
         if (id == null) {
@@ -84,6 +97,22 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     @Override
     public boolean isNew() {
         return true;
+    }
+
+    public void setBloom(final byte[] bloom) {
+        if (bloom == null) {
+            return;
+        }
+
+        this.bloom = bloom;
+        if (synthetic && contractResult != null) {
+            final var existingResultBloom = contractResult.getBloom();
+            final var aggregatedBloom = bloom.length == LogsBloomFilter.BYTE_SIZE
+                    ? LogsBloomFilter.or(existingResultBloom, bloom)
+                    : existingResultBloom;
+
+            contractResult.setBloom(aggregatedBloom);
+        }
     }
 
     @Data
