@@ -28,6 +28,7 @@ Feature: Account Crypto Allowance Coverage Feature
     Then the mirror node REST API should confirm the approved <approvedAmount> tℏ crypto allowance for the contract
     When the spend on behalf contract spends <transferAmount> tℏ of the approved allowance to <recipient>
     Then the mirror node REST API should confirm the contract approved allowance of <approvedAmount> tℏ was debited by <transferAmount> tℏ
+    And the mirror node contract call should return the approved allowance of <approvedAmount> tℏ debited by <transferAmount> tℏ
     Examples:
       | approvedAmount | recipient | transferAmount |
       | 10000000       | "ALICE"   | 1000000        |

@@ -221,9 +221,9 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByOwnerAndTimestampWithContractInitiatedTransfer() {
-        final long spender = 1L;
-        final long ownerId = 2L;
-        final long relayer = 3L;
+        final long spender = domainBuilder.id();
+        final long ownerId = domainBuilder.id();
+        final long relayer = domainBuilder.id();
         final long cryptoAllowanceTimestamp = System.currentTimeMillis();
         final long cryptoTransferTimestamp = cryptoAllowanceTimestamp + 1;
         final long blockTimestamp = cryptoAllowanceTimestamp + 2;
@@ -260,9 +260,9 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByOwnerAndTimestampReproducesMcveHbarContractSpend() {
-        final long spendOnBehalfContract = 1001L;
-        final long owner = 1002L;
-        final long relayerEoa = 1003L; // EOA that submitted the contract call (tx payer)
+        final long spendOnBehalfContract = domainBuilder.id();
+        final long owner = domainBuilder.id();
+        final long relayerEoa = domainBuilder.id(); // EOA that submitted the contract call (tx payer)
         final long grantedTinybars = 500_000_000L;
         final long spentTinybars = 100_000_000L;
         final long expectedRemaining = 400_000_000L;
@@ -303,9 +303,9 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findByOwnerAndTimestampWithDirectAndContractInitiatedTransfers() {
-        final long spender = 1L;
-        final long ownerId = 2L;
-        final long relayer = 3L;
+        final long spender = domainBuilder.id();
+        final long ownerId = domainBuilder.id();
+        final long relayer = domainBuilder.id();
         final long cryptoAllowanceTimestamp = System.currentTimeMillis();
         final long directSpendTimestamp = cryptoAllowanceTimestamp + 1;
         final long contractSpendTimestamp = cryptoAllowanceTimestamp + 2;

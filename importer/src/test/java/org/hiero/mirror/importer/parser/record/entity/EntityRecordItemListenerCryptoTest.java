@@ -1047,12 +1047,12 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     @Test
     void cryptoCreateBlockstreamDelegationAddressPersistsEthereumNonceFromStateChanges() {
         // given
-        long expectedNonce = 2L;
-        var payer = domainBuilder.entity().persist();
-        var transactionId = transactionId(payer.toEntityId(), domainBuilder.timestamp());
+        final long expectedNonce = 2L;
+        final var payer = domainBuilder.entity().persist();
+        final var transactionId = transactionId(payer.toEntityId(), domainBuilder.timestamp());
 
         // when - blockstream crypto create with delegation address and nonce from state changes
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .cryptoCreate()
                 .transactionBody(b -> b.setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
@@ -1062,7 +1062,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
         parseRecordItemAndCommit(recordItem);
 
         // then
-        var accountId =
+        final var accountId =
                 EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
         assertThat(entityRepository.findById(accountId.getId()))
                 .get()
@@ -1073,16 +1073,16 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     @Test
     void cryptoUpdateBlockstreamDelegationAddressPersistsEthereumNonceFromStateChanges() {
         // given
-        var account = domainBuilder
+        final var account = domainBuilder
                 .entity()
                 .customize(e -> e.delegationAddress(null).ethereumNonce(0L))
                 .persist();
-        var protoAccountId = account.toEntityId().toAccountID();
-        long expectedNonce = 3L;
+        final var protoAccountId = account.toEntityId().toAccountID();
+        final long expectedNonce = 3L;
 
         // when - blockstream crypto update with delegation address and nonce from state changes
-        var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
-        var recordItem = recordItemBuilder
+        final var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
+        final var recordItem = recordItemBuilder
                 .cryptoUpdate()
                 .transactionBody(b ->
                         b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
@@ -1587,8 +1587,9 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                 });
     }
 
-    @Test
-    void cryptoTransferUpdatesAllowanceAmountViaContract() {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void cryptoTransferUpdatesAllowanceAmountViaContract(boolean contractCreate) {
         entityProperties.getPersist().setTrackAllowance(true);
         final var allowanceAmountGranted = 1000L;
 
@@ -1619,25 +1620,28 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         .setIsApproval(true)
                         .build());
 
-        final var transaction = buildTransaction(
-                r -> r.getCryptoTransferBuilder().getTransfersBuilder().addAllAccountAmounts(cryptoTransfers));
-
-        final var transactionBody = getTransactionBody(transaction);
         final var recordCryptoTransfers = cryptoTransfers.stream()
                 .map(transfer -> transfer.toBuilder().setIsApproval(false).build())
                 .toList();
-        final var txnRecord = buildTransactionRecordWithNoTransactions(
-                builder -> {
-                    builder.getTransferListBuilder().addAllAccountAmounts(recordCryptoTransfers);
-                    buildContractFunctionResult(
-                            builder.getContractCallResultBuilder().setSenderId(contractSpender.toAccountID()));
-                },
-                transactionBody,
-                ResponseCodeEnum.SUCCESS.getNumber());
-
-        final var recordItem = RecordItem.builder()
-                .transactionRecord(txnRecord)
-                .transaction(transaction)
+        final var transactionId = transactionId(domainBuilder.entityId(), domainBuilder.timestamp()).toBuilder()
+                .setNonce(1)
+                .build();
+        final var recordItem = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBody(b -> b.setTransfers(TransferList.newBuilder().addAllAccountAmounts(cryptoTransfers)))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .record(r -> {
+                    r.setParentConsensusTimestamp(recordItemBuilder.timestamp())
+                            .setTransferList(TransferList.newBuilder().addAllAccountAmounts(recordCryptoTransfers));
+                    final var contractFunctionResult =
+                            recordItemBuilder.contractFunctionResult().setSenderId(contractSpender.toAccountID());
+                    if (contractCreate) {
+                        // allowance spent from the constructor of the contract being created
+                        r.setContractCreateResult(contractFunctionResult);
+                    } else {
+                        r.setContractCallResult(contractFunctionResult);
+                    }
+                })
                 .build();
 
         parseRecordItemAndCommit(recordItem);
@@ -1666,7 +1670,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
         entityProperties.getPersist().setTrackAllowance(true);
         final var allowanceAmountGranted = 1000L;
 
-        final var payerAccount = EntityId.of(PAYER);
+        final var payerAccount = domainBuilder.entity().persist().toEntityId();
 
         final var cryptoAllowance = domainBuilder
                 .cryptoAllowance()
@@ -1689,24 +1693,20 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         .setIsApproval(true)
                         .build());
 
-        final var transaction = buildTransaction(
-                r -> r.getCryptoTransferBuilder().getTransfersBuilder().addAllAccountAmounts(cryptoTransfers));
-
-        final var transactionBody = getTransactionBody(transaction);
         final var recordCryptoTransfers = cryptoTransfers.stream()
                 .map(transfer -> transfer.toBuilder().setIsApproval(false).build())
                 .toList();
-        final var txnRecord = buildTransactionRecordWithNoTransactions(
-                builder -> {
-                    builder.getTransferListBuilder().addAllAccountAmounts(recordCryptoTransfers);
-                    buildContractFunctionResult(builder.getContractCallResultBuilder());
-                },
-                transactionBody,
-                ResponseCodeEnum.SUCCESS.getNumber());
-
-        final var recordItem = RecordItem.builder()
-                .transactionRecord(txnRecord)
-                .transaction(transaction)
+        final var transactionId = transactionId(payerAccount, domainBuilder.timestamp()).toBuilder()
+                .setNonce(1)
+                .build();
+        final var recordItem = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBody(b -> b.setTransfers(TransferList.newBuilder().addAllAccountAmounts(cryptoTransfers)))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .record(r -> r.setParentConsensusTimestamp(recordItemBuilder.timestamp())
+                        .setTransferList(TransferList.newBuilder().addAllAccountAmounts(recordCryptoTransfers))
+                        .setContractCallResult(
+                                recordItemBuilder.contractFunctionResult().clearSenderId()))
                 .build();
 
         parseRecordItemAndCommit(recordItem);

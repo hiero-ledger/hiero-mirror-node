@@ -5,6 +5,7 @@ package org.hiero.mirror.test.e2e.acceptance.steps;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.rest.model.TransactionTypes.CRYPTOCREATEACCOUNT;
 import static org.hiero.mirror.rest.model.TransactionTypes.CRYPTOTRANSFER;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.hedera.hashgraph.sdk.AccountId;
@@ -17,11 +18,13 @@ import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import java.math.BigInteger;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Data;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.CommonProperties;
@@ -315,6 +318,19 @@ public class AccountFeature extends AbstractFeature {
         verifyMirrorAPIContractCryptoAllowanceResponse(approvedAmount, transferAmount);
     }
 
+    @Then("the mirror node contract call should return the approved allowance of {long} tℏ debited by {long} tℏ")
+    public void verifyContractCryptoAllowanceDebitedViaContractCall(long approvedAmount, long transferAmount) {
+        final var owner = accountClient.getClient().getOperatorAccountId();
+        final var data = encodeData(
+                ContractResource.PRECOMPILE,
+                ContractMethods.HBAR_ALLOWANCE,
+                asAddress(owner),
+                asAddress(contractSpenderAccountId));
+        final var response =
+                callContract(data, spendOnBehalfContract.contractId().toEvmAddress());
+        assertThat(response.getResultAsNumber()).isEqualTo(BigInteger.valueOf(approvedAmount - transferAmount));
+    }
+
     private void verifyMirrorAPIContractCryptoAllowanceResponse(long approvedAmount, long transferAmount) {
         verifyMirrorTransactionsResponse(mirrorClient, HttpStatus.OK.value());
 
@@ -381,5 +397,14 @@ public class AccountFeature extends AbstractFeature {
                 .satisfies(r -> assertThat(r.getLinks()).isNotNull())
                 .extracting(StakingRewardsResponse::getRewards)
                 .isNotNull();
+    }
+
+    @Getter
+    @RequiredArgsConstructor
+    enum ContractMethods implements SelectorInterface {
+        HBAR_ALLOWANCE("hbarAllowance", FunctionType.MUTABLE);
+
+        private final String selector;
+        private final FunctionType functionType;
     }
 }

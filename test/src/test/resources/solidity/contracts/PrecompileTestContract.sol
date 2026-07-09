@@ -586,6 +586,18 @@ contract PrecompileTestContract is HederaTokenService {
         emit HbarTransferExecuted(owner, receiver, amount, responseCode);
         handleResponseCode(responseCode, "cryptoTransfer failed for HBAR");
     }
+
+    /// Returns the remaining HBAR allowance the owner has granted to the spender via the HAS system contract.
+    /// @param owner The account that granted the allowance
+    /// @param spender The account authorized to spend
+    function hbarAllowance(address owner, address spender) external returns (int256 amount) {
+        (bool success, bytes memory result) = address(0x16a).call(
+            abi.encodeWithSignature("hbarAllowance(address,address)", owner, spender));
+        require(success, "HAS hbarAllowance call failed");
+        int32 responseCode;
+        (responseCode, amount) = abi.decode(result, (int32, int256));
+        handleResponseCode(responseCode, "hbarAllowance failed");
+    }
 }
 
 contract SpenderContract {
