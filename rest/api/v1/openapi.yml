@@ -1979,6 +1979,7 @@ components:
         - balance
         - created_timestamp
         - decline_reward
+        - delegation_address
         - deleted
         - ethereum_nonce
         - evm_address
@@ -2005,6 +2006,8 @@ components:
         decline_reward:
           description: Whether the account declines receiving a staking reward
           type: boolean
+        delegation_address:
+          $ref: "#/components/schemas/EvmAddressNullable"
         deleted:
           type: [boolean, "null"]
         ethereum_nonce:
@@ -2056,6 +2059,7 @@ components:
               balance: 8
         created_timestamp: "1562591528.000123456"
         decline_reward: false
+        delegation_address: "0x019b8ee526333d9cbbbc35fff0309794dfa73451"
         deleted: false
         ethereum_nonce: 10
         evm_address: "0xac384c53f03855fa1b3616052f8ba32c6c2a2fec"
@@ -2371,7 +2375,7 @@ components:
         address:
           description: The hex encoded evm address of contract
           example: "0x25fe26adc577cc89172e6156c9e24f7b9751b762"
-          type: string
+          type: [string, "null"]
         authorization_list:
           description: The authorization list of the wrapped EIP-7702 ethereum transaction
           type: array
@@ -2424,7 +2428,7 @@ components:
         failed_initcode:
           description: The hex encoded initcode of a failed contract create transaction
           example: "0x856739"
-          type: string
+          type: [string, "null"]
         from:
           $ref: "#/components/schemas/EvmAddressNullable"
         function_parameters:
@@ -2522,7 +2526,7 @@ components:
             address:
               description: The hex encoded evm address of contract
               example: "0x25fe26adc577cc89172e6156c9e24f7b9751b762"
-              type: string
+              type: [string, "null"]
             authorization_list:
               description: The authorization list of the wrapped EIP-7702 ethereum transaction
               type: array
@@ -2950,7 +2954,7 @@ components:
         collector_account_id:
           $ref: "#/components/schemas/EntityId"
         fallback_fee:
-          type: object
+          type: [object, "null"]
           properties:
             amount:
               example: 100
@@ -3909,7 +3913,7 @@ components:
             type: integer
           decimals:
             format: int64
-            type: integer
+            type: [integer, "null"]
         required:
           - account
           - balance
@@ -4010,7 +4014,7 @@ components:
       type: object
       properties:
         automatic_association:
-          type: boolean
+          type: [boolean, "null"]
           description: Specifies if the relationship is implicitly/explicitly associated.
           example: true
         balance:
@@ -4019,12 +4023,12 @@ components:
           description: For FUNGIBLE_COMMON, the balance that the account holds in the smallest denomination. For NON_FUNGIBLE_UNIQUE, the number of NFTs held by the account.
           example: 5
         created_timestamp:
-          $ref: "#/components/schemas/Timestamp"
+          $ref: "#/components/schemas/TimestampNullable"
         decimals:
           format: int64
-          type: integer
+          type: [integer, "null"]
         freeze_status:
-          type: string
+          type: [string, "null"]
           description: The Freeze status of the account.
           example: UNFROZEN
           enum: [NOT_APPLICABLE, FROZEN, UNFROZEN]

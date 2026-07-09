@@ -196,7 +196,7 @@
         "v": 1
       },
       {
-        "access_list": null,
+        "access_list": [],
         "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
         "amount": 40,
         "block_gas_used": 400000,
