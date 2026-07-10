@@ -14,18 +14,19 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@google-cloud/logging": "11.2.3",
-    "parse-duration": "2.1.6",
+    "parse-duration": "2.1.8",
     "yargs": "18.0.0"
   },
   "peerDependencies": {
     "ansi-regex": "6.2.2",
     "ansi-styles": "6.2.3",
-    "debug": "4.4.1",
-    "strip-ansi": "7.1.2",
-    "wrap-ansi": "9.0.2"
+    "debug": "4.4.3",
+    "strip-ansi": "7.2.0",
+    "wrap-ansi": "10.0.0"
   },
   "overrides": {
     "@tootallnate/once": "3.0.1",
+    "protobufjs": "8.7.0",
     "uuid": "11.1.1"
   },
   "type": "module"
