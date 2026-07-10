@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.lang3.BooleanUtils;
 import org.flywaydb.core.api.callback.Callback;
 import org.flywaydb.core.api.callback.Context;
@@ -51,6 +52,8 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
             where description = :description and script like 'com.hedera.%'
             order by installed_rank desc limit 1
             """;
+
+    private static final ReentrantLock MIGRATION_LOCK = new ReentrantLock(true);
 
     private static final String UPDATE_CHECKSUM_SQL = """
             with last as (
@@ -206,31 +209,36 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
     protected abstract TransactionOperations getTransactionOperations();
 
     protected void migrateAsync() {
-        log.info("Starting asynchronous migration");
-
-        long count = 0;
-        var stopwatch = Stopwatch.createStarted();
-        var last = Optional.of(getInitial());
-        long minutes = 1L;
-
+        MIGRATION_LOCK.lock();
         try {
-            do {
-                final var previous = last;
-                last = Objects.requireNonNullElse(
-                        getTransactionOperations().execute(t -> migratePartial(previous.get())), Optional.empty());
-                count++;
+            log.info("Starting asynchronous migration");
 
-                long elapsed = stopwatch.elapsed(TimeUnit.MINUTES);
-                if (elapsed >= minutes) {
-                    log.info("Completed iteration {} with last value: {}", count, last.orElse(null));
-                    minutes = elapsed + 1;
-                }
-            } while (last.isPresent());
+            long count = 0;
+            var stopwatch = Stopwatch.createStarted();
+            var last = Optional.of(getInitial());
+            long minutes = 1L;
 
-            log.info("Successfully completed asynchronous migration with {} iterations in {}", count, stopwatch);
-        } catch (Exception e) {
-            log.error("Error executing asynchronous migration after {} iterations in {}", count, stopwatch);
-            throw e;
+            try {
+                do {
+                    final var previous = last;
+                    last = Objects.requireNonNullElse(
+                            getTransactionOperations().execute(t -> migratePartial(previous.get())), Optional.empty());
+                    count++;
+
+                    long elapsed = stopwatch.elapsed(TimeUnit.MINUTES);
+                    if (elapsed >= minutes) {
+                        log.info("Completed iteration {} with last value: {}", count, last.orElse(null));
+                        minutes = elapsed + 1;
+                    }
+                } while (last.isPresent());
+
+                log.info("Successfully completed asynchronous migration with {} iterations in {}", count, stopwatch);
+            } catch (Exception e) {
+                log.error("Error executing asynchronous migration after {} iterations in {}", count, stopwatch);
+                throw e;
+            }
+        } finally {
+            MIGRATION_LOCK.unlock();
         }
     }
 

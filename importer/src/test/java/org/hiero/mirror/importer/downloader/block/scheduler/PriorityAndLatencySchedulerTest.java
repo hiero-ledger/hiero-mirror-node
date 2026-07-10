@@ -6,8 +6,6 @@ import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.Resources;
 import java.util.List;
-import org.hiero.mirror.importer.downloader.block.InProcessManagedChannelBuilderProvider;
-import org.hiero.mirror.importer.downloader.block.StreamProperties;
 import org.junit.jupiter.api.Test;
 
 final class PriorityAndLatencySchedulerTest extends AbstractSchedulerTest {
@@ -68,10 +66,10 @@ final class PriorityAndLatencySchedulerTest extends AbstractSchedulerTest {
         schedulerProperties.setType(SchedulerType.PRIORITY_THEN_LATENCY);
         return new PriorityAndLatencyScheduler(
                 blockNodeDiscoveryService,
-                InProcessManagedChannelBuilderProvider.INSTANCE,
+                channelBuilderProvider,
                 latencyService,
                 meterRegistry,
                 schedulerProperties,
-                new StreamProperties());
+                streamProperties);
     }
 }

@@ -21,6 +21,10 @@ public final class StreamProperties {
 
     @DataSizeUnit(DataUnit.MEGABYTES)
     @NotNull
+    private DataSize maxBlockSize = DataSize.ofMegabytes(512);
+
+    @DataSizeUnit(DataUnit.MEGABYTES)
+    @NotNull
     private DataSize maxStreamResponseSize = DataSize.ofMegabytes(125);
 
     @Min(1)
@@ -33,4 +37,8 @@ public final class StreamProperties {
     @DurationMin(millis = 100)
     @NotNull
     private Duration responseTimeout = Duration.ofMillis(400);
+
+    @DurationMin(seconds = 1)
+    @NotNull
+    private Duration shutdownTimeout = Duration.ofSeconds(5);
 }
