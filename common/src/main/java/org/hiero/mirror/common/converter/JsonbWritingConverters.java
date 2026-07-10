@@ -18,9 +18,14 @@ import org.hiero.mirror.common.domain.token.NftTransfer;
 import org.hiero.mirror.common.domain.token.RoyaltyFee;
 import org.hiero.mirror.common.domain.token.RoyaltyFeesHolder;
 import org.hiero.mirror.common.domain.transaction.AccessList;
+import org.hiero.mirror.common.domain.transaction.AccessListHolder;
 import org.hiero.mirror.common.domain.transaction.Authorization;
+import org.hiero.mirror.common.domain.transaction.AuthorizationListHolder;
 import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
+import org.hiero.mirror.common.domain.transaction.ItemizedTransferListHolder;
+import org.hiero.mirror.common.domain.transaction.NftTransferListHolder;
 import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
+import org.hiero.mirror.common.domain.tss.LedgerNodeContributionListHolder;
 import org.postgresql.util.PGobject;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.WritingConverter;
@@ -139,6 +144,78 @@ public final class JsonbWritingConverters {
         @Override
         public PGobject convert(ServiceEndpoint source) {
             return toJsonb(source);
+        }
+    }
+
+    @WritingConverter
+    public static final class ItemizedTransferListHolderToJsonb
+            implements Converter<ItemizedTransferListHolder, PGobject> {
+
+        private static final ItemizedTransferList DELEGATE = new ItemizedTransferList();
+
+        @Override
+        public PGobject convert(ItemizedTransferListHolder source) {
+            if (source == null) {
+                return null;
+            }
+            return DELEGATE.convert(source.items());
+        }
+    }
+
+    @WritingConverter
+    public static final class NftTransferListHolderToJsonb implements Converter<NftTransferListHolder, PGobject> {
+
+        private static final NftTransferList DELEGATE = new NftTransferList();
+
+        @Override
+        public PGobject convert(NftTransferListHolder source) {
+            if (source == null) {
+                return null;
+            }
+            return DELEGATE.convert(source.items());
+        }
+    }
+
+    @WritingConverter
+    public static final class LedgerNodeContributionListHolderToJsonb
+            implements Converter<LedgerNodeContributionListHolder, PGobject> {
+
+        private static final LedgerNodeContributionList DELEGATE = new LedgerNodeContributionList();
+
+        @Override
+        public PGobject convert(LedgerNodeContributionListHolder source) {
+            if (source == null) {
+                return null;
+            }
+            return DELEGATE.convert(source.items());
+        }
+    }
+
+    @WritingConverter
+    public static final class AccessListHolderToJsonb implements Converter<AccessListHolder, PGobject> {
+
+        private static final AccessListList DELEGATE = new AccessListList();
+
+        @Override
+        public PGobject convert(AccessListHolder source) {
+            if (source == null) {
+                return null;
+            }
+            return DELEGATE.convert(source.items());
+        }
+    }
+
+    @WritingConverter
+    public static final class AuthorizationListHolderToJsonb implements Converter<AuthorizationListHolder, PGobject> {
+
+        private static final AuthorizationList DELEGATE = new AuthorizationList();
+
+        @Override
+        public PGobject convert(AuthorizationListHolder source) {
+            if (source == null) {
+                return null;
+            }
+            return DELEGATE.convert(source.items());
         }
     }
 

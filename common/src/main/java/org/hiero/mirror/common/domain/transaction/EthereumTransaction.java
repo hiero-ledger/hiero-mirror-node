@@ -25,13 +25,13 @@ import org.springframework.data.relational.core.mapping.Table;
 @NoArgsConstructor
 public class EthereumTransaction implements Persistable<Long> {
 
-    // JDBC: Handled by global JSON Writing/Reading converters
-    @JsonSerialize(using = ObjectToStringSerializer.class)
-    private List<AccessList> accessList;
+    @JsonIgnore
+    @Column("access_list")
+    private AccessListHolder accessListColumn;
 
-    // JDBC: Handled by global JSON Writing/Reading converters
-    @JsonSerialize(using = ObjectToStringSerializer.class)
-    private List<Authorization> authorizationList;
+    @JsonIgnore
+    @Column("authorization_list")
+    private AuthorizationListHolder authorizationListColumn;
 
     @ToString.Exclude
     private byte[] callData;
@@ -89,6 +89,24 @@ public class EthereumTransaction implements Persistable<Long> {
     @ToString.Exclude
     private byte[] value;
 
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<AccessList> getAccessList() {
+        return accessListColumn == null ? null : accessListColumn.items();
+    }
+
+    public void setAccessList(List<AccessList> value) {
+        this.accessListColumn = AccessListHolder.of(value);
+    }
+
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<Authorization> getAuthorizationList() {
+        return authorizationListColumn == null ? null : authorizationListColumn.items();
+    }
+
+    public void setAuthorizationList(List<Authorization> value) {
+        this.authorizationListColumn = AuthorizationListHolder.of(value);
+    }
+
     @JsonIgnore
     @Override
     public Long getId() {
@@ -107,5 +125,17 @@ public class EthereumTransaction implements Persistable<Long> {
                 .hash(hash)
                 .payerAccountId(payerAccountId != null ? payerAccountId.getId() : null)
                 .build();
+    }
+
+    public static class EthereumTransactionBuilder {
+        public EthereumTransactionBuilder accessList(List<AccessList> value) {
+            this.accessListColumn = AccessListHolder.of(value);
+            return this;
+        }
+
+        public EthereumTransactionBuilder authorizationList(List<Authorization> value) {
+            this.authorizationListColumn = AuthorizationListHolder.of(value);
+            return this;
+        }
     }
 }

@@ -7,6 +7,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.util.List;
 import javax.sql.DataSource;
 import org.hiero.mirror.common.config.CommonRuntimeHints;
+import org.hiero.mirror.common.config.NullIdQueryMappingConfiguration;
 import org.hiero.mirror.common.converter.ByteArrayArrayJdbcConverters;
 import org.hiero.mirror.common.converter.DigestAlgorithmJdbcConverters;
 import org.hiero.mirror.common.converter.EntityIdToLongConverter;
@@ -36,7 +37,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Primary;
+import org.springframework.data.jdbc.core.convert.JdbcConverter;
+import org.springframework.data.jdbc.core.convert.QueryMappingConfiguration;
+import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
 import org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration;
+import org.springframework.data.jdbc.repository.config.DefaultQueryMappingConfiguration;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 
 @Configuration(proxyBeanMethods = false)
@@ -98,6 +104,19 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
         return new HikariDataSource(config);
     }
 
+    // Maps rows whose id column(s) are NULL to no entity, matching the previous JPA behavior for aggregate queries.
+    // Module-specific row mappers can be contributed via a DefaultQueryMappingConfiguration bean.
+    @Bean
+    @Primary
+    QueryMappingConfiguration queryMappingConfiguration(
+            JdbcMappingContext jdbcMappingContext,
+            JdbcConverter jdbcConverter,
+            ObjectProvider<DefaultQueryMappingConfiguration> customMappings) {
+        var delegate = customMappings.getIfAvailable(() -> null);
+        return new NullIdQueryMappingConfiguration(
+                jdbcMappingContext, jdbcConverter, delegate != null ? delegate : QueryMappingConfiguration.EMPTY);
+    }
+
     @Override
     protected List<?> userConverters() {
         return List.of(
@@ -155,17 +174,26 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new JsonbReadingConverters.StringToFractionalFeesHolder(),
                 new JsonbReadingConverters.PgobjectToRoyaltyFeesHolder(),
                 new JsonbReadingConverters.StringToRoyaltyFeesHolder(),
-                new JsonbWritingConverters.RegisteredServiceEndpointList(),
                 new JsonbWritingConverters.ServiceEndpointsHolderToJsonb(),
                 new JsonbReadingConverters.PgobjectToRegisteredServiceEndpointList(),
                 new JsonbReadingConverters.PgobjectToServiceEndpointsHolder(),
                 new JsonbReadingConverters.StringToRegisteredServiceEndpointList(),
                 new JsonbReadingConverters.SqlArrayToShortList(),
-                new JsonbWritingConverters.ItemizedTransferList(),
-                new JsonbWritingConverters.NftTransferList(),
-                new JsonbWritingConverters.AccessListList(),
-                new JsonbWritingConverters.AuthorizationList(),
-                new JsonbWritingConverters.LedgerNodeContributionList(),
+                new JsonbWritingConverters.AccessListHolderToJsonb(),
+                new JsonbWritingConverters.AuthorizationListHolderToJsonb(),
+                new JsonbWritingConverters.ItemizedTransferListHolderToJsonb(),
+                new JsonbWritingConverters.NftTransferListHolderToJsonb(),
+                new JsonbWritingConverters.LedgerNodeContributionListHolderToJsonb(),
+                new JsonbReadingConverters.PgobjectToAccessListHolder(),
+                new JsonbReadingConverters.StringToAccessListHolder(),
+                new JsonbReadingConverters.PgobjectToAuthorizationListHolder(),
+                new JsonbReadingConverters.StringToAuthorizationListHolder(),
+                new JsonbReadingConverters.PgobjectToItemizedTransferListHolder(),
+                new JsonbReadingConverters.StringToItemizedTransferListHolder(),
+                new JsonbReadingConverters.PgobjectToNftTransferListHolder(),
+                new JsonbReadingConverters.StringToNftTransferListHolder(),
+                new JsonbReadingConverters.PgobjectToLedgerNodeContributionListHolder(),
+                new JsonbReadingConverters.StringToLedgerNodeContributionListHolder(),
                 new JsonbWritingConverters.ServiceEndpointSingle());
     }
 }

@@ -17,8 +17,18 @@ import org.hiero.mirror.common.domain.token.FixedFee;
 import org.hiero.mirror.common.domain.token.FixedFeesHolder;
 import org.hiero.mirror.common.domain.token.FractionalFee;
 import org.hiero.mirror.common.domain.token.FractionalFeesHolder;
+import org.hiero.mirror.common.domain.token.NftTransfer;
 import org.hiero.mirror.common.domain.token.RoyaltyFee;
 import org.hiero.mirror.common.domain.token.RoyaltyFeesHolder;
+import org.hiero.mirror.common.domain.transaction.AccessList;
+import org.hiero.mirror.common.domain.transaction.AccessListHolder;
+import org.hiero.mirror.common.domain.transaction.Authorization;
+import org.hiero.mirror.common.domain.transaction.AuthorizationListHolder;
+import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
+import org.hiero.mirror.common.domain.transaction.ItemizedTransferListHolder;
+import org.hiero.mirror.common.domain.transaction.NftTransferListHolder;
+import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
+import org.hiero.mirror.common.domain.tss.LedgerNodeContributionListHolder;
 import org.postgresql.util.PGobject;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.ReadingConverter;
@@ -111,6 +121,182 @@ public final class JsonbReadingConverters {
                 return list;
             }
             throw new IllegalStateException("Unsupported PostgreSQL array component type: " + arr.getClass());
+        }
+    }
+
+    @ReadingConverter
+    public static final class PgobjectToItemizedTransferListHolder
+            implements Converter<PGobject, ItemizedTransferListHolder> {
+
+        @Override
+        public ItemizedTransferListHolder convert(PGobject source) {
+            if (source == null || source.getValue() == null) {
+                return null;
+            }
+            try {
+                var list = OBJECT_MAPPER.readValue(source.getValue(), new TypeReference<List<ItemizedTransfer>>() {});
+                return ItemizedTransferListHolder.of(list);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    @ReadingConverter
+    public static final class StringToItemizedTransferListHolder
+            implements Converter<String, ItemizedTransferListHolder> {
+
+        @Override
+        public ItemizedTransferListHolder convert(String source) {
+            if (source == null || source.isEmpty()) {
+                return null;
+            }
+            try {
+                var list = OBJECT_MAPPER.readValue(source, new TypeReference<List<ItemizedTransfer>>() {});
+                return ItemizedTransferListHolder.of(list);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    @ReadingConverter
+    public static final class PgobjectToNftTransferListHolder implements Converter<PGobject, NftTransferListHolder> {
+
+        @Override
+        public NftTransferListHolder convert(PGobject source) {
+            if (source == null || source.getValue() == null) {
+                return null;
+            }
+            try {
+                var list = OBJECT_MAPPER.readValue(source.getValue(), new TypeReference<List<NftTransfer>>() {});
+                return NftTransferListHolder.of(list);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    @ReadingConverter
+    public static final class StringToNftTransferListHolder implements Converter<String, NftTransferListHolder> {
+
+        @Override
+        public NftTransferListHolder convert(String source) {
+            if (source == null || source.isEmpty()) {
+                return null;
+            }
+            try {
+                var list = OBJECT_MAPPER.readValue(source, new TypeReference<List<NftTransfer>>() {});
+                return NftTransferListHolder.of(list);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    @ReadingConverter
+    public static final class PgobjectToLedgerNodeContributionListHolder
+            implements Converter<PGobject, LedgerNodeContributionListHolder> {
+
+        @Override
+        public LedgerNodeContributionListHolder convert(PGobject source) {
+            if (source == null || source.getValue() == null) {
+                return null;
+            }
+            try {
+                var list = OBJECT_MAPPER.readValue(
+                        source.getValue(), new TypeReference<List<LedgerNodeContribution>>() {});
+                return LedgerNodeContributionListHolder.of(list);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    @ReadingConverter
+    public static final class StringToLedgerNodeContributionListHolder
+            implements Converter<String, LedgerNodeContributionListHolder> {
+
+        @Override
+        public LedgerNodeContributionListHolder convert(String source) {
+            if (source == null || source.isEmpty()) {
+                return null;
+            }
+            try {
+                var list = OBJECT_MAPPER.readValue(source, new TypeReference<List<LedgerNodeContribution>>() {});
+                return LedgerNodeContributionListHolder.of(list);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    @ReadingConverter
+    public static final class PgobjectToAccessListHolder implements Converter<PGobject, AccessListHolder> {
+
+        @Override
+        public AccessListHolder convert(PGobject source) {
+            if (source == null || source.getValue() == null) {
+                return null;
+            }
+            try {
+                var list = OBJECT_MAPPER.readValue(source.getValue(), new TypeReference<List<AccessList>>() {});
+                return AccessListHolder.of(list);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    @ReadingConverter
+    public static final class StringToAccessListHolder implements Converter<String, AccessListHolder> {
+
+        @Override
+        public AccessListHolder convert(String source) {
+            if (source == null || source.isEmpty()) {
+                return null;
+            }
+            try {
+                var list = OBJECT_MAPPER.readValue(source, new TypeReference<List<AccessList>>() {});
+                return AccessListHolder.of(list);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    @ReadingConverter
+    public static final class PgobjectToAuthorizationListHolder
+            implements Converter<PGobject, AuthorizationListHolder> {
+
+        @Override
+        public AuthorizationListHolder convert(PGobject source) {
+            if (source == null || source.getValue() == null) {
+                return null;
+            }
+            try {
+                var list = OBJECT_MAPPER.readValue(source.getValue(), new TypeReference<List<Authorization>>() {});
+                return AuthorizationListHolder.of(list);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    @ReadingConverter
+    public static final class StringToAuthorizationListHolder implements Converter<String, AuthorizationListHolder> {
+
+        @Override
+        public AuthorizationListHolder convert(String source) {
+            if (source == null || source.isEmpty()) {
+                return null;
+            }
+            try {
+                var list = OBJECT_MAPPER.readValue(source, new TypeReference<List<Authorization>>() {});
+                return AuthorizationListHolder.of(list);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
         }
     }
 

@@ -18,6 +18,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.NftTransfer;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -52,8 +53,9 @@ public class Transaction implements Persistable<Long> {
 
     private Long initialBalance;
 
-    @JsonSerialize(using = ObjectToStringSerializer.class)
-    private List<ItemizedTransfer> itemizedTransfer;
+    @JsonIgnore
+    @Column("itemized_transfer")
+    private ItemizedTransferListHolder itemizedTransferColumn;
 
     @ToString.Exclude
     private byte[][] maxCustomFees;
@@ -63,8 +65,9 @@ public class Transaction implements Persistable<Long> {
     @ToString.Exclude
     private byte[] memo;
 
-    @JsonSerialize(using = ObjectToStringSerializer.class)
-    private List<NftTransfer> nftTransfer;
+    @JsonIgnore
+    @Column("nft_transfer")
+    private NftTransferListHolder nftTransferColumn;
 
     private EntityId nodeAccountId;
 
@@ -93,28 +96,42 @@ public class Transaction implements Persistable<Long> {
 
     private Long validStartNs;
 
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<ItemizedTransfer> getItemizedTransfer() {
+        return itemizedTransferColumn == null ? null : itemizedTransferColumn.items();
+    }
+
+    public void setItemizedTransfer(List<ItemizedTransfer> value) {
+        this.itemizedTransferColumn = ItemizedTransferListHolder.of(value);
+    }
+
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<NftTransfer> getNftTransfer() {
+        return nftTransferColumn == null ? null : nftTransferColumn.items();
+    }
+
+    public void setNftTransfer(List<NftTransfer> value) {
+        this.nftTransferColumn = NftTransferListHolder.of(value);
+    }
+
     public void addItemizedTransfer(ItemizedTransfer itemizedTransfer) {
         if (itemizedTransfer == null) {
             return;
         }
-        if (this.itemizedTransfer == null) {
-            this.itemizedTransfer = new ArrayList<>();
-        } else if (!(this.itemizedTransfer instanceof ArrayList)) {
-            this.itemizedTransfer = new ArrayList<>(this.itemizedTransfer);
-        }
-        this.itemizedTransfer.add(itemizedTransfer);
+        var transfers = getItemizedTransfer() == null
+                ? new ArrayList<ItemizedTransfer>()
+                : new ArrayList<>(getItemizedTransfer());
+        transfers.add(itemizedTransfer);
+        setItemizedTransfer(transfers);
     }
 
     public void addNftTransfer(NftTransfer nftTransfer) {
         if (nftTransfer == null) {
             return;
         }
-        if (this.nftTransfer == null) {
-            this.nftTransfer = new ArrayList<>();
-        } else if (!(this.nftTransfer instanceof ArrayList)) {
-            this.nftTransfer = new ArrayList<>(this.nftTransfer);
-        }
-        this.nftTransfer.add(nftTransfer);
+        var transfers = getNftTransfer() == null ? new ArrayList<NftTransfer>() : new ArrayList<>(getNftTransfer());
+        transfers.add(nftTransfer);
+        setNftTransfer(transfers);
     }
 
     public void addInnerTransaction(Transaction innerTransaction) {
@@ -151,5 +168,17 @@ public class Transaction implements Persistable<Long> {
                 .hash(transactionHash)
                 .payerAccountId(payerAccountId != null ? payerAccountId.getId() : 0L)
                 .build();
+    }
+
+    public static class TransactionBuilder {
+        public TransactionBuilder itemizedTransfer(List<ItemizedTransfer> value) {
+            this.itemizedTransferColumn = ItemizedTransferListHolder.of(value);
+            return this;
+        }
+
+        public TransactionBuilder nftTransfer(List<NftTransfer> value) {
+            this.nftTransferColumn = NftTransferListHolder.of(value);
+            return this;
+        }
     }
 }
