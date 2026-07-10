@@ -29,6 +29,7 @@ public abstract class AbstractNft implements History, Persistable<AbstractNft.Id
     @UpsertColumn(coalesce = "case when deleted = true then null else coalesce({0}, e_{0}, {1}) end")
     private EntityId accountId;
 
+    @UpsertColumn(updatable = false)
     private Long createdTimestamp;
 
     @UpsertColumn(coalesce = "case when {0} is not null and {0} = 0 then e_{0} else {0} end")

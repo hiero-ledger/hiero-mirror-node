@@ -47,6 +47,7 @@ public abstract class AbstractTokenAccount implements History, Persistable<Abstr
                  else coalesce({0}, e_{0})
             end
             """)
+    @JsonIgnore
     @Column("freeze_status")
     private Integer freezeStatusId;
 
@@ -59,6 +60,7 @@ public abstract class AbstractTokenAccount implements History, Persistable<Abstr
                  else coalesce({0}, e_{0})
             end
             """)
+    @JsonIgnore
     @Column("kyc_status")
     private Integer kycStatusId;
 

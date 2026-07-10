@@ -30,6 +30,7 @@ public abstract class AbstractNode implements History {
     @ToString.Exclude
     private byte[] adminKey;
 
+    @UpsertColumn(updatable = false)
     private Long createdTimestamp;
 
     private Boolean declineReward;

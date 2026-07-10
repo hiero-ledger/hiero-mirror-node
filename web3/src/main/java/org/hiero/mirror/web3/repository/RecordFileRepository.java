@@ -28,7 +28,7 @@ public interface RecordFileRepository extends PagingAndSortingRepository<RecordF
     @Query("select * from record_file where index = :index")
     Optional<RecordFile> findByIndex(long index);
 
-    @Query("select * from record_file where hash like concat(:hash, '%')")
+    @Query("select * from record_file where hash like concat(cast(:hash as text), '%')")
     Optional<RecordFile> findByHash(String hash);
 
     @Cacheable(

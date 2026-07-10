@@ -67,7 +67,7 @@ class EntityMetadataRegistryTest extends ImporterIntegrationTest {
                 .returns(true, ColumnMetadata::isNullable)
                 .returns(null, ColumnMetadata::getDefaultValue)
                 .returns(false, ColumnMetadata::isUpdatable)
-                .returns(null, ColumnMetadata::getUpsertColumn)
+                .satisfies(cm -> assertThat(cm.getUpsertColumn().updatable()).isFalse())
                 .satisfies(cm -> assertThat(cm.getGetter().apply(entity)).isEqualTo(entity.getAlias()))
                 .satisfies(cm -> assertThatCode(() -> cm.getSetter().accept(entity, newValue))
                         .satisfies(d -> assertThat(entity.getAlias()).isEqualTo(newValue)));

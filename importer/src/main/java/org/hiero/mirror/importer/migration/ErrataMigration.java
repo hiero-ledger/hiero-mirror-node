@@ -15,6 +15,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.sql.DataSource;
 import lombok.SneakyThrows;
 import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.configuration.Configuration;
@@ -41,6 +42,7 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionOperations;
 
 /**
@@ -61,9 +63,9 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
 
     private final ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider;
     private final BlockStreamResolver blockStreamResolver;
+    private final ObjectProvider<DataSource> dataSourceProvider;
     private final ObjectProvider<EntityRecordItemListener> entityRecordItemListenerProvider;
     private final EntityProperties entityProperties;
-    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final ImporterProperties importerProperties;
     private final ObjectProvider<RecordStreamFileListener> recordStreamFileListenerProvider;
     private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
@@ -74,23 +76,29 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
     ErrataMigration(
             ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider,
             BlockStreamResolver blockStreamResolver,
+            ObjectProvider<DataSource> dataSourceProvider,
             ObjectProvider<EntityRecordItemListener> entityRecordItemListenerProvider,
             EntityProperties entityProperties,
             Environment environment,
-            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties,
             ObjectProvider<RecordStreamFileListener> recordStreamFileListenerProvider,
             ObjectProvider<TransactionOperations> transactionOperationsProvider) {
         super(importerProperties.getMigration());
         this.accountBalanceFileRepositoryProvider = accountBalanceFileRepositoryProvider;
         this.blockStreamResolver = blockStreamResolver;
+        this.dataSourceProvider = dataSourceProvider;
         this.entityRecordItemListenerProvider = entityRecordItemListenerProvider;
         this.entityProperties = entityProperties;
-        this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.importerProperties = importerProperties;
         this.recordStreamFileListenerProvider = recordStreamFileListenerProvider;
         this.transactionOperationsProvider = transactionOperationsProvider;
         v2 = environment.acceptsProfiles(Profiles.of("v2"));
+    }
+
+    // Built on the DataSource directly since this runs inside flyway, where resolving the NamedParameterJdbcTemplate
+    // bean would deadlock on the database initialization ordering (the template depends on flywayInitializer)
+    private NamedParameterJdbcOperations jdbcOperations() {
+        return new NamedParameterJdbcTemplate(dataSourceProvider.getObject());
     }
 
     @Override
@@ -154,7 +162,7 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
     }
 
     private void balanceFileAdjustment() {
-        final var jdbcOperations = jdbcOperationsProvider.getObject();
+        final var jdbcOperations = jdbcOperations();
         // Adjusts the balance file's consensus timestamp by -1 for use when querying transfers.
         String sql = """
                         update account_balance_file set time_offset = -1
@@ -202,7 +210,7 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
                         from spurious_transfer st
                         where ct.consensus_timestamp = st.consensus_timestamp and ct.amount = st.amount * -1
                         """;
-        int count = jdbcOperationsProvider.getObject().getJdbcOperations().update(sql);
+        int count = jdbcOperations().getJdbcOperations().update(sql);
         log.info("Updated {} spurious transfers", count * 2);
     }
 
@@ -254,7 +262,7 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
 
         recordStreamFileListenerProvider.getObject().onEnd(null);
         var ids = new MapSqlParameterSource("ids", consensusTimestamps);
-        final var jdbcOperations = jdbcOperationsProvider.getObject();
+        final var jdbcOperations = jdbcOperations();
         jdbcOperations.update("update crypto_transfer set errata = 'INSERT' where consensus_timestamp in (:ids)", ids);
         jdbcOperations.update("update transaction set errata = 'INSERT' where consensus_timestamp in (:ids)", ids);
 
@@ -324,7 +332,7 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
     }
 
     private boolean transactionExists(long consensusTimestamp) {
-        final JdbcOperations jdbcOperations = jdbcOperationsProvider.getObject().getJdbcOperations();
+        final JdbcOperations jdbcOperations = jdbcOperations().getJdbcOperations();
         Boolean exists = jdbcOperations.queryForObject(
                 "select exists(select 1 from transaction where consensus_timestamp = ?)",
                 Boolean.class,
@@ -333,7 +341,7 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
     }
 
     private boolean tokenTransferExists(TokenTransfer.Id id) {
-        final JdbcOperations jdbcOperations = jdbcOperationsProvider.getObject().getJdbcOperations();
+        final JdbcOperations jdbcOperations = jdbcOperations().getJdbcOperations();
         Boolean exists = jdbcOperations.queryForObject(
                 "select exists(select 1 from token_transfer where consensus_timestamp = ? and token_id = ? and account_id = ?)",
                 Boolean.class,
@@ -344,7 +352,7 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
     }
 
     private void insertTokenTransfer(RecordItem recordItem, TokenTransfer.Id id, long amount) {
-        final JdbcOperations jdbcOperations = jdbcOperationsProvider.getObject().getJdbcOperations();
+        final JdbcOperations jdbcOperations = jdbcOperations().getJdbcOperations();
         jdbcOperations.update(
                 "insert into token_transfer (account_id, amount, consensus_timestamp, is_approval, payer_account_id, token_id) values (?, ?, ?, ?, ?, ?)",
                 id.getAccountId().getId(),

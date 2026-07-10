@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common.domain.balance;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -10,6 +11,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hiero.mirror.common.domain.PersistedTracking;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.StreamType;
 import org.springframework.data.annotation.Id;
@@ -21,7 +23,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Table("account_balance_file")
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor
-public class AccountBalanceFile implements StreamFile<AccountBalance> {
+public class AccountBalanceFile implements PersistedTracking<Long>, StreamFile<AccountBalance> {
 
     @ToString.Exclude
     private byte[] bytes;
@@ -46,9 +48,21 @@ public class AccountBalanceFile implements StreamFile<AccountBalance> {
 
     private String name;
 
+    @EqualsAndHashCode.Exclude
+    @JsonIgnore
+    @ToString.Exclude
+    @Transient
+    private boolean persisted;
+
     private boolean synthetic;
 
     private int timeOffset;
+
+    @JsonIgnore
+    @Override
+    public Long getId() {
+        return consensusTimestamp;
+    }
 
     @Override
     public StreamFile<AccountBalance> copy() {

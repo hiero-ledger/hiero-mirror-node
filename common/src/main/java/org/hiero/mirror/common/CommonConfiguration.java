@@ -22,7 +22,9 @@ import org.hiero.mirror.common.converter.PostgresErrataTypeJdbcConverters;
 import org.hiero.mirror.common.converter.PostgresHookJdbcConverters;
 import org.hiero.mirror.common.converter.PostgresTokenJdbcConverters;
 import org.hiero.mirror.common.converter.RangeToPGobjectWritingConverter;
+import org.hiero.mirror.common.converter.ReconciliationStatusJdbcConverters;
 import org.hiero.mirror.common.converter.ShortArrayJdbcConverters;
+import org.hiero.mirror.common.domain.PersistedTracking;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.util.DatabaseWaiter;
 import org.hiero.mirror.common.util.SpelHelper;
@@ -33,6 +35,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.boot.jdbc.autoconfigure.JdbcConnectionDetails;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
@@ -40,10 +43,16 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.jdbc.core.convert.QueryMappingConfiguration;
+import org.springframework.data.jdbc.core.dialect.JdbcDialect;
+import org.springframework.data.jdbc.core.dialect.JdbcPostgresDialect;
 import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
 import org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration;
 import org.springframework.data.jdbc.repository.config.DefaultQueryMappingConfiguration;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
+import org.springframework.data.mapping.callback.EntityCallbacks;
+import org.springframework.data.relational.core.mapping.event.AfterConvertCallback;
+import org.springframework.data.relational.core.mapping.event.AfterSaveCallback;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 
 @Configuration(proxyBeanMethods = false)
 @ConfigurationPropertiesScan("org.hiero.mirror")
@@ -104,17 +113,46 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
         return new HikariDataSource(config);
     }
 
+    @Bean
+    AfterConvertCallback<PersistedTracking<?>> markPersistedAfterLoad() {
+        return entity -> {
+            entity.setPersisted(true);
+            return entity;
+        };
+    }
+
+    @Bean
+    AfterSaveCallback<PersistedTracking<?>> markPersistedAfterSave() {
+        return entity -> {
+            entity.setPersisted(true);
+            return entity;
+        };
+    }
+
+    // Pinned so the dialect never has to be resolved from a live connection through the NamedParameterJdbcTemplate
+    // bean, which Boot orders after flywayInitializer - repositories would otherwise be unusable from flyway Java
+    // migrations. Only PostgreSQL is supported.
+    @Bean
+    @Override
+    public JdbcDialect jdbcDialect(@Lazy NamedParameterJdbcOperations operations) {
+        return JdbcPostgresDialect.INSTANCE;
+    }
+
     // Maps rows whose id column(s) are NULL to no entity, matching the previous JPA behavior for aggregate queries.
     // Module-specific row mappers can be contributed via a DefaultQueryMappingConfiguration bean.
     @Bean
     @Primary
     QueryMappingConfiguration queryMappingConfiguration(
+            ApplicationContext applicationContext,
             JdbcMappingContext jdbcMappingContext,
             JdbcConverter jdbcConverter,
             ObjectProvider<DefaultQueryMappingConfiguration> customMappings) {
         var delegate = customMappings.getIfAvailable(() -> null);
         return new NullIdQueryMappingConfiguration(
-                jdbcMappingContext, jdbcConverter, delegate != null ? delegate : QueryMappingConfiguration.EMPTY);
+                jdbcMappingContext,
+                jdbcConverter,
+                delegate != null ? delegate : QueryMappingConfiguration.EMPTY,
+                EntityCallbacks.create(applicationContext));
     }
 
     @Override
@@ -126,6 +164,8 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new LongToEntityIdConverter(),
                 new DigestAlgorithmJdbcConverters.DigestAlgorithmToJdbcValue(),
                 new DigestAlgorithmJdbcConverters.IntegerToDigestAlgorithm(),
+                new ReconciliationStatusJdbcConverters.ReconciliationStatusToJdbcValue(),
+                new ReconciliationStatusJdbcConverters.IntegerToReconciliationStatus(),
                 new LongArrayJdbcConverters.AssociatedRegisteredNodeIdsToLongArray(),
                 new LongArrayJdbcConverters.SqlArrayToAssociatedRegisteredNodeIds(),
                 new LongArrayJdbcConverters.SqlArrayToLongList(),
@@ -138,7 +178,6 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new PostgresEntityTypeJdbcConverters.EntityTypeToJdbcValue(),
                 new PostgresEntityTypeJdbcConverters.PGobjectToEntityType(),
                 new PostgresEntityTypeJdbcConverters.StringToEntityType(),
-                new PostgresErrataTypeJdbcConverters.ErrataTypeToJdbcValue(),
                 new PostgresErrataTypeJdbcConverters.ErrataTypeToPGobject(),
                 new PostgresErrataTypeJdbcConverters.PGobjectToErrataType(),
                 new PostgresErrataTypeJdbcConverters.StringToErrataType(),

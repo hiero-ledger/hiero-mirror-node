@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
+import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.annotation.Id;
 
@@ -21,6 +22,7 @@ public abstract class AbstractTopic implements History {
     private byte[] adminKey;
 
     @ToString.Include
+    @UpsertColumn(updatable = false)
     private Long createdTimestamp;
 
     @Id

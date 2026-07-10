@@ -33,4 +33,13 @@ public @interface UpsertColumn {
      * @return Whether to coalesce the column
      */
     boolean shouldCoalesce() default true;
+
+    /**
+     * Specify if the column can be changed once set. Non-updatable columns keep the existing row's value on conflict
+     * and act as the completeness guard when deciding if a partial row may be inserted. Replaces the JPA
+     * Column(updatable = false) semantics.
+     *
+     * @return Whether the column is updatable
+     */
+    boolean updatable() default true;
 }

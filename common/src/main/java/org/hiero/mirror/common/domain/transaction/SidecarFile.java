@@ -90,6 +90,8 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
         return id != null ? id.getConsensusEnd() : 0L;
     }
 
+    // Exposed to Jackson as "id" so batch COPY serialization matches the db column
+    @JsonProperty("id")
     public int getIndex() {
         return id != null ? id.getIndex() : 0;
     }
@@ -99,6 +101,7 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
         id.setConsensusEnd(consensusEnd);
     }
 
+    @JsonProperty("id")
     public void setIndex(int index) {
         initId();
         id.setIndex(index);

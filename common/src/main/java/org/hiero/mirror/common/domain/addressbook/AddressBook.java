@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common.domain.addressbook;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.AccessLevel;
@@ -13,6 +14,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.MappedCollection;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -21,7 +23,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Table("address_book")
 @NoArgsConstructor
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class AddressBook {
+public class AddressBook implements Persistable<Long> {
 
     @Id
     private Long startConsensusTimestamp;
@@ -40,4 +42,17 @@ public class AddressBook {
     private EntityId fileId;
 
     private Integer nodeCount;
+
+    @JsonIgnore
+    @Override
+    public Long getId() {
+        return startConsensusTimestamp;
+    }
+
+    // New address books are only ever inserted; updates go through targeted repository queries
+    @JsonIgnore
+    @Override
+    public boolean isNew() {
+        return true;
+    }
 }

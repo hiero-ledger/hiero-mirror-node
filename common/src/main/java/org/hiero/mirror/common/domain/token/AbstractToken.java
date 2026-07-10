@@ -20,27 +20,34 @@ import org.springframework.data.annotation.Id;
 @Upsertable(history = true, skipPartialUpdate = true)
 public abstract class AbstractToken implements History {
 
+    @UpsertColumn(updatable = false)
     private Long createdTimestamp;
 
+    @UpsertColumn(updatable = false)
     private Integer decimals;
 
     @ToString.Exclude
     private byte[] feeScheduleKey;
 
+    @UpsertColumn(updatable = false)
     private Boolean freezeDefault;
 
     @ToString.Exclude
     private byte[] freezeKey;
 
+    @UpsertColumn(updatable = false)
     private TokenFreezeStatusEnum freezeStatus;
 
+    @UpsertColumn(updatable = false)
     private Long initialSupply;
 
     @ToString.Exclude
     private byte[] kycKey;
 
+    @UpsertColumn(updatable = false)
     private TokenKycStatusEnum kycStatus;
 
+    @UpsertColumn(updatable = false)
     private long maxSupply;
 
     @ToString.Exclude
@@ -59,6 +66,7 @@ public abstract class AbstractToken implements History {
     @ToString.Exclude
     private byte[] supplyKey;
 
+    @UpsertColumn(updatable = false)
     private TokenSupplyTypeEnum supplyType;
 
     private String symbol;
@@ -73,6 +81,7 @@ public abstract class AbstractToken implements History {
 
     private EntityId treasuryAccountId;
 
+    @UpsertColumn(updatable = false)
     private TokenTypeEnum type;
 
     @ToString.Exclude

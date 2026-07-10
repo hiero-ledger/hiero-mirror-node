@@ -8,24 +8,27 @@ import java.sql.Date;
 import java.util.concurrent.TimeUnit;
 import lombok.AccessLevel;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.History;
+import org.hiero.mirror.common.domain.PersistedTracking;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Column;
 
 @Data
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public abstract class AbstractEntity implements History {
+public abstract class AbstractEntity implements History, PersistedTracking<Long> {
 
     public static final long ACCOUNT_ID_CLEARED = 0L;
     public static final long DEFAULT_EXPIRY_TIMESTAMP =
@@ -35,6 +38,7 @@ public abstract class AbstractEntity implements History {
     private static final String CLEAR_PUBLIC_KEY = StringUtils.EMPTY;
 
     @ToString.Exclude
+    @UpsertColumn(updatable = false)
     private byte[] alias;
 
     private Long autoRenewAccountId;
@@ -49,6 +53,7 @@ public abstract class AbstractEntity implements History {
 
     private Long balanceTimestamp;
 
+    @UpsertColumn(updatable = false)
     private Long createdTimestamp;
 
     private Boolean declineReward;
@@ -65,12 +70,19 @@ public abstract class AbstractEntity implements History {
     private Long ethereumNonce;
 
     @ToString.Exclude
+    @UpsertColumn(updatable = false)
     private byte[] evmAddress;
 
     private Long expirationTimestamp;
 
     @Id
     private Long id;
+
+    @EqualsAndHashCode.Exclude
+    @JsonIgnore
+    @ToString.Exclude
+    @Transient
+    private boolean persisted;
 
     @Setter(AccessLevel.NONE)
     @ToString.Exclude
@@ -81,6 +93,7 @@ public abstract class AbstractEntity implements History {
     @Setter(AccessLevel.NONE)
     private String memo;
 
+    @UpsertColumn(updatable = false)
     private Long num;
 
     private EntityId obtainerId;
@@ -96,10 +109,12 @@ public abstract class AbstractEntity implements History {
                             end""")
     private String publicKey;
 
+    @UpsertColumn(updatable = false)
     private Long realm;
 
     private Boolean receiverSigRequired;
 
+    @UpsertColumn(updatable = false)
     private Long shard;
 
     private Long stakedAccountId;
@@ -110,6 +125,8 @@ public abstract class AbstractEntity implements History {
 
     private Range<Long> timestampRange;
 
+    // Hidden from Jackson so batch COPY serialization only sees the "type" property matching the db column
+    @JsonIgnore
     @Column("type")
     private EntityType entityType;
 

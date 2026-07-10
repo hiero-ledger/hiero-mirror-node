@@ -112,7 +112,7 @@ public final class EntityMetadataRegistry {
 
         var getter = getter(field);
         var setter = setter(field);
-        boolean updatable = !id;
+        boolean updatable = !id && (upsertColumn == null || upsertColumn.updatable());
         return new ColumnMetadata(
                 columnSchema.getColumnDefault(),
                 getter,

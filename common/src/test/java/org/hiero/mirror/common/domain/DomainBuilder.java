@@ -123,7 +123,6 @@ import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
-import org.hiero.mirror.common.domain.transaction.ErrataType;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.LiveHash;
 import org.hiero.mirror.common.domain.transaction.NetworkFreeze;
@@ -410,7 +409,6 @@ public class DomainBuilder {
                 .amount(10L)
                 .consensusTimestamp(timestamp())
                 .entityId(entityId().getId())
-                .errata(ErrataType.INSERT)
                 .isApproval(false)
                 .payerAccountId(entityId());
         return new DomainWrapperImpl<>(builder, builder::build);
@@ -1199,7 +1197,6 @@ public class DomainBuilder {
                 .congestionPricingMultiplier(id())
                 .consensusTimestamp(timestamp())
                 .entityId(entityId())
-                .errata(ErrataType.INSERT)
                 .highVolume(false)
                 .highVolumePricingMultiplier(1L)
                 .index(transactionIndex())

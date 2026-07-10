@@ -14,9 +14,11 @@ import org.springframework.data.jdbc.core.convert.EntityRowMapper;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.jdbc.core.convert.QueryMappingConfiguration;
 import org.springframework.data.mapping.PropertyHandler;
+import org.springframework.data.mapping.callback.EntityCallbacks;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
 import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
+import org.springframework.data.relational.core.mapping.event.AfterConvertCallback;
 import org.springframework.jdbc.core.RowMapper;
 
 /**
@@ -25,6 +27,10 @@ import org.springframework.jdbc.core.RowMapper;
  * Hibernate mapped such a row to no entity, whereas Spring Data JDBC's {@link EntityRowMapper} materializes a hollow
  * instance. This wraps the default mapper so a row whose id column(s) are all NULL maps to {@code null} (and thus an
  * empty {@link java.util.Optional} / no list element).
+ * <p>
+ * Since this configuration replaces the framework's lifecycle-aware row mapper for declared queries, it must also
+ * invoke {@link AfterConvertCallback}s itself (e.g. the persisted-flag tracking), or entities loaded via
+ * {@code @Query} would behave differently from those loaded via derived/CRUD methods.
  */
 @RequiredArgsConstructor
 public final class NullIdQueryMappingConfiguration implements QueryMappingConfiguration {
@@ -32,6 +38,7 @@ public final class NullIdQueryMappingConfiguration implements QueryMappingConfig
     private final RelationalMappingContext mappingContext;
     private final JdbcConverter converter;
     private final QueryMappingConfiguration delegate;
+    private final EntityCallbacks entityCallbacks;
     private final Map<Class<?>, RowMapper<?>> rowMappers = new ConcurrentHashMap<>();
 
     @Override
@@ -53,7 +60,14 @@ public final class NullIdQueryMappingConfiguration implements QueryMappingConfig
     private <T> RowMapper<T> createRowMapper(RelationalPersistentEntity<T> entity) {
         var delegate = new EntityRowMapper<>(entity, converter);
         var idColumns = idColumnNames(entity);
-        return (rs, rowNum) -> isIdNull(rs, idColumns) ? null : delegate.mapRow(rs, rowNum);
+        return (rs, rowNum) -> {
+            if (isIdNull(rs, idColumns)) {
+                return null;
+            }
+
+            var mapped = delegate.mapRow(rs, rowNum);
+            return mapped != null ? entityCallbacks.callback(AfterConvertCallback.class, mapped) : null;
+        };
     }
 
     private List<String> idColumnNames(RelationalPersistentEntity<?> entity) {

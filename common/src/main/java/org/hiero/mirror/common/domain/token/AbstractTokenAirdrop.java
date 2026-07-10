@@ -24,6 +24,7 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
 
     private Long amount;
 
+    @JsonIgnore
     @Column("state")
     private PostgresAirdropState airdropState;
 
