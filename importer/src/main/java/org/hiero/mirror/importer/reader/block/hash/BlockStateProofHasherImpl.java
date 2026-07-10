@@ -64,7 +64,6 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
             }
         }
 
-        // Combine the signed block's timestamp leaf (first merkle path) with the accumulated hash to get its root.
         final byte[] depth1Left =
                 HashUtils.hashLeaf(digest, toBytes(merklePaths.getFirst().getTimestampLeaf()));
         return HashUtils.hashInternalNode(digest, depth1Left, hash);
