@@ -6,7 +6,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.common.util.concurrent.Uninterruptibles;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.flywaydb.core.api.callback.Event;
@@ -94,6 +97,24 @@ class AsyncJavaMigrationTest extends AsyncJavaMigrationBaseTest {
         var migration = new TestAsyncJavaMigration(false, migrationProperties, 0);
         assertThatThrownBy(migration::doMigrate).isInstanceOf(IllegalArgumentException.class);
         assertThat(getAllMigrationHistory()).isEmpty();
+    }
+
+    @Test
+    void migratesInOrder() throws Exception {
+        // m1 holds the lock via a sleep while m2 and m3 queue up on separate threads, testing fair contention
+        var order = Collections.synchronizedList(new ArrayList<String>());
+        var m1 = new OrderTrackingMigration("order-test-1", order, 200);
+        var m2 = new OrderTrackingMigration("order-test-2", order);
+        var m3 = new OrderTrackingMigration("order-test-3", order);
+
+        var f1 = CompletableFuture.runAsync(m1::migrateAsync);
+        Uninterruptibles.sleepUninterruptibly(50, TimeUnit.MILLISECONDS);
+        var f2 = CompletableFuture.runAsync(m2::migrateAsync);
+        Uninterruptibles.sleepUninterruptibly(50, TimeUnit.MILLISECONDS);
+        var f3 = CompletableFuture.runAsync(m3::migrateAsync);
+
+        CompletableFuture.allOf(f1, f2, f3).get(5, TimeUnit.SECONDS);
+        assertThat(order).containsExactly("order-test-1", "order-test-2", "order-test-3");
     }
 
     private void migrateSync(AsyncJavaMigration<?> migration) throws Exception {

@@ -175,7 +175,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
             select
               t.end_stake_period,
               t.id,
-              t.pending_reward,
+              greatest(t.pending_reward, 0),
               t.staked_node_id_start,
               t.staked_to_me,
               t.stake_total_start,

@@ -75,7 +75,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     }
 
     // default eth related values
-    this.access_list = null;
+    this.access_list = [];
     this.block_gas_used = recordFile?.gasUsed != null && recordFile.gasUsed !== -1 ? recordFile.gasUsed : null;
     this.chain_id = null;
     this.gas_price = null;
