@@ -921,7 +921,8 @@ public final class BlockStreamReaderTest {
         }
 
         long blockCompleteTime = System.currentTimeMillis();
-        return new BlockStream(block.getItemsList(), blockCompleteTime, bytes, filename, blockCompleteTime - 1000);
+        return new BlockStream(
+                block.getItemsList(), blockCompleteTime, bytes, filename, blockCompleteTime - 1000, bytes.length);
     }
 
     @SneakyThrows

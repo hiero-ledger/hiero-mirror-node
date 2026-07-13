@@ -13,6 +13,7 @@ import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Range;
+import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.BindableService;
@@ -41,6 +42,8 @@ import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
+import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.junit.jupiter.api.AfterEach;
@@ -49,10 +52,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mockito;
 import org.mockito.ThrowingConsumer;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.util.unit.DataSize;
 
 @ExtendWith({GrpcCleanupExtension.class, OutputCaptureExtension.class})
 final class BlockNodeTest extends BlockNodeTestBase {
@@ -63,6 +68,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
     private BlockNodeProperties blockNodeProperties;
+    private BlockNodeSimulator blockNodeSimulator;
     private BlockNode node;
     private StreamProperties streamProperties;
 
@@ -80,7 +86,13 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
     @AfterEach
     void cleanup() {
-        node.close();
+        if (blockNodeSimulator != null) {
+            blockNodeSimulator.close();
+        }
+
+        if (node != null) {
+            node.close();
+        }
     }
 
     @Test
@@ -121,10 +133,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     @Test
     void getBlockRange(Resources resources) {
         // given
-        runBlockNodeService(resources, () -> ServerStatusResponse.newBuilder()
-                .setFirstAvailableBlock(20)
-                .setLastAvailableBlock(100)
-                .build());
+        runBlockNodeService(resources, () -> serverStatusResponse(20, 100));
 
         // when, then
         assertThat(node.getBlockRange()).isEqualTo(Range.closed(20L, 100L));
@@ -133,10 +142,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     @Test
     void getBlockRangeFromEmptyBlockNode(Resources resources) {
         // given
-        runBlockNodeService(resources, () -> ServerStatusResponse.newBuilder()
-                .setFirstAvailableBlock(-1)
-                .setLastAvailableBlock(-1)
-                .build());
+        runBlockNodeService(resources, () -> serverStatusResponse(-1, -1));
 
         // when, then
         assertThat(node.getBlockRange().isEmpty()).isTrue();
@@ -149,10 +155,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockNodeService(resources, () -> {
             try {
                 Thread.sleep(20);
-                return ServerStatusResponse.newBuilder()
-                        .setFirstAvailableBlock(20)
-                        .setLastAvailableBlock(100)
-                        .build();
+                return serverStatusResponse(20, 100);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -377,6 +380,44 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 .hasMessage("Too many block items in a pending block: received 4, limit 2");
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void streamBlockExceedsMaxBlockSize(final boolean compressed) {
+        // Given a 64KB all-zero highly compressible payload, regardless of the compression, the size limit is over the
+        // uncompressed data, so it should hit the limit.
+        streamProperties.setMaxBlockSize(DataSize.ofKilobytes(16));
+        blockNodeSimulator = new BlockNodeSimulator()
+                .withBlocks(compressibleBlock(64 * 1024))
+                .withHttpChannel()
+                .withZstdCompression(compressed)
+                .start();
+        node = httpBlockNode(blockNodeSimulator);
+
+        // when, then
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
+                .isInstanceOf(BlockStreamException.class)
+                .hasMessageContaining("Pending block too large");
+    }
+
+    @Test
+    void streamWithinMaxBlockSize() {
+        // given
+        blockNodeSimulator = new BlockNodeSimulator()
+                .withBlocks(new BlockGenerator(0).next(1))
+                .withHttpChannel()
+                .start();
+        node = httpBlockNode(blockNodeSimulator);
+        final var streamed = new ArrayList<BlockStream>();
+
+        // when
+        node.streamBlocks(0, null, accumulate(streamed), TIMEOUT);
+
+        // then
+        assertThat(streamed).hasSize(1).first().satisfies(block -> assertBlockStream(block, 0), block -> assertThat(
+                        block.size())
+                .isPositive());
+    }
+
     @Test
     void stringify() {
         var expected = String.format(
@@ -483,6 +524,13 @@ final class BlockNodeTest extends BlockNodeTestBase {
         assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isEqualTo(2);
     }
 
+    private static ServerStatusResponse serverStatusResponse(final long first, final long last) {
+        return ServerStatusResponse.newBuilder()
+                .setFirstAvailableBlock(first)
+                .setLastAvailableBlock(last)
+                .build();
+    }
+
     private BiFunction<BlockStream, String, Boolean> accumulate(Collection<BlockStream> collection) {
         return (blockStream, _) -> {
             collection.add(blockStream);
@@ -522,6 +570,23 @@ final class BlockNodeTest extends BlockNodeTestBase {
                         extraBlockItemAssert);
     }
 
+    private List<BlockGenerator.BlockRecord> compressibleBlock(int payloadSize) {
+        final var payload = BlockItem.newBuilder()
+                .setSignedTransaction(ByteString.copyFrom(new byte[payloadSize]))
+                .build();
+        return List.of(new BlockGenerator.BlockRecord(blockItemSet(blockHead(0), payload, blockProof())));
+    }
+
+    private BlockNode httpBlockNode(final BlockNodeSimulator blockNodeSimulator) {
+        final var provider = new ManagedChannelBuilderProviderImpl(meterRegistry, new ZstdCodec());
+        return new BlockNode(
+                provider,
+                NOOP_GRPC_BUFFER_DISPOSER,
+                meterRegistry,
+                blockNodeSimulator.toClientProperties(),
+                streamProperties);
+    }
+
     private void runBlockNodeService(Resources resources, Supplier<ServerStatusResponse> responseProvider) {
         var service = new BlockNodeServiceGrpc.BlockNodeServiceImplBase() {
             @Override
@@ -529,6 +594,30 @@ final class BlockNodeTest extends BlockNodeTestBase {
                     ServerStatusRequest request, StreamObserver<ServerStatusResponse> responseObserver) {
                 responseObserver.onNext(responseProvider.get());
                 responseObserver.onCompleted();
+            }
+        };
+        startServer(resources, service);
+    }
+
+    private void runBlockNodeService(final Resources resources, final List<Object> responseOrError) {
+        final var iter = responseOrError.iterator();
+        final var service = new BlockNodeServiceGrpc.BlockNodeServiceImplBase() {
+            @Override
+            public void serverStatus(
+                    final ServerStatusRequest request, final StreamObserver<ServerStatusResponse> responseObserver) {
+                if (iter.hasNext()) {
+                    final var object = iter.next();
+                    if (object instanceof ServerStatusResponse serverStatusResponse) {
+                        responseObserver.onNext(serverStatusResponse);
+                        responseObserver.onCompleted();
+                        return;
+                    } else if (object instanceof Throwable error) {
+                        responseObserver.onError(error);
+                        return;
+                    }
+                }
+
+                responseObserver.onError(new RuntimeException("Unknown"));
             }
         };
         startServer(resources, service);

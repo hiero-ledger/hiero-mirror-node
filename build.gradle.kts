@@ -17,7 +17,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.37.0")
+    set("blockNodeVersion", "0.38.0")
     set("consensusNodeVersion", "0.75.0-rc.5")
     set("jackson-2-bom.version", "2.22.0") // Temporary until next Spring Boot
     set("jooq.version", "3.21.6") // Must match buildSrc/build.gradle.kts
@@ -53,7 +53,7 @@ dependencies {
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.73.0")
+        api("com.hedera.hashgraph:sdk:2.74.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
@@ -81,7 +81,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.46.21")
+        api("software.amazon.awssdk:bom:2.47.5")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
