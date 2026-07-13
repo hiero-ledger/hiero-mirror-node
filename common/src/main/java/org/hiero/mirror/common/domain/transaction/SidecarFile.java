@@ -17,6 +17,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import lombok.With;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.springframework.data.annotation.Transient;
@@ -68,21 +69,13 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
 
     public static class SidecarFileBuilder {
         public SidecarFileBuilder consensusEnd(long consensusEnd) {
-            initId();
-            this.id.setConsensusEnd(consensusEnd);
+            this.id = (this.id == null ? new Id() : this.id).withConsensusEnd(consensusEnd);
             return this;
         }
 
         public SidecarFileBuilder index(int index) {
-            initId();
-            this.id.setIndex(index);
+            this.id = (this.id == null ? new Id() : this.id).withIndex(index);
             return this;
-        }
-
-        private void initId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
         }
     }
 
@@ -97,20 +90,12 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     }
 
     public void setConsensusEnd(long consensusEnd) {
-        initId();
-        id.setConsensusEnd(consensusEnd);
+        id = (id == null ? new Id() : id).withConsensusEnd(consensusEnd);
     }
 
     @JsonProperty("id")
     public void setIndex(int index) {
-        initId();
-        id.setIndex(index);
-    }
-
-    private void initId() {
-        if (id == null) {
-            id = new Id();
-        }
+        id = (id == null ? new Id() : id).withIndex(index);
     }
 
     @JsonIgnore
@@ -128,6 +113,7 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
+    @With
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = -5844173241500874821L;

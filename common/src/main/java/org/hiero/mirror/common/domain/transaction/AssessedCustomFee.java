@@ -13,6 +13,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.With;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
@@ -42,21 +43,13 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
 
     public static class AssessedCustomFeeBuilder {
         public AssessedCustomFeeBuilder collectorAccountId(long collectorAccountId) {
-            initId();
-            this.id.setCollectorAccountId(collectorAccountId);
+            this.id = (this.id == null ? new Id() : this.id).withCollectorAccountId(collectorAccountId);
             return this;
         }
 
         public AssessedCustomFeeBuilder consensusTimestamp(long consensusTimestamp) {
-            initId();
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
             return this;
-        }
-
-        private void initId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
         }
     }
 
@@ -69,19 +62,11 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
     }
 
     public void setCollectorAccountId(long collectorAccountId) {
-        initId();
-        id.setCollectorAccountId(collectorAccountId);
+        id = (id == null ? new Id() : id).withCollectorAccountId(collectorAccountId);
     }
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        initId();
-        id.setConsensusTimestamp(consensusTimestamp);
-    }
-
-    private void initId() {
-        if (id == null) {
-            id = new Id();
-        }
+        id = (id == null ? new Id() : id).withConsensusTimestamp(consensusTimestamp);
     }
 
     @JsonIgnore
@@ -99,6 +84,7 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
+    @With
     public static class Id implements Serializable {
 
         @Serial

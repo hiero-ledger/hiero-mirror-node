@@ -41,18 +41,24 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
+import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
+import org.springframework.data.jdbc.core.convert.IdGeneratingEntityCallback;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
+import org.springframework.data.jdbc.core.convert.JdbcCustomConversions;
 import org.springframework.data.jdbc.core.convert.QueryMappingConfiguration;
+import org.springframework.data.jdbc.core.convert.RelationResolver;
 import org.springframework.data.jdbc.core.dialect.JdbcDialect;
 import org.springframework.data.jdbc.core.dialect.JdbcPostgresDialect;
 import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
 import org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration;
 import org.springframework.data.jdbc.repository.config.DefaultQueryMappingConfiguration;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
+import org.springframework.data.jdbc.repository.config.JdbcConfiguration;
 import org.springframework.data.mapping.callback.EntityCallbacks;
 import org.springframework.data.relational.core.mapping.event.AfterConvertCallback;
 import org.springframework.data.relational.core.mapping.event.AfterSaveCallback;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 @Configuration(proxyBeanMethods = false)
 @ConfigurationPropertiesScan("org.hiero.mirror")
@@ -60,6 +66,12 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 @EnableJdbcRepositories("org.hiero.mirror.common.repository") // Replaces JPA Repository scanning
 @ImportRuntimeHints(CommonRuntimeHints.class)
 public final class CommonConfiguration extends AbstractJdbcConfiguration {
+
+    private final ObjectProvider<DataSource> dataSourceProvider;
+
+    public CommonConfiguration(ObjectProvider<DataSource> dataSourceProvider) {
+        this.dataSourceProvider = dataSourceProvider;
+    }
 
     @Bean
     SystemEntity systemEntity(CommonProperties commonProperties) {
@@ -138,6 +150,45 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
         return JdbcPostgresDialect.INSTANCE;
     }
 
+    // Like jdbcDialect above, the converter and data access strategy are built on the DataSource directly instead of
+    // the flyway-ordered NamedParameterJdbcTemplate bean (kept @Lazy and unused). Flyway Java migrations such as
+    // ErrataMigration resolve repository-backed beans while migrating, so any dependency from the repository chain
+    // (repositories -> jdbcAggregateTemplate -> jdbcConverter/dataAccessStrategy) on that bean is a circular
+    // dependency that prevents the context from starting.
+    @Bean
+    @Override
+    public JdbcConverter jdbcConverter(
+            JdbcMappingContext mappingContext,
+            @Lazy NamedParameterJdbcOperations operations,
+            @Lazy RelationResolver relationResolver,
+            JdbcCustomConversions conversions,
+            JdbcDialect dialect) {
+        return JdbcConfiguration.createConverter(
+                mappingContext, internalJdbcOperations(), relationResolver, conversions, dialect);
+    }
+
+    @Bean
+    @Override
+    public IdGeneratingEntityCallback idGeneratingBeforeSaveCallback(
+            JdbcMappingContext mappingContext, @Lazy NamedParameterJdbcOperations operations, JdbcDialect dialect) {
+        return new IdGeneratingEntityCallback(mappingContext, dialect, internalJdbcOperations());
+    }
+
+    @Bean
+    @Override
+    public DataAccessStrategy dataAccessStrategyBean(
+            @Lazy NamedParameterJdbcOperations operations,
+            JdbcConverter jdbcConverter,
+            JdbcMappingContext context,
+            JdbcDialect dialect) {
+        return JdbcConfiguration.createDataAccessStrategy(
+                internalJdbcOperations(), jdbcConverter, QueryMappingConfiguration.EMPTY, dialect);
+    }
+
+    private NamedParameterJdbcOperations internalJdbcOperations() {
+        return new NamedParameterJdbcTemplate(dataSourceProvider.getObject());
+    }
+
     // Maps rows whose id column(s) are NULL to no entity, matching the previous JPA behavior for aggregate queries.
     // Module-specific row mappers can be contributed via a DefaultQueryMappingConfiguration bean.
     @Bean
@@ -172,6 +223,7 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new LongArrayJdbcConverters.SqlArrayToLongArray(),
                 new ShortArrayJdbcConverters.RegisteredNodeTypesHolderToShortArray(),
                 new ShortArrayJdbcConverters.SqlArrayToRegisteredNodeTypesHolder(),
+                new ShortArrayJdbcConverters.ShortArrayToRegisteredNodeTypesHolder(),
                 new PostgresAirdropStateJdbcConverters.PostgresAirdropStateToPGobject(),
                 new PostgresAirdropStateJdbcConverters.PGobjectToPostgresAirdropState(),
                 new PostgresAirdropStateJdbcConverters.StringToPostgresAirdropState(),

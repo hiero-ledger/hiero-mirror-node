@@ -9,6 +9,7 @@ import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.With;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
@@ -47,24 +48,15 @@ public abstract class AbstractTokenAllowance implements FungibleAllowance, Persi
     }
 
     public void setOwner(long owner) {
-        initId();
-        id.setOwner(owner);
+        id = (id == null ? new Id() : id).withOwner(owner);
     }
 
     public void setSpender(long spender) {
-        initId();
-        id.setSpender(spender);
+        id = (id == null ? new Id() : id).withSpender(spender);
     }
 
     public void setTokenId(long tokenId) {
-        initId();
-        id.setTokenId(tokenId);
-    }
-
-    private void initId() {
-        if (id == null) {
-            id = new Id();
-        }
+        id = (id == null ? new Id() : id).withTokenId(tokenId);
     }
 
     @JsonIgnore
@@ -82,6 +74,7 @@ public abstract class AbstractTokenAllowance implements FungibleAllowance, Persi
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    @With
     public static class Id implements Serializable {
 
         @Serial
@@ -96,27 +89,18 @@ public abstract class AbstractTokenAllowance implements FungibleAllowance, Persi
             C extends AbstractTokenAllowance, B extends AbstractTokenAllowanceBuilder<C, B>> {
 
         public B owner(long owner) {
-            initId();
-            this.id.setOwner(owner);
+            this.id = (this.id == null ? new Id() : this.id).withOwner(owner);
             return self();
         }
 
         public B spender(long spender) {
-            initId();
-            this.id.setSpender(spender);
+            this.id = (this.id == null ? new Id() : this.id).withSpender(spender);
             return self();
         }
 
         public B tokenId(long tokenId) {
-            initId();
-            this.id.setTokenId(tokenId);
+            this.id = (this.id == null ? new Id() : this.id).withTokenId(tokenId);
             return self();
-        }
-
-        private void initId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
         }
     }
 }

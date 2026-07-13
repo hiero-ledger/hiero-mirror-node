@@ -9,6 +9,7 @@ import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.With;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
@@ -59,29 +60,19 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
     }
 
     public void setReceiverAccountId(long receiverAccountId) {
-        initId();
-        id.setReceiverAccountId(receiverAccountId);
+        id = (id == null ? new Id() : id).withReceiverAccountId(receiverAccountId);
     }
 
     public void setSenderAccountId(long senderAccountId) {
-        initId();
-        id.setSenderAccountId(senderAccountId);
+        id = (id == null ? new Id() : id).withSenderAccountId(senderAccountId);
     }
 
     public void setSerialNumber(long serialNumber) {
-        initId();
-        id.setSerialNumber(serialNumber);
+        id = (id == null ? new Id() : id).withSerialNumber(serialNumber);
     }
 
     public void setTokenId(long tokenId) {
-        initId();
-        id.setTokenId(tokenId);
-    }
-
-    private void initId() {
-        if (id == null) {
-            id = new Id();
-        }
+        id = (id == null ? new Id() : id).withTokenId(tokenId);
     }
 
     @JsonIgnore
@@ -99,6 +90,7 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    @With
     public static class Id implements Serializable {
 
         @Serial
@@ -114,38 +106,28 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
             C extends AbstractTokenAirdrop, B extends AbstractTokenAirdropBuilder<C, B>> {
 
         public B receiverAccountId(long receiverAccountId) {
-            initId();
-            this.id.setReceiverAccountId(receiverAccountId);
+            this.id = (this.id == null ? new Id() : this.id).withReceiverAccountId(receiverAccountId);
             return self();
         }
 
         public B senderAccountId(long senderAccountId) {
-            initId();
-            this.id.setSenderAccountId(senderAccountId);
+            this.id = (this.id == null ? new Id() : this.id).withSenderAccountId(senderAccountId);
             return self();
         }
 
         public B serialNumber(long serialNumber) {
-            initId();
-            this.id.setSerialNumber(serialNumber);
+            this.id = (this.id == null ? new Id() : this.id).withSerialNumber(serialNumber);
             return self();
         }
 
         public B tokenId(long tokenId) {
-            initId();
-            this.id.setTokenId(tokenId);
+            this.id = (this.id == null ? new Id() : this.id).withTokenId(tokenId);
             return self();
         }
 
         public B state(TokenAirdropStateEnum state) {
             this.airdropState = PostgresAirdropState.of(state);
             return self();
-        }
-
-        private void initId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
         }
     }
 }

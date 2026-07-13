@@ -10,6 +10,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import lombok.With;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -39,17 +40,11 @@ public class ContractState {
     private byte[] value;
 
     public void setContractId(long contractId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setContractId(contractId);
+        id = (id == null ? new Id() : id).withContractId(contractId);
     }
 
     public void setSlot(byte[] slot) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
+        id = (id == null ? new Id() : id).withSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
     }
 
     public long getContractId() {
@@ -68,6 +63,7 @@ public class ContractState {
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
+    @With
     public static class Id implements Serializable {
         private static final long serialVersionUID = 6192377810161178246L;
         private long contractId;
@@ -76,18 +72,12 @@ public class ContractState {
 
     public static class ContractStateBuilder {
         public ContractStateBuilder contractId(long contractId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setContractId(contractId);
+            this.id = (this.id == null ? new Id() : this.id).withContractId(contractId);
             return this;
         }
 
         public ContractStateBuilder slot(byte[] slot) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
+            this.id = (this.id == null ? new Id() : this.id).withSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
             return this;
         }
     }

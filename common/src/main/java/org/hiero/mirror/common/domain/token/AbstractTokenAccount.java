@@ -8,6 +8,7 @@ import java.io.Serial;
 import java.io.Serializable;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.With;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
@@ -87,8 +88,7 @@ public abstract class AbstractTokenAccount implements History, Persistable<Abstr
     }
 
     public void setAccountId(long accountId) {
-        if (id == null) id = new Id();
-        id.setAccountId(accountId);
+        id = (id == null ? new Id() : id).withAccountId(accountId);
     }
 
     public long getTokenId() {
@@ -96,8 +96,7 @@ public abstract class AbstractTokenAccount implements History, Persistable<Abstr
     }
 
     public void setTokenId(long tokenId) {
-        if (id == null) id = new Id();
-        id.setTokenId(tokenId);
+        id = (id == null ? new Id() : id).withTokenId(tokenId);
     }
 
     @JsonIgnore
@@ -115,6 +114,7 @@ public abstract class AbstractTokenAccount implements History, Persistable<Abstr
     @Data
     @NoArgsConstructor
     @lombok.AllArgsConstructor
+    @With
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = 4078820027811154183L;
@@ -126,14 +126,12 @@ public abstract class AbstractTokenAccount implements History, Persistable<Abstr
     public abstract static class AbstractTokenAccountBuilder<
             C extends AbstractTokenAccount, B extends AbstractTokenAccountBuilder<C, B>> {
         public B accountId(long accountId) {
-            if (this.id == null) this.id = new Id();
-            this.id.setAccountId(accountId);
+            this.id = (this.id == null ? new Id() : this.id).withAccountId(accountId);
             return self();
         }
 
         public B tokenId(long tokenId) {
-            if (this.id == null) this.id = new Id();
-            this.id.setTokenId(tokenId);
+            this.id = (this.id == null ? new Id() : this.id).withTokenId(tokenId);
             return self();
         }
 

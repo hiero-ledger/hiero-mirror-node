@@ -11,6 +11,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import lombok.With;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.data.annotation.Transient;
@@ -66,17 +67,11 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     private ContractResult contractResult;
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setConsensusTimestamp(consensusTimestamp);
+        id = (id == null ? new Id() : id).withConsensusTimestamp(consensusTimestamp);
     }
 
     public void setIndex(int index) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setIndex(index);
+        id = (id == null ? new Id() : id).withIndex(index);
     }
 
     public long getConsensusTimestamp() {
@@ -118,6 +113,7 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
+    @With
     public static class Id implements Serializable {
         private static final long serialVersionUID = -6192177810161178246L;
         private long consensusTimestamp;
@@ -126,18 +122,12 @@ public class ContractLog implements Persistable<ContractLog.Id> {
 
     public static class ContractLogBuilder {
         public ContractLogBuilder consensusTimestamp(long consensusTimestamp) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public ContractLogBuilder index(int index) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setIndex(index);
+            this.id = (this.id == null ? new Id() : this.id).withIndex(index);
             return this;
         }
     }

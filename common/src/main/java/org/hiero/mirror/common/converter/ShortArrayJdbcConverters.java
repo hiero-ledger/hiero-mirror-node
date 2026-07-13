@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.converter;
 
 import java.sql.Array;
+import java.util.Arrays;
 import org.hiero.mirror.common.domain.node.RegisteredNodeTypesHolder;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.ReadingConverter;
@@ -45,6 +46,18 @@ public final class ShortArrayJdbcConverters {
         @Override
         public RegisteredNodeTypesHolder convert(Array source) {
             return RegisteredNodeTypesHolder.of(TO_SHORT_LIST.convert(source));
+        }
+    }
+
+    // The RowDocument read path extracts java.sql.Array columns to Short[] before conversion runs, so the Array-based
+    // converter above never matches there
+    @ReadingConverter
+    public static final class ShortArrayToRegisteredNodeTypesHolder
+            implements Converter<Short[], RegisteredNodeTypesHolder> {
+
+        @Override
+        public RegisteredNodeTypesHolder convert(Short[] source) {
+            return RegisteredNodeTypesHolder.of(Arrays.asList(source));
         }
     }
 }

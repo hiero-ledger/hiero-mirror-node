@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import lombok.With;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
@@ -65,10 +66,7 @@ public abstract class AbstractHook implements History {
     }
 
     public void setHookId(long hookId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setHookId(hookId);
+        id = (id == null ? new Id() : id).withHookId(hookId);
     }
 
     public long getOwnerId() {
@@ -80,10 +78,7 @@ public abstract class AbstractHook implements History {
     }
 
     public void setOwnerId(long ownerId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setOwnerId(ownerId);
+        id = (id == null ? new Id() : id).withOwnerId(ownerId);
     }
 
     @JsonIgnore
@@ -94,6 +89,7 @@ public abstract class AbstractHook implements History {
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
+    @With
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = -8745629837592847563L;
@@ -105,18 +101,12 @@ public abstract class AbstractHook implements History {
     @SuppressWarnings("java:S1610")
     public abstract static class AbstractHookBuilder<C extends AbstractHook, B extends AbstractHookBuilder<C, B>> {
         public B hookId(long hookId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setHookId(hookId);
+            this.id = (this.id == null ? new Id() : this.id).withHookId(hookId);
             return self();
         }
 
         public B ownerId(long ownerId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setOwnerId(ownerId);
+            this.id = (this.id == null ? new Id() : this.id).withOwnerId(ownerId);
             return self();
         }
 

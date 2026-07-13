@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.With;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
@@ -42,17 +43,11 @@ public class NodeStake implements Persistable<NodeStake.Id> {
     private long stakingPeriod;
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setConsensusTimestamp(consensusTimestamp);
+        id = (id == null ? new Id() : id).withConsensusTimestamp(consensusTimestamp);
     }
 
     public void setNodeId(long nodeId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setNodeId(nodeId);
+        id = (id == null ? new Id() : id).withNodeId(nodeId);
     }
 
     public long getConsensusTimestamp() {
@@ -78,6 +73,7 @@ public class NodeStake implements Persistable<NodeStake.Id> {
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
+    @With
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = -2513526593205520365L;
@@ -88,18 +84,12 @@ public class NodeStake implements Persistable<NodeStake.Id> {
 
     public static class NodeStakeBuilder {
         public NodeStakeBuilder consensusTimestamp(long consensusTimestamp) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public NodeStakeBuilder nodeId(long nodeId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setNodeId(nodeId);
+            this.id = (this.id == null ? new Id() : this.id).withNodeId(nodeId);
             return this;
         }
     }

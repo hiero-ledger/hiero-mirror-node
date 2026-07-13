@@ -11,6 +11,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import lombok.With;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
@@ -37,32 +38,22 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
     @ToString.Exclude
     private byte[] valueWritten;
 
+    // The id is replaced rather than mutated so instances sharing an Id (e.g. built via toBuilder()) keep their
+    // values, matching the snapshot semantics the flat JPA fields had
     public void setConsensusTimestamp(long consensusTimestamp) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setConsensusTimestamp(consensusTimestamp);
+        id = (id == null ? new Id() : id).withConsensusTimestamp(consensusTimestamp);
     }
 
     public void setContractId(EntityId entityId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setContractId(entityId.getId());
+        id = (id == null ? new Id() : id).withContractId(entityId.getId());
     }
 
     public void setContractId(long contractId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setContractId(contractId);
+        id = (id == null ? new Id() : id).withContractId(contractId);
     }
 
     public void setSlot(byte[] slot) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setSlot(slot);
+        id = (id == null ? new Id() : id).withSlot(slot);
     }
 
     public long getConsensusTimestamp() {
@@ -92,6 +83,7 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
+    @With
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = -3677350664183037811L;
@@ -103,26 +95,17 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
 
     public static class ContractStateChangeBuilder {
         public ContractStateChangeBuilder consensusTimestamp(long consensusTimestamp) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public ContractStateChangeBuilder contractId(long contractId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setContractId(contractId);
+            this.id = (this.id == null ? new Id() : this.id).withContractId(contractId);
             return this;
         }
 
         public ContractStateChangeBuilder slot(byte[] slot) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setSlot(slot);
+            this.id = (this.id == null ? new Id() : this.id).withSlot(slot);
             return this;
         }
     }

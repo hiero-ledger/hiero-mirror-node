@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.With;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
@@ -34,27 +35,18 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
 
     public static class CryptoTransferBuilder {
         public CryptoTransferBuilder amount(long amount) {
-            initId();
-            this.id.setAmount(amount);
+            this.id = (this.id == null ? new Id() : this.id).withAmount(amount);
             return this;
         }
 
         public CryptoTransferBuilder consensusTimestamp(long consensusTimestamp) {
-            initId();
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public CryptoTransferBuilder entityId(long entityId) {
-            initId();
-            this.id.setEntityId(entityId);
+            this.id = (this.id == null ? new Id() : this.id).withEntityId(entityId);
             return this;
-        }
-
-        private void initId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
         }
     }
 
@@ -71,24 +63,15 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
     }
 
     public void setAmount(long amount) {
-        initId();
-        id.setAmount(amount);
+        id = (id == null ? new Id() : id).withAmount(amount);
     }
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        initId();
-        id.setConsensusTimestamp(consensusTimestamp);
+        id = (id == null ? new Id() : id).withConsensusTimestamp(consensusTimestamp);
     }
 
     public void setEntityId(long entityId) {
-        initId();
-        id.setEntityId(entityId);
-    }
-
-    private void initId() {
-        if (id == null) {
-            id = new Id();
-        }
+        id = (id == null ? new Id() : id).withEntityId(entityId);
     }
 
     @JsonIgnore
@@ -106,6 +89,7 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
+    @With
     public static class Id implements Serializable {
 
         @Serial

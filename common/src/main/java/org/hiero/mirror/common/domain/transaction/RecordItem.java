@@ -128,8 +128,17 @@ public class RecordItem implements StreamItem {
     @Transient
     private ArrayDeque<Hook.Id> hookExecutionQueue;
 
+    /**
+     * Gets the next hook context from the execution queue, delegating to the parent record item when this item has no
+     * queue of its own. Returns null if no more contexts are available.
+     *
+     * @return the next hook execution context, or null if queue is empty
+     */
     public Hook.Id nextHookContext() {
-        return hookExecutionQueue != null ? hookExecutionQueue.pollFirst() : null;
+        if (hookExecutionQueue == null) {
+            return parent != null ? parent.nextHookContext() : null;
+        }
+        return hookExecutionQueue.poll();
     }
 
     public void addContractTransaction(EntityId entityId) {

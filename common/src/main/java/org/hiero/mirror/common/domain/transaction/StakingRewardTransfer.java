@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.With;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
@@ -32,21 +33,13 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
 
     public static class StakingRewardTransferBuilder {
         public StakingRewardTransferBuilder accountId(long accountId) {
-            initId();
-            this.id.setAccountId(accountId);
+            this.id = (this.id == null ? new Id() : this.id).withAccountId(accountId);
             return this;
         }
 
         public StakingRewardTransferBuilder consensusTimestamp(long consensusTimestamp) {
-            initId();
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
             return this;
-        }
-
-        private void initId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
         }
     }
 
@@ -59,19 +52,11 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
     }
 
     public void setAccountId(long accountId) {
-        initId();
-        id.setAccountId(accountId);
+        id = (id == null ? new Id() : id).withAccountId(accountId);
     }
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        initId();
-        id.setConsensusTimestamp(consensusTimestamp);
-    }
-
-    private void initId() {
-        if (id == null) {
-            id = new Id();
-        }
+        id = (id == null ? new Id() : id).withConsensusTimestamp(consensusTimestamp);
     }
 
     @JsonIgnore
@@ -89,6 +74,7 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
+    @With
     public static class Id implements Serializable {
 
         @Serial

@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.With;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
@@ -33,18 +34,12 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
 
     public static class EntityTransactionBuilder {
         public EntityTransactionBuilder consensusTimestamp(long consensusTimestamp) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public EntityTransactionBuilder entityId(long entityId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setEntityId(entityId);
+            this.id = (this.id == null ? new Id() : this.id).withEntityId(entityId);
             return this;
         }
     }
@@ -72,6 +67,7 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
+    @With
     public static class Id implements Serializable {
 
         @Serial

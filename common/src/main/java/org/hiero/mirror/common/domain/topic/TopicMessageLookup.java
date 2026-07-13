@@ -11,6 +11,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.With;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.relational.core.mapping.Embedded;
@@ -52,10 +53,7 @@ public class TopicMessageLookup {
     }
 
     public void setPartition(String partition) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setPartition(partition);
+        id = (id == null ? new Id() : id).withPartition(partition);
     }
 
     public long getTopicId() {
@@ -63,10 +61,7 @@ public class TopicMessageLookup {
     }
 
     public void setTopicId(long topicId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setTopicId(topicId);
+        id = (id == null ? new Id() : id).withTopicId(topicId);
     }
 
     @JsonIgnore
@@ -77,6 +72,7 @@ public class TopicMessageLookup {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    @With
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = 5704900912468270592L;
@@ -87,18 +83,12 @@ public class TopicMessageLookup {
 
     public static class TopicMessageLookupBuilder {
         public TopicMessageLookupBuilder partition(String partition) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setPartition(partition);
+            this.id = (this.id == null ? new Id() : this.id).withPartition(partition);
             return this;
         }
 
         public TopicMessageLookupBuilder topicId(long topicId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setTopicId(topicId);
+            this.id = (this.id == null ? new Id() : this.id).withTopicId(topicId);
             return this;
         }
     }
