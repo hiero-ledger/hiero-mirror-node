@@ -54,6 +54,7 @@ public class PrestateServiceImpl implements PrestateService {
     private final EntityRepository entityRepository;
     private final long treasuryAccountId;
     private final TransactionRepository transactionRepository;
+    private static final String ZERO_BALANCE = "0x0";
 
     public PrestateServiceImpl(
             final AccountBalanceRepository accountBalanceRepository,
@@ -194,7 +195,7 @@ public class PrestateServiceImpl implements PrestateService {
         final var entityId = snapshot.getId();
         final var accountTrace = new AccountTrace();
         accountTrace.setAddress(resolveAddress(snapshot));
-        accountTrace.setBalance(HEX_PREFIX + Long.toHexString(balance != null ? balance : 0L));
+        accountTrace.setBalance(balance != null ? HEX_PREFIX + Long.toHexString(balance) : ZERO_BALANCE);
 
         final var nonce = snapshot.getEthereumNonce();
         accountTrace.setNonce(nonce != null ? nonce : 0L);
