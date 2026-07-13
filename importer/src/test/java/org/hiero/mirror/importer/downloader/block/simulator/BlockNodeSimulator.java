@@ -4,13 +4,18 @@ package org.hiero.mirror.importer.downloader.block.simulator;
 
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
 
+import com.github.luben.zstd.ZstdOutputStream;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
+import io.grpc.Compressor;
+import io.grpc.CompressorRegistry;
 import io.grpc.ForwardingServerBuilder;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,6 +40,18 @@ import org.springframework.util.CollectionUtils;
 
 public final class BlockNodeSimulator implements AutoCloseable {
 
+    private static final Compressor ZSTD_COMPRESSOR = new Compressor() {
+        @Override
+        public String getMessageEncoding() {
+            return "zstd";
+        }
+
+        @Override
+        public OutputStream compress(OutputStream os) throws IOException {
+            return new ZstdOutputStream(os);
+        }
+    };
+
     private List<BlockGenerator.BlockRecord> blocks = Collections.emptyList();
     private int chunksPerBlock = 1;
     private long firstBlockNumber;
@@ -53,6 +70,7 @@ public final class BlockNodeSimulator implements AutoCloseable {
     private int priority;
     private Server server;
     private boolean started;
+    private boolean zstdCompression;
 
     @Override
     @SneakyThrows
@@ -92,6 +110,12 @@ public final class BlockNodeSimulator implements AutoCloseable {
         } else {
             host = "localhost";
             serverBuilder = NettyServerBuilder.forPort(0);
+        }
+
+        if (zstdCompression) {
+            final var compressorRegistry = CompressorRegistry.newEmptyInstance();
+            compressorRegistry.register(ZSTD_COMPRESSOR);
+            serverBuilder.compressorRegistry(compressorRegistry);
         }
 
         server = serverBuilder
@@ -175,6 +199,11 @@ public final class BlockNodeSimulator implements AutoCloseable {
         return this;
     }
 
+    public BlockNodeSimulator withZstdCompression(final boolean compressed) {
+        this.zstdCompression = compressed;
+        return this;
+    }
+
     private static void validateArg(boolean condition, String message) {
         if (!condition) {
             throw new IllegalArgumentException(message);
@@ -221,6 +250,10 @@ public final class BlockNodeSimulator implements AutoCloseable {
         final StreamObserver<SubscribeStreamResponse> responseObserver;
 
         void stream() {
+            if (zstdCompression) {
+                ((ServerCallStreamObserver<SubscribeStreamResponse>) responseObserver).setCompression("zstd");
+            }
+
             if (request.getStartBlockNumber() > lastBlockNumber) {
                 responseObserver.onNext(SubscribeStreamResponse.newBuilder()
                         .setStatus(SubscribeStreamResponse.Code.INVALID_START_BLOCK_NUMBER)

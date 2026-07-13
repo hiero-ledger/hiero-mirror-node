@@ -4,17 +4,12 @@ global:
   middleware: true
 
 graphql:
-  alertmanager:
-    inhibitRules:
-      enabled: true
   hpa:
     enabled: true
     minReplicas: 2
   podDisruptionBudget:
     enabled: true
   priorityClassName: medium
-  prometheusRules:
-    enabled: true
   serviceMonitor:
     enabled: true
   test:
@@ -94,16 +89,11 @@ restjava:
     priorityClassName: high
 
 rosetta:
-  alertmanager:
-    inhibitRules:
-      enabled: true
   hpa:
     minReplicas: 2
   podDisruptionBudget:
     enabled: true
   priorityClassName: medium
-  prometheusRules:
-    enabled: true
   serviceMonitor:
     enabled: true
   test:

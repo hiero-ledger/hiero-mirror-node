@@ -69,6 +69,7 @@ public class RecordItem implements StreamItem {
     @ToString.Include
     private final long consensusTimestamp;
 
+    private final Long accountEthereumNonce;
     private final boolean blockstream;
     private final Long congestionPricingMultiplier;
     private final RecordItem hookParent;

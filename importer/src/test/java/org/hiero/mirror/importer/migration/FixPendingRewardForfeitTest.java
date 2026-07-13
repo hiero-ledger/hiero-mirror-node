@@ -24,10 +24,10 @@ import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.test.context.ContextConfiguration;
 
 @ContextConfiguration(initializers = FixPendingRewardForfeitTest.Initializer.class)
+@DisableRepeatableSqlMigration
 @RequiredArgsConstructor
 @Tag("migration")
-@DisableRepeatableSqlMigration
-class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
+final class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
 
     private static final long STAKING_REWARD_ACCOUNT_ID = 800L;
     private static final long NODE_ID = 0L;

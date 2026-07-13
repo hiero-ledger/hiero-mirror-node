@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.downloader.block;
 import static org.apache.commons.lang3.StringUtils.countMatches;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.from;
 import static org.hiero.mirror.importer.TestUtils.S3_PROXY_PORT;
 import static org.hiero.mirror.importer.TestUtils.findAllMatches;
 import static org.hiero.mirror.importer.TestUtils.generateRandomByteArray;
@@ -216,9 +217,10 @@ final class BlockFileSourceTest {
         blockFileSource.get();
 
         // then
-        verify(blockStreamVerifier)
-                .verify(assertArg(b ->
-                        assertThat(b).returns(null, BlockFile::getBytes).returns(blockNumber(0), BlockFile::getIndex)));
+        verify(blockStreamVerifier).verify(assertArg(b -> assertThat(b)
+                .returns(null, BlockFile::getBytes)
+                .returns(blockNumber(0), BlockFile::getIndex)
+                .returns(true, from(block -> block.getSize() > 0))));
         verify(recordFileRepository).findLatest();
 
         final var logs = output.getAll();
@@ -262,9 +264,10 @@ final class BlockFileSourceTest {
         blockFileSource.get();
 
         // then
-        verify(blockStreamVerifier)
-                .verify(assertArg(b ->
-                        assertThat(b).returns(null, BlockFile::getBytes).returns(blockNumber(0), BlockFile::getIndex)));
+        verify(blockStreamVerifier).verify(assertArg(b -> assertThat(b)
+                .returns(null, BlockFile::getBytes)
+                .returns(blockNumber(0), BlockFile::getIndex)
+                .returns(true, from(block -> block.getSize() > 0))));
         verify(recordFileRepository).findLatest();
 
         var logs = output.getAll();
@@ -286,7 +289,8 @@ final class BlockFileSourceTest {
                 .toFile());
         verify(blockStreamVerifier).verify(assertArg(b -> assertThat(b)
                 .returns(expectedBytes, BlockFile::getBytes)
-                .returns(blockNumber(1), BlockFile::getIndex)));
+                .returns(blockNumber(1), BlockFile::getIndex)
+                .returns(expectedBytes.length, BlockFile::getSize)));
         verify(recordFileRepository).findLatest();
 
         logs = output.getAll();
@@ -355,7 +359,8 @@ final class BlockFileSourceTest {
         // then
         verify(blockStreamVerifier).verify(assertArg(b -> assertThat(b)
                 .returns(null, BlockFile::getBytes)
-                .returns(block0.getIndex(), BlockFile::getIndex)));
+                .returns(block0.getIndex(), BlockFile::getIndex)
+                .returns(true, from(block -> block.getSize() > 0))));
         verify(recordFileRepository).findLatest();
 
         final var logs = output.getAll();
@@ -380,8 +385,9 @@ final class BlockFileSourceTest {
         blockFileSource.get();
 
         // then
-        verify(blockStreamVerifier)
-                .verify(assertArg(b -> assertThat(b).returns(block0.getIndex(), BlockFile::getIndex)));
+        verify(blockStreamVerifier).verify(assertArg(b -> assertThat(b)
+                .returns(block0.getIndex(), BlockFile::getIndex)
+                .returns(true, from(block -> block.getSize() > 0))));
         verify(recordFileRepository).findLatest();
     }
 
@@ -458,8 +464,9 @@ final class BlockFileSourceTest {
                 .hasMessage("Failed to download block file " + block0.getName());
 
         // then
-        verify(blockStreamVerifier)
-                .verify(assertArg(b -> assertThat(b).returns(block0.getIndex(), BlockFile::getIndex)));
+        verify(blockStreamVerifier).verify(assertArg(b -> assertThat(b)
+                .returns(block0.getIndex(), BlockFile::getIndex)
+                .returns(true, from(block -> block.getSize() > 0))));
         verify(recordFileRepository).findLatest();
 
         final var logs = output.getAll();
