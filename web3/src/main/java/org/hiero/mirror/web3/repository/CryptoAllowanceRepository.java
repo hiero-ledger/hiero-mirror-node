@@ -52,21 +52,21 @@ public interface CryptoAllowanceRepository extends CrudRepository<CryptoAllowanc
                             ) as all_crypto_allowances
                         ) as grouped_crypto_allowances
                         where row_number = 1 and amount_granted > 0
+                        ), hts_contract_results as materialized (
+                        select consensus_timestamp, sender_id
+                        from contract_result
+                        where contract_id = :htsContractId
+                            and consensus_timestamp <= :blockTimestamp
+                            and consensus_timestamp > (select min(lower(timestamp_range)) from crypto_allowances)
                         ), transfers as (
                         select ca.spender, sum(ct.amount) as amount
                         from crypto_transfer ct
                             join crypto_allowances ca
                             on ct.entity_id = ca.owner
+                            left join hts_contract_results cr
+                            on cr.consensus_timestamp = ct.consensus_timestamp
                         where ct.is_approval is true
-                            and ca.spender = coalesce(
-                                (
-                                    select sender_id
-                                    from contract_result cr
-                                    where cr.contract_id = :htsContractId
-                                        and cr.consensus_timestamp = ct.consensus_timestamp
-                                        and cr.consensus_timestamp <= :blockTimestamp
-                                ),
-                                ct.payer_account_id)
+                            and ca.spender = coalesce(cr.sender_id, ct.payer_account_id)
                             and ct.consensus_timestamp <= :blockTimestamp
                             and ct.consensus_timestamp > lower(ca.timestamp_range)
                         group by ca.spender
