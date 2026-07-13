@@ -28,7 +28,7 @@ import org.springframework.core.env.Environment;
 @DisableRepeatableSqlMigration
 @RequiredArgsConstructor
 @Tag("migration")
-class FixCryptoAllowanceContractSpendMigrationTest
+final class FixCryptoAllowanceContractSpendMigrationTest
         extends AbstractAsyncJavaMigrationTest<FixCryptoAllowanceContractSpendMigration> {
 
     private static final String PROGRESS_TABLE = "crypto_allowance_contract_spend_progress";

@@ -15,6 +15,10 @@ import org.junit.jupiter.api.Test;
 class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
     private final CryptoAllowanceRepository cryptoAllowanceRepository;
 
+    private long htsContractId() {
+        return systemEntity.hederaTokenServiceContract().getId();
+    }
+
     @Test
     void findByOwnerAndApprovedForAllIsTrue() {
         final var allowance = domainBuilder.cryptoAllowance().persist();
@@ -29,7 +33,8 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
         final var allowance = domainBuilder.cryptoAllowance().persist();
 
         assertThat(cryptoAllowanceRepository
-                        .findByOwnerAndTimestamp(allowance.getOwner(), allowance.getTimestampLower() + 1)
+                        .findByOwnerAndTimestamp(
+                                allowance.getOwner(), allowance.getTimestampLower() + 1, htsContractId())
                         .get(0))
                 .isEqualTo(allowance);
     }
@@ -39,7 +44,7 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
         final var allowance = domainBuilder.cryptoAllowance().persist();
 
         assertThat(cryptoAllowanceRepository
-                        .findByOwnerAndTimestamp(allowance.getOwner(), allowance.getTimestampLower())
+                        .findByOwnerAndTimestamp(allowance.getOwner(), allowance.getTimestampLower(), htsContractId())
                         .get(0))
                 .isEqualTo(allowance);
     }
@@ -49,7 +54,7 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
         final var allowance = domainBuilder.cryptoAllowance().persist();
 
         assertThat(cryptoAllowanceRepository.findByOwnerAndTimestamp(
-                        allowance.getOwner(), allowance.getTimestampLower() - 1))
+                        allowance.getOwner(), allowance.getTimestampLower() - 1, htsContractId()))
                 .isEmpty();
     }
 
@@ -58,7 +63,8 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
         final var allowanceHistory = domainBuilder.cryptoAllowanceHistory().persist();
 
         assertThat(cryptoAllowanceRepository
-                        .findByOwnerAndTimestamp(allowanceHistory.getOwner(), allowanceHistory.getTimestampLower() + 1)
+                        .findByOwnerAndTimestamp(
+                                allowanceHistory.getOwner(), allowanceHistory.getTimestampLower() + 1, htsContractId())
                         .get(0))
                 .usingRecursiveComparison()
                 .isEqualTo(allowanceHistory);
@@ -69,7 +75,8 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
         final var allowanceHistory = domainBuilder.cryptoAllowanceHistory().persist();
 
         assertThat(cryptoAllowanceRepository
-                        .findByOwnerAndTimestamp(allowanceHistory.getOwner(), allowanceHistory.getTimestampLower())
+                        .findByOwnerAndTimestamp(
+                                allowanceHistory.getOwner(), allowanceHistory.getTimestampLower(), htsContractId())
                         .get(0))
                 .usingRecursiveComparison()
                 .isEqualTo(allowanceHistory);
@@ -80,7 +87,7 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
         final var allowanceHistory = domainBuilder.cryptoAllowanceHistory().persist();
 
         assertThat(cryptoAllowanceRepository.findByOwnerAndTimestamp(
-                        allowanceHistory.getOwner(), allowanceHistory.getTimestampLower() - 1))
+                        allowanceHistory.getOwner(), allowanceHistory.getTimestampLower() - 1, htsContractId()))
                 .isEmpty();
     }
 
@@ -102,7 +109,7 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
                 Math.max(allowanceHistory1.getTimestampLower(), allowanceHistory2.getTimestampLower());
 
         assertThat(cryptoAllowanceRepository
-                        .findByOwnerAndTimestamp(allowanceHistory1.getOwner(), latestTimestamp + 1)
+                        .findByOwnerAndTimestamp(allowanceHistory1.getOwner(), latestTimestamp + 1, htsContractId())
                         .get(0))
                 .returns(latestTimestamp, CryptoAllowance::getTimestampLower);
     }
@@ -152,7 +159,8 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
                         .consensusTimestamp(cryptoTransferTimestamp))
                 .persist();
 
-        var result = cryptoAllowanceRepository.findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp);
+        var result = cryptoAllowanceRepository.findByOwnerAndTimestamp(
+                allowance.getOwner(), blockTimestamp, htsContractId());
         assertThat(result).hasSize(2);
         assertThat(result.get(0)).returns(2L, CryptoAllowance::getAmount);
         assertThat(result.get(1)).returns(2L, CryptoAllowance::getAmount);
@@ -213,7 +221,8 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
                         .consensusTimestamp(cryptoTransferTimestamp))
                 .persist();
 
-        var result = cryptoAllowanceRepository.findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp);
+        var result = cryptoAllowanceRepository.findByOwnerAndTimestamp(
+                allowance.getOwner(), blockTimestamp, htsContractId());
         assertThat(result).hasSize(2);
         assertThat(result.get(0)).returns(1L, CryptoAllowance::getAmount);
         assertThat(result.get(1)).returns(2L, CryptoAllowance::getAmount);
@@ -246,14 +255,54 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
                         .consensusTimestamp(cryptoTransferTimestamp))
                 .persist();
 
-        // contract result at the same timestamp identifies the spending contract via sender_id
+        // HTS contract result at the same timestamp identifies the spending contract via sender_id
         domainBuilder
                 .contractResult()
-                .customize(c -> c.senderId(EntityId.of(spender)).consensusTimestamp(cryptoTransferTimestamp))
+                .customize(c -> c.contractId(htsContractId())
+                        .senderId(EntityId.of(spender))
+                        .consensusTimestamp(cryptoTransferTimestamp))
                 .persist();
 
         assertThat(cryptoAllowanceRepository
-                        .findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp)
+                        .findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp, htsContractId())
+                        .get(0))
+                .returns(2L, CryptoAllowance::getAmount);
+    }
+
+    @Test
+    void findByOwnerAndTimestampWithNonHtsContractResultAttributesToPayer() {
+        final long spender = domainBuilder.id();
+        final long ownerId = domainBuilder.id();
+        final long cryptoAllowanceTimestamp = System.currentTimeMillis();
+        final long cryptoTransferTimestamp = cryptoAllowanceTimestamp + 1;
+        final long blockTimestamp = cryptoAllowanceTimestamp + 2;
+
+        final var allowance = domainBuilder
+                .cryptoAllowance()
+                .customize(a -> a.spender(spender)
+                        .owner(ownerId)
+                        .amountGranted(3L)
+                        .timestampRange(Range.atLeast(cryptoAllowanceTimestamp)))
+                .persist();
+
+        // direct spend by the spender: payer is the spender
+        domainBuilder
+                .cryptoTransfer()
+                .customize(c -> c.entityId(ownerId)
+                        .payerAccountId(EntityId.of(spender))
+                        .amount(-1)
+                        .isApproval(true)
+                        .consensusTimestamp(cryptoTransferTimestamp))
+                .persist();
+
+        // a contract result for a non-HTS contract at the same timestamp must not change the attribution
+        domainBuilder
+                .contractResult()
+                .customize(c -> c.senderId(EntityId.of(domainBuilder.id())).consensusTimestamp(cryptoTransferTimestamp))
+                .persist();
+
+        assertThat(cryptoAllowanceRepository
+                        .findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp, htsContractId())
                         .get(0))
                 .returns(2L, CryptoAllowance::getAmount);
     }
@@ -289,14 +338,16 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
                         .consensusTimestamp(spendTimestamp))
                 .persist();
 
-        // contract_result whose sender_id is the SpendOnBehalf contract
+        // HTS contract_result whose sender_id is the SpendOnBehalf contract
         domainBuilder
                 .contractResult()
-                .customize(c -> c.senderId(EntityId.of(spendOnBehalfContract)).consensusTimestamp(spendTimestamp))
+                .customize(c -> c.contractId(htsContractId())
+                        .senderId(EntityId.of(spendOnBehalfContract))
+                        .consensusTimestamp(spendTimestamp))
                 .persist();
 
         assertThat(cryptoAllowanceRepository
-                        .findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp)
+                        .findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp, htsContractId())
                         .get(0))
                 .returns(expectedRemaining, CryptoAllowance::getAmount);
     }
@@ -340,12 +391,14 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
                 .persist();
         domainBuilder
                 .contractResult()
-                .customize(c -> c.senderId(EntityId.of(spender)).consensusTimestamp(contractSpendTimestamp))
+                .customize(c -> c.contractId(htsContractId())
+                        .senderId(EntityId.of(spender))
+                        .consensusTimestamp(contractSpendTimestamp))
                 .persist();
 
         // both spends are subtracted: 5 - 1 - 2 = 2
         assertThat(cryptoAllowanceRepository
-                        .findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp)
+                        .findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp, htsContractId())
                         .get(0))
                 .returns(2L, CryptoAllowance::getAmount);
     }
@@ -376,7 +429,7 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
                 .persist();
 
         assertThat(cryptoAllowanceRepository
-                        .findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp)
+                        .findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp, htsContractId())
                         .get(0))
                 .returns(3L, CryptoAllowance::getAmount);
     }
@@ -393,7 +446,8 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
                         a -> a.owner(owner).amountGranted(0L).timestampRange(Range.atLeast(cryptoAllowanceTimestamp)))
                 .persist();
 
-        assertThat(cryptoAllowanceRepository.findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp))
+        assertThat(cryptoAllowanceRepository.findByOwnerAndTimestamp(
+                        allowance.getOwner(), blockTimestamp, htsContractId()))
                 .isEmpty();
     }
 
@@ -423,7 +477,8 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
                         .consensusTimestamp(cryptoTransferTimestamp))
                 .persist();
 
-        assertThat(cryptoAllowanceRepository.findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp))
+        assertThat(cryptoAllowanceRepository.findByOwnerAndTimestamp(
+                        allowance.getOwner(), blockTimestamp, htsContractId()))
                 .isEmpty();
     }
 }
