@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Deploy PR Validation
+
+on:
+  pull_request:
+    branches:
+      - deploy
+    paths:
+      - "clusters/**"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  LC_ALL: C.UTF-8
+
+jobs:
+  validate:
+    name: Validate cluster changes
+    runs-on: hiero-mirror-node-linux-medium
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout Repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Find changed clusters
+        id: changes
+        uses: step-security/paths-filter@5c5241b8233e77b55b9046daf88f1cb7560281de # v4.0.1
+        with:
+          filters: |
+            mainnet-eu:
+              - 'clusters/mainnet-eu/**'
+            mainnet-na:
+              - 'clusters/mainnet-na/**'
+            testnet-eu:
+              - 'clusters/testnet-eu/**'
+            testnet-na:
+              - 'clusters/testnet-na/**'
+            previewnet:
+              - 'clusters/previewnet/**'
+
+      - name: Validate cluster changes
+        env:
+          CHANGES: ${{ steps.changes.outputs.changes }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$CHANGES" == "[]" ]]; then
+            echo "No cluster changes detected"
+            exit 0
+          fi
+
+          echo "Changed clusters: $CHANGES"
+
+          PRODUCTION_CLUSTERS=(mainnet-eu mainnet-na testnet-eu testnet-na previewnet)
+          changed_production_clusters=()
+
+          for cluster in "${PRODUCTION_CLUSTERS[@]}"; do
+            if echo "$CHANGES" | jq -e --arg cluster "$cluster" 'index($cluster) != null' >/dev/null; then
+              changed_production_clusters+=("$cluster")
+            fi
+          done
+
+          if [[ "${#changed_production_clusters[@]}" -gt 1 ]]; then
+            echo "::error::Cannot update more than one production cluster in the same PR. Changed: ${changed_production_clusters[*]}"
+            exit 1
+          fi
+
+          echo "Cluster change validation passed"
