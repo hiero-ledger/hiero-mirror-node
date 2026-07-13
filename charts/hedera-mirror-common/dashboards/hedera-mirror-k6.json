@@ -592,7 +592,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "last_over_time(\n  (\n    sum by (scenario, suite) (\n      histogram_count(\n        k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\"}\n      )\n    ) * 1000\n    / on (scenario, suite) k6_scenario_duration{namespace=~\"$namespace\", scenario=~\"$scenario\", suite=~\"$suite\"}\n  )[$__range:])",
+          "expr": "last_over_time(\n  (\n    sum by (namespace, scenario, suite) (\n      histogram_count(\n        k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\"}\n      )\n    ) * 1000\n    / on (scenario, suite) k6_scenario_duration{namespace=~\"$namespace\", scenario=~\"$scenario\", suite=~\"$suite\"}\n  )[$__range:])",
           "hide": true,
           "instant": true,
           "legendFormat": "__auto",
@@ -607,7 +607,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "last_over_time(\n  (\n    sum by (scenario, suite) (\n      histogram_count(\n        k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\", passed=\"true\"}\n      )\n    ) * 1000\n    / on (scenario, suite) k6_scenario_duration{namespace=~\"$namespace\", scenario=~\"$scenario\", suite=~\"$suite\"}\n  )[$__range:])",
+          "expr": "last_over_time(\n  (\n    sum by (namespace, scenario, suite) (\n      histogram_count(\n        k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\", passed=\"true\"}\n      )\n    ) * 1000\n    / on (scenario, suite) k6_scenario_duration{namespace=~\"$namespace\", scenario=~\"$scenario\", suite=~\"$suite\"}\n  )[$__range:])",
           "hide": true,
           "instant": true,
           "legendFormat": "__auto",
@@ -622,7 +622,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "last_over_time(\n  (\n    sum by (scenario, suite) (\n      histogram_sum(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\",passed=\"true\"})\n      / histogram_count(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\",passed=\"true\"})\n    )\n  )[$__range:])",
+          "expr": "last_over_time(\n  (\n    sum by (namespace, scenario, suite) (\n      histogram_sum(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\",passed=\"true\"})\n      / histogram_count(k6_requests_seconds{namespace=~\"$namespace\",scenario=~\"$scenario\",suite=~\"$suite\",passed=\"true\"})\n    )\n  )[$__range:])",
           "hide": true,
           "instant": true,
           "legendFormat": "__auto",
@@ -637,7 +637,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "label_replace(\n  last_over_time(sum by (scenario, suite, url) (k6_http_reqs_total{suite=~\"$suite\"})[$__range:]),\n  \"url\", \"$1\", \"url\", \"^.*/api/v1(.*)\"\n)",
+          "expr": "label_replace(\n  last_over_time(sum by (namespace, scenario, suite, url) (k6_http_reqs_total{suite=~\"$suite\"})[$__range:]),\n  \"url\", \"$1\", \"url\", \"^.*/api/v1(.*)\"\n)",
           "format": "time_series",
           "hide": true,
           "instant": true,
@@ -785,7 +785,7 @@
     ]
   },
   "time": {
-    "from": "now-7d",
+    "from": "now-30m",
     "to": "now"
   },
   "timepicker": {
