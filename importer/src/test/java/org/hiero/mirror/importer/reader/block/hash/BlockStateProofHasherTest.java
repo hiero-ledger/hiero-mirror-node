@@ -54,6 +54,7 @@ final class BlockStateProofHasherTest {
     @Test
     void getHashThrowWhenLessThanMinSiblings() {
         // given
+        final byte[] rootHash = TestUtils.generateRandomByteArray(48);
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
                         .setNextPathIndex(2)
@@ -63,16 +64,16 @@ final class BlockStateProofHasherTest {
                                 .toByteString())
                         .build(),
                 MerklePath.newBuilder()
-                        .setHash(fromBytes(TestUtils.generateRandomByteArray(48)))
+                        .setHash(fromBytes(rootHash))
                         .setNextPathIndex(2)
                         .addSiblings(SiblingNode.newBuilder().build())
                         .build(),
                 MerklePath.newBuilder().setNextPathIndex(-1).build());
 
         // when, then
-        assertThatThrownBy(() -> hasher.getRootHash(0, TestUtils.generateRandomByteArray(48), merklePaths))
+        assertThatThrownBy(() -> hasher.getRootHash(0, rootHash, merklePaths))
                 .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessage("Block 0's merkle path from the previous block root has less than 7 siblings");
+                .hasMessage("Block 0's block contents merkle path has less than 4 siblings");
     }
 
     @Test

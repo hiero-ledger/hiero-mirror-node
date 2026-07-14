@@ -17,8 +17,10 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.37.0")
+    set("blockNodeVersion", "0.38.0")
     set("consensusNodeVersion", "0.75.0-rc.5")
+    set("httpclient5.version", "5.6.2") // Temporary until next Spring Boot
+    set("httpcore5.version", "5.4.3") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.0") // Temporary until next Spring Boot
     set("jooq.version", "3.21.6") // Must match buildSrc/build.gradle.kts
     set("logback.version", "1.5.36") // Temporary until next Spring Boot
@@ -58,7 +60,7 @@ dependencies {
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.73.0")
+        api("com.hedera.hashgraph:sdk:2.74.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
@@ -88,7 +90,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.46.21")
+        api("software.amazon.awssdk:bom:2.47.5")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
