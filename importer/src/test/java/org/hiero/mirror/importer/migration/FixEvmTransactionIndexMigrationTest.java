@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.time.Duration;
 import java.util.ArrayList;
 import lombok.Getter;
@@ -346,6 +347,38 @@ final class FixEvmTransactionIndexMigrationTest
         // then
         assertContractResultIndex(earlyContractResult.getConsensusTimestamp(), 0);
         assertContractResultIndex(recentContractResult.getConsensusTimestamp(), 0);
+    }
+
+    @Test
+    void wrongNonceTransactionDoesNotConsumeEvmIndex() {
+        // given
+        final var block = persistBlock(0);
+        final var wrongNonceTimestamp = block.getConsensusStart() + 100;
+        final var contractCallTimestamp = block.getConsensusStart() + 200;
+
+        persistTransaction(wrongNonceTimestamp, TransactionType.ETHEREUMTRANSACTION, 0, false, null);
+        persistTransaction(contractCallTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+
+        final var wrongNonceResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(wrongNonceTimestamp)
+                        .transactionIndex(99)
+                        .transactionNonce(0)
+                        .transactionResult(ResponseCodeEnum.WRONG_NONCE_VALUE))
+                .persist();
+        final var contractCallResult = persistContractResult(contractCallTimestamp, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(contractCallResult.getConsensusTimestamp(), 0);
+        assertThat(jdbcOperations.queryForObject(
+                        "select transaction_index from contract_result where consensus_timestamp = ?",
+                        Integer.class,
+                        wrongNonceResult.getConsensusTimestamp()))
+                .isNull();
     }
 
     private RecordFile persistBlock(long index) {

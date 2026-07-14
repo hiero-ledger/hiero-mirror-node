@@ -26,12 +26,14 @@ import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
+import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
@@ -293,6 +295,35 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
                 () -> assertThat(nestedHookChild.getEvmTransactionIndex()).isEqualTo(0),
                 () -> assertThat(hookExecution2.getEvmTransactionIndex()).isEqualTo(1));
         verifyNoInteractions(entityListener);
+    }
+
+    @Test
+    void wrongNonceEthereumTransactionDoesNotConsumeEvmIndex() {
+        // given
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        long timestamp = ++count;
+        var contractFunctionResult = contractFunctionResult(1000L, new byte[] {1});
+        RecordItem wrongNonceItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .record(builder -> builder.setContractCallResult(contractFunctionResult)
+                        .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp))
+                        .setReceipt(TransactionReceipt.newBuilder()
+                                .setStatus(ResponseCodeEnum.WRONG_NONCE)
+                                .build()))
+                .build();
+        RecordItem contractCallItem = contractCall(contractFunctionResult(2000L, new byte[] {2}), timestamp + 1, 0);
+
+        var items = List.of(wrongNonceItem, contractCallItem);
+        var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
+                () -> assertThat(wrongNonceItem.getEvmTransactionIndex()).isNull(),
+                () -> assertThat(contractCallItem.getEvmTransactionIndex()).isZero());
     }
 
     private ContractID contractId() {

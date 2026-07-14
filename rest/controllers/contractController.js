@@ -1098,6 +1098,10 @@ class ContractController extends BaseController {
       return;
     }
 
+    conditions.push(
+      `${ContractResult.getFullName(ContractResult.TRANSACTION_RESULT)} <> ${wrongNonceTransactionResult}`
+    );
+
     const rows = await ContractService.getContractResultsByIdAndFilters(
       conditions,
       params,

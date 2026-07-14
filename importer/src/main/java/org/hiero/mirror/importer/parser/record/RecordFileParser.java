@@ -6,6 +6,7 @@ import static org.hiero.mirror.importer.reader.record.ProtoRecordFileReader.VERS
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -226,6 +227,11 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         if (type != TransactionType.CONTRACTCALL.getProtoId()
                 && type != TransactionType.CONTRACTCREATEINSTANCE.getProtoId()
                 && type != TransactionType.ETHEREUMTRANSACTION.getProtoId()) {
+            return;
+        }
+
+        // WRONG_NONCE transactions never entered EVM execution; no index slot should be assigned
+        if (recordItem.getTransactionStatus() == ResponseCodeEnum.WRONG_NONCE_VALUE) {
             return;
         }
 
