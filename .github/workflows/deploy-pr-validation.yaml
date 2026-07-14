@@ -31,11 +31,14 @@ jobs:
 
       - name: Checkout Repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: '1'
 
       - name: Find changed clusters
         id: changes
         uses: step-security/paths-filter@5c5241b8233e77b55b9046daf88f1cb7560281de # v4.0.1
         with:
+          base: deploy
           filters: |
             mainnet-eu:
               - 'clusters/mainnet-eu/**'
