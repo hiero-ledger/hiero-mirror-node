@@ -1510,7 +1510,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .tokenId(tokenId.getId())
                 .build();
         assertThat(tokenAccountRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("freezeStatus", "kycStatus")
+                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("freezeStatusId", "kycStatusId")
                 .containsExactlyInAnyOrder(tokenAccountOldTreasury, tokenAccountNewTreasury);
     }
 
