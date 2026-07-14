@@ -13,7 +13,6 @@ import lombok.With;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
-import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
 
@@ -21,7 +20,7 @@ import org.springframework.data.relational.core.mapping.Embedded;
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public abstract class AbstractTokenAirdrop implements History, Persistable<AbstractTokenAirdrop.Id> {
+public abstract class AbstractTokenAirdrop implements History {
 
     private Long amount;
 
@@ -76,15 +75,8 @@ public abstract class AbstractTokenAirdrop implements History, Persistable<Abstr
     }
 
     @JsonIgnore
-    @Override
     public Id getId() {
         return id;
-    }
-
-    @JsonIgnore
-    @Override
-    public boolean isNew() {
-        return true;
     }
 
     @Data

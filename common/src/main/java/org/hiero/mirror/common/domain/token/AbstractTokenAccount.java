@@ -14,7 +14,6 @@ import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.annotation.Transient;
-import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
 
@@ -22,7 +21,7 @@ import org.springframework.data.relational.core.mapping.Embedded;
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public abstract class AbstractTokenAccount implements History, Persistable<AbstractTokenAccount.Id> {
+public abstract class AbstractTokenAccount implements History {
 
     private Boolean associated;
 
@@ -37,9 +36,11 @@ public abstract class AbstractTokenAccount implements History, Persistable<Abstr
 
     private Long balanceTimestamp;
 
+    // The java transient modifier keeps the field out of the lombok-generated equals/hashCode like on main
     @JsonIgnore
-    @Transient // Switched to Spring Data Transient
-    private boolean claim;
+    @SuppressWarnings("java:S2065")
+    @Transient
+    private transient boolean claim;
 
     private Long createdTimestamp;
 
@@ -100,15 +101,8 @@ public abstract class AbstractTokenAccount implements History, Persistable<Abstr
     }
 
     @JsonIgnore
-    @Override
     public Id getId() {
         return id;
-    }
-
-    @JsonIgnore
-    @Override
-    public boolean isNew() {
-        return true;
     }
 
     @Data

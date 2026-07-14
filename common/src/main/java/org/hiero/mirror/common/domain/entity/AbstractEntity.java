@@ -15,20 +15,18 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.History;
-import org.hiero.mirror.common.domain.PersistedTracking;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Column;
 
 @Data
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public abstract class AbstractEntity implements History, PersistedTracking<Long> {
+public abstract class AbstractEntity implements History {
 
     public static final long ACCOUNT_ID_CLEARED = 0L;
     public static final long DEFAULT_EXPIRY_TIMESTAMP =
@@ -79,11 +77,6 @@ public abstract class AbstractEntity implements History, PersistedTracking<Long>
     private Long id;
 
     @EqualsAndHashCode.Exclude
-    @JsonIgnore
-    @ToString.Exclude
-    @Transient
-    private boolean persisted;
-
     @Setter(AccessLevel.NONE)
     @ToString.Exclude
     private byte[] key;

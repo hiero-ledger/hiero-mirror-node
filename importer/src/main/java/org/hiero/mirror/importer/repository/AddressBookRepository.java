@@ -15,7 +15,6 @@ public interface AddressBookRepository extends CrudRepository<AddressBook, Long>
                             + "start_consensus_timestamp desc limit 1")
     Optional<AddressBook> findLatest(long consensusTimestamp, long encodedFileId);
 
-    // AddressBook.isNew() is always true so save() only inserts; existing rows are updated through this query
     @Modifying
     @Query("update address_book set end_consensus_timestamp = :endConsensusTimestamp"
             + " where start_consensus_timestamp = :startConsensusTimestamp")

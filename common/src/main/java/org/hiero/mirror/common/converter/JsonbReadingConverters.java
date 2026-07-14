@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
+import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.domain.node.ServiceEndpointsHolder;
 import org.hiero.mirror.common.domain.token.FixedFee;
 import org.hiero.mirror.common.domain.token.FixedFeesHolder;
@@ -68,6 +69,36 @@ public final class JsonbReadingConverters {
         @Override
         public ServiceEndpointsHolder convert(PGobject source) {
             return ServiceEndpointsHolder.of(LIST.convert(source));
+        }
+    }
+
+    @ReadingConverter
+    public static final class PgobjectToServiceEndpoint implements Converter<PGobject, ServiceEndpoint> {
+        @Override
+        public ServiceEndpoint convert(PGobject source) {
+            if (source == null || source.getValue() == null) {
+                return null;
+            }
+            try {
+                return OBJECT_MAPPER.readValue(source.getValue(), ServiceEndpoint.class);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    @ReadingConverter
+    public static final class StringToServiceEndpoint implements Converter<String, ServiceEndpoint> {
+        @Override
+        public ServiceEndpoint convert(String source) {
+            if (source == null || source.isEmpty()) {
+                return null;
+            }
+            try {
+                return OBJECT_MAPPER.readValue(source, ServiceEndpoint.class);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
         }
     }
 

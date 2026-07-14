@@ -213,6 +213,7 @@ public final class EntityId implements Comparable<EntityId> {
                 .shard(getShard())
                 .realm(getRealm())
                 .num(getNum())
+                .timestampRange(DEFAULT_RANGE)
                 .build();
     }
 }

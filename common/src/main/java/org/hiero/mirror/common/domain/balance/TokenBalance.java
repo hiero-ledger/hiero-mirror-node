@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.balance;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,13 +25,8 @@ public class TokenBalance implements Persistable<TokenBalance.Id> {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonUnwrapped
     private Id id;
-
-    @JsonIgnore
-    @Override
-    public Id getId() {
-        return id;
-    }
 
     @JsonIgnore
     @Override

@@ -24,8 +24,8 @@ import org.hiero.mirror.common.converter.PostgresTokenJdbcConverters;
 import org.hiero.mirror.common.converter.RangeToPGobjectWritingConverter;
 import org.hiero.mirror.common.converter.ReconciliationStatusJdbcConverters;
 import org.hiero.mirror.common.converter.ShortArrayJdbcConverters;
-import org.hiero.mirror.common.domain.PersistedTracking;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.repository.MergingJdbcRepository;
 import org.hiero.mirror.common.util.DatabaseWaiter;
 import org.hiero.mirror.common.util.SpelHelper;
 import org.springframework.beans.factory.ObjectProvider;
@@ -55,15 +55,16 @@ import org.springframework.data.jdbc.repository.config.DefaultQueryMappingConfig
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 import org.springframework.data.jdbc.repository.config.JdbcConfiguration;
 import org.springframework.data.mapping.callback.EntityCallbacks;
-import org.springframework.data.relational.core.mapping.event.AfterConvertCallback;
-import org.springframework.data.relational.core.mapping.event.AfterSaveCallback;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 @Configuration(proxyBeanMethods = false)
 @ConfigurationPropertiesScan("org.hiero.mirror")
 @EnableConfigurationProperties(CommonProperties.class)
-@EnableJdbcRepositories("org.hiero.mirror.common.repository") // Replaces JPA Repository scanning
+// Replaces JPA Repository scanning; the base class replicates JPA merge semantics for save()
+@EnableJdbcRepositories(
+        basePackages = "org.hiero.mirror.common.repository",
+        repositoryBaseClass = MergingJdbcRepository.class)
 @ImportRuntimeHints(CommonRuntimeHints.class)
 public final class CommonConfiguration extends AbstractJdbcConfiguration {
 
@@ -123,22 +124,6 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
         config.setPassword(password);
 
         return new HikariDataSource(config);
-    }
-
-    @Bean
-    AfterConvertCallback<PersistedTracking<?>> markPersistedAfterLoad() {
-        return entity -> {
-            entity.setPersisted(true);
-            return entity;
-        };
-    }
-
-    @Bean
-    AfterSaveCallback<PersistedTracking<?>> markPersistedAfterSave() {
-        return entity -> {
-            entity.setPersisted(true);
-            return entity;
-        };
     }
 
     // Pinned so the dialect never has to be resolved from a live connection through the NamedParameterJdbcTemplate
@@ -209,7 +194,8 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
     @Override
     protected List<?> userConverters() {
         return List.of(
-                new ByteArrayArrayJdbcConverters.ByteArrayArrayToPGobject(),
+                new ByteArrayArrayJdbcConverters.MaxCustomFeesHolderToJdbcValue(),
+                new ByteArrayArrayJdbcConverters.SqlArrayToMaxCustomFeesHolder(),
                 new ByteArrayArrayJdbcConverters.PGobjectToByteArrayArray(),
                 new EntityIdToLongConverter(),
                 new LongToEntityIdConverter(),
@@ -219,6 +205,7 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new ReconciliationStatusJdbcConverters.IntegerToReconciliationStatus(),
                 new LongArrayJdbcConverters.AssociatedRegisteredNodeIdsToLongArray(),
                 new LongArrayJdbcConverters.SqlArrayToAssociatedRegisteredNodeIds(),
+                new LongArrayJdbcConverters.LongArrayToAssociatedRegisteredNodeIds(),
                 new LongArrayJdbcConverters.SqlArrayToLongList(),
                 new LongArrayJdbcConverters.SqlArrayToLongArray(),
                 new ShortArrayJdbcConverters.RegisteredNodeTypesHolderToShortArray(),
@@ -285,6 +272,8 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new JsonbReadingConverters.StringToNftTransferListHolder(),
                 new JsonbReadingConverters.PgobjectToLedgerNodeContributionListHolder(),
                 new JsonbReadingConverters.StringToLedgerNodeContributionListHolder(),
-                new JsonbWritingConverters.ServiceEndpointSingle());
+                new JsonbWritingConverters.ServiceEndpointSingle(),
+                new JsonbReadingConverters.PgobjectToServiceEndpoint(),
+                new JsonbReadingConverters.StringToServiceEndpoint());
     }
 }

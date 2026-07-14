@@ -8,12 +8,8 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
-import org.hiero.mirror.common.domain.PersistedTracking;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -21,7 +17,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Data
 @Table
 @NoArgsConstructor
-public class ReconciliationJob implements PersistedTracking<Instant> {
+public class ReconciliationJob {
 
     private long consensusTimestamp;
 
@@ -36,14 +32,7 @@ public class ReconciliationJob implements PersistedTracking<Instant> {
     @Id
     private Instant timestampStart;
 
-    @EqualsAndHashCode.Exclude
     @JsonIgnore
-    @ToString.Exclude
-    @Transient
-    private boolean persisted;
-
-    @JsonIgnore
-    @Override
     public Instant getId() {
         return timestampStart;
     }

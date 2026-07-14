@@ -13,14 +13,13 @@ import lombok.With;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
-import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public abstract class AbstractNftAllowance implements History, Persistable<AbstractNftAllowance.Id> {
+public abstract class AbstractNftAllowance implements History {
 
     private boolean approvedForAll;
 
@@ -57,15 +56,8 @@ public abstract class AbstractNftAllowance implements History, Persistable<Abstr
     }
 
     @JsonIgnore
-    @Override
     public Id getId() {
         return id;
-    }
-
-    @JsonIgnore
-    @Override
-    public boolean isNew() {
-        return true;
     }
 
     @Data

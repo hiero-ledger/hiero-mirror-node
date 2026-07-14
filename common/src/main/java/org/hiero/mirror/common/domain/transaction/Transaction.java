@@ -57,8 +57,10 @@ public class Transaction implements Persistable<Long> {
     @Column("itemized_transfer")
     private ItemizedTransferListHolder itemizedTransferColumn;
 
+    @JsonIgnore
+    @Column("max_custom_fees")
     @ToString.Exclude
-    private byte[][] maxCustomFees;
+    private MaxCustomFeesHolder maxCustomFeesColumn;
 
     private Long maxFee;
 
@@ -103,6 +105,14 @@ public class Transaction implements Persistable<Long> {
 
     public void setItemizedTransfer(List<ItemizedTransfer> value) {
         this.itemizedTransferColumn = ItemizedTransferListHolder.of(value);
+    }
+
+    public byte[][] getMaxCustomFees() {
+        return maxCustomFeesColumn == null ? null : maxCustomFeesColumn.items();
+    }
+
+    public void setMaxCustomFees(byte[][] value) {
+        this.maxCustomFeesColumn = MaxCustomFeesHolder.of(value);
     }
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
@@ -173,6 +183,11 @@ public class Transaction implements Persistable<Long> {
     public static class TransactionBuilder {
         public TransactionBuilder itemizedTransfer(List<ItemizedTransfer> value) {
             this.itemizedTransferColumn = ItemizedTransferListHolder.of(value);
+            return this;
+        }
+
+        public TransactionBuilder maxCustomFees(byte[][] value) {
+            this.maxCustomFeesColumn = MaxCustomFeesHolder.of(value);
             return this;
         }
 

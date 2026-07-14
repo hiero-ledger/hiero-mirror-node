@@ -13,14 +13,13 @@ import lombok.With;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
-import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public abstract class AbstractCryptoAllowance implements FungibleAllowance, Persistable<AbstractCryptoAllowance.Id> {
+public abstract class AbstractCryptoAllowance implements FungibleAllowance {
 
     @UpsertColumn(coalesce = "case when {0} >= 0 then {0} else coalesce(e_{0}, 0) + coalesce({0}, 0) end")
     private long amount;
@@ -36,15 +35,8 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance, Pers
     private Id id;
 
     @JsonIgnore
-    @Override
     public Id getId() {
         return id;
-    }
-
-    @JsonIgnore
-    @Override
-    public boolean isNew() {
-        return true;
     }
 
     @Data

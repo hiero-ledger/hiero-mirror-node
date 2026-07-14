@@ -1795,7 +1795,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                 .build();
         var expectedFileId = EntityId.of(
                 contractCreate.getTransactionBody().getContractCreateInstance().getFileID());
-        String[] fields = new String[] {"createdTimestamp", "evmAddress", "id", "timestampRange", "type"};
+        String[] fields = new String[] {"createdTimestamp", "evmAddress", "id", "timestampRange", "entityType"};
         assertThat(entityRepository.findAll())
                 .usingRecursiveFieldByFieldElementComparatorOnFields(fields)
                 .containsExactly(expectedContract);
@@ -1833,7 +1833,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                 .timestampRange(Range.atLeast(cryptoCreate.getConsensusTimestamp()))
                 .type(EntityType.ACCOUNT)
                 .build();
-        String[] fields = new String[] {"createdTimestamp", "evmAddress", "id", "timestampRange", "type"};
+        String[] fields = new String[] {"createdTimestamp", "evmAddress", "id", "timestampRange", "entityType"};
         assertThat(entityRepository.findAll())
                 .usingRecursiveFieldByFieldElementComparatorOnFields(fields)
                 .containsExactly(expectedAccount)

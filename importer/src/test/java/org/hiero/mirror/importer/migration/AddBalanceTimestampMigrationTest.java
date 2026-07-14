@@ -168,14 +168,12 @@ class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
 
     private ListAssert<TokenAccount> assertTokenAccounts() {
         return assertThat(findAllTokenAccounts())
-                .usingRecursiveFieldByFieldElementComparatorOnFields(
-                        "accountId", "balance", "balanceTimestamp", "tokenId");
+                .usingRecursiveFieldByFieldElementComparatorOnFields("id", "balance", "balanceTimestamp");
     }
 
     private ListAssert<TokenAccountHistory> assertTokenAccountHistories() {
         return assertThat(findAllTokenAccountHistories())
-                .usingRecursiveFieldByFieldElementComparatorOnFields(
-                        "accountId", "balance", "balanceTimestamp", "tokenId");
+                .usingRecursiveFieldByFieldElementComparatorOnFields("id", "balance", "balanceTimestamp");
     }
 
     private void persistEntities(Entity... entities) {

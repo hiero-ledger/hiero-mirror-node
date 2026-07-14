@@ -48,6 +48,20 @@ public final class LongArrayJdbcConverters {
         }
     }
 
+    /** Some JDBC read paths extract the sql Array to a Long[] before conversion. */
+    @ReadingConverter
+    public static final class LongArrayToAssociatedRegisteredNodeIds
+            implements Converter<Long[], AssociatedRegisteredNodeIds> {
+
+        @Override
+        public AssociatedRegisteredNodeIds convert(Long[] source) {
+            if (source == null) {
+                return null;
+            }
+            return AssociatedRegisteredNodeIds.of(Arrays.asList(source));
+        }
+    }
+
     @ReadingConverter
     public static final class SqlArrayToLongList implements Converter<Array, List<Long>> {
 

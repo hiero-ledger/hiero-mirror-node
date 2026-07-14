@@ -16,14 +16,13 @@ import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public abstract class AbstractNft implements History, Persistable<AbstractNft.Id> {
+public abstract class AbstractNft implements History {
 
     public static final long RETAIN_SPENDER = 0L;
 
@@ -71,15 +70,8 @@ public abstract class AbstractNft implements History, Persistable<AbstractNft.Id
     }
 
     @JsonIgnore
-    @Override
     public Id getId() {
         return id;
-    }
-
-    @JsonIgnore
-    @Override
-    public boolean isNew() {
-        return true;
     }
 
     @AllArgsConstructor

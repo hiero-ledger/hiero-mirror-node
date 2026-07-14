@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.balance;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,13 +36,8 @@ public class AccountBalance implements Persistable<AccountBalance.Id>, StreamIte
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonUnwrapped
     private Id id;
-
-    @JsonIgnore
-    @Override
-    public Id getId() {
-        return id;
-    }
 
     @JsonIgnore
     @Override
