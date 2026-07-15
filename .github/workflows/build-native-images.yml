@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Build native images
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        default: ""
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  LC_ALL: C.UTF-8
+  IMAGE_REGISTRY: ghcr.io/hiero-ledger/hiero-mirror-node
+
+jobs:
+  build:
+    runs-on: hiero-mirror-node-linux-large
+    timeout-minutes: 300
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Install JDK
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Determine version
+        timeout-minutes: 15
+        run: |
+          set -ex
+
+          TAG=$(sed -nE 's/^version: (.+)$/\1/p' charts/hedera-mirror/Chart.yaml)
+          VERSION=$(grep -oP 'version=\K.+' gradle.properties)
+          TRIGGERED_BY_TAG=false
+          if [[ "$TAG" != *SNAPSHOT ]]; then
+            DEREFERENCED_TAG="v${TAG}^{}"
+            git ls-remote --tags origin "${DEREFERENCED_TAG}" | grep $(git rev-parse HEAD) && TRIGGERED_BY_TAG=true \
+              || true
+          fi
+
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "TRIGGERED_BY_TAG=${TRIGGERED_BY_TAG}" >> $GITHUB_ENV
+
+          if [[ "$TRIGGERED_BY_TAG" == "true" ]]; then
+            for module in grpc importer monitor rest-java web3; do
+              while ! docker manifest inspect "${IMAGE_REGISTRY}/${module}:${VERSION}" >/dev/null 2>&1; do
+                sleep 10
+              done
+            done
+          fi
+
+      - name: Setup Gradle
+        if: env.TRIGGERED_BY_TAG != 'true'
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v4
+
+      - name: Login to GHCR
+        if: env.TRIGGERED_BY_TAG != 'true'
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+
+      - name: Build native image (grpc)
+        if: env.TRIGGERED_BY_TAG != 'true'
+        run: |
+          set -ex
+          ./gradlew :grpc:bootBuildImage -PimagePlatform=linux/amd64
+          docker push "${IMAGE_REGISTRY}/grpc:${VERSION}"
+
+      - name: Build native image (importer)
+        if: env.TRIGGERED_BY_TAG != 'true'
+        run: |
+          set -ex
+          ./gradlew :importer:bootBuildImage -PimagePlatform=linux/amd64
+          docker push "${IMAGE_REGISTRY}/importer:${VERSION}"
+
+      - name: Build native image (monitor)
+        if: env.TRIGGERED_BY_TAG != 'true'
+        run: |
+          set -ex
+          ./gradlew :monitor:bootBuildImage -PimagePlatform=linux/amd64
+          docker push "${IMAGE_REGISTRY}/monitor:${VERSION}"
+
+      - name: Build native image (rest-java)
+        if: env.TRIGGERED_BY_TAG != 'true'
+        run: |
+          set -ex
+          ./gradlew :rest-java:bootBuildImage -PimagePlatform=linux/amd64
+          docker push "${IMAGE_REGISTRY}/rest-java:${VERSION}"
+
+      - name: Build native image (web3)
+        if: env.TRIGGERED_BY_TAG != 'true'
+        run: |
+          set -ex
+          ./gradlew :web3:bootBuildImage -PimagePlatform=linux/amd64
+          docker push "${IMAGE_REGISTRY}/web3:${VERSION}"
