@@ -8,9 +8,7 @@ on:
       - "main"
       - "release/**"
     paths:
-      - ".github/actions/k6/**"
       - ".github/workflows/acceptance.yaml"
-      - ".github/workflows/run-e2e.yml"
       - "test/**"
   push:
     branches:

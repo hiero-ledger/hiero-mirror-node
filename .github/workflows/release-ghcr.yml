@@ -28,6 +28,9 @@ jobs:
           - monitor
           - rest-java
           - web3
+        architecture:
+          - amd64
+          - arm64
         include:
           - architecture: amd64
             runner: ubuntu-latest

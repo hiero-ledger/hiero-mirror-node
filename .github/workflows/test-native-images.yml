@@ -3,13 +3,6 @@
 name: Test native images
 
 on:
-  pull_request:
-    branches:
-      - "main"
-    paths:
-      - ".github/actions/build-native-images/**"
-      - ".github/workflows/run-e2e.yml"
-      - ".github/workflows/test-native-images.yml"
   push:
     tags:
       - "v*"
