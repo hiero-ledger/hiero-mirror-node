@@ -15,7 +15,6 @@ import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
-import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 @Data
 @NoArgsConstructor
@@ -89,16 +88,12 @@ public abstract class AbstractTokenAirdrop implements History {
         @Serial
         private static final long serialVersionUID = -8165098238647325621L;
 
-        @InsertOnlyProperty
         private long receiverAccountId;
 
-        @InsertOnlyProperty
         private long senderAccountId;
 
-        @InsertOnlyProperty
         private long serialNumber;
 
-        @InsertOnlyProperty
         private long tokenId;
     }
 

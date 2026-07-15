@@ -15,7 +15,6 @@ import lombok.With;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.relational.core.mapping.Embedded;
-import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
@@ -78,10 +77,8 @@ public class TopicMessageLookup {
         @Serial
         private static final long serialVersionUID = 5704900912468270592L;
 
-        @InsertOnlyProperty
         private String partition;
 
-        @InsertOnlyProperty
         private long topicId;
     }
 

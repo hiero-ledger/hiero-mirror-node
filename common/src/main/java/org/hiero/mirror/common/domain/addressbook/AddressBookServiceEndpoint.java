@@ -14,7 +14,6 @@ import lombok.With;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
-import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Builder(toBuilder = true)
@@ -89,20 +88,15 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
         @Serial
         private static final long serialVersionUID = -7779136597707252814L;
 
-        @InsertOnlyProperty
         private long consensusTimestamp;
 
         @Column("ip_address_v4")
-        @InsertOnlyProperty
         private String ipAddressV4;
 
-        @InsertOnlyProperty
         private long nodeId;
 
-        @InsertOnlyProperty
         private Integer port;
 
-        @InsertOnlyProperty
         private String domainName;
     }
 

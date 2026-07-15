@@ -15,7 +15,6 @@ import lombok.With;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
-import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
@@ -98,17 +97,13 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         @Serial
         private static final long serialVersionUID = -2847639184756392847L;
 
-        @InsertOnlyProperty
         private long consensusTimestamp;
 
-        @InsertOnlyProperty
         private long hookId;
 
         @ToString.Exclude
-        @InsertOnlyProperty
         private byte[] key;
 
-        @InsertOnlyProperty
         private long ownerId;
     }
 

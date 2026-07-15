@@ -16,7 +16,6 @@ import lombok.With;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
-import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
@@ -78,10 +77,8 @@ public class ContractTransaction implements Persistable<ContractTransaction.Id> 
         @Serial
         private static final long serialVersionUID = -6807023295883699004L;
 
-        @InsertOnlyProperty
         private long consensusTimestamp;
 
-        @InsertOnlyProperty
         private long entityId;
     }
 }

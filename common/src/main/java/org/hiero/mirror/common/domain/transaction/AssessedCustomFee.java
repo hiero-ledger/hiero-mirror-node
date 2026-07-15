@@ -18,7 +18,6 @@ import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
-import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -91,10 +90,8 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
         @Serial
         private static final long serialVersionUID = -636368167561206418L;
 
-        @InsertOnlyProperty
         private long collectorAccountId;
 
-        @InsertOnlyProperty
         private long consensusTimestamp;
     }
 }

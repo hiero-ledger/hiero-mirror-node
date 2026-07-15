@@ -14,7 +14,6 @@ import lombok.With;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
-import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -81,10 +80,8 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
         @Serial
         private static final long serialVersionUID = 1129458229846263861L;
 
-        @InsertOnlyProperty
         private long accountId;
 
-        @InsertOnlyProperty
         private long consensusTimestamp;
     }
 }

@@ -172,7 +172,10 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
         return new AssignedIdDataAccessStrategy(
                 JdbcConfiguration.createDataAccessStrategy(
                         internalJdbcOperations(), jdbcConverter, QueryMappingConfiguration.EMPTY, dialect),
-                context);
+                context,
+                jdbcConverter,
+                internalJdbcOperations(),
+                dialect);
     }
 
     private NamedParameterJdbcOperations internalJdbcOperations() {

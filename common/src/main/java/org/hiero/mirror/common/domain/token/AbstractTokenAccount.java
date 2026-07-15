@@ -16,7 +16,6 @@ import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
-import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 @Data
 @NoArgsConstructor
@@ -114,10 +113,8 @@ public abstract class AbstractTokenAccount implements History {
         @Serial
         private static final long serialVersionUID = 4078820027811154183L;
 
-        @InsertOnlyProperty
         private long accountId;
 
-        @InsertOnlyProperty
         private long tokenId;
     }
 

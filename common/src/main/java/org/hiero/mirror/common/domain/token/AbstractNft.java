@@ -17,7 +17,6 @@ import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.relational.core.mapping.Embedded;
-import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 @Data
 @NoArgsConstructor
@@ -84,10 +83,8 @@ public abstract class AbstractNft implements History {
         @Serial
         private static final long serialVersionUID = 8679156797431231527L;
 
-        @InsertOnlyProperty
         private long serialNumber;
 
-        @InsertOnlyProperty
         private long tokenId;
     }
 

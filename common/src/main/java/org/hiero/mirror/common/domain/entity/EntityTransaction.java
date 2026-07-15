@@ -13,7 +13,6 @@ import lombok.NoArgsConstructor;
 import lombok.With;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
-import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -74,10 +73,8 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
         @Serial
         private static final long serialVersionUID = -3010905088908209508L;
 
-        @InsertOnlyProperty
         private long consensusTimestamp;
 
-        @InsertOnlyProperty
         private long entityId;
     }
 }

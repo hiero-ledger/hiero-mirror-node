@@ -17,7 +17,6 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
-import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Builder
@@ -52,10 +51,8 @@ public class AccountBalance implements Persistable<AccountBalance.Id>, StreamIte
     public static class Id implements Serializable {
         private static final long serialVersionUID = 1345295043157256768L;
 
-        @InsertOnlyProperty
         private long consensusTimestamp;
 
-        @InsertOnlyProperty
         private EntityId accountId;
     }
 }
