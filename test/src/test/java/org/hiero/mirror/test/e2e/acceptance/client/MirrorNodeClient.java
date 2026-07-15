@@ -384,6 +384,10 @@ public class MirrorNodeClient {
         return callRestJavaEndpoint(supplyEndpoint, NetworkSupplyResponse.class);
     }
 
+    public boolean hasPartialState() {
+        return partialStateSupplier.get();
+    }
+
     public Nft getNftInfo(String tokenId, long serialNumber) {
         log.debug("Verify serial number '{}' for token '{}' is returned by Mirror Node", serialNumber, tokenId);
         return callRestEndpoint("/tokens/{tokenId}/nfts/{serialNumber}", Nft.class, tokenId, serialNumber);
