@@ -12,10 +12,8 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.TreeMap;
-import java.util.function.ToLongFunction;
 import org.apache.commons.lang3.ArrayUtils;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -24,6 +22,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptAssembler;
+import org.hiero.mirror.importer.parser.record.receipt.ReceiptBlockUtils;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootCalculator;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.jspecify.annotations.NonNull;
@@ -156,8 +155,9 @@ public class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
 
         var blockRanges = new TreeMap<Long, Long>();
         blocks.forEach(block -> blockRanges.put(block.consensusStart(), block.consensusEnd()));
-        var resultsByBlock = groupByBlock(contractResults, blockRanges, ContractResult::getConsensusTimestamp);
-        var logsByBlock = groupByBlock(contractLogs, blockRanges, ContractLog::getConsensusTimestamp);
+        var resultsByBlock =
+                ReceiptBlockUtils.groupByBlock(contractResults, blockRanges, ContractResult::getConsensusTimestamp);
+        var logsByBlock = ReceiptBlockUtils.groupByBlock(contractLogs, blockRanges, ContractLog::getConsensusTimestamp);
         var evmAddresses = resolveEvmAddresses(contractLogs);
 
         var updates = new MapSqlParameterSource[blocks.size()];
@@ -175,24 +175,6 @@ public class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
         jdbcOperations.batchUpdate(UPDATE_RECEIPTS_ROOT, updates);
 
         return Optional.of(blocks.getLast().consensusEnd());
-    }
-
-    /**
-     * Groups items into their enclosing blocks by consensus timestamp, mirroring how {@code ReceiptsRootListener}
-     * partitions a multi-file parser batch.
-     */
-    private static <T> Map<Long, List<T>> groupByBlock(
-            Collection<T> items, NavigableMap<Long, Long> consensusEndByStart, ToLongFunction<T> timestampExtractor) {
-        var grouped = new HashMap<Long, List<T>>();
-        for (var item : items) {
-            var timestamp = timestampExtractor.applyAsLong(item);
-            var block = consensusEndByStart.floorEntry(timestamp);
-            if (block != null && timestamp <= block.getValue()) {
-                grouped.computeIfAbsent(block.getKey(), k -> new ArrayList<>()).add(item);
-            }
-        }
-
-        return grouped;
     }
 
     private ContractResult mapContractResult(ResultSet rs, int rowNum) throws SQLException {

@@ -3,13 +3,12 @@
 package org.hiero.mirror.importer.parser.record.receipt;
 
 import jakarta.inject.Named;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
+import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -63,26 +62,15 @@ class ReceiptsRootListener implements RecordStreamFileListener {
             return;
         }
 
-        final var consensusStarts = new TreeSet<Long>();
+        final var consensusEndByStart = new TreeMap<Long, Long>();
         for (final var file : recordFiles) {
-            consensusStarts.add(file.getConsensusStart());
+            consensusEndByStart.put(file.getConsensusStart(), file.getConsensusEnd());
         }
 
-        final var resultsByFile = new HashMap<Long, List<ContractResult>>();
-        for (final var contractResult : contractResults) {
-            final var start = consensusStarts.floor(contractResult.getConsensusTimestamp());
-            if (start != null) {
-                resultsByFile.computeIfAbsent(start, k -> new ArrayList<>()).add(contractResult);
-            }
-        }
-
-        final var logsByFile = new HashMap<Long, List<ContractLog>>();
-        for (final var contractLog : contractLogs) {
-            final var start = consensusStarts.floor(contractLog.getConsensusTimestamp());
-            if (start != null) {
-                logsByFile.computeIfAbsent(start, k -> new ArrayList<>()).add(contractLog);
-            }
-        }
+        final var resultsByFile = ReceiptBlockUtils.groupByBlock(
+                contractResults, consensusEndByStart, ContractResult::getConsensusTimestamp);
+        final var logsByFile =
+                ReceiptBlockUtils.groupByBlock(contractLogs, consensusEndByStart, ContractLog::getConsensusTimestamp);
 
         for (final var file : recordFiles) {
             final var start = file.getConsensusStart();
