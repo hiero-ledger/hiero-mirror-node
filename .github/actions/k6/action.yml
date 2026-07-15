@@ -23,7 +23,7 @@ runs:
 
         for key in "${!k6Map[@]}"; do
           k6="${k6Map[$key]}"
-          value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
+          value=$(grep -a -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
           echo "${k6}=${value}" >> $GITHUB_ENV
         done
 
@@ -34,7 +34,7 @@ runs:
 
         for key in "${!k6MapRestJava[@]}"; do
           k6="${k6MapRestJava[$key]}"
-          value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
+          value=$(grep -a -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
           echo "${k6}=${value}" >> $GITHUB_ENV
         done
 
@@ -48,13 +48,13 @@ runs:
 
         for key in "${!k6MapRest[@]}"; do
           k6="${k6MapRest[$key]}"
-          value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
+          value=$(grep -a -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
           echo "${k6}=${value}" >> $GITHUB_ENV
         done
 
         # Collect TRANSACTION_ID=<id> lines printed by the acceptance tests,
         # pick the first matching id and export as TRANSACTION_IDS
-        TRANSACTION_IDS=$(grep -oP '^TRANSACTION_ID=\K.+$' "$LOG_FILE" | head -n 1 || true)
+        TRANSACTION_IDS=$(grep -a -oP '^TRANSACTION_ID=\K.+$' "$LOG_FILE" | head -n 1 || true)
         echo "TRANSACTION_IDS=${TRANSACTION_IDS}" >> $GITHUB_ENV
 
     - name: Install k6

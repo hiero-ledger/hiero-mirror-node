@@ -33,7 +33,7 @@ env:
   IMAGE_REGISTRY: ghcr.io/hiero-ledger/hiero-mirror-node
 
 jobs:
-  e2e:
+  acceptance:
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
@@ -292,8 +292,10 @@ jobs:
 
       - name: Run acceptance tests
         run: |
+          set -o pipefail
+          # Strip null bytes so grep can parse helm/kubectl pod logs (otherwise "binary file matches")
           helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
-            --timeout 20m 2>&1 | tee output_log.txt
+            --timeout 20m 2>&1 | tr -d '\000' | tee output_log.txt
 
       - name: Run k6 tests
         if: inputs.run-k6 == 'true' && inputs.stream-type != 'BLOCK'

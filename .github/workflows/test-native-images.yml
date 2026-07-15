@@ -7,6 +7,7 @@ on:
     branches:
       - "main"
     paths:
+      - ".github/actions/build-native-images/**"
       - ".github/workflows/build-native-images.yml"
       - ".github/workflows/run-e2e.yml"
       - ".github/workflows/test-native-images.yml"
@@ -35,30 +36,55 @@ permissions:
   pull-requests: read
 
 jobs:
-  build-native-images:
+  build:
     name: Build native images
+    runs-on: hiero-mirror-node-linux-large
+    timeout-minutes: 300
     permissions:
       contents: read
       packages: write
-    uses: ./.github/workflows/build-native-images.yml
-    with:
-      ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
-    secrets: inherit
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
 
-  native-acceptance:
-    name: acceptance (${{ matrix.stream-type }})
-    needs: build-native-images
-    strategy:
-      fail-fast: false
-      matrix:
-        stream-type:
-          - RECORD
-          - BLOCK
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
+
+      - name: Build native images
+        uses: ./.github/actions/build-native-images
+
+  acceptance-record:
+    name: acceptance (RECORD)
+    needs: build
+    permissions:
+      contents: read
+      packages: read
+      pull-requests: read
     uses: ./.github/workflows/run-e2e.yml
     with:
       image-source: native
       ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
       run-k6: "false"
-      stream-type: ${{ matrix.stream-type }}
+      stream-type: RECORD
+      timeout-minutes: 60
+    secrets: inherit
+
+  acceptance-block:
+    name: acceptance (BLOCK)
+    needs: build
+    permissions:
+      contents: read
+      packages: read
+      pull-requests: read
+    uses: ./.github/workflows/run-e2e.yml
+    with:
+      image-source: native
+      ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
+      run-k6: "false"
+      stream-type: BLOCK
       timeout-minutes: 60
     secrets: inherit
