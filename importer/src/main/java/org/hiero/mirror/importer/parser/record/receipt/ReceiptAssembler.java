@@ -21,7 +21,8 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 
 /**
- * Builds the ordered list of receipts for a single block from its contract results.
+ * Builds the list of receipts for a single block from its contract results. The receipts are unordered; the
+ * calculator sorts them by transaction index before computing the receipts-trie root.
  */
 @Named
 public class ReceiptAssembler {

@@ -11,7 +11,8 @@ import org.jspecify.annotations.Nullable;
  * produces a byte-identical {@code receipts_root}.
  *
  * @param transactionIndex position of the transaction within the block; also the trie key {@code RLP(index)}
- * @param type             EIP-2718 transaction type (0 legacy, 1 EIP-2930, 2 EIP-1559); non-EVM transactions are 0
+ * @param type             EIP-2718 transaction type; 0 for legacy and non-EVM transactions, non-zero for typed
+ *                         transactions whose receipt is prefixed with the type byte
  * @param success          whether the transaction succeeded; encoded as the receipt status (1 or empty) when
  *                         {@code root} is null
  * @param root             the pre-Byzantium post-state root used as the receipt's first field; when non-null it is used
