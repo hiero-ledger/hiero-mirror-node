@@ -302,9 +302,9 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
         // given
         when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
 
-        long timestamp = ++count;
-        var contractFunctionResult = contractFunctionResult(1000L, new byte[] {1});
-        RecordItem wrongNonceItem = recordItemBuilder
+        final long timestamp = ++count;
+        final var contractFunctionResult = contractFunctionResult(1000L, new byte[] {1});
+        final var wrongNonceItem = recordItemBuilder
                 .ethereumTransaction(true)
                 .record(builder -> builder.setContractCallResult(contractFunctionResult)
                         .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp))
@@ -312,10 +312,10 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
                                 .setStatus(ResponseCodeEnum.WRONG_NONCE)
                                 .build()))
                 .build();
-        RecordItem contractCallItem = contractCall(contractFunctionResult(2000L, new byte[] {2}), timestamp + 1, 0);
+        final var contractCallItem = contractCall(contractFunctionResult(2000L, new byte[] {2}), timestamp + 1, 0);
 
-        var items = List.of(wrongNonceItem, contractCallItem);
-        var recordFile = getStreamFile(items, timestamp);
+        final var items = List.of(wrongNonceItem, contractCallItem);
+        final var recordFile = getStreamFile(items, timestamp);
 
         // when
         parser.parse(recordFile);

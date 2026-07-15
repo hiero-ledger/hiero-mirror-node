@@ -350,6 +350,31 @@ final class FixEvmTransactionIndexMigrationTest
     }
 
     @Test
+    void syntheticContractLogFromHapiOperationGetsEvmIndex() {
+        // given
+        final var block = persistBlock(0);
+        final var tokenTransferTimestamp = block.getConsensusStart() + 100;
+        final var contractCallTimestamp = block.getConsensusStart() + 200;
+
+        persistTransaction(tokenTransferTimestamp, TransactionType.CRYPTOTRANSFER, 0, false, null);
+        persistTransaction(contractCallTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+
+        // synthetic log has a stale buggy global index from old parser code
+        final var syntheticLog = persistSyntheticContractLog(tokenTransferTimestamp, 999);
+        final var contractCallResult = persistContractResult(contractCallTimestamp, 99);
+        final var contractCallLog = persistContractLog(contractCallTimestamp, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractLogIndex(syntheticLog.getConsensusTimestamp(), 0);
+        assertContractResultIndex(contractCallResult.getConsensusTimestamp(), 1);
+        assertContractLogIndex(contractCallLog.getConsensusTimestamp(), 1);
+    }
+
+    @Test
     void wrongNonceTransactionDoesNotConsumeEvmIndex() {
         // given
         final var block = persistBlock(0);
@@ -374,11 +399,7 @@ final class FixEvmTransactionIndexMigrationTest
 
         // then
         assertContractResultIndex(contractCallResult.getConsensusTimestamp(), 0);
-        assertThat(jdbcOperations.queryForObject(
-                        "select transaction_index from contract_result where consensus_timestamp = ?",
-                        Integer.class,
-                        wrongNonceResult.getConsensusTimestamp()))
-                .isNull();
+        assertContractResultIndex(wrongNonceResult.getConsensusTimestamp(), 99);
     }
 
     private RecordFile persistBlock(long index) {
@@ -445,6 +466,15 @@ final class FixEvmTransactionIndexMigrationTest
         return domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp).transactionIndex(wrongIndex))
+                .persist();
+    }
+
+    private ContractLog persistSyntheticContractLog(long consensusTimestamp, int wrongIndex) {
+        return domainBuilder
+                .contractLog()
+                .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
+                        .transactionIndex(wrongIndex)
+                        .synthetic(true))
                 .persist();
     }
 

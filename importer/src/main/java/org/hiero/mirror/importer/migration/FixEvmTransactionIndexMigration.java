@@ -64,6 +64,14 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 where cr.consensus_timestamp >= :consensusStart
                   and cr.consensus_timestamp <= :lastConsensusEnd
                   and cr.transaction_result <> 312
+                union all
+                select distinct
+                    cl.consensus_timestamp,
+                    true as is_root
+                from contract_log cl
+                where cl.synthetic = true
+                  and cl.consensus_timestamp >= :consensusStart
+                  and cl.consensus_timestamp <= :lastConsensusEnd
             ),
             evm_index as (
                 select
@@ -92,18 +100,10 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 where cl.consensus_timestamp = ei.consensus_timestamp
                   and cl.consensus_timestamp between :consensusStart and :lastConsensusEnd
                 returning cl.consensus_timestamp
-            ),
-            nullified_wrong_nonce as (
-                update contract_result
-                set transaction_index = null
-                where transaction_result = 312
-                  and consensus_timestamp between :consensusStart and :lastConsensusEnd
-                returning consensus_timestamp
             )
             select
                 (select count(*) from updated_contract_result) as updated_results,
-                (select count(*) from updated_contract_log) as updated_logs,
-                (select count(*) from nullified_wrong_nonce) as nullified_wrong_nonce
+                (select count(*) from updated_contract_log) as updated_logs
             """;
 
     private static final String SELECT_RECORD_FILES_RANGE = """
@@ -210,14 +210,13 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
         final var counts = getNamedParameterJdbcOperations()
                 .queryForObject(UPDATE_EVM_TRANSACTION_INDEX_SQL, params, UPDATE_COUNTS_ROW_MAPPER);
-        if (counts.updatedResults() > 0 || counts.updatedLogs() > 0 || counts.nullifiedWrongNonce() > 0) {
+        if (counts.updatedResults() > 0 || counts.updatedLogs() > 0) {
             log.info(
-                    "Fixed EVM transaction index for {} contract_result and {} contract_log rows in range [{}, {}]; nullified {} WRONG_NONCE contract_result rows",
+                    "Fixed EVM transaction index for {} contract_result and {} contract_log rows in range [{}, {}]",
                     counts.updatedResults(),
                     counts.updatedLogs(),
                     slice.minConsensusTimestamp(),
-                    slice.maxConsensusTimestamp(),
-                    counts.nullifiedWrongNonce());
+                    slice.maxConsensusTimestamp());
         }
 
         getNamedParameterJdbcOperations()
@@ -234,5 +233,5 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
     private record RecordFileSlice(Long minConsensusTimestamp, Long maxConsensusTimestamp) {}
 
-    private record UpdateCounts(long updatedResults, long updatedLogs, long nullifiedWrongNonce) {}
+    private record UpdateCounts(long updatedResults, long updatedLogs) {}
 }

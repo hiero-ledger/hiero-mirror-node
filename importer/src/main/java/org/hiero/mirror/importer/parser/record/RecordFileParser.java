@@ -243,7 +243,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         }
     }
 
-    private class RecordItemAggregator implements Consumer<RecordItem> {
+    private final class RecordItemAggregator implements Consumer<RecordItem> {
 
         private final LogsBloomFilter logsBloom = new LogsBloomFilter();
         private long gasUsed = 0L;
