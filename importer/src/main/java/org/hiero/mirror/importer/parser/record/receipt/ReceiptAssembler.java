@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.parser.record.receipt;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -43,9 +42,9 @@ public class ReceiptAssembler {
             final Collection<ContractLog> contractLogs,
             final Map<Long, Integer> typeByConsensusTimestamp,
             final Map<Long, byte[]> evmAddressById) {
-        final var timestamps = new LinkedHashSet<Long>();
+        final var timestamps = LinkedHashSet.<Long>newLinkedHashSet(contractResults.size() + contractLogs.size());
 
-        final var resultsByTimestamp = new HashMap<Long, ContractResult>();
+        final var resultsByTimestamp = HashMap.<Long, ContractResult>newHashMap(contractResults.size());
         for (final var contractResult : contractResults) {
             resultsByTimestamp.put(contractResult.getConsensusTimestamp(), contractResult);
             timestamps.add(contractResult.getConsensusTimestamp());
@@ -106,7 +105,8 @@ public class ReceiptAssembler {
         }
 
         final var evmAddress = evmAddressById.get(contractId.getId());
-        return leftPad(evmAddress != null ? evmAddress : DomainUtils.toEvmAddress(contractId), ADDRESS_LENGTH);
+        return DomainUtils.leftPadBytes(
+                evmAddress != null ? evmAddress : DomainUtils.toEvmAddress(contractId), ADDRESS_LENGTH);
     }
 
     private List<byte[]> topics(final ContractLog contractLog) {
@@ -115,7 +115,7 @@ public class ReceiptAssembler {
             contractLog.getTopic0(), contractLog.getTopic1(), contractLog.getTopic2(), contractLog.getTopic3()
         }) {
             if (topic != null) {
-                topics.add(leftPad(topic, WORD_LENGTH));
+                topics.add(DomainUtils.leftPadBytes(topic, WORD_LENGTH));
             }
         }
 
@@ -127,7 +127,7 @@ public class ReceiptAssembler {
             return ArrayUtils.EMPTY_BYTE_ARRAY;
         }
 
-        return data.length < WORD_LENGTH ? leftPad(data, WORD_LENGTH) : data;
+        return data.length < WORD_LENGTH ? DomainUtils.leftPadBytes(data, WORD_LENGTH) : data;
     }
 
     private byte[] syntheticBloom(final List<Receipt.ReceiptLog> logs) {
@@ -142,19 +142,5 @@ public class ReceiptAssembler {
         }
 
         return bloom;
-    }
-
-    private byte[] leftPad(final byte[] value, final int length) {
-        if (value.length == length) {
-            return value;
-        }
-
-        if (value.length > length) {
-            return Arrays.copyOfRange(value, value.length - length, value.length);
-        }
-
-        final var padded = new byte[length];
-        System.arraycopy(value, 0, padded, length - value.length, value.length);
-        return padded;
     }
 }
