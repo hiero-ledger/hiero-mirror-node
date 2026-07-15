@@ -15,6 +15,7 @@ import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
@@ -66,7 +67,11 @@ public class ContractState {
     @With
     public static class Id implements Serializable {
         private static final long serialVersionUID = 6192377810161178246L;
+
+        @InsertOnlyProperty
         private long contractId;
+
+        @InsertOnlyProperty
         private byte[] slot;
     }
 

@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Builder
@@ -39,8 +40,14 @@ public class TokenBalance implements Persistable<TokenBalance.Id> {
     @NoArgsConstructor
     public static class Id implements Serializable {
         private static final long serialVersionUID = -8547332015249955424L;
+
+        @InsertOnlyProperty
         private long consensusTimestamp;
+
+        @InsertOnlyProperty
         private EntityId accountId;
+
+        @InsertOnlyProperty
         private EntityId tokenId;
     }
 }

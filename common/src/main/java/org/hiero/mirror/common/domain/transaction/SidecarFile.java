@@ -24,6 +24,7 @@ import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -118,10 +119,12 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
         @Serial
         private static final long serialVersionUID = -5844173241500874821L;
 
+        @InsertOnlyProperty
         private long consensusEnd;
 
         @Column("id")
         @JsonProperty("id")
+        @InsertOnlyProperty
         private int index;
     }
 }

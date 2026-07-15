@@ -25,6 +25,7 @@ import org.hiero.mirror.common.converter.RangeToPGobjectWritingConverter;
 import org.hiero.mirror.common.converter.ReconciliationStatusJdbcConverters;
 import org.hiero.mirror.common.converter.ShortArrayJdbcConverters;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.repository.AssignedIdDataAccessStrategy;
 import org.hiero.mirror.common.repository.MergingJdbcRepository;
 import org.hiero.mirror.common.util.DatabaseWaiter;
 import org.hiero.mirror.common.util.SpelHelper;
@@ -159,6 +160,8 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
         return new IdGeneratingEntityCallback(mappingContext, dialect, internalJdbcOperations());
     }
 
+    // Wrapped so inserts always provide the assigned id, even a primitive zero that Spring Data JDBC would otherwise
+    // treat as database-generated and omit from the insert statement.
     @Bean
     @Override
     public DataAccessStrategy dataAccessStrategyBean(
@@ -166,8 +169,10 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
             JdbcConverter jdbcConverter,
             JdbcMappingContext context,
             JdbcDialect dialect) {
-        return JdbcConfiguration.createDataAccessStrategy(
-                internalJdbcOperations(), jdbcConverter, QueryMappingConfiguration.EMPTY, dialect);
+        return new AssignedIdDataAccessStrategy(
+                JdbcConfiguration.createDataAccessStrategy(
+                        internalJdbcOperations(), jdbcConverter, QueryMappingConfiguration.EMPTY, dialect),
+                context);
     }
 
     private NamedParameterJdbcOperations internalJdbcOperations() {

@@ -17,6 +17,7 @@ import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -116,7 +117,11 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     @With
     public static class Id implements Serializable {
         private static final long serialVersionUID = -6192177810161178246L;
+
+        @InsertOnlyProperty
         private long consensusTimestamp;
+
+        @InsertOnlyProperty
         private int index;
     }
 

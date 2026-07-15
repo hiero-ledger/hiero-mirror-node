@@ -15,6 +15,7 @@ import lombok.With;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -88,8 +89,13 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
         @Serial
         private static final long serialVersionUID = -3677350664183037811L;
 
+        @InsertOnlyProperty
         private long consensusTimestamp;
+
+        @InsertOnlyProperty
         private long contractId;
+
+        @InsertOnlyProperty
         private byte[] slot;
     }
 

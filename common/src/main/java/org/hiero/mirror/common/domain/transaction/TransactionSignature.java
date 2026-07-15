@@ -15,6 +15,7 @@ import lombok.With;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -84,7 +85,10 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
         @Serial
         private static final long serialVersionUID = -8758644338990079234L;
 
+        @InsertOnlyProperty
         private long consensusTimestamp;
+
+        @InsertOnlyProperty
         private byte[] publicKeyPrefix;
     }
 }

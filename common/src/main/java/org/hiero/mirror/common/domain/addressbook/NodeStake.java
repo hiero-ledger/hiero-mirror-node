@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 import lombok.With;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -78,7 +79,10 @@ public class NodeStake implements Persistable<NodeStake.Id> {
         @Serial
         private static final long serialVersionUID = -2513526593205520365L;
 
+        @InsertOnlyProperty
         private long consensusTimestamp;
+
+        @InsertOnlyProperty
         private long nodeId;
     }
 

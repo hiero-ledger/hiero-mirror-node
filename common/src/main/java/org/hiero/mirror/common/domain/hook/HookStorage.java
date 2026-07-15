@@ -17,6 +17,7 @@ import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
@@ -91,11 +92,14 @@ public class HookStorage {
         @Serial
         private static final long serialVersionUID = 4567832945612847391L;
 
+        @InsertOnlyProperty
         private long hookId;
 
         @ToString.Exclude
+        @InsertOnlyProperty
         private byte[] key;
 
+        @InsertOnlyProperty
         private long ownerId;
     }
 

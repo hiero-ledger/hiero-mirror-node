@@ -14,6 +14,7 @@ import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 @Data
 @NoArgsConstructor
@@ -69,8 +70,13 @@ public abstract class AbstractNftAllowance implements History {
         @Serial
         private static final long serialVersionUID = 4078820027811154183L;
 
+        @InsertOnlyProperty
         private long owner;
+
+        @InsertOnlyProperty
         private long spender;
+
+        @InsertOnlyProperty
         private long tokenId;
     }
 

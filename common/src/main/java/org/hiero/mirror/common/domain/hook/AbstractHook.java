@@ -18,6 +18,7 @@ import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 @Data
 @NoArgsConstructor
@@ -94,7 +95,10 @@ public abstract class AbstractHook implements History {
         @Serial
         private static final long serialVersionUID = -8745629837592847563L;
 
+        @InsertOnlyProperty
         private long hookId;
+
+        @InsertOnlyProperty
         private long ownerId;
     }
 
