@@ -33,7 +33,7 @@ env:
   IMAGE_REGISTRY: ghcr.io/hiero-ledger/hiero-mirror-node
 
 jobs:
-  acceptance:
+  e2e:
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:

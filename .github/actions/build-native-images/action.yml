@@ -2,16 +2,12 @@
 
 name: Build native images
 
+description: Build and push the native images to GHCR, or wait for them when triggered by a release tag.
+
 runs:
   using: composite
   steps:
-    - name: Install JDK
-      uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
-      with:
-        distribution: temurin
-        java-version: 25
-
-    - name: Determine version
+    - name: Check release tag
       shell: bash
       env:
         IMAGE_REGISTRY: ghcr.io/hiero-ledger/hiero-mirror-node
@@ -27,7 +23,7 @@ runs:
             || true
         fi
 
-        echo "TAG=${TAG}" >> $GITHUB_ENV
+        echo "IMAGE_REGISTRY=${IMAGE_REGISTRY}" >> $GITHUB_ENV
         echo "VERSION=${VERSION}" >> $GITHUB_ENV
         echo "TRIGGERED_BY_TAG=${TRIGGERED_BY_TAG}" >> $GITHUB_ENV
 
@@ -38,6 +34,13 @@ runs:
             done
           done
         fi
+
+    - name: Install JDK
+      if: env.TRIGGERED_BY_TAG != 'true'
+      uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+      with:
+        distribution: temurin
+        java-version: 25
 
     - name: Setup Gradle
       if: env.TRIGGERED_BY_TAG != 'true'
@@ -51,52 +54,12 @@ runs:
         registry: ghcr.io
         username: ${{ github.actor }}
 
-    - name: Build native image (grpc)
+    - name: Build and push native images
       if: env.TRIGGERED_BY_TAG != 'true'
       shell: bash
-      env:
-        IMAGE_REGISTRY: ghcr.io/hiero-ledger/hiero-mirror-node
       run: |
         set -ex
-        ./gradlew :grpc:bootBuildImage -PimagePlatform=linux/amd64
-        docker push "${IMAGE_REGISTRY}/grpc:${VERSION}"
-
-    - name: Build native image (importer)
-      if: env.TRIGGERED_BY_TAG != 'true'
-      shell: bash
-      env:
-        IMAGE_REGISTRY: ghcr.io/hiero-ledger/hiero-mirror-node
-      run: |
-        set -ex
-        ./gradlew :importer:bootBuildImage -PimagePlatform=linux/amd64
-        docker push "${IMAGE_REGISTRY}/importer:${VERSION}"
-
-    - name: Build native image (monitor)
-      if: env.TRIGGERED_BY_TAG != 'true'
-      shell: bash
-      env:
-        IMAGE_REGISTRY: ghcr.io/hiero-ledger/hiero-mirror-node
-      run: |
-        set -ex
-        ./gradlew :monitor:bootBuildImage -PimagePlatform=linux/amd64
-        docker push "${IMAGE_REGISTRY}/monitor:${VERSION}"
-
-    - name: Build native image (rest-java)
-      if: env.TRIGGERED_BY_TAG != 'true'
-      shell: bash
-      env:
-        IMAGE_REGISTRY: ghcr.io/hiero-ledger/hiero-mirror-node
-      run: |
-        set -ex
-        ./gradlew :rest-java:bootBuildImage -PimagePlatform=linux/amd64
-        docker push "${IMAGE_REGISTRY}/rest-java:${VERSION}"
-
-    - name: Build native image (web3)
-      if: env.TRIGGERED_BY_TAG != 'true'
-      shell: bash
-      env:
-        IMAGE_REGISTRY: ghcr.io/hiero-ledger/hiero-mirror-node
-      run: |
-        set -ex
-        ./gradlew :web3:bootBuildImage -PimagePlatform=linux/amd64
-        docker push "${IMAGE_REGISTRY}/web3:${VERSION}"
+        for module in grpc importer monitor rest-java web3; do
+          ./gradlew ":${module}:bootBuildImage" -PimagePlatform=linux/amd64
+          docker push "${IMAGE_REGISTRY}/${module}:${VERSION}"
+        done

@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Release native image
+
+description: Build a native image for a single project and architecture and publish it to GHCR as an OCI image.
+
+inputs:
+  architecture:
+    description: Target CPU architecture (amd64 or arm64)
+    required: true
+  project:
+    description: Gradle project module name
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install JDK
+      uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+      with:
+        distribution: temurin
+        java-version: 25
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v4
+
+    - name: Determine version
+      shell: bash
+      run: |
+        echo "IMAGE_REGISTRY=ghcr.io/hiero-ledger/hiero-mirror-node" >> $GITHUB_ENV
+        echo "VERSION=$(grep -oP 'version=\K.+' gradle.properties)" >> $GITHUB_ENV
+
+    - name: Install Skopeo
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y skopeo
+
+    - name: Skopeo Login
+      shell: bash
+      run: skopeo login ghcr.io -u ${{ github.actor }} -p ${{ github.token }}
+
+    - name: Build
+      shell: bash
+      run: ./gradlew :${{ inputs.project }}:bootBuildImage -PimagePlatform=linux/${{ inputs.architecture }}
+
+    - name: Convert to OCI
+      shell: bash
+      env:
+        IMAGE: ghcr.io/hiero-ledger/hiero-mirror-node/${{ inputs.project }}
+      run: |
+        skopeo copy "docker-daemon:${IMAGE}:${VERSION}" \
+          "docker://${IMAGE}:${VERSION}-${{ inputs.architecture }}" --format oci
