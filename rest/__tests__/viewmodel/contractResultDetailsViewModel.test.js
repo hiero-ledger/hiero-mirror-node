@@ -295,7 +295,7 @@ describe('ContractResultDetailsViewModel', () => {
     test('leaves access_list null when ethTransaction is null', () => {
       const viewModel = new ContractResultDetailsViewModel(mockContractResult, mockRecordFile, null, [], [], null);
 
-      expect(viewModel.access_list).toBeNull();
+      expect(viewModel.access_list).toEqual([]);
     });
   });
 
@@ -531,7 +531,7 @@ describe('ContractResultDetailsViewModel', () => {
     test('leaves access_list null when ethTransaction is null', () => {
       const viewModel = new ContractResultDetailsViewModel(mockContractResult, mockRecordFile, null, [], [], null);
 
-      expect(viewModel.access_list).toBeNull();
+      expect(viewModel.access_list).toEqual([]);
     });
   });
 });

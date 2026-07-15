@@ -6,11 +6,14 @@ import io.grpc.stub.BlockingClientCall;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
 import org.hiero.mirror.importer.downloader.block.BlockNodeDiscoveryService;
@@ -23,6 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 abstract class AbstractScheduler implements Scheduler {
+
+    private static final int DRAIN_QUEUE_CAPACITY = 128;
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -43,13 +48,31 @@ abstract class AbstractScheduler implements Scheduler {
         this.channelBuilderProvider = channelBuilderProvider;
         this.meterRegistry = meterRegistry;
         this.streamProperties = streamProperties;
-        executor = Executors.newSingleThreadExecutor();
+        // Single background thread for gRPC channel cleanup (draining buffers of cancelled calls and closing
+        // superseded channels). The queue is bounded so it can't grow without limit; excess tasks are dropped and
+        // logged.
+        executor = new ThreadPoolExecutor(
+                1,
+                1,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(DRAIN_QUEUE_CAPACITY),
+                (_, _) -> log.warn("Dropped gRPC cleanup task because queue is full"));
     }
 
     @Override
     public final void close() {
         getOrderedNodes().forEachRemaining(BlockNode::close);
-        executor.close();
+
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(streamProperties.getShutdownTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (final InterruptedException _) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Override
@@ -92,10 +115,13 @@ abstract class AbstractScheduler implements Scheduler {
         // https://github.com/grpc/grpc-java/issues/12355
         executor.submit(() -> {
             try {
-                while (grpcCall.read() != null) {
+                final long readTimeout = streamProperties.getResponseTimeout().toMillis();
+                while (grpcCall.read(readTimeout, TimeUnit.MILLISECONDS) != null) {
                     log.debug("Drained grpc buffer");
                 }
-            } catch (Exception ex) {
+            } catch (final InterruptedException _) {
+                Thread.currentThread().interrupt();
+            } catch (final Exception ex) {
                 log.debug("Exception when trying to drain grpc buffer", ex);
             }
         });
@@ -109,17 +135,30 @@ abstract class AbstractScheduler implements Scheduler {
         }
 
         discovered.set(next);
+
+        // Reuse existing block nodes (and their live channels) for endpoints that are unchanged, so a change to one
+        // node doesn't churn every channel. Added endpoints get a new BlockNode; removed ones are closed to release
+        // their channels.
+        final var existing = new HashMap<BlockNodeProperties, BlockNode>();
+        getOrderedNodes().forEachRemaining(node -> existing.put(node.getProperties(), node));
+
         final var nodes = new ArrayList<BlockNode>(next.size());
         for (final var blockNodeProperties : next) {
-            nodes.add(new BlockNode(
-                    channelBuilderProvider,
-                    this::drainGrpcBuffer,
-                    meterRegistry,
-                    blockNodeProperties,
-                    streamProperties));
+            var node = existing.remove(blockNodeProperties);
+            if (node == null) {
+                node = new BlockNode(
+                        channelBuilderProvider,
+                        this::drainGrpcBuffer,
+                        meterRegistry,
+                        blockNodeProperties,
+                        streamProperties);
+            }
+
+            nodes.add(node);
         }
 
         setNodes(nodes);
+        existing.values().forEach(node -> executor.execute(node::close));
     }
 
     private static @Nullable ScheduledBlockNode hasBlock(final long nextBlockNumber, final BlockNode node) {

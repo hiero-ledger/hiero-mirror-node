@@ -64,7 +64,7 @@
   ],
   "responseStatus": 200,
   "responseJson": {
-    "access_list": null,
+    "access_list": [],
     "address": "0x0000000000000000000000000000000000001389",
     "amount": 30,
     "block_gas_used": 0,

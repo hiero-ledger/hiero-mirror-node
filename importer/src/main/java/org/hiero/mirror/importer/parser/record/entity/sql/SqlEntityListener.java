@@ -117,7 +117,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
     @Override
     public void onContractLog(ContractLog contractLog) {
-        context.add(contractLog);
+        context.add(contractLog, contractLog.getConsensusTimestamp());
     }
 
     @Override
@@ -403,7 +403,12 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             }
         }
 
-        if (entityProperties.getPersist().shouldPersistTransactionHash(TransactionType.of(transaction.getType()))) {
+        var transactionType = TransactionType.of(transaction.getType());
+        // CONSENSUSSUBMITMESSAGE is excluded above but still needs a hash if it produced a synthetic contract log.
+        if (entityProperties.getPersist().shouldPersistTransactionHash(transactionType)
+                || (entityProperties.getPersist().isTransactionHash()
+                        && transactionType == TransactionType.CONSENSUSSUBMITMESSAGE
+                        && context.get(ContractLog.class, transaction.getConsensusTimestamp()) != null)) {
             var hash = transaction.toTransactionHash();
             if (hash != null && hash.hashIsValid()) {
                 context.add(hash);

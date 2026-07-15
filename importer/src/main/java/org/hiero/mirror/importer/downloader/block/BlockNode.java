@@ -8,7 +8,9 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.CallOptions;
+import io.grpc.ClientStreamTracer;
 import io.grpc.ManagedChannel;
+import io.grpc.Metadata;
 import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.ClientCalls;
 import io.micrometer.core.instrument.Counter;
@@ -21,11 +23,13 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.hiero.block.api.protoc.BlockEnd;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
@@ -74,7 +78,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private final ManagedChannel subscribeStreamChannel;
 
     @Getter
-    private boolean active = true;
+    private volatile boolean active = true;
 
     public BlockNode(
             final ManagedChannelBuilderProvider channelBuilderProvider,
@@ -109,12 +113,10 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     @Override
     public void close() {
-        if (!statusChannel.isShutdown()) {
-            statusChannel.shutdown();
-        }
+        shutdownChannel(statusChannel);
 
         if (subscribeStreamChannel != statusChannel) {
-            subscribeStreamChannel.shutdown();
+            shutdownChannel(subscribeStreamChannel);
         }
     }
 
@@ -123,11 +125,12 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(statusChannel)
                     .withDeadlineAfter(streamProperties.getResponseTimeout());
             final var response = blockNodeService.serverStatus(SERVER_STATUS_REQUEST);
+
             final long firstBlockNumber = response.getFirstAvailableBlock();
             return firstBlockNumber != -1
                     ? Range.closed(firstBlockNumber, response.getLastAvailableBlock())
                     : EMPTY_BLOCK_RANGE;
-        } catch (Exception ex) {
+        } catch (final Exception ex) {
             log.error("Failed to get server status for {}", this, ex);
             return EMPTY_BLOCK_RANGE;
         }
@@ -142,7 +145,9 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
         try {
             final long effectiveEndBlockNumber = endBlockNumber == null ? -1L : endBlockNumber;
-            final var assembler = new BlockAssembler(onBlockStream, effectiveEndBlockNumber, timeout);
+            final var uncompressedBytes = new AtomicLong();
+            final var assembler =
+                    new BlockAssembler(onBlockStream, effectiveEndBlockNumber, timeout, uncompressedBytes);
             final var request = SubscribeStreamRequest.newBuilder()
                     .setEndBlockNumber(effectiveEndBlockNumber)
                     .setStartBlockNumber(blockNumber)
@@ -150,7 +155,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             grpcCall = ClientCalls.blockingV2ServerStreamingCall(
                     subscribeStreamChannel,
                     BlockStreamSubscribeServiceGrpc.getSubscribeBlockStreamMethod(),
-                    CallOptions.DEFAULT,
+                    CallOptions.DEFAULT.withStreamTracerFactory(new UncompressedSizeTracerFactory(uncompressedBytes)),
                     request);
             SubscribeStreamResponse response;
 
@@ -180,13 +185,14 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                         throw new BlockStreamException(
                                 "Unknown response case " + response.getResponseCase() + " from " + name);
                 }
-
-                errors.set(0);
             }
-        } catch (BlockStreamException ex) {
+
+            // Only clear errors when the subscription ends gracefully
+            errors.set(0);
+        } catch (final BlockStreamException ex) {
             onError();
             throw ex;
-        } catch (Exception ex) {
+        } catch (final Exception ex) {
             onError();
             throw new BlockStreamException(ex);
         } finally {
@@ -253,6 +259,42 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         }
     }
 
+    private void shutdownChannel(final ManagedChannel channel) {
+        if (channel.isShutdown()) {
+            return;
+        }
+
+        channel.shutdown();
+        try {
+            if (!channel.awaitTermination(streamProperties.getShutdownTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
+                channel.shutdownNow();
+            }
+        } catch (final InterruptedException _) {
+            channel.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * A stream tracer factory that accumulates the decompressed size of inbound messages.
+     */
+    @RequiredArgsConstructor
+    private static final class UncompressedSizeTracerFactory extends ClientStreamTracer.Factory {
+
+        private final AtomicLong uncompressedBytes;
+
+        @Override
+        public ClientStreamTracer newClientStreamTracer(
+                final ClientStreamTracer.StreamInfo info, final Metadata headers) {
+            return new ClientStreamTracer() {
+                @Override
+                public void inboundUncompressedSize(final long bytes) {
+                    uncompressedBytes.addAndGet(bytes);
+                }
+            };
+        }
+    }
+
     private final class BlockAssembler {
 
         private final BiFunction<BlockStream, String, Boolean> blockStreamConsumer;
@@ -260,17 +302,21 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         private final List<List<BlockItem>> pending = new ArrayList<>();
         private final Stopwatch stopwatch;
         private final Duration timeout;
+        private final AtomicLong uncompressedBytes;
+        private long blockStartBytes = 0;
         private long loadStart;
         private int pendingCount = 0;
 
         BlockAssembler(
                 final BiFunction<BlockStream, String, Boolean> blockStreamConsumer,
                 final long endBlockNumber,
-                final Duration timeout) {
+                final Duration timeout,
+                final AtomicLong uncompressedBytes) {
             this.blockStreamConsumer = blockStreamConsumer;
             this.endBlockNumber = endBlockNumber;
             this.stopwatch = Stopwatch.createUnstarted();
             this.timeout = timeout;
+            this.uncompressedBytes = uncompressedBytes;
         }
 
         void onBlockItemSet(final BlockItemSet blockItemSet) {
@@ -290,6 +336,10 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
         Boolean onEndOfBlock(final BlockEnd blockEnd) {
             final long blockNumber = blockEnd.getBlockNumber();
+            // Note the size includes the extra bytes from the BlockItemSet message
+            final int blockSize = (int) (uncompressedBytes.get() - blockStartBytes);
+            blockStartBytes = uncompressedBytes.get();
+
             if (pending.isEmpty()) {
                 Utility.handleRecoverableError(
                         "Received end-of-block message for block {} while there's no pending block items", blockNumber);
@@ -321,7 +371,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             stopwatch.reset();
 
             final var filename = BlockFile.getFilename(blockNumber, false);
-            final var blockStream = new BlockStream(block, blockCompleteTime, null, filename, loadStart);
+            final var blockStream = new BlockStream(block, blockCompleteTime, null, filename, loadStart, blockSize);
 
             // when either condition becomes true, inform the caller to stop sending items for assembling
             return blockStreamConsumer.apply(blockStream, name) || blockHeader.getNumber() == endBlockNumber;
@@ -350,6 +400,13 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                 throw new BlockStreamException(String.format(
                         "Too many block items in a pending block: received %d, limit %d",
                         pendingCount, streamProperties.getMaxBlockItems()));
+            }
+
+            final long blockSize = uncompressedBytes.get() - blockStartBytes;
+            final long maxBlockSize = streamProperties.getMaxBlockSize().toBytes();
+            if (blockSize > maxBlockSize) {
+                throw new BlockStreamException(
+                        String.format("Pending block too large: received %d bytes, limit %d", blockSize, maxBlockSize));
             }
         }
     }
