@@ -23,7 +23,16 @@ springBoot {
     buildInfo { excludes = listOf("time") }
 }
 
-tasks.named("dockerBuild") { dependsOn(tasks.bootJar) }
+// Compile the container health check probe with the build JDK so the runtime image can stay
+// JRE-only.
+val compileHealthCheck =
+    tasks.register<JavaCompile>("compileHealthCheck") {
+        source(rootProject.file("gradle/docker/HealthCheck.java"))
+        classpath = files()
+        destinationDirectory.set(layout.buildDirectory.dir("healthcheck"))
+    }
+
+tasks.named("dockerBuild") { dependsOn(tasks.bootJar, compileHealthCheck) }
 
 tasks.register("run") {
     dependsOn(tasks.bootRun)
