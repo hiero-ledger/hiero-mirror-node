@@ -21,7 +21,17 @@ dependencies {
     implementation(project(":common"))
     implementation("com.esaulpaugh:headlong")
     implementation("org.hyperledger.besu.internal:rlp:$besuVersion")
-    implementation("org.hyperledger.besu.internal:trie:$besuVersion")
+    implementation("org.hyperledger.besu.internal:trie:$besuVersion") {
+        // only modules related to the receipts root trie should be left
+        exclude(group = "org.hyperledger.besu", module = "besu-datatypes")
+        exclude(group = "org.hyperledger.besu", module = "plugin-api")
+        exclude(group = "org.hyperledger.besu", module = "evm")
+        exclude(group = "org.hyperledger.besu", module = "arithmetic")
+        exclude(group = "org.hyperledger.besu", module = "blake2bf")
+        exclude(group = "org.hyperledger.besu", module = "gnark")
+        exclude(group = "org.hyperledger.besu", module = "secp256k1")
+        exclude(group = "org.hyperledger.besu", module = "secp256r1")
+    }
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv")
     implementation("com.hedera.cryptography:hedera-cryptography-wraps")
     implementation("commons-io:commons-io")

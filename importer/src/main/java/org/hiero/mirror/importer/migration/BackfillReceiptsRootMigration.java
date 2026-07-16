@@ -40,7 +40,7 @@ import org.springframework.transaction.support.TransactionOperations;
  * exactly (blocks with no EVM activity yield 32 zero bytes).
  */
 @Named
-public class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
+final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
 
     static final int DEFAULT_BATCH_SIZE = 100;
     private static final String BATCH_SIZE_KEY = "batchSize";
