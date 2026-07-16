@@ -21,7 +21,8 @@ extra.apply {
     set("consensusNodeVersion", "0.75.0-rc.5")
     set("httpclient5.version", "5.6.2") // Temporary until next Spring Boot
     set("httpcore5.version", "5.4.3") // Temporary until next Spring Boot
-    set("jackson-2-bom.version", "2.22.0") // Temporary until next Spring Boot
+    set("jackson-bom.version", "3.1.5") // Temporary until next Spring Boot
+    set("jackson-2-bom.version", "2.22.1") // Temporary until next Spring Boot
     set("jooq.version", "3.21.6") // Must match buildSrc/build.gradle.kts
     set("logback.version", "1.5.36") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
