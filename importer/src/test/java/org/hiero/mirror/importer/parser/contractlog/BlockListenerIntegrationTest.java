@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @RequiredArgsConstructor
-public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest {
+public class BlockListenerIntegrationTest extends ImporterIntegrationTest {
     private final RecordStreamFileListener recordFileStreamListener;
     private final DomainBuilder domainBuilder;
     private final TransactionTemplate transactionTemplate;

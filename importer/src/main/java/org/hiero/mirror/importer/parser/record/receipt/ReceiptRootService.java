@@ -17,20 +17,17 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.repository.EntityRepository;
-import org.springframework.core.annotation.Order;
 
 /**
- * Computes a block's Ethereum receipts-trie root at the record-file boundary and sets it on the {@link RecordFile}
- * before it is persisted.
+ * Computes each block's Ethereum receipts-trie root from the contract results and logs in the current parser context
+ * and sets it on the corresponding {@link RecordFile} before it is persisted.
  */
 @Named
-@Order(2)
 @RequiredArgsConstructor
-class ReceiptsRootListener implements RecordStreamFileListener {
+public class ReceiptRootService {
 
     private final EntityProperties entityProperties;
     private final EntityRepository entityRepository;
@@ -38,8 +35,10 @@ class ReceiptsRootListener implements RecordStreamFileListener {
     private final ReceiptAssembler receiptAssembler;
     private final ReceiptRootCalculator receiptRootCalculator;
 
-    @Override
-    public void onEnd(final RecordFile recordFile) {
+    /**
+     * Computes and assigns {@code receiptsRoot} on every record file in the current parser context.
+     */
+    public void updateReceiptsRoot() {
         if (!entityProperties.getPersist().isContractResults()) {
             return;
         }

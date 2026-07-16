@@ -31,7 +31,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-final class ReceiptsRootListenerTest {
+final class ReceiptRootServiceTest {
 
     private static final EntityId ALIASED_CONTRACT = EntityId.of(0, 0, 500);
     private static final EntityId LONG_ZERO_CONTRACT = EntityId.of(0, 0, 600);
@@ -51,11 +51,11 @@ final class ReceiptsRootListenerTest {
 
     private final ReceiptAssembler receiptAssembler = new ReceiptAssembler();
     private final ReceiptRootCalculator receiptRootCalculator = new ReceiptRootCalculator();
-    private ReceiptsRootListener listener;
+    private ReceiptRootService service;
 
     @BeforeEach
     void setup() {
-        listener = new ReceiptsRootListener(
+        service = new ReceiptRootService(
                 entityProperties, entityRepository, parserContext, receiptAssembler, receiptRootCalculator);
         lenient().when(entityProperties.getPersist()).thenReturn(persistProperties);
         lenient().when(persistProperties.isContractResults()).thenReturn(true);
@@ -70,7 +70,7 @@ final class ReceiptsRootListenerTest {
         when(persistProperties.isContractResults()).thenReturn(false);
         final var recordFile = new RecordFile();
 
-        listener.onEnd(recordFile);
+        service.updateReceiptsRoot();
 
         assertThat(recordFile.getReceiptsRoot()).isNull();
     }
@@ -82,15 +82,15 @@ final class ReceiptsRootListenerTest {
         when(parserContext.get(ContractResult.class)).thenReturn(List.of());
         when(parserContext.get(ContractLog.class)).thenReturn(List.of());
 
-        listener.onEnd(recordFile);
+        service.updateReceiptsRoot();
 
         assertThat(recordFile.getReceiptsRoot()).isEqualTo(new byte[32]);
     }
 
     @Test
-    void nullRecordFileIsIgnored() {
-        // ErrataMigration flushes with onEnd(null) and no record file in the parser context; must not throw.
-        listener.onEnd(null);
+    void noRecordFilesIgnored() {
+        // ErrataMigration flushes with no record file in the parser context; must not throw.
+        service.updateReceiptsRoot();
     }
 
     @Test
@@ -138,7 +138,7 @@ final class ReceiptsRootListenerTest {
         when(entityRepository.findEvmAddressesByIds(any()))
                 .thenReturn(List.of(new EvmAddressMapping(ALIAS, ALIASED_CONTRACT.getId())));
 
-        listener.onEnd(recordFile);
+        service.updateReceiptsRoot();
 
         final var expected = receiptRootCalculator.calculate(List.of(
                 new Receipt(0, 2, true, null, 1000L, bloom, List.of(new ReceiptLog(ALIAS, List.of(topicA), dataA))),
@@ -187,7 +187,7 @@ final class ReceiptsRootListenerTest {
         when(parserContext.get(ContractResult.class)).thenReturn(List.of(result1, result2));
         when(parserContext.get(ContractLog.class)).thenReturn(List.of());
 
-        listener.onEnd(block2);
+        service.updateReceiptsRoot();
 
         assertThat(block1.getReceiptsRoot())
                 .isEqualTo(receiptRootCalculator.calculate(

@@ -26,7 +26,7 @@ public class ReceiptRootCalculator {
      */
     public byte[] calculate(final List<Receipt> receipts) {
         if (receipts.isEmpty()) {
-            return EMPTY_RECEIPTS_ROOT.clone();
+            return EMPTY_RECEIPTS_ROOT;
         }
 
         final var trie = new SimpleMerklePatriciaTrie<Bytes, Bytes>(Function.identity());

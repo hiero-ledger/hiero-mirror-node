@@ -25,6 +25,7 @@ import org.hiero.mirror.importer.config.CacheProperties;
 import org.hiero.mirror.importer.domain.EvmAddressMapping;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
+import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootService;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class SyntheticLogListenerTest {
+class BlockListenerTest {
 
     private static final DomainBuilder domainBuilder = new DomainBuilder();
     private static final BinaryOperator<Entity> NO_OP_MERGE = (e1, e2) -> e1;
@@ -55,15 +56,19 @@ class SyntheticLogListenerTest {
     @Mock
     private EntityRepository entityRepository;
 
+    @Mock
+    private ReceiptRootService receiptRootService;
+
     private EntityProperties entityProperties;
     private ParserContext parserContext;
-    private SyntheticLogListener listener;
+    private BlockListener listener;
 
     @BeforeEach
     void setup() {
         entityProperties = new EntityProperties(new SystemEntity(CommonProperties.getInstance()));
         parserContext = new ParserContext();
-        listener = new SyntheticLogListener(parserContext, new CacheProperties(), entityRepository, entityProperties);
+        listener = new BlockListener(
+                parserContext, new CacheProperties(), entityRepository, entityProperties, receiptRootService);
     }
 
     @Test
