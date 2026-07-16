@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.function.Function;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.util.LogsBloomFilter;
+import org.hiero.mirror.importer.util.Utility;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.trie.patricia.SimpleMerklePatriciaTrie;
 
@@ -19,7 +20,6 @@ public class ReceiptRootCalculator {
 
     private static final byte[] EMPTY_RECEIPTS_ROOT = new byte[32];
     private static final Bytes STATUS_SUCCESS = Bytes.of(1);
-    private static final Bytes ZERO_BYTE = Bytes.of(0);
 
     /**
      * Calculates the 32-byte receipts-trie root
@@ -57,11 +57,7 @@ public class ReceiptRootCalculator {
             out.writeBytes(receipt.success() ? STATUS_SUCCESS : Bytes.EMPTY);
         }
 
-        if (cumulativeGas == 0L) {
-            out.writeBytes(ZERO_BYTE);
-        } else {
-            out.writeLongScalar(cumulativeGas);
-        }
+        out.writeLongScalar(cumulativeGas);
         out.writeBytes(Bytes.wrap(normalizeBloom(receipt.logsBloom())));
         out.startList();
         for (final var log : receipt.logs()) {
@@ -83,7 +79,20 @@ public class ReceiptRootCalculator {
         return receipt.type() == 0 ? encoded : Bytes.concatenate(Bytes.of(receipt.type()), encoded);
     }
 
+    /**
+     *  Ethereum receipt's logsBloom is 256 bytes by definition. Since the goal is to reproduce byte-for-byte the
+     *  Ethereum block header's receipts root, if the input bloom is null or not 256 bytes, return a
+     *  new byte array of 256 byte zero array.
+     */
     private byte[] normalizeBloom(final byte[] bloom) {
-        return bloom != null && bloom.length == LogsBloomFilter.BYTE_SIZE ? bloom : new byte[LogsBloomFilter.BYTE_SIZE];
+        // covers the case with receipt with no bloom(null) and no-logs(length=0) bloom respectively
+        if (bloom == null || bloom.length == 0) {
+            return new byte[LogsBloomFilter.BYTE_SIZE];
+        }
+        if (bloom.length != LogsBloomFilter.BYTE_SIZE) {
+            Utility.handleRecoverableError("Unexpected bloom length {}", bloom.length);
+            return new byte[LogsBloomFilter.BYTE_SIZE];
+        }
+        return bloom;
     }
 }

@@ -27,7 +27,7 @@ final class ReceiptRootCalculatorTest {
         // reconstruct the single-leaf Merkle Patricia Trie root
         final var value = rlpList(
                 rlpString(new byte[] {0x01}), // status = 1
-                rlpString(new byte[] {0x00}), // cumulativeGasUsed = 0 -> single 0x00 byte
+                rlpString(new byte[0]), // cumulativeGasUsed = 0 -> empty scalar (0x80)
                 rlpString(new byte[256]), // 256-byte empty bloom
                 rlpList()); // no logs
 
@@ -37,12 +37,12 @@ final class ReceiptRootCalculatorTest {
     }
 
     @Test
-    void syntheticReceiptUsesZeroRootAndSingleByteZeroGas() {
+    void syntheticReceiptUsesZeroRootAndEmptyScalarGas() {
         final var receipt = new Receipt(0, 0, true, new byte[32], 0L, new byte[256], List.of());
 
         final var value = rlpList(
                 rlpString(new byte[32]), // post-state root = 32 zero bytes
-                rlpString(new byte[] {0x00}),
+                rlpString(new byte[0]), // cumulativeGasUsed = 0 -> empty scalar (0x80)
                 rlpString(new byte[256]),
                 rlpList());
         final var leaf = rlpList(rlpString(new byte[] {0x20, (byte) 0x80}), rlpString(value));
