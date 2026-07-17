@@ -89,6 +89,11 @@ public class RecordItem implements StreamItem {
     @NonFinal
     private AtomicInteger logIndex;
 
+    @Setter
+    @EqualsAndHashCode.Exclude
+    @NonFinal
+    private AtomicInteger evmTransactionIndexCounter;
+
     @NonFinal
     @Setter
     private Integer evmTransactionIndex;
@@ -199,6 +204,17 @@ public class RecordItem implements StreamItem {
             logIndex = new AtomicInteger(0);
         }
         return logIndex.getAndIncrement();
+    }
+
+    public int claimEvmTransactionIndex() {
+        if (evmTransactionIndex != null) {
+            return evmTransactionIndex;
+        }
+        if (evmTransactionIndexCounter == null) {
+            evmTransactionIndexCounter = new AtomicInteger(0);
+        }
+        evmTransactionIndex = evmTransactionIndexCounter.getAndIncrement();
+        return evmTransactionIndex;
     }
 
     public int getTransactionStatus() {

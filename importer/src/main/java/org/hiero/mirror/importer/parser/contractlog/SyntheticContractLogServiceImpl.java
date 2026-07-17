@@ -67,7 +67,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         } else {
             consensusTimestamp = recordItem.getConsensusTimestamp();
             logIndex = recordItem.getAndIncrementLogIndex();
-            transactionIndex = recordItem.getEvmTransactionIndex();
+            transactionIndex = recordItem.claimEvmTransactionIndex();
             transactionHash = recordItem.getTransactionHash();
             contractId = log.getEntityId();
             rootContractId = log.getEntityId();

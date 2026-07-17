@@ -153,7 +153,8 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             }
 
             aggregator.accept(recordItem);
-            setEvmTransactionIndex(recordItem, evmTransactionIndex);
+            recordItem.setEvmTransactionIndexCounter(evmTransactionIndex);
+            setEvmTransactionIndex(recordItem);
 
             if (dateRangeFilter.filter(recordItem.getConsensusTimestamp())) {
                 recordItem.setLogIndex(logIndex);
@@ -222,7 +223,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         }
     }
 
-    private void setEvmTransactionIndex(RecordItem recordItem, AtomicInteger evmTransactionIndex) {
+    private void setEvmTransactionIndex(RecordItem recordItem) {
         final var type = recordItem.getTransactionType();
         if (type != TransactionType.CONTRACTCALL.getProtoId()
                 && type != TransactionType.CONTRACTCREATEINSTANCE.getProtoId()
@@ -239,7 +240,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         if (contractRelatedParent != null && contractRelatedParent.getEvmTransactionIndex() != null) {
             recordItem.setEvmTransactionIndex(contractRelatedParent.getEvmTransactionIndex());
         } else if (recordItem.hasContractResult()) {
-            recordItem.setEvmTransactionIndex(evmTransactionIndex.getAndIncrement());
+            recordItem.claimEvmTransactionIndex();
         }
     }
 
