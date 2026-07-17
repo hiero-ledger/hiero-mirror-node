@@ -21,13 +21,10 @@ permissions:
   pull-requests: read
 
 jobs:
-  build:
-    name: Build native images
+  acceptance-record:
+    name: acceptance (RECORD)
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 300
-    permissions:
-      contents: read
-      packages: write
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
@@ -39,37 +36,33 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
 
-      - name: Build native images
-        uses: ./.github/actions/build-native-images
-
-  acceptance-record:
-    name: acceptance (RECORD)
-    needs: build
-    permissions:
-      contents: read
-      packages: read
-      pull-requests: read
-    uses: ./.github/workflows/run-e2e.yml
-    with:
-      image-source: native
-      ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
-      run-k6: "false"
-      stream-type: RECORD
-      timeout-minutes: 60
-    secrets: inherit
+      - name: Run end-to-end tests
+        uses: ./.github/actions/run-e2e
+        with:
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+          image-source: native
+          run-k6: "false"
+          stream-type: RECORD
 
   acceptance-block:
     name: acceptance (BLOCK)
-    needs: build
-    permissions:
-      contents: read
-      packages: read
-      pull-requests: read
-    uses: ./.github/workflows/run-e2e.yml
-    with:
-      image-source: native
-      ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
-      run-k6: "false"
-      stream-type: BLOCK
-      timeout-minutes: 60
-    secrets: inherit
+    runs-on: hiero-mirror-node-linux-large
+    timeout-minutes: 300
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
+
+      - name: Run end-to-end tests
+        uses: ./.github/actions/run-e2e
+        with:
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+          image-source: native
+          run-k6: "false"
+          stream-type: BLOCK

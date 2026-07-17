@@ -29,18 +29,30 @@ permissions:
 jobs:
   acceptance:
     name: acceptance (${{ matrix.stream-type }})
+    runs-on: hiero-mirror-node-linux-large
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
         stream-type:
           - RECORD
           - BLOCK
-    uses: ./.github/workflows/run-e2e.yml
-    with:
-      build-changed-modules-only: "true"
-      image-source: jvm
-      ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
-      run-k6: "true"
-      stream-type: ${{ matrix.stream-type }}
-      timeout-minutes: 50
-    secrets: inherit
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
+
+      - name: Run end-to-end tests
+        uses: ./.github/actions/run-e2e
+        with:
+          build-changed-modules-only: "true"
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+          image-source: jvm
+          run-k6: "true"
+          stream-type: ${{ matrix.stream-type }}
