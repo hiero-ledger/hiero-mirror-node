@@ -1,5 +1,5 @@
 *
 !Dockerfile
 !build/libs/*.jar
-!build/healthcheck/*.class
+!build/healthcheck/**/*.class
 build/libs/*-plain.jar

@@ -27,7 +27,7 @@ springBoot {
 // JRE-only.
 val compileHealthCheck =
     tasks.register<JavaCompile>("compileHealthCheck") {
-        source(rootProject.file("gradle/docker/HealthCheck.java"))
+        source(rootProject.file("common/src/main/java/org/hiero/mirror/common/HealthCheck.java"))
         classpath = files()
         destinationDirectory.set(layout.buildDirectory.dir("healthcheck"))
     }
