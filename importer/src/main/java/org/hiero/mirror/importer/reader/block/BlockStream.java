@@ -7,4 +7,9 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 public record BlockStream(
-        List<BlockItem> blockItems, long blockCompleteTime, byte @Nullable [] bytes, String filename, long loadStart) {}
+        List<BlockItem> blockItems,
+        long blockCompleteTime,
+        byte @Nullable [] bytes,
+        String filename,
+        long loadStart,
+        int size) {}

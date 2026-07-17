@@ -60,12 +60,11 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
     public BlockFile read(final BlockStream blockStream) {
         final var context = new ReaderContext(blockStream.blockItems(), blockStream.filename());
         final byte[] bytes = blockStream.bytes();
-        final Integer size = bytes != null ? bytes.length : null;
         final var blockFileBuilder = context.getBlockFile()
                 .bytes(bytes)
                 .loadStart(blockStream.loadStart())
                 .name(blockStream.filename())
-                .size(size)
+                .size(blockStream.size())
                 .version(VERSION);
 
         readBlockHeader(context);

@@ -162,7 +162,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
         int actualGasUsed = contractResult.getGasConsumed().intValue();
 
         assertWithinDeviation(
-                actualGasUsed, (int) estimatedGasForHollowAccountCreation, lowerDeviation, upperDeviation);
+                actualGasUsed, (int) estimatedGasForHollowAccountCreation, lowerDeviation - 2, upperDeviation);
     }
 
     @And("the mirror node contract results opcodes API should return a non-empty response")

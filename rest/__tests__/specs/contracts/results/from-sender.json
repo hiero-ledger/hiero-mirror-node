@@ -128,7 +128,7 @@
       "responseJson": {
         "results": [
           {
-            "access_list": null,
+            "access_list": [],
             "address": "0x000000000000000000000000000000000000138a",
             "amount": 300,
             "block_gas_used": null,
@@ -162,7 +162,7 @@
             "v": null
           },
           {
-            "access_list": null,
+            "access_list": [],
             "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
             "amount": 20,
             "block_gas_used": null,
@@ -214,7 +214,7 @@
       "responseJson": {
         "results": [
           {
-            "access_list": null,
+            "access_list": [],
             "address": "0x000000000000000000000000000000000000138a",
             "amount": 300,
             "block_gas_used": null,
@@ -248,7 +248,7 @@
             "v": null
           },
           {
-            "access_list": null,
+            "access_list": [],
             "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
             "amount": 99,
             "block_gas_used": null,
@@ -282,7 +282,7 @@
             "v": null
           },
           {
-            "access_list": null,
+            "access_list": [],
             "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
             "amount": 20,
             "block_gas_used": null,

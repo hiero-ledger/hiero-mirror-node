@@ -4,8 +4,12 @@ package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
@@ -13,6 +17,7 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Duration;
 import java.util.List;
 import lombok.SneakyThrows;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
@@ -21,9 +26,13 @@ import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
 import org.hiero.mirror.importer.downloader.block.BlockNodeDiscoveryService;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
+import org.hiero.mirror.importer.downloader.block.InProcessManagedChannelBuilderProvider;
+import org.hiero.mirror.importer.downloader.block.ManagedChannelBuilderProvider;
+import org.hiero.mirror.importer.downloader.block.StreamProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.jspecify.annotations.NullUnmarked;
 import org.junit.jupiter.api.AutoClose;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -36,6 +45,8 @@ abstract class AbstractSchedulerTest {
     @Mock
     protected BlockNodeDiscoveryService blockNodeDiscoveryService;
 
+    protected ManagedChannelBuilderProvider channelBuilderProvider = InProcessManagedChannelBuilderProvider.INSTANCE;
+
     @Mock
     protected LatencyService latencyService;
 
@@ -44,7 +55,35 @@ abstract class AbstractSchedulerTest {
     @AutoClose
     protected Scheduler scheduler;
 
+    protected StreamProperties streamProperties;
+
     private int serverIndex;
+
+    @BeforeEach
+    void setup() {
+        streamProperties = new StreamProperties();
+        streamProperties.setShutdownTimeout(Duration.ofMillis(100));
+    }
+
+    @Test
+    void closeRemovedNodeOnRefresh(Resources resources) {
+        // given a single serving node whose status channel works
+        final var nodeA = runBlockNodeService(0, resources, withAllBlocks());
+        doReturn(List.of(nodeA)).when(blockNodeDiscoveryService).getBlockNodes();
+        scheduler = createScheduler();
+        final var removed = scheduler.getNode(0).blockNode();
+        assertThat(removed.getBlockRange().isEmpty()).isFalse();
+
+        // when nodeA is no longer discovered (replaced by nodeB)
+        final var nodeB = runBlockNodeService(0, resources, withAllBlocks());
+        doReturn(List.of(nodeB)).when(blockNodeDiscoveryService).getBlockNodes();
+        scheduler.getNode(0);
+
+        // then the removed node's channel is shut down so its status request now fails and yields an empty range
+        await().atMost(Duration.ofSeconds(2))
+                .untilAsserted(
+                        () -> assertThat(removed.getBlockRange().isEmpty()).isTrue());
+    }
 
     @Test
     void noNodeHasBlock(Resources resources) {
@@ -59,6 +98,31 @@ abstract class AbstractSchedulerTest {
         assertThatThrownBy(() -> scheduler.getNode(1))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessageContaining("No block node can provide block 1");
+    }
+
+    @Test
+    void reusesUnchangedNodesOnRefresh(final Resources resources) {
+        // given two discovered nodes
+        channelBuilderProvider = spy(InProcessManagedChannelBuilderProvider.INSTANCE);
+        final var nodeA = runBlockNodeService(0, resources, withAllBlocks());
+        final var nodeB = runBlockNodeService(1, resources, withAllBlocks());
+        doReturn(List.of(nodeA, nodeB)).when(blockNodeDiscoveryService).getBlockNodes();
+        scheduler = createScheduler();
+        final var first = scheduler.getNode(0).blockNode();
+
+        // when nodeB is replaced by nodeC while nodeA is unchanged
+        final var nodeC = runBlockNodeService(1, resources, withAllBlocks());
+        doReturn(List.of(nodeA, nodeC)).when(blockNodeDiscoveryService).getBlockNodes();
+        final var second = scheduler.getNode(0).blockNode();
+
+        // then nodeA is reused (same instance, its channel is not rebuilt) and nodeC is newly built
+        assertThat(second).isSameAs(first);
+        final var endpointA = nodeA.getEndpoints().first();
+        final var endpointC = nodeC.getEndpoints().first();
+        verify(channelBuilderProvider, times(1))
+                .get(endpointA.getHost(), endpointA.getPort(), endpointA.isRequiresTls());
+        verify(channelBuilderProvider, times(1))
+                .get(endpointC.getHost(), endpointC.getPort(), endpointC.isRequiresTls());
     }
 
     protected abstract Scheduler createScheduler();

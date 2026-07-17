@@ -6,8 +6,6 @@ import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.Resources;
 import java.util.List;
-import org.hiero.mirror.importer.downloader.block.InProcessManagedChannelBuilderProvider;
-import org.hiero.mirror.importer.downloader.block.StreamProperties;
 import org.junit.jupiter.api.Test;
 
 final class PrioritySchedulerTest extends AbstractSchedulerTest {
@@ -48,9 +46,6 @@ final class PrioritySchedulerTest extends AbstractSchedulerTest {
     @Override
     protected Scheduler createScheduler() {
         return new PriorityScheduler(
-                blockNodeDiscoveryService,
-                InProcessManagedChannelBuilderProvider.INSTANCE,
-                meterRegistry,
-                new StreamProperties());
+                blockNodeDiscoveryService, channelBuilderProvider, meterRegistry, streamProperties);
     }
 }

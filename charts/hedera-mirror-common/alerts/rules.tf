@@ -2193,6 +2193,338 @@ resource "grafana_rule_group" "rule_group_web3" {
   }
 }
 
+resource "grafana_rule_group" "rule_group_graphql" {
+  disable_provenance = false
+  name               = "GraphQL"
+  folder_uid       = grafana_folder.mirror.uid
+  interval_seconds = 60
+
+  rule {
+    name      = "GraphQLDataFetcherErrors"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(graphql_datafetcher_seconds_count{application=\\\"graphql\\\", outcome=\\\"ERROR\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(graphql_datafetcher_seconds_count{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) > .05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "1m"
+    annotations = {
+      description = "High data fetcher error rate of {{ (index $values \"A\").Value | humanizePercentage }} for {{ $labels.pod }}"
+      summary     = "Mirror GraphQL data fetcher high error rate exceeds 5%"
+    }
+    labels = {
+      application = "graphql"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLErrors"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(graphql_request_seconds_count{application=\\\"graphql\\\", status=\\\"ERROR\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(graphql_request_seconds_count{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) > 0.05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "{{ (index $values \"A\").Value | humanizePercentage }} graphql request error rate for {{ $labels.pod }}"
+      summary     = "Mirror GraphQL request error rate exceeds 5%"
+    }
+    labels = {
+      application = "graphql"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLHighCPU"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(process_cpu_usage{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) / sum(system_cpu_count{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "5m"
+    annotations = {
+      description = "{{ $labels.pod }} CPU usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror GraphQL API CPU usage exceeds 80%"
+    }
+    labels = {
+      application = "graphql"
+      area        = "resource"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLHighDBConnections"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(hikaricp_connections_active{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) / sum(hikaricp_connections_max{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) > 0.75\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "5m"
+    annotations = {
+      description = "{{ $labels.pod }} is using {{ (index $values \"A\").Value | humanizePercentage }} of available database connections"
+      summary     = "Mirror GraphQL API database connection utilization exceeds 75%"
+    }
+    labels = {
+      application = "graphql"
+      area        = "resource"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLHighFileDescriptors"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (process_files_open_files{application=\\\"graphql\\\"}) / sum by (cluster, namespace, env_category, pod) (process_files_max_files{application=\\\"graphql\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "5m"
+    annotations = {
+      description = "{{ $labels.pod }} file descriptor usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror GraphQL API file descriptor usage exceeds 80%"
+    }
+    labels = {
+      application = "graphql"
+      area        = "resource"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLHighMemory"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(jvm_memory_used_bytes{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) / sum(jvm_memory_max_bytes{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "5m"
+    annotations = {
+      description = "{{ $labels.pod }} memory usage reached {{ (index $values \"A\").Value | humanizePercentage }}"
+      summary     = "Mirror GraphQL API memory usage exceeds 80%"
+    }
+    labels = {
+      application = "graphql"
+      area        = "resource"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLLogErrors"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(increase(logback_events_total{application=\\\"graphql\\\", level=\\\"error\\\"}[1m])) by (cluster, namespace, env_category) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "3m"
+    annotations = {
+      description = "Logs have reached {{ printf \"%.0f\" (index $values \"A\").Value }} error messages/s in a 3m period"
+      summary     = "High rate of log errors"
+    }
+    labels = {
+      application = "graphql"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLNoPodsReady"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-graphql-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "2m"
+    annotations = {
+      description = "No GraphQL API instances are currently running in {{ $labels.namespace }}"
+      summary     = "No GraphQL API instances running"
+    }
+    labels = {
+      application = "graphql"
+      area        = "resource"
+      severity    = "critical"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLNoRequests"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(http_server_requests_seconds_count{application=\\\"graphql\\\"}[3m])) by (cluster, namespace, env_category) <= 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "5m"
+    annotations = {
+      description = "GraphQL API has not seen any requests to {{ $labels.namespace }} for 5m"
+      summary     = "No GraphQL API requests seen for awhile"
+    }
+    labels = {
+      application = "graphql"
+      severity    = "warning"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLQueryLatency"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(spring_data_repository_invocations_seconds_sum{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) > 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "1m"
+    annotations = {
+      description = "High average database query latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.pod }}"
+      summary     = "Mirror GraphQL API query latency exceeds 1s"
+    }
+    labels = {
+      application = "graphql"
+      severity    = "warning"
+    }
+    is_paused = false
+  }
+  rule {
+    name      = "GraphQLRequestLatency"
+    condition = "A"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(graphql_request_seconds_sum{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(graphql_request_seconds_count{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) > 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+    }
+
+    no_data_state  = "NoData"
+    exec_err_state = "Error"
+    for            = "1m"
+    annotations = {
+      description = "High average request latency of {{ (index $values \"A\").Value | humanizeDuration }} for {{ $labels.pod }}"
+      summary     = "Mirror GraphQL API request latency exceeds 2s"
+    }
+    labels = {
+      application = "graphql"
+      severity    = "warning"
+    }
+    is_paused = false
+  }
+}
+
 resource "grafana_rule_group" "rule_group_database" {
   disable_provenance = false
   name               = "Database"
@@ -2526,5 +2858,223 @@ resource "grafana_rule_group" "rule_group_logs" {
       alert_source = "loki"
     }
     is_paused = false
+  }
+}
+
+###############################################################################
+# Inhibition rules
+#
+# Resource metadata `uid` values must NOT exceed 40 characters (Grafana limitation, returns 400 BadRequest)
+###############################################################################
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_all_when_platform_not_active" {
+  metadata {
+    uid = "inhibit-all-when-platform-not-active"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "MonitorPublishPlatformNotActive" }]
+    target_matchers = [{ type = "=~", label = "application", value = ".*" }]
+    equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_graphql_when_pod_issues" {
+  metadata {
+    uid = "inhibit-graphql-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "graphql" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_grpc_logerrors_when_errors" {
+  metadata {
+    uid = "inhibit-grpc-logerrors-when-errors"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "GrpcErrors" }]
+    target_matchers = [{ type = "=", label = "alertname", value = "GrpcLogErrors" }]
+    equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_grpc_when_pod_issues" {
+  metadata {
+    uid = "inhibit-grpc-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "grpc" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_grpc_monitor_hilat_when_importer_nopods" {
+  metadata {
+    uid = "inhibit-grpcmon-hilat-when-imp-nopods"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "ImporterNoPodsReady" }]
+    target_matchers = [{ type = "=~", label = "alertname", value = "(GrpcHighLatency|MonitorSubscribeLatency)" }]
+    equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_grpc_monitor_hilat_when_importer_record" {
+  metadata {
+    uid = "inhibit-grpcmon-hilat-when-imp-record"
+  }
+  spec {
+    source_matchers = [
+      { type = "=", label = "application", value = "importer" },
+      { type = "=", label = "type", value = "RECORD" },
+    ]
+    target_matchers = [{ type = "=~", label = "alertname", value = "(GrpcHighLatency|MonitorSubscribeLatency)" }]
+    equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_importer_verificationerrors_when_noconsensus" {
+  metadata {
+    uid = "inhibit-imp-veriferr-when-noconsensus"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "ImporterNoConsensus" }]
+    target_matchers = [{ type = "=", label = "alertname", value = "ImporterFileVerificationErrors" }]
+    equal           = ["type", "namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_importer_cloudlatency_when_clouderror" {
+  metadata {
+    uid = "inhibit-importer-cloudlat-when-clouderr"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "ImporterCloudStorageErrors" }]
+    target_matchers = [{ type = "=", label = "alertname", value = "ImporterCloudStorageLatency" }]
+    equal           = ["type", "namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_log_alerts_when_errors" {
+  metadata {
+    uid = "inhibit-importer-logerr-when-errors"
+  }
+  spec {
+    source_matchers = [{ type = "=~", label = "alertname", value = "Importer[a-zA-Z]+Errors" }]
+    target_matchers = [{ type = "=", label = "alertname", value = "ImporterLogErrors" }]
+    equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_parser_latency_when_parse_or_verification_errors" {
+  metadata {
+    uid = "inhibit-importer-parser-when-errors"
+  }
+  spec {
+    source_matchers = [{ type = "=~", label = "alertname", value = "(ImporterFileVerificationErrors|ImporterParseErrors)" }]
+    target_matchers = [{ type = "=", label = "area", value = "parser" }]
+    equal           = ["type", "namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_stream_alerts_when_cloud_errors" {
+  metadata {
+    uid = "inhibit-importer-stream-when-clouderr"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "cloud" }]
+    target_matchers = [{ type = "=~", label = "area", value = "(parser|downloader)" }]
+    equal           = ["type", "namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_importer_when_pod_issues" {
+  metadata {
+    uid = "inhibit-importer-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "importer" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_monitor_handlelatency_when_publishlatency" {
+  metadata {
+    uid = "inhibit-mon-handlelat-when-publishlat"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "MonitorPublishLatency" }]
+    target_matchers = [{ type = "=", label = "alertname", value = "MonitorPublishToHandleLatency" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_monitor_substopped_when_importer_notx_or_nopods" {
+  metadata {
+    uid = "inhibit-mon-substop-when-imp-notx-nopods"
+  }
+  spec {
+    source_matchers = [{ type = "=~", label = "alertname", value = "(ImporterNoTransactions|ImporterNoPodsReady)" }]
+    target_matchers = [{ type = "=", label = "alertname", value = "MonitorSubscribeStopped" }]
+    equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_monitor_publish_when_stopped" {
+  metadata {
+    uid = "inhibit-monitor-publish-when-stopped"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "MonitorPublishStopped" }]
+    target_matchers = [{ type = "=", label = "mode", value = "publish" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_monitor_when_pod_issues" {
+  metadata {
+    uid = "inhibit-monitor-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "monitor" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_rest_when_pod_issues" {
+  metadata {
+    uid = "inhibit-rest-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "rest" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_restjava_when_pod_issues" {
+  metadata {
+    uid = "inhibit-restjava-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "rest-java" }]
+    equal           = ["namespace", "pod"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_web3_when_pod_issues" {
+  metadata {
+    uid = "inhibit-web3-when-pod-issues"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "area", value = "resource" }]
+    target_matchers = [{ type = "=", label = "application", value = "web3" }]
+    equal           = ["namespace", "pod"]
   }
 }
