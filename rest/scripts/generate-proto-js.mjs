@@ -30,6 +30,10 @@ const PROTO_SERVICES_FILES = [
 const CONSENSUS_NODE_REPO = 'hiero-ledger/hiero-consensus-node';
 const UPSTREAM_SERVICES_PREFIX = 'hapi/hedera-protobuf-java-api/src/main/proto/services';
 
+// When the pinned consensus node git tag is not yet published upstream (HTTP 404), the download
+// falls back to this ref.
+const FALLBACK_REF = 'main';
+
 const restDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(restDir, '..');
 const protoVersionFile = path.join(restDir, 'proto', 'version.txt');
@@ -103,21 +107,27 @@ function consensusServicesRawUrl(tag, filename) {
   return `https://raw.githubusercontent.com/${CONSENSUS_NODE_REPO}/${tag}/${UPSTREAM_SERVICES_PREFIX}/${filename}`;
 }
 
-async function downloadProtosFromConsensus(consensusTag) {
+// Tries to download all proto files for a ref. Returns true on success, false if any file is
+// unavailable (so the caller can try the next ref).
+async function tryDownloadProtos(ref) {
   const servicesDir = path.join(restDir, 'proto', 'services');
-  fs.mkdirSync(servicesDir, {recursive: true});
-  console.log(
-    `Downloading services/*.proto from ${CONSENSUS_NODE_REPO} for tag ${consensusTag}`,
-  );
-
+  const contents = new Map();
   for (const file of PROTO_SERVICES_FILES) {
-    const url = consensusServicesRawUrl(consensusTag, file);
-    const text = normalizeProtoText(await fetchText(url));
-    fs.writeFileSync(path.join(servicesDir, file), text, 'utf8');
-    console.log(`Downloaded proto/services/${file}`);
+    try {
+      contents.set(file, normalizeProtoText(await fetchText(consensusServicesRawUrl(ref, file))));
+    } catch (err) {
+      console.warn(`Could not download proto/services/${file} for ref ${ref}: ${err.message}`);
+      return false;
+    }
   }
 
-  fs.writeFileSync(protoVersionFile, `${consensusTag}`, 'utf8');
+  fs.mkdirSync(servicesDir, {recursive: true});
+  for (const [file, text] of contents) {
+    fs.writeFileSync(path.join(servicesDir, file), text, 'utf8');
+  }
+  fs.writeFileSync(protoVersionFile, `${ref}`, 'utf8');
+  console.log(`Downloaded services/*.proto from ${CONSENSUS_NODE_REPO} for ref ${ref}`);
+  return true;
 }
 
 function runBufGenerate() {
@@ -145,5 +155,13 @@ if (storedNormalized === expectedTag && isProtoCodegenPresent()) {
   process.exit(0);
 }
 
-await downloadProtosFromConsensus(expectedTag);
-process.exit(runBufGenerate());
+// Try the pinned tag, then fall back to main. This step is best-effort: if neither is available
+// (e.g. the tag isn't published upstream yet), skip without failing the test run.
+if ((await tryDownloadProtos(expectedTag)) || (await tryDownloadProtos(FALLBACK_REF))) {
+  process.exit(runBufGenerate());
+}
+
+console.warn(
+  `Could not download protos for ${expectedTag} or ${FALLBACK_REF}; skipping proto generation.`,
+);
+process.exit(0);
