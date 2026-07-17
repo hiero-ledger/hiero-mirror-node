@@ -15,7 +15,6 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptAssembler;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootCalculator;
-import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -30,7 +29,6 @@ import org.springframework.transaction.support.TransactionOperations;
 class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
 
     private final DBProperties dbProperties;
-    private final ObjectProvider<EntityRepository> entityRepositoryProvider;
     private final Environment environment;
     private final ObjectProvider<JdbcOperations> jdbcOperationsProvider;
     private final BackfillReceiptsRootMigration migration;
@@ -269,7 +267,6 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
                 environment,
                 importerProperties,
                 jdbcOperationsProvider,
-                entityRepositoryProvider,
                 transactionOperationsProvider,
                 receiptAssembler,
                 receiptRootCalculator);

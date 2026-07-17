@@ -7,11 +7,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.ArrayUtils;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.converter.EntityIdConverter;
@@ -23,7 +24,6 @@ import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptAssembler;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptBlockUtils;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootCalculator;
-import org.hiero.mirror.importer.repository.EntityRepository;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.convert.support.DefaultConversionService;
@@ -46,8 +46,10 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
 
     static final int DEFAULT_BATCH_SIZE = 100;
     private static final String BATCH_SIZE_KEY = "batchSize";
-    private static final RowMapper<ContractLog> CONTRACT_LOG_ROW_MAPPER = rowMapper(ContractLog.class);
-    private static final RowMapper<ContractResult> CONTRACT_RESULT_ROW_MAPPER = rowMapper(ContractResult.class);
+    private static final RowMapper<ContractLogAndEvmAddress> CONTRACT_LOG_ROW_MAPPER =
+            rowMapper(ContractLogAndEvmAddress.class);
+    private static final RowMapper<ContractResultAndType> CONTRACT_RESULT_ROW_MAPPER =
+            rowMapper(ContractResultAndType.class);
 
     private static final String SELECT_BLOCKS = """
             select consensus_start, consensus_end from record_file
@@ -55,22 +57,26 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
             order by consensus_end desc limit :limit
             """;
 
-    // transaction_nonce = 0 excludes child (internal) contract results, matching the relay's behaviour
+    // transaction_nonce = 0 excludes child contract results, matching the relay's behaviour.
+    // The materialized CTE keeps the join valid on citus, which rejects direct joins
+    // between tables distributed on different columns.
     private static final String SELECT_CONTRACT_RESULTS = """
-            select bloom, consensus_timestamp, gas_used, transaction_index, transaction_result
-            from contract_result
-            where consensus_timestamp between :consensusStart and :consensusEnd and transaction_nonce = 0
+            with et as materialized (
+              select consensus_timestamp, type from ethereum_transaction
+              where consensus_timestamp between :consensusStart and :consensusEnd and type is not null
+            )
+            select cr.bloom, cr.consensus_timestamp, cr.gas_used, cr.transaction_index, cr.transaction_result, et.type
+            from contract_result cr
+            left join et on et.consensus_timestamp = cr.consensus_timestamp
+            where cr.consensus_timestamp between :consensusStart and :consensusEnd and cr.transaction_nonce = 0
             """;
 
     private static final String SELECT_CONTRACT_LOGS = """
-            select consensus_timestamp, contract_id, data, index, topic0, topic1, topic2, topic3, transaction_index
-            from contract_log
-            where consensus_timestamp between :consensusStart and :consensusEnd
-            """;
-
-    private static final String SELECT_ETHEREUM_TRANSACTION_TYPES = """
-            select consensus_timestamp, type from ethereum_transaction
-            where consensus_timestamp between :consensusStart and :consensusEnd and type is not null
+            select cl.consensus_timestamp, cl.contract_id, cl.data, cl.index, cl.topic0, cl.topic1, cl.topic2,
+              cl.topic3, cl.transaction_index, e.evm_address
+            from contract_log cl
+            left join entity e on e.id = cl.contract_id
+            where cl.consensus_timestamp between :consensusStart and :consensusEnd
             """;
 
     private static final String SELECT_TRANSACTION_INDEXES = """
@@ -82,7 +88,6 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
             "update record_file set receipts_root = :receiptsRoot where consensus_end = :consensusEnd";
 
     private final int batchSize;
-    private final ObjectProvider<EntityRepository> entityRepositoryProvider;
     private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
     private final ReceiptAssembler receiptAssembler;
     private final ReceiptRootCalculator receiptRootCalculator;
@@ -93,7 +98,6 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
             Environment environment,
             ImporterProperties importerProperties,
             ObjectProvider<JdbcOperations> jdbcOperationsProvider,
-            ObjectProvider<EntityRepository> entityRepositoryProvider,
             ObjectProvider<TransactionOperations> transactionOperationsProvider,
             ReceiptAssembler receiptAssembler,
             ReceiptRootCalculator receiptRootCalculator) {
@@ -103,7 +107,6 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
         if (batchSize <= 0) {
             throw new IllegalArgumentException("Invalid non-positive %s %d".formatted(BATCH_SIZE_KEY, batchSize));
         }
-        this.entityRepositoryProvider = entityRepositoryProvider;
         this.transactionOperationsProvider = transactionOperationsProvider;
         this.receiptAssembler = receiptAssembler;
         this.receiptRootCalculator = receiptRootCalculator;
@@ -147,27 +150,36 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
                 "consensusStart", blocks.getLast().consensusStart(),
                 "consensusEnd", blocks.getFirst().consensusEnd());
 
-        var contractResults = jdbcOperations.query(SELECT_CONTRACT_RESULTS, rangeParams, CONTRACT_RESULT_ROW_MAPPER);
-        var contractLogs = jdbcOperations.query(SELECT_CONTRACT_LOGS, rangeParams, CONTRACT_LOG_ROW_MAPPER);
+        var rows = jdbcOperations.query(SELECT_CONTRACT_RESULTS, rangeParams, CONTRACT_RESULT_ROW_MAPPER);
+        var contractResults = new ArrayList<ContractResult>(rows.size());
+        var transactionTypes = new HashMap<Long, Integer>();
+        for (var row : rows) {
+            contractResults.add(row);
+            if (row.getType() != null) {
+                transactionTypes.put(row.getConsensusTimestamp(), row.getType());
+            }
+        }
+
+        var logRows = jdbcOperations.query(SELECT_CONTRACT_LOGS, rangeParams, CONTRACT_LOG_ROW_MAPPER);
+        var contractLogs = new ArrayList<ContractLog>(logRows.size());
+        var evmAddresses = new HashMap<Long, byte[]>();
         var logsMissingIndex = new ArrayList<ContractLog>();
-        for (var contractLog : contractLogs) {
-            if (contractLog.getTransactionIndex() == null) {
-                logsMissingIndex.add(contractLog);
+        for (var row : logRows) {
+            contractLogs.add(row);
+            if (row.getTransactionIndex() == null) {
+                logsMissingIndex.add(row);
+            }
+            if (!ArrayUtils.isEmpty(row.getEvmAddress()) && !EntityId.isEmpty(row.getContractId())) {
+                evmAddresses.put(row.getContractId().getId(), row.getEvmAddress());
             }
         }
         resolveMissingTransactionIndexes(contractResults, logsMissingIndex);
-
-        var transactionTypes = new HashMap<Long, Integer>();
-        jdbcOperations.query(SELECT_ETHEREUM_TRANSACTION_TYPES, rangeParams, rs -> {
-            transactionTypes.put(rs.getLong("consensus_timestamp"), rs.getInt("type"));
-        });
 
         var blockRanges = new TreeMap<Long, Long>();
         blocks.forEach(block -> blockRanges.put(block.consensusStart(), block.consensusEnd()));
         var resultsByBlock =
                 ReceiptBlockUtils.groupByBlock(contractResults, blockRanges, ContractResult::getConsensusTimestamp);
         var logsByBlock = ReceiptBlockUtils.groupByBlock(contractLogs, blockRanges, ContractLog::getConsensusTimestamp);
-        var evmAddresses = resolveEvmAddresses(contractLogs);
 
         var updates = new MapSqlParameterSource[blocks.size()];
         for (int i = 0; i < blocks.size(); i++) {
@@ -226,27 +238,17 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
         }
     }
 
-    private Map<Long, byte[]> resolveEvmAddresses(Collection<ContractLog> contractLogs) {
-        var ids = new LinkedHashSet<Long>();
-        for (var contractLog : contractLogs) {
-            if (!EntityId.isEmpty(contractLog.getContractId())) {
-                ids.add(contractLog.getContractId().getId());
-            }
-        }
+    private record BlockRange(long consensusStart, long consensusEnd) {}
 
-        if (ids.isEmpty()) {
-            return Map.of();
-        }
-
-        var addresses = new HashMap<Long, byte[]>(ids.size());
-        for (var mapping : entityRepositoryProvider.getObject().findEvmAddressesByIds(ids)) {
-            if (!ArrayUtils.isEmpty(mapping.getEvmAddress())) {
-                addresses.put(mapping.getId(), mapping.getEvmAddress());
-            }
-        }
-
-        return addresses;
+    @Getter
+    @Setter
+    static class ContractResultAndType extends ContractResult {
+        private Integer type;
     }
 
-    private record BlockRange(long consensusStart, long consensusEnd) {}
+    @Getter
+    @Setter
+    static class ContractLogAndEvmAddress extends ContractLog {
+        private byte[] evmAddress;
+    }
 }
