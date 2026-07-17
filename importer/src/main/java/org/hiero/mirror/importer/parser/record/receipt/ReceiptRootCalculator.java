@@ -18,6 +18,9 @@ final class ReceiptRootCalculator {
 
     private static final byte[] EMPTY_RECEIPTS_ROOT = new byte[32];
     private static final Bytes STATUS_SUCCESS = Bytes.of(1);
+    // The relay encodes a synthetic receipt's first field as 32 zero bytes in place of the EIP-658 status, filling
+    // the slot pre-Byzantium receipts used for the post-transaction state root
+    private static final Bytes SYNTHETIC_FIRST_FIELD = Bytes.wrap(new byte[32]);
 
     /**
      * Calculates the 32-byte receipts-trie root
@@ -49,8 +52,8 @@ final class ReceiptRootCalculator {
         final var out = new BytesValueRLPOutput();
         out.startList();
 
-        if (receipt.root() != null) {
-            out.writeBytes(Bytes.wrap(receipt.root()));
+        if (receipt.synthetic()) {
+            out.writeBytes(SYNTHETIC_FIRST_FIELD);
         } else {
             out.writeBytes(receipt.success() ? STATUS_SUCCESS : Bytes.EMPTY);
         }

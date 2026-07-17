@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.parser.record.receipt;
 
 import java.util.List;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A minimal representation of an Ethereum transaction receipt used to compute a block's
@@ -13,11 +12,11 @@ import org.jspecify.annotations.Nullable;
  * @param transactionIndex position of the transaction within the block; also the trie key {@code RLP(index)}
  * @param type             EIP-2718 transaction type; 0 for legacy and non-EVM transactions, non-zero for typed
  *                         transactions whose receipt is prefixed with the type byte
- * @param success          whether the transaction succeeded; encoded as the receipt status (1 or empty) when
- *                         {@code root} is null
- * @param root             the pre-Byzantium post-state root used as the receipt's first field; when non-null it is used
- *                         verbatim instead of the status. The relay uses 32 zero bytes for synthetic (no contract
- *                         result) transactions and derives the field from the status otherwise
+ * @param success          whether the transaction succeeded; encoded as the receipt status (1 or empty) when the
+ *                         receipt is not synthetic
+ * @param synthetic        true for a transaction with logs but no contract result (an HTS transaction whose synthetic
+ *                         contract result isn't persisted); its receipt's first field is 32 zero bytes verbatim
+ *                         instead of the status, matching the relay's encoding of such transactions
  * @param gasUsed          gas used by the transaction; summed into the cumulative gas of the receipt
  * @param logsBloom        the 256-byte logs bloom (an empty array is treated as 256 zero bytes)
  * @param logs             the receipt logs in log-index order
@@ -26,7 +25,7 @@ public record Receipt(
         int transactionIndex,
         int type,
         boolean success,
-        @Nullable byte[] root,
+        boolean synthetic,
         long gasUsed,
         byte[] logsBloom,
         List<ReceiptLog> logs) {

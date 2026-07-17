@@ -139,12 +139,12 @@ final class ReceiptRootServiceTest {
         service.updateReceiptsRoot();
 
         final var expected = receiptRootCalculator.calculate(List.of(
-                new Receipt(0, 2, true, null, 1000L, bloom, List.of(new ReceiptLog(ALIAS, List.of(topicA), dataA))),
+                new Receipt(0, 2, true, false, 1000L, bloom, List.of(new ReceiptLog(ALIAS, List.of(topicA), dataA))),
                 new Receipt(
                         1,
                         0,
                         true,
-                        new byte[32],
+                        true,
                         0L,
                         syntheticBloom(DomainUtils.toEvmAddress(LONG_ZERO_CONTRACT), topicB0, topicB1),
                         List.of(new ReceiptLog(
@@ -184,7 +184,7 @@ final class ReceiptRootServiceTest {
 
         assertThat(recordFile.getReceiptsRoot())
                 .isEqualTo(receiptRootCalculator.calculate(
-                        List.of(new Receipt(0, 0, true, null, 1000L, bloom, List.of()))));
+                        List.of(new Receipt(0, 0, true, false, 1000L, bloom, List.of()))));
     }
 
     @Test
@@ -221,10 +221,10 @@ final class ReceiptRootServiceTest {
 
         assertThat(block1.getReceiptsRoot())
                 .isEqualTo(receiptRootCalculator.calculate(
-                        List.of(new Receipt(0, 0, true, null, 1000L, bloom1, List.of()))));
+                        List.of(new Receipt(0, 0, true, false, 1000L, bloom1, List.of()))));
         assertThat(block2.getReceiptsRoot())
                 .isEqualTo(receiptRootCalculator.calculate(
-                        List.of(new Receipt(0, 0, true, null, 2000L, bloom2, List.of()))));
+                        List.of(new Receipt(0, 0, true, false, 2000L, bloom2, List.of()))));
     }
 
     private static byte[] syntheticBloom(final byte[] address, final byte[]... topics) {

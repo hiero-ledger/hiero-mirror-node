@@ -24,7 +24,6 @@ final class ReceiptAssembler {
 
     private static final int ADDRESS_LENGTH = 20;
     private static final int WORD_LENGTH = 32;
-    private static final byte[] SYNTHETIC_ROOT = new byte[32];
     private static final Set<Integer> SUCCESS_TRANSACTION_RESULTS = Set.of(
             ResponseCodeEnum.SUCCESS_VALUE,
             ResponseCodeEnum.FEE_SCHEDULE_FILE_PART_UPLOADED_VALUE,
@@ -56,18 +55,20 @@ final class ReceiptAssembler {
                     contractResult.getTransactionIndex() != null ? contractResult.getTransactionIndex() : 0,
                     ethereumType != null ? ethereumType : 0,
                     SUCCESS_TRANSACTION_RESULTS.contains(contractResult.getTransactionResult()),
-                    null,
+                    false,
                     contractResult.getGasUsed() != null ? contractResult.getGasUsed() : 0L,
                     contractResult.getBloom(),
                     receiptLogs);
         }
 
+        // Logs without a contract result (e.g. HTS transactions whose synthetic contract result isn't persisted)
+        // become a synthetic receipt, encoded with 32 zero bytes in place of the status like the relay does
         final var firstLog = contractLogs.iterator().next();
         return new Receipt(
                 firstLog.getTransactionIndex() != null ? firstLog.getTransactionIndex() : 0,
                 0,
                 true,
-                SYNTHETIC_ROOT,
+                true,
                 0L,
                 syntheticBloom(receiptLogs),
                 receiptLogs);

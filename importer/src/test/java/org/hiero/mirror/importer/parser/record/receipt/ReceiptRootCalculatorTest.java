@@ -23,7 +23,7 @@ final class ReceiptRootCalculatorTest {
 
     @Test
     void singleReceiptMatchesIndependentTrieRoot() {
-        final var receipt = new Receipt(0, 0, true, null, 0L, new byte[256], List.of());
+        final var receipt = new Receipt(0, 0, true, false, 0L, new byte[256], List.of());
 
         // reconstruct the single-leaf Merkle Patricia Trie root
         final var value = rlpList(
@@ -38,11 +38,11 @@ final class ReceiptRootCalculatorTest {
     }
 
     @Test
-    void syntheticReceiptUsesZeroRootAndEmptyScalarGas() {
-        final var receipt = new Receipt(0, 0, true, new byte[32], 0L, new byte[256], List.of());
+    void syntheticReceiptUsesZeroFirstFieldAndEmptyScalarGas() {
+        final var receipt = new Receipt(0, 0, true, true, 0L, new byte[256], List.of());
 
         final var value = rlpList(
-                rlpString(new byte[32]), // post-state root = 32 zero bytes
+                rlpString(new byte[32]), // synthetic receipt first field = 32 zero bytes in place of the status
                 rlpString(new byte[0]), // cumulativeGasUsed = 0 -> canonical empty scalar (0x80)
                 rlpString(new byte[256]),
                 rlpList());
@@ -53,7 +53,7 @@ final class ReceiptRootCalculatorTest {
 
     @Test
     void nonZeroCumulativeGasUsesMinimalScalar() {
-        final var receipt = new Receipt(0, 0, true, null, 256L, new byte[256], List.of());
+        final var receipt = new Receipt(0, 0, true, false, 256L, new byte[256], List.of());
 
         final var value = rlpList(
                 rlpString(new byte[] {0x01}), rlpString(new byte[] {0x01, 0x00}), rlpString(new byte[256]), rlpList());
@@ -72,8 +72,8 @@ final class ReceiptRootCalculatorTest {
     @Test
     void mainnetBlockWithZeroCumulativeGasUsesCanonicalScalar() {
         final var receipts = List.of(
-                new Receipt(4, 0, false, null, 0L, new byte[256], List.of()),
-                new Receipt(7, 0, false, null, 0L, new byte[256], List.of()));
+                new Receipt(4, 0, false, false, 0L, new byte[256], List.of()),
+                new Receipt(7, 0, false, false, 0L, new byte[256], List.of()));
 
         assertThat(calculator.calculate(receipts))
                 .isEqualTo(bytes("46e3a8baf0e3de5cfce58e12dfa221b5d643f51fdd38e4f22dbf7866b85146b1"));
@@ -133,8 +133,8 @@ final class ReceiptRootCalculatorTest {
                         bytes("000ad45374fd3ec68ae6c31741ec5c0f705c103f68ec76a31bf20101032a8e1c"
                                 + "000000000000000000000000000000000000000000000000000000000003f86f")));
         final var receipts = List.of(
-                new Receipt(4, 0, true, null, 0x1fd7dL, bloom, logs),
-                new Receipt(5, 0, false, null, 0L, new byte[256], List.of()));
+                new Receipt(4, 0, true, false, 0x1fd7dL, bloom, logs),
+                new Receipt(5, 0, false, false, 0L, new byte[256], List.of()));
 
         assertThat(calculator.calculate(receipts))
                 .isEqualTo(bytes("8fecfc53901017434f8a078ddc11119fa6117bbbf937a4ac3b2086d0b3b37c57"));
@@ -142,12 +142,12 @@ final class ReceiptRootCalculatorTest {
 
     @Test
     void orderIndependentOfInputOrdering() {
-        final var first = new Receipt(0, 0, true, null, 21000L, new byte[256], List.of());
+        final var first = new Receipt(0, 0, true, false, 21000L, new byte[256], List.of());
         final var second = new Receipt(
                 1,
                 2,
                 false,
-                null,
+                false,
                 42000L,
                 new byte[256],
                 List.of(new ReceiptLog(new byte[20], List.of(new byte[32]), new byte[0])));
@@ -159,8 +159,8 @@ final class ReceiptRootCalculatorTest {
 
     @Test
     void distinctReceiptsProduceDistinctRoots() {
-        final var success = new Receipt(0, 0, true, null, 21000L, new byte[256], List.of());
-        final var failure = new Receipt(0, 0, false, null, 21000L, new byte[256], List.of());
+        final var success = new Receipt(0, 0, true, false, 21000L, new byte[256], List.of());
+        final var failure = new Receipt(0, 0, false, false, 21000L, new byte[256], List.of());
 
         assertThat(calculator.calculate(List.of(success))).isNotEqualTo(calculator.calculate(List.of(failure)));
     }
