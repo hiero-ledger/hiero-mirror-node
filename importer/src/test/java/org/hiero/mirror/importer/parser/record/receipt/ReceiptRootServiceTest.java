@@ -10,19 +10,18 @@ import static org.mockito.Mockito.when;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.List;
+import java.util.Map;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.domain.EvmAddressMapping;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties.PersistProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
-import org.hiero.mirror.importer.parser.record.receipt.Receipt.ReceiptLog;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,7 +48,6 @@ final class ReceiptRootServiceTest {
     @Mock
     private ParserContext parserContext;
 
-    private final ReceiptRootCalculator receiptRootCalculator = new ReceiptRootCalculator();
     private ReceiptRootService service;
 
     @BeforeEach
@@ -138,19 +136,12 @@ final class ReceiptRootServiceTest {
 
         service.updateReceiptsRoot();
 
-        final var expected = receiptRootCalculator.calculate(List.of(
-                new Receipt(0, 2, true, false, 1000L, bloom, List.of(new ReceiptLog(ALIAS, List.of(topicA), dataA))),
-                new Receipt(
-                        1,
-                        0,
-                        true,
-                        true,
-                        0L,
-                        syntheticBloom(DomainUtils.toEvmAddress(LONG_ZERO_CONTRACT), topicB0, topicB1),
-                        List.of(new ReceiptLog(
-                                DomainUtils.toEvmAddress(LONG_ZERO_CONTRACT),
-                                List.of(topicB0, topicB1),
-                                new byte[0])))));
+        final var expected = ReceiptRoot.of(
+                        List.of(contractResult),
+                        List.of(logA, logB),
+                        Map.of(100L, 2),
+                        Map.of(ALIASED_CONTRACT.getId(), ALIAS))
+                .getRootHash();
 
         assertThat(recordFile.getReceiptsRoot()).isEqualTo(expected).hasSize(32);
     }
@@ -183,8 +174,8 @@ final class ReceiptRootServiceTest {
         service.updateReceiptsRoot();
 
         assertThat(recordFile.getReceiptsRoot())
-                .isEqualTo(receiptRootCalculator.calculate(
-                        List.of(new Receipt(0, 0, true, false, 1000L, bloom, List.of()))));
+                .isEqualTo(ReceiptRoot.of(List.of(topLevel), List.of(), Map.of(), Map.of())
+                        .getRootHash());
     }
 
     @Test
@@ -220,20 +211,11 @@ final class ReceiptRootServiceTest {
         service.updateReceiptsRoot();
 
         assertThat(block1.getReceiptsRoot())
-                .isEqualTo(receiptRootCalculator.calculate(
-                        List.of(new Receipt(0, 0, true, false, 1000L, bloom1, List.of()))));
+                .isEqualTo(ReceiptRoot.of(List.of(result1), List.of(), Map.of(), Map.of())
+                        .getRootHash());
         assertThat(block2.getReceiptsRoot())
-                .isEqualTo(receiptRootCalculator.calculate(
-                        List.of(new Receipt(0, 0, true, false, 2000L, bloom2, List.of()))));
-    }
-
-    private static byte[] syntheticBloom(final byte[] address, final byte[]... topics) {
-        final var filter = new LogsBloomFilter();
-        filter.insertAddress(address);
-        for (final var topic : topics) {
-            filter.insertTopic(topic);
-        }
-        return LogsBloomFilter.or(filter.toArrayUnsafe(), new byte[LogsBloomFilter.BYTE_SIZE]);
+                .isEqualTo(ReceiptRoot.of(List.of(result2), List.of(), Map.of(), Map.of())
+                        .getRootHash());
     }
 
     private static byte[] fill(final byte value, final int length) {
