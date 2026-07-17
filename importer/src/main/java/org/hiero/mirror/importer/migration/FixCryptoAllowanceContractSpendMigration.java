@@ -32,7 +32,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @CustomLog
 @Named
-public final class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration<Long> {
+final class FixCryptoAllowanceContractSpendMigration extends AsyncJavaMigration<Long> {
 
     static final String DEFAULT_BATCH_INTERVAL = "1d";
 
