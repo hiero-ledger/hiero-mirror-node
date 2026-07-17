@@ -5,9 +5,11 @@ package org.hiero.mirror.test.e2e.acceptance.steps;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.rest.model.TransactionTypes.CRYPTOCREATEACCOUNT;
 import static org.hiero.mirror.rest.model.TransactionTypes.CRYPTOTRANSFER;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.hedera.hashgraph.sdk.AccountId;
+import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
 import io.cucumber.java.AfterAll;
@@ -16,11 +18,13 @@ import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import java.math.BigInteger;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Data;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.CommonProperties;
@@ -54,6 +58,8 @@ public class AccountFeature extends AbstractFeature {
     private ExpandedAccountId senderAccountId;
     private ExpandedAccountId spenderAccountId;
     private long startingBalance;
+    private DeployedContract spendOnBehalfContract;
+    private AccountId contractSpenderAccountId;
 
     @AfterAll
     public static void cleanup() {
@@ -263,6 +269,86 @@ public class AccountFeature extends AbstractFeature {
         assertNotNull(networkTransactionResponse.getReceipt());
     }
 
+    @Given("I successfully create a spend on behalf contract")
+    public void createSpendOnBehalfContract() {
+        spendOnBehalfContract = getContract(ContractResource.PRECOMPILE);
+        contractSpenderAccountId =
+                AccountId.fromString(spendOnBehalfContract.contractId().toString());
+    }
+
+    @And("I approve the spend on behalf contract to transfer up to {long} tℏ")
+    public void approveContractCryptoAllowance(long amount) {
+        networkTransactionResponse =
+                accountClient.approveCryptoAllowance(contractSpenderAccountId, Hbar.fromTinybars(amount));
+        assertNotNull(networkTransactionResponse.getTransactionId());
+        assertNotNull(networkTransactionResponse.getReceipt());
+    }
+
+    @Then("the mirror node REST API should confirm the approved {long} tℏ crypto allowance for the contract")
+    public void verifyContractApprovedCryptoAllowance(long approvedAmount) {
+        verifyMirrorAPIContractCryptoAllowanceResponse(approvedAmount, 0L);
+    }
+
+    @When("the spend on behalf contract spends {long} tℏ of the approved allowance to {string}")
+    public void contractSpendsApprovedAllowance(long amount, String receiver) {
+        final var owner = accountClient.getClient().getOperatorAccountId();
+        final var receiverId = accountClient
+                .getAccount(AccountClient.AccountNameEnum.valueOf(receiver))
+                .getAccountId();
+
+        final var parameters = new ContractFunctionParameters()
+                .addAddress(owner.toEvmAddress())
+                .addAddress(receiverId.toEvmAddress())
+                .addInt64(amount);
+        final var gas = contractClient
+                .getSdkClient()
+                .getAcceptanceTestProperties()
+                .getFeatureProperties()
+                .getMaxContractFunctionGas();
+        final var result =
+                contractClient.executeContract(spendOnBehalfContract.contractId(), gas, "spendHbar", parameters, null);
+        networkTransactionResponse = result.networkTransactionResponse();
+        assertNotNull(networkTransactionResponse.getTransactionId());
+        assertNotNull(networkTransactionResponse.getReceipt());
+    }
+
+    @Then(
+            "the mirror node REST API should confirm the contract approved allowance of {long} tℏ was debited by {long} tℏ")
+    public void verifyContractCryptoAllowanceDebited(long approvedAmount, long transferAmount) {
+        verifyMirrorAPIContractCryptoAllowanceResponse(approvedAmount, transferAmount);
+    }
+
+    @Then("the mirror node contract call should return the approved allowance of {long} tℏ debited by {long} tℏ")
+    public void verifyContractCryptoAllowanceDebitedViaContractCall(long approvedAmount, long transferAmount) {
+        final var owner = accountClient.getClient().getOperatorAccountId();
+        final var data = encodeData(
+                ContractResource.PRECOMPILE,
+                ContractMethods.HBAR_ALLOWANCE,
+                asAddress(owner),
+                asAddress(contractSpenderAccountId));
+        final var response =
+                callContract(data, spendOnBehalfContract.contractId().toEvmAddress());
+        assertThat(response.getResultAsNumber()).isEqualTo(BigInteger.valueOf(approvedAmount - transferAmount));
+    }
+
+    private void verifyMirrorAPIContractCryptoAllowanceResponse(long approvedAmount, long transferAmount) {
+        verifyMirrorTransactionsResponse(mirrorClient, HttpStatus.OK.value());
+
+        final var owner = accountClient.getClient().getOperatorAccountId().toString();
+        final var spender = contractSpenderAccountId.toString();
+        final var mirrorCryptoAllowanceResponse = mirrorClient.getAccountCryptoAllowanceBySpender(owner, spender);
+        final var remainingAmount = approvedAmount - transferAmount;
+
+        assertThat(mirrorCryptoAllowanceResponse.getAllowances())
+                .isNotEmpty()
+                .first()
+                .isNotNull()
+                .returns(remainingAmount, CryptoAllowance::getAmount)
+                .returns(approvedAmount, CryptoAllowance::getAmountGranted)
+                .returns(owner, CryptoAllowance::getOwner)
+                .returns(spender, CryptoAllowance::getSpender);
+    }
+
     @Then("the mirror node REST API should return the list of accounts")
     public void verifyAccountsList() {
         final var accountsResponse = mirrorClient.getAccounts(DEFAULT_LIMIT);
@@ -311,5 +397,14 @@ public class AccountFeature extends AbstractFeature {
                 .satisfies(r -> assertThat(r.getLinks()).isNotNull())
                 .extracting(StakingRewardsResponse::getRewards)
                 .isNotNull();
+    }
+
+    @Getter
+    @RequiredArgsConstructor
+    enum ContractMethods implements SelectorInterface {
+        HBAR_ALLOWANCE("hbarAllowance", FunctionType.MUTABLE);
+
+        private final String selector;
+        private final FunctionType functionType;
     }
 }

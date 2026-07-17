@@ -237,14 +237,7 @@ public class EntityRecordItemListener implements RecordItemListener {
         var payerAccount = recordItem.getPayerAccountId();
         var transfers = body.getCryptoTransfer().getTransfers().getAccountAmountsList();
 
-        long spenderId = payerAccount.getId();
-        if (!transfers.isEmpty() && recordItem.getTransactionRecord().hasContractCallResult()) {
-            spenderId = EntityId.of(recordItem
-                            .getTransactionRecord()
-                            .getContractCallResult()
-                            .getSenderId())
-                    .getId();
-        }
+        long spenderId = transfers.isEmpty() ? payerAccount.getId() : getAllowanceSpenderId(recordItem, payerAccount);
 
         for (var aa : transfers) {
             var entityId = entityIdService.lookup(aa.getAccountID()).orElse(EntityId.EMPTY);
@@ -274,6 +267,21 @@ public class EntityRecordItemListener implements RecordItemListener {
                 entityListener.onCryptoAllowance(cryptoAllowance);
             }
         }
+    }
+
+    /**
+     * Resolves the spender of an approved transfer. For a transfer initiated by a contract, either directly or from
+     * a contract create's constructor, the spender is identified by the contract function result's sender id;
+     * otherwise it's the transaction payer.
+     */
+    private long getAllowanceSpenderId(RecordItem recordItem, EntityId payerAccountId) {
+        var transactionRecord = recordItem.getTransactionRecord();
+        var contractFunctionResult = transactionRecord.hasContractCreateResult()
+                ? transactionRecord.getContractCreateResult()
+                : transactionRecord.getContractCallResult();
+        return contractFunctionResult.hasSenderId()
+                ? EntityId.of(contractFunctionResult.getSenderId()).getId()
+                : payerAccountId.getId();
     }
 
     private void insertStakingRewardTransfers(RecordItem recordItem) {
@@ -540,15 +548,8 @@ public class EntityRecordItemListener implements RecordItemListener {
         }
 
         var tokenTransfers = recordItem.getTransactionBody().getCryptoTransfer().getTokenTransfersList();
-        long spenderId = payerAccountId.getId();
-        if (!tokenTransfers.isEmpty() && recordItem.getTransactionRecord().hasContractCallResult()) {
-            spenderId = EntityId.of(recordItem
-                            .getTransactionRecord()
-                            .getContractCallResult()
-                            .getSenderId())
-                    .getId();
-        }
-        long transferSpenderId = spenderId;
+        long transferSpenderId =
+                tokenTransfers.isEmpty() ? payerAccountId.getId() : getAllowanceSpenderId(recordItem, payerAccountId);
         tokenTransfers.forEach(tokenTransfer -> {
             var tokenId = EntityId.of(tokenTransfer.getToken());
             tokenTransfer.getTransfersList().forEach(accountAmount -> {
