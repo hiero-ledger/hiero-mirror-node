@@ -21,9 +21,8 @@ import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.db.DBProperties;
-import org.hiero.mirror.importer.parser.record.receipt.ReceiptAssembler;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptBlockUtils;
-import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootCalculator;
+import org.hiero.mirror.importer.parser.record.receipt.ReceiptRoot;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.convert.support.DefaultConversionService;
@@ -89,8 +88,6 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
 
     private final int batchSize;
     private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
-    private final ReceiptAssembler receiptAssembler;
-    private final ReceiptRootCalculator receiptRootCalculator;
     private final boolean v2;
 
     public BackfillReceiptsRootMigration(
@@ -98,9 +95,7 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
             Environment environment,
             ImporterProperties importerProperties,
             ObjectProvider<JdbcOperations> jdbcOperationsProvider,
-            ObjectProvider<TransactionOperations> transactionOperationsProvider,
-            ReceiptAssembler receiptAssembler,
-            ReceiptRootCalculator receiptRootCalculator) {
+            ObjectProvider<TransactionOperations> transactionOperationsProvider) {
         super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
         this.batchSize = Integer.parseInt(
                 migrationProperties.getParams().getOrDefault(BATCH_SIZE_KEY, String.valueOf(DEFAULT_BATCH_SIZE)));
@@ -108,8 +103,6 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
             throw new IllegalArgumentException("Invalid non-positive %s %d".formatted(BATCH_SIZE_KEY, batchSize));
         }
         this.transactionOperationsProvider = transactionOperationsProvider;
-        this.receiptAssembler = receiptAssembler;
-        this.receiptRootCalculator = receiptRootCalculator;
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
     }
 
@@ -184,13 +177,14 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
         var updates = new MapSqlParameterSource[blocks.size()];
         for (int i = 0; i < blocks.size(); i++) {
             var block = blocks.get(i);
-            var receipts = receiptAssembler.assemble(
-                    resultsByBlock.getOrDefault(block.consensusStart(), List.of()),
-                    logsByBlock.getOrDefault(block.consensusStart(), List.of()),
-                    transactionTypes,
-                    evmAddresses);
+            var receiptsRoot = ReceiptRoot.of(
+                            resultsByBlock.getOrDefault(block.consensusStart(), List.of()),
+                            logsByBlock.getOrDefault(block.consensusStart(), List.of()),
+                            transactionTypes,
+                            evmAddresses)
+                    .getRootHash();
             updates[i] = new MapSqlParameterSource()
-                    .addValue("receiptsRoot", receiptRootCalculator.calculate(receipts))
+                    .addValue("receiptsRoot", receiptsRoot)
                     .addValue("consensusEnd", block.consensusEnd());
         }
         jdbcOperations.batchUpdate(UPDATE_RECEIPTS_ROOT, updates);

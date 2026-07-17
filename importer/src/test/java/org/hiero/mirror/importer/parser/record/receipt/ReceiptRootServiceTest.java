@@ -49,14 +49,12 @@ final class ReceiptRootServiceTest {
     @Mock
     private ParserContext parserContext;
 
-    private final ReceiptAssembler receiptAssembler = new ReceiptAssembler();
     private final ReceiptRootCalculator receiptRootCalculator = new ReceiptRootCalculator();
     private ReceiptRootService service;
 
     @BeforeEach
     void setup() {
-        service = new ReceiptRootService(
-                entityProperties, entityRepository, parserContext, receiptAssembler, receiptRootCalculator);
+        service = new ReceiptRootService(entityProperties, entityRepository, parserContext);
         lenient().when(entityProperties.getPersist()).thenReturn(persistProperties);
         lenient().when(persistProperties.isContractResults()).thenReturn(true);
         lenient().when(parserContext.get(RecordFile.class)).thenReturn(List.of());

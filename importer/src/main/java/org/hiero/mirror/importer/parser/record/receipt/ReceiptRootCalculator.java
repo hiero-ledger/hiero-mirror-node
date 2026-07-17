@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.parser.record.receipt;
 
-import jakarta.inject.Named;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
@@ -15,8 +14,7 @@ import org.hyperledger.besu.ethereum.trie.patricia.SimpleMerklePatriciaTrie;
 /**
  * Computes the Ethereum block-header receipts-trie root from a block's receipts.
  */
-@Named
-public class ReceiptRootCalculator {
+final class ReceiptRootCalculator {
 
     private static final byte[] EMPTY_RECEIPTS_ROOT = new byte[32];
     private static final Bytes STATUS_SUCCESS = Bytes.of(1);

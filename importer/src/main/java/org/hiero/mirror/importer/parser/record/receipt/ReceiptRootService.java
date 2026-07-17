@@ -32,8 +32,6 @@ public class ReceiptRootService {
     private final EntityProperties entityProperties;
     private final EntityRepository entityRepository;
     private final ParserContext parserContext;
-    private final ReceiptAssembler receiptAssembler;
-    private final ReceiptRootCalculator receiptRootCalculator;
 
     /**
      * Computes and assigns {@code receiptsRoot} on every record file in the current parser context.
@@ -90,8 +88,8 @@ public class ReceiptRootService {
             final Collection<ContractLog> contractLogs,
             final Map<Long, Integer> types,
             final Map<Long, byte[]> evmAddresses) {
-        return receiptRootCalculator.calculate(
-                receiptAssembler.assemble(contractResults, contractLogs, types, evmAddresses));
+        return ReceiptRoot.of(contractResults, contractLogs, types, evmAddresses)
+                .getRootHash();
     }
 
     private Map<Long, Integer> ethereumTransactionTypes() {

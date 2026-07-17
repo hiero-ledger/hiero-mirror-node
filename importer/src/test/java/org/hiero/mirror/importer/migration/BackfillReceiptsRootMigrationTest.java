@@ -13,8 +13,7 @@ import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.db.DBProperties;
-import org.hiero.mirror.importer.parser.record.receipt.ReceiptAssembler;
-import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootCalculator;
+import org.hiero.mirror.importer.parser.record.receipt.ReceiptRoot;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -33,8 +32,6 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
     private final ObjectProvider<JdbcOperations> jdbcOperationsProvider;
     private final BackfillReceiptsRootMigration migration;
     private final RecordFileRepository recordFileRepository;
-    private final ReceiptAssembler receiptAssembler;
-    private final ReceiptRootCalculator receiptRootCalculator;
     private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
 
     @Test
@@ -86,11 +83,12 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
         migration.migrateAsync();
 
         // then
-        var expectedBlock2 = receiptRootCalculator.calculate(receiptAssembler.assemble(
-                List.of(contractResult),
-                List.of(contractLog),
-                Map.of(timestamp2, 2),
-                Map.of(contract.getId(), contract.getEvmAddress())));
+        var expectedBlock2 = ReceiptRoot.of(
+                        List.of(contractResult),
+                        List.of(contractLog),
+                        Map.of(timestamp2, 2),
+                        Map.of(contract.getId(), contract.getEvmAddress()))
+                .getRootHash();
 
         assertThat(recordFileRepository.findById(block1.getConsensusEnd()))
                 .get()
@@ -152,8 +150,9 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
         contractResult1.setTransactionIndex(1);
         contractResult2.setTransactionIndex(2);
         contractLog.setTransactionIndex(3);
-        var expected = receiptRootCalculator.calculate(receiptAssembler.assemble(
-                List.of(contractResult1, contractResult2), List.of(contractLog), Map.of(), Map.of()));
+        var expected = ReceiptRoot.of(
+                        List.of(contractResult1, contractResult2), List.of(contractLog), Map.of(), Map.of())
+                .getRootHash();
 
         assertThat(recordFileRepository.findById(block.getConsensusEnd()))
                 .get()
@@ -263,13 +262,7 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
         importerProperties.getMigration().put("backfillReceiptsRootMigration", migrationProperties);
 
         return new BackfillReceiptsRootMigration(
-                dbProperties,
-                environment,
-                importerProperties,
-                jdbcOperationsProvider,
-                transactionOperationsProvider,
-                receiptAssembler,
-                receiptRootCalculator);
+                dbProperties, environment, importerProperties, jdbcOperationsProvider, transactionOperationsProvider);
     }
 
     private RecordFile persistBlockMissingReceiptsRoot(long consensusStart, long consensusEnd) {
