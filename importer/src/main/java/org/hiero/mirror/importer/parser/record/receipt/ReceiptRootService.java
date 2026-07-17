@@ -48,7 +48,11 @@ public class ReceiptRootService {
             return;
         }
 
-        final var contractResults = parserContext.get(ContractResult.class);
+        // Child (internal) contract results are excluded to match the relay, which computed the receipts root from
+        // the REST API's default internal=false view (transaction_nonce = 0); their gas does not accumulate either
+        final var contractResults = parserContext.get(ContractResult.class).stream()
+                .filter(result -> result.getTransactionNonce() == 0)
+                .toList();
         final var contractLogs = parserContext.get(ContractLog.class);
         final var types = ethereumTransactionTypes();
         final var evmAddresses = resolveEvmAddresses(contractLogs);

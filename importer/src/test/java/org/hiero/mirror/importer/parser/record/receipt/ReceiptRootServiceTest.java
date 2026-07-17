@@ -158,6 +158,38 @@ final class ReceiptRootServiceTest {
     }
 
     @Test
+    void childContractResultsExcluded() {
+        final var bloom = fill((byte) 0x11, LogsBloomFilter.BYTE_SIZE);
+        final var topLevel = ContractResult.builder()
+                .consensusTimestamp(100L)
+                .transactionIndex(0)
+                .gasUsed(1000L)
+                .transactionResult(ResponseCodeEnum.SUCCESS_VALUE)
+                .bloom(bloom)
+                .build();
+        // Child (internal) contract result; must not become a receipt and its gas must not accumulate
+        final var child = ContractResult.builder()
+                .consensusTimestamp(101L)
+                .transactionIndex(1)
+                .transactionNonce(1)
+                .gasUsed(500L)
+                .transactionResult(ResponseCodeEnum.SUCCESS_VALUE)
+                .bloom(fill((byte) 0x22, LogsBloomFilter.BYTE_SIZE))
+                .build();
+
+        final var recordFile = new RecordFile();
+        when(parserContext.get(RecordFile.class)).thenReturn(List.of(recordFile));
+        when(parserContext.get(ContractResult.class)).thenReturn(List.of(topLevel, child));
+        when(parserContext.get(ContractLog.class)).thenReturn(List.of());
+
+        service.updateReceiptsRoot();
+
+        assertThat(recordFile.getReceiptsRoot())
+                .isEqualTo(receiptRootCalculator.calculate(
+                        List.of(new Receipt(0, 0, true, null, 1000L, bloom, List.of()))));
+    }
+
+    @Test
     void batchPartitionsReceiptsByBlock() {
         final var bloom1 = fill((byte) 0x11, LogsBloomFilter.BYTE_SIZE);
         final var bloom2 = fill((byte) 0x22, LogsBloomFilter.BYTE_SIZE);

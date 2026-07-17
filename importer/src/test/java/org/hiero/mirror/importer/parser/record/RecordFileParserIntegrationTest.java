@@ -5,8 +5,17 @@ package org.hiero.mirror.importer.parser.record;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.DEFAULT_GAS_USED;
 
+import com.google.protobuf.ByteString;
+import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.ContractLoginfo;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.TokenID;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -23,6 +32,7 @@ import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.domain.RecordFileBuilder;
+import org.hiero.mirror.importer.parser.record.ethereum.LegacyEthereumTransactionParserTest;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.CryptoTransferRepository;
 import org.hiero.mirror.importer.repository.EntityRepository;
@@ -322,6 +332,141 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         });
     }
 
+    /**
+     * End-to-end test replaying Hedera mainnet block 97776120 (0x5d3f1f8), whose receiptsRoot
+     * {@code 0xd0795716...} was returned by the JSON-RPC relay (eth_getBlockByNumber via mainnet.hashio.io on
+     * 2026-07-17). The block contains, in transaction order: a successful legacy Ethereum transaction with four logs
+     * (index 0), four plain crypto transfers (1-4), a successful legacy Ethereum transaction with five logs (5) that
+     * spawned four child transactions with their own contract results (6-9, excluded from the receipts trie), a
+     * failed (WRONG_NONCE) Ethereum transaction (10) and a crypto approve allowance producing a synthetic approval
+     * log (11). All receipt-relevant values (gas, blooms, log addresses/topics/data, entity ids) mirror the mainnet
+     * block, so the persisted receipts root must be byte-identical to the relay's.
+     */
+    @Test
+    void receiptsRootOfReplayedMainnetBlockMatchesRelay() {
+        // given contracts with EVM address aliases referenced by the block's logs
+        persistContract(9469373L, "f09afe78d3c7d359b334d7cb88995751f7ec5e13");
+        persistContract(10603948L, "47cbb1f75fa2a98a87f861c5039fcb522b93a640");
+        persistContract(3964804L, "c5b707348da504e9be1bd4e21525459830e7b11d");
+
+        var recordFile = recordFileBuilder
+                .recordFile()
+                .recordItem(() -> ethereumTransactionItem(
+                        0,
+                        130465L,
+                        9469373L,
+                        BLOOM_TX_0,
+                        List.of(
+                                logInfo(
+                                        10603948L,
+                                        "00000000000000000000000000000000000000000000000071a7432fce49c000"
+                                                + "000000000000000000000000000000000000000000000000000000006a59dc96",
+                                        "52f50aa6d1a95a4595361ecf953d095f125d442e4673716dede699e049de148a",
+                                        "0000000000000000000000007ce6bb2cc2d3fd45a974da6a0f29236cb9513a98"),
+                                logInfo(
+                                        10603948L,
+                                        "0000000000000000000000000000000000000000022373a84bf1629d14e00000"
+                                                + "000000000000000000000000000000000000000000000000000000006a59dc96",
+                                        "52f50aa6d1a95a4595361ecf953d095f125d442e4673716dede699e049de148a",
+                                        "000000000000000000000000b1f616b8134f602c3bb465fb5b5e6565ccad37ed"),
+                                logInfo(
+                                        9469373L,
+                                        "0000000000000000000000000000000000000000000000000000000000000060"
+                                                + "0000000000000000000000000000000000000000000000000000000000000080"
+                                                + "00000000000000000000000000000000000000000000000000000000000000a0"
+                                                + "0000000000000000000000000000000000000000000000000000000000000000"
+                                                + "0000000000000000000000000000000000000000000000000000000000000000"
+                                                + "0000000000000000000000000000000000000000000000000000000000000040"
+                                                + "00000000000000000000000000000000000000000000000000000000000000e0"
+                                                + "0000000000000000000000000000000000000000000000000000000000000002"
+                                                + "0000000000000000000000007ce6bb2cc2d3fd45a974da6a0f29236cb9513a98"
+                                                + "00000000000000000000000000000000000000000000000071a7432fce49c000"
+                                                + "000000000000000000000000b1f616b8134f602c3bb465fb5b5e6565ccad37ed"
+                                                + "0000000000000000000000000000000000000000022373a84bf1629d14e00000"
+                                                + "0000000000000000000000000000000000000000000000000000000000000000",
+                                        "b967c9b9e1b7af9a61ca71ff00e9f5b89ec6f2e268de8dacf12f0de8e51f3e47"),
+                                logInfo(
+                                        9469373L,
+                                        "000ad45374fd3ec68ae6c31741ec5c0f705c103f68ec76a31bf20101032a8e1c"
+                                                + "000000000000000000000000000000000000000000000000000000000003f954",
+                                        "198d6990ef96613a9026203077e422916918b03ff47f0be6bee7b02d8e139ef0",
+                                        "0000000000000000000000000000000000000000000000000000000000000000"))))
+                .recordItem(() -> cryptoTransferItem(1))
+                .recordItem(() -> cryptoTransferItem(2))
+                .recordItem(() -> cryptoTransferItem(3))
+                .recordItem(() -> cryptoTransferItem(4))
+                .recordItem(() -> ethereumTransactionItem(
+                        5,
+                        142621L,
+                        3949434L,
+                        BLOOM_TX_5,
+                        List.of(
+                                logInfo(
+                                        456858L,
+                                        "00000000000000000000000000000000000000000000000000000000274af988",
+                                        "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                                        "000000000000000000000000c5b707348da504e9be1bd4e21525459830e7b11d",
+                                        "0000000000000000000000003da633d7e99e590a6c6fbe392921e087e1f6d423"),
+                                logInfo(
+                                        3964804L,
+                                        "00000000000000000000000000000000000000000000000000000000274af988",
+                                        "5f2147fb558c977441fbdfebcf8cd5776606adc8da5ff95566fc2a4137e54d13",
+                                        "000000000000000000000000c5b707348da504e9be1bd4e21525459830e7b11d",
+                                        "0000000000000000000000003da633d7e99e590a6c6fbe392921e087e1f6d423",
+                                        "000000000000000000000000000000000000000000000000000000000006f89a"),
+                                logInfo(
+                                        1456986L,
+                                        "000000000000000000000000000000000000000000000000000000e8d4a51000",
+                                        "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                                        "0000000000000000000000003da633d7e99e590a6c6fbe392921e087e1f6d423",
+                                        "000000000000000000000000c5b707348da504e9be1bd4e21525459830e7b11d"),
+                                logInfo(
+                                        3949434L,
+                                        "000000000000000000000000000000000000000000000000000000e8d4a51000",
+                                        "5f2147fb558c977441fbdfebcf8cd5776606adc8da5ff95566fc2a4137e54d13",
+                                        "0000000000000000000000003da633d7e99e590a6c6fbe392921e087e1f6d423",
+                                        "000000000000000000000000c5b707348da504e9be1bd4e21525459830e7b11d",
+                                        "0000000000000000000000000000000000000000000000000000000000163b5a"),
+                                logInfo(
+                                        3964804L,
+                                        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffd8b50678"
+                                                + "000000000000000000000000000000000000000000000000000000e8d4a51000"
+                                                + "0000000000000000000000000000000000000026eb79c1729d30dce470eec791"
+                                                + "00000000000000000000000000000000000000000000000000017239172efa3f"
+                                                + "0000000000000000000000000000000000000000000000000000000000011e11",
+                                        "c42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67",
+                                        "00000000000000000000000000000000000000000000000000000000003c437a",
+                                        "0000000000000000000000003da633d7e99e590a6c6fbe392921e087e1f6d423"))))
+                .recordItem(() -> childItem(recordItemBuilder.cryptoTransfer(), 6, 1, 15284L))
+                .recordItem(() -> childItem(recordItemBuilder.contractCall(), 7, 2, 2607L))
+                .recordItem(() -> childItem(recordItemBuilder.cryptoTransfer(), 8, 3, 15284L))
+                .recordItem(() -> childItem(recordItemBuilder.contractCall(), 9, 4, 2607L))
+                .recordItem(() -> ethereumTransactionItem(10, 0L, 7646340L, new byte[0], List.of())
+                        .receipt(r -> r.setStatus(ResponseCodeEnum.WRONG_NONCE)))
+                .recordItem(() -> recordItemBuilder
+                        .cryptoApproveAllowance()
+                        .transactionBody(b -> b.clearCryptoAllowances()
+                                .clearNftAllowances()
+                                .clearTokenAllowances()
+                                .addTokenAllowances(com.hederahashgraph.api.proto.java.TokenAllowance.newBuilder()
+                                        .setOwner(AccountID.newBuilder().setAccountNum(1339713L))
+                                        .setSpender(AccountID.newBuilder().setAccountNum(4053945L))
+                                        .setTokenId(TokenID.newBuilder().setTokenNum(731861L))
+                                        .setAmount(240595193L)))
+                        .recordItem(r -> r.transactionIndex(11)))
+                .build();
+
+        // when
+        recordFileParser.parse(recordFile);
+
+        // then
+        assertThat(recordFileRepository.findById(recordFile.getConsensusEnd()))
+                .isPresent()
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(HexFormat.of().parseHex("d0795716bb4358e4629a531b389f75abd79c42b51d962271a7db16d1e5a96626"));
+    }
+
     @Test
     void topicMessage() {
         int count = 3;
@@ -369,6 +514,84 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         // then
         assertRecordFile(recordFile1);
         assertThat(retryRecorder.getRetries(ParserException.class)).isEqualTo(2);
+    }
+
+    private static final byte[] BLOOM_TX_0 = HexFormat.of()
+            .parseHex("0000000000000000000000000000000000000000000000008000000000000000"
+                    + "0000000020000000000000000000000000000000000000000000000020000a00"
+                    + "0000000000000000000000000004000000002000000001000000000000000001"
+                    + "0000000002000000000000000000080000000000000000000000000000000100"
+                    + "0000000000010000000000000000000000000000000000000000000000000001"
+                    + "0000000000000000000000000000000000000000000080000000000002000000"
+                    + "0000000000000004000000000000000000000000000000001000000020002000"
+                    + "0000000800000000000010000000000000000001000000008000000000000000");
+
+    private static final byte[] BLOOM_TX_5 = HexFormat.of()
+            .parseHex("0000208000000000200000000000000000000000000002010000000000000000"
+                    + "0000000000000000800000000000000000000000010020000000000000020040"
+                    + "0000400000002008000000080000000000000080000000000000000000000000"
+                    + "0000000000000000000000000020000000000000000000000020001000088000"
+                    + "0000000000000000000800008000000000000000000000000000200000000000"
+                    + "0000002000040000000000000000000000000002000000000000000000000000"
+                    + "0008000300000000000000000000000000020080000000000000002000000000"
+                    + "0000000000000004000000000000000000000000000002000010000000800000");
+
+    private static final long HTS_PRECOMPILE_CONTRACT_NUM = 359L;
+
+    private void persistContract(long num, String evmAddress) {
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(num).num(num).evmAddress(HexFormat.of().parseHex(evmAddress)))
+                .persist();
+    }
+
+    private RecordItemBuilder.Builder<?> ethereumTransactionItem(
+            int transactionIndex, long gasUsed, long contractNum, byte[] bloom, List<ContractLoginfo> logs) {
+        var contractId = ContractID.newBuilder().setContractNum(contractNum).build();
+        var functionResult = ContractFunctionResult.newBuilder()
+                .setContractID(contractId)
+                .setGasUsed(gasUsed)
+                .setBloom(DomainUtils.fromBytes(bloom))
+                .addAllLogInfo(logs)
+                .build();
+        return recordItemBuilder
+                .ethereumTransaction()
+                .transactionBody(b -> b.setEthereumData(ByteString.copyFrom(
+                        HexFormat.of().parseHex(LegacyEthereumTransactionParserTest.LEGACY_RAW_TX))))
+                .receipt(r -> r.setContractID(contractId))
+                .record(r -> r.setContractCallResult(functionResult))
+                .recordItem(r -> r.transactionIndex(transactionIndex));
+    }
+
+    private RecordItemBuilder.Builder<?> cryptoTransferItem(int transactionIndex) {
+        return recordItemBuilder.cryptoTransfer().recordItem(r -> r.transactionIndex(transactionIndex));
+    }
+
+    private RecordItemBuilder.Builder<?> childItem(
+            RecordItemBuilder.Builder<?> builder, int transactionIndex, int nonce, long gasUsed) {
+        var contractId = ContractID.newBuilder()
+                .setContractNum(HTS_PRECOMPILE_CONTRACT_NUM)
+                .build();
+        var functionResult = ContractFunctionResult.newBuilder()
+                .setContractID(contractId)
+                .setGasUsed(gasUsed)
+                .build();
+        var transactionId = TransactionID.newBuilder()
+                .setNonce(nonce)
+                .setAccountID(recordItemBuilder.accountId())
+                .setScheduled(false);
+        return builder.record(r -> r.setContractCallResult(functionResult).setTransactionID(transactionId))
+                .recordItem(r -> r.transactionIndex(transactionIndex));
+    }
+
+    private ContractLoginfo logInfo(long contractNum, String data, String... topics) {
+        var builder = ContractLoginfo.newBuilder()
+                .setContractID(ContractID.newBuilder().setContractNum(contractNum))
+                .setData(ByteString.copyFrom(HexFormat.of().parseHex(data)));
+        for (var topic : topics) {
+            builder.addTopic(ByteString.copyFrom(HexFormat.of().parseHex(topic)));
+        }
+        return builder.build();
     }
 
     private void assertRecordFile(RecordFile... recordFiles) {

@@ -51,10 +51,11 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
             order by consensus_end desc limit :limit
             """;
 
+    // transaction_nonce = 0 excludes child (internal) contract results, matching the relay's behaviour
     private static final String SELECT_CONTRACT_RESULTS = """
             select bloom, consensus_timestamp, gas_used, transaction_index, transaction_result
             from contract_result
-            where consensus_timestamp between :consensusStart and :consensusEnd
+            where consensus_timestamp between :consensusStart and :consensusEnd and transaction_nonce = 0
             """;
 
     private static final String SELECT_CONTRACT_LOGS = """
