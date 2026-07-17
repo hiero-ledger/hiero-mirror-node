@@ -131,10 +131,8 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
                 .persist();
         var contractLog = domainBuilder
                 .contractLog()
-                .customize(c -> c.consensusTimestamp(timestamp3).index(0))
+                .customize(c -> c.consensusTimestamp(timestamp3).index(0).transactionIndex(null))
                 .persist();
-        jdbcOperations.update(
-                "update contract_log set transaction_index = null where consensus_timestamp = ?", timestamp3);
 
         domainBuilder
                 .transaction()

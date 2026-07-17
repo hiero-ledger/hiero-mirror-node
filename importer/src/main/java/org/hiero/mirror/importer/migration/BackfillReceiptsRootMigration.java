@@ -3,8 +3,6 @@
 package org.hiero.mirror.importer.migration;
 
 import jakarta.inject.Named;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -16,6 +14,7 @@ import java.util.Optional;
 import java.util.TreeMap;
 import org.apache.commons.lang3.ArrayUtils;
 import org.flywaydb.core.api.MigrationVersion;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -27,9 +26,12 @@ import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootCalculator;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.transaction.support.TransactionOperations;
 
@@ -44,6 +46,8 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
 
     static final int DEFAULT_BATCH_SIZE = 100;
     private static final String BATCH_SIZE_KEY = "batchSize";
+    private static final RowMapper<ContractLog> CONTRACT_LOG_ROW_MAPPER = rowMapper(ContractLog.class);
+    private static final RowMapper<ContractResult> CONTRACT_RESULT_ROW_MAPPER = rowMapper(ContractResult.class);
 
     private static final String SELECT_BLOCKS = """
             select consensus_start, consensus_end from record_file
@@ -143,10 +147,14 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
                 "consensusStart", blocks.getLast().consensusStart(),
                 "consensusEnd", blocks.getFirst().consensusEnd());
 
+        var contractResults = jdbcOperations.query(SELECT_CONTRACT_RESULTS, rangeParams, CONTRACT_RESULT_ROW_MAPPER);
+        var contractLogs = jdbcOperations.query(SELECT_CONTRACT_LOGS, rangeParams, CONTRACT_LOG_ROW_MAPPER);
         var logsMissingIndex = new ArrayList<ContractLog>();
-        var contractResults = jdbcOperations.query(SELECT_CONTRACT_RESULTS, rangeParams, this::mapContractResult);
-        var contractLogs = jdbcOperations.query(
-                SELECT_CONTRACT_LOGS, rangeParams, (rs, rowNum) -> mapContractLog(rs, logsMissingIndex));
+        for (var contractLog : contractLogs) {
+            if (contractLog.getTransactionIndex() == null) {
+                logsMissingIndex.add(contractLog);
+            }
+        }
         resolveMissingTransactionIndexes(contractResults, logsMissingIndex);
 
         var transactionTypes = new HashMap<Long, Integer>();
@@ -178,34 +186,13 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
         return Optional.of(blocks.getLast().consensusEnd());
     }
 
-    private ContractResult mapContractResult(ResultSet rs, int rowNum) throws SQLException {
-        var contractResult = new ContractResult();
-        contractResult.setBloom(rs.getBytes("bloom"));
-        contractResult.setConsensusTimestamp(rs.getLong("consensus_timestamp"));
-        contractResult.setGasUsed(rs.getObject("gas_used", Long.class));
-        contractResult.setTransactionIndex(rs.getObject("transaction_index", Integer.class));
-        contractResult.setTransactionResult(rs.getObject("transaction_result", Integer.class));
-        return contractResult;
-    }
-
-    private ContractLog mapContractLog(ResultSet rs, List<ContractLog> missingIndex) throws SQLException {
-        var contractLog = new ContractLog();
-        contractLog.setConsensusTimestamp(rs.getLong("consensus_timestamp"));
-        contractLog.setContractId(EntityId.of(rs.getLong("contract_id")));
-        contractLog.setData(rs.getBytes("data"));
-        contractLog.setIndex(rs.getInt("index"));
-        contractLog.setTopic0(rs.getBytes("topic0"));
-        contractLog.setTopic1(rs.getBytes("topic1"));
-        contractLog.setTopic2(rs.getBytes("topic2"));
-        contractLog.setTopic3(rs.getBytes("topic3"));
-
-        var transactionIndex = rs.getObject("transaction_index", Integer.class);
-        contractLog.setTransactionIndex(transactionIndex != null ? transactionIndex : 0);
-        if (transactionIndex == null) {
-            missingIndex.add(contractLog);
-        }
-
-        return contractLog;
+    private static <T> RowMapper<T> rowMapper(Class<T> type) {
+        var conversionService = new DefaultConversionService();
+        conversionService.addConverter(
+                Long.class, EntityId.class, EntityIdConverter.INSTANCE::convertToEntityAttribute);
+        var mapper = new DataClassRowMapper<>(type);
+        mapper.setConversionService(conversionService);
+        return mapper;
     }
 
     private void resolveMissingTransactionIndexes(

@@ -85,7 +85,7 @@ public class ReceiptAssembler {
             } else {
                 final var firstLog = logsByTimestamp.get(timestamp).firstEntry().getValue();
                 receipts.add(new Receipt(
-                        firstLog.getTransactionIndex(),
+                        firstLog.getTransactionIndex() != null ? firstLog.getTransactionIndex() : 0,
                         0,
                         true,
                         SYNTHETIC_ROOT,
