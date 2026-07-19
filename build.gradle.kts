@@ -72,8 +72,8 @@ dependencies {
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
-        api("org.bouncycastle:bcpkix-jdk18on:1.84") // Temporary until next hedera-app
-        api("org.bouncycastle:bcprov-jdk18on:1.84")
+        api("org.bouncycastle:bcpkix-jdk18on:1.85") // Temporary until next hedera-app
+        api("org.bouncycastle:bcprov-jdk18on:1.85")
         api("org.gaul:s3proxy:3.3.0")
         api("org.graalvm.nativeimage:svm:25.0.3")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
