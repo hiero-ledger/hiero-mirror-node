@@ -10,5 +10,7 @@ public interface ThrottleManager {
 
     void throttleOpcodeRequest();
 
+    void throttleSimulateRequest(long totalGas);
+
     void restore(long gas);
 }

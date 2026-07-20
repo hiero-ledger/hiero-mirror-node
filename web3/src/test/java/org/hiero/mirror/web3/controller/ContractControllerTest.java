@@ -4,12 +4,15 @@ package org.hiero.mirror.web3.controller;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -26,6 +29,7 @@ import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.SneakyThrows;
@@ -40,11 +44,16 @@ import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
+import org.hiero.mirror.web3.service.ContractSimulateService;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
+import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
+import org.hiero.mirror.web3.viewmodel.SimulateCall;
+import org.hiero.mirror.web3.viewmodel.SimulateRequest;
+import org.hiero.mirror.web3.viewmodel.SimulateResponse;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls;
@@ -56,6 +65,7 @@ import org.hiero.mirror.web3.web3j.generated.ExchangeRatePrecompileHistorical;
 import org.hiero.mirror.web3.web3j.generated.NestedCallsHistorical;
 import org.hiero.mirror.web3.web3j.generated.PrecompileTestContractHistorical;
 import org.hiero.mirror.web3.web3j.generated.TestAddressThis;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -83,6 +93,7 @@ import org.springframework.test.web.servlet.ResultActions;
 final class ContractControllerTest {
 
     private static final String CALL_URI = "/api/v1/contracts/call";
+    private static final String SIMULATE_URI = "/api/v1/contracts/simulate";
     private static final long THROTTLE_GAS_LIMIT = 10_000_000L;
     private static final String INIT_CODE = "0x6080604052348015600f57600080fd5b5060a38061001c6000396000f3";
 
@@ -97,6 +108,9 @@ final class ContractControllerTest {
 
     @MockitoBean
     private ContractExecutionService service;
+
+    @MockitoBean
+    private ContractSimulateService contractSimulateService;
 
     @MockitoBean
     private ThrottleManager throttleManager;
@@ -694,6 +708,155 @@ final class ContractControllerTest {
 
     private String numberErrorString(String field, String direction, long num) {
         return String.format("%s field must be %s than or equal to %d", field, direction, num);
+    }
+
+    @AfterEach
+    void resetWeb3Properties() {
+        web3Properties.setEnableSimulate(false);
+        web3Properties.setEnableStateOverrides(false);
+    }
+
+    @SneakyThrows
+    private ResultActions simulate(SimulateRequest request) {
+        return simulate(convert(request));
+    }
+
+    @SneakyThrows
+    private ResultActions simulate(String requestBody) {
+        return mockMvc.perform(post(SIMULATE_URI)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody));
+    }
+
+    private SimulateRequest simulateRequest(int callCount) {
+        final var calls = new ArrayList<SimulateCall>();
+        for (int i = 0; i < callCount; i++) {
+            final var call = new SimulateCall();
+            call.setTo("0x00000000000000000000000000000000000004e4");
+            calls.add(call);
+        }
+        final var blockStateCall = new SimulateBlockStateCall();
+        blockStateCall.setCalls(calls);
+        final var request = new SimulateRequest();
+        request.setBlockStateCalls(List.of(blockStateCall));
+        return request;
+    }
+
+    @Test
+    void simulateSuccess() throws Exception {
+        web3Properties.setEnableSimulate(true);
+        final var request = simulateRequest(1);
+        final var response = new SimulateResponse(List.of());
+        given(contractSimulateService.simulate(request)).willReturn(response);
+
+        simulate(request).andExpect(status().isOk()).andExpect(content().string(convert(response)));
+
+        verify(throttleManager).throttleSimulateRequest(15_000_000L);
+    }
+
+    @Test
+    void simulateDisabledIsBadRequestWithoutConsumingThrottle() throws Exception {
+        final var request = simulateRequest(1);
+
+        simulate(request).andExpect(status().isBadRequest());
+
+        verify(throttleManager, never()).throttleSimulateRequest(anyLong());
+    }
+
+    @Test
+    void simulateWithStateOverridesDisabledIsBadRequestWithoutConsumingThrottle() throws Exception {
+        web3Properties.setEnableSimulate(true);
+        final var request = simulateRequest(1);
+        final var override = new StateOverride();
+        override.setAddress("0x00000000000000000000000000000000000004e4");
+        override.setBalance("0x1");
+        request.getBlockStateCalls().getFirst().setStateOverrides(List.of(override));
+
+        simulate(request).andExpect(status().isBadRequest());
+
+        verify(throttleManager, never()).throttleSimulateRequest(anyLong());
+    }
+
+    @Test
+    void simulateExceedingMaxGasIsBadRequestWithoutConsumingThrottle() throws Exception {
+        web3Properties.setEnableSimulate(true);
+        final var request = simulateRequest(1);
+        request.getBlockStateCalls().getFirst().getCalls().getFirst().setGas(15_000_001L);
+
+        simulate(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString(numberErrorString("gas", "less", 15_000_000L))));
+
+        verify(throttleManager, never()).throttleSimulateRequest(anyLong());
+    }
+
+    @Test
+    void simulateAcceptsHexQuantities() throws Exception {
+        web3Properties.setEnableSimulate(true);
+        given(contractSimulateService.simulate(any(SimulateRequest.class))).willReturn(new SimulateResponse(List.of()));
+
+        simulate("""
+                {
+                    "block_state_calls": [
+                        {
+                            "calls": [
+                                {
+                                    "from": "0x00000000000000000000000000000000000004e2",
+                                    "to": "0x00000000000000000000000000000000000004e4",
+                                    "value": "0x1"
+                                }
+                            ]
+                        }
+                    ]
+                }
+                """).andExpect(status().isOk());
+    }
+
+    @Test
+    void simulateNullBlockStateCallsIsBadRequest() throws Exception {
+        web3Properties.setEnableSimulate(true);
+
+        simulate("{\"block_state_calls\": null}").andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void simulateNullCallsInEntryIsBadRequest() throws Exception {
+        web3Properties.setEnableSimulate(true);
+
+        simulate("{\"block_state_calls\": [{\"calls\": null}]}").andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void simulateExceedingMaxCallsIsBadRequest() throws Exception {
+        web3Properties.setEnableSimulate(true);
+        final var request = simulateRequest(SimulateRequest.MAX_CALLS + 1);
+
+        simulate(request).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void simulateEmptyBlockStateCallsIsBadRequest() throws Exception {
+        web3Properties.setEnableSimulate(true);
+
+        simulate("{\"block_state_calls\": []}").andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void simulateEntryWithZeroCallsIsBadRequest() throws Exception {
+        web3Properties.setEnableSimulate(true);
+        final var request = simulateRequest(0);
+
+        simulate(request).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void simulateAtMaxCallsIsAccepted() throws Exception {
+        web3Properties.setEnableSimulate(true);
+        final var request = simulateRequest(SimulateRequest.MAX_CALLS);
+        given(contractSimulateService.simulate(request)).willReturn(new SimulateResponse(List.of()));
+
+        simulate(request).andExpect(status().isOk());
     }
 
     @TestConfiguration

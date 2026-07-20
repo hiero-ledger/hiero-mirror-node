@@ -14,6 +14,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class Web3Properties {
 
+    private boolean enableSimulate = false;
+
     private boolean enableStateOverrides = false;
 
     @Positive

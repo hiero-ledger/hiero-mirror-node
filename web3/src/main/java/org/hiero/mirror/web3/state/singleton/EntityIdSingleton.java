@@ -56,4 +56,12 @@ final class EntityIdSingleton implements SingletonState<EntityNumber> {
         context.setEntityNumber(entityNumber);
         return entityNumber;
     }
+
+    // Keeps subsequent executions in the same context allocating fresh entity numbers instead of reusing this one.
+    @Override
+    public void onCommit(final EntityNumber entityNumber) {
+        if (ContractCallContext.isInitialized()) {
+            ContractCallContext.get().setEntityNumber(entityNumber);
+        }
+    }
 }

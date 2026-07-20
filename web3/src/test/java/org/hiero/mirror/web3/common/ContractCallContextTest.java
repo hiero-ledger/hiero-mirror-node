@@ -80,4 +80,30 @@ class ContractCallContextTest {
 
         assertThat(context.getTimestamp()).isEqualTo(Optional.of(timestamp));
     }
+
+    @Test
+    void snapshotAndRestoreWriteCacheRollsBackSubsequentWrites() {
+        var context = ContractCallContext.get();
+        context.getWriteCacheState(1).put("preExisting", "value");
+
+        var snapshot = context.snapshotWriteCache();
+        context.getWriteCacheState(1).put("addedAfterSnapshot", "value");
+        context.getWriteCacheState(2).put("addedInNewState", "value");
+
+        context.restoreWriteCache(snapshot);
+
+        assertThat(context.getWriteCacheState(1)).containsOnly(java.util.Map.entry("preExisting", "value"));
+        assertThat(context.getWriteCacheState(2)).isEmpty();
+    }
+
+    @Test
+    void snapshotIsIndependentOfSubsequentMutations() {
+        var context = ContractCallContext.get();
+        context.getWriteCacheState(1).put("key", "original");
+
+        var snapshot = context.snapshotWriteCache();
+        context.getWriteCacheState(1).put("key", "mutated");
+
+        assertThat(snapshot.get(1)).containsOnly(java.util.Map.entry("key", "original"));
+    }
 }

@@ -15,10 +15,14 @@ import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
+import org.hiero.mirror.web3.service.ContractSimulateService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
+import org.hiero.mirror.web3.viewmodel.SimulateCall;
+import org.hiero.mirror.web3.viewmodel.SimulateRequest;
+import org.hiero.mirror.web3.viewmodel.SimulateResponse;
 import org.hyperledger.besu.datatypes.Address;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +38,7 @@ import org.springframework.web.server.ResponseStatusException;
 class ContractController {
 
     private final ContractExecutionService contractExecutionService;
+    private final ContractSimulateService contractSimulateService;
     private final EvmProperties evmProperties;
     private final Web3Properties web3Properties;
     private final ThrottleManager throttleManager;
@@ -104,5 +109,43 @@ class ContractController {
             throw new InvalidParametersException(
                     "gas field must be less than or equal to %d".formatted(evmProperties.getMaxGasLimit()));
         }
+    }
+
+    @PostMapping(value = "/simulate")
+    SimulateResponse simulate(@RequestBody @Valid SimulateRequest request) {
+        // Ordered before throttling: tokens consumed for a rejected request are never restored.
+        if (!web3Properties.isEnableSimulate()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Simulate is not supported.");
+        }
+        if (hasStateOverrides(request) && !web3Properties.isEnableStateOverrides()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
+        }
+        validateSimulateMaxGasLimit(request);
+
+        throttleManager.throttleSimulateRequest(totalGas(request));
+        return contractSimulateService.simulate(request);
+    }
+
+    private boolean hasStateOverrides(SimulateRequest request) {
+        return request.getBlockStateCalls().stream()
+                .anyMatch(entry -> !entry.getStateOverrides().isEmpty());
+    }
+
+    private void validateSimulateMaxGasLimit(SimulateRequest request) {
+        for (final var entry : request.getBlockStateCalls()) {
+            for (final var call : entry.getCalls()) {
+                if (call.getGas() > evmProperties.getMaxGasLimit()) {
+                    throw new InvalidParametersException(
+                            "gas field must be less than or equal to %d".formatted(evmProperties.getMaxGasLimit()));
+                }
+            }
+        }
+    }
+
+    private long totalGas(SimulateRequest request) {
+        return request.getBlockStateCalls().stream()
+                .flatMap(entry -> entry.getCalls().stream())
+                .mapToLong(SimulateCall::getGas)
+                .sum();
     }
 }
