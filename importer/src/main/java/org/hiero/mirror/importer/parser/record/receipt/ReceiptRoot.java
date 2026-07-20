@@ -82,12 +82,15 @@ public final class ReceiptRoot {
      */
     public byte[] getRootHash(
             final Map<Long, Integer> typeByConsensusTimestamp, final Map<Long, byte[]> evmAddressById) {
-        if (transactionsByTimestamp.isEmpty()) {
+        // A null transaction index means the transaction holds no EVM transaction index slot (e.g. a WRONG_NONCE
+        // ethereum transaction that never entered EVM execution) and is not part of the receipts trie
+        final var transactions = transactionsByTimestamp.values().stream()
+                .filter(transaction -> transaction.transactionIndex() != null)
+                .sorted(Comparator.comparingInt(TransactionData::transactionIndex))
+                .toList();
+        if (transactions.isEmpty()) {
             return EMPTY_RECEIPTS_ROOT;
         }
-
-        final var transactions = new ArrayList<>(transactionsByTimestamp.values());
-        transactions.sort(Comparator.comparingInt(TransactionData::transactionIndex));
 
         final var trie = new SimpleMerklePatriciaTrie<Bytes, Bytes>(Function.identity());
         long cumulativeGas = 0L;
@@ -237,13 +240,13 @@ public final class ReceiptRoot {
             this.consensusTimestamp = consensusTimestamp;
         }
 
-        private int transactionIndex() {
+        @Nullable
+        private Integer transactionIndex() {
             if (contractResult != null) {
-                return contractResult.getTransactionIndex() != null ? contractResult.getTransactionIndex() : 0;
+                return contractResult.getTransactionIndex();
             }
 
-            final var firstLog = logs.firstEntry().getValue();
-            return firstLog.getTransactionIndex() != null ? firstLog.getTransactionIndex() : 0;
+            return logs.firstEntry().getValue().getTransactionIndex();
         }
     }
 }

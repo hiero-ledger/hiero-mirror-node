@@ -104,10 +104,9 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
 
     @Test
     void migrateNullTransactionIndex() {
-        // A block with historical rows persisted before transaction indexes were tracked: two contract results and
-        // a synthetic contract log (no matching contract result) all with a null transaction_index. V1.65.4.1 already
-        // backfilled the column from transaction.index, so a remaining null means no index exists anywhere; such
-        // receipts default to trie key 0, matching the relay's behaviour for the same rows.
+        // Rows with a null transaction_index hold no EVM transaction index slot (e.g. WRONG_NONCE ethereum
+        // transactions or rows FixEvmTransactionIndexMigration nulled as non-EVM) and must not contribute receipts;
+        // a block with only such rows gets the empty root.
         var start = domainBuilder.timestamp();
         var end = start + 10;
         var block = persistBlockMissingReceiptsRoot(start, end);
@@ -115,15 +114,15 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
         var timestamp1 = start + 1;
         var timestamp2 = start + 2;
         var timestamp3 = start + 3;
-        var contractResult1 = domainBuilder
+        domainBuilder
                 .contractResult()
                 .customize(c -> c.consensusTimestamp(timestamp1).transactionIndex(null))
                 .persist();
-        var contractResult2 = domainBuilder
+        domainBuilder
                 .contractResult()
                 .customize(c -> c.consensusTimestamp(timestamp2).transactionIndex(null))
                 .persist();
-        var contractLog = domainBuilder
+        domainBuilder
                 .contractLog()
                 .customize(c -> c.consensusTimestamp(timestamp3).index(0).transactionIndex(null))
                 .persist();
@@ -132,16 +131,10 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
         migration.migrateAsync();
 
         // then
-        var expectedRoot = new ReceiptRoot();
-        expectedRoot.add(contractResult1);
-        expectedRoot.add(contractResult2);
-        expectedRoot.add(contractLog);
-        var expected = expectedRoot.getRootHash(Map.of(), Map.of());
-
         assertThat(recordFileRepository.findById(block.getConsensusEnd()))
                 .get()
                 .extracting(RecordFile::getReceiptsRoot)
-                .isEqualTo(expected);
+                .isEqualTo(new byte[32]);
     }
 
     @Test

@@ -18,6 +18,7 @@ import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.convert.DurationStyle;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,6 +29,7 @@ import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Named
+@Order(1)
 final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
     static final String DEFAULT_BATCH_INTERVAL = "12h";

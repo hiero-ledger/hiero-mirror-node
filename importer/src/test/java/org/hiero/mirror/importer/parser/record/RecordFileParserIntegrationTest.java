@@ -14,6 +14,7 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionID;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.LinkedList;
@@ -25,11 +26,13 @@ import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
+import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.domain.RecordFileBuilder;
 import org.hiero.mirror.importer.parser.record.ethereum.LegacyEthereumTransactionParserTest;
@@ -333,26 +336,30 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
     }
 
     /**
-     * End-to-end test replaying Hedera mainnet block 97776120 (0x5d3f1f8), whose receiptsRoot
-     * {@code 0xd0795716...} was returned by the JSON-RPC relay (eth_getBlockByNumber via mainnet.hashio.io on
-     * 2026-07-17). The block contains, in transaction order: a successful legacy Ethereum transaction with four logs
-     * (index 0), four plain crypto transfers (1-4), a successful legacy Ethereum transaction with five logs (5) that
-     * spawned four child transactions with their own contract results (6-9, excluded from the receipts trie), a
-     * failed (WRONG_NONCE) Ethereum transaction (10) and a crypto approve allowance producing a synthetic approval
-     * log (11). All receipt-relevant values (gas, blooms, log addresses/topics/data, entity ids) mirror the mainnet
-     * block, so the persisted receipts root must be byte-identical to the relay's.
+     * End-to-end test replaying Hedera mainnet block 97776120 (0x5d3f1f8). The block contains, in transaction order:
+     * a successful legacy Ethereum transaction with four logs, four plain crypto transfers, a successful legacy
+     * Ethereum transaction with five logs that spawned four child transactions with their own contract results
+     * (excluded from the receipts trie; the child contract calls inherit the parent's EVM transaction index), a
+     * failed (WRONG_NONCE) Ethereum transaction (which claims no EVM transaction index and is excluded) and a crypto
+     * approve allowance producing a synthetic approval log. Under EVM-only transaction indexing the receipts sit at
+     * trie keys 0, 1 and 2 (the synthetic receipt). All receipt-relevant values (gas, blooms, log
+     * addresses/topics/data, entity ids) mirror the mainnet block; the expected root was computed with an independent
+     * implementation (@ethereumjs/trie and @ethereumjs/rlp) over those receipts. It intentionally differs from the
+     * 0xd0795716... root the relay served for this block, whose calculation keyed receipts by the block-wide
+     * transaction index.
      */
     @Test
-    void receiptsRootOfReplayedMainnetBlockMatchesRelay() {
+    void receiptsRootOfReplayedMainnetBlock() {
         // given contracts with EVM address aliases referenced by the block's logs
         persistContract(9469373L, "f09afe78d3c7d359b334d7cb88995751f7ec5e13");
         persistContract(10603948L, "47cbb1f75fa2a98a87f861c5039fcb522b93a640");
         persistContract(3964804L, "c5b707348da504e9be1bd4e21525459830e7b11d");
 
-        var recordFile = recordFileBuilder
-                .recordFile()
-                .recordItem(() -> ethereumTransactionItem(
-                        0,
+        var baseTimestamp = domainBuilder.timestamp();
+        var items = new ArrayList<RecordItem>();
+        var previous = buildItem(
+                items,
+                ethereumTransactionItem(
                         130465L,
                         9469373L,
                         BLOOM_TX_0,
@@ -390,13 +397,17 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                                         "000ad45374fd3ec68ae6c31741ec5c0f705c103f68ec76a31bf20101032a8e1c"
                                                 + "000000000000000000000000000000000000000000000000000000000003f954",
                                         "198d6990ef96613a9026203077e422916918b03ff47f0be6bee7b02d8e139ef0",
-                                        "0000000000000000000000000000000000000000000000000000000000000000"))))
-                .recordItem(() -> cryptoTransferItem(1))
-                .recordItem(() -> cryptoTransferItem(2))
-                .recordItem(() -> cryptoTransferItem(3))
-                .recordItem(() -> cryptoTransferItem(4))
-                .recordItem(() -> ethereumTransactionItem(
-                        5,
+                                        "0000000000000000000000000000000000000000000000000000000000000000"))),
+                baseTimestamp,
+                null,
+                null,
+                0);
+        for (int i = 1; i <= 4; i++) {
+            previous = buildItem(items, recordItemBuilder.cryptoTransfer(), baseTimestamp + i, null, previous, i);
+        }
+        previous = buildItem(
+                items,
+                ethereumTransactionItem(
                         142621L,
                         3949434L,
                         BLOOM_TX_5,
@@ -436,25 +447,71 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                                                 + "0000000000000000000000000000000000000000000000000000000000011e11",
                                         "c42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67",
                                         "00000000000000000000000000000000000000000000000000000000003c437a",
-                                        "0000000000000000000000003da633d7e99e590a6c6fbe392921e087e1f6d423"))))
-                .recordItem(() -> childItem(recordItemBuilder.cryptoTransfer(), 6, 1, 15284L))
-                .recordItem(() -> childItem(recordItemBuilder.contractCall(), 7, 2, 2607L))
-                .recordItem(() -> childItem(recordItemBuilder.cryptoTransfer(), 8, 3, 15284L))
-                .recordItem(() -> childItem(recordItemBuilder.contractCall(), 9, 4, 2607L))
-                .recordItem(() -> ethereumTransactionItem(10, 0L, 7646340L, new byte[0], List.of())
-                        .receipt(r -> r.setStatus(ResponseCodeEnum.WRONG_NONCE)))
-                .recordItem(() -> recordItemBuilder
-                        .cryptoApproveAllowance()
-                        .transactionBody(b -> b.clearCryptoAllowances()
-                                .clearNftAllowances()
-                                .clearTokenAllowances()
-                                .addTokenAllowances(com.hederahashgraph.api.proto.java.TokenAllowance.newBuilder()
-                                        .setOwner(AccountID.newBuilder().setAccountNum(1339713L))
-                                        .setSpender(AccountID.newBuilder().setAccountNum(4053945L))
-                                        .setTokenId(TokenID.newBuilder().setTokenNum(731861L))
-                                        .setAmount(240595193L)))
-                        .recordItem(r -> r.transactionIndex(11)))
-                .build();
+                                        "0000000000000000000000003da633d7e99e590a6c6fbe392921e087e1f6d423"))),
+                baseTimestamp + 5,
+                null,
+                previous,
+                5);
+        var parentTimestamp = baseTimestamp + 5;
+        previous = buildItem(
+                items,
+                childItem(recordItemBuilder.cryptoTransfer(), 1, 15284L),
+                baseTimestamp + 6,
+                parentTimestamp,
+                previous,
+                6);
+        previous = buildItem(
+                items,
+                childItem(recordItemBuilder.contractCall(), 2, 2607L),
+                baseTimestamp + 7,
+                parentTimestamp,
+                previous,
+                7);
+        previous = buildItem(
+                items,
+                childItem(recordItemBuilder.cryptoTransfer(), 3, 15284L),
+                baseTimestamp + 8,
+                parentTimestamp,
+                previous,
+                8);
+        previous = buildItem(
+                items,
+                childItem(recordItemBuilder.contractCall(), 4, 2607L),
+                baseTimestamp + 9,
+                parentTimestamp,
+                previous,
+                9);
+        previous = buildItem(
+                items,
+                ethereumTransactionItem(0L, 7646340L, new byte[0], List.of())
+                        .receipt(r -> r.setStatus(ResponseCodeEnum.WRONG_NONCE)),
+                baseTimestamp + 10,
+                null,
+                previous,
+                10);
+        buildItem(
+                items,
+                recordItemBuilder.cryptoApproveAllowance().transactionBody(b -> b.clearCryptoAllowances()
+                        .clearNftAllowances()
+                        .clearTokenAllowances()
+                        .addTokenAllowances(com.hederahashgraph.api.proto.java.TokenAllowance.newBuilder()
+                                .setOwner(AccountID.newBuilder().setAccountNum(1339713L))
+                                .setSpender(AccountID.newBuilder().setAccountNum(4053945L))
+                                .setTokenId(TokenID.newBuilder().setTokenNum(731861L))
+                                .setAmount(240595193L))),
+                baseTimestamp + 11,
+                null,
+                previous,
+                11);
+
+        var recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.consensusStart(baseTimestamp)
+                        .consensusEnd(baseTimestamp + 11)
+                        .count(12L)
+                        .index(0L)
+                        .items(items))
+                .get();
 
         // when
         recordFileParser.parse(recordFile);
@@ -464,7 +521,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .isPresent()
                 .get()
                 .extracting(RecordFile::getReceiptsRoot)
-                .isEqualTo(HexFormat.of().parseHex("d0795716bb4358e4629a531b389f75abd79c42b51d962271a7db16d1e5a96626"));
+                .isEqualTo(HexFormat.of().parseHex("498f3a4b734e4a265438f8e346b06d2ef0f10d7596fda65c0d106b28ef3dd1bc"));
     }
 
     @Test
@@ -545,8 +602,25 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .persist();
     }
 
+    private RecordItem buildItem(
+            List<RecordItem> items,
+            RecordItemBuilder.Builder<?> builder,
+            long consensusTimestamp,
+            Long parentConsensusTimestamp,
+            RecordItem previous,
+            int transactionIndex) {
+        builder.record(r -> r.setConsensusTimestamp(TestUtils.toTimestamp(consensusTimestamp)))
+                .recordItem(r -> r.previous(previous).transactionIndex(transactionIndex));
+        if (parentConsensusTimestamp != null) {
+            builder.record(r -> r.setParentConsensusTimestamp(TestUtils.toTimestamp(parentConsensusTimestamp)));
+        }
+        var recordItem = builder.build();
+        items.add(recordItem);
+        return recordItem;
+    }
+
     private RecordItemBuilder.Builder<?> ethereumTransactionItem(
-            int transactionIndex, long gasUsed, long contractNum, byte[] bloom, List<ContractLoginfo> logs) {
+            long gasUsed, long contractNum, byte[] bloom, List<ContractLoginfo> logs) {
         var contractId = ContractID.newBuilder().setContractNum(contractNum).build();
         var functionResult = ContractFunctionResult.newBuilder()
                 .setContractID(contractId)
@@ -559,16 +633,10 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .transactionBody(b -> b.setEthereumData(ByteString.copyFrom(
                         HexFormat.of().parseHex(LegacyEthereumTransactionParserTest.LEGACY_RAW_TX))))
                 .receipt(r -> r.setContractID(contractId))
-                .record(r -> r.setContractCallResult(functionResult))
-                .recordItem(r -> r.transactionIndex(transactionIndex));
+                .record(r -> r.setContractCallResult(functionResult));
     }
 
-    private RecordItemBuilder.Builder<?> cryptoTransferItem(int transactionIndex) {
-        return recordItemBuilder.cryptoTransfer().recordItem(r -> r.transactionIndex(transactionIndex));
-    }
-
-    private RecordItemBuilder.Builder<?> childItem(
-            RecordItemBuilder.Builder<?> builder, int transactionIndex, int nonce, long gasUsed) {
+    private RecordItemBuilder.Builder<?> childItem(RecordItemBuilder.Builder<?> builder, int nonce, long gasUsed) {
         var contractId = ContractID.newBuilder()
                 .setContractNum(HTS_PRECOMPILE_CONTRACT_NUM)
                 .build();
@@ -580,8 +648,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .setNonce(nonce)
                 .setAccountID(recordItemBuilder.accountId())
                 .setScheduled(false);
-        return builder.record(r -> r.setContractCallResult(functionResult).setTransactionID(transactionId))
-                .recordItem(r -> r.transactionIndex(transactionIndex));
+        return builder.record(r -> r.setContractCallResult(functionResult).setTransactionID(transactionId));
     }
 
     private ContractLoginfo logInfo(long contractNum, String data, String... topics) {
