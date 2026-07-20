@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.common.util;
 
-import java.util.Arrays;
 import java.util.Collection;
+import org.apache.tuweni.bytes.Bytes;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -17,11 +17,7 @@ public final class SpelHelper {
         return value == null || value.isEmpty();
     }
 
-    public int hashCode(byte[] value) {
-        return Arrays.hashCode(value);
-    }
-
-    public int hashCode(Object[] value) {
-        return Arrays.hashCode(value);
+    public Bytes getCacheKey(byte[] value) {
+        return value == null ? Bytes.EMPTY : Bytes.wrap(value);
     }
 }
