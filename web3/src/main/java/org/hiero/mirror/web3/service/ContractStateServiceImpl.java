@@ -123,6 +123,6 @@ final class ContractStateServiceImpl implements ContractStateService {
 
     // Generates a cache key emulating the default caching behavior in Spring
     private SimpleKey generateCacheKey(final EntityId contractId, final byte[] slotKey) {
-        return new SimpleKey(contractId, slotKey);
+        return new SimpleKey(contractId.getId(), slotKey);
     }
 }
