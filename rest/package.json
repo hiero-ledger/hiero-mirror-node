@@ -6,7 +6,7 @@
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">= 24"
+    "node": ">=24.18.0 <25"
   },
   "scripts": {
     "generate-proto-js": "node scripts/generate-proto-js.mjs",
@@ -85,10 +85,23 @@
     "fast-uri": "4.0.0",
     "form-data": "4.0.6",
     "glob": "13.0.6",
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "5.2.1"
+    },
     "multer": "2.2.0",
     "path-to-regexp": "8.4.2",
     "protobufjs": "7.6.4",
     "test-exclude": "8.0.0"
   },
-  "bundleDependencies": true
+  "bundleDependencies": true,
+  "allowScripts": {
+    "@bufbuild/buf@1.71.0": true,
+    "@scarf/scarf@1.4.0": true,
+    "esbuild@0.28.1": true,
+    "cpu-features@0.0.10": true,
+    "fsevents@2.3.3": true,
+    "protobufjs@7.6.4": true,
+    "ssh2@1.17.0": true,
+    "unrs-resolver@1.12.2": true
+  }
 }
