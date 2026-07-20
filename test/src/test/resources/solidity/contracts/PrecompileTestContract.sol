@@ -534,33 +534,30 @@ contract PrecompileTestContract is HederaTokenService {
         return (isKycAfterGrant, kycGrantStatus, isKycAfterRevoke, kycRevokeStatus, transferStatusAfterRevoke);
     }
 
-    function intToString(int _i) internal pure returns (string memory) {
-        if (_i == 0) {
-            return "0";
-        }
-        bool negative = _i < 0;
-        uint absValue = uint(negative ? - _i : _i);
-        bytes memory buffer = new bytes(10);
-        uint i = 0;
-        while (absValue > 0) {
-            buffer[i++] = bytes1(uint8(absValue % 10 + 48));
-            absValue /= 10;
-        }
-        bytes memory result = new bytes(negative ? ++i : i);
-        if (negative) {
-            result[0] = '-';
-        }
-        for (uint j = 0; j < i; j++) {
-            result[result.length - j - 1] = buffer[j];
-        }
-        return string(result);
-    }
-
     // Helper function to handle the common logic
     function handleResponseCode(int responseCode, string memory message) internal pure {
         if (responseCode != HederaResponseCodes.SUCCESS) {
             revert(message);
         }
+    }
+
+    function spendHbar(address owner, address receiver, int64 amount) external returns (int responseCode) {
+        IHederaTokenService.AccountAmount[] memory transfers = new IHederaTokenService.AccountAmount[](2);
+        transfers[0] = IHederaTokenService.AccountAmount(owner, -amount, true);
+        transfers[1] = IHederaTokenService.AccountAmount(receiver, amount, false);
+        responseCode = HederaTokenService.cryptoTransfer(
+            IHederaTokenService.TransferList(transfers),
+            new IHederaTokenService.TokenTransferList[](0));
+        if (responseCode != HederaResponseCodes.SUCCESS) revert();
+    }
+
+    function hbarAllowance(address owner, address spender) external returns (int256 amount) {
+        (bool success, bytes memory result) = address(0x16a).call(
+            abi.encodeWithSignature("hbarAllowance(address,address)", owner, spender));
+        if (!success) revert();
+        int32 responseCode;
+        (responseCode, amount) = abi.decode(result, (int32, int256));
+        if (responseCode != HederaResponseCodes.SUCCESS) revert();
     }
 }
 

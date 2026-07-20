@@ -6,7 +6,7 @@
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">= 24"
+    "node": ">=24.18.0 <25"
   },
   "scripts": {
     "dev": "nodemon --import=extensionless/register server.js",
@@ -33,5 +33,8 @@
   },
   "peerDependencies": {
     "debug": "4.4.3"
+  },
+  "allowScripts": {
+    "fsevents@2.3.3": true
   }
 }
