@@ -34,7 +34,7 @@ dependencies {
     implementation("io.spring.gradle:dependency-management-plugin:1.1.7")
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.0")
     implementation("org.apache.commons:commons-compress:1.28.0")
-    implementation("org.cyclonedx:cyclonedx-gradle-plugin:3.2.4")
+    implementation("org.cyclonedx:cyclonedx-gradle-plugin:3.3.0")
     implementation("org.flywaydb:flyway-database-postgresql:12.11.0")
     implementation("org.graalvm.buildtools:native-gradle-plugin:1.1.4")
     implementation("org.gradle:test-retry-gradle-plugin:1.6.5")
