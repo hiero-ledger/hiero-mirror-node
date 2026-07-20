@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_ENTITY;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_ACCOUNT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
@@ -527,7 +528,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
-    void findByEvmAddressAndDeletedIsFalseDoesNotCollideOnArraysHashCode() throws InterruptedException {
+    void findByEvmAddressAndDeletedIsFalseDoesNotCollideOnArraysHashCode() {
         // These 20-byte addresses collide under the same Arrays hashcode but are not equal.
         final byte[] address1 = new byte[20];
         final byte[] address2 = new byte[20];
@@ -550,14 +551,19 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         assertThat(entityRepository.findByEvmAddressAndDeletedIsFalse(address1)).contains(entity1);
         assertThat(entityRepository.findByEvmAddressAndDeletedIsFalse(address2)).contains(entity2);
 
-        Thread.sleep(entityCacheExpireAfterWrite());
-
-        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalse(address1)).isEmpty();
-        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalse(address2)).isEmpty();
+        await("entityCacheExpired")
+                .atMost(entityCacheExpireAfterWrite().multipliedBy(2))
+                .pollInterval(Duration.ofMillis(50))
+                .untilAsserted(() -> {
+                    assertThat(entityRepository.findByEvmAddressAndDeletedIsFalse(address1))
+                            .isEmpty();
+                    assertThat(entityRepository.findByEvmAddressAndDeletedIsFalse(address2))
+                            .isEmpty();
+                });
     }
 
     @Test
-    void findByEvmAddressOrAliasAndDeletedIsFalseDoesNotCollideOnArraysHashCode() throws InterruptedException {
+    void findByEvmAddressOrAliasAndDeletedIsFalseDoesNotCollideOnArraysHashCode() {
         // These 20-byte addresses collide under the same Arrays hashcode but are not equal.
         final byte[] address1 = new byte[20];
         final byte[] address2 = new byte[20];
@@ -584,12 +590,15 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         assertThat(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(address2))
                 .contains(entity2);
 
-        Thread.sleep(entityCacheExpireAfterWrite());
-
-        assertThat(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(address1))
-                .isEmpty();
-        assertThat(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(address2))
-                .isEmpty();
+        await("entityCacheExpired")
+                .atMost(entityCacheExpireAfterWrite().multipliedBy(2))
+                .pollInterval(Duration.ofMillis(50))
+                .untilAsserted(() -> {
+                    assertThat(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(address1))
+                            .isEmpty();
+                    assertThat(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(address2))
+                            .isEmpty();
+                });
     }
 
     private Duration entityCacheExpireAfterWrite() {
