@@ -28,6 +28,7 @@ import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
+import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootService;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.hiero.mirror.importer.util.Utility;
@@ -43,6 +44,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
     private final EntityListener entityListener;
     private final EntityProperties entityProperties;
     private final ParserContext parserContext;
+    private final ReceiptRootService receiptRootService;
     private final RecordItemListener recordItemListener;
 
     // Metrics
@@ -60,6 +62,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             final MeterRegistry meterRegistry,
             final ParserContext parserContext,
             final RecordParserProperties parserProperties,
+            final ReceiptRootService receiptRootService,
             final RecordItemListener recordItemListener,
             final RecordStreamFileListener recordStreamFileListener,
             final StreamFileRepository<RecordFile, Long> streamFileRepository) {
@@ -69,6 +72,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         this.entityListener = entityListener;
         this.entityProperties = entityProperties;
         this.parserContext = parserContext;
+        this.receiptRootService = receiptRootService;
         this.recordItemListener = recordItemListener;
 
         // build transaction latency metrics
@@ -116,6 +120,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             super.parse(recordFile);
         } finally {
             parserContext.clear();
+            receiptRootService.clear();
         }
     }
 
@@ -132,6 +137,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             super.parse(recordFiles);
         } finally {
             parserContext.clear();
+            receiptRootService.clear();
         }
     }
 
@@ -246,6 +252,9 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             recordFile.setGasUsed(gasUsed);
             recordFile.setLoadEnd(System.currentTimeMillis());
             recordFile.setLogsBloom(logsBloom.toArrayUnsafe());
+            // The record file's receipts streamed into the current ReceiptRoot during the item loop; completing here
+            // scopes the receipts root per record file even when a multi-file batch flushes only once at the end
+            receiptRootService.complete(recordFile);
         }
     }
 }

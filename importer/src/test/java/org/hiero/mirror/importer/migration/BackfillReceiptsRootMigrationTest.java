@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -83,12 +82,11 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
         migration.migrateAsync();
 
         // then
-        var expectedBlock2 = ReceiptRoot.of(
-                        List.of(contractResult),
-                        List.of(contractLog),
-                        Map.of(timestamp2, 2),
-                        Map.of(contract.getId(), contract.getEvmAddress()))
-                .getRootHash();
+        var expectedRootBlock2 = new ReceiptRoot();
+        expectedRootBlock2.add(contractResult);
+        expectedRootBlock2.add(contractLog);
+        var expectedBlock2 = expectedRootBlock2.getRootHash(
+                Map.of(timestamp2, 2), Map.of(contract.getId(), contract.getEvmAddress()));
 
         assertThat(recordFileRepository.findById(block1.getConsensusEnd()))
                 .get()
@@ -106,10 +104,10 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
 
     @Test
     void migrateNullTransactionIndex() {
-        // A block with historical rows persisted before the denormalized transaction_index columns existed: two
-        // contract results and a synthetic contract log (no matching contract result) all with a null
-        // transaction_index. The index must be resolved from the transaction table, otherwise the receipts would
-        // collide on trie key 0.
+        // A block with historical rows persisted before transaction indexes were tracked: two contract results and
+        // a synthetic contract log (no matching contract result) all with a null transaction_index. V1.65.4.1 already
+        // backfilled the column from transaction.index, so a remaining null means no index exists anywhere; such
+        // receipts default to trie key 0, matching the relay's behaviour for the same rows.
         var start = domainBuilder.timestamp();
         var end = start + 10;
         var block = persistBlockMissingReceiptsRoot(start, end);
@@ -130,29 +128,15 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
                 .customize(c -> c.consensusTimestamp(timestamp3).index(0).transactionIndex(null))
                 .persist();
 
-        domainBuilder
-                .transaction()
-                .customize(t -> t.consensusTimestamp(timestamp1).index(1))
-                .persist();
-        domainBuilder
-                .transaction()
-                .customize(t -> t.consensusTimestamp(timestamp2).index(2))
-                .persist();
-        domainBuilder
-                .transaction()
-                .customize(t -> t.consensusTimestamp(timestamp3).index(3))
-                .persist();
-
         // when
         migration.migrateAsync();
 
         // then
-        contractResult1.setTransactionIndex(1);
-        contractResult2.setTransactionIndex(2);
-        contractLog.setTransactionIndex(3);
-        var expected = ReceiptRoot.of(
-                        List.of(contractResult1, contractResult2), List.of(contractLog), Map.of(), Map.of())
-                .getRootHash();
+        var expectedRoot = new ReceiptRoot();
+        expectedRoot.add(contractResult1);
+        expectedRoot.add(contractResult2);
+        expectedRoot.add(contractLog);
+        var expected = expectedRoot.getRootHash(Map.of(), Map.of());
 
         assertThat(recordFileRepository.findById(block.getConsensusEnd()))
                 .get()

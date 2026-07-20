@@ -51,6 +51,7 @@ import org.hiero.mirror.importer.parser.AbstractStreamFileParserTest;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
+import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootService;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.junit.jupiter.api.Test;
@@ -84,6 +85,9 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
 
     @Mock
     private RecordItemListener recordItemListener;
+
+    @Mock
+    private ReceiptRootService receiptRootService;
 
     @Mock(strictness = LENIENT)
     private RecordStreamFileListener recordStreamFileListener;
@@ -125,6 +129,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
                 new SimpleMeterRegistry(),
                 new ParserContext(),
                 parserProperties,
+                receiptRootService,
                 recordItemListener,
                 recordStreamFileListener,
                 recordFileRepository);

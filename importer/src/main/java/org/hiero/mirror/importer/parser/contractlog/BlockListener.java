@@ -67,8 +67,10 @@ final class BlockListener implements EntityListener, RecordStreamFileListener {
     @Override
     @Timed
     public void onEnd(RecordFile recordFile) {
-        updateSyntheticLogBloom(recordFile);
-        receiptRootService.updateReceiptsRoot();
+        if (recordFile != null) {
+            updateSyntheticLogBloom(recordFile);
+        }
+        receiptRootService.updateReceiptsRoots();
     }
 
     private void updateSyntheticLogBloom(RecordFile recordFile) {

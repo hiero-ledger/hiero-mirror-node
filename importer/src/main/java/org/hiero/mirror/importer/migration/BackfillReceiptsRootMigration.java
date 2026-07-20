@@ -4,9 +4,7 @@ package org.hiero.mirror.importer.migration;
 
 import jakarta.inject.Named;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -76,11 +74,6 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
             from contract_log cl
             left join entity e on e.id = cl.contract_id
             where cl.consensus_timestamp between :consensusStart and :consensusEnd
-            """;
-
-    private static final String SELECT_TRANSACTION_INDEXES = """
-            select consensus_timestamp, index from transaction
-            where consensus_timestamp in (:timestamps) and index is not null
             """;
 
     private static final String UPDATE_RECEIPTS_ROOT =
@@ -156,17 +149,12 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
         var logRows = jdbcOperations.query(SELECT_CONTRACT_LOGS, rangeParams, CONTRACT_LOG_ROW_MAPPER);
         var contractLogs = new ArrayList<ContractLog>(logRows.size());
         var evmAddresses = new HashMap<Long, byte[]>();
-        var logsMissingIndex = new ArrayList<ContractLog>();
         for (var row : logRows) {
             contractLogs.add(row);
-            if (row.getTransactionIndex() == null) {
-                logsMissingIndex.add(row);
-            }
             if (!ArrayUtils.isEmpty(row.getEvmAddress()) && !EntityId.isEmpty(row.getContractId())) {
                 evmAddresses.put(row.getContractId().getId(), row.getEvmAddress());
             }
         }
-        resolveMissingTransactionIndexes(contractResults, logsMissingIndex);
 
         var blockRanges = new TreeMap<Long, Long>();
         blocks.forEach(block -> blockRanges.put(block.consensusStart(), block.consensusEnd()));
@@ -177,14 +165,11 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
         var updates = new MapSqlParameterSource[blocks.size()];
         for (int i = 0; i < blocks.size(); i++) {
             var block = blocks.get(i);
-            var receiptsRoot = ReceiptRoot.of(
-                            resultsByBlock.getOrDefault(block.consensusStart(), List.of()),
-                            logsByBlock.getOrDefault(block.consensusStart(), List.of()),
-                            transactionTypes,
-                            evmAddresses)
-                    .getRootHash();
+            var receiptRoot = new ReceiptRoot();
+            resultsByBlock.getOrDefault(block.consensusStart(), List.of()).forEach(receiptRoot::add);
+            logsByBlock.getOrDefault(block.consensusStart(), List.of()).forEach(receiptRoot::add);
             updates[i] = new MapSqlParameterSource()
-                    .addValue("receiptsRoot", receiptsRoot)
+                    .addValue("receiptsRoot", receiptRoot.getRootHash(transactionTypes, evmAddresses))
                     .addValue("consensusEnd", block.consensusEnd());
         }
         jdbcOperations.batchUpdate(UPDATE_RECEIPTS_ROOT, updates);
@@ -199,37 +184,6 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
         var mapper = new DataClassRowMapper<>(type);
         mapper.setConversionService(conversionService);
         return mapper;
-    }
-
-    private void resolveMissingTransactionIndexes(
-            Collection<ContractResult> contractResults, Collection<ContractLog> logsMissingIndex) {
-        var resultsMissingIndex = new ArrayList<ContractResult>();
-        var timestamps = new HashSet<Long>();
-        for (var contractResult : contractResults) {
-            if (contractResult.getTransactionIndex() == null) {
-                resultsMissingIndex.add(contractResult);
-                timestamps.add(contractResult.getConsensusTimestamp());
-            }
-        }
-        for (var contractLog : logsMissingIndex) {
-            timestamps.add(contractLog.getConsensusTimestamp());
-        }
-
-        if (timestamps.isEmpty()) {
-            return;
-        }
-
-        var indexes = new HashMap<Long, Integer>();
-        getNamedParameterJdbcOperations().query(SELECT_TRANSACTION_INDEXES, Map.of("timestamps", timestamps), rs -> {
-            indexes.put(rs.getLong("consensus_timestamp"), rs.getInt("index"));
-        });
-
-        for (var contractResult : resultsMissingIndex) {
-            contractResult.setTransactionIndex(indexes.getOrDefault(contractResult.getConsensusTimestamp(), 0));
-        }
-        for (var contractLog : logsMissingIndex) {
-            contractLog.setTransactionIndex(indexes.getOrDefault(contractLog.getConsensusTimestamp(), 0));
-        }
     }
 
     private record BlockRange(long consensusStart, long consensusEnd) {}
