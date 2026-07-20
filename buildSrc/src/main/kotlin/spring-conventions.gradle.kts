@@ -67,7 +67,7 @@ tasks.bootBuildImage {
             "-H:ServiceLoaderFeatureExcludeServices=org.hibernate.bytecode.spi.BytecodeProvider",
             "-H:+StripDebugInfo",
             "-O3",
-            "-J-XX:MaxRAMPercentage=90.0",
+            "-J-Xmx12g", // Try to prevent CI runner's OOM crashes.
         )
     val nativeImageBuildArgs = extraBuildArgs.filter { it.isNotBlank() }.joinToString(" ")
 

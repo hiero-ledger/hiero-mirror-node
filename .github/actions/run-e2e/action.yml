@@ -12,6 +12,10 @@ inputs:
     description: Docker Hub token for rate-limit auth (optional)
     default: ""
     required: false
+  dockerhub-username:
+    description: Docker Hub username for rate-limit auth (optional)
+    default: ""
+    required: false
   image-source:
     required: true
   mode:
@@ -72,9 +76,6 @@ runs:
 
     - name: Determine base and tag
       shell: bash
-      timeout-minutes: 15
-      env:
-        IMAGE_SOURCE: ${{ inputs.image-source }}
       run: |
         set -ex
 
@@ -94,27 +95,12 @@ runs:
         echo "VERSION=${VERSION}" >> $GITHUB_ENV
         echo "TRIGGERED_BY_TAG=${TRIGGERED_BY_TAG}" >> $GITHUB_ENV
 
-        if [[ "$TRIGGERED_BY_TAG" == "true" ]]; then
-          if [[ "${IMAGE_SOURCE}" == "native" ]]; then
-            for module in grpc importer monitor rest-java web3; do
-              while ! docker manifest inspect "${IMAGE_REGISTRY}/${module}:${VERSION}" >/dev/null 2>&1; do
-                sleep 10
-              done
-            done
-
-            for module in rest test; do
-              while ! docker manifest inspect "gcr.io/mirrornode/hedera-mirror-${module}:${TAG}" >/dev/null 2>&1; do
-                sleep 10
-              done
-            done
-          else
-            for module in grpc importer monitor rest rest-java test web3; do
-              while ! docker manifest inspect "gcr.io/mirrornode/hedera-mirror-${module}:${TAG}" >/dev/null 2>&1; do
-                sleep 10
-              done
-            done
-          fi
-        fi
+    - name: Wait for images
+      if: env.TRIGGERED_BY_TAG == 'true'
+      uses: ./.github/actions/wait-for-images
+      with:
+        native: ${{ inputs.image-source == 'native' }}
+        version: ${{ env.VERSION }}
 
     - name: Find changed modules
       id: changeset
@@ -143,7 +129,7 @@ runs:
       uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v4
 
     - name: Login to GHCR
-      if: inputs.image-source == 'native' && env.TRIGGERED_BY_TAG == 'true'
+      if: inputs.image-source == 'native'
       uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
       with:
         password: ${{ github.token }}
@@ -152,9 +138,9 @@ runs:
 
     - name: Login to Docker Hub
       uses: step-security/docker-login-action@164e21d7e52229904128e2f946001cb88278c33d # v4.2.0
-      if: vars.DOCKERHUB_USERNAME != '' && inputs.dockerhub-token != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      if: inputs.dockerhub-username != '' && inputs.dockerhub-token != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       with:
-        username: ${{ vars.DOCKERHUB_USERNAME }}
+        username: ${{ inputs.dockerhub-username }}
         password: ${{ inputs.dockerhub-token }}
 
     - name: Build images
@@ -167,13 +153,13 @@ runs:
           kind load docker-image "gcr.io/mirrornode/hedera-mirror-${module}:${TAG}" -n "${SOLO_CLUSTER_NAME}"
         done
 
-    - name: Build native images
+    - name: Load native images
       if: env.TRIGGERED_BY_TAG != 'true' && inputs.image-source == 'native'
       shell: bash
       run: |
         set -ex
         for module in grpc importer monitor rest-java web3; do
-          ./gradlew ":${module}:bootBuildImage" -PimagePlatform=linux/amd64
+          docker pull "${IMAGE_REGISTRY}/${module}:${VERSION}"
           kind load docker-image "${IMAGE_REGISTRY}/${module}:${VERSION}" -n "${SOLO_CLUSTER_NAME}"
         done
 
@@ -232,9 +218,10 @@ runs:
 
           yq '(.. | select(tag == "!!str")) |= envsubst' .github/workflows/resources/mirror-block-node.yaml > mirror.yaml
           yq -i '. *= load(".github/workflows/resources/mirror.yaml")' mirror.yaml
-          yq -i 'with(.importer.env; '\
-          '.HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONBYTES="true", '\
-          '.HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONRECORDBYTES="true")' mirror.yaml
+          yq -i '
+            .importer.env.HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONBYTES = "true" |
+            .importer.env.HIERO_MIRROR_IMPORTER_PARSER_RECORD_ENTITY_PERSIST_TRANSACTIONRECORDBYTES = "true"
+          ' mirror.yaml
 
           solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
             --chart-version "${BLOCK_NODE_VERSION}" --release-tag "${CONSENSUS_NODE_VERSION}" -f block-node.yaml
@@ -353,7 +340,6 @@ runs:
     - name: Switch to Ingest Recordstream Files
       if: inputs.mode == 'wrb'
       shell: bash
-      timeout-minutes: 10
       run: |
         set -euo pipefail
 

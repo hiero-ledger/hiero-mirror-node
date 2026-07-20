@@ -38,6 +38,7 @@ jobs:
         with:
           build-changed-modules-only: ${{ github.event_name != 'schedule' && 'true' || 'false' }}
           dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+          dockerhub-username: ${{ vars.DOCKERHUB_USERNAME }}
           image-source: jvm
           mode: wrb
           run-k6: "false"

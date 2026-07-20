@@ -3,6 +3,14 @@
 name: Test native images
 
 on:
+  # Remove after test -->
+  pull_request:
+    branches:
+      - "main"
+    paths:
+      - ".github/actions/build-native-image/**"
+      - ".github/actions/run-e2e/**"
+  # <---
   push:
     tags:
       - "v*"
@@ -18,13 +26,76 @@ on:
 permissions:
   contents: read
   packages: read
-  pull-requests: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  LC_ALL: C.UTF-8
 
 jobs:
-  acceptance-record:
-    name: acceptance (RECORD)
+  image:
+    if: github.ref_type != 'tag'
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - grpc
+          - importer
+          - monitor
+          - rest-java
+          - web3
+        architecture:
+          - amd64
+        include:
+          - architecture: amd64
+            runner: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
+
+      - name: Build native image
+        uses: ./.github/actions/build-native-image
+        with:
+          architecture: ${{ matrix.architecture }}
+          project: ${{ matrix.project }}
+
+      - name: Install Skopeo
+        run: sudo apt-get update && sudo apt-get install -y skopeo
+
+      - name: Skopeo Login
+        run: skopeo login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Convert to OCI
+        env:
+          IMAGE: ghcr.io/hiero-ledger/hiero-mirror-node/${{ matrix.project }}
+        run: skopeo copy "docker-daemon:${IMAGE}:${VERSION}" "docker://${IMAGE}:${VERSION}" --format oci
+
+  acceptance:
+    name: acceptance (${{ matrix.stream-type }})
+    needs: image
+    if: always() && (needs.image.result == 'success' || needs.image.result == 'skipped')
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        stream-type:
+          - RECORD
+          - BLOCK
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
@@ -40,29 +111,7 @@ jobs:
         uses: ./.github/actions/run-e2e
         with:
           dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+          dockerhub-username: ${{ vars.DOCKERHUB_USERNAME }}
           image-source: native
           run-k6: "false"
-          stream-type: RECORD
-
-  acceptance-block:
-    name: acceptance (BLOCK)
-    runs-on: hiero-mirror-node-linux-large
-    timeout-minutes: 300
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
-        with:
-          egress-policy: audit
-
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
-
-      - name: Run end-to-end tests
-        uses: ./.github/actions/run-e2e
-        with:
-          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-          image-source: native
-          run-k6: "false"
-          stream-type: BLOCK
+          stream-type: ${{ matrix.stream-type }}
