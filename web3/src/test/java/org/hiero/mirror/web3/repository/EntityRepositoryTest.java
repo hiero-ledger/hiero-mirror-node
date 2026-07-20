@@ -3,11 +3,15 @@
 package org.hiero.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_ENTITY;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_ACCOUNT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Range;
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +20,7 @@ import org.hiero.mirror.common.domain.entity.EntityHistory;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -27,6 +32,9 @@ import org.springframework.cache.CacheManager;
 @ExtendWith(ContextExtension.class)
 @RequiredArgsConstructor
 class EntityRepositoryTest extends Web3IntegrationTest {
+
+    private final CacheProperties cacheProperties;
+
     private final EntityRepository entityRepository;
 
     @Qualifier(CACHE_MANAGER_ENTITY)
@@ -517,6 +525,89 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         assertThat(entityRepository.findByIdAndDeletedIsFalse(regularEntity.getId()))
                 .as("Entity should NOT be found after clearing the regular cache")
                 .isEmpty();
+    }
+
+    @Test
+    void findByEvmAddressAndDeletedIsFalseDoesNotCollideOnArraysHashCode() {
+        // These 20-byte addresses collide under the same Arrays hashcode but are not equal.
+        final byte[] address1 = new byte[20];
+        final byte[] address2 = new byte[20];
+        address2[0] = 1;
+        address2[1] = -31;
+
+        assertThat(Arrays.hashCode(address1)).isEqualTo(Arrays.hashCode(address2));
+        assertThat(Arrays.equals(address1, address2)).isFalse();
+
+        final var entity1 =
+                domainBuilder.entity().customize(e -> e.evmAddress(address1)).persist();
+        final var entity2 =
+                domainBuilder.entity().customize(e -> e.evmAddress(address2)).persist();
+
+        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalse(address1)).contains(entity1);
+        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalse(address2)).contains(entity2);
+
+        // Removed from DB; both remain independently cached until expireAfterWrite
+        entityRepository.deleteAll();
+        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalse(address1)).contains(entity1);
+        assertThat(entityRepository.findByEvmAddressAndDeletedIsFalse(address2)).contains(entity2);
+
+        await("entityCacheExpired")
+                .atMost(entityCacheExpireAfterWrite().multipliedBy(2))
+                .pollInterval(Duration.ofMillis(50))
+                .untilAsserted(() -> {
+                    assertThat(entityRepository.findByEvmAddressAndDeletedIsFalse(address1))
+                            .isEmpty();
+                    assertThat(entityRepository.findByEvmAddressAndDeletedIsFalse(address2))
+                            .isEmpty();
+                });
+    }
+
+    @Test
+    void findByEvmAddressOrAliasAndDeletedIsFalseDoesNotCollideOnArraysHashCode() {
+        // These 20-byte addresses collide under the same Arrays hashcode but are not equal.
+        final byte[] address1 = new byte[20];
+        final byte[] address2 = new byte[20];
+        address2[0] = 1;
+        address2[1] = -31;
+
+        assertThat(Arrays.hashCode(address1)).isEqualTo(Arrays.hashCode(address2));
+        assertThat(Arrays.equals(address1, address2)).isFalse();
+
+        final var entity1 =
+                domainBuilder.entity().customize(e -> e.evmAddress(address1)).persist();
+        final var entity2 =
+                domainBuilder.entity().customize(e -> e.evmAddress(address2)).persist();
+
+        assertThat(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(address1))
+                .contains(entity1);
+        assertThat(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(address2))
+                .contains(entity2);
+
+        // Removed from DB; both remain independently cached until expireAfterWrite
+        entityRepository.deleteAll();
+        assertThat(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(address1))
+                .contains(entity1);
+        assertThat(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(address2))
+                .contains(entity2);
+
+        await("entityCacheExpired")
+                .atMost(entityCacheExpireAfterWrite().multipliedBy(2))
+                .pollInterval(Duration.ofMillis(50))
+                .untilAsserted(() -> {
+                    assertThat(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(address1))
+                            .isEmpty();
+                    assertThat(entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(address2))
+                            .isEmpty();
+                });
+    }
+
+    private Duration entityCacheExpireAfterWrite() {
+        return Caffeine.from(cacheProperties.getEntity())
+                .build()
+                .policy()
+                .expireAfterWrite()
+                .orElseThrow(() -> new IllegalStateException("entity cache missing expireAfterWrite"))
+                .getExpiresAfter();
     }
 
     private void invalidateCache() {
