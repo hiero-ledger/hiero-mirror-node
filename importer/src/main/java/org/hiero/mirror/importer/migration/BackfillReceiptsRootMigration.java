@@ -69,11 +69,16 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
             """;
 
     private static final String SELECT_CONTRACT_LOGS = """
+            with child as materialized (
+              select distinct consensus_timestamp from contract_result
+              where consensus_timestamp between :consensusStart and :consensusEnd and transaction_nonce <> 0
+            )
             select cl.consensus_timestamp, cl.contract_id, cl.data, cl.index, cl.topic0, cl.topic1, cl.topic2,
               cl.topic3, cl.transaction_index, e.evm_address
             from contract_log cl
             left join entity e on e.id = cl.contract_id
             where cl.consensus_timestamp between :consensusStart and :consensusEnd
+              and cl.consensus_timestamp not in (select consensus_timestamp from child)
             """;
 
     private static final String UPDATE_RECEIPTS_ROOT =

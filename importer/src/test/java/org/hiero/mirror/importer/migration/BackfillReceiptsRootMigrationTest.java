@@ -145,6 +145,44 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void migrateExcludesChildTransactions() {
+        // A block with a top-level contract result and a child (internal) transaction that has both a contract result
+        // and a log: the child's result and log must not contribute to the receipts root
+        var start = domainBuilder.timestamp();
+        var end = start + 10;
+        var block = persistBlockMissingReceiptsRoot(start, end);
+
+        var parentTimestamp = start + 1;
+        var childTimestamp = start + 2;
+        var parentResult = domainBuilder
+                .contractResult()
+                .customize(c -> c.consensusTimestamp(parentTimestamp).transactionIndex(0))
+                .persist();
+        domainBuilder
+                .contractResult()
+                .customize(c ->
+                        c.consensusTimestamp(childTimestamp).transactionIndex(1).transactionNonce(1))
+                .persist();
+        domainBuilder
+                .contractLog()
+                .customize(c -> c.consensusTimestamp(childTimestamp).index(0).transactionIndex(1))
+                .persist();
+
+        // when
+        migration.migrateAsync();
+
+        // then
+        var expectedRoot = new ReceiptRoot();
+        expectedRoot.add(parentResult);
+        var expected = expectedRoot.getRootHash(Map.of(), Map.of());
+
+        assertThat(recordFileRepository.findById(block.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(expected);
+    }
+
+    @Test
     void migrateIgnoresRowsOfBlocksAlreadyBackfilled() {
         // An already-backfilled block with EVM activity sits between two blocks missing the root. The batch's data
         // queries span its rows, but they must not leak into the neighboring blocks' roots.
