@@ -23,16 +23,7 @@ springBoot {
     buildInfo { excludes = listOf("time") }
 }
 
-// Compile the container health check probe with the build JDK so the runtime image can stay
-// JRE-only.
-val compileHealthCheck =
-    tasks.register<JavaCompile>("compileHealthCheck") {
-        source(rootProject.file("common/src/main/java/org/hiero/mirror/common/HealthCheck.java"))
-        classpath = files()
-        destinationDirectory.set(layout.buildDirectory.dir("healthcheck"))
-    }
-
-tasks.named("dockerBuild") { dependsOn(tasks.bootJar, compileHealthCheck) }
+tasks.named("dockerBuild") { dependsOn(tasks.bootJar) }
 
 tasks.register("run") {
     dependsOn(tasks.bootRun)

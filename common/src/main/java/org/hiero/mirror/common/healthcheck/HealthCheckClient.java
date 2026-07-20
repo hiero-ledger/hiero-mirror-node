@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common;
+package org.hiero.mirror.common.healthcheck;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -8,10 +8,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 
-// Dependency-free liveness probe for the container HEALTHCHECK. Compiled at build time
-// by the :compileHealthCheck Gradle task and copied into the runtime image as a plain class file.
+// Dependency-free liveness probe for the container HEALTHCHECK.
 // Exits 0 when the endpoint returns HTTP 200, otherwise 1.
-public final class HealthCheck {
+public final class HealthCheckClient {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(2);
 

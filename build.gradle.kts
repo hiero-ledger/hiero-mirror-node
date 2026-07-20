@@ -181,7 +181,6 @@ spotless {
             // Known issue with Java 21: https://github.com/palantir/palantir-java-format/issues/933
             "rest-java/**/EntityServiceImpl.java",
             "tools/**",
-            "**/HealthCheck.java",
         )
         toggleOffOn()
         trimTrailingWhitespace()
