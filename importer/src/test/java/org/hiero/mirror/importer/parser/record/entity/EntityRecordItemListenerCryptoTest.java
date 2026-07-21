@@ -1047,12 +1047,12 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     @Test
     void cryptoCreateBlockstreamDelegationAddressPersistsEthereumNonceFromStateChanges() {
         // given
-        long expectedNonce = 2L;
-        var payer = domainBuilder.entity().persist();
-        var transactionId = transactionId(payer.toEntityId(), domainBuilder.timestamp());
+        final long expectedNonce = 2L;
+        final var payer = domainBuilder.entity().persist();
+        final var transactionId = transactionId(payer.toEntityId(), domainBuilder.timestamp());
 
         // when - blockstream crypto create with delegation address and nonce from state changes
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .cryptoCreate()
                 .transactionBody(b -> b.setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
@@ -1062,7 +1062,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
         parseRecordItemAndCommit(recordItem);
 
         // then
-        var accountId =
+        final var accountId =
                 EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
         assertThat(entityRepository.findById(accountId.getId()))
                 .get()
@@ -1073,16 +1073,16 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     @Test
     void cryptoUpdateBlockstreamDelegationAddressPersistsEthereumNonceFromStateChanges() {
         // given
-        var account = domainBuilder
+        final var account = domainBuilder
                 .entity()
                 .customize(e -> e.delegationAddress(null).ethereumNonce(0L))
                 .persist();
-        var protoAccountId = account.toEntityId().toAccountID();
-        long expectedNonce = 3L;
+        final var protoAccountId = account.toEntityId().toAccountID();
+        final long expectedNonce = 3L;
 
         // when - blockstream crypto update with delegation address and nonce from state changes
-        var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
-        var recordItem = recordItemBuilder
+        final var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
+        final var recordItem = recordItemBuilder
                 .cryptoUpdate()
                 .transactionBody(b ->
                         b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
@@ -1582,6 +1582,149 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                     var cryptoAllowanceDb = cryptoAllowanceDbOpt.get();
                     assertThat(cryptoAllowanceDb.getAmountGranted()).isEqualTo(allowanceAmountGranted);
                     var amountTransferred = cryptoTransfers.get(0).getAmount()
+                            + cryptoTransfers.get(1).getAmount();
+                    assertThat(cryptoAllowanceDb.getAmount()).isEqualTo(allowanceAmountGranted + amountTransferred);
+                });
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void cryptoTransferUpdatesAllowanceAmountViaContract(boolean contractCreate) {
+        entityProperties.getPersist().setTrackAllowance(true);
+        final var allowanceAmountGranted = 1000L;
+
+        final var contractSpender = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT))
+                .persist()
+                .toEntityId();
+
+        final var cryptoAllowance = domainBuilder
+                .cryptoAllowance()
+                .customize(ca -> {
+                    ca.amountGranted(allowanceAmountGranted).amount(allowanceAmountGranted);
+                    ca.spender(contractSpender.getId());
+                })
+                .persist();
+
+        final var ownerAccountId = EntityId.of(cryptoAllowance.getOwner()).toAccountID();
+        final var cryptoTransfers = List.of(
+                AccountAmount.newBuilder()
+                        .setAmount(-100)
+                        .setAccountID(ownerAccountId)
+                        .setIsApproval(true)
+                        .build(),
+                AccountAmount.newBuilder()
+                        .setAmount(-200)
+                        .setAccountID(ownerAccountId)
+                        .setIsApproval(true)
+                        .build());
+
+        final var recordCryptoTransfers = cryptoTransfers.stream()
+                .map(transfer -> transfer.toBuilder().setIsApproval(false).build())
+                .toList();
+        final var transactionId = transactionId(domainBuilder.entityId(), domainBuilder.timestamp()).toBuilder()
+                .setNonce(1)
+                .build();
+        final var recordItem = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBody(b -> b.setTransfers(TransferList.newBuilder().addAllAccountAmounts(cryptoTransfers)))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .record(r -> {
+                    r.setParentConsensusTimestamp(recordItemBuilder.timestamp())
+                            .setTransferList(TransferList.newBuilder().addAllAccountAmounts(recordCryptoTransfers));
+                    final var contractFunctionResult =
+                            recordItemBuilder.contractFunctionResult().setSenderId(contractSpender.toAccountID());
+                    if (contractCreate) {
+                        // allowance spent from the constructor of the contract being created
+                        r.setContractCreateResult(contractFunctionResult);
+                    } else {
+                        r.setContractCallResult(contractFunctionResult);
+                    }
+                })
+                .build();
+
+        parseRecordItemAndCommit(recordItem);
+
+        assertAll(
+                () -> assertEquals(1, transactionRepository.count()),
+                () -> assertEquals(1, cryptoAllowanceRepository.count()),
+                () -> {
+                    final var cryptoAllowanceId = new Id();
+                    cryptoAllowanceId.setOwner(EntityId.of(ownerAccountId).getId());
+                    cryptoAllowanceId.setSpender(contractSpender.getId());
+
+                    final var cryptoAllowanceDbOpt = cryptoAllowanceRepository.findById(cryptoAllowanceId);
+                    assertThat(cryptoAllowanceDbOpt).isNotEmpty();
+
+                    final var cryptoAllowanceDb = cryptoAllowanceDbOpt.get();
+                    assertThat(cryptoAllowanceDb.getAmountGranted()).isEqualTo(allowanceAmountGranted);
+                    final var amountTransferred = cryptoTransfers.get(0).getAmount()
+                            + cryptoTransfers.get(1).getAmount();
+                    assertThat(cryptoAllowanceDb.getAmount()).isEqualTo(allowanceAmountGranted + amountTransferred);
+                });
+    }
+
+    @Test
+    void cryptoTransferUpdatesAllowanceAmountViaContractWithoutSenderId() {
+        entityProperties.getPersist().setTrackAllowance(true);
+        final var allowanceAmountGranted = 1000L;
+
+        final var payerAccount = domainBuilder.entity().persist().toEntityId();
+
+        final var cryptoAllowance = domainBuilder
+                .cryptoAllowance()
+                .customize(ca -> {
+                    ca.amountGranted(allowanceAmountGranted).amount(allowanceAmountGranted);
+                    ca.spender(payerAccount.getId());
+                })
+                .persist();
+
+        final var ownerAccountId = EntityId.of(cryptoAllowance.getOwner()).toAccountID();
+        final var cryptoTransfers = List.of(
+                AccountAmount.newBuilder()
+                        .setAmount(-100)
+                        .setAccountID(ownerAccountId)
+                        .setIsApproval(true)
+                        .build(),
+                AccountAmount.newBuilder()
+                        .setAmount(-200)
+                        .setAccountID(ownerAccountId)
+                        .setIsApproval(true)
+                        .build());
+
+        final var recordCryptoTransfers = cryptoTransfers.stream()
+                .map(transfer -> transfer.toBuilder().setIsApproval(false).build())
+                .toList();
+        final var transactionId = transactionId(payerAccount, domainBuilder.timestamp()).toBuilder()
+                .setNonce(1)
+                .build();
+        final var recordItem = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBody(b -> b.setTransfers(TransferList.newBuilder().addAllAccountAmounts(cryptoTransfers)))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .record(r -> r.setParentConsensusTimestamp(recordItemBuilder.timestamp())
+                        .setTransferList(TransferList.newBuilder().addAllAccountAmounts(recordCryptoTransfers))
+                        .setContractCallResult(
+                                recordItemBuilder.contractFunctionResult().clearSenderId()))
+                .build();
+
+        parseRecordItemAndCommit(recordItem);
+
+        assertAll(
+                () -> assertEquals(1, transactionRepository.count()),
+                () -> assertEquals(1, cryptoAllowanceRepository.count()),
+                () -> {
+                    final var cryptoAllowanceId = new Id();
+                    cryptoAllowanceId.setOwner(EntityId.of(ownerAccountId).getId());
+                    cryptoAllowanceId.setSpender(payerAccount.getId());
+
+                    final var cryptoAllowanceDbOpt = cryptoAllowanceRepository.findById(cryptoAllowanceId);
+                    assertThat(cryptoAllowanceDbOpt).isNotEmpty();
+
+                    final var cryptoAllowanceDb = cryptoAllowanceDbOpt.get();
+                    assertThat(cryptoAllowanceDb.getAmountGranted()).isEqualTo(allowanceAmountGranted);
+                    final var amountTransferred = cryptoTransfers.get(0).getAmount()
                             + cryptoTransfers.get(1).getAmount();
                     assertThat(cryptoAllowanceDb.getAmount()).isEqualTo(allowanceAmountGranted + amountTransferred);
                 });

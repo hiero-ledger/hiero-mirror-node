@@ -32,7 +32,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
     @Cacheable(
             cacheNames = CACHE_NAME_EVM_ADDRESS,
             cacheManager = CACHE_MANAGER_ENTITY,
-            key = "@spelHelper.hashCode(#alias)",
+            key = "@spelHelper.getCacheKey(#alias)",
             unless = "#result == null")
     @Query(value = "select * from entity where evm_address = :alias and deleted is not true")
     Optional<Entity> findByEvmAddressAndDeletedIsFalse(byte[] alias);
@@ -40,7 +40,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
     @Cacheable(
             cacheNames = CACHE_NAME_ALIAS,
             cacheManager = CACHE_MANAGER_ENTITY,
-            key = "@spelHelper.hashCode(#alias)",
+            key = "@spelHelper.getCacheKey(#alias)",
             unless = "#result == null")
     @Query(value = """
             select *

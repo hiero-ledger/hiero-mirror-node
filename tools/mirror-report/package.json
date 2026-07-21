@@ -1,4 +1,7 @@
 {
+  "allowScripts": {
+    "unrs-resolver@1.12.2": true
+  },
   "author": "Mirror Node Team",
   "bin": {
     "mirror": "index.js"
@@ -16,7 +19,7 @@
     "jest": "30.4.2"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=24.18.0 <25"
   },
   "homepage": "https://github.com/hiero-ledger/hiero-mirror-node/tree/main/tools/mirror-report",
   "jest": {

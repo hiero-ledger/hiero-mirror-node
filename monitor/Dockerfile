@@ -6,13 +6,14 @@ RUN java -Djarmode=tools -jar *.jar extract --layers --launcher --destination ex
 FROM eclipse-temurin:25-jre-resolute
 ENV JDK_JAVA_OPTIONS="-XX:MaxRAMPercentage=80"
 EXPOSE 8082
-HEALTHCHECK --interval=10s --retries=5 --start-period=60s --timeout=2s CMD curl -f http://localhost:8082/actuator/health/liveness
+HEALTHCHECK --interval=10s --retries=5 --start-period=60s --timeout=5s CMD ["java", "-cp", "/app/healthcheck.jar", "org.hiero.mirror.common.healthcheck.HealthCheckClient", "http://localhost:8082/actuator/health/liveness"]
 WORKDIR /app
 
 # Copy artifacts
 COPY --chown=1000:1000 --from=builder /app/extracted/dependencies/ ./
 COPY --chown=1000:1000 --from=builder /app/extracted/spring-boot-loader/ ./
 COPY --chown=1000:1000 --from=builder /app/extracted/application/ ./
+COPY --chown=1000:1000 --from=builder /app/extracted/application/BOOT-INF/lib/common-*.jar ./healthcheck.jar
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \

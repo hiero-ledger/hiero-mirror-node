@@ -881,6 +881,10 @@ class ContractController extends BaseController {
       return;
     }
 
+    conditions.push(
+      `${ContractResult.getFullName(ContractResult.TRANSACTION_RESULT)} <> ${wrongNonceTransactionResult}`
+    );
+
     const rows = await ContractService.getContractResultsByIdAndFilters(conditions, params, order, limit);
     if (rows.length === 0) {
       return;
@@ -1097,6 +1101,10 @@ class ContractController extends BaseController {
     if (skip) {
       return;
     }
+
+    conditions.push(
+      `${ContractResult.getFullName(ContractResult.TRANSACTION_RESULT)} <> ${wrongNonceTransactionResult}`
+    );
 
     const rows = await ContractService.getContractResultsByIdAndFilters(
       conditions,

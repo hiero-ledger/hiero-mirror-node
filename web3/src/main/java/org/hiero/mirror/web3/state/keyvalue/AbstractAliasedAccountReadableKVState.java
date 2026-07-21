@@ -195,7 +195,8 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
     private Supplier<List<AccountCryptoAllowance>> getCryptoAllowances(
             final Long ownerId, final Optional<Long> timestamp) {
         return Suppliers.memoize(() -> timestamp
-                .map(t -> cryptoAllowanceRepository.findByOwnerAndTimestamp(ownerId, t))
+                .map(t -> cryptoAllowanceRepository.findByOwnerAndTimestamp(
+                        ownerId, t, systemEntity.hederaTokenServiceContract().getId()))
                 .orElseGet(() -> cryptoAllowanceRepository.findByOwner(ownerId))
                 .stream()
                 .map(this::convertCryptoAllowance)
