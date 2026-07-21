@@ -3,14 +3,6 @@
 name: Test native images
 
 on:
-  # Remove after test -->
-  pull_request:
-    branches:
-      - "main"
-    paths:
-      - ".github/actions/build-native-image/**"
-      - ".github/actions/run-e2e/**"
-  # <---
   push:
     tags:
       - "v*"
