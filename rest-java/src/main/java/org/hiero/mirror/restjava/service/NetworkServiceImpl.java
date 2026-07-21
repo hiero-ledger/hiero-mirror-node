@@ -79,6 +79,10 @@ final class NetworkServiceImpl implements NetworkService {
                     accountBalanceRepository.getSupplyHistory(lowerBounds, upperBounds, minTimestamp, maxTimestamp);
         }
 
+        if (networkSupply.consensusTimestamp() == 0L) {
+            throw new EntityNotFoundException("Network supply not found");
+        }
+
         return networkSupply;
     }
 

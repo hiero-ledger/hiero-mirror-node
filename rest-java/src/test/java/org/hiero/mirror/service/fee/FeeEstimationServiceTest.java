@@ -36,13 +36,11 @@ import org.hiero.mirror.restjava.service.fee.FeeEstimationState;
 import org.hiero.mirror.restjava.service.fee.FeeTokenStore;
 import org.hiero.mirror.restjava.service.fee.FeeTopicStore;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.core.io.ClassPathResource;
 
-@Disabled("Pending full integration of Hedera fee calculator with mirror DB state (see FeeEstimationService)")
 @RequiredArgsConstructor
 final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 

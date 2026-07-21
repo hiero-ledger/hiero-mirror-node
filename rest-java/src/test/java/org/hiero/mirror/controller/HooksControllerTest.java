@@ -107,7 +107,6 @@ final class HooksControllerTest extends ControllerTest {
             final var hook2 = persistHook(ownerId);
 
             final var expectedHooks = hookMapper.map(List.of(hook2, hook1));
-            clearTimestampRangeFromHookResponse(expectedHooks);
             final var expectedResponse = new HooksResponse();
             expectedResponse.setHooks(expectedHooks);
             expectedResponse.setLinks(new Links());
@@ -118,7 +117,6 @@ final class HooksControllerTest extends ControllerTest {
             // then
             final var body = actual.getBody();
             assertThat(body).isNotNull();
-            clearTimestampRangeFromHookResponse(body.getHooks());
             assertThat(body).isEqualTo(expectedResponse);
             assertThat(actual.getHeaders().containsHeader(HttpHeaders.LINK)).isFalse();
         }
@@ -158,7 +156,6 @@ final class HooksControllerTest extends ControllerTest {
             final var expectedHookEntities = order.equals("asc") ? List.of(hook1, hook2) : List.of(hook3, hook2);
 
             final var expectedHooks = hookMapper.map(expectedHookEntities);
-            clearTimestampRangeFromHookResponse(expectedHooks);
             final var expectedResponse = new HooksResponse();
             expectedResponse.setHooks(expectedHooks);
 
@@ -186,7 +183,6 @@ final class HooksControllerTest extends ControllerTest {
             // then
             final var body = actual.getBody();
             assertThat(body).isNotNull();
-            clearTimestampRangeFromHookResponse(body.getHooks());
             assertThat(body).isEqualTo(expectedResponse);
             assertThat(body.getHooks()).hasSize(limit);
             assertThat(actual.getHeaders().containsHeaderValue(HttpHeaders.LINK, LINK_HEADER.formatted(nextLink)));
@@ -259,7 +255,6 @@ final class HooksControllerTest extends ControllerTest {
             }
 
             final var expectedHooks = hookMapper.map(expectedHookList);
-            clearTimestampRangeFromHookResponse(expectedHooks);
             final var expectedResponse = new HooksResponse();
             expectedResponse.setHooks(expectedHooks);
             expectedResponse.setLinks(new Links());
@@ -272,7 +267,6 @@ final class HooksControllerTest extends ControllerTest {
 
             // then
             assertThat(actual).isNotNull();
-            clearTimestampRangeFromHookResponse(actual.getHooks());
             assertThat(actual).isEqualTo(expectedResponse);
         }
 
@@ -407,11 +401,6 @@ final class HooksControllerTest extends ControllerTest {
                     .hook()
                     .customize(hook -> hook.ownerId(ownerId.getId()))
                     .persist();
-        }
-
-        /** Nulls {@code timestampRange} on API hooks so comparisons align with mapper expectations (DB persists {@code timestamp_range}). */
-        private void clearTimestampRangeFromHookResponse(List<org.hiero.mirror.rest.model.Hook> hooks) {
-            hooks.forEach(h -> h.setTimestampRange(null));
         }
 
         /** Fills {@code {0}}..{@code {3}} with hook ids — avoids {@link java.text.MessageFormat} number formatting. */
@@ -693,6 +682,68 @@ final class HooksControllerTest extends ControllerTest {
             // then
             assertThat(actual).isNotNull().isEqualTo(expectedResponse);
             assertThat(actual.getStorage()).hasSize(Math.min(limited.size(), limit));
+        }
+
+        @Test
+        @DisplayName("historical storage returns only the latest value per key")
+        void historicalStorageReturnsLatestValuePerKey() {
+            // given — the importer appends one hook_storage_change row per change, so a single key has
+            // multiple rows in the queried window; the endpoint must collapse them to the latest value
+            persistDefaultOwnerAndHook();
+            final var ownerId = EntityId.of(0, 0, OWNER_ID);
+            final byte[] key = HexFormat.of().parseHex(KEY1.replace("0x", ""));
+
+            persistHookStorageChangeWithValue(
+                    ownerId,
+                    HOOK_ID,
+                    key,
+                    TimestampParameter.valueOf(TIMESTAMP1).value(),
+                    new byte[] {0x0a});
+            final var latest = persistHookStorageChangeWithValue(
+                    ownerId,
+                    HOOK_ID,
+                    key,
+                    TimestampParameter.valueOf(TIMESTAMP2).value(),
+                    new byte[] {0x0b});
+
+            final var expectedSlot = HookStorage.builder()
+                    .ownerId(ownerId.getId())
+                    .hookId(HOOK_ID)
+                    .key(key)
+                    .modifiedTimestamp(latest.getConsensusTimestamp())
+                    .value(new byte[] {0x0b})
+                    .build();
+            final var expectedResponse = new HooksStorageResponse();
+            expectedResponse.setHookId(HOOK_ID);
+            expectedResponse.setOwnerId(ownerId.toString());
+            expectedResponse.setStorage(mapExpectedHookStorage(List.of(expectedSlot)));
+            expectedResponse.setLinks(new Links());
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri(uriBuilder -> uriBuilder
+                            .queryParam("timestamp", "lte:" + TIMESTAMP2)
+                            .build(Map.of("account_id", OWNER_ID, "hookId", HOOK_ID)))
+                    .retrieve()
+                    .body(HooksStorageResponse.class);
+
+            // then — one slot with the latest value, not one row per change
+            assertThat(actual.getStorage()).hasSize(1);
+            assertThat(actual).isEqualTo(expectedResponse);
+        }
+
+        private HookStorageChange persistHookStorageChangeWithValue(
+                EntityId ownerId, long hookId, byte[] key, long timestamp, byte[] valueWritten) {
+            return domainBuilder
+                    .hookStorageChange()
+                    .customize(hook -> hook.ownerId(ownerId.getId())
+                            .consensusTimestamp(timestamp)
+                            .hookId(hookId)
+                            .key(key)
+                            .valueRead(new byte[] {0x01, 0x02})
+                            .valueWritten(valueWritten))
+                    .persist();
         }
 
         static Stream<Arguments> provideKeyQueries() {

@@ -28,7 +28,6 @@ import org.hiero.mirror.restjava.parameter.EntityIdParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 import org.hiero.mirror.restjava.service.Bound;
 import org.jspecify.annotations.NullUnmarked;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -58,8 +57,6 @@ class TokenAirdropRepositoryTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    @Disabled(
-            "Pending JDBC ConversionService support for TokenAirdrop composite Id / enum columns on CrudRepository.findById")
     void findById() {
         var tokenAirdrop = domainBuilder.tokenAirdrop(FUNGIBLE_COMMON).persist();
         assertThat(repository.findById(tokenAirdrop.getId())).get().isEqualTo(tokenAirdrop);

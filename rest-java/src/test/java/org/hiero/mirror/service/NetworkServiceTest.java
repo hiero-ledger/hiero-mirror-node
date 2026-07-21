@@ -22,6 +22,7 @@ import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.RegisteredNodesRequest;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
 import org.hiero.mirror.restjava.repository.RegisteredNodeRepository;
@@ -87,10 +88,11 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void getSupplyWhenNoMatchingEntities() {
-        final var result = networkService.getSupply(Bound.EMPTY);
-        assertThat(result.unreleasedSupply()).isZero();
-        assertThat(result.consensusTimestamp()).isZero();
+    void getSupplyNotFound() {
+        // when, then
+        assertThatThrownBy(() -> networkService.getSupply(Bound.EMPTY))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("Network supply not found");
     }
 
     @Test

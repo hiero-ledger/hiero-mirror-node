@@ -3,56 +3,30 @@
 package org.hiero.mirror.service.fee;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.base.TokenType;
-import java.util.Optional;
-import org.hiero.mirror.common.domain.DomainBuilder;
+import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
-import org.hiero.mirror.restjava.repository.CustomFeeRepository;
-import org.hiero.mirror.restjava.repository.TokenRepository;
 import org.hiero.mirror.restjava.service.fee.FeeTokenStore;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
-final class FeeTokenStoreTest {
+@RequiredArgsConstructor
+final class FeeTokenStoreTest extends RestJavaIntegrationTest {
 
-    @InjectMocks
-    private FeeTokenStore store;
-
-    @Mock
-    private TokenRepository tokenRepository;
-
-    @Mock
-    private CustomFeeRepository customFeeRepository;
-
-    private DomainBuilder domainBuilder;
-
-    @BeforeEach
-    void setup() {
-        domainBuilder = new DomainBuilder();
-    }
+    private final FeeTokenStore store;
 
     @Test
     void getReturnsNullWhenNotFound() {
         var id = TokenID.newBuilder().tokenNum(Long.MAX_VALUE).build();
-        when(tokenRepository.findById(Long.MAX_VALUE)).thenReturn(Optional.empty());
-
         assertThat(store.get(id)).isNull();
     }
 
     @Test
     void getFungibleTokenWithoutCustomFees() {
-        var token = domainBuilder.token().get();
+        var token = domainBuilder.token().persist();
         var id = TokenID.newBuilder().tokenNum(token.getTokenId()).build();
-        when(tokenRepository.findById(token.getTokenId())).thenReturn(Optional.of(token));
-        when(customFeeRepository.findById(token.getTokenId())).thenReturn(Optional.empty());
 
         var result = store.get(id);
 
@@ -64,14 +38,12 @@ final class FeeTokenStoreTest {
 
     @Test
     void getFungibleTokenWithCustomFees() {
-        var token = domainBuilder.token().get();
+        var token = domainBuilder.token().persist();
         var customFee = domainBuilder
                 .customFee()
                 .customize(cf -> cf.entityId(token.getTokenId()))
-                .get();
+                .persist();
         var id = TokenID.newBuilder().tokenNum(token.getTokenId()).build();
-        when(tokenRepository.findById(token.getTokenId())).thenReturn(Optional.of(token));
-        when(customFeeRepository.findById(token.getTokenId())).thenReturn(Optional.of(customFee));
 
         var result = store.get(id);
 
@@ -87,10 +59,8 @@ final class FeeTokenStoreTest {
         var token = domainBuilder
                 .token()
                 .customize(t -> t.type(TokenTypeEnum.NON_FUNGIBLE_UNIQUE))
-                .get();
+                .persist();
         var id = TokenID.newBuilder().tokenNum(token.getTokenId()).build();
-        when(tokenRepository.findById(token.getTokenId())).thenReturn(Optional.of(token));
-        when(customFeeRepository.findById(token.getTokenId())).thenReturn(Optional.empty());
 
         var result = store.get(id);
 

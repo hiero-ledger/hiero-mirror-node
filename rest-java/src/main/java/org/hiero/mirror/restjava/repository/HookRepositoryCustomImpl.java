@@ -67,10 +67,13 @@ class HookRepositoryCustomImpl implements HookRepositoryCustom, JooqRepository {
         var t = Tables.HOOK_STORAGE_CHANGE;
         Condition condition = baseStorageCondition(t, request, ownerId).and(conditionFromBound(request.getTimestamp()));
         SortField<byte[]> sort = request.getOrder() == Direction.ASC ? t.KEY.asc() : t.KEY.desc();
+        // hook_storage_change is an append-only log with one row per change, so a key can appear multiple times in
+        // the window; collapse to the latest change per key (distinct on key, latest consensus_timestamp first)
         return dsl.select(t.CONSENSUS_TIMESTAMP, t.KEY, coalesce(t.VALUE_WRITTEN, t.VALUE_READ))
+                .distinctOn(t.KEY)
                 .from(t)
                 .where(condition)
-                .orderBy(sort)
+                .orderBy(sort, t.CONSENSUS_TIMESTAMP.desc())
                 .limit(request.getLimit())
                 .fetch(this::mapStorageRow);
     }
