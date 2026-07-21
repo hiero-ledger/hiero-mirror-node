@@ -23,7 +23,6 @@ import org.hiero.mirror.importer.parser.record.receipt.ReceiptBlockUtils;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptRoot;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.core.annotation.Order;
 import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
@@ -40,8 +39,6 @@ import org.springframework.transaction.support.TransactionOperations;
  * exactly (blocks with no EVM activity yield 32 zero bytes).
  */
 @Named
-// Runs after FixEvmTransactionIndexMigration so receipts roots are computed from the fixed EVM transaction indexes
-@Order(2)
 final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
 
     static final int DEFAULT_BATCH_SIZE = 100;
@@ -110,6 +107,11 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
     @Override
     public String getDescription() {
         return "Backfill receipts_root for historical blocks";
+    }
+
+    @Override
+    protected int getOrder() {
+        return 2;
     }
 
     @Override

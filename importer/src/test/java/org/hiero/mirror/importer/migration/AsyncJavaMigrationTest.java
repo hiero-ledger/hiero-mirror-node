@@ -46,8 +46,9 @@ class AsyncJavaMigrationTest extends AsyncJavaMigrationBaseTest {
 
     @Test
     void getCallbackName() {
-        var expected =
-                asyncMigrations.stream().map(AsyncJavaMigration::getDescription).toList();
+        var expected = asyncMigrations.stream()
+                .map(migration -> "%03d_%s".formatted(migration.getOrder(), migration.getDescription()))
+                .toList();
         assertThat(asyncMigrations.stream()
                         .map(AsyncJavaMigration::getCallbackName)
                         .toList())
