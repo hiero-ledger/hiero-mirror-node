@@ -99,8 +99,7 @@ public class SharedPollingTopicListener extends SharedTopicListener {
         }
 
         void onStart(Subscription subscription) {
-            lastConsensusTimestamp.set(
-                    DomainUtils.convertToNanosMax(java.time.Instant.now().minusSeconds(300)));
+            lastConsensusTimestamp.set(DomainUtils.now());
             log.info(
                     "Starting to poll every {}ms",
                     listenerProperties.getInterval().toMillis());
