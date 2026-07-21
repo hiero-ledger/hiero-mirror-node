@@ -205,8 +205,6 @@ runs:
           yq -i '. *= load("mirror-block-node.yaml")' mirror.yaml
           cat $(which solo | xargs dirname)/../lib/node_modules/@hiero-ledger/solo/resources/templates/application.properties \
             > application.properties
-          # Heredoc body/EOF must use the run-block minimum indent (8 spaces) so content
-          # is written at column 0 after GitHub Actions strips common indentation.
           cat <<EOF >> application.properties
         blockStream.writerMode=FILE_AND_GRPC
         blockStream.streamWrappedRecordBlocks=false
@@ -265,7 +263,6 @@ runs:
       shell: bash
       run: |
         set -o pipefail
-        # Strip null bytes so grep can parse helm/kubectl pod logs (otherwise "binary file matches")
         helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
           --timeout 20m 2>&1 | tr -d '\000' | tee output_log.txt
 

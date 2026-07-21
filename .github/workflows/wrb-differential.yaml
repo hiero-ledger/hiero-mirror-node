@@ -49,7 +49,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Setup Node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
 
@@ -66,7 +66,7 @@ jobs:
           version: v0.31.0
 
       - name: Install JDK
-        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
           distribution: temurin
           java-version: 25
@@ -204,10 +204,15 @@ jobs:
           echo "Scale up block-node sts"
           kubectl scale sts block-node-1 -n "${SOLO_NAMESPACE}" --replicas 1
           kubectl wait sts block-node-1 -n "${SOLO_NAMESPACE}" --for=jsonpath='{.status.readyReplicas}'=1 --timeout=300s
+          # readyReplicas can be set before gRPC on :40840 is accepting connections
+          echo "Waiting for block-node gRPC"
+          kubectl run bn-grpc-wait --rm -i --restart=Never -n "${SOLO_NAMESPACE}" \
+            --image=busybox:1.36.1 --command -- \
+            sh -c 'for i in $(seq 1 90); do nc -z -w 2 block-node-1 40840 && exit 0; sleep 2; done; echo "Timed out waiting for block-node gRPC"; exit 1'
           echo "Scaled up block-node sts"
 
       - name: Run acceptance tests
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: |
           helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
             --timeout 10m | tee output_log.txt
