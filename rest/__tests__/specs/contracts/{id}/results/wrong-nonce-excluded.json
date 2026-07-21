@@ -1,0 +1,65 @@
+{
+  "description": "Contract results for a specific contract excludes WRONG_NONCE ethereum transactions",
+  "setup": {
+    "contracts": [
+      {
+        "created_timestamp": "987654999123200",
+        "evm_address": "70f2b2914a2a4b783faefb75f459a580616fcb5e",
+        "file_id": "5001",
+        "key": [1, 1, 1],
+        "num": "5001",
+        "timestamp_range": "[987654999123300,)"
+      }
+    ],
+    "contractresults": [
+      {
+        "amount": 20,
+        "bloom": [1, 1],
+        "call_result": [2, 2],
+        "consensus_timestamp": "187654000123456",
+        "contract_id": 5001,
+        "gas_used": 100,
+        "transaction_nonce": 0
+      },
+      {
+        "amount": 30,
+        "bloom": [3, 3],
+        "call_result": [4, 4],
+        "consensus_timestamp": "187654000123490",
+        "contract_id": 5001,
+        "gas_used": 0,
+        "transaction_nonce": 0,
+        "transaction_result": "312"
+      }
+    ]
+  },
+  "urls": [
+    "/api/v1/contracts/0.0.5001/results",
+    "/api/v1/contracts/70f2b2914a2a4b783faefb75f459a580616fcb5e/results"
+  ],
+  "responseStatus": 200,
+  "responseJson": {
+    "results": [
+      {
+        "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
+        "amount": 20,
+        "bloom": "0x0101",
+        "call_result": "0x0202",
+        "contract_id": "0.0.5001",
+        "created_contract_ids": [],
+        "error_message": null,
+        "from": "0x0000000000000000000000000000000000000065",
+        "function_parameters": "0x010102020303",
+        "gas_consumed": null,
+        "gas_limit": 1000,
+        "gas_used": 100,
+        "hash": "0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "timestamp": "187654.000123456",
+        "to": "0x0000000000000000000000000000000000001389"
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

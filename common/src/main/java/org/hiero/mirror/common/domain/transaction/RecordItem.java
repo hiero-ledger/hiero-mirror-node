@@ -89,6 +89,15 @@ public class RecordItem implements StreamItem {
     @NonFinal
     private AtomicInteger logIndex;
 
+    @Setter
+    @EqualsAndHashCode.Exclude
+    @NonFinal
+    private AtomicInteger evmTransactionIndexCounter;
+
+    @NonFinal
+    @Setter
+    private Integer evmTransactionIndex;
+
     @NonFinal
     @Setter
     private Predicate<EntityId> contractTransactionPredicate;
@@ -197,6 +206,17 @@ public class RecordItem implements StreamItem {
         return logIndex.getAndIncrement();
     }
 
+    public int claimEvmTransactionIndex() {
+        if (evmTransactionIndex != null) {
+            return evmTransactionIndex;
+        }
+        if (evmTransactionIndexCounter == null) {
+            evmTransactionIndexCounter = new AtomicInteger(0);
+        }
+        evmTransactionIndex = evmTransactionIndexCounter.getAndIncrement();
+        return evmTransactionIndex;
+    }
+
     public int getTransactionStatus() {
         return transactionRecord.getReceipt().getStatusValue();
     }
@@ -279,7 +299,7 @@ public class RecordItem implements StreamItem {
         return null;
     }
 
-    private boolean hasContractResult() {
+    public boolean hasContractResult() {
         return transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult();
     }
 
