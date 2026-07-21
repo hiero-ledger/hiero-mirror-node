@@ -44,7 +44,7 @@ runs:
           echo "SOLO_NAMESPACE=mirror"
           echo "SOLO_CLUSTER_SETUP_NAMESPACE=solo"
           echo "SOLO_DEPLOYMENT=solo-deployment"
-          echo "SOLO_VERSION=v0.79.0"
+          echo "SOLO_VERSION=v0.77.0"
         } >> "$GITHUB_ENV"
 
     - name: Setup Node
