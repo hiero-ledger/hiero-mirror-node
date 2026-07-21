@@ -113,5 +113,4 @@ jobs:
           dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
           dockerhub-username: ${{ vars.DOCKERHUB_USERNAME }}
           image-source: native
-          run-k6: "false"
           stream-type: ${{ matrix.stream-type }}
