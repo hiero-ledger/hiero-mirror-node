@@ -8,6 +8,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.parameter.EntityIdAliasParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdEvmAddressParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdNumParameter;
@@ -23,7 +24,7 @@ final class EntityServiceImpl implements EntityService {
     @Override
     public Entity findById(EntityId id) {
         return entityRepository.findById(id.getId())
-                .orElseThrow(() -> new RuntimeException("Entity not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Entity not found"));
     }
 
     @Override
@@ -34,6 +35,6 @@ final class EntityServiceImpl implements EntityService {
             case EntityIdEvmAddressParameter p -> entityRepository.findByEvmAddress(p.evmAddress()).map(EntityId::of);
         };
 
-        return id.orElseThrow(() -> new RuntimeException("No account found for the given ID"));
+        return id.orElseThrow(() -> new EntityNotFoundException("No account found for the given ID"));
     }
 }

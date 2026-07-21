@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.restjava.dto.HookStorageRequest;
 import org.hiero.mirror.restjava.dto.HooksRequest;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.repository.HookRepository;
 
 @Named
@@ -22,7 +23,7 @@ final class HookServiceImpl implements HookService {
         var owner = entityService.lookup(request.getOwnerId());
         var hookId = new Hook.Id(request.getHookId(), owner.getId());
         if (!hookRepository.existsById(hookId)) {
-            throw new RuntimeException("Hook not found");
+            throw new EntityNotFoundException("Hook not found");
         }
         var storage = hookRepository.findHookStorage(request, owner.getId());
         return new HookStorageResult(owner, storage);

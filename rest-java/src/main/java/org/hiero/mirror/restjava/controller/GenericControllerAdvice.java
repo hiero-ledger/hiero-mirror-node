@@ -21,6 +21,7 @@ import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.rest.model.ErrorStatus;
 import org.hiero.mirror.rest.model.ErrorStatusMessagesInner;
 import org.hiero.mirror.restjava.RestJavaProperties;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.context.MessageSource;
@@ -112,7 +113,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler
-    private ResponseEntity<Object> notFound(final RuntimeException e, final WebRequest request) {
+    private ResponseEntity<Object> notFound(final EntityNotFoundException e, final WebRequest request) {
         return handleExceptionInternal(e, null, null, NOT_FOUND, request);
     }
 

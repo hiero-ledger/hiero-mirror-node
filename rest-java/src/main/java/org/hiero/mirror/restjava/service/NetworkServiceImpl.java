@@ -23,6 +23,7 @@ import org.hiero.mirror.restjava.dto.NetworkNodeDto;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 import org.hiero.mirror.restjava.dto.RegisteredNodesRequest;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
 import org.hiero.mirror.restjava.repository.AccountBalanceRepository;
 import org.hiero.mirror.restjava.repository.EntityRepository;
@@ -49,7 +50,7 @@ final class NetworkServiceImpl implements NetworkService {
     public NetworkStake getLatestNetworkStake() {
         return networkStakeRepository
                 .findLatest()
-                .orElseThrow(() -> new RuntimeException("No network stake data found"));
+                .orElseThrow(() -> new EntityNotFoundException("No network stake data found"));
     }
 
     @Override

@@ -19,6 +19,7 @@ import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.restjava.dto.SystemFile;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
 import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryPolicy;
@@ -90,9 +91,9 @@ final class FileServiceImpl implements FileService {
                                     throw e;
                                 }
                             }))
-                    .orElseThrow(() -> new RuntimeException("File %s not found".formatted(entityId)));
+                    .orElseThrow(() -> new EntityNotFoundException("File %s not found".formatted(entityId)));
         } catch (RetryException e) {
-            throw new RuntimeException("File %s not found".formatted(entityId), e);
+            throw new EntityNotFoundException("File %s not found".formatted(entityId), e);
         }
     }
 }

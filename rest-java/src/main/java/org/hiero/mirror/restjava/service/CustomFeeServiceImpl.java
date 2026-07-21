@@ -7,6 +7,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.CustomFee;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.repository.CustomFeeRepository;
 
 @Named
@@ -19,7 +20,7 @@ final class CustomFeeServiceImpl implements CustomFeeService {
     public CustomFee findById(EntityId id) {
         return customFeeRepository
                 .findById(id.getId())
-                .orElseThrow(() -> new RuntimeException("Custom fee for entity not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Custom fee for entity not found"));
     }
 
     @Override
