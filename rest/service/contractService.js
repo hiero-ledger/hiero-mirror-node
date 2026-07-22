@@ -235,7 +235,8 @@ class ContractService extends BaseService {
         }
         if (
           condition.includes(ContractResult.SENDER_ID) ||
-          condition.includes(`${contractResultAlias}${ContractResult.CONTRACT_ID}`)
+          condition.includes(`${contractResultAlias}${ContractResult.CONTRACT_ID}`) ||
+          condition.includes(`${contractResultAlias}${ContractResult.TRANSACTION_RESULT}`)
         ) {
           return false;
         }

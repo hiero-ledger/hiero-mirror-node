@@ -161,7 +161,7 @@ class AccountReadableKVStateTest {
 
     @BeforeEach
     void setup() {
-        var systemEntity = new SystemEntity(CommonProperties.getInstance());
+        systemEntity = new SystemEntity(CommonProperties.getInstance());
         accountReadableKVState = new AccountReadableKVState(
                 commonEntityAccessor,
                 nftAllowanceRepository,
@@ -484,7 +484,8 @@ class AccountReadableKVStateTest {
         secondAllowance.setSpender(234L);
         secondAllowance.setOwner(entity.getId());
         secondAllowance.setAmount(60L);
-        when(cryptoAllowanceRepository.findByOwnerAndTimestamp(entity.getId(), timestamp.get()))
+        final long htsContractId = systemEntity.hederaTokenServiceContract().getId();
+        when(cryptoAllowanceRepository.findByOwnerAndTimestamp(entity.getId(), timestamp.get(), htsContractId))
                 .thenReturn(Arrays.asList(firstAllowance, secondAllowance));
 
         List<AccountCryptoAllowance> cryptoAllowances = new ArrayList<>();
@@ -493,12 +494,13 @@ class AccountReadableKVStateTest {
         cryptoAllowances.add(
                 new AccountCryptoAllowance(getAccountId(secondAllowance.getSpender()), secondAllowance.getAmount()));
 
-        verify(cryptoAllowanceRepository, never()).findByOwnerAndTimestamp(entity.getId(), timestamp.get());
+        verify(cryptoAllowanceRepository, never())
+                .findByOwnerAndTimestamp(entity.getId(), timestamp.get(), htsContractId);
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID))
                 .satisfies(account -> assertThat(account).returns(cryptoAllowances, Account::cryptoAllowances));
 
-        verify(cryptoAllowanceRepository).findByOwnerAndTimestamp(entity.getId(), timestamp.get());
+        verify(cryptoAllowanceRepository).findByOwnerAndTimestamp(entity.getId(), timestamp.get(), htsContractId);
     }
 
     @Test

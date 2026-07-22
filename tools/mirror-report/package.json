@@ -1,4 +1,7 @@
 {
+  "allowScripts": {
+    "unrs-resolver@1.12.2": true
+  },
   "author": "Mirror Node Team",
   "bin": {
     "mirror": "index.js"
@@ -16,7 +19,7 @@
     "jest": "30.4.2"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=24.18.0 <25"
   },
   "homepage": "https://github.com/hiero-ledger/hiero-mirror-node/tree/main/tools/mirror-report",
   "jest": {
@@ -33,9 +36,9 @@
   "main": "index.js",
   "name": "@hiero-ledger/mirror-report",
   "overrides": {
-    "brace-expansion": "5.0.5",
-    "glob": "13.0.0",
-    "js-yaml": "3.14.2"
+    "brace-expansion": "5.0.7",
+    "glob": "13.0.6",
+    "js-yaml": "5.2.1"
   },
   "repository": {
     "type": "git",

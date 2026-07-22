@@ -15,9 +15,13 @@ import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 @Named
 final class BlockStateProofHasherImpl implements BlockStateProofHasher {
 
-    private static final int DEPTH3_RIGHT_SIBLING_MODULAR_INDEX = 2;
-    private static final int MIN_PREVIOUS_BLOCK_ROOT_PATH_SIBLING_COUNT = 7;
-    private static final int SIBLING_GROUP_SIZE = 4;
+    // The merkle path 1 carries the current block's root hash and the sibling nodes leading up to the signed block's
+    // depth1 right child node. The signed block's timestamp leaf lives in the first merkle path (index 0).
+    private static final int BLOCK_CONTENTS_PATH_INDEX = 1;
+    // Each block contributes 3 real sibling nodes plus a null-hash sentinel for the single-child internal node wrap.
+    // The signed block contributes only those (its timestamp is in the first merkle path), so the minimum sibling
+    // count is 4, corresponding to the current block being directly proven by the immediately following signed block.
+    private static final int MIN_SIBLING_COUNT = 4;
 
     @Override
     public byte[] getRootHash(
@@ -27,39 +31,36 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
                     "Number of merkle paths in block %d's StateProof is not 3".formatted(blockNumber));
         }
 
-        final var depth1RightPath = merklePaths.get(1);
-        // Sibling nodes are grouped in 4, with the last 3 and the timestamp leaf in the first merkle path forming
-        // the last group. Since the second merkle path is from the previous block root, there should be at least
-        // 7 sibling nodes: the hash and the first 4 sibling nodes lead to the current block's root, the next 3
-        // sibling nodes and the timestamp leaf then lead to the block's root the TSS signature is for.
-        final var siblings = depth1RightPath.getSiblingsList();
-        if (siblings.size() < MIN_PREVIOUS_BLOCK_ROOT_PATH_SIBLING_COUNT) {
-            throw new InvalidStreamFileException(
-                    "Block %d's merkle path from the previous block root has less than %d siblings"
-                            .formatted(blockNumber, MIN_PREVIOUS_BLOCK_ROOT_PATH_SIBLING_COUNT));
+        // The merkle path 1 starts from the current block's own root hash, which must match the hash independently
+        // computed for the block.
+        final var blockContentsPath = merklePaths.get(BLOCK_CONTENTS_PATH_INDEX);
+        byte[] hash = toBytes(blockContentsPath.getHash());
+        if (!Arrays.equals(hash, currentRootHash)) {
+            throw new InvalidStreamFileException("Block %d root hash mismatch: expected=%s, actual=%s"
+                    .formatted(blockNumber, Hex.encodeHexString(currentRootHash), Hex.encodeHexString(hash)));
         }
 
+        final var siblings = blockContentsPath.getSiblingsList();
+        if (siblings.size() < MIN_SIBLING_COUNT) {
+            throw new InvalidStreamFileException("Block %d's block contents merkle path has less than %d siblings"
+                    .formatted(blockNumber, MIN_SIBLING_COUNT));
+        }
+
+        // Walk the sibling nodes up the tree. Starting from the current block's root hash, each subsequent block
+        // contributes its right sibling nodes, a null-hash sentinel encoding the single-child internal node wrap,
+        // and (for intermediate blocks only) its timestamp as a left sibling to reach that block's root - which in
+        // turn is the left-most leaf of the next block. The last block is the signed block, whose timestamp is
+        // instead applied below via the first merkle path.
         final var digest = createSha384Digest();
-        byte[] hash = toBytes(depth1RightPath.getHash());
-        for (int i = 0; i < siblings.size(); i++) {
-            final var sibling = siblings.get(i);
+        for (final var sibling : siblings) {
             final byte[] siblingHash = toBytes(sibling.getHash());
-            final byte[] leftChild = sibling.getIsLeft() ? siblingHash : hash;
-            final byte[] rightChild = !sibling.getIsLeft() ? siblingHash : hash;
-            hash = HashUtils.hashInternalNode(digest, leftChild, rightChild);
-
-            if (i % SIBLING_GROUP_SIZE == DEPTH3_RIGHT_SIBLING_MODULAR_INDEX) {
-                // We get the depth2 left node's hash after processing the depth3 right sibling node. The depth2 left
-                // node is the depth1 right node's single child, and it's implicit. Directly calculate the node's hash
+            if (siblingHash.length == 0) {
+                // Null-hash sentinel: apply the single-child internal node wrap.
                 hash = HashUtils.hashInternalNode(digest, hash);
-            }
-
-            if (i == SIBLING_GROUP_SIZE - 1) {
-                // End of the first 4-sibling group, the hash should match the current root hash
-                if (!Arrays.equals(hash, currentRootHash)) {
-                    throw new InvalidStreamFileException("Block %d root hash mismatch: expected=%s, actual=%s"
-                            .formatted(blockNumber, Hex.encodeHexString(currentRootHash), Hex.encodeHexString(hash)));
-                }
+            } else if (sibling.getIsLeft()) {
+                hash = HashUtils.hashInternalNode(digest, siblingHash, hash);
+            } else {
+                hash = HashUtils.hashInternalNode(digest, hash, siblingHash);
             }
         }
 

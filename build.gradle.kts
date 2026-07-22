@@ -17,9 +17,12 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.38.0")
-    set("consensusNodeVersion", "0.75.0-rc.5")
-    set("jackson-2-bom.version", "2.22.0") // Temporary until next Spring Boot
+    set("blockNodeVersion", "0.38.1")
+    set("consensusNodeVersion", "0.75.1")
+    set("httpclient5.version", "5.6.2") // Temporary until next Spring Boot
+    set("httpcore5.version", "5.4.3") // Temporary until next Spring Boot
+    set("jackson-bom.version", "3.1.5") // Temporary until next Spring Boot
+    set("jackson-2-bom.version", "2.22.1") // Temporary until next Spring Boot
     set("jooq.version", "3.21.6") // Must match buildSrc/build.gradle.kts
     set("logback.version", "1.5.36") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
@@ -49,7 +52,7 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.11.2")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.12.0")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
@@ -69,8 +72,8 @@ dependencies {
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
-        api("org.bouncycastle:bcpkix-jdk18on:1.84") // Temporary until next hedera-app
-        api("org.bouncycastle:bcprov-jdk18on:1.84")
+        api("org.bouncycastle:bcpkix-jdk18on:1.85") // Temporary until next hedera-app
+        api("org.bouncycastle:bcprov-jdk18on:1.85")
         api("org.gaul:s3proxy:3.3.0")
         api("org.graalvm.nativeimage:svm:25.0.3")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
@@ -81,7 +84,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.47.5")
+        api("software.amazon.awssdk:bom:2.48.3")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
