@@ -114,10 +114,15 @@ jobs:
             gzip -dc "${archive}" | docker load
           done
 
+      - name: Login to Docker Hub
+        uses: step-security/docker-login-action@164e21d7e52229904128e2f946001cb88278c33d # v4.2.0
+        if: vars.DOCKERHUB_USERNAME != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Run end-to-end tests
         uses: ./.github/actions/run-e2e
         with:
-          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-          dockerhub-username: ${{ vars.DOCKERHUB_USERNAME }}
           image-source: native
           stream-type: ${{ matrix.stream-type }}

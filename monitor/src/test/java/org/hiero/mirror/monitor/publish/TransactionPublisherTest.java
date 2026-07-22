@@ -58,8 +58,6 @@ class TransactionPublisherTest {
     private static final String SERVER = "test1";
 
     private CryptoServiceStub cryptoServiceStub;
-    private MonitorProperties monitorProperties;
-    private NodeProperties node;
     private PublishProperties publishProperties;
     private PublishScenarioProperties publishScenarioProperties;
     private Server server;
@@ -73,14 +71,14 @@ class TransactionPublisherTest {
         publishScenarioProperties = new PublishScenarioProperties();
         publishScenarioProperties.setName("test");
         publishScenarioProperties.setType(TransactionType.CRYPTO_TRANSFER);
-        node = new NodeProperties("0.0.3", "in-process:" + SERVER);
+        var node = new NodeProperties("0.0.3", "in-process:" + SERVER);
         node.setNodeId(0L);
         var duplicate = new NodeProperties("0.0.4", "in-process:" + SERVER);
         duplicate.setNodeId(1L);
         var nodes = new TreeSet<>(Comparator.comparing(NodeProperties::getNodeId));
         nodes.add(node);
         nodes.add(duplicate);
-        monitorProperties = new MonitorProperties();
+        var monitorProperties = new MonitorProperties();
         monitorProperties.setNodes(nodes);
         monitorProperties.getNodeValidation().setEnabled(false);
         OperatorProperties operatorProperties = monitorProperties.getOperator();
@@ -290,22 +288,6 @@ class TransactionPublisherTest {
                         .isInstanceOf(PublishException.class)
                         .hasCauseInstanceOf(IllegalArgumentException.class))
                 .verify(Duration.ofSeconds(1L));
-    }
-
-    @Test
-    @Timeout(5)
-    void publishRetriesClientCreationAfterEmptyNodes() {
-        when(nodeSupplier.refresh())
-                .thenReturn(Flux.error(new IllegalArgumentException("Nodes must not be empty")))
-                .thenReturn(Flux.fromIterable(monitorProperties.getNodes()));
-        cryptoServiceStub.addTransaction(Mono.just(response(OK)));
-
-        transactionPublisher
-                .publish(request().build())
-                .as(StepVerifier::create)
-                .expectNextCount(1L)
-                .expectComplete()
-                .verify(Duration.ofSeconds(4L));
     }
 
     @Test

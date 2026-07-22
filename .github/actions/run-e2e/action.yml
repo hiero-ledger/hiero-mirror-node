@@ -8,14 +8,6 @@ inputs:
   build-changed-modules-only:
     default: "false"
     required: false
-  dockerhub-token:
-    description: Docker Hub token for rate-limit auth (optional)
-    default: ""
-    required: false
-  dockerhub-username:
-    description: Docker Hub username for rate-limit auth (optional)
-    default: ""
-    required: false
   image-source:
     required: true
   stream-type:
@@ -118,21 +110,6 @@ runs:
       if: env.TRIGGERED_BY_TAG != 'true' && (inputs.image-source == 'native' || (inputs.build-changed-modules-only == 'true' && steps.changeset.outputs.changes != '[]'))
       uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v4
 
-    - name: Login to GHCR
-      if: inputs.image-source == 'native' && env.TRIGGERED_BY_TAG == 'true'
-      uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
-      with:
-        password: ${{ github.token }}
-        registry: ghcr.io
-        username: ${{ github.actor }}
-
-    - name: Login to Docker Hub
-      uses: step-security/docker-login-action@164e21d7e52229904128e2f946001cb88278c33d # v4.2.0
-      if: inputs.dockerhub-username != '' && inputs.dockerhub-token != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-      with:
-        username: ${{ inputs.dockerhub-username }}
-        password: ${{ inputs.dockerhub-token }}
-
     - name: Build images
       if: env.TRIGGERED_BY_TAG != 'true' && inputs.image-source == 'jvm' && inputs.build-changed-modules-only == 'true' && steps.changeset.outputs.changes != '[]'
       shell: bash
@@ -222,24 +199,9 @@ runs:
         fi
 
         if [[ "${IMAGE_SOURCE}" == "native" ]]; then
-          # Chart templates use mergeOverwrite .Values.image .Values.global.image, so global.image
-          # overwrites component image settings. Remove global registry so ghcr.io overrides apply.
-          yq -i 'del(.global.image.registry)' mirror.yaml
-          for module in grpc importer monitor rest-java web3; do
-            case "${module}" in
-              grpc) chart_key=grpc ;;
-              importer) chart_key=importer ;;
-              monitor) chart_key=monitor ;;
-              rest-java) chart_key=restjava ;;
-              web3) chart_key=web3 ;;
-            esac
-            yq -i ".${chart_key}.image.registry = \"ghcr.io\"" mirror.yaml
-            yq -i ".${chart_key}.image.repository = \"hiero-ledger/hiero-mirror-node/${module}\"" mirror.yaml
-            yq -i ".${chart_key}.image.tag = \"${VERSION}\"" mirror.yaml
-            yq -i ".${chart_key}.image.pullPolicy = \"IfNotPresent\"" mirror.yaml
-          done
-          yq -i ".rest.image.tag = \"${TAG}\"" mirror.yaml
-          yq -i ".test.image.tag = \"${TAG}\"" mirror.yaml
+          # Solo defaults images to ghcr.io/hiero-ledger/hiero-mirror-node/$module.
+          yq -i 'del(.*.image)' mirror.yaml
+          yq -i ".global.image.tag = \"${VERSION}\"" mirror.yaml
         fi
 
         solo keys consensus generate --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1

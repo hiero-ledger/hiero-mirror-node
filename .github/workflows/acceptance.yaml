@@ -26,6 +26,13 @@ permissions:
   packages: read
   pull-requests: read
 
+defaults:
+  run:
+    shell: bash
+
+env:
+  LC_ALL: C.UTF-8
+
 jobs:
   acceptance:
     name: acceptance (${{ matrix.stream-type }})
@@ -48,12 +55,17 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
 
+      - name: Login to Docker Hub
+        uses: step-security/docker-login-action@164e21d7e52229904128e2f946001cb88278c33d # v4.2.0
+        if: vars.DOCKERHUB_USERNAME != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Run end-to-end tests
         uses: ./.github/actions/run-e2e
         with:
           build-changed-modules-only: "true"
-          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-          dockerhub-username: ${{ vars.DOCKERHUB_USERNAME }}
           image-source: jvm
           stream-type: ${{ matrix.stream-type }}
 

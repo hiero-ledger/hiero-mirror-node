@@ -15,7 +15,6 @@ import com.hedera.hashgraph.sdk.TransactionResponse;
 import com.hedera.hashgraph.sdk.proto.NodeAddressBook;
 import jakarta.inject.Named;
 import java.security.SecureRandom;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +26,6 @@ import org.hiero.mirror.monitor.MonitorProperties;
 import org.hiero.mirror.monitor.NodeProperties;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.retry.Retry;
 
 @CustomLog
 @Named
@@ -38,15 +36,7 @@ public class TransactionPublisher implements AutoCloseable {
     private final NodeSupplier nodeSupplier;
     private final PublishProperties publishProperties;
 
-    // Retry before cache so a transient empty node list is not permanently cached as an error.
-    private final Flux<Client> clients = Flux.defer(this::getClients)
-            .retryWhen(Retry.backoff(Long.MAX_VALUE, Duration.ofSeconds(1L))
-                    .maxBackoff(Duration.ofSeconds(8L))
-                    .doBeforeRetry(r -> log.warn(
-                            "Retrying client creation attempt #{} after failure: {}",
-                            r.totalRetries() + 1,
-                            r.failure().getMessage())))
-            .cache();
+    private final Flux<Client> clients = Flux.defer(this::getClients).cache();
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Override
