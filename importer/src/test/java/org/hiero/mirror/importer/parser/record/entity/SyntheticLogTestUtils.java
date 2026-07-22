@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.importer.parser.contractlog;
+package org.hiero.mirror.importer.parser.record.entity;
 
 import java.util.Arrays;
 import lombok.experimental.UtilityClass;

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.importer.parser.contractlog;
+package org.hiero.mirror.importer.parser.record.entity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
-import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.aggregateExpectedContractResultBloom;
+import static org.hiero.mirror.importer.parser.record.entity.SyntheticLogTestUtils.aggregateExpectedContractResultBloom;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 import com.google.common.primitives.Longs;
@@ -14,10 +14,11 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
+import org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
-import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -62,17 +63,15 @@ public class BlockListenerIntegrationTest extends ImporterIntegrationTest {
 
         var contractLog = domainBuilder
                 .contractLog()
-                .customize(cl -> cl.topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender1.getId())))
-                        .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver1.getId())))
+                .customize(cl -> cl.topic1(entityIdToBytes(EntityId.of(sender1.getId())))
+                        .topic2(entityIdToBytes(EntityId.of(receiver1.getId())))
                         .synthetic(true))
                 .get();
 
         entityListener.onContractLog(contractLog);
 
-        assertArrayEquals(
-                AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender1.getId())), contractLog.getTopic1());
-        assertArrayEquals(
-                AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver1.getId())), contractLog.getTopic2());
+        assertArrayEquals(entityIdToBytes(EntityId.of(sender1.getId())), contractLog.getTopic1());
+        assertArrayEquals(entityIdToBytes(EntityId.of(receiver1.getId())), contractLog.getTopic2());
 
         completeFileAndCommit();
 
@@ -110,8 +109,8 @@ public class BlockListenerIntegrationTest extends ImporterIntegrationTest {
 
         var senderEntityId = EntityId.of(sender.getId());
         var receiverEntityId = EntityId.of(receiver.getId());
-        var topic1Before = AbstractSyntheticContractLog.entityIdToBytes(senderEntityId);
-        var topic2Before = AbstractSyntheticContractLog.entityIdToBytes(receiverEntityId);
+        var topic1Before = entityIdToBytes(senderEntityId);
+        var topic2Before = entityIdToBytes(receiverEntityId);
 
         var markerBloom = new byte[] {1};
 
@@ -222,8 +221,8 @@ public class BlockListenerIntegrationTest extends ImporterIntegrationTest {
                         .consensusTimestamp(consensusTimestamp)
                         .contractId(EntityId.of(contractEntity.getId()))
                         .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
-                        .topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender.getId())))
-                        .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver.getId())))
+                        .topic1(entityIdToBytes(EntityId.of(sender.getId())))
+                        .topic2(entityIdToBytes(EntityId.of(receiver.getId())))
                         .topic3(null)
                         .data(new byte[] {0})
                         .contractResult(contractResult))
@@ -277,8 +276,8 @@ public class BlockListenerIntegrationTest extends ImporterIntegrationTest {
                         .consensusTimestamp(consensusTimestamp)
                         .contractId(EntityId.of(contractEntity.getId()))
                         .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
-                        .topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender.getId())))
-                        .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver.getId())))
+                        .topic1(entityIdToBytes(EntityId.of(sender.getId())))
+                        .topic2(entityIdToBytes(EntityId.of(receiver.getId())))
                         .topic3(null)
                         .data(new byte[] {0})
                         .contractResult(contractResult))
@@ -339,8 +338,8 @@ public class BlockListenerIntegrationTest extends ImporterIntegrationTest {
                         .consensusTimestamp(consensusTimestamp)
                         .contractId(EntityId.of(contractEntity.getId()))
                         .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
-                        .topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender1.getId())))
-                        .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver1.getId())))
+                        .topic1(entityIdToBytes(EntityId.of(sender1.getId())))
+                        .topic2(entityIdToBytes(EntityId.of(receiver1.getId())))
                         .topic3(null)
                         .data(new byte[] {0})
                         .contractResult(contractResult))
@@ -353,8 +352,8 @@ public class BlockListenerIntegrationTest extends ImporterIntegrationTest {
                         .consensusTimestamp(consensusTimestamp)
                         .contractId(EntityId.of(contractEntity.getId()))
                         .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
-                        .topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender2.getId())))
-                        .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver2.getId())))
+                        .topic1(entityIdToBytes(EntityId.of(sender2.getId())))
+                        .topic2(entityIdToBytes(EntityId.of(receiver2.getId())))
                         .topic3(null)
                         .data(new byte[] {0})
                         .contractResult(contractResult))
@@ -416,8 +415,8 @@ public class BlockListenerIntegrationTest extends ImporterIntegrationTest {
                         .consensusTimestamp(consensusTimestamp)
                         .contractId(EntityId.of(contractEntity.getId()))
                         .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
-                        .topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender.getId())))
-                        .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver.getId())))
+                        .topic1(entityIdToBytes(EntityId.of(sender.getId())))
+                        .topic2(entityIdToBytes(EntityId.of(receiver.getId())))
                         .topic3(null)
                         .data(new byte[] {0})
                         .contractResult(contractResult))
@@ -476,8 +475,8 @@ public class BlockListenerIntegrationTest extends ImporterIntegrationTest {
                         .consensusTimestamp(consensusTimestamp)
                         .contractId(EntityId.of(contractEntity.getId()))
                         .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
-                        .topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender.getId())))
-                        .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver.getId())))
+                        .topic1(entityIdToBytes(EntityId.of(sender.getId())))
+                        .topic2(entityIdToBytes(EntityId.of(receiver.getId())))
                         .topic3(null)
                         .data(new byte[] {0})
                         .contractResult(contractResult))
@@ -535,5 +534,12 @@ public class BlockListenerIntegrationTest extends ImporterIntegrationTest {
         });
 
         assertArrayEquals(existingBloom, contractResult.getBloom());
+    }
+
+    private byte[] entityIdToBytes(EntityId entityId) {
+        if (EntityId.isEmpty(entityId)) {
+            return new byte[0];
+        }
+        return trim(DomainUtils.toEvmAddress(entityId));
     }
 }

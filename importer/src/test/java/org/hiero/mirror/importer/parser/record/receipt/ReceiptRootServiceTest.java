@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record.receipt;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.TestUtils.fill;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -208,11 +209,5 @@ final class ReceiptRootServiceTest {
                 .transactionResult(ResponseCodeEnum.SUCCESS_VALUE)
                 .bloom(bloom)
                 .build();
-    }
-
-    private static byte[] fill(final byte value, final int length) {
-        final var array = new byte[length];
-        java.util.Arrays.fill(array, value);
-        return array;
     }
 }

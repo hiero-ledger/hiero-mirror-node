@@ -24,7 +24,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
     private final EntityListener entityListener;
     private final EntityProperties entityProperties;
     private final byte[] empty = Bytes.of(0).toArray();
-    protected static final byte[] CONTRACT_LOG_MARKER = Bytes.of(1).toArray();
+    public static final byte[] CONTRACT_LOG_MARKER = Bytes.of(1).toArray();
 
     @Override
     public void create(SyntheticContractLog log) {

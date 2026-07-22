@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.importer.parser.contractlog;
+package org.hiero.mirror.importer.parser.record.entity;
 
 import static org.hiero.mirror.common.util.DomainUtils.trim;
 import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
 import static org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogServiceImpl.CONTRACT_LOG_MARKER;
-import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.aggregateExpectedContractResultBloom;
+import static org.hiero.mirror.importer.parser.record.entity.SyntheticLogTestUtils.aggregateExpectedContractResultBloom;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.mockito.Mockito.*;
 
@@ -23,8 +23,6 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
 import org.hiero.mirror.importer.domain.EvmAddressMapping;
-import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
-import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootService;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.junit.jupiter.api.BeforeEach;

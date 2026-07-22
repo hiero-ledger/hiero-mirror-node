@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.importer.parser.contractlog;
+package org.hiero.mirror.importer.parser.record.entity;
 
 import static org.hiero.mirror.common.util.DomainUtils.fromTrimmedEvmAddress;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
@@ -36,9 +36,6 @@ import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
 import org.hiero.mirror.importer.domain.EvmAddressMapping;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
-import org.hiero.mirror.importer.parser.record.entity.EntityListener;
-import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
-import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootService;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.springframework.core.annotation.Order;

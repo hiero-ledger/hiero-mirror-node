@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record.receipt;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.TestUtils.fill;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.io.ByteArrayOutputStream;
@@ -244,12 +245,6 @@ final class ReceiptRootTest {
             builder.topic1(bytes(topics[1]));
         }
         return builder.build();
-    }
-
-    private static byte[] fill(final byte value, final int length) {
-        final var array = new byte[length];
-        java.util.Arrays.fill(array, value);
-        return array;
     }
 
     private static byte[] bytes(final String hex) {
