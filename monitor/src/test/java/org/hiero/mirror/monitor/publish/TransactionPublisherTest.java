@@ -26,6 +26,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Queue;
 import java.util.TreeSet;
@@ -46,14 +47,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 @CustomLog
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-class TransactionPublisherTest {
+final class TransactionPublisherTest {
 
     private static final String SERVER = "test1";
 
@@ -87,7 +87,7 @@ class TransactionPublisherTest {
         publishProperties = new PublishProperties();
         transactionPublisher = new TransactionPublisher(monitorProperties, nodeSupplier, publishProperties);
         cryptoServiceStub = new CryptoServiceStub();
-        when(nodeSupplier.refresh()).thenReturn(Flux.fromIterable(monitorProperties.getNodes()));
+        when(nodeSupplier.list()).thenReturn(Mono.just(new ArrayList<>(monitorProperties.getNodes())));
         when(nodeSupplier.get()).thenReturn(node);
         server = InProcessServerBuilder.forName(SERVER)
                 .addService(cryptoServiceStub)
