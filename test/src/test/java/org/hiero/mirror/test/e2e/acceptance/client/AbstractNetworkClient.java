@@ -99,7 +99,7 @@ abstract class AbstractNetworkClient implements Cleanable {
             });
         } catch (RetryException e) {
             final var query = last.get();
-            final var type = query.getClass().getSimpleName();
+            final var type = query != null ? query.getClass().getSimpleName() : "query";
             TransactionId transactionId = null;
 
             if (query instanceof TransactionReceiptQuery trq) {

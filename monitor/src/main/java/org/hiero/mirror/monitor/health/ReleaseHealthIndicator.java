@@ -66,7 +66,7 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
         return health.doOnNext(this::recordHealthMetric);
     }
 
-    private KubernetesClient getKubernetesClient() {
+    private synchronized KubernetesClient getKubernetesClient() {
         if (kubernetesClient.get() == null) {
             try {
                 kubernetesClient.set(new KubernetesClientBuilder().build());

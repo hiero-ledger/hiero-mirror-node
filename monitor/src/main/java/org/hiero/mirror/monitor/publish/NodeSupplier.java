@@ -13,6 +13,7 @@ import com.hedera.hashgraph.sdk.Status;
 import com.hedera.hashgraph.sdk.TransferTransaction;
 import com.hedera.hashgraph.sdk.proto.NodeAddressBook;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.List;
@@ -48,22 +49,31 @@ public class NodeSupplier {
     private final AtomicLong counter = new AtomicLong(0L);
     private final CopyOnWriteArrayList<NodeProperties> nodes = new CopyOnWriteArrayList<>();
     private final Scheduler refreshScheduler = Schedulers.newSingle("nodes");
+    private Scheduler validationScheduler;
+
+    @PreDestroy
+    public void destroy() {
+        refreshScheduler.dispose();
+        if (validationScheduler != null) {
+            validationScheduler.dispose();
+        }
+    }
 
     @PostConstruct
     public void init() {
         var validationProperties = monitorProperties.getNodeValidation();
         int parallelism = validationProperties.getMaxThreads();
         long retryBackoff = validationProperties.getRetryBackoff().toMillis();
-        final var scheduler = Schedulers.newParallel("validator", parallelism + 1);
+        validationScheduler = Schedulers.newParallel("validator", parallelism + 1);
 
-        Flux.interval(Duration.ZERO, validationProperties.getFrequency(), scheduler)
+        Flux.interval(Duration.ZERO, validationProperties.getFrequency(), validationScheduler)
                 .onBackpressureDrop(
                         tick -> log.info("Skipping refresh {} since previous refresh is still running", tick))
                 .flatMap(
                         i -> refresh()
                                 .take(monitorProperties.getNodeValidation().getMaxNodes())
                                 .parallel(parallelism)
-                                .runOn(scheduler)
+                                .runOn(validationScheduler)
                                 .map(this::validateNode)
                                 .sequential()
                                 .collectList()
@@ -73,7 +83,7 @@ public class NodeSupplier {
                                         valid.size()))
                                 .repeatWhen(repeat -> repeat.filter(l -> nodes.isEmpty())
                                         .doOnNext(_ -> log.info("Retrying in {} ms", retryBackoff))
-                                        .flatMap(_ -> Mono.delay(Duration.ofMillis(retryBackoff), scheduler)))
+                                        .flatMap(_ -> Mono.delay(Duration.ofMillis(retryBackoff), validationScheduler)))
                                 .onErrorResume(t -> {
                                     log.warn("Exception validating nodes: {}", t.getMessage());
                                     return Mono.empty();
