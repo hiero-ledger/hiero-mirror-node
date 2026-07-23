@@ -529,10 +529,6 @@ func (c *constructionAPIService) getRandomNodeAccountId() (hiero.AccountID, *rTy
 		return nodeAccountIds[0], nil
 	}
 
-	for _, n := range nodeAccountIds {
-		log.Infof("node account id %s", n)
-	}
-
 	return nodeAccountIds[index.Int64()], nil
 }
 
