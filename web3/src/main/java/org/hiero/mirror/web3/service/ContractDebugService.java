@@ -14,6 +14,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
@@ -24,6 +25,7 @@ import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.model.TraceRequest;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
+import org.hiero.mirror.web3.viewmodel.TracerConfig;
 import org.springframework.validation.annotation.Validated;
 
 @CustomLog
@@ -67,7 +69,12 @@ public class ContractDebugService extends ContractCallService {
     public TracerResponse processTraceCall(
             final @Valid ContractExecutionParameters params, final TraceRequest traceRequest) {
         final var ctx = ContractCallContext.get();
-        final var actionContext = new ActionContext();
+        final var actionContext = ActionContext.builder()
+                .tracerConfig(TracerConfig.builder()
+                        .onlyTopCall(traceRequest.isOnlyTopCall())
+                        .tracerType(TracerType.ACTION)
+                        .build())
+                .build();
         ctx.setActionContext(actionContext);
 
         callContract(params, ctx);

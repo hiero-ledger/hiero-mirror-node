@@ -86,6 +86,22 @@ final class ThrottleManagerImplTest {
     }
 
     @Test
+    void traceRequestNotThrottled() {
+        throttleManager.throttleTraceRequest();
+    }
+
+    @Test
+    void throttleTraceRequestRateLimit() {
+        throttleProperties.setTraceRequestsPerSecond(1);
+        throttleManager = createThrottleManager();
+
+        throttleManager.throttleTraceRequest();
+        assertThatThrownBy(() -> throttleManager.throttleTraceRequest())
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
+    }
+
+    @Test
     void throttleGasLimit() {
         var request = request();
         throttleManager.throttle(request);

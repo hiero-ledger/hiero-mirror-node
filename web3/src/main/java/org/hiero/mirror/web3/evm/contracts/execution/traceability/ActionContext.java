@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
+import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,7 +18,7 @@ import org.hiero.mirror.web3.viewmodel.TracerConfig;
 public class ActionContext {
 
     @Builder.Default
-    private List<ActionResponse> actions = List.of();
+    private List<ActionResponse> actions = new ArrayList<>();
 
     private long gasRemaining;
 

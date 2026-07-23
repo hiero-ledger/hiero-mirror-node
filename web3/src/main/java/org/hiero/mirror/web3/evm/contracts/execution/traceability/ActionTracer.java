@@ -72,13 +72,16 @@ public class ActionTracer implements ActionSidecarContentTracer {
         final var state = frame.getState();
         final var actionContext = ContractCallContext.get().getActionContext();
 
-        if (state == CODE_SUSPENDED
-                && actionContext != null
-                && !actionContext.getTracerConfig().isOnlyTopCall()) {
-            actionContext.addAction(buildActionResponse(frame));
-        } else if (state != CODE_EXECUTING && actionContext != null) {
-            actionContext.addAction(buildActionResponse(frame));
+        if (actionContext == null || state == CODE_EXECUTING) {
+            return;
         }
+
+        // Nested frames are suspended; skip them when only the top-level call should be traced.
+        if (state == CODE_SUSPENDED && actionContext.getTracerConfig().isOnlyTopCall()) {
+            return;
+        }
+
+        actionContext.addAction(buildActionResponse(frame));
     }
 
     @Override
