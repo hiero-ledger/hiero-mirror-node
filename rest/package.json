@@ -6,7 +6,7 @@
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">= 24"
+    "node": ">=24.18.0 <25"
   },
   "scripts": {
     "generate-proto-js": "node scripts/generate-proto-js.mjs",
@@ -49,7 +49,7 @@
     "tsscmp": "1.0.6"
   },
   "devDependencies": {
-    "@bufbuild/buf": "1.71.0",
+    "@bufbuild/buf": "1.72.0",
     "@bufbuild/protoc-gen-es": "2.12.1",
     "@testcontainers/postgresql": "12.0.4",
     "cross-env": "10.1.0",
@@ -61,10 +61,10 @@
     "jest-junit": "17.0.0",
     "nodemon": "3.1.14",
     "pg-format": "1.0.4",
-    "pgsql-parser": "17.9.16",
+    "pgsql-parser": "17.9.17",
     "sinon": "22.0.0",
     "supertest": "7.2.2",
-    "tar": "7.5.19"
+    "tar": "7.5.20"
   },
   "peerDependencies": {
     "ansi-regex": "6.2.2",
@@ -81,14 +81,27 @@
   },
   "baseUrlPath": "/api/v1",
   "overrides": {
-    "brace-expansion": "5.0.6",
-    "fast-uri": "4.0.0",
+    "brace-expansion": "5.0.7",
+    "fast-uri": "4.1.1",
     "form-data": "4.0.6",
     "glob": "13.0.6",
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "5.2.1"
+    },
     "multer": "2.2.0",
     "path-to-regexp": "8.4.2",
-    "protobufjs": "7.6.4",
+    "protobufjs": "8.7.1",
     "test-exclude": "8.0.0"
   },
-  "bundleDependencies": true
+  "bundleDependencies": true,
+  "allowScripts": {
+    "@bufbuild/buf@1.71.0": true,
+    "@scarf/scarf@1.4.0": true,
+    "esbuild@0.28.1": true,
+    "cpu-features@0.0.10": true,
+    "fsevents@2.3.3": true,
+    "protobufjs@8.7.1": true,
+    "ssh2@1.17.0": true,
+    "unrs-resolver@1.12.2": true
+  }
 }

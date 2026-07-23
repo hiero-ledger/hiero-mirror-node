@@ -17,7 +17,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.38.0")
+    set("blockNodeVersion", "0.38.1")
     set("consensusNodeVersion", "0.75.1")
     set("httpclient5.version", "5.6.2") // Temporary until next Spring Boot
     set("httpcore5.version", "5.4.3") // Temporary until next Spring Boot
@@ -26,6 +26,7 @@ extra.apply {
     set("jooq.version", "3.21.6") // Must match buildSrc/build.gradle.kts
     set("logback.version", "1.5.36") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
+    set("netty.version", "4.2.16.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.18.0")
     set("postgresql.version", "42.7.13") // Temporary until next Spring Boot
     set("tomcat.version", "11.0.23") // Temporary until next Spring Boot
@@ -52,7 +53,7 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.11.2")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.12.0")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
@@ -84,7 +85,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.47.5")
+        api("software.amazon.awssdk:bom:2.49.1")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
