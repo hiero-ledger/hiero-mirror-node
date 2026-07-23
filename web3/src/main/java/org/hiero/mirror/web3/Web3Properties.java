@@ -22,5 +22,5 @@ public class Web3Properties {
     private int maxPayloadLogSize = 300;
 
     @DurationMin(seconds = 1L)
-    private Duration requestTimeout = Duration.ofSeconds(10L);
+    private Duration requestTimeout = Duration.ofSeconds(4L);
 }
