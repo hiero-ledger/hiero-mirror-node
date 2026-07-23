@@ -46,6 +46,7 @@ public class DomainUtils {
     public static final ByteString EMPTY_BYTE_STRING = ByteString.EMPTY;
     public static final int EVM_ADDRESS_LENGTH = 20;
     public static final long NANOS_PER_SECOND = 1_000_000_000L;
+    public static final String RECOVERABLE_ERROR = "Recoverable error. ";
     public static final long TINYBARS_IN_ONE_HBAR = 100_000_000L;
 
     private static final long MAX_SYSTEM_ENTITY_NUM = 999;
@@ -202,6 +203,10 @@ public class DomainUtils {
         final var leftPaddedBytes = new byte[length];
         System.arraycopy(bytes, 0, leftPaddedBytes, paddingSize, bytes.length);
         return leftPaddedBytes;
+    }
+
+    public static void logRecoverableError(String message, Object... args) {
+        log.error(RECOVERABLE_ERROR + message, args);
     }
 
     public static long now() {
