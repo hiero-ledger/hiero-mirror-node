@@ -26,6 +26,7 @@ extra.apply {
     set("jooq.version", "3.21.6") // Must match buildSrc/build.gradle.kts
     set("logback.version", "1.5.36") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
+    set("netty.version", "4.2.16.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.18.0")
     set("postgresql.version", "42.7.13") // Temporary until next Spring Boot
     set("protobufVersion", "4.34.1")
@@ -91,7 +92,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.48.3")
+        api("software.amazon.awssdk:bom:2.49.1")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

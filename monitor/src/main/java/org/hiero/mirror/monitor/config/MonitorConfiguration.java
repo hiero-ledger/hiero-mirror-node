@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.monitor.config;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
@@ -45,11 +43,6 @@ final class MonitorConfiguration {
     private final SubscribeMetrics subscribeMetrics;
     private final TransactionGenerator transactionGenerator;
     private final TransactionPublisher transactionPublisher;
-
-    @Bean
-    KubernetesClient kubernetesClient() {
-        return new KubernetesClientBuilder().build();
-    }
 
     /**
      * Constructs a reactive flow for publishing transactions. The transaction generator will run on a single thread and

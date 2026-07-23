@@ -9,6 +9,16 @@ import org.springframework.data.convert.ReadingConverter;
 import org.springframework.data.convert.WritingConverter;
 import org.springframework.data.jdbc.core.mapping.JdbcValue;
 
+/**
+ *  Pair of Spring Data JDBC converters that map the DigestAlgorithm enum to/from an integer column.
+ *  Under JPA/Hibernate the field was persisted by ordinal mapping (@Enumerated(EnumType.ORDINAL)).
+ *  Spring Data JDBC has no built-in enum-ordinal mapping, so without these converters it would either fail to bind
+ *  the enum or fall back to storing the enum name.
+ *
+ *   public enum DigestAlgorithm {
+ *     SHA_384;   // ordinal() == 0
+ *   }
+ */
 public final class DigestAlgorithmJdbcConverters {
 
     private DigestAlgorithmJdbcConverters() {}

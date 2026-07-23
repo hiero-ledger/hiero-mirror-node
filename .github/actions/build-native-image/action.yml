@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Build native image
+
+description: Build a native container image with bootBuildImage.
+
+inputs:
+  architecture:
+    description: Target architecture (amd64 or arm64)
+    required: true
+  project:
+    description: Gradle project to build (e.g. grpc, importer)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Get version
+      shell: bash
+      run: echo "VERSION=$(grep -oP 'version=\K.+' gradle.properties)" >> $GITHUB_ENV
+
+    - name: Install JDK
+      uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      with:
+        distribution: temurin
+        java-version: 25
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v4
+
+    - name: Build
+      shell: bash
+      run: ./gradlew :${{ inputs.project }}:bootBuildImage -PimagePlatform=linux/${{ inputs.architecture }}

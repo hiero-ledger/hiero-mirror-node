@@ -13,7 +13,7 @@ import org.springframework.data.convert.WritingConverter;
 import org.springframework.data.jdbc.core.mapping.JdbcValue;
 
 /**
- * Maps Postgres {@code bytea[]} columns ({@code transaction.max_custom_fees}) via {@link MaxCustomFeesHolder}. A bare
+ * Maps Postgres bytea[] columns (transaction.max_custom_fees) via {@link MaxCustomFeesHolder}. A bare
  * {@code byte[][]} property doesn't work: Spring Data JDBC derives the column and SQL type of array properties from
  * the component type (BINARY for byte[]), binding parameters - including nulls, which never reach a converter - as
  * bytea instead of bytea[].
