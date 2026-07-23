@@ -6,6 +6,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import java.util.List;
 import javax.sql.DataSource;
+import org.hiero.mirror.common.config.AddressBookEntryEndpointCallback;
 import org.hiero.mirror.common.config.CommonRuntimeHints;
 import org.hiero.mirror.common.config.NullIdQueryMappingConfiguration;
 import org.hiero.mirror.common.converter.ByteArrayArrayJdbcConverters;
@@ -158,6 +159,12 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
     public IdGeneratingEntityCallback idGeneratingBeforeSaveCallback(
             JdbcMappingContext mappingContext, @Lazy NamedParameterJdbcOperations operations, JdbcDialect dialect) {
         return new IdGeneratingEntityCallback(mappingContext, dialect, internalJdbcOperations());
+    }
+
+    // Restores JPA parity for AddressBookEntry.serviceEndpoints, which @MappedCollection cannot scope to node_id.
+    @Bean
+    AddressBookEntryEndpointCallback addressBookEntryEndpointCallback() {
+        return new AddressBookEntryEndpointCallback();
     }
 
     // Wrapped so inserts always provide the assigned id, even a primitive zero that Spring Data JDBC would otherwise
