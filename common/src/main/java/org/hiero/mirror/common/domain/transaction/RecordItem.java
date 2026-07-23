@@ -138,7 +138,9 @@ public class RecordItem implements StreamItem {
     }
 
     public void addContractTransaction(EntityId entityId) {
-        if (contractTransactionPredicate == null || !contractTransactionPredicate.test(entityId)) {
+        if (EntityId.isEmpty(entityId)
+                || contractTransactionPredicate == null
+                || !contractTransactionPredicate.test(entityId)) {
             return;
         }
         getContractTransactions().computeIfAbsent(entityId.getId(), key -> ContractTransaction.builder()
@@ -166,6 +168,10 @@ public class RecordItem implements StreamItem {
     }
 
     private void doAddEntityId(final EntityId entityId, final Predicate<EntityId> predicate) {
+        if (EntityId.isEmpty(entityId)) {
+            return;
+        }
+
         if (!predicate.test(entityId)) {
             return;
         }
