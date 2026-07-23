@@ -4,9 +4,9 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
-import java.math.BigInteger;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.mirror.common.converter.WeiBarTinyBarConverter;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
@@ -72,7 +72,13 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
         // The values for the fields amount / gasLimit / functionParameters should get populated from the transaction
         // body and the call data file if offloaded.
         var ethereumTransaction = recordItem.getEthereumTransaction();
-        contractResult.setAmount(new BigInteger(ethereumTransaction.getValue()).longValue());
+        final long amount = WeiBarTinyBarConverter.INSTANCE
+                .convert(ethereumTransaction.getValue(), true)
+                .longValue();
+        if (amount >= 0) {
+            contractResult.setAmount(amount);
+        }
+
         contractResult.setGasLimit(ethereumTransaction.getGasLimit());
 
         byte[] callData = ethereumTransaction.getCallData();

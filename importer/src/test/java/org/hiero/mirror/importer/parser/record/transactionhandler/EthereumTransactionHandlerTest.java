@@ -177,6 +177,29 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
     }
 
     @Test
+    void updateContractResultWithLargeWeibar() {
+        // given
+        var contractResult = new ContractResult();
+        final var largeWeibar = BigInteger.TEN.pow(19).toByteArray();
+        var ethereumTransaction = domainBuilder
+                .ethereumTransaction(false)
+                .customize(e -> e.value(largeWeibar))
+                .get();
+        var recordItem = recordItemBuilder
+                .ethereumTransaction()
+                .recordItem(r -> r.blockstream(true).ethereumTransaction(ethereumTransaction))
+                .build();
+        doReturn(null).when(contractBytecodeService).get(ethereumTransaction.getCallDataId());
+
+        // when
+        transactionHandler.updateContractResult(contractResult, recordItem);
+
+        // then
+        verify(contractBytecodeService).get(ethereumTransaction.getCallDataId());
+        assertThat(contractResult).returns(10_000_000_000L, ContractResult::getAmount);
+    }
+
+    @Test
     void updateContractResultNullEthereumTransaction() {
         // given
         var contractResult = new ContractResult();
