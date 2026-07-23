@@ -2298,13 +2298,10 @@ components:
           type: object
           properties:
             calls:
-              description: The list of all nested contract actions related to the transaction execution
+              description: The list of all contract actions related to the transaction execution
               items:
                 $ref: "#/components/schemas/ActionResponse"
               type: array
-            topLevelCall:
-              description: The top level action related to the transaction execution
-              $ref: "#/components/schemas/ActionResponse"
         opcodes:
           description: List of opcodes traced by opcodeLogger
           $ref: "#/components/schemas/OpcodesResponse"
@@ -2315,6 +2312,11 @@ components:
     ActionResponse:
       type: object
       properties:
+        calls:
+          description: The list of all nested contract actions related to the top-level execution
+          items:
+            $ref: "#/components/schemas/ActionResponse"
+          type: array
         error:
           description: The error message for the call action
           type: [string, "null"]

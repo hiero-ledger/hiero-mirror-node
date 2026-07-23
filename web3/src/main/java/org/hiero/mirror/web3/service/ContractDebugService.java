@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Optional;
 import lombok.CustomLog;
 import org.hiero.mirror.rest.model.TracerResponse;
@@ -72,15 +73,15 @@ public class ContractDebugService extends ContractCallService {
         callContract(params, ctx);
 
         final var actions = ctx.getActionContext().getActions();
-        final var topLevelAction = actions.getLast();
 
         final var tracerResponseActions = new TracerResponseActions();
-        if (actions.size() > 1 && !traceRequest.isOnlyTopCall()) {
-            actions.removeLast();
+        if (traceRequest.isOnlyTopCall()) {
+            final var topLevelAction = actions.getLast();
+            tracerResponseActions.calls(List.of(topLevelAction));
+        } else {
             tracerResponseActions.calls(actions);
         }
 
-        tracerResponseActions.topLevelCall(topLevelAction);
         return new TracerResponse().actions(tracerResponseActions);
     }
 
