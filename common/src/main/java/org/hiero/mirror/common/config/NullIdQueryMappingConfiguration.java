@@ -22,12 +22,11 @@ import org.springframework.data.relational.core.mapping.event.AfterConvertCallba
 import org.springframework.jdbc.core.RowMapper;
 
 /**
- * Restores JPA's null-id semantics for declared {@code @Query} methods returning aggregates. Aggregate SQL (e.g.
- * {@code max()} / {@code string_agg()} without {@code group by}) yields a single all-NULL row when nothing matches;
- * Hibernate mapped such a row to no entity, whereas Spring Data JDBC's {@link EntityRowMapper} materializes a hollow
- * instance. This wraps the default mapper so a row whose id column(s) are all NULL maps to {@code null} (and thus an
+ * Restores JPA's null-id semantics for query methods returning aggregates. Aggregate query without GROUP BY
+ * yields a single all-NULL row when nothing matches. Hibernate mapped such a row to no entity, whereas Spring Data
+ * JDBC's returns a hollow instance.
+ * This wraps the default mapper so a row whose id column(s) are all NULL maps to null (and thus an
  * empty {@link java.util.Optional} / no list element).
- * <p>
  * Since this configuration replaces the framework's lifecycle-aware row mapper for declared queries, it must also
  * invoke {@link AfterConvertCallback}s itself (e.g. the persisted-flag tracking), or entities loaded via
  * {@code @Query} would behave differently from those loaded via derived/CRUD methods.

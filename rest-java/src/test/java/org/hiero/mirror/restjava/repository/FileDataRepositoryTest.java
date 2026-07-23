@@ -75,6 +75,20 @@ final class FileDataRepositoryTest extends RestJavaIntegrationTest {
     }
 
     @Test
+    void getFileAtTimestampNoMatchReturnsEmptyOptional() {
+        // given — a record exists for entityId
+        final var fileData = fileData(FILECREATE, 100);
+
+        // when — the upperTimestamp is before the record consensus_timestamp, so the aggregate query matches no rows
+        final var actual =
+                fileDataRepository.getFileAtTimestamp(entityId.getId(), 0L, fileData.getConsensusTimestamp() - 1);
+
+        // then — max(consensus_timestamp) is NULL, so the single NULL-id aggregate row must collapse to an
+        // empty Optional proving the NullIdQueryMappingConfiguration's JPA-parity null-id handling.
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
     void getLatestTimestampEmpty() {
         assertThat(fileDataRepository.getLatestTimestamp(entityId.getId())).isEmpty();
     }
