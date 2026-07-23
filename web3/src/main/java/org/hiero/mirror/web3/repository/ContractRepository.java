@@ -21,11 +21,29 @@ public interface ContractRepository extends CrudRepository<Contract, Long> {
     Optional<byte[]> findRuntimeBytecode(final Long contractId);
 
     @Query(value = """
+                    with active_contracts as (
+                        (
+                            select id
+                            from entity
+                            where id in (:contractIds)
+                              and lower(timestamp_range) <= :consensusTimestamp
+                              and deleted is not true
+                              and type = 'CONTRACT'
+                        )
+                        union all
+                        (
+                            select id
+                            from entity_history
+                            where id in (:contractIds)
+                              and lower(timestamp_range) <= :consensusTimestamp
+                              and deleted is not true
+                              and type = 'CONTRACT'
+                        )
+                    )
                     select c.*
                     from contract c
-                    inner join entity e on e.id = c.id
-                    where lower(e.timestamp_range) <= :consensusTimestamp
-                    and c.id in :contractIds
+                    inner join active_contracts ac on ac.id = c.id
+                    where c.runtime_bytecode is not null
                     """, nativeQuery = true)
     List<Contract> findByIdsAndConsensusTimestamp(
             @Param("contractIds") final Collection<Long> contractIds,
