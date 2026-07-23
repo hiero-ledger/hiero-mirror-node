@@ -45,19 +45,19 @@ public class SimulateCall {
 
     // Plain setters, not @JsonDeserialize: this module's HTTP binding may run on Jackson 3, which ignores it.
     public void setGas(final Object gas) {
-        this.gas = parseQuantity(gas);
+        this.gas = parseValue(gas);
     }
 
     public void setGasPrice(final Object gasPrice) {
-        this.gasPrice = parseQuantity(gasPrice);
+        this.gasPrice = parseValue(gasPrice);
     }
 
     public void setValue(final Object value) {
-        this.value = parseQuantity(value);
+        this.value = parseValue(value);
     }
 
-    private static long parseQuantity(final Object quantity) {
-        return switch (quantity) {
+    private static long parseValue(final Object value) {
+        return switch (value) {
             case Integer intValue -> intValue;
             case Long longValue -> longValue;
             case BigInteger bigInteger -> bigInteger.longValueExact();

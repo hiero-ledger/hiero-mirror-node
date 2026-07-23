@@ -51,4 +51,12 @@ public class SimulateRequest {
                 .mapToInt(entry -> entry.getCalls().size())
                 .sum();
     }
+
+    public long totalGas() {
+        return blockStateCalls.stream()
+                .filter(blockCalls -> blockCalls != null && blockCalls.getCalls() != null)
+                .flatMap(blockCalls -> blockCalls.getCalls().stream())
+                .mapToLong(SimulateCall::getGas)
+                .sum();
+    }
 }

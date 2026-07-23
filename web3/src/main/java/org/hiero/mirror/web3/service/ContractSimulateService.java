@@ -4,28 +4,28 @@ package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
-import static org.hiero.mirror.web3.state.Utils.parseHex;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.hapi.node.base.ContractID;
-import com.hedera.pbj.runtime.io.buffer.Bytes;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
+import org.hiero.mirror.web3.exception.InvalidInputException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
+import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -34,9 +34,9 @@ import org.hiero.mirror.web3.viewmodel.SimulateCallResult;
 import org.hiero.mirror.web3.viewmodel.SimulateLog;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
 import org.hiero.mirror.web3.viewmodel.SimulateResponse;
-import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hyperledger.besu.crypto.Hash;
 import org.hyperledger.besu.datatypes.Address;
+import org.springframework.dao.DataAccessException;
 
 @Named
 @CustomLog
@@ -72,62 +72,70 @@ public class ContractSimulateService extends ContractCallService {
     }
 
     public SimulateResponse simulate(final SimulateRequest request) {
+        final var remainingGas = new AtomicLong(request.totalGas());
+        try {
+            return new SimulateResponse(runSimulation(request, remainingGas));
+        } catch (RuntimeException e) {
+            throttleManager.restore(remainingGas.get());
+            throw e;
+        }
+    }
+
+    private List<List<SimulateCallResult>> runSimulation(final SimulateRequest request, final AtomicLong remainingGas) {
         if (evmProperties.isSharedWritableState()) {
             // Otherwise writes flush into a cross-request cache shared by other users' calls.
             throw new IllegalStateException(
                     "hiero.mirror.web3.evm.sharedWritableState must be disabled to use /contracts/simulate.");
         }
 
-        final var results = ContractCallContext.run(context -> {
+        return ContractCallContext.run(context -> {
+            context.setSimulate(true);
             context.setTraceTransfers(request.isTraceTransfers());
-            final List<List<SimulateCallResult>> entryResults =
-                    new ArrayList<>(request.getBlockStateCalls().size());
-            final var activeOverrides = new HashMap<Bytes, StateOverride>();
-            context.setStateOverrides(activeOverrides);
-            // Restored before every entry but the first, so real effects don't cross entry boundaries.
-            final var anchorSnapshot = context.snapshotWriteCache();
+            context.setStateOverrides(new HashMap<>());
+            final var entryResults = new ArrayList<List<SimulateCallResult>>(
+                    request.getBlockStateCalls().size());
             // Seeds the synthetic transaction hash; transaction_index resets per entry and would collide.
             long requestCallIndex = 0;
 
-            for (final var entry : request.getBlockStateCalls()) {
+            for (final var blockCalls : request.getBlockStateCalls()) {
                 if (!entryResults.isEmpty()) {
-                    context.restoreWriteCache(anchorSnapshot);
+                    context.reset();
                 }
-                if (!entry.getStateOverrides().isEmpty()) {
-                    activeOverrides.putAll(toOverrideMap(entry.getStateOverrides()));
+                if (!blockCalls.getStateOverrides().isEmpty()) {
+                    context.getStateOverrides().putAll(Utils.toOverrideMap(blockCalls.getStateOverrides()));
                     context.clearReadCache();
                 }
 
-                final List<SimulateCallResult> callResults =
-                        new ArrayList<>(entry.getCalls().size());
+                final var callResults =
+                        new ArrayList<SimulateCallResult>(blockCalls.getCalls().size());
                 long logIndex = 0;
                 long transactionIndex = 0;
-                for (final var call : entry.getCalls()) {
+                for (final var call : blockCalls.getCalls()) {
                     final var params = toExecutionParameters(request.getBlock(), call);
                     final var callSnapshot = context.snapshotWriteCache();
                     context.getCapturedTransfers().clear();
+                    remainingGas.addAndGet(-call.getGas());
 
                     try {
-                        final var result = callContract(params, context);
-                        final var transactionHash = syntheticTransactionHash(result, requestCallIndex);
-                        final var contractLogs = mapLogs(result, context, logIndex, transactionIndex, transactionHash);
-                        final var transferLogs = mapTransferLogs(
-                                context, logIndex + contractLogs.size(), transactionIndex, transactionHash);
-                        final var logs = new ArrayList<SimulateLog>(contractLogs.size() + transferLogs.size());
-                        logs.addAll(contractLogs);
-                        logs.addAll(transferLogs);
-                        logIndex += logs.size();
-                        callResults.add(new SimulateCallResult(
-                                toHex(result.gasUsed()), logs, result.contractCallResult(), SUCCESS_STATUS));
+                        final var callResult =
+                                executeCall(params, context, logIndex, transactionIndex, requestCallIndex);
+                        callResults.add(callResult);
+                        logIndex += callResult.logs().size();
                     } catch (MirrorEvmTransactionException e) {
                         context.restoreWriteCache(callSnapshot);
-                        context.getCapturedTransfers().clear();
                         final var partialResult = e.getResult();
                         callResults.add(new SimulateCallResult(
-                                toHex(partialResult != null ? partialResult.gasUsed() : 0L),
+                                Utils.toHex(partialResult != null ? partialResult.gasUsed() : 0L),
                                 List.of(),
                                 Objects.requireNonNullElse(e.getData(), HEX_PREFIX),
                                 REVERT_STATUS));
+                    } catch (InvalidInputException | DataAccessException e) {
+                        // Request-level errors (e.g. unknown block) and infrastructure failures fail the whole request.
+                        throw e;
+                    } catch (RuntimeException e) {
+                        log.error("Unexpected error simulating call", e);
+                        context.restoreWriteCache(callSnapshot);
+                        callResults.add(new SimulateCallResult(Utils.toHex(0L), List.of(), HEX_PREFIX, REVERT_STATUS));
                     }
 
                     transactionIndex++;
@@ -139,16 +147,23 @@ public class ContractSimulateService extends ContractCallService {
 
             return entryResults;
         });
-
-        return new SimulateResponse(results);
     }
 
-    private static Map<Bytes, StateOverride> toOverrideMap(final List<StateOverride> overrides) {
-        final var map = new HashMap<Bytes, StateOverride>(overrides.size());
-        for (final var override : overrides) {
-            map.put(Bytes.wrap(parseHex(override.getAddress())), override);
-        }
-        return map;
+    private SimulateCallResult executeCall(
+            final ContractExecutionParameters params,
+            final ContractCallContext context,
+            final long logIndex,
+            final long transactionIndex,
+            final long requestCallIndex) {
+        final var result = callContract(params, context);
+        final var transactionHash = syntheticTransactionHash(result, requestCallIndex);
+        final var contractLogs = mapLogs(result, context, logIndex, transactionIndex, transactionHash);
+        final var transferLogs =
+                mapTransferLogs(context, logIndex + contractLogs.size(), transactionIndex, transactionHash);
+        final var logs = new ArrayList<SimulateLog>(contractLogs.size() + transferLogs.size());
+        logs.addAll(contractLogs);
+        logs.addAll(transferLogs);
+        return new SimulateCallResult(Utils.toHex(result.gasUsed()), logs, result.contractCallResult(), SUCCESS_STATUS);
     }
 
     private static ContractExecutionParameters toExecutionParameters(final BlockType block, final SimulateCall call) {
@@ -170,7 +185,7 @@ public class ContractSimulateService extends ContractCallService {
                 .build();
     }
 
-    private List<SimulateLog> mapLogs(
+    private static List<SimulateLog> mapLogs(
             final EvmTransactionResult result,
             final ContractCallContext context,
             final long startingLogIndex,
@@ -183,7 +198,7 @@ public class ContractSimulateService extends ContractCallService {
 
         final var blockHash = blockHash(context);
         final var blockNumber = blockNumber(context);
-        final var transactionIndexHex = toHex(transactionIndex);
+        final var transactionIndexHex = Utils.toHex(transactionIndex);
 
         final var logs = new ArrayList<SimulateLog>(functionResult.logInfo().size());
         var index = startingLogIndex;
@@ -192,11 +207,11 @@ public class ContractSimulateService extends ContractCallService {
                     contractAddress(logInfo.contractID()).toHexString(),
                     blockHash,
                     blockNumber,
-                    withHexPrefix(logInfo.data().toHex()),
-                    toHex(index),
+                    Utils.withHexPrefix(logInfo.data().toHex()),
+                    Utils.toHex(index),
                     false,
                     logInfo.topic().stream()
-                            .map(topic -> withHexPrefix(topic.toHex()))
+                            .map(topic -> Utils.withHexPrefix(topic.toHex()))
                             .toList(),
                     transactionHash,
                     transactionIndexHex));
@@ -205,7 +220,7 @@ public class ContractSimulateService extends ContractCallService {
         return logs;
     }
 
-    private List<SimulateLog> mapTransferLogs(
+    private static List<SimulateLog> mapTransferLogs(
             final ContractCallContext context,
             final long startingLogIndex,
             final long transactionIndex,
@@ -217,7 +232,7 @@ public class ContractSimulateService extends ContractCallService {
 
         final var blockHash = blockHash(context);
         final var blockNumber = blockNumber(context);
-        final var transactionIndexHex = toHex(transactionIndex);
+        final var transactionIndexHex = Utils.toHex(transactionIndex);
 
         final var logs = new ArrayList<SimulateLog>(transfers.size());
         var index = startingLogIndex;
@@ -227,7 +242,7 @@ public class ContractSimulateService extends ContractCallService {
                     blockHash,
                     blockNumber,
                     transfer.value().toHexString(),
-                    toHex(index),
+                    Utils.toHex(index),
                     false,
                     List.of(TRANSFER_EVENT_TOPIC0, addressTopic(transfer.from()), addressTopic(transfer.to())),
                     transactionHash,
@@ -239,12 +254,12 @@ public class ContractSimulateService extends ContractCallService {
 
     private static String blockHash(final ContractCallContext context) {
         final var recordFile = context.getRecordFile();
-        return recordFile != null ? withHexPrefix(recordFile.getHash()) : null;
+        return recordFile != null ? Utils.withHexPrefix(recordFile.getHash()) : null;
     }
 
     private static String blockNumber(final ContractCallContext context) {
         final var recordFile = context.getRecordFile();
-        return recordFile != null ? toHex(recordFile.getIndex()) : null;
+        return recordFile != null ? Utils.toHex(recordFile.getIndex()) : null;
     }
 
     private static String addressTopic(final Address address) {
@@ -269,16 +284,5 @@ public class ContractSimulateService extends ContractCallService {
                 org.apache.tuweni.bytes.Bytes.fromHexString(result.contractCallResult()),
                 org.apache.tuweni.bytes.Bytes.ofUnsignedLong(requestCallIndex));
         return Hash.keccak256(seed).toHexString();
-    }
-
-    private static String toHex(final long value) {
-        return HEX_PREFIX + Long.toHexString(value);
-    }
-
-    private static String withHexPrefix(final String hex) {
-        if (hex == null) {
-            return null;
-        }
-        return hex.startsWith(HEX_PREFIX) ? hex : HEX_PREFIX + hex;
     }
 }

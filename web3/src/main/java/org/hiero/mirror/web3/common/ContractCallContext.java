@@ -69,6 +69,9 @@ public class ContractCallContext {
     private Map<Bytes, StateOverride> stateOverrides;
 
     @Setter
+    private boolean simulate;
+
+    @Setter
     private boolean traceTransfers;
 
     private final List<CapturedTransfer> capturedTransfers = new ArrayList<>();

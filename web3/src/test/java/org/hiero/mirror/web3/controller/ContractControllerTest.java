@@ -792,7 +792,7 @@ final class ContractControllerTest {
     }
 
     @Test
-    void simulateAcceptsHexQuantities() throws Exception {
+    void simulateAcceptsHexValues() throws Exception {
         web3Properties.setEnableSimulate(true);
         given(contractSimulateService.simulate(any(SimulateRequest.class))).willReturn(new SimulateResponse(List.of()));
 

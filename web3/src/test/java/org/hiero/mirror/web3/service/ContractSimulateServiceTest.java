@@ -3,12 +3,21 @@
 package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 
 import jakarta.annotation.Resource;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
+import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.throttle.ThrottleManager;
+import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
 import org.hiero.mirror.web3.viewmodel.SimulateCall;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
@@ -19,6 +28,7 @@ import org.hiero.mirror.web3.web3j.generated.StorageContract;
 import org.hiero.mirror.web3.web3j.generated.TestNestedAddressThis;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.web3j.abi.FunctionReturnDecoder;
 import org.web3j.abi.TypeReference;
 import org.web3j.abi.datatypes.Type;
@@ -33,6 +43,12 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
 
     @Resource
     private ContractSimulateService contractSimulateService;
+
+    @MockitoSpyBean
+    private ThrottleManager throttleManager;
+
+    @MockitoSpyBean
+    private TransactionExecutionService transactionExecutionService;
 
     @Test
     void singleCallSucceeds() {
@@ -261,6 +277,41 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         final var entryResults = response.result().getFirst();
         assertThat(entryResults).hasSize(1);
         assertThat(entryResults.getFirst().logs()).isEmpty();
+    }
+
+    @Test
+    void unknownBlockFailsRequestAndRestoresUnattemptedCallsGas() {
+        final var contract = testWeb3jService.deploy(StorageContract::deploy);
+        final var firstCall = getSlot0Call(contract);
+        firstCall.setGas(2_000_000L);
+        final var secondCall = getSlot0Call(contract);
+        secondCall.setGas(3_000_000L);
+        final var request = requestWithSingleEntry(firstCall, secondCall);
+        request.setBlock(BlockType.of("0x7ffffff0"));
+
+        assertThatThrownBy(() -> contractSimulateService.simulate(request))
+                .isInstanceOf(BlockNumberNotFoundException.class);
+
+        verify(throttleManager).restore(3_000_000L);
+    }
+
+    @Test
+    void unexpectedExecutorFailureRevertsCallWithoutFailingBatch() {
+        final var contract = testWeb3jService.deploy(StorageContract::deploy);
+        final var request = requestWithSingleEntry(setSlot0Call(contract, 42), getSlot0Call(contract));
+
+        doThrow(new RuntimeException("unexpected"))
+                .doCallRealMethod()
+                .when(transactionExecutionService)
+                .execute(any(CallServiceParameters.class), anyLong());
+
+        final var response = contractSimulateService.simulate(request);
+
+        final var entryResults = response.result().getFirst();
+        assertThat(entryResults).hasSize(2);
+        assertThat(entryResults.get(0).status()).isEqualTo("0x0");
+        assertThat(entryResults.get(0).returnData()).isEqualTo("0x");
+        assertThat(entryResults.get(1).status()).isEqualTo("0x1");
     }
 
     private SimulateCall transferCall(final Entity sender, final Entity receiver) {

@@ -2886,8 +2886,9 @@ components:
           type: string
         balance:
           description: Hexadecimal balance override in tinybars.
-          example: "0xFFFFFFFFFFFFFFFFFFFF"
+          example: "0xFFFFFFFFFFFFFFFF"
           format: binary
+          maxLength: 18
           type: [string, "null"]
         code:
           description: Hexadecimal runtime bytecode override.
@@ -2898,6 +2899,7 @@ components:
           description: Hexadecimal Ethereum nonce override.
           example: "0x1"
           format: binary
+          maxLength: 18
           type: [string, "null"]
         state:
           description: Full storage replacement. All existing storage for this address is discarded; only these slots exist. Mutually exclusive with `state_diff`.

@@ -11,11 +11,13 @@ import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.Timestamp;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
 import java.time.Instant;
+import java.util.List;
 import java.util.stream.Stream;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -153,5 +155,38 @@ class UtilsTest {
         // Convert the produced bytes back to a hex string and compare with the expected input.
         final var roundTrip = Bytes.wrap(result).toUnprefixedHexString();
         assertThat(roundTrip).isEqualTo(expected);
+    }
+
+    @Test
+    void toHex() {
+        assertThat(Utils.toHex(0L)).isEqualTo("0x0");
+        assertThat(Utils.toHex(255L)).isEqualTo("0xff");
+    }
+
+    @Test
+    void withHexPrefixAddsPrefixWhenMissing() {
+        assertThat(Utils.withHexPrefix("ff")).isEqualTo("0xff");
+    }
+
+    @Test
+    void withHexPrefixLeavesExistingPrefixUnchanged() {
+        assertThat(Utils.withHexPrefix("0xff")).isEqualTo("0xff");
+    }
+
+    @Test
+    void withHexPrefixReturnsNullForNull() {
+        assertThat(Utils.withHexPrefix(null)).isNull();
+    }
+
+    @Test
+    void toOverrideMapKeysByParsedAddress() {
+        final var override = new StateOverride();
+        override.setAddress("0x00000000000000000000000000000000000004e4");
+
+        final var map = Utils.toOverrideMap(List.of(override));
+
+        assertThat(map).hasSize(1);
+        assertThat(map.get(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(Utils.parseHex(override.getAddress()))))
+                .isEqualTo(override);
     }
 }

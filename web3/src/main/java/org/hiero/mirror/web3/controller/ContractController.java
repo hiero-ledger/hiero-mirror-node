@@ -20,7 +20,6 @@ import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
-import org.hiero.mirror.web3.viewmodel.SimulateCall;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
 import org.hiero.mirror.web3.viewmodel.SimulateResponse;
 import org.hyperledger.besu.datatypes.Address;
@@ -122,30 +121,23 @@ class ContractController {
         }
         validateSimulateMaxGasLimit(request);
 
-        throttleManager.throttleSimulateRequest(totalGas(request));
+        throttleManager.throttleSimulateRequest(request.totalGas());
         return contractSimulateService.simulate(request);
     }
 
     private boolean hasStateOverrides(SimulateRequest request) {
         return request.getBlockStateCalls().stream()
-                .anyMatch(entry -> !entry.getStateOverrides().isEmpty());
+                .anyMatch(blockCalls -> !blockCalls.getStateOverrides().isEmpty());
     }
 
     private void validateSimulateMaxGasLimit(SimulateRequest request) {
-        for (final var entry : request.getBlockStateCalls()) {
-            for (final var call : entry.getCalls()) {
+        for (final var blockCalls : request.getBlockStateCalls()) {
+            for (final var call : blockCalls.getCalls()) {
                 if (call.getGas() > evmProperties.getMaxGasLimit()) {
                     throw new InvalidParametersException(
                             "gas field must be less than or equal to %d".formatted(evmProperties.getMaxGasLimit()));
                 }
             }
         }
-    }
-
-    private long totalGas(SimulateRequest request) {
-        return request.getBlockStateCalls().stream()
-                .flatMap(entry -> entry.getCalls().stream())
-                .mapToLong(SimulateCall::getGas)
-                .sum();
     }
 }
