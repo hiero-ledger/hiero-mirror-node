@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.common;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
+import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -17,6 +18,7 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 
 @SuppressWarnings("deprecation")
 @Getter
@@ -60,6 +62,12 @@ public class ContractCallContext {
 
     @Setter
     private Supplier<RecordFile> blockSupplier = () -> null;
+
+    /**
+     * Per-address state overrides for the current call.
+     */
+    @Setter
+    private Map<Bytes, StateOverride> stateOverrides;
 
     private ContractCallContext() {}
 
@@ -110,9 +118,12 @@ public class ContractCallContext {
 
     /**
      * Returns the set timestamp or the consensus end timestamp from the set record file only if we are in a historical
-     * context. If not - an empty optional is returned.
+     * context. For opcode replay, returns the explicitly set timestamp.
      */
     public Optional<Long> getTimestamp() {
+        if (opcodeContext != null) {
+            return timestamp;
+        }
         if (useHistorical()) {
             return getTimestampOrDefaultFromRecordFile();
         }

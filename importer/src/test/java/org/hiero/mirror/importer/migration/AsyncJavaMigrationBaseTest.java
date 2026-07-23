@@ -71,6 +71,51 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
 
     protected record MigrationHistory(Integer checksum, int executionTime, int installedRank, String script) {}
 
+    protected class OrderTrackingMigration extends AsyncJavaMigration<Long> {
+
+        private final String name;
+        private final List<String> executionOrder;
+        private final long sleepMs;
+
+        protected OrderTrackingMigration(String name, java.util.List<String> executionOrder) {
+            this(name, executionOrder, 0);
+        }
+
+        protected OrderTrackingMigration(String name, java.util.List<String> executionOrder, long sleepMs) {
+            super(
+                    Map.of("testAsyncJavaMigration", new MigrationProperties()),
+                    objectProvider(ownerJdbcTemplate),
+                    dbProperties.getSchema());
+            this.name = name;
+            this.executionOrder = executionOrder;
+            this.sleepMs = sleepMs;
+        }
+
+        @Override
+        public String getDescription() {
+            return name;
+        }
+
+        @Override
+        protected @NonNull Optional<Long> migratePartial(Long last) {
+            if (sleepMs > 0) {
+                Uninterruptibles.sleepUninterruptibly(sleepMs, TimeUnit.MILLISECONDS);
+            }
+            executionOrder.add(name);
+            return Optional.empty();
+        }
+
+        @Override
+        protected TransactionOperations getTransactionOperations() {
+            return transactionOperations;
+        }
+
+        @Override
+        protected Long getInitial() {
+            return 0L;
+        }
+    }
+
     @Value
     protected class TestAsyncJavaMigration extends AsyncJavaMigration<Long> {
 

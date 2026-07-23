@@ -29,20 +29,20 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedG
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.longValueOf;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-import com.hedera.hapi.node.base.ResponseCodeEnum;
-import com.hedera.hapi.node.contract.ContractFunctionResult;
+import com.hedera.hapi.node.state.token.Account;
+import com.hedera.services.utils.EntityIdUtils;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.math.BigInteger;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
@@ -50,20 +50,22 @@ import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
-import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
-import org.hiero.mirror.web3.state.SystemFileLoader;
+import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
+import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.viewmodel.BlockType;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.hiero.mirror.web3.web3j.generated.ERCTestContract;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
 import org.hiero.mirror.web3.web3j.generated.State;
+import org.hiero.mirror.web3.web3j.generated.StorageContract;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -76,9 +78,12 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.web3j.abi.FunctionReturnDecoder;
+import org.web3j.abi.TypeReference;
+import org.web3j.abi.datatypes.Type;
+import org.web3j.abi.datatypes.generated.Uint256;
 import org.web3j.protocol.core.DefaultBlockParameter;
-import org.web3j.protocol.core.RemoteFunctionCall;
-import org.web3j.tx.Contract;
 
 @RequiredArgsConstructor
 final class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTest {
@@ -87,10 +92,12 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
     private final RecordFileService recordFileService;
     private final ThrottleProperties throttleProperties;
     private final TransactionExecutionService transactionExecutionService;
-    private final SystemFileLoader systemFileLoader;
 
     @MockitoBean
     private ThrottleManager throttleManager;
+
+    @MockitoSpyBean
+    private AccountReadableKVState accountReadableKVState;
 
     private static Stream<BlockType> provideBlockTypes() {
         return Stream.of(
@@ -467,7 +474,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var payer = accountEntityPersist(); // Account without alias
 
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, HEX_PREFIX, toAddress(payer.toEntityId()), receiverAddress, 10L);
+                BlockType.LATEST, HEX_PREFIX, toAddress(payer.toEntityId()), receiverAddress, ETH_CALL, 10L);
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -484,7 +491,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
         final var notExistingAccountAddress = toAddress(domainBuilder.entityId());
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, HEX_PREFIX, notExistingAccountAddress, receiverAddress, 10L);
+                BlockType.LATEST, HEX_PREFIX, notExistingAccountAddress, receiverAddress, ETH_CALL, 10L);
 
         // Then
         assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
@@ -501,7 +508,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
         final var senderEntity = accountEntityPersistCustomizable(e -> e.key(null));
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, HEX_PREFIX, toAddress(senderEntity.toEntityId()), receiverAddress, 10L);
+                BlockType.LATEST, HEX_PREFIX, toAddress(senderEntity.toEntityId()), receiverAddress, ETH_CALL, 10L);
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -519,7 +526,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var contractAddress = toAddress(accountEntityPersistCustomizable(e -> e.type(EntityType.CONTRACT))
                 .toEntityId());
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, HEX_PREFIX, contractAddress, receiverAddress, 10L);
+                BlockType.LATEST, HEX_PREFIX, contractAddress, receiverAddress, ETH_CALL, 10L);
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -558,7 +565,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var payer = accountEntityWithEvmAddressPersist();
         accountBalancePersist(payer, payer.getCreatedTimestamp());
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, HEX_PREFIX, toAddress(payer.toEntityId()), receiverAddress, -5L);
+                BlockType.LATEST, HEX_PREFIX, toAddress(payer.toEntityId()), receiverAddress, ETH_CALL, -5L);
         // Then
         assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
                 .isInstanceOf(MirrorEvmTransactionException.class)
@@ -577,7 +584,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var senderAddress = getAliasAddressFromEntity(senderEntity);
         final var value = senderEntity.getBalance() + 5L;
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, HEX_PREFIX, senderAddress, receiverAddress, value);
+                BlockType.LATEST, HEX_PREFIX, senderAddress, receiverAddress, ETH_CALL, value);
         // Then
         if (validatePayerBalance) {
             assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
@@ -604,7 +611,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var senderAddress = getAliasAddressFromEntity(senderEntity);
         final var value = senderEntity.getBalance() + 5L;
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.of("0x96"), HEX_PREFIX, senderAddress, receiverAddress, value);
+                BlockType.of("0x96"), HEX_PREFIX, senderAddress, receiverAddress, ETH_CALL, value);
         // Then
         if (validatePayerBalance) {
             assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
@@ -857,7 +864,15 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
         final var functionCall = contract.call_nameNonStatic(Address.ZERO.toHexString());
 
-        final var serviceParameters = getContractExecutionParameters(functionCall, contract, callType, gasLimit);
+        final var serviceParameters = contractExecutionParametersBuilder(
+                        BlockType.LATEST,
+                        functionCall.encodeFunctionCall(),
+                        Address.ZERO,
+                        Address.fromHexString(contract.getContractAddress()),
+                        callType,
+                        0L)
+                .gas(gasLimit)
+                .build();
         final var expectedGasUsed = gasUsedAfterExecution(serviceParameters);
         final var gasLimitToRestoreBaseline = (long) (gasLimit * throttleProperties.getGasLimitRefundPercent() / 100f);
         final var expectedUsedGasByThrottle = Math.min(gasLimit - expectedGasUsed, gasLimitToRestoreBaseline);
@@ -890,7 +905,15 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var functionCall =
                 contract.call_name(toAddress(token.getTokenId()).toHexString());
 
-        final var serviceParameters = getContractExecutionParameters(functionCall, contract, callType, gasLimit);
+        final var serviceParameters = contractExecutionParametersBuilder(
+                        BlockType.LATEST,
+                        functionCall.encodeFunctionCall(),
+                        Address.ZERO,
+                        Address.fromHexString(contract.getContractAddress()),
+                        callType,
+                        0L)
+                .gas(gasLimit)
+                .build();
         final var expectedGasUsed = gasUsedAfterExecution(serviceParameters);
         final var gasLimitToRestoreBaseline = (long) (gasLimit * throttleProperties.getGasLimitRefundPercent() / 100f);
         final var expectedUsedGasByThrottle = Math.min(gasLimit - expectedGasUsed, gasLimitToRestoreBaseline);
@@ -931,19 +954,6 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 .hasMessage(CONTRACT_EXECUTION_EXCEPTION.name());
     }
 
-    private double getGasUsedBeforeExecution(final CallType callType) {
-        final var callCounter = meterRegistry.find(GAS_USED_METRIC).counters().stream()
-                .filter(c -> callType.name().equals(c.getId().getTag("type")))
-                .findFirst();
-
-        var gasUsedBeforeExecution = 0d;
-        if (callCounter.isPresent()) {
-            gasUsedBeforeExecution = callCounter.get().count();
-        }
-
-        return gasUsedBeforeExecution;
-    }
-
     @Test
     void erc20TransferWithHollowAccountSender() {
         // Given
@@ -965,12 +975,25 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 .balance(tokenAmount));
 
         final var serviceParameters = getContractExecutionParametersWithValue(
-                BlockType.LATEST, hexData, toAddress(senderAccount.getId()), tokenAddress, 0L);
+                BlockType.LATEST, hexData, toAddress(senderAccount.getId()), tokenAddress, ETH_CALL, 0L);
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
 
         // Then
         assertThat(result).isEqualTo("0x0000000000000000000000000000000000000000000000000000000000000001");
+    }
+
+    private double getGasUsedBeforeExecution(final CallType callType) {
+        final var callCounter = meterRegistry.find(GAS_USED_METRIC).counters().stream()
+                .filter(c -> callType.name().equals(c.getId().getTag("type")))
+                .findFirst();
+
+        var gasUsedBeforeExecution = 0d;
+        if (callCounter.isPresent()) {
+            gasUsedBeforeExecution = callCounter.get().count();
+        }
+
+        return gasUsedBeforeExecution;
     }
 
     private void assertGasUsedIsPositive(final double gasUsedBeforeExecution, final CallType callType) {
@@ -1003,48 +1026,23 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         assertThat(counter.count()).isEqualTo(gasLimit);
     }
 
+    private Entity systemAccountEntityWithEvmAddressPersist() {
+        final var systemAccountEntityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 700);
+
+        return domainBuilder
+                .entity()
+                .customize(e -> e.id(systemAccountEntityId.getId())
+                        .num(systemAccountEntityId.getNum())
+                        .alias(toEvmAddress(systemAccountEntityId))
+                        .balance(20000L))
+                .persist();
+    }
+
     private ContractExecutionParameters getContractExecutionParameters(
             final String dataHex, final Address receiverAddress) {
-        return getContractExecutionParameters(dataHex, receiverAddress, ETH_CALL);
-    }
-
-    private ContractExecutionParameters getContractExecutionParameters(
-            final String dataHex, final Address receiverAddress, final CallType callType) {
-        return ContractExecutionParameters.builder()
-                .block(BlockType.LATEST)
-                .callData(hexToBytes(dataHex))
-                .callType(callType)
-                .gas(TRANSACTION_GAS_LIMIT)
-                .gasPrice(0L)
-                .isEstimate(callType == ETH_ESTIMATE_GAS)
-                .isStatic(false)
-                .receiver(receiverAddress)
-                .sender(Address.ZERO)
-                .value(0L)
+        return contractExecutionParametersBuilder(
+                        BlockType.LATEST, dataHex, Address.ZERO, receiverAddress, CallType.ETH_CALL, 0L)
                 .build();
-    }
-
-    private ContractExecutionParameters getContractExecutionParameters(
-            final RemoteFunctionCall<?> functionCall,
-            final Contract contract,
-            final CallType callType,
-            final long gasLimit) {
-        return ContractExecutionParameters.builder()
-                .block(BlockType.LATEST)
-                .callData(hexToBytes(functionCall.encodeFunctionCall()))
-                .callType(callType)
-                .gas(gasLimit)
-                .isEstimate(false)
-                .isStatic(false)
-                .receiver(Address.fromHexString(contract.getContractAddress()))
-                .sender(Address.ZERO)
-                .value(0L)
-                .build();
-    }
-
-    private ContractExecutionParameters getContractExecutionParametersWithValue(
-            final String dataHex, final Address receiverAddress, final long value) {
-        return getContractExecutionParametersWithValue(BlockType.LATEST, dataHex, Address.ZERO, receiverAddress, value);
     }
 
     private ContractExecutionParameters getContractExecutionParametersWithValue(
@@ -1052,12 +1050,21 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             final String dataHex,
             final Address senderAddress,
             final Address receiverAddress,
+            final CallType callType,
             final long value) {
-        return getContractExecutionParametersWithValue(
-                blockType, dataHex, senderAddress, receiverAddress, ETH_CALL, value);
+        return contractExecutionParametersBuilder(blockType, dataHex, senderAddress, receiverAddress, callType, value)
+                .build();
     }
 
-    private ContractExecutionParameters getContractExecutionParametersWithValue(
+    private ContractExecutionParameters getContractExecutionParametersWithGasAndValue(
+            final Address senderAddress, final Address receiverAddress, final long gasPrice, final long value) {
+        return contractExecutionParametersBuilder(
+                        BlockType.LATEST, HEX_PREFIX, senderAddress, receiverAddress, ETH_CALL, value)
+                .gasPrice(gasPrice)
+                .build();
+    }
+
+    private ContractExecutionParameters.ContractExecutionParametersBuilder contractExecutionParametersBuilder(
             final BlockType blockType,
             final String dataHex,
             final Address senderAddress,
@@ -1074,36 +1081,13 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 .isStatic(false)
                 .receiver(receiverAddress)
                 .sender(senderAddress)
-                .value(value)
-                .build();
+                .value(value);
     }
 
-    private Entity systemAccountEntityWithEvmAddressPersist() {
-        final var systemAccountEntityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), 700);
-
-        return domainBuilder
-                .entity()
-                .customize(e -> e.id(systemAccountEntityId.getId())
-                        .num(systemAccountEntityId.getNum())
-                        .alias(toEvmAddress(systemAccountEntityId))
-                        .balance(20000L))
-                .persist();
-    }
-
-    private ContractExecutionParameters getContractExecutionParametersWithGasAndValue(
-            final Address senderAddress, final Address receiverAddress, final long gasPrice, final long value) {
-        return ContractExecutionParameters.builder()
-                .block(BlockType.LATEST)
-                .callData(hexToBytes(HEX_PREFIX))
-                .callType(ETH_CALL)
-                .gas(TRANSACTION_GAS_LIMIT)
-                .gasPrice(gasPrice)
-                .isEstimate(false)
-                .isStatic(false)
-                .receiver(receiverAddress)
-                .sender(senderAddress)
-                .value(value)
-                .build();
+    @SuppressWarnings("unchecked")
+    private <T extends Type> T decodeFirst(final String hexResult, final Class<T> type) {
+        return (T) FunctionReturnDecoder.decode(hexResult, List.of(TypeReference.create((Class<Type>) type)))
+                .get(0);
     }
 
     @Nested
@@ -1133,7 +1117,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             // The NON_EXISTING_ADDRESS should be a valid EVM alias key(Ethereum-style address derived from an ECDSA
             // public key), otherwise INVALID_ALIAS_KEY could be thrown
             final var serviceParameters = getContractExecutionParametersWithValue(
-                    BlockType.LATEST, HEX_PREFIX, getAliasAddressFromEntity(payer), NON_EXISTING_ADDRESS, 1L);
+                    BlockType.LATEST, HEX_PREFIX, getAliasAddressFromEntity(payer), NON_EXISTING_ADDRESS, ETH_CALL, 1L);
 
             // When
             final var result = contractExecutionService.processCall(serviceParameters);
@@ -1167,26 +1151,6 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             assertThat(isWithinExpectedGasRange(estimatedGas, expectedGas))
                     .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimatedGas, expectedGas)
                     .isTrue();
-        }
-
-        @Test
-        void shouldCallTransactionExecutionService() throws MirrorEvmTransactionException {
-            final long estimatedGas = 1000L;
-            EvmProperties spyEvmProperties = spy(evmProperties);
-            TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
-
-            ContractCallService contractCallService =
-                    new ContractCallService(null, null, null, null, spyEvmProperties, txnExecutionService) {};
-
-            var params = ContractExecutionParameters.builder().build();
-            when(txnExecutionService.execute(params, estimatedGas))
-                    .thenReturn(new EvmTransactionResult(
-                            ResponseCodeEnum.SUCCESS,
-                            ContractFunctionResult.newBuilder().gasUsed(100).build()));
-
-            contractCallService.doProcessCall(params, estimatedGas, true);
-
-            verify(txnExecutionService, times(1)).execute(any(), anyLong());
         }
     }
 
@@ -1242,6 +1206,285 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
             // Then
             assertDoesNotThrow(() -> contractExecutionService.processCall(params));
+        }
+    }
+
+    private static final String STORAGE_SLOT_0_KEY =
+            "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+    @Nested
+    class StateOverrides {
+
+        @Test
+        void processCallWithGasAppliesStateOverridesToContractStorage() {
+            // Given
+            final var contract = testWeb3jService.deploy(StorageContract::deploy);
+            meterRegistry.clear();
+            final var functionCall = contract.call_slot0();
+
+            final var storageEntry = new StorageEntry();
+            final var slotValue = "11".repeat(32);
+            storageEntry.setKey(STORAGE_SLOT_0_KEY);
+            storageEntry.setValue(HEX_PREFIX + slotValue);
+
+            final var stateOverride = new StateOverride();
+            stateOverride.setAddress(contract.getContractAddress().toLowerCase());
+            stateOverride.setState(List.of(storageEntry));
+
+            final var params = contractExecutionParametersBuilder(
+                            BlockType.LATEST,
+                            functionCall.encodeFunctionCall(),
+                            Address.ZERO,
+                            Address.fromHexString(contract.getContractAddress()),
+                            ETH_CALL,
+                            0L)
+                    .stateOverrides(List.of(stateOverride))
+                    .build();
+
+            // When
+            final var result = contractExecutionService.processCallWithGas(params);
+
+            // Then
+            assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(new BigInteger(slotValue, 16));
+            assertThat(result.gasUsed()).isPositive();
+        }
+
+        @Test
+        void processCallWithGasAppliesStateDiffOverridesToContractStorage() {
+            // Given
+            final var contract = testWeb3jService.deploy(StorageContract::deploy);
+            meterRegistry.clear();
+            final var functionCall = contract.call_slot0();
+
+            final var storageEntry = new StorageEntry();
+            final var slotValue = "22".repeat(32);
+            storageEntry.setKey(STORAGE_SLOT_0_KEY);
+            storageEntry.setValue(HEX_PREFIX + slotValue);
+
+            final var stateOverride = new StateOverride();
+            stateOverride.setAddress(contract.getContractAddress().toLowerCase());
+            stateOverride.setStateDiff(List.of(storageEntry));
+
+            final var params = contractExecutionParametersBuilder(
+                            BlockType.LATEST,
+                            functionCall.encodeFunctionCall(),
+                            Address.ZERO,
+                            Address.fromHexString(contract.getContractAddress()),
+                            ETH_CALL,
+                            0L)
+                    .stateOverrides(List.of(stateOverride))
+                    .build();
+
+            // When
+            final var result = contractExecutionService.processCallWithGas(params);
+
+            // Then
+            assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(new BigInteger(slotValue, 16));
+            assertThat(result.gasUsed()).isPositive();
+        }
+
+        @Test
+        void processCallWithGasAppliesBytecodeOverride() {
+            // Given: StorageContract is deployed, but its bytecode is overridden with EthCall runtime
+            final var ethCall = testWeb3jService.deploy(EthCall::deploy);
+            final var overrideBytecode = BytecodeUtils.extractRuntimeBytecode(EthCall.BINARY);
+            final var contract = testWeb3jService.deploy(StorageContract::deploy);
+            meterRegistry.clear();
+            final var functionCall = ethCall.call_multiplySimpleNumbers();
+
+            final var stateOverride = new StateOverride();
+            stateOverride.setAddress(contract.getContractAddress().toLowerCase());
+            stateOverride.setCode(overrideBytecode);
+
+            final var params = contractExecutionParametersBuilder(
+                            BlockType.LATEST,
+                            functionCall.encodeFunctionCall(),
+                            Address.ZERO,
+                            Address.fromHexString(contract.getContractAddress()),
+                            ETH_CALL,
+                            0L)
+                    .stateOverrides(List.of(stateOverride))
+                    .build();
+
+            // When
+            final var result = contractExecutionService.processCallWithGas(params);
+
+            // Then: EthCall logic runs at the StorageContract address
+            assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(BigInteger.valueOf(4L));
+            assertThat(result.gasUsed()).isPositive();
+        }
+
+        @Test
+        void processCallWithGasAppliesBytecodeAndStorageOverridesForMissingContract() {
+            // Given: The contract address is not persisted, but overrides provide bytecode and storage
+            final var contract = testWeb3jService.deployWithoutPersist(StorageContract::deploy);
+            meterRegistry.clear();
+            final var functionCall = contract.call_slot0();
+
+            final var storageEntry = new StorageEntry();
+            final var slotValue = "33".repeat(32);
+            storageEntry.setKey(STORAGE_SLOT_0_KEY);
+            storageEntry.setValue(HEX_PREFIX + slotValue);
+
+            final var stateOverride = new StateOverride();
+            stateOverride.setAddress(contract.getContractAddress().toLowerCase());
+            stateOverride.setCode(BytecodeUtils.extractRuntimeBytecode(StorageContract.BINARY));
+            stateOverride.setState(List.of(storageEntry));
+
+            final var params = contractExecutionParametersBuilder(
+                            BlockType.LATEST,
+                            functionCall.encodeFunctionCall(),
+                            Address.ZERO,
+                            Address.fromHexString(contract.getContractAddress()),
+                            ETH_CALL,
+                            0L)
+                    .stateOverrides(List.of(stateOverride))
+                    .build();
+
+            // When
+            final var result = contractExecutionService.processCallWithGas(params);
+
+            // Then
+            assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(new BigInteger(slotValue, 16));
+            assertThat(result.gasUsed()).isPositive();
+        }
+
+        @Test
+        void processCallWithGasAppliesBytecodeOverrideNegative() {
+            // Given: StorageContract is deployed, but its bytecode is overridden with random bytecode
+            final var overrideBytecode = "0x123456";
+            final var contract = testWeb3jService.deploy(StorageContract::deploy);
+            final var functionCall = contract.call_slot0();
+
+            final var stateOverride = new StateOverride();
+            stateOverride.setAddress(contract.getContractAddress().toLowerCase());
+            stateOverride.setCode(overrideBytecode);
+
+            final var params = contractExecutionParametersBuilder(
+                            BlockType.LATEST,
+                            functionCall.encodeFunctionCall(),
+                            Address.ZERO,
+                            Address.fromHexString(contract.getContractAddress()),
+                            ETH_CALL,
+                            0L)
+                    .stateOverrides(List.of(stateOverride))
+                    .build();
+
+            // Then: The random bytecode gets executed, which results in CONTRACT_EXECUTION_EXCEPTION
+            assertThatThrownBy(() -> contractExecutionService.processCallWithGas(params))
+                    .isInstanceOf(MirrorEvmTransactionException.class)
+                    .hasMessageContaining(ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION.name());
+        }
+
+        @Test
+        void processCallWithGasAppliesAccountBalanceOverride() {
+            // Given
+            final var account = accountEntityPersist();
+            final var accountAddress = Address.fromHexString(CommonUtils.hex(toEvmAddress(account.toEntityId())));
+            final var contract = testWeb3jService.deploy(EthCall::deploy);
+            meterRegistry.clear();
+            final var functionCall = contract.call_getAccountBalance(accountAddress.toHexString());
+
+            final var overrideBalanceHex = "0x64";
+            final var stateOverride = new StateOverride();
+            stateOverride.setAddress(accountAddress.toHexString());
+            stateOverride.setBalance(overrideBalanceHex);
+
+            final var params = contractExecutionParametersBuilder(
+                            BlockType.LATEST,
+                            functionCall.encodeFunctionCall(),
+                            Address.ZERO,
+                            Address.fromHexString(contract.getContractAddress()),
+                            ETH_CALL,
+                            0L)
+                    .stateOverrides(List.of(stateOverride))
+                    .build();
+
+            // When
+            final var result = contractExecutionService.processCallWithGas(params);
+
+            // Then
+            assertThat(decodeFirst(result.result(), Uint256.class).getValue())
+                    .isEqualTo(new BigInteger(overrideBalanceHex.substring(2), 16));
+            assertThat(decodeFirst(result.result(), Uint256.class).getValue())
+                    .isNotEqualTo(BigInteger.valueOf(DEFAULT_SMALL_ACCOUNT_BALANCE));
+            assertThat(result.gasUsed()).isPositive();
+        }
+
+        @Test
+        void processCallWithGasAppliesAccountOverrideForMissingAccount() {
+            // Given
+            final var contract = testWeb3jService.deploy(EthCall::deploy);
+            meterRegistry.clear();
+            final var missingAccountAddress = toAddress(9000L);
+            final var functionCall = contract.call_getAccountBalance(missingAccountAddress.toHexString());
+
+            final var stateOverride = new StateOverride();
+            stateOverride.setAddress(missingAccountAddress.toHexString());
+            stateOverride.setBalance("0x64");
+            stateOverride.setNonce("0x2a");
+
+            final var params = contractExecutionParametersBuilder(
+                            BlockType.LATEST,
+                            functionCall.encodeFunctionCall(),
+                            Address.ZERO,
+                            Address.fromHexString(contract.getContractAddress()),
+                            ETH_CALL,
+                            0L)
+                    .stateOverrides(List.of(stateOverride))
+                    .build();
+
+            // When
+            final var result = contractExecutionService.processCallWithGas(params);
+
+            // Then
+            assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(BigInteger.valueOf(100L));
+            assertThat(result.gasUsed()).isPositive();
+        }
+
+        @ParameterizedTest
+        @ValueSource(booleans = {true, false})
+        void processCallWithGasAppliesAccountNonceOverride(final boolean unhex) {
+            // Given
+            final var account = accountEntityPersistCustomizable(
+                    e -> e.ethereumNonce(1L).evmAddress(null).alias(null));
+            final var accountId = EntityIdUtils.toAccountId(account.toEntityId());
+            final var accountAddress = Address.fromHexString(CommonUtils.hex(toEvmAddress(account.toEntityId())));
+            final var contract = testWeb3jService.deploy(EthCall::deploy);
+            meterRegistry.clear();
+
+            final var capturedNonce = new AtomicReference<Long>();
+            doAnswer(invocation -> {
+                        final Account loaded = (Account) invocation.callRealMethod();
+                        if (accountId.equals(invocation.getArgument(0))) {
+                            capturedNonce.set(loaded.ethereumNonce());
+                        }
+                        return loaded;
+                    })
+                    .when(accountReadableKVState)
+                    .get(eq(accountId));
+
+            final var stateOverride = new StateOverride();
+            stateOverride.setAddress(unhex ? accountAddress.toUnprefixedHexString() : accountAddress.toHexString());
+            stateOverride.setNonce("0x2a");
+            final var params = contractExecutionParametersBuilder(
+                            BlockType.LATEST,
+                            contract.call_getAccountBalance(accountAddress.toHexString())
+                                    .encodeFunctionCall(),
+                            Address.ZERO,
+                            Address.fromHexString(contract.getContractAddress()),
+                            ETH_CALL,
+                            0L)
+                    .stateOverrides(List.of(stateOverride))
+                    .build();
+
+            // When
+            final var result = contractExecutionService.processCallWithGas(params);
+
+            // Then
+            assertThat(capturedNonce.get()).isEqualTo(42L);
+            assertThat(capturedNonce.get()).isNotEqualTo(account.getEthereumNonce());
+            assertThat(result.gasUsed()).isPositive();
         }
     }
 }

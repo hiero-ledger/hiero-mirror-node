@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import fs from 'fs';
-import yaml from 'js-yaml';
+import {load} from 'js-yaml';
 import isNumber from 'lodash/isNumber';
 import isString from 'lodash/isString';
 import isUndefined from 'lodash/isUndefined';
@@ -45,7 +45,7 @@ const getSpecPath = (apiVersion) => {
  * @param {Number} apiVersion
  */
 const getOpenApiSpecObject = (apiVersion) => {
-  return yaml.load(getV1OpenApiFile(apiVersion));
+  return load(getV1OpenApiFile(apiVersion));
 };
 
 /**

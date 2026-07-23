@@ -314,9 +314,12 @@ class OpcodesControllerTest {
                 .thenReturn(Optional.ofNullable(ethTransaction));
         when(contractResultRepository.findById(consensusTimestamp)).thenReturn(Optional.of(contractResult));
         when(recordFileRepository.findByTimestamp(consensusTimestamp)).thenReturn(Optional.of(recordFile));
-        when(commonEntityAccessor.evmAddressFromId(contractId, Optional.empty()))
+        when(commonEntityAccessor.evmAddressFromId(contractId, Optional.of(consensusTimestamp)))
                 .thenReturn(contractAddress);
-        when(commonEntityAccessor.evmAddressFromId(senderId, Optional.empty())).thenReturn(senderAddress);
+        when(commonEntityAccessor.evmAddressFromId(senderId, Optional.of(consensusTimestamp)))
+                .thenReturn(senderAddress);
+        when(commonEntityAccessor.get(contractAddress, Optional.of(consensusTimestamp)))
+                .thenReturn(Optional.ofNullable(contractEntity));
         when(commonEntityAccessor.get(contractAddress, Optional.empty()))
                 .thenReturn(Optional.ofNullable(contractEntity));
         when(commonEntityAccessor.get(senderAddress, Optional.empty())).thenReturn(Optional.of(senderEntity));

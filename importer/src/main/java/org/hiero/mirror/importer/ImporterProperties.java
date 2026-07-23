@@ -56,8 +56,7 @@ public class ImporterProperties {
     private Path initialAddressBook;
 
     @NotNull
-    @Valid
-    private Map<String, MigrationProperties> migration = new CaseInsensitiveMap<>();
+    private Map<String, @Valid MigrationProperties> migration = new CaseInsensitiveMap<>();
 
     @NotBlank
     private String network = HederaNetwork.DEMO;
@@ -98,6 +97,8 @@ public class ImporterProperties {
         STAKE_IN_ADDRESS_BOOK // like STAKE, but only the nodes found in the address book are used in the calculation.
     }
 
+    private record CloudBucket(String blockStream, String recordStream) {}
+
     @NullMarked
     public final class HederaNetwork {
         public static final String DEMO = "demo";
@@ -135,6 +136,4 @@ public class ImporterProperties {
             return DEMO.equals(network);
         }
     }
-
-    private record CloudBucket(String blockStream, String recordStream) {}
 }

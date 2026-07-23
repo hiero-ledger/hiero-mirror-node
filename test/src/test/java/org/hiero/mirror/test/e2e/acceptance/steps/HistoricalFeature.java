@@ -47,8 +47,6 @@ import com.hedera.hashgraph.sdk.CustomRoyaltyFee;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.NftId;
-import com.hedera.hashgraph.sdk.PrecheckStatusException;
-import com.hedera.hashgraph.sdk.ReceiptStatusException;
 import com.hedera.hashgraph.sdk.TokenUpdateTransaction;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
@@ -57,7 +55,6 @@ import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.awaitility.Awaitility;
@@ -68,7 +65,6 @@ import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
-import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.hiero.mirror.test.e2e.acceptance.util.ContractCallResponseWrapper;
 
 @RequiredArgsConstructor
@@ -753,26 +749,27 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     }
 
     @And("I update the token and account keys for {token}")
-    public void updateAccountAndTokenKeys(TokenNameEnum tokenName)
-            throws PrecheckStatusException, TimeoutException, ReceiptStatusException {
+    public void updateAccountAndTokenKeys(TokenNameEnum tokenName) {
         var tokenId = tokenClient.getToken(tokenName).tokenId();
         var keyList = KeyList.of(admin.getPublicKey(), deployedEstimatePrecompileContract.contractId())
                 .setThreshold(1);
-        new AccountUpdateTransaction()
+        final var response = accountClient.executeTransactionAndRetrieveReceipt(new AccountUpdateTransaction()
                 .setAccountId(admin.getAccountId())
-                .setKey(keyList)
-                .freezeWith(accountClient.getClient())
-                .sign(admin.getPrivateKey())
-                .execute(accountClient.getClient());
-        var tokenUpdate = new TokenUpdateTransaction()
+                .setKey(keyList));
+        log.info(
+                "Updated account {} via {} in {}",
+                admin.getAccountId(),
+                response.getTransactionId(),
+                response.getStopwatch());
+        networkTransactionResponse = accountClient.executeTransactionAndRetrieveReceipt(new TokenUpdateTransaction()
                 .setTokenId(tokenId)
                 .setSupplyKey(keyList)
-                .setAdminKey(keyList)
-                .freezeWith(accountClient.getClient())
-                .sign(admin.getPrivateKey())
-                .execute(accountClient.getClient());
-        networkTransactionResponse = new NetworkTransactionResponse(
-                tokenUpdate.transactionId, tokenUpdate.getReceipt(accountClient.getClient()));
+                .setAdminKey(keyList));
+        log.info(
+                "Updated token {} via {} in {}",
+                tokenId,
+                networkTransactionResponse.getTransactionId(),
+                networkTransactionResponse.getStopwatch());
         verifyMirrorTransactionsResponse(mirrorClient, 200);
     }
 

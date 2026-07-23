@@ -3,7 +3,9 @@
 package org.hiero.mirror.importer.config;
 
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_METHODS;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.DEFAULT_CATEGORIES;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackageMatching;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionTypes;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerResourcePatterns;
 
@@ -16,6 +18,7 @@ import org.apache.velocity.runtime.resource.ResourceManagerImpl;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
 import org.apache.velocity.util.introspection.TypeConversionHandlerImpl;
 import org.apache.velocity.util.introspection.UberspectImpl;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -23,6 +26,8 @@ import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
+import org.springframework.core.type.filter.TypeFilter;
+import org.springframework.util.ClassUtils;
 
 @Configuration(proxyBeanMethods = false)
 @ImportRuntimeHints(RuntimeHintsConfiguration.CustomRuntimeHints.class)
@@ -35,19 +40,11 @@ final class RuntimeHintsConfiguration {
             final var loader = classLoader != null ? classLoader : getClass().getClassLoader();
 
             registerReflectionTypes(hints, EntityProperties.PersistProperties.class.getName());
-
+            registerMigrationClasses(hints, classLoader);
             registerReflectionTypes(
                     hints,
                     CONSTRUCTORS_AND_METHODS,
-                    "org.hiero.mirror.importer.migration.AbstractTimestampInfoMigration$TimestampInfo",
-                    "org.hiero.mirror.importer.migration.ContractLogIndexMigration$RecordFileSlice",
-                    "org.hiero.mirror.importer.migration.BackfillEthereumTransactionHashMigration$MigrationEthereumTransaction",
-                    "org.hiero.mirror.importer.migration.ContractResultMigration$MigrationContractResult",
-                    "org.hiero.mirror.importer.migration.FixAirdropTokenAssociationMigration$ClaimedAirdrop",
-                    "org.hiero.mirror.importer.migration.FixAirdropTokenAssociationMigration$NftTransfer",
-                    "org.hiero.mirror.importer.migration.FixAirdropTokenAssociationMigration$TokenBalanceChange",
-                    "org.hiero.mirror.importer.migration.FixNodeTransactionsMigration$NodeTransaction",
-                    "org.hiero.mirror.importer.migration.SyntheticCryptoTransferApprovalMigration$TokenBalanceChange",
+                    BlockProperties.class.getName(),
                     "org.hiero.mirror.importer.config.MetricsConfiguration$TableMetrics",
                     "org.hiero.mirror.importer.config.MetricsConfiguration$TableAttributes");
 
@@ -69,6 +66,20 @@ final class RuntimeHintsConfiguration {
                     "linux/amd64/libzstd-jni-*.so",
                     "win/aarch64/libzstd-jni-*.dll",
                     "win/amd64/libzstd-jni-*.dll");
+        }
+
+        // Register migration member classes created reflectively via RowMapper
+        private void registerMigrationClasses(RuntimeHints hints, @Nullable ClassLoader classLoader) {
+            TypeFilter memberClassFilter = (r, _) -> {
+                try {
+                    final var clazz = ClassUtils.forName(r.getClassMetadata().getClassName(), classLoader);
+                    return clazz.isMemberClass() && !clazz.isEnum() && !clazz.isInterface();
+                } catch (Exception e) {
+                    return false;
+                }
+            };
+            registerPackageMatching(
+                    hints, classLoader, "org.hiero.mirror.importer.migration", memberClassFilter, DEFAULT_CATEGORIES);
         }
 
         private void registerVelocityHints(RuntimeHints hints, ClassLoader loader) {

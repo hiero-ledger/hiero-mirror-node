@@ -117,7 +117,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
 
         final var frameRevertReason = frame.getRevertReason().orElse(null);
         final var revertReason = isCallToSystemContracts(frame, systemContracts)
-                ? getRevertReasonFromContractActions(context)
+                ? getRevertReasonFromContractActions(context, frame.getDepth())
                 : (frameRevertReason != null ? frameRevertReason.toHexString() : null);
 
         context.getOpcodeContext()

@@ -132,6 +132,16 @@ final class RecordFileRepositoryTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void persistReceiptsRoot() {
+        final var recordFile = domainBuilder.recordFile().persist();
+
+        assertThat(recordFileRepository.findById(recordFile.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(recordFile.getReceiptsRoot());
+    }
+
+    @Test
     void prune() {
         domainBuilder.recordFile().persist();
         var recordFile2 = domainBuilder.recordFile().persist();

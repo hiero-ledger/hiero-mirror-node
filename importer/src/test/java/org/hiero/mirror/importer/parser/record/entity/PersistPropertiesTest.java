@@ -15,7 +15,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class PersistPropertiesTest {
+final class PersistPropertiesTest {
+
     private static final SystemEntity SYSTEM_ENTITY = new SystemEntity(CommonProperties.getInstance());
 
     @ParameterizedTest
@@ -78,6 +79,24 @@ class PersistPropertiesTest {
         var persistProperties = new EntityProperties.PersistProperties(SYSTEM_ENTITY);
         persistProperties.setEntityNftTransactions(true);
         assertThat(persistProperties.shouldPersistEntityNftTransaction(null)).isFalse();
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            true, true, 10, true
+            true, true, 1000, true
+            true, false, 10, true
+            true, false, 1000, true
+            false, true, 10, true
+            false, true, 1000, false
+            false, false, 10, false,
+            false, false, 1000, false
+            """)
+    void shouldPersistFileData(final boolean files, final boolean systemFiles, final long num, final boolean expected) {
+        final var persistProperties = new EntityProperties.PersistProperties(SYSTEM_ENTITY);
+        persistProperties.setFiles(files);
+        persistProperties.setSystemFiles(systemFiles);
+        assertThat(persistProperties.shouldPersistFileData(entityId(num))).isEqualTo(expected);
     }
 
     @ParameterizedTest

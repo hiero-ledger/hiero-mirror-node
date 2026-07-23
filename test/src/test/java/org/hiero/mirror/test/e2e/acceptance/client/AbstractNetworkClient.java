@@ -4,6 +4,7 @@ package org.hiero.mirror.test.e2e.acceptance.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.base.Stopwatch;
 import com.hedera.hashgraph.sdk.AccountBalanceQuery;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Client;
@@ -24,6 +25,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import lombok.Data;
@@ -86,10 +88,32 @@ abstract class AbstractNetworkClient implements Cleanable {
 
     @SneakyThrows
     public <O, T extends Query<O, T>> O executeQuery(Supplier<Query<O, T>> querySupplier) {
-        return retryTemplate.execute(() -> querySupplier.get().execute(client));
+        final var stopwatch = Stopwatch.createStarted();
+        final var last = new AtomicReference<>();
+
+        try {
+            return retryTemplate.execute(() -> {
+                final var query = querySupplier.get();
+                last.set(query);
+                return query.execute(client);
+            });
+        } catch (RetryException e) {
+            final var query = last.get();
+            final var type = query != null ? query.getClass().getSimpleName() : "query";
+            TransactionId transactionId = null;
+
+            if (query instanceof TransactionReceiptQuery trq) {
+                transactionId = trq.getTransactionIdInternal();
+            }
+
+            final var message = "Failed to execute %s via %s in %s".formatted(type, transactionId, stopwatch);
+            throw new NetworkException(message, e);
+        }
     }
 
     public TransactionId executeTransaction(Transaction<?> transaction, KeyList keyList, ExpandedAccountId payer) {
+        final var stopwatch = Stopwatch.createStarted();
+
         if (payer != null) {
             transaction.setTransactionId(TransactionId.generate(payer.getAccountId()));
             transaction.freezeWith(client);
@@ -120,7 +144,10 @@ abstract class AbstractNetworkClient implements Cleanable {
                 log.error("Invalid signature for transaction {} signed with: {}", transaction, publicKeys);
             }
 
-            throw new NetworkException("Failed to execute transaction", e);
+            final var type = transaction.getClass().getSimpleName();
+            final var transactionId = transaction.getTransactionId();
+            final var message = "Failed to execute %s via %s in %s".formatted(type, transactionId, stopwatch);
+            throw new NetworkException(message, e);
         }
     }
 
@@ -138,11 +165,12 @@ abstract class AbstractNetworkClient implements Cleanable {
 
     public NetworkTransactionResponse executeTransactionAndRetrieveReceipt(
             Transaction<?> transaction, KeyList keyList, ExpandedAccountId payer) {
+        final var stopwatch = Stopwatch.createStarted();
         var transactionId = executeTransaction(transaction, keyList, payer);
         var transactionReceipt = getTransactionReceipt(transactionId);
-        log.debug("Executed {} {}", transaction.getClass().getSimpleName(), transactionId);
+        log.debug("Executed {} {} in {}", transaction.getClass().getSimpleName(), transactionId, stopwatch);
 
-        return new NetworkTransactionResponse(transactionId, transactionReceipt);
+        return new NetworkTransactionResponse(stopwatch, transactionId, transactionReceipt);
     }
 
     public NetworkTransactionResponse executeTransactionAndRetrieveReceipt(

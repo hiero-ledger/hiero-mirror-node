@@ -34,12 +34,20 @@ public final class HookClient extends AbstractNetworkClient {
 
     public NetworkTransactionResponse hookStore(
             ExpandedAccountId account, long hookId, List<EvmHookStorageUpdate> storageUpdates) {
+        final var hookIdWrapper = new HookId(new HookEntityId(account.getAccountId()), hookId);
         final var transaction = new HookStoreTransaction()
                 .setTransactionMemo(getMemo("HookStore operation"))
-                .setHookId(new HookId(new HookEntityId(account.getAccountId()), hookId))
+                .setHookId(hookIdWrapper)
                 .setMaxTransactionFee(Hbar.from(1));
         storageUpdates.forEach(transaction::addStorageUpdate);
-        return executeTransactionAndRetrieveReceipt(transaction, KeyList.of(account.getPrivateKey()));
+        final var response = executeTransactionAndRetrieveReceipt(transaction, KeyList.of(account.getPrivateKey()));
+        log.info(
+                "Updated {} storage entries of hook {} via {} in {}",
+                storageUpdates.size(),
+                hookIdWrapper,
+                response.getTransactionId(),
+                response.getStopwatch());
+        return response;
     }
 
     /**
@@ -56,6 +64,13 @@ public final class HookClient extends AbstractNetworkClient {
                 .addHbarTransfer(recipient, amount)
                 .setTransactionMemo(getMemo("Crypto transfer with hook"));
 
-        return executeTransactionAndRetrieveReceipt(transferTransaction, sender);
+        final var response = executeTransactionAndRetrieveReceipt(transferTransaction, sender);
+        log.info(
+                "Invoke hook {} of account {} via {} in {}",
+                hookId,
+                sender,
+                response.getTransactionId(),
+                response.getStopwatch());
+        return response;
     }
 }

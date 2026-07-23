@@ -5,8 +5,6 @@ package org.hiero.mirror.test.e2e.acceptance.client;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.test.e2e.acceptance.config.RestProperties.URL_PREFIX;
-import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.UPDATE_TOKEN_KEYS;
-import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.UPDATE_TOKEN_KEYS_SIMPLE_FEES;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Suppliers;
@@ -618,11 +616,7 @@ public class MirrorNodeClient {
                 method.getSelector(),
                 params,
                 sender,
-                UPDATE_TOKEN_KEYS.getSelector().equals(method.getSelector())
-                        ? web3Properties.isSimpleFees()
-                                ? UPDATE_TOKEN_KEYS_SIMPLE_FEES.getActualGas()
-                                : method.getActualGas()
-                        : method.getActualGas(),
+                method.getActualGas(),
                 value,
                 DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
     }
@@ -637,6 +631,7 @@ public class MirrorNodeClient {
             final int percentage)
             throws ExecutionException, InterruptedException {
 
+        final var stopwatch = Stopwatch.createStarted();
         final long calculatedContractCallGas = calculateGasLimit(actualGas, percentage);
 
         var gasEstimateQuery = buildEstimateGasQueryWithParams(contractId, functionName, params);
@@ -646,13 +641,16 @@ public class MirrorNodeClient {
         }
         value.ifPresent(gasEstimateQuery::setValue);
 
-        return gasEstimateQuery.execute(queryClient);
+        final long gas = gasEstimateQuery.execute(queryClient);
+        log.info("Estimated gas for {} in {}: {}", contractId, stopwatch, gas);
+        return gas;
     }
 
     public long estimateGasQueryWithoutParams(
             final ContractId contractId, final String functionName, final AccountId sender, final int actualGas)
             throws ExecutionException, InterruptedException {
 
+        final var stopwatch = Stopwatch.createStarted();
         final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
 
         var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
@@ -664,13 +662,16 @@ public class MirrorNodeClient {
             gasEstimateQuery.setSender(sender);
         }
 
-        return gasEstimateQuery.execute(queryClient);
+        final long gas = gasEstimateQuery.execute(queryClient);
+        log.info("Estimated gas for {} in {}: {}", contractId, stopwatch, gas);
+        return gas;
     }
 
     public long estimateGasQueryRawData(
             final ContractId contractId, final ByteString params, final AccountId sender, final int actualGas)
             throws ExecutionException, InterruptedException {
 
+        final var stopwatch = Stopwatch.createStarted();
         final long calculatedContractCallGas = calculateGasLimit(actualGas, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
 
         var gasEstimateQuery = new MirrorNodeContractEstimateGasQuery()
@@ -682,7 +683,9 @@ public class MirrorNodeClient {
             gasEstimateQuery.setSender(sender);
         }
 
-        return gasEstimateQuery.execute(queryClient);
+        final long gas = gasEstimateQuery.execute(queryClient);
+        log.info("Estimated gas for {} in {}: {}", contractId, stopwatch, gas);
+        return gas;
     }
 
     public long estimateGasQueryNestedCall(

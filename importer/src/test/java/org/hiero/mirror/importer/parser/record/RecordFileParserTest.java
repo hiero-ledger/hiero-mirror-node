@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -23,13 +24,16 @@ import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
+import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
@@ -37,6 +41,9 @@ import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
+import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
@@ -44,12 +51,16 @@ import org.hiero.mirror.importer.config.DateRangeCalculator.DateRangeFilter;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParserTest;
+import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.context.ApplicationEventPublisher;
@@ -62,6 +73,15 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
     @Mock
     private ApplicationEventPublisher applicationEventPublisher;
 
+    @Mock(strictness = LENIENT)
+    private DateRangeCalculator dateRangeCalculator;
+
+    @Mock
+    private EntityListener entityListener;
+
+    @Mock
+    private EntityProperties entityProperties;
+
     @Mock
     private RecordFileRepository recordFileRepository;
 
@@ -70,9 +90,6 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
 
     @Mock(strictness = LENIENT)
     private RecordStreamFileListener recordStreamFileListener;
-
-    @Mock(strictness = LENIENT)
-    private DateRangeCalculator dateRangeCalculator;
 
     private long count = 0;
 
@@ -101,17 +118,19 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
 
     @Override
     protected RecordFileParser getParser() {
-        RecordParserProperties parserProperties = new RecordParserProperties();
+        final RecordParserProperties parserProperties = new RecordParserProperties();
         when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
         return new RecordFileParser(
                 applicationEventPublisher,
+                dateRangeCalculator,
+                entityListener,
+                entityProperties,
                 new SimpleMeterRegistry(),
+                new ParserContext(),
                 parserProperties,
-                recordFileRepository,
                 recordItemListener,
                 recordStreamFileListener,
-                dateRangeCalculator,
-                new ParserContext());
+                recordFileRepository);
     }
 
     @Override
@@ -136,7 +155,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
         RecordFile recordFile = getStreamFile();
         when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.empty());
         parser.parse(recordFile);
-        verifyNoInteractions(recordItemListener);
+        verifyNoInteractions(entityListener, recordItemListener);
         verify(recordStreamFileListener).onEnd(recordFile);
     }
 
@@ -158,6 +177,48 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
             verify(recordItemListener).onItem(firstItem);
         }
         verify(recordStreamFileListener).onEnd(recordFile);
+        verifyNoInteractions(entityListener);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void parseInitialState(final boolean contracts) {
+        // given
+        final var persisProperties = mock(EntityProperties.PersistProperties.class);
+        doReturn(persisProperties).when(entityProperties).getPersist();
+        doReturn(contracts).when(persisProperties).isContracts();
+
+        final var initialState = new RecordFile.InitialState();
+        initialState.entities().add(domainBuilder.entity().get());
+        initialState.entities().add(domainBuilder.entity().get());
+        initialState.contracts().add(domainBuilder.contract().get());
+        initialState.contracts().add(domainBuilder.contract().get());
+        initialState.fileDatum().add(domainBuilder.fileData().get());
+        initialState.fileDatum().add(domainBuilder.fileData().get());
+        final var recordFile = getStreamFile();
+        recordFile.setInitialState(initialState);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertParsed(recordFile, true, false);
+
+        final var entityCaptor = ArgumentCaptor.forClass(Entity.class);
+        verify(entityListener, times(2)).onEntity(entityCaptor.capture());
+        assertThat(entityCaptor.getAllValues()).containsExactlyInAnyOrderElementsOf(initialState.entities());
+
+        if (contracts) {
+            final var contractCaptor = ArgumentCaptor.forClass(Contract.class);
+            verify(entityListener, times(2)).onContract(contractCaptor.capture());
+            assertThat(contractCaptor.getAllValues()).containsExactlyInAnyOrderElementsOf(initialState.contracts());
+        }
+
+        final var fileDataCaptor = ArgumentCaptor.forClass(FileData.class);
+        verify(entityListener, times(2)).onFileData(fileDataCaptor.capture());
+        assertThat(fileDataCaptor.getAllValues()).containsExactlyInAnyOrderElementsOf(initialState.fileDatum());
+
+        verifyNoMoreInteractions(entityListener);
     }
 
     @Test
@@ -203,6 +264,84 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
                 () -> verify(recordItemListener, times(1)).onItem(recordItem1),
                 () -> verify(recordItemListener, times(1)).onItem(recordItem2),
                 () -> verify(recordItemListener, times(1)).onItem(recordItem3));
+        verifyNoInteractions(entityListener);
+    }
+
+    @Test
+    void evmTransactionIndexForHookExecutions() {
+        // given
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        long timestamp = ++count;
+        RecordItem cryptoTransfer = cryptoTransferRecordItem(timestamp);
+
+        var hookContractId = ContractID.newBuilder()
+                .setContractNum(RecordItem.HOOK_CONTRACT_NUM)
+                .build();
+        RecordItem hookExecution1 = hookContractCall(hookContractId, timestamp + 1, timestamp, 1, cryptoTransfer);
+        RecordItem nestedHookChild = hookContractCall(contractId(), timestamp + 2, timestamp, 2, hookExecution1);
+        RecordItem hookExecution2 = hookContractCall(hookContractId, timestamp + 3, timestamp, 3, nestedHookChild);
+
+        var items = List.of(cryptoTransfer, hookExecution1, nestedHookChild, hookExecution2);
+        var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
+                () -> assertThat(cryptoTransfer.getEvmTransactionIndex()).isNull(),
+                () -> assertThat(hookExecution1.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(nestedHookChild.getEvmTransactionIndex()).isEqualTo(0),
+                () -> assertThat(hookExecution2.getEvmTransactionIndex()).isEqualTo(1));
+        verifyNoInteractions(entityListener);
+    }
+
+    @Test
+    void wrongNonceEthereumTransactionDoesNotConsumeEvmIndex() {
+        // given
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        final long timestamp = ++count;
+        final var contractFunctionResult = contractFunctionResult(1000L, new byte[] {1});
+        final var wrongNonceItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .record(builder -> builder.setContractCallResult(contractFunctionResult)
+                        .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp))
+                        .setReceipt(TransactionReceipt.newBuilder()
+                                .setStatus(ResponseCodeEnum.WRONG_NONCE)
+                                .build()))
+                .build();
+        final var contractCallItem = contractCall(contractFunctionResult(2000L, new byte[] {2}), timestamp + 1, 0);
+
+        final var items = List.of(wrongNonceItem, contractCallItem);
+        final var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
+                () -> assertThat(wrongNonceItem.getEvmTransactionIndex()).isNull(),
+                () -> assertThat(contractCallItem.getEvmTransactionIndex()).isZero());
+    }
+
+    private ContractID contractId() {
+        return ContractID.newBuilder().setContractNum(999).build();
+    }
+
+    private RecordItem hookContractCall(
+            ContractID contractId, long timestamp, long parentTimestamp, int transactionIdNonce, RecordItem previous) {
+        return recordItemBuilder
+                .contractCall(contractId)
+                .record(builder -> builder.setConsensusTimestamp(
+                                Timestamp.newBuilder().setNanos((int) timestamp))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder().setNanos((int) parentTimestamp))
+                        .setTransactionID(TransactionID.newBuilder()
+                                .setNonce(transactionIdNonce)
+                                .build()))
+                .recordItem(r -> r.previous(previous))
+                .build();
     }
 
     @ParameterizedTest(name = "startDate with offset {0}ns")
@@ -223,6 +362,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
             verify(recordItemListener).onItem(firstItem);
         }
         verify(recordStreamFileListener).onEnd(recordFile);
+        verifyNoInteractions(entityListener);
     }
 
     @Test
@@ -243,6 +383,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
         assertParsed(streamFile1, true, false);
         assertParsed(streamFile2, true, false);
         verify(recordFileRepository).updateIndex(offset - 1);
+        verifyNoInteractions(entityListener);
     }
 
     @Test
@@ -257,6 +398,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
         // when
         assertThatThrownBy(() -> parser.parse(streamFile2)).isInstanceOf(HashMismatchException.class);
         assertThat(output.getOut()).contains("Error parsing file").contains("hash mismatch for file");
+        verifyNoInteractions(entityListener);
     }
 
     @Test
@@ -272,6 +414,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
 
         // then
         assertParsed(streamFile, true, false);
+        verifyNoInteractions(entityListener);
     }
 
     @Test
@@ -291,6 +434,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
         // then
         assertParsed(streamFile2, true, false);
         verify(recordFileRepository).updateIndex(offset - 1);
+        verifyNoInteractions(entityListener);
     }
 
     @Test
@@ -311,6 +455,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
         assertParsed(streamFile1, true, false);
         assertParsed(streamFile2, true, false);
         verify(recordFileRepository, never()).updateIndex(anyLong());
+        verifyNoInteractions(entityListener);
     }
 
     @Test
@@ -329,6 +474,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
         assertParsed(streamFile1, true, false);
         assertParsed(streamFile2, true, false);
         verify(recordFileRepository, never()).updateIndex(anyLong());
+        verifyNoInteractions(entityListener);
     }
 
     @Test
@@ -351,6 +497,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
                 .publishEvent(argThat(e -> e instanceof RecordFileParsedEvent recordFileParsedEvent
                         && recordFileParsedEvent.getConsensusEnd() == streamFile2.getConsensusEnd()));
         assertThat(streamFile2.getBytes()).isNull();
+        verifyNoInteractions(entityListener);
     }
 
     @Test
@@ -359,7 +506,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
         parser.parse(List.of());
 
         // then
-        verifyNoInteractions(recordFileRepository, recordStreamFileListener, applicationEventPublisher);
+        verifyNoInteractions(entityListener, recordFileRepository, recordStreamFileListener, applicationEventPublisher);
     }
 
     @Test
@@ -376,7 +523,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
         // then
         verify(recordItemListener).onItem(recordItem1);
         verifyNoMoreInteractions(recordItemListener);
-        verifyNoInteractions(recordStreamFileListener);
+        verifyNoInteractions(entityListener, recordStreamFileListener);
     }
 
     @Test
@@ -400,6 +547,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
         verify(applicationEventPublisher)
                 .publishEvent(argThat(e -> e instanceof RecordFileParsedEvent recordFileParsedEvent
                         && recordFileParsedEvent.getConsensusEnd() == streamFile2.getConsensusEnd()));
+        verifyNoInteractions(entityListener);
         assertThat(streamFile2.getBytes()).isNull();
     }
 

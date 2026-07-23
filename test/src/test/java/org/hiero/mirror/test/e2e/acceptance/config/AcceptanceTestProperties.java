@@ -75,8 +75,7 @@ public final class AcceptanceTestProperties {
     private HederaNetwork network = HederaNetwork.TESTNET;
 
     @NotNull
-    @Valid
-    private Set<NodeProperties> nodes = new LinkedHashSet<>();
+    private Set<@Valid NodeProperties> nodes = new LinkedHashSet<>();
 
     @NotNull
     @DecimalMax("1000000")

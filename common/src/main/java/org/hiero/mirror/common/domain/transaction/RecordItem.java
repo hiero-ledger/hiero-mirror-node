@@ -69,6 +69,7 @@ public class RecordItem implements StreamItem {
     @ToString.Include
     private final long consensusTimestamp;
 
+    private final Long accountEthereumNonce;
     private final boolean blockstream;
     private final Long congestionPricingMultiplier;
     private final RecordItem hookParent;
@@ -87,6 +88,15 @@ public class RecordItem implements StreamItem {
     @EqualsAndHashCode.Exclude
     @NonFinal
     private AtomicInteger logIndex;
+
+    @Setter
+    @EqualsAndHashCode.Exclude
+    @NonFinal
+    private AtomicInteger evmTransactionIndexCounter;
+
+    @NonFinal
+    @Setter
+    private Integer evmTransactionIndex;
 
     @NonFinal
     @Setter
@@ -196,6 +206,17 @@ public class RecordItem implements StreamItem {
         return logIndex.getAndIncrement();
     }
 
+    public int claimEvmTransactionIndex() {
+        if (evmTransactionIndex != null) {
+            return evmTransactionIndex;
+        }
+        if (evmTransactionIndexCounter == null) {
+            evmTransactionIndexCounter = new AtomicInteger(0);
+        }
+        evmTransactionIndex = evmTransactionIndexCounter.getAndIncrement();
+        return evmTransactionIndex;
+    }
+
     public int getTransactionStatus() {
         return transactionRecord.getReceipt().getStatusValue();
     }
@@ -278,7 +299,7 @@ public class RecordItem implements StreamItem {
         return null;
     }
 
-    private boolean hasContractResult() {
+    public boolean hasContractResult() {
         return transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult();
     }
 

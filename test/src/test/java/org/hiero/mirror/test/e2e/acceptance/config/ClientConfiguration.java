@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.test.e2e.acceptance.config;
 
+import com.google.common.base.Stopwatch;
 import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import com.hedera.hashgraph.sdk.ReceiptStatusException;
 import java.util.List;
@@ -45,11 +46,12 @@ class ClientConfiguration {
                 })
                 .requestFactory(ClientHttpRequestFactoryBuilder.detect().build(factorySettings))
                 .requestInterceptor((request, body, execution) -> {
-                    var response = execution.execute(request, body);
-                    var statusCode = response.getStatusCode();
+                    final var stopwatch = Stopwatch.createStarted();
+                    final var response = execution.execute(request, body);
+                    final var statusCode = response.getStatusCode();
 
                     if (logger.isDebugEnabled() || statusCode != HttpStatus.NOT_FOUND) {
-                        logger.info("{} {}: {}", request.getMethod(), request.getURI(), statusCode);
+                        logger.info("{} {} in {}: {}", request.getMethod(), request.getURI(), stopwatch, statusCode);
                     }
 
                     return response;

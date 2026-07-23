@@ -13,9 +13,12 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "hiero.mirror.web3")
 @Validated
 public class Web3Properties {
+
+    private boolean enableStateOverrides = false;
+
     @Positive
     private int maxPayloadLogSize = 300;
 
     @DurationMin(seconds = 1L)
-    private Duration requestTimeout = Duration.ofSeconds(10L);
+    private Duration requestTimeout = Duration.ofSeconds(4L);
 }

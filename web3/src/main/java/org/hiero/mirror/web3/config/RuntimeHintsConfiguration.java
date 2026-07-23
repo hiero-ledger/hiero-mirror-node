@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.config;
 
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_FIELDS;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.NONE;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerAnnotatedPackage;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
@@ -14,8 +15,10 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
+import org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.context.annotation.Configuration;
@@ -45,6 +48,14 @@ final class RuntimeHintsConfiguration {
                     "com.esaulpaugh.headlong.abi.Sextuple[]",
                     "com.esaulpaugh.headlong.abi.Triple[]");
 
+            hints.jni().registerType(LibSecp256k1.class, MemberCategory.INVOKE_PUBLIC_METHODS);
+            registerReflectionTypes(
+                    hints,
+                    CONSTRUCTORS_AND_FIELDS,
+                    LibSecp256k1.secp256k1_ecdsa_recoverable_signature.class,
+                    LibSecp256k1.secp256k1_ecdsa_signature.class,
+                    LibSecp256k1.secp256k1_pubkey.class);
+
             registerReflectionTypes(
                     hints,
                     ContractCallContext.class.getName(),
@@ -62,13 +73,15 @@ final class RuntimeHintsConfiguration {
                     "darwin-x86-64/**", // besu
                     "linux-aarch64/**", // besu
                     "linux-x86-64/**", // besu
+                    "lib/aarch64/libsecp256k1.so", // besu
+                    "lib/x86-64/libsecp256k1.so", // besu
                     "kzg-trusted-setups/mainnet.txt", // besu
                     "ethereum/ckzg4844/lib/aarch64/**", // pegasys
                     "ethereum/ckzg4844/lib/amd64/**", // pegasys
                     "ethereum/ckzg4844/lib/x86_64/**", // pegasys
                     "genesis/**",
-                    "*.json",
-                    "*.properties");
+                    "**/*.json",
+                    "**/*.properties");
         }
     }
 }
