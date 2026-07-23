@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import com.hedera.pbj.runtime.io.buffer.Bytes;
@@ -21,6 +20,7 @@ import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.contract.ContractStateChange;
 import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
+import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -34,8 +34,6 @@ import org.hiero.mirror.web3.repository.ContractStateChangeRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
-import org.hiero.mirror.web3.repository.projections.ContractBytecodeSnapshot;
-import org.hiero.mirror.web3.repository.projections.EntitySnapshot;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,9 +49,7 @@ class PrestateServiceTest {
     private static final EntityId PAYER_ACCOUNT_ID = EntityId.of(0L, 0L, 1001L);
     private static final EntityId ACCOUNT_ID = EntityId.of(0L, 0L, 100L);
     private static final EntityId CONTRACT_ID = EntityId.of(0L, 0L, 200L);
-    private static final EntityId BYTECODE_CONTRACT_ID = EntityId.of(0L, 0L, 300L);
     private static final long CONSENSUS_TIMESTAMP = 1_000_000_000L;
-    private static final long VALID_START_NS = 999_999_000L;
     private static final byte[] TRANSACTION_HASH = new byte[] {0x01, 0x02, 0x03, 0x04};
 
     private PrestateServiceImpl prestateService;
@@ -98,7 +94,6 @@ class PrestateServiceTest {
                 entityRepository,
                 systemEntity,
                 transactionRepository);
-        lenient().when(contractRepository.findByConsensusTimestamp(anyLong())).thenReturn(Collections.emptyList());
     }
 
     @Test
@@ -108,10 +103,10 @@ class PrestateServiceTest {
         setupContractResult();
         setupSidecars();
 
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(List.of(entitySnapshot(ACCOUNT_ID, 1L, 100L)));
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
-                .thenReturn(List.of(entitySnapshot(ACCOUNT_ID, 2L, 100L)));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(Optional.of(List.of(entity(ACCOUNT_ID, 1L, EntityType.ACCOUNT))));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
+                .thenReturn(Optional.of(List.of(entity(ACCOUNT_ID, 2L, EntityType.ACCOUNT))));
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(100L));
 
@@ -128,8 +123,8 @@ class PrestateServiceTest {
         setupTransactionHashLookup();
         setupContractResult();
         setupSidecars();
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(List.of(entitySnapshot(ACCOUNT_ID, 1L, 100L)));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(Optional.of(List.of(entity(ACCOUNT_ID, 1L, EntityType.ACCOUNT))));
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(100L));
 
@@ -146,9 +141,9 @@ class PrestateServiceTest {
         setupContractResult();
         setupSidecars();
 
-        final var unchangedSnapshot = entitySnapshot(ACCOUNT_ID, 5L, 100L);
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), anyLong()))
-                .thenReturn(List.of(unchangedSnapshot));
+        final var unchangedEntity = entity(ACCOUNT_ID, 5L, EntityType.ACCOUNT);
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), anyLong()))
+                .thenReturn(Optional.of(List.of(unchangedEntity)));
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(100L));
 
@@ -167,12 +162,12 @@ class PrestateServiceTest {
                 .thenReturn(List.of(contractAction(CONTRACT_ID, ACCOUNT_ID)));
         when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
                 .thenReturn(Collections.emptyList());
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(List.of(contractSnapshot(CONTRACT_ID, 1L)));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 1L, EntityType.CONTRACT))));
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(50L));
-        when(contractRepository.findRuntimeBytecodesByIds(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(List.of(bytecodeSnapshot(CONTRACT_ID.getId(), new byte[] {0x60, 0x40})));
+        when(contractRepository.findByIdsAndConsensusTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(List.of(contract(CONTRACT_ID.getId(), new byte[] {0x60, 0x40})));
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -199,8 +194,8 @@ class PrestateServiceTest {
                         .slot(slot)
                         .valueRead(valueRead)
                         .build()));
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(List.of(contractSnapshot(CONTRACT_ID, 1L)));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 1L, EntityType.CONTRACT))));
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(50L));
 
@@ -231,10 +226,10 @@ class PrestateServiceTest {
                         .valueRead(valueRead)
                         .valueWritten(valueWritten)
                         .build()));
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(List.of(contractSnapshot(CONTRACT_ID, 1L)));
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
-                .thenReturn(List.of(contractSnapshot(CONTRACT_ID, 2L)));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 1L, EntityType.CONTRACT))));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
+                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 2L, EntityType.CONTRACT))));
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(50L));
 
@@ -284,12 +279,14 @@ class PrestateServiceTest {
         when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
                 .thenReturn(Collections.emptyList());
 
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(
-                        List.of(entitySnapshot(changedAccount, 1L, 100L), entitySnapshot(unchangedAccount, 2L, 200L)));
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
-                .thenReturn(List.of(
-                        entitySnapshot(changedAccount, 100L, 100L), entitySnapshot(unchangedAccount, 2L, 200L)));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(Optional.of(List.of(
+                        entity(changedAccount, 1L, EntityType.ACCOUNT),
+                        entity(unchangedAccount, 2L, EntityType.ACCOUNT))));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
+                .thenReturn(Optional.of(List.of(
+                        entity(changedAccount, 100L, EntityType.ACCOUNT),
+                        entity(unchangedAccount, 2L, EntityType.ACCOUNT))));
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenAnswer(invocation -> {
                     final long accountId = invocation.getArgument(0);
@@ -305,7 +302,7 @@ class PrestateServiceTest {
     }
 
     @Test
-    void callWithoutCodeStillIncludesContractsFromBytecodeSidecarWithBalanceAndNonce() {
+    void callWithoutCodeStillIncludesContractWithBalanceAndNonce() {
         final var request = createRequest(false, false, false);
         setupTransactionHashLookup();
         setupContractResult();
@@ -313,20 +310,15 @@ class PrestateServiceTest {
                 .thenReturn(Collections.emptyList());
         when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
                 .thenReturn(Collections.emptyList());
-        when(contractRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(List.of(Contract.builder()
-                        .id(BYTECODE_CONTRACT_ID.getId())
-                        .runtimeBytecode(new byte[] {0x60, 0x40})
-                        .build()));
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(List.of(contractSnapshot(BYTECODE_CONTRACT_ID, 3L)));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 3L, EntityType.CONTRACT))));
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(50L));
 
         final var response = prestateService.processPrestateCall(request);
 
         assertThat(response.getPre()).hasSize(1);
-        assertThat(response.getPre().getFirst().getAddress()).isEqualTo(BYTECODE_CONTRACT_ID.toString());
+        assertThat(response.getPre().getFirst().getAddress()).isEqualTo(CONTRACT_ID.toString());
         assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0x32");
         assertThat(response.getPre().getFirst().getNonce()).isEqualTo(3L);
         assertThat(response.getPre().getFirst().getCode()).isNull();
@@ -334,7 +326,7 @@ class PrestateServiceTest {
     }
 
     @Test
-    void callIncludesContractsFromBytecodeSidecarAtConsensusTimestamp() {
+    void callWithCodeLoadsBytecodeByIdsAndTimestamp() {
         final byte[] runtimeBytecode = new byte[] {0x60, 0x40};
         final var request = createRequest(false, true, false);
         setupTransactionHashLookup();
@@ -343,28 +335,23 @@ class PrestateServiceTest {
                 .thenReturn(Collections.emptyList());
         when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
                 .thenReturn(Collections.emptyList());
-        when(contractRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(List.of(Contract.builder()
-                        .id(BYTECODE_CONTRACT_ID.getId())
-                        .runtimeBytecode(runtimeBytecode)
-                        .build()));
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(List.of(contractSnapshot(BYTECODE_CONTRACT_ID, 1L)));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 1L, EntityType.CONTRACT))));
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(50L));
-        when(contractRepository.findRuntimeBytecodesByIds(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(Collections.emptyList());
+        when(contractRepository.findByIdsAndConsensusTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(List.of(contract(CONTRACT_ID.getId(), runtimeBytecode)));
 
         final var response = prestateService.processPrestateCall(request);
 
         assertThat(response.getPre()).hasSize(1);
-        assertThat(response.getPre().getFirst().getAddress()).isEqualTo(BYTECODE_CONTRACT_ID.toString());
+        assertThat(response.getPre().getFirst().getAddress()).isEqualTo(CONTRACT_ID.toString());
         assertThat(response.getPre().getFirst().getCode())
                 .isEqualTo(Bytes.wrap(runtimeBytecode).toHex());
     }
 
     @Test
-    void callWithDiffAndCodePopulatesPostBytecodeFromConsensusTimestampContracts() {
+    void callWithDiffAndCodePopulatesPreAndPostBytecodeIndependently() {
         final byte[] runtimeBytecode = new byte[] {0x60, 0x40};
         final var request = createRequest(true, true, false);
         setupTransactionHashLookup();
@@ -373,21 +360,16 @@ class PrestateServiceTest {
                 .thenReturn(Collections.emptyList());
         when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
                 .thenReturn(Collections.emptyList());
-        when(contractRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(List.of(Contract.builder()
-                        .id(BYTECODE_CONTRACT_ID.getId())
-                        .runtimeBytecode(runtimeBytecode)
-                        .build()));
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(List.of(contractSnapshot(BYTECODE_CONTRACT_ID, 1L)));
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
-                .thenReturn(List.of(contractSnapshot(BYTECODE_CONTRACT_ID, 1L)));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 1L, EntityType.CONTRACT))));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
+                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 1L, EntityType.CONTRACT))));
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(50L));
-        when(contractRepository.findRuntimeBytecodesByIds(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+        when(contractRepository.findByIdsAndConsensusTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
                 .thenReturn(Collections.emptyList());
-        when(contractRepository.findRuntimeBytecodesByIds(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
-                .thenReturn(List.of(bytecodeSnapshot(BYTECODE_CONTRACT_ID.getId(), runtimeBytecode)));
+        when(contractRepository.findByIdsAndConsensusTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
+                .thenReturn(List.of(contract(CONTRACT_ID.getId(), runtimeBytecode)));
 
         final var response = prestateService.processPrestateCall(request);
 
@@ -415,11 +397,11 @@ class PrestateServiceTest {
         when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
                 .thenReturn(Collections.emptyList());
 
-        final var entity = mirrorAccount.toEntity();
-        entity.setType(EntityType.ACCOUNT);
-        when(entityRepository.findByIdAndDeletedIsFalse(mirrorAccount.getId())).thenReturn(Optional.of(entity));
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(List.of(entitySnapshot(mirrorAccount, 1L, 100L)));
+        final var mirrorEntity = mirrorAccount.toEntity();
+        mirrorEntity.setType(EntityType.ACCOUNT);
+        when(entityRepository.findByIdAndDeletedIsFalse(mirrorAccount.getId())).thenReturn(Optional.of(mirrorEntity));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
+                .thenReturn(Optional.of(List.of(entity(mirrorAccount, 1L, EntityType.ACCOUNT))));
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(100L));
 
@@ -445,8 +427,8 @@ class PrestateServiceTest {
         setupTransactionHashLookup();
         setupContractResult();
         setupSidecars();
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), anyLong()))
-                .thenReturn(List.of(entitySnapshot(ACCOUNT_ID, 1L, 100L)));
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), anyLong()))
+                .thenReturn(Optional.of(List.of(entity(ACCOUNT_ID, 1L, EntityType.ACCOUNT))));
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(100L));
 
@@ -482,11 +464,7 @@ class PrestateServiceTest {
     }
 
     private void setupContractResultWithContract() {
-        final var contractResult = new ContractResult();
-        contractResult.setConsensusTimestamp(CONSENSUS_TIMESTAMP);
-        contractResult.setSenderId(PAYER_ACCOUNT_ID);
-        contractResult.setContractId(CONTRACT_ID.getId());
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP)).thenReturn(Optional.of(contractResult));
+        setupContractResult();
     }
 
     private void setupSidecars() {
@@ -506,75 +484,15 @@ class PrestateServiceTest {
                 .build();
     }
 
-    private static EntitySnapshot entitySnapshot(final EntityId entityId, final long nonce, final long balanceIgnored) {
-        return new EntitySnapshot() {
-            @Override
-            public byte[] getAlias() {
-                return null;
-            }
-
-            @Override
-            public Long getEthereumNonce() {
-                return nonce;
-            }
-
-            @Override
-            public byte[] getEvmAddress() {
-                return null;
-            }
-
-            @Override
-            public long getId() {
-                return entityId.getId();
-            }
-
-            @Override
-            public String getType() {
-                return EntityType.ACCOUNT.name();
-            }
-        };
+    private static Entity entity(final EntityId entityId, final long nonce, final EntityType type) {
+        final var entity = new Entity();
+        entity.setId(entityId.getId());
+        entity.setEthereumNonce(nonce);
+        entity.setType(type);
+        return entity;
     }
 
-    private static EntitySnapshot contractSnapshot(final EntityId entityId, final long nonce) {
-        return new EntitySnapshot() {
-            @Override
-            public byte[] getAlias() {
-                return null;
-            }
-
-            @Override
-            public Long getEthereumNonce() {
-                return nonce;
-            }
-
-            @Override
-            public byte[] getEvmAddress() {
-                return null;
-            }
-
-            @Override
-            public long getId() {
-                return entityId.getId();
-            }
-
-            @Override
-            public String getType() {
-                return EntityType.CONTRACT.name();
-            }
-        };
-    }
-
-    private static ContractBytecodeSnapshot bytecodeSnapshot(final long contractId, final byte[] bytecode) {
-        return new ContractBytecodeSnapshot() {
-            @Override
-            public long getId() {
-                return contractId;
-            }
-
-            @Override
-            public byte[] getRuntimeBytecode() {
-                return bytecode;
-            }
-        };
+    private static Contract contract(final long contractId, final byte[] bytecode) {
+        return Contract.builder().id(contractId).runtimeBytecode(bytecode).build();
     }
 }

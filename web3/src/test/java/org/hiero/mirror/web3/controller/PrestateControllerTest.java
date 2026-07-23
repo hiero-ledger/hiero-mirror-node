@@ -153,9 +153,8 @@ class PrestateControllerTest {
                 .thenReturn(Collections.emptyList());
         when(contractStateChangeRepository.findByConsensusTimestamp(consensusTimestamp))
                 .thenReturn(Collections.emptyList());
-        when(contractRepository.findByConsensusTimestamp(consensusTimestamp)).thenReturn(Collections.emptyList());
-        when(entityRepository.findActiveSnapshotsByIdsAndTimestamp(anyCollection(), anyLong()))
-                .thenReturn(Collections.emptyList());
+        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), anyLong()))
+                .thenReturn(Optional.of(Collections.emptyList()));
         when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.empty());
 

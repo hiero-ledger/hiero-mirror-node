@@ -12,7 +12,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
-import org.hiero.mirror.web3.repository.projections.EntitySnapshot;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.data.jpa.repository.Query;
@@ -157,32 +156,24 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     """, nativeQuery = true)
     Optional<Entity> findActiveByIdAndTimestamp(long id, long blockTimestamp);
 
-    /**
-     * Retrieves the most recent state of entities by their IDs up to a given block timestamp.
-     *
-     * @param ids             the entity IDs
-     * @param blockTimestamp  the block timestamp used to filter the results
-     * @return entity snapshots at the specified timestamp
-     */
     @Query(value = """
-                    with combined as (
-                        (
-                            select id, ethereum_nonce, evm_address, alias, type, lower(timestamp_range) as ts
-                            from entity
-                            where id in (:ids) and lower(timestamp_range) <= :blockTimestamp and deleted is not true
-                        )
-                        union all
-                        (
-                            select id, ethereum_nonce, evm_address, alias, type, lower(timestamp_range) as ts
-                            from entity_history
-                            where id in (:ids) and lower(timestamp_range) <= :blockTimestamp and deleted is not true
-                        )
+                    (
+                        select *
+                        from entity
+                        where id in ?1 and lower(timestamp_range) <= ?2
+                        and deleted is not true
                     )
-                    select distinct on (id) id, ethereum_nonce as ethereumNonce, evm_address as evmAddress, alias, type
-                    from combined
-                    order by id, ts desc
+                    union all
+                    (
+                        select *
+                        from entity_history
+                        where id in ?1 and lower(timestamp_range) <= ?2
+                        and deleted is not true
+                        order by lower(timestamp_range) desc
+                    )
+                    order by timestamp_range desc
                     """, nativeQuery = true)
-    List<EntitySnapshot> findActiveSnapshotsByIdsAndTimestamp(Collection<Long> ids, long blockTimestamp);
+    Optional<List<Entity>> findActiveByIdsAndTimestamp(Collection<Long> ids, long blockTimestamp);
 
     @Query(value = """
                     select id

@@ -7,8 +7,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
-import org.hiero.mirror.web3.repository.projections.ContractBytecodeSnapshot;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
@@ -40,42 +40,22 @@ class ContractRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
-    void findByConsensusTimestamp() {
+    void findByIdsAndConsensusTimestamp() {
         final var entity = domainBuilder
                 .entity()
-                .customize(e -> e.type(org.hiero.mirror.common.domain.entity.EntityType.CONTRACT))
-                .persist();
-        final var contract =
-                domainBuilder.contract().customize(c -> c.id(entity.getId())).persist();
-        domainBuilder.contract().persist();
-
-        assertThat(contractRepository.findByConsensusTimestamp(entity.getTimestampLower()))
-                .hasSize(1)
-                .first()
-                .returns(contract.getId(), Contract::getId)
-                .returns(contract.getRuntimeBytecode(), Contract::getRuntimeBytecode);
-
-        assertThat(contractRepository.findByConsensusTimestamp(entity.getTimestampLower() - 1))
-                .isEmpty();
-    }
-
-    @Test
-    void findRuntimeBytecodesByIdsAndTimestamp() {
-        final var entity = domainBuilder
-                .entity()
-                .customize(e -> e.type(org.hiero.mirror.common.domain.entity.EntityType.CONTRACT))
+                .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
         final var contract =
                 domainBuilder.contract().customize(c -> c.id(entity.getId())).persist();
         final var timestamp = entity.getTimestampLower();
 
-        assertThat(contractRepository.findRuntimeBytecodesByIds(List.of(contract.getId()), timestamp))
+        assertThat(contractRepository.findByIdsAndConsensusTimestamp(List.of(contract.getId()), timestamp))
                 .hasSize(1)
                 .first()
-                .returns(contract.getId(), ContractBytecodeSnapshot::getId)
-                .returns(contract.getRuntimeBytecode(), ContractBytecodeSnapshot::getRuntimeBytecode);
+                .returns(contract.getId(), Contract::getId)
+                .returns(contract.getRuntimeBytecode(), Contract::getRuntimeBytecode);
 
-        assertThat(contractRepository.findRuntimeBytecodesByIds(List.of(contract.getId()), timestamp - 1))
+        assertThat(contractRepository.findByIdsAndConsensusTimestamp(List.of(contract.getId()), timestamp - 1))
                 .isEmpty();
     }
 }
