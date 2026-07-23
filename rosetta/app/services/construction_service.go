@@ -509,20 +509,15 @@ func (c *constructionAPIService) getSdkPayerAccountId(payerAccountId types.Accou
 }
 
 func (c *constructionAPIService) getRandomNodeAccountId() (hiero.AccountID, *rTypes.Error) {
-	nodeAccountIds := make([]hiero.AccountID, 0)
-	seen := map[hiero.AccountID]struct{}{}
-	// network returned from sdkClient is a map[string]AccountID, the key is the address of a node and the value is
-	// its node account id. Since a node can have multiple addresses, we need the seen map to get a unique node account
-	// id array
-	for _, nodeAccountId := range c.sdkClient.GetNetwork() {
-		if _, ok := seen[nodeAccountId]; ok {
-			continue
-		}
-
-		seen[nodeAccountId] = struct{}{}
-		nodeAccountIds = append(nodeAccountIds, nodeAccountId)
+	// Create a transfer transaction and freeze it with the client to get the list of healthy nodes from SDK
+	transaction, err := hiero.NewTransferTransaction().
+		SetTransactionID(hiero.TransactionIDGenerate(hiero.AccountID{Account: 2})).
+		FreezeWith(c.sdkClient)
+	if err != nil {
+		return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
 	}
 
+	nodeAccountIds := transaction.GetNodeAccountIDs()
 	if len(nodeAccountIds) == 0 {
 		return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
 	}
