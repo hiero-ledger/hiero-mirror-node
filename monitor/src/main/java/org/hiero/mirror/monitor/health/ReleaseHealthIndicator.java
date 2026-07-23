@@ -2,7 +2,9 @@
 
 package org.hiero.mirror.monitor.health;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.dsl.base.ResourceDefinitionContext;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -12,12 +14,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.Strings;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.ReactiveHealthIndicator;
 import org.springframework.boot.health.contributor.Status;
@@ -43,7 +45,8 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
             .withPlural("helmreleases")
             .withVersion("v2")
             .build();
-    private final ObjectProvider<KubernetesClient> kubernetesClientProvider;
+
+    private final AtomicReference<KubernetesClient> kubernetesClient = new AtomicReference<>();
     private final ReleaseHealthProperties properties;
     private final MeterRegistry meterRegistry;
 
@@ -63,13 +66,30 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
         return health.doOnNext(this::recordHealthMetric);
     }
 
+    private synchronized KubernetesClient getKubernetesClient() {
+        if (kubernetesClient.get() == null) {
+            try {
+                kubernetesClient.set(new KubernetesClientBuilder().build());
+            } catch (RuntimeException e) {
+                log.warn("Unable to connect to Kubernetes: {}", e.getMessage());
+            }
+        }
+
+        return kubernetesClient.get();
+    }
+
+    @VisibleForTesting
+    void setKubernetesClient(KubernetesClient kubernetesClient) {
+        this.kubernetesClient.set(kubernetesClient);
+    }
+
     private void recordHealthMetric(Health currentHealth) {
         final var status = currentHealth != null ? currentHealth.getStatus() : Status.UNKNOWN;
         RELEASE_UP.set(Status.UP.equals(status) ? 1 : 0);
     }
 
     private Mono<Health> createHelmReleaseHealth() {
-        final var kubernetesClient = kubernetesClientProvider.getIfAvailable();
+        final var kubernetesClient = getKubernetesClient();
         if (kubernetesClient == null) {
             return UNKNOWN;
         }

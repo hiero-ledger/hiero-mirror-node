@@ -94,14 +94,11 @@ jobs:
           echo "TAG=${TAG}" >> $GITHUB_ENV
           echo "TRIGGERED_BY_TAG=${TRIGGERED_BY_TAG}" >> $GITHUB_ENV
 
-          if [[ "$TRIGGERED_BY_TAG" == "true" ]]; then
-            # wait for images becoming ready if it's a tagged commit
-            for module in grpc importer monitor rest rest-java test web3; do
-              while ! docker manifest inspect "gcr.io/mirrornode/hedera-mirror-$module:$TAG" >/dev/null 2>&1; do
-                sleep 10
-              done
-            done
-          fi
+      - name: Wait for images
+        if: env.TRIGGERED_BY_TAG == 'true'
+        uses: ./.github/actions/wait-for-images
+        with:
+          version: ${{ env.TAG }}
 
       - name: Find changed modules
         id: changeset
@@ -207,10 +204,15 @@ jobs:
           echo "Scale up block-node sts"
           kubectl scale sts block-node-1 -n "${SOLO_NAMESPACE}" --replicas 1
           kubectl wait sts block-node-1 -n "${SOLO_NAMESPACE}" --for=jsonpath='{.status.readyReplicas}'=1 --timeout=300s
+          # readyReplicas can be set before gRPC on :40840 is accepting connections
+          echo "Waiting for block-node gRPC"
+          kubectl run bn-grpc-wait --rm -i --restart=Never -n "${SOLO_NAMESPACE}" \
+            --image=busybox:1.36.1 --command -- \
+            sh -c 'for i in $(seq 1 90); do nc -z -w 2 block-node-1 40840 && exit 0; sleep 2; done; echo "Timed out waiting for block-node gRPC"; exit 1'
           echo "Scaled up block-node sts"
 
       - name: Run acceptance tests
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: |
           helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
             --timeout 10m | tee output_log.txt

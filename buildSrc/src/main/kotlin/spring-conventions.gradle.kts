@@ -67,6 +67,7 @@ tasks.bootBuildImage {
             "-H:ServiceLoaderFeatureExcludeServices=org.hibernate.bytecode.spi.BytecodeProvider",
             "-H:+StripDebugInfo",
             "-O3",
+            "-J-Xmx10g", // Try to prevent CI runner's OOM crashes.
         )
     val nativeImageBuildArgs = extraBuildArgs.filter { it.isNotBlank() }.joinToString(" ")
 
