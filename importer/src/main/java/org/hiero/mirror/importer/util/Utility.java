@@ -43,7 +43,6 @@ public class Utility {
     public static final String HALT_ON_ERROR_PROPERTY = "HIERO_MIRROR_IMPORTER_PARSER_HALTONERROR";
     public static final String HALT_ON_DOWNLOADER_ERROR_PROPERTY = "HIERO_MIRROR_IMPORTER_DOWNLOADER_HALTONERROR";
 
-    static final String RECOVERABLE_ERROR = "Recoverable error. ";
     static final String HALT_ON_ERROR_DEFAULT = "false";
 
     /**
@@ -233,7 +232,7 @@ public class Utility {
             var formattedMessage = formattingTuple.getMessage();
             throw new ParserException(formattedMessage, throwable);
         } else {
-            log.error(RECOVERABLE_ERROR + message, args);
+            DomainUtils.logRecoverableError(message, args);
         }
     }
 

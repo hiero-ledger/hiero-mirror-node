@@ -87,7 +87,7 @@ public class AccountFeature extends AbstractFeature {
     public void treasuryDisbursement(long amount, String accountName) {
         senderAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
 
-        startingBalance = accountClient.getBalance(senderAccountId);
+        startingBalance = mirrorClient.waitForAccountBalance(senderAccountId.toString());
 
         networkTransactionResponse =
                 accountClient.sendCryptoTransfer(senderAccountId.getAccountId(), Hbar.fromTinybars(amount), null);
@@ -137,7 +137,7 @@ public class AccountFeature extends AbstractFeature {
 
     @When("I send {long} tℏ to newly created account")
     public void sendTinyHbars(long amount) {
-        startingBalance = accountClient.getBalance(senderAccountId);
+        startingBalance = mirrorClient.waitForAccountBalance(senderAccountId.toString());
         networkTransactionResponse =
                 accountClient.sendCryptoTransfer(senderAccountId.getAccountId(), Hbar.fromTinybars(amount), null);
         assertNotNull(networkTransactionResponse.getTransactionId());
@@ -161,9 +161,11 @@ public class AccountFeature extends AbstractFeature {
         assertNotNull(networkTransactionResponse.getReceipt());
     }
 
+    @RetryAsserts
     @Then("the new balance should reflect cryptotransfer of {long}")
     public void accountReceivedFunds(long amount) {
-        assertThat(accountClient.getBalance(senderAccountId)).isGreaterThanOrEqualTo(startingBalance + amount);
+        assertThat(mirrorClient.waitForAccountBalance(senderAccountId.toString()))
+                .isGreaterThanOrEqualTo(startingBalance + amount);
     }
 
     @Then("the mirror node REST API should return status {int} for the crypto transfer transaction")

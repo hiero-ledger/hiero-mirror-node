@@ -19,6 +19,7 @@ import java.util.Objects;
 import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.exception.InvalidEntityException;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.annotation.Transient;
 
 /**
@@ -28,6 +29,7 @@ import org.springframework.data.annotation.Transient;
 public final class EntityId implements Comparable<EntityId> {
 
     public static final EntityId EMPTY = new EntityId(0L);
+    public static final String INVALID_ENTITY_EXCEPTION_PROPERTY = "HIERO_MIRROR_COMMON_INVALIDENTITYEXCEPTION";
 
     static final int NUM_BITS = 38;
     static final int REALM_BITS = 16;
@@ -55,9 +57,28 @@ public final class EntityId implements Comparable<EntityId> {
         this.id = id;
     }
 
-    private static long encode(long shard, long realm, long num) {
+    /**
+     * Encodes given shard, realm, num into an 8 bytes long.
+     * <p/>
+     * Used for encoding to make it easy to encode/decode using mathematical
+     * operations too. That's because JavaScript's support for bitwise operations is very limited (truncates numbers to
+     * 32 bits internally before bitwise operation).
+     * <p/>
+     * Format: <br/> First 10 bits are for shard, followed by 16 bits for realm,
+     * and then 38 bits for entity num. <br/> This encoding will support following ranges: <br/> shard: 0 - 1023 <br/>
+     * realm: 0 - 65535 <br/> num: 0 - 274877906943 <br/> Placing entity num in the end has the advantage that encoded ids
+     * <= 274877906943 will also be human-readable.
+     */
+    private static long encode(long shard, long realm, long num, boolean canThrow) {
         if (shard > SHARD_MASK || shard < 0 || realm > REALM_MASK || realm < 0 || num > NUM_MASK || num < 0) {
-            throw new InvalidEntityException("Invalid entity ID: " + shard + "." + realm + "." + num);
+            boolean throwError = Boolean.parseBoolean(System.getProperty(INVALID_ENTITY_EXCEPTION_PROPERTY, "true"));
+
+            if (canThrow && throwError) {
+                throw new InvalidEntityException("Invalid entity ID: " + shard + "." + realm + "." + num);
+            } else {
+                DomainUtils.logRecoverableError("Invalid entity ID: {}.{}.{}", shard, realm, num);
+                return EMPTY.getId();
+            }
         }
 
         if (shard == 0 && realm == 0) {
@@ -71,6 +92,10 @@ public final class EntityId implements Comparable<EntityId> {
         return of(accountID.getShardNum(), accountID.getRealmNum(), accountID.getAccountNum());
     }
 
+    public static EntityId tryOf(AccountID accountID) {
+        return tryOf(accountID.getShardNum(), accountID.getRealmNum(), accountID.getAccountNum());
+    }
+
     public static EntityId of(ContractID contractID) {
         return of(contractID.getShardNum(), contractID.getRealmNum(), contractID.getContractNum());
     }
@@ -79,16 +104,20 @@ public final class EntityId implements Comparable<EntityId> {
         return of(fileID.getShardNum(), fileID.getRealmNum(), fileID.getFileNum());
     }
 
-    public static EntityId of(TopicID topicID) {
-        return of(topicID.getShardNum(), topicID.getRealmNum(), topicID.getTopicNum());
+    public static EntityId of(ScheduleID scheduleID) {
+        return of(scheduleID.getShardNum(), scheduleID.getRealmNum(), scheduleID.getScheduleNum());
     }
 
     public static EntityId of(TokenID tokenID) {
         return of(tokenID.getShardNum(), tokenID.getRealmNum(), tokenID.getTokenNum());
     }
 
-    public static EntityId of(ScheduleID scheduleID) {
-        return of(scheduleID.getShardNum(), scheduleID.getRealmNum(), scheduleID.getScheduleNum());
+    public static EntityId tryOf(TokenID tokenID) {
+        return tryOf(tokenID.getShardNum(), tokenID.getRealmNum(), tokenID.getTokenNum());
+    }
+
+    public static EntityId of(TopicID topicID) {
+        return of(topicID.getShardNum(), topicID.getRealmNum(), topicID.getTopicNum());
     }
 
     public static EntityId of(String entityId) {
@@ -118,7 +147,12 @@ public final class EntityId implements Comparable<EntityId> {
     }
 
     public static EntityId of(long shard, long realm, long num) {
-        long id = encode(shard, realm, num);
+        long id = encode(shard, realm, num, true);
+        return of(id);
+    }
+
+    public static EntityId tryOf(long shard, long realm, long num) {
+        long id = encode(shard, realm, num, false);
         return of(id);
     }
 
@@ -165,6 +199,16 @@ public final class EntityId implements Comparable<EntityId> {
                 .build();
     }
 
+    public Entity toEntity() {
+        Entity entity = new Entity();
+        entity.setId(id);
+        entity.setNum(getNum());
+        entity.setRealm(getRealm());
+        entity.setShard(getShard());
+        entity.setTimestampRange(DEFAULT_RANGE);
+        return entity;
+    }
+
     public FileID toFileID() {
         return FileID.newBuilder()
                 .setShardNum(getShard())
@@ -205,15 +249,5 @@ public final class EntityId implements Comparable<EntityId> {
     @Override
     public String toString() {
         return getShard() + DOT + getRealm() + DOT + getNum();
-    }
-
-    public Entity toEntity() {
-        return Entity.builder()
-                .id(id)
-                .shard(getShard())
-                .realm(getRealm())
-                .num(getNum())
-                .timestampRange(DEFAULT_RANGE)
-                .build();
     }
 }
