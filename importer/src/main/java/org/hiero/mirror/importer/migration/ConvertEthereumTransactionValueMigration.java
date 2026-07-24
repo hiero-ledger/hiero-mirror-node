@@ -46,7 +46,7 @@ public class ConvertEthereumTransactionValueMigration extends AbstractJavaMigrat
         jdbcOperations.query(SELECT_NON_NULL_VALUE_SQL, rs -> {
             var consensusTimestamp = rs.getLong(1);
             var weibar = rs.getBytes(2);
-            var tinybar = converter.convert(weibar, true);
+            var tinybar = converter.convert(weibar, true).toByteArray();
             jdbcOperations.update(
                     SET_TINYBAR_VALUE_SQL, Map.of("consensusTimestamp", consensusTimestamp, "value", tinybar));
             count.incrementAndGet();

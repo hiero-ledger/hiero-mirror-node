@@ -15,12 +15,17 @@ import com.hederahashgraph.api.proto.java.ScheduleID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TopicID;
 import org.hiero.mirror.common.exception.InvalidEntityException;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
-class EntityIdTest {
+@ExtendWith(OutputCaptureExtension.class)
+final class EntityIdTest {
 
     @ParameterizedTest
     @CsvSource({
@@ -33,6 +38,7 @@ class EntityIdTest {
     })
     void testEntityEncoding(long shard, long realm, long num, long encodedId) {
         assertThat(EntityId.of(shard, realm, num).getId()).isEqualTo(encodedId);
+        assertThat(EntityId.of(encodedId)).isEqualTo(EntityId.of(shard, realm, num));
     }
 
     @Test
@@ -43,19 +49,6 @@ class EntityIdTest {
         assertThatThrownBy(() -> EntityId.of(-1, 0, 0)).isInstanceOf(InvalidEntityException.class);
         assertThatThrownBy(() -> EntityId.of(0, -1, 0)).isInstanceOf(InvalidEntityException.class);
         assertThatThrownBy(() -> EntityId.of(0, 0, -1)).isInstanceOf(InvalidEntityException.class);
-    }
-
-    @ParameterizedTest
-    @CsvSource({
-        "0, 0, 0, 0",
-        "10, 0, 0, 10",
-        "4294967295, 0, 0, 4294967295",
-        "180146733873889290, 10, 10, 10",
-        "-1, 1023, 65535, 274877906943",
-        "-18014398509481984, 1023, 0, 0"
-    })
-    void testEntityDecoding(long encodedId, long shard, long realm, long num) {
-        assertThat(EntityId.of(encodedId)).isEqualTo(EntityId.of(shard, realm, num));
     }
 
     @Test
@@ -100,6 +93,78 @@ class EntityIdTest {
             })
     void isValid(String id, boolean result) {
         assertThat(EntityId.isValid(id)).isEqualTo(result);
+    }
+
+    @Test
+    void ofAccountId(CapturedOutput output) {
+        final var accountId = AccountID.newBuilder()
+                .setShardNum(1)
+                .setRealmNum(2)
+                .setAccountNum(3)
+                .build();
+        final var accountIdBad = AccountID.newBuilder()
+                .setShardNum(-1)
+                .setRealmNum(2)
+                .setAccountNum(9223372036854775807L)
+                .build();
+        assertThat(EntityId.of(accountId))
+                .isEqualTo(EntityId.tryOf(accountId))
+                .isNotEqualTo(EntityId.EMPTY)
+                .returns(1L, EntityId::getShard)
+                .returns(2L, EntityId::getRealm)
+                .returns(3L, EntityId::getNum);
+        assertThatThrownBy(() -> EntityId.of(accountIdBad)).isInstanceOf(InvalidEntityException.class);
+        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "false");
+        assertThat(EntityId.of(accountIdBad)).isEqualTo(EntityId.EMPTY);
+        assertThat(output.getAll()).contains(DomainUtils.RECOVERABLE_ERROR);
+        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "true");
+    }
+
+    @Test
+    void tryOfAccountId(CapturedOutput output) {
+        final var accountId = AccountID.newBuilder()
+                .setShardNum(-1)
+                .setRealmNum(2)
+                .setAccountNum(9223372036854775807L)
+                .build();
+        assertThat(EntityId.tryOf(accountId)).isEqualTo(EntityId.EMPTY);
+        assertThat(output.getAll()).contains(DomainUtils.RECOVERABLE_ERROR);
+    }
+
+    @Test
+    void ofTokenId(CapturedOutput output) {
+        final var tokenId = TokenID.newBuilder()
+                .setShardNum(1)
+                .setRealmNum(2)
+                .setTokenNum(3)
+                .build();
+        final var tokenIdBad = TokenID.newBuilder()
+                .setShardNum(-1)
+                .setRealmNum(2)
+                .setTokenNum(9223372036854775807L)
+                .build();
+        assertThat(EntityId.of(tokenId))
+                .isEqualTo(EntityId.tryOf(tokenId))
+                .isNotEqualTo(EntityId.EMPTY)
+                .returns(1L, EntityId::getShard)
+                .returns(2L, EntityId::getRealm)
+                .returns(3L, EntityId::getNum);
+        assertThatThrownBy(() -> EntityId.of(tokenIdBad)).isInstanceOf(InvalidEntityException.class);
+        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "false");
+        assertThat(EntityId.of(tokenIdBad)).isEqualTo(EntityId.EMPTY);
+        assertThat(output.getAll()).contains(DomainUtils.RECOVERABLE_ERROR);
+        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "true");
+    }
+
+    @Test
+    void tryOfTokenIdError(CapturedOutput output) {
+        final var tokenId = TokenID.newBuilder()
+                .setShardNum(-1)
+                .setRealmNum(2)
+                .setTokenNum(9223372036854775807L)
+                .build();
+        assertThat(EntityId.tryOf(tokenId)).isEqualTo(EntityId.EMPTY);
+        assertThat(output.getAll()).contains(DomainUtils.RECOVERABLE_ERROR);
     }
 
     @Test

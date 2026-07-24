@@ -8,10 +8,10 @@ dependencies {
     // Temporary until all plugins upgrade
     constraints {
         add("implementation", "com.fasterxml.jackson.core:jackson-databind") {
-            version { require("2.22.0") }
+            version { require("2.22.1") }
         }
         add("implementation", "tools.jackson.core:jackson-databind") {
-            version { require("3.2.0") }
+            version { require("3.2.1") }
         }
     }
 
@@ -35,8 +35,8 @@ dependencies {
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.0")
     implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("org.cyclonedx:cyclonedx-gradle-plugin:3.3.0")
-    implementation("org.flywaydb:flyway-database-postgresql:12.11.0")
-    implementation("org.graalvm.buildtools:native-gradle-plugin:1.1.4")
+    implementation("org.flywaydb:flyway-database-postgresql:13.0.0")
+    implementation("org.graalvm.buildtools:native-gradle-plugin:1.1.5")
     implementation("org.gradle:test-retry-gradle-plugin:1.6.5")
     implementation("org.jooq:jooq-codegen-gradle:$jooqVersion")
     implementation("org.jooq:jooq-meta:$jooqVersion")
