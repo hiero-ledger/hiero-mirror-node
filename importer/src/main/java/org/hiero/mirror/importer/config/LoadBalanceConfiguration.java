@@ -2,17 +2,13 @@
 
 package org.hiero.mirror.importer.config;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Proxy;
-import java.sql.Connection;
-import java.sql.SQLException;
 import javax.sql.DataSource;
+import org.hiero.mirror.common.config.StatementInterceptingDataSource;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.jdbc.datasource.DelegatingDataSource;
 
 /**
  * https://www.pgpool.net/docs/latest/en/html/runtime-config-load-balancing.html pgpool disables load balancing for
@@ -41,7 +37,7 @@ class LoadBalanceConfiguration {
         };
     }
 
-    private static final class NoLoadBalanceDataSource extends DelegatingDataSource {
+    private static final class NoLoadBalanceDataSource extends StatementInterceptingDataSource {
 
         private static final String NO_LOAD_BALANCE = "/* NO PGPOOL LOAD BALANCE */\n";
 
@@ -53,36 +49,12 @@ class LoadBalanceConfiguration {
             this.dbProperties = dbProperties;
         }
 
+        // createStatement carries no SQL, so args[0] is only a String for prepareStatement/prepareCall.
         @Override
-        public Connection getConnection() throws SQLException {
-            return wrap(super.getConnection());
-        }
-
-        @Override
-        public Connection getConnection(String username, String password) throws SQLException {
-            return wrap(super.getConnection(username, password));
-        }
-
-        private Connection wrap(Connection connection) {
-            return (Connection) Proxy.newProxyInstance(
-                    NoLoadBalanceDataSource.class.getClassLoader(),
-                    new Class<?>[] {Connection.class},
-                    (proxy, method, args) -> {
-                        var name = method.getName();
-                        if ((name.equals("prepareStatement") || name.equals("prepareCall"))
-                                && args != null
-                                && args.length > 0
-                                && args[0] instanceof String sql
-                                && !isLoadBalance()) {
-                            args[0] = NO_LOAD_BALANCE + sql;
-                        }
-
-                        try {
-                            return method.invoke(connection, args);
-                        } catch (InvocationTargetException e) {
-                            throw e.getTargetException();
-                        }
-                    });
+        protected void onStatement(Object[] args) {
+            if (args != null && args.length > 0 && args[0] instanceof String sql && !isLoadBalance()) {
+                args[0] = NO_LOAD_BALANCE + sql;
+            }
         }
 
         private boolean isLoadBalance() {

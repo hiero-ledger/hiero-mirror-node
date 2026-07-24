@@ -2,11 +2,8 @@
 
 package org.hiero.mirror.web3.config;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Proxy;
-import java.sql.Connection;
-import java.sql.SQLException;
 import javax.sql.DataSource;
+import org.hiero.mirror.common.config.StatementInterceptingDataSource;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.springframework.beans.factory.ObjectProvider;
@@ -14,7 +11,6 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.QueryTimeoutException;
-import org.springframework.jdbc.datasource.DelegatingDataSource;
 
 /**
  * Enforces {@link Web3Properties#getRequestTimeout()} on every SQL statement issued during a contract call. Replaces
@@ -40,7 +36,7 @@ class QueryTimeoutConfiguration {
         };
     }
 
-    private static final class QueryTimeoutDataSource extends DelegatingDataSource {
+    private static final class QueryTimeoutDataSource extends StatementInterceptingDataSource {
 
         private final ObjectProvider<Web3Properties> web3Properties;
         private volatile long timeoutMillis = -1;
@@ -51,33 +47,8 @@ class QueryTimeoutConfiguration {
         }
 
         @Override
-        public Connection getConnection() throws SQLException {
-            return wrap(super.getConnection());
-        }
-
-        @Override
-        public Connection getConnection(String username, String password) throws SQLException {
-            return wrap(super.getConnection(username, password));
-        }
-
-        private Connection wrap(Connection connection) {
-            return (Connection) Proxy.newProxyInstance(
-                    QueryTimeoutDataSource.class.getClassLoader(),
-                    new Class<?>[] {Connection.class},
-                    (proxy, method, args) -> {
-                        var name = method.getName();
-                        if (name.equals("prepareStatement")
-                                || name.equals("prepareCall")
-                                || name.equals("createStatement")) {
-                            checkDeadline();
-                        }
-
-                        try {
-                            return method.invoke(connection, args);
-                        } catch (InvocationTargetException e) {
-                            throw e.getTargetException();
-                        }
-                    });
+        protected void onStatement(Object[] args) {
+            checkDeadline();
         }
 
         private void checkDeadline() {
