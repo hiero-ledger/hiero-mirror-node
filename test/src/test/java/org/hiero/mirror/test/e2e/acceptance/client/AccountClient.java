@@ -54,11 +54,9 @@ public class AccountClient extends AbstractNetworkClient {
             SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
         super(sdkClient, retryTemplate, acceptanceTestProperties);
         try {
-            initialBalance = getBalance();
-            log.info(
-                    "Operator account {} initial balance is {}",
-                    sdkClient.getExpandedOperatorAccountId(),
-                    initialBalance);
+            var operatorAccountId = sdkClient.getExpandedOperatorAccountId().toString();
+            initialBalance = sdkClient.getMirrorNodeClient().waitForAccountBalance(operatorAccountId);
+            log.info("Operator account {} initial balance is {}", operatorAccountId, initialBalance);
         } catch (Throwable t) {
             clean();
             throw t;
@@ -70,7 +68,11 @@ public class AccountClient extends AbstractNetworkClient {
         log.info("Deleting {} accounts", accountIds.size());
         deleteOrLogEntities(accountIds, this::delete);
 
-        var cost = initialBalance - getBalance();
+        var cost = initialBalance
+                - sdkClient
+                        .getMirrorNodeClient()
+                        .waitForAccountBalance(
+                                sdkClient.getExpandedOperatorAccountId().toString());
         log.warn("Tests cost {} to run", Hbar.fromTinybars(cost));
 
         var operatorId = sdkClient.getDefaultOperator();
@@ -191,7 +193,7 @@ public class AccountClient extends AbstractNetworkClient {
     }
 
     private void reclaimFund(final ExpandedAccountId sender) {
-        final var amount = Hbar.fromTinybars(getBalance(sender));
+        final var amount = Hbar.fromTinybars(sdkClient.getMirrorNodeClient().waitForAccountBalance(sender.toString()));
         final var operator = sdkClient.getDefaultOperator();
         final var recipientId = operator.getAccountId();
         final var senderId = sender.getAccountId();

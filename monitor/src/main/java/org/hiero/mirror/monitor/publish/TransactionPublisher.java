@@ -130,9 +130,8 @@ public class TransactionPublisher implements AutoCloseable {
     }
 
     private Flux<Client> getClients() {
-        return nodeSupplier.refresh().collect(Collectors.toList()).flatMapMany(nodes -> Flux.range(
-                        0, publishProperties.getClients())
-                .flatMap(i -> Mono.defer(() -> Mono.just(toClient(nodes)))));
+        return nodeSupplier.list().flatMapMany(nodes -> Flux.range(0, publishProperties.getClients())
+                .map(i -> toClient(nodes)));
     }
 
     @SneakyThrows

@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.domain;
 
 import static com.hedera.services.stream.proto.ContractAction.RecipientCase.RECIPIENT_NOT_SET;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.converter.WeiBarTinyBarConverter.WEIBARS_TO_TINYBARS;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.DATA;
@@ -242,8 +243,11 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
             """)
     void processEthereumTransactionCreate(boolean blockstream, boolean initcodeInlined, boolean withHexPrefix) {
         // given
-        var ethereumTransaction =
-                domainBuilder.ethereumTransaction(initcodeInlined).get();
+        final long amount = Long.MAX_VALUE;
+        var ethereumTransaction = domainBuilder
+                .ethereumTransaction(initcodeInlined)
+                .customize(e -> e.value(BigInteger.valueOf(amount).toByteArray()))
+                .get();
         var recordItem = recordItemBuilder
                 .ethereumTransaction(true)
                 .record(r -> {
@@ -283,7 +287,7 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
             assertThat(contractResultRepository.findAll())
                     .hasSize(1)
                     .first()
-                    .returns(new BigInteger(ethereumTransaction.getValue()).longValue(), ContractResult::getAmount)
+                    .returns(amount / WEIBARS_TO_TINYBARS, ContractResult::getAmount)
                     .returns(rawInitcode, ContractResult::getFunctionParameters)
                     .returns(ethereumTransaction.getGasLimit(), ContractResult::getGasLimit);
         }
