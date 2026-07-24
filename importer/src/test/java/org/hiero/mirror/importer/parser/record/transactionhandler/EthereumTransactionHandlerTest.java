@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import static org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.common.converter.WeiBarTinyBarConverter.WEIBARS_TO_TINYBARS;
 import static org.hiero.mirror.common.util.CommonUtils.nextBytes;
 import static org.hiero.mirror.importer.util.Utility.HALT_ON_ERROR_PROPERTY;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -19,6 +20,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.EthereumTransactionBody;
@@ -132,7 +134,8 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
         var callDataId = callDataInFile != null ? domainBuilder.entityId() : null;
         var ethereumTransaction = domainBuilder
                 .ethereumTransaction(callDataInlined)
-                .customize(e -> e.callData(callData).callDataId(callDataId))
+                .customize(e ->
+                        e.callData(callData).callDataId(callDataId).value(Longs.toByteArray(10 * WEIBARS_TO_TINYBARS)))
                 .get();
         var recordItem = recordItemBuilder
                 .ethereumTransaction()
@@ -149,7 +152,7 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
         // then
         verify(contractBytecodeService, times(expectCallDataFromFile ? 1 : 0)).get(any(EntityId.class));
         assertThat(contractResult)
-                .returns(new BigInteger(ethereumTransaction.getValue()).longValue(), ContractResult::getAmount)
+                .returns(10L, ContractResult::getAmount)
                 .returns(expectedFunctionParameters, ContractResult::getFunctionParameters)
                 .returns(ethereumTransaction.getGasLimit(), ContractResult::getGasLimit);
     }
@@ -158,7 +161,10 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
     void updateContractResultWithNullFromCallDataId() {
         // given
         var contractResult = new ContractResult();
-        var ethereumTransaction = domainBuilder.ethereumTransaction(false).get();
+        var ethereumTransaction = domainBuilder
+                .ethereumTransaction(false)
+                .customize(e -> e.value(Longs.toByteArray(10 * WEIBARS_TO_TINYBARS)))
+                .get();
         var recordItem = recordItemBuilder
                 .ethereumTransaction()
                 .recordItem(r -> r.blockstream(true).ethereumTransaction(ethereumTransaction))
@@ -171,7 +177,7 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
         // then
         verify(contractBytecodeService).get(ethereumTransaction.getCallDataId());
         assertThat(contractResult)
-                .returns(new BigInteger(ethereumTransaction.getValue()).longValue(), ContractResult::getAmount)
+                .returns(10L, ContractResult::getAmount)
                 .returns(EMPTY_BYTE_ARRAY, ContractResult::getFunctionParameters)
                 .returns(ethereumTransaction.getGasLimit(), ContractResult::getGasLimit);
     }
@@ -196,7 +202,7 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
 
         // then
         verify(contractBytecodeService).get(ethereumTransaction.getCallDataId());
-        assertThat(contractResult).returns(10_000_000_000L, ContractResult::getAmount);
+        assertThat(contractResult).returns(1_000_000_000L, ContractResult::getAmount);
     }
 
     @Test
