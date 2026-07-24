@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.service.model;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 
@@ -9,6 +10,8 @@ import lombok.Value;
 @RequiredArgsConstructor
 public class TraceRequest {
 
+    @Valid
     ContractExecutionParameters contractExecutionParameters;
+
     boolean onlyTopCall;
 }

@@ -4,13 +4,13 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_EXECUTING;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_SUSPENDED;
+import static org.hyperledger.besu.evm.frame.MessageFrame.Type.CONTRACT_CREATION;
 
 import com.hedera.hapi.streams.CallOperationType;
 import com.hedera.hapi.streams.ContractAction;
 import com.hedera.hapi.streams.ContractActionType;
 import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.utils.OpcodeUtils;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.CustomLog;
@@ -24,6 +24,7 @@ import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
+import org.jspecify.annotations.NonNull;
 
 @Named
 @CustomLog
@@ -33,14 +34,14 @@ public class ActionTracer implements ActionSidecarContentTracer {
     private static final String OPCODE_PREFIX = "OP_";
 
     @Override
-    public void traceContextEnter(@org.jspecify.annotations.NonNull final MessageFrame frame) {
+    public void traceContextEnter(@NonNull final MessageFrame frame) {
         // Starting processing a newly created nested MessageFrame, we should set the remainingGas to match the newly
         // allocated gas for the new frame
         ContractCallContext.get().getActionContext().setGasRemaining(frame.getRemainingGas());
     }
 
     @Override
-    public void traceContextReEnter(@org.jspecify.annotations.NonNull final MessageFrame frame) {
+    public void traceContextReEnter(@NonNull final MessageFrame frame) {
         // Returning to the parent MessageFrame, we should reset the gas to reflect the existing remaining gas of
         // the parent frame
         ContractCallContext.get().getActionContext().setGasRemaining(frame.getRemainingGas());
@@ -48,8 +49,9 @@ public class ActionTracer implements ActionSidecarContentTracer {
 
     @Override
     public void traceOriginAction(@NonNull MessageFrame frame) {
-        // Setting the initial remaining gas on the start of the initial parent frame
-        ContractCallContext.get().getActionContext().setGasRemaining(frame.getRemainingGas());
+        final var actionContext = ContractCallContext.get().getActionContext();
+        actionContext.setGasRemaining(frame.getRemainingGas());
+        actionContext.addAction(buildActionResponse(frame, topLevelCallType(frame)), frame.getDepth());
     }
 
     @Override
@@ -76,12 +78,26 @@ public class ActionTracer implements ActionSidecarContentTracer {
             return;
         }
 
-        // Nested frames are suspended; skip them when only the top-level call should be traced.
-        if (state == CODE_SUSPENDED && actionContext.getTracerConfig().isOnlyTopCall()) {
+        if (state == CODE_SUSPENDED) {
+            if (actionContext.getTracerConfig().isOnlyTopCall()) {
+                return;
+            }
+            final var child = frame.getMessageFrameStack().peek();
+            if (child == null) {
+                return;
+            }
+            // Nested call starts here: record the child under its parent using the child's depth.
+            actionContext.addAction(buildActionResponse(child, callTypeFromParent(frame)), child.getDepth());
             return;
         }
 
-        actionContext.addAction(buildActionResponse(frame));
+        // Skip finalizing nested frames when only the top-level call should be traced.
+        if (actionContext.getTracerConfig().isOnlyTopCall() && frame.getDepth() > 0) {
+            return;
+        }
+
+        // Frame completed — finalize the action opened for this depth.
+        actionContext.finalizeAction(frame.getDepth(), buildFinalizedAction(frame));
     }
 
     @Override
@@ -99,24 +115,40 @@ public class ActionTracer implements ActionSidecarContentTracer {
         // NO-OP
     }
 
-    private ActionResponse buildActionResponse(final MessageFrame frame) {
-        final var actionContext = ContractCallContext.get().getActionContext();
+    private ActionResponse buildActionResponse(final MessageFrame frame, final TypeEnum type) {
+        return new ActionResponse()
+                .from(frame.getSenderAddress().toHexString())
+                .gas(convertLongToHexString(frame.getRemainingGas()))
+                .input(frame.getInputData().toHexString())
+                .to(frame.getRecipientAddress().toHexString())
+                .type(type);
+    }
 
+    private ActionResponse buildFinalizedAction(final MessageFrame frame) {
+        final var actionContext = ContractCallContext.get().getActionContext();
         return new ActionResponse()
                 .error(frame.getExceptionalHaltReason()
                         .orElse(ExceptionalHaltReason.NONE)
                         .toString())
-                .from(frame.getSenderAddress().toHexString())
-                .gas(convertLongToHexString(frame.getRemainingGas()))
                 .gasUsed(convertLongToHexString(actionContext.getGasRemaining() - frame.getRemainingGas()))
-                .input(frame.getInputData().toHexString())
                 .output(frame.getOutputData().toHexString())
-                .revertReason(frame.getRevertReason().orElse(Bytes.EMPTY).toHexString())
-                .to(frame.getRecipientAddress().toHexString())
-                .type(TypeEnum.fromValue(OpcodeUtils.asCallOperationType(
-                                frame.getCurrentOperation().getOpcode())
-                        .toString()
-                        .replace(OPCODE_PREFIX, StringUtils.EMPTY)));
+                .revertReason(frame.getRevertReason().orElse(Bytes.EMPTY).toHexString());
+    }
+
+    private TypeEnum callTypeFromParent(final MessageFrame parent) {
+        final var operation = parent.getCurrentOperation();
+        if (operation == null) {
+            return TypeEnum.UNKNOWN;
+        }
+        return toTypeEnum(OpcodeUtils.asCallOperationType(operation.getOpcode()));
+    }
+
+    private TypeEnum topLevelCallType(final MessageFrame frame) {
+        return frame.getType() == CONTRACT_CREATION ? TypeEnum.CREATE : TypeEnum.CALL;
+    }
+
+    private TypeEnum toTypeEnum(final CallOperationType callOperationType) {
+        return TypeEnum.fromValue(callOperationType.toString().replace(OPCODE_PREFIX, StringUtils.EMPTY));
     }
 
     private String convertLongToHexString(final Long number) {

@@ -106,6 +106,9 @@ final class ContractControllerTest {
     @Resource
     private Web3Properties web3Properties;
 
+    @Resource
+    private TracerProperties tracerProperties;
+
     @MockitoBean
     private ContractExecutionService service;
 
@@ -217,14 +220,14 @@ final class ContractControllerTest {
     void debugTraceCallSuccess() throws Exception {
         final var request = request();
         request.setValue(0);
-        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSE);
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSE);
 
         contractDebugCall(request)
                 .andExpect(status().isOk())
                 .andExpect(content().string(convert(TRACE_RESPONSE)));
 
         verify(throttleManager).throttleTraceRequest();
-        verify(contractDebugService).processTraceCall(any(), argThat(traceRequest -> !traceRequest.isOnlyTopCall()));
+        verify(contractDebugService).processTraceCall(argThat(traceRequest -> !traceRequest.isOnlyTopCall()));
     }
 
     @Test
@@ -232,12 +235,12 @@ final class ContractControllerTest {
         final var request = request();
         request.setValue(0);
         request.setTracerConfig(TracerConfig.builder().onlyTopCall(true).build());
-        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSE);
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSE);
 
         contractDebugCall(request).andExpect(status().isOk());
 
         verify(throttleManager).throttleTraceRequest();
-        verify(contractDebugService).processTraceCall(any(), argThat(TraceRequest::isOnlyTopCall));
+        verify(contractDebugService).processTraceCall(argThat(TraceRequest::isOnlyTopCall));
     }
 
     @Test
@@ -246,17 +249,32 @@ final class ContractControllerTest {
         doThrow(new ThrottleException("")).when(throttleManager).throttleTraceRequest();
 
         contractDebugCall(request).andExpect(status().isTooManyRequests());
-        verify(contractDebugService, never()).processTraceCall(any(), any());
+        verify(contractDebugService, never()).processTraceCall(any());
     }
 
     @Test
     void debugTraceCallRestoresThrottleOnInvalidParameters() throws Exception {
         final var request = request();
         request.setValue(0);
-        given(contractDebugService.processTraceCall(any(), any())).willThrow(new InvalidParametersException("invalid"));
+        given(contractDebugService.processTraceCall(any())).willThrow(new InvalidParametersException("invalid"));
 
         contractDebugCall(request).andExpect(status().isBadRequest());
         verify(throttleManager).restore(request.getGas());
+    }
+
+    @Test
+    void debugTraceCallNotFoundWhenDisabled() throws Exception {
+        tracerProperties.setEnabled(false);
+        final var request = request();
+        request.setValue(0);
+
+        try {
+            contractDebugCall(request).andExpect(status().isNotFound());
+            verify(contractDebugService, never()).processTraceCall(any());
+            verify(throttleManager, never()).throttleTraceRequest();
+        } finally {
+            tracerProperties.setEnabled(true);
+        }
     }
 
     @ValueSource(
@@ -780,6 +798,11 @@ final class ContractControllerTest {
         @Bean
         Web3Properties web3Properties() {
             return new Web3Properties();
+        }
+
+        @Bean
+        TracerProperties tracerProperties() {
+            return new TracerProperties();
         }
 
         @Bean

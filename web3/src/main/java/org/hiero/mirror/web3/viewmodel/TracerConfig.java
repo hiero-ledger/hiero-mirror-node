@@ -2,14 +2,14 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.time.Instant;
+import java.time.Duration;
 import lombok.Builder;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
+import org.springframework.validation.annotation.Validated;
 
 @Builder(toBuilder = true)
-@JsonIgnoreProperties(ignoreUnknown = true)
+@Validated
 public record TracerConfig(
         boolean code,
         @JsonProperty("diff") boolean diff,
@@ -17,7 +17,7 @@ public record TracerConfig(
         boolean onlyTopCall,
         boolean stack,
         boolean storage,
-        Instant timeout,
+        Duration timeout,
         TracerType tracerType) {
 
     public boolean isCode() {
@@ -44,7 +44,7 @@ public record TracerConfig(
         return storage;
     }
 
-    public Instant getTimeout() {
+    public Duration getTimeout() {
         return timeout;
     }
 

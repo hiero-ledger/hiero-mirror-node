@@ -55,6 +55,7 @@ public class ContractCallRequest {
     @PositiveOrZero
     private long value;
 
+    @Valid
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private TracerConfig tracerConfig;
 

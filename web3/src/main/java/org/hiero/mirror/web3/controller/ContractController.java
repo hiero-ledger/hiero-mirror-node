@@ -39,6 +39,7 @@ class ContractController {
     private final ContractExecutionService contractExecutionService;
     private final ContractDebugService contractDebugService;
     private final EvmProperties evmProperties;
+    private final TracerProperties tracerProperties;
     private final Web3Properties web3Properties;
     private final ThrottleManager throttleManager;
 
@@ -65,20 +66,24 @@ class ContractController {
 
     @PostMapping(value = "/call/debug")
     TracerResponse trace(@RequestBody @Valid ContractCallRequest request, HttpServletResponse response) {
-        try {
-            throttleManager.throttleTraceRequest();
+        if (tracerProperties.isEnabled()) {
+            try {
+                throttleManager.throttleTraceRequest();
 
-            final var params = constructServiceParameters(request);
-            final var tracerConfig = request.getTracerConfig();
-            final var onlyTopCall = tracerConfig != null && tracerConfig.isOnlyTopCall();
-            final var traceRequest = new TraceRequest(params, onlyTopCall);
+                final var params = constructServiceParameters(request);
+                final var tracerConfig = request.getTracerConfig();
+                final var onlyTopCall = tracerConfig != null && tracerConfig.isOnlyTopCall();
+                final var traceRequest = new TraceRequest(params, onlyTopCall);
 
-            return contractDebugService.processTraceCall(params, traceRequest);
-        } catch (InvalidParametersException e) {
-            // The validation failed, but no processing occurred so restore the consumed tokens.
-            throttleManager.restore(request.getGas());
-            throw e;
+                return contractDebugService.processTraceCall(traceRequest);
+            } catch (InvalidParametersException e) {
+                // The validation failed, but no processing occurred so restore the consumed tokens.
+                throttleManager.restore(request.getGas());
+                throw e;
+            }
         }
+
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     }
 
     private ContractExecutionParameters constructServiceParameters(ContractCallRequest request) {
