@@ -218,6 +218,7 @@ final class ContractControllerTest {
 
     @Test
     void debugTraceCallSuccess() throws Exception {
+        tracerProperties.setEnabled(true);
         final var request = request();
         request.setValue(0);
         given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSE);
@@ -228,10 +229,12 @@ final class ContractControllerTest {
 
         verify(throttleManager).throttleTraceRequest();
         verify(contractDebugService).processTraceCall(argThat(traceRequest -> !traceRequest.isOnlyTopCall()));
+        tracerProperties.setEnabled(false);
     }
 
     @Test
     void debugTraceCallWithOnlyTopCall() throws Exception {
+        tracerProperties.setEnabled(true);
         final var request = request();
         request.setValue(0);
         request.setTracerConfig(TracerConfig.builder().onlyTopCall(true).build());
@@ -241,40 +244,40 @@ final class ContractControllerTest {
 
         verify(throttleManager).throttleTraceRequest();
         verify(contractDebugService).processTraceCall(argThat(TraceRequest::isOnlyTopCall));
+        tracerProperties.setEnabled(false);
     }
 
     @Test
     void debugTraceCallExceedingRateLimit() throws Exception {
+        tracerProperties.setEnabled(true);
         final var request = request();
         doThrow(new ThrottleException("")).when(throttleManager).throttleTraceRequest();
 
         contractDebugCall(request).andExpect(status().isTooManyRequests());
         verify(contractDebugService, never()).processTraceCall(any());
+        tracerProperties.setEnabled(false);
     }
 
     @Test
     void debugTraceCallRestoresThrottleOnInvalidParameters() throws Exception {
+        tracerProperties.setEnabled(true);
         final var request = request();
         request.setValue(0);
         given(contractDebugService.processTraceCall(any())).willThrow(new InvalidParametersException("invalid"));
 
         contractDebugCall(request).andExpect(status().isBadRequest());
         verify(throttleManager).restore(request.getGas());
+        tracerProperties.setEnabled(false);
     }
 
     @Test
     void debugTraceCallNotFoundWhenDisabled() throws Exception {
-        tracerProperties.setEnabled(false);
         final var request = request();
         request.setValue(0);
 
-        try {
-            contractDebugCall(request).andExpect(status().isNotFound());
-            verify(contractDebugService, never()).processTraceCall(any());
-            verify(throttleManager, never()).throttleTraceRequest();
-        } finally {
-            tracerProperties.setEnabled(true);
-        }
+        contractDebugCall(request).andExpect(status().isNotFound());
+        verify(contractDebugService, never()).processTraceCall(any());
+        verify(throttleManager, never()).throttleTraceRequest();
     }
 
     @ValueSource(

@@ -76,7 +76,6 @@ public class ContractDebugService extends ContractCallService {
 
             callContract(traceRequest.getContractExecutionParameters(), ctx);
 
-            // Nested calls are already attached under each parent action's calls list by ActionTracer.
             return new TracerResponse()
                     .actions(new TracerResponseActions()
                             .calls(ctx.getActionContext().getActions()));
