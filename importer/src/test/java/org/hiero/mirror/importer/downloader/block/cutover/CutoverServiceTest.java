@@ -8,6 +8,7 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -419,12 +420,32 @@ final class CutoverServiceTest {
 
         // when
         cutoverService.get(StreamType.BLOCK, blockStreamTask);
-        ;
         cutoverService.get(StreamType.RECORD, recordStreamTask);
 
         // then, first blockstream, then recordstream due to fast fallback
         verify(blockStreamTask).run();
         verify(recordStreamTask).run();
+
+        // when trying blockStreamTask again, it wouldn't run because the first stage cutover logic needs RECORD to
+        // process at least one block to switch back to BLOCK
+        reset(blockStreamTask);
+        reset(recordStreamTask);
+        cutoverService.get(StreamType.BLOCK, blockStreamTask);
+        cutoverService.get(StreamType.RECORD, recordStreamTask);
+
+        // then
+        verify(blockStreamTask, never()).run();
+        verify(recordStreamTask).run();
+
+        // download one recordstream file so the cutover service will switch back to BLOCK
+        cutoverService.get(StreamType.RECORD, () -> {
+            final var verifiedRecordFile = nextRecordFile(
+                    recordFileBuilder,
+                    consensusStart,
+                    blockNumber,
+                    Duration.ofMillis(1).toNanos());
+            cutoverService.verified(verifiedRecordFile);
+        });
 
         // when streaming WRBs exceeds latency
         reset(blockStreamTask);
@@ -449,6 +470,16 @@ final class CutoverServiceTest {
                     verify(blockStreamTask, atLeast(1)).run();
                     verify(recordStreamTask).run();
                 });
+
+        // download one recordstream file so the cutover service will switch back to BLOCK
+        cutoverService.get(StreamType.RECORD, () -> {
+            final var verifiedRecordFile = nextRecordFile(
+                    recordFileBuilder,
+                    consensusStart,
+                    blockNumber,
+                    Duration.ofMillis(1).toNanos());
+            cutoverService.verified(verifiedRecordFile);
+        });
 
         // when streaming WRBs again with low latency
         reset(blockStreamTask);

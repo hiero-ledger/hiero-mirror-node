@@ -34,7 +34,7 @@ public final class BlockProperties {
     private boolean enabled = false;
 
     @NotNull
-    private Duration frequency = Duration.ofMillis(100L);
+    private Duration frequency = Duration.ofMillis(500L);
 
     private Path initialLedgerIdPublication;
 

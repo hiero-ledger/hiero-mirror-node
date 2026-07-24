@@ -47,7 +47,7 @@ public final class CutoverServiceImpl implements CutoverService {
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final Optional<RecordFile> firstRecordFile = findFirst();
 
-    private boolean blockStreamAdvanced;
+    private boolean blockAdvanced;
     private StreamType currentType = RECORD;
     private @Nullable StreamType lastRunType;
     private @Nullable Long startWrappedRecordBlockConsensusTimestamp;
@@ -65,13 +65,12 @@ public final class CutoverServiceImpl implements CutoverService {
         try {
             task.run();
         } finally {
-            if (streamType == BLOCK) {
-                // Track if blocks have been advanced when last run is blockstream, used to fast fallback to
-                // recordstream in first-stage
-                final long currentBlockNumber =
-                        getLastRecordFile().map(RecordFile::getIndex).orElse(-1L);
-                blockStreamAdvanced = currentBlockNumber > lastBlockNumber;
-            }
+            // Track if blocks have been advanced, used during the first stage to
+            // - fast fallback to recordstream
+            // - download at least one record file when in recordstream fallback mode
+            final long currentBlockNumber =
+                    getLastRecordFile().map(RecordFile::getIndex).orElse(-1L);
+            blockAdvanced = currentBlockNumber > lastBlockNumber;
         }
     }
 
@@ -212,15 +211,15 @@ public final class CutoverServiceImpl implements CutoverService {
     }
 
     private StreamType getNextFirstStageActiveStreamType() {
-        if (currentType == RECORD && lastRunType != null && lastRunType != RECORD) {
-            // In case of fallback, ensure recordstream is tried exactly once
+        if (currentType == RECORD && (lastRunType == BLOCK || (lastRunType == RECORD && !blockAdvanced))) {
+            // In case of fallback, ensure staying in recordstream until block has advanced
             return RECORD;
         }
 
         final long lastConsensusEnd =
                 getLastRecordFile().map(RecordFile::getConsensusEnd).orElse(-1L);
         final StreamType nextType;
-        if (lastRunType == BLOCK && !blockStreamAdvanced) {
+        if (lastRunType == BLOCK && !blockAdvanced) {
             // Fast fallback to recordstream if the last run was blockstream and it didn't advance
             nextType = RECORD;
         } else if (startWrappedRecordBlockConsensusTimestamp == null || lastConsensusEnd == -1L) {
