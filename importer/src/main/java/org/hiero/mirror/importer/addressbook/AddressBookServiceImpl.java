@@ -25,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -410,7 +411,7 @@ public class AddressBookServiceImpl implements AddressBookService {
             // Accumulate through a set to collapse duplicate endpoints across node address entries
             var updatedEndpoints = new LinkedHashSet<>(addressBookEntry.getServiceEndpoints());
             updatedEndpoints.addAll(getAddressBookServiceEndpoints(nodeAddressProto, consensusTimestamp));
-            addressBookEntry.setServiceEndpoints(new ArrayList<>(updatedEndpoints));
+            addressBookEntry.setServiceEndpoints(updatedEndpoints);
         }
 
         return addressBookEntries.values();
@@ -453,7 +454,7 @@ public class AddressBookServiceImpl implements AddressBookService {
                 .nodeAccountId(nodeIds.getRight())
                 .nodeId(nodeIds.getLeft())
                 .publicKey(nodeAddressProto.getRSAPubKey())
-                .serviceEndpoints(List.of())
+                .serviceEndpoints(Set.of())
                 .stake(nodeAddressProto.getStake());
 
         if (!nodeAddressProto.getNodeCertHash().isEmpty()) {

@@ -4,7 +4,7 @@ package org.hiero.mirror.common.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
@@ -19,7 +19,8 @@ class AddressBookEntryEndpointCallbackTest {
     @Test
     void dropsCrossNodeEndpoints() {
         // simulate the @MappedCollection over-distribution: every entry is loaded with all endpoints in the book
-        final var allEndpoints = List.of(endpoint(0L), endpoint(0L), endpoint(1L), endpoint(1L), endpoint(1L));
+        final var allEndpoints =
+                List.of(endpoint(0L, 0), endpoint(0L, 1), endpoint(1L, 0), endpoint(1L, 1), endpoint(1L, 2));
         final var entry0 = entry(0L, allEndpoints);
         final var entry1 = entry(1L, allEndpoints);
         final var addressBook = AddressBook.builder()
@@ -52,16 +53,16 @@ class AddressBookEntryEndpointCallbackTest {
         return AddressBookEntry.builder()
                 .consensusTimestamp(TIMESTAMP)
                 .nodeId(nodeId)
-                .serviceEndpoints(new ArrayList<>(endpoints))
+                .serviceEndpoints(new LinkedHashSet<>(endpoints))
                 .build();
     }
 
-    private AddressBookServiceEndpoint endpoint(long nodeId) {
+    private AddressBookServiceEndpoint endpoint(long nodeId, int index) {
         return AddressBookServiceEndpoint.builder()
                 .consensusTimestamp(TIMESTAMP)
                 .nodeId(nodeId)
                 .ipAddressV4("127.0.0." + nodeId)
-                .port(50211)
+                .port(50211 + index)
                 .build();
     }
 }
