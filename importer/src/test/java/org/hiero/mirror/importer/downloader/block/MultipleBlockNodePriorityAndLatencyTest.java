@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.downloader.block;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
-import static org.hiero.mirror.importer.TestUtils.findAllMatches;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -67,7 +66,7 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
 
         // it's non-deterministic that at exactly which block, based on latency, the scheduler will switch from one
         // block node server to the lower latency one.
-        assertThat(dedupNodeLogs(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)")))
+        assertThat(findAndDedupNodeLogs(output))
                 .containsExactly(
                         String.format("from BlockNode(%s)", endpoint(0)),
                         String.format("from BlockNode(%s)", endpoint(1)));
@@ -117,7 +116,7 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
         // - switch to node1
         // - switch to node2
         // - switch to node3
-        assertThat(dedupNodeLogs(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)")))
+        assertThat(findAndDedupNodeLogs(output))
                 .containsExactly(
                         String.format("from BlockNode(%s)", endpoint(0)),
                         String.format("from BlockNode(%s)", endpoint(1)),
