@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.StreamType;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -52,9 +53,12 @@ public class MetricsExecutionInterceptor implements ExecutionInterceptor {
     private static final Pattern ENTITY_ID_PATTERN =
             Pattern.compile("/(balance|record)(s_)?(\\d{1,10})\\.\\d{1,10}\\.(\\d{1,10})");
     private static final Pattern SIDECAR_PATTERN = Pattern.compile("Z_\\d{1,2}\\.rcd");
-    private static final Pattern NODE_ID_PATTERN =
-            Pattern.compile("[^/]/+(\\d{1,10})/(\\d{1,10})/((balance|record)/)?");
+    private static final String BLOCK_PATH_SEGMENT = "/" + StreamType.BLOCK.getPath() + "/";
+    // Per HIP-1193, block bucket paths never encode a shard or node, so there's no node to parse out of the URI.
+    // Mirrors the "cloud" sentinel BlockFileSource.DEFAULT_NODE_ENDPOINT already uses for the same scenario.
+    private static final String BLOCK_NODE = "cloud";
 
+    private final CommonProperties commonProperties;
     private final MeterRegistry meterRegistry;
 
     private final Timer.Builder requestMetric = Timer.builder(METRIC_DOWNLOAD_REQUEST)
@@ -124,12 +128,9 @@ public class MetricsExecutionInterceptor implements ExecutionInterceptor {
             return new UriAttributes(action, nodeId, shard, streamType.toUpperCase());
         }
 
-        Matcher nodeIdMatcher = NODE_ID_PATTERN.matcher(uriComponent);
-        if (nodeIdMatcher.find()) {
-            var shard = nodeIdMatcher.group(1);
-            var nodeId = nodeIdMatcher.group(2);
-            var streamType = nodeIdMatcher.group(4) != null ? nodeIdMatcher.group(4) : StreamType.BLOCK.name();
-            return new UriAttributes(action, nodeId, shard, streamType.toUpperCase());
+        if (uriComponent.contains(BLOCK_PATH_SEGMENT)) {
+            var shard = String.valueOf(commonProperties.getShard());
+            return new UriAttributes(action, BLOCK_NODE, shard, StreamType.BLOCK.name());
         }
 
         throw new IllegalStateException("Could not detect a node ID or account ID in URI: " + uri);
