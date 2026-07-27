@@ -97,20 +97,20 @@ public class ContractSimulateService extends ContractCallService {
             // Seeds the synthetic transaction hash; transaction_index resets per entry and would collide.
             long requestCallIndex = 0;
 
-            for (final var blockCalls : request.getBlockStateCalls()) {
+            for (final var blockCall : request.getBlockStateCalls()) {
                 if (!entryResults.isEmpty()) {
                     context.reset();
                 }
-                if (!blockCalls.getStateOverrides().isEmpty()) {
-                    context.getStateOverrides().putAll(Utils.toOverrideMap(blockCalls.getStateOverrides()));
+                if (!blockCall.getStateOverrides().isEmpty()) {
+                    context.getStateOverrides().putAll(Utils.toOverrideMap(blockCall.getStateOverrides()));
                     context.clearReadCache();
                 }
 
                 final var callResults =
-                        new ArrayList<SimulateCallResult>(blockCalls.getCalls().size());
+                        new ArrayList<SimulateCallResult>(blockCall.getCalls().size());
                 long logIndex = 0;
                 long transactionIndex = 0;
-                for (final var call : blockCalls.getCalls()) {
+                for (final var call : blockCall.getCalls()) {
                     final var params = toExecutionParameters(request.getBlock(), call);
                     final var callSnapshot = context.snapshotWriteCache();
                     context.getCapturedTransfers().clear();

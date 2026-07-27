@@ -6,10 +6,13 @@ import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.ADDRESS_LENGTH
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigInteger;
 import lombok.Data;
+import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.validation.Hex;
 import org.springframework.validation.annotation.Validated;
 
@@ -42,6 +45,17 @@ public class SimulateCall {
 
     @PositiveOrZero
     private long value;
+
+    @AssertTrue(message = "must not be empty")
+    private boolean hasFrom() {
+        return value <= 0 || from != null;
+    }
+
+    @AssertTrue(message = "must not be empty")
+    private boolean hasTo() {
+        boolean isValidToField = value <= 0 || from == null || StringUtils.isNotEmpty(to);
+        return BytecodeUtils.isValidInitBytecode(data) || isValidToField;
+    }
 
     // Plain setters, not @JsonDeserialize: this module's HTTP binding may run on Jackson 3, which ignores it.
     public void setGas(final Object gas) {

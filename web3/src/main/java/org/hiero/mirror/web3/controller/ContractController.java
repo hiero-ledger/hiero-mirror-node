@@ -127,12 +127,12 @@ class ContractController {
 
     private boolean hasStateOverrides(SimulateRequest request) {
         return request.getBlockStateCalls().stream()
-                .anyMatch(blockCalls -> !blockCalls.getStateOverrides().isEmpty());
+                .anyMatch(blockCall -> !blockCall.getStateOverrides().isEmpty());
     }
 
     private void validateSimulateMaxGasLimit(SimulateRequest request) {
-        for (final var blockCalls : request.getBlockStateCalls()) {
-            for (final var call : blockCalls.getCalls()) {
+        for (final var blockCall : request.getBlockStateCalls()) {
+            for (final var call : blockCall.getCalls()) {
                 if (call.getGas() > evmProperties.getMaxGasLimit()) {
                     throw new InvalidParametersException(
                             "gas field must be less than or equal to %d".formatted(evmProperties.getMaxGasLimit()));

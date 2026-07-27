@@ -47,15 +47,15 @@ public class SimulateRequest {
 
     private int totalCallCount() {
         return blockStateCalls.stream()
-                .filter(entry -> entry != null && entry.getCalls() != null)
-                .mapToInt(entry -> entry.getCalls().size())
+                .filter(blockCall -> blockCall != null && blockCall.getCalls() != null)
+                .mapToInt(blockCall -> blockCall.getCalls().size())
                 .sum();
     }
 
     public long totalGas() {
         return blockStateCalls.stream()
-                .filter(blockCalls -> blockCalls != null && blockCalls.getCalls() != null)
-                .flatMap(blockCalls -> blockCalls.getCalls().stream())
+                .filter(blockCall -> blockCall != null && blockCall.getCalls() != null)
+                .flatMap(blockCall -> blockCall.getCalls().stream())
                 .mapToLong(SimulateCall::getGas)
                 .sum();
     }
