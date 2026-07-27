@@ -3,12 +3,10 @@
 package org.hiero.mirror.importer.parser.record.receipt;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -34,11 +32,13 @@ import org.jspecify.annotations.Nullable;
 public final class ReceiptRoot {
 
     private static final byte[] EMPTY_RECEIPTS_ROOT = new byte[32];
+    private static final Bytes EMPTY_BLOOM = Bytes.wrap(new byte[LogsBloomFilter.BYTE_SIZE]);
     private static final Bytes STATUS_SUCCESS = Bytes.of(1);
     // The relay encodes the receipt of a transaction without a contract result (an HTS transaction whose synthetic
     // contract result isn't persisted) with 32 zero bytes in place of the EIP-658 status
     private static final Bytes SYNTHETIC_FIRST_FIELD = Bytes.wrap(new byte[32]);
     private static final int ADDRESS_LENGTH = 20;
+    private static final byte[] EMPTY_ADDRESS = new byte[ADDRESS_LENGTH];
     private static final int WORD_LENGTH = 32;
     private static final Set<Integer> SUCCESS_TRANSACTION_RESULTS = Set.of(
             ResponseCodeEnum.SUCCESS_VALUE,
@@ -137,15 +137,13 @@ public final class ReceiptRoot {
         }
 
         out.writeLongScalar(cumulativeGas);
-        out.writeBytes(Bytes.wrap(normalizeBloom(bloom(transaction, evmAddressById))));
+        out.writeBytes(normalizeBloom(bloom(transaction, evmAddressById)));
         out.startList();
         for (final var contractLog : transaction.logs.values()) {
             out.startList();
             out.writeBytes(Bytes.wrap(logAddress(contractLog, evmAddressById)));
             out.startList();
-            for (final var topic : topics(contractLog)) {
-                out.writeBytes(Bytes.wrap(topic));
-            }
+            writeTopics(out, contractLog);
             out.endList();
             out.writeBytes(Bytes.wrap(data(contractLog.getData())));
             out.endList();
@@ -167,9 +165,10 @@ public final class ReceiptRoot {
         for (final var contractLog : transaction.logs.values()) {
             final var filter = new LogsBloomFilter();
             filter.insertAddress(logAddress(contractLog, evmAddressById));
-            for (final var topic : topics(contractLog)) {
-                filter.insertTopic(topic);
-            }
+            filter.insertTopic(contractLog.getTopic0());
+            filter.insertTopic(contractLog.getTopic1());
+            filter.insertTopic(contractLog.getTopic2());
+            filter.insertTopic(contractLog.getTopic3());
             bloom = LogsBloomFilter.or(filter.toArrayUnsafe(), bloom);
         }
 
@@ -179,24 +178,24 @@ public final class ReceiptRoot {
     /**
      *  Ethereum receipt's logsBloom is 256 bytes by definition. Since the goal is to reproduce byte-for-byte the
      *  Ethereum block header's receipts root, if the input bloom is null or not 256 bytes, return a
-     *  new byte array of 256 byte zero array.
+     *  256 byte zero bloom.
      */
-    private byte[] normalizeBloom(final byte[] bloom) {
+    private Bytes normalizeBloom(final byte[] bloom) {
         // covers the case with receipt with no bloom(null) and no-logs(length=0) bloom respectively
         if (bloom == null || bloom.length == 0) {
-            return new byte[LogsBloomFilter.BYTE_SIZE];
+            return EMPTY_BLOOM;
         }
         if (bloom.length != LogsBloomFilter.BYTE_SIZE) {
             Utility.handleRecoverableError("Unexpected bloom length {}", bloom.length);
-            return new byte[LogsBloomFilter.BYTE_SIZE];
+            return EMPTY_BLOOM;
         }
-        return bloom;
+        return Bytes.wrap(bloom);
     }
 
     private byte[] logAddress(final ContractLog contractLog, final Map<Long, byte[]> evmAddressById) {
         final var contractId = contractLog.getContractId();
         if (EntityId.isEmpty(contractId)) {
-            return new byte[ADDRESS_LENGTH];
+            return EMPTY_ADDRESS;
         }
 
         final var evmAddress = evmAddressById.get(contractId.getId());
@@ -204,17 +203,17 @@ public final class ReceiptRoot {
                 evmAddress != null ? evmAddress : DomainUtils.toEvmAddress(contractId), ADDRESS_LENGTH);
     }
 
-    private List<byte[]> topics(final ContractLog contractLog) {
-        final var topics = new ArrayList<byte[]>(4);
-        for (final var topic : new byte[][] {
-            contractLog.getTopic0(), contractLog.getTopic1(), contractLog.getTopic2(), contractLog.getTopic3()
-        }) {
-            if (topic != null) {
-                topics.add(DomainUtils.leftPadBytes(topic, WORD_LENGTH));
-            }
-        }
+    private void writeTopics(final BytesValueRLPOutput out, final ContractLog contractLog) {
+        writeTopic(out, contractLog.getTopic0());
+        writeTopic(out, contractLog.getTopic1());
+        writeTopic(out, contractLog.getTopic2());
+        writeTopic(out, contractLog.getTopic3());
+    }
 
-        return topics;
+    private void writeTopic(final BytesValueRLPOutput out, final byte[] topic) {
+        if (topic != null) {
+            out.writeBytes(Bytes.wrap(DomainUtils.leftPadBytes(topic, WORD_LENGTH)));
+        }
     }
 
     private byte[] data(final byte[] data) {
@@ -222,7 +221,7 @@ public final class ReceiptRoot {
             return ArrayUtils.EMPTY_BYTE_ARRAY;
         }
 
-        return data.length < WORD_LENGTH ? DomainUtils.leftPadBytes(data, WORD_LENGTH) : data;
+        return DomainUtils.leftPadBytes(data, WORD_LENGTH);
     }
 
     /**
