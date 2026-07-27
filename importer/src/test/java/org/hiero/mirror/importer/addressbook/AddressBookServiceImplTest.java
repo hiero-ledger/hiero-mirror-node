@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -564,7 +565,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .returns(0L, AddressBookEntry::getStake)
                 .extracting(
                         AddressBookEntry::getServiceEndpoints,
-                        InstanceOfAssertFactories.list(AddressBookServiceEndpoint.class))
+                        InstanceOfAssertFactories.collection(AddressBookServiceEndpoint.class))
                 .hasSize(1)
                 .first()
                 .returns(0L, AddressBookServiceEndpoint::getNodeId)
@@ -799,7 +800,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .first()
                 .extracting(
                         AddressBookEntry::getServiceEndpoints,
-                        InstanceOfAssertFactories.list(AddressBookServiceEndpoint.class))
+                        InstanceOfAssertFactories.collection(AddressBookServiceEndpoint.class))
                 .hasSize(1)
                 .first()
                 .returns("", AddressBookServiceEndpoint::getIpAddressV4)
@@ -1262,7 +1263,8 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         }
     }
 
-    private void assertAddressBookEndPoints(List<AddressBookServiceEndpoint> actual, List<ServiceEndpoint> expected) {
+    private void assertAddressBookEndPoints(
+            Collection<AddressBookServiceEndpoint> actual, List<ServiceEndpoint> expected) {
         if (expected.isEmpty()) {
             return;
         }

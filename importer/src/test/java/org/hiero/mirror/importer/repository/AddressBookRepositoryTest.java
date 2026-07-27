@@ -57,6 +57,24 @@ class AddressBookRepositoryTest extends ImporterIntegrationTest {
                 .getEntries());
     }
 
+    @Test
+    void serviceEndpointsPersistRealNodeIdNotListIndex() {
+        // given — an entry whose node_id (99) is far larger than any position a list index would produce for its
+        // three endpoints (0, 1, 2). If serviceEndpoints were a keyed List, Spring Data JDBC would write the list
+        // index into the node_id column; as a Set it must persist the endpoint's own node_id.
+        final var addressBook = domainBuilder.addressBook().get();
+        final var timestamp = addressBook.getStartConsensusTimestamp();
+        addressBook.getEntries().add(addressBookEntry(timestamp, 99L, 3));
+        addressBookRepository.save(addressBook);
+
+        // then — read the raw column, bypassing the entity mapping, to prove what actually landed in the database
+        final var rawNodeIds = jdbcOperations.queryForList(
+                "select node_id from address_book_service_endpoint where consensus_timestamp = ? order by port",
+                Long.class,
+                timestamp);
+        assertThat(rawNodeIds).containsExactly(99L, 99L, 99L);
+    }
+
     private void assertScopedEndpoints(Iterable<AddressBookEntry> entries) {
         // each entry must see only its own node's endpoints, not every endpoint in the book
         assertThat(entries)

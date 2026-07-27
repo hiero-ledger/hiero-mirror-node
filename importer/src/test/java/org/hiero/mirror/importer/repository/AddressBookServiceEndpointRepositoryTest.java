@@ -7,9 +7,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import jakarta.annotation.Resource;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
@@ -86,7 +86,7 @@ class AddressBookServiceEndpointRepositoryTest extends ImporterIntegrationTest {
                 .publicKey("rsa+public/key");
 
         if (!CollectionUtils.isEmpty(portNums)) {
-            List<AddressBookServiceEndpoint> serviceEndpoints = new ArrayList<>();
+            Set<AddressBookServiceEndpoint> serviceEndpoints = new LinkedHashSet<>();
             for (int i = 0; i < portNums.size(); i++) {
                 serviceEndpoints.add(addressBookServiceEndpoint(
                         consensusTimestamp,

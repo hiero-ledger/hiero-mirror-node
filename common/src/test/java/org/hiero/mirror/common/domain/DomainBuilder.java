@@ -36,6 +36,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -221,7 +222,7 @@ public class DomainBuilder {
                 .publicKey(text(64))
                 .stake(0L);
 
-        var serviceEndpoints = new ArrayList<AddressBookServiceEndpoint>();
+        var serviceEndpoints = new LinkedHashSet<AddressBookServiceEndpoint>();
         builder.serviceEndpoints(serviceEndpoints);
 
         for (int i = 0; i < endpoints; ++i) {
