@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.Value;
 import org.apache.commons.compress.compressors.CompressorStreamFactory;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.importer.exception.FileOperationException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
@@ -27,6 +28,8 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 @Value
 public class StreamFileData {
+
+    private static final long MAX_DECOMPRESSED_BYTES = 1_073_741_824L; // 1 GiB
 
     private static final CompressorStreamFactory compressorStreamFactory = new CompressorStreamFactory(true);
 
@@ -108,12 +111,21 @@ public class StreamFileData {
             return getBytes();
         }
 
+        var filename = streamFilename.getFilename();
         try (var inputStream = new ByteArrayInputStream(getBytes());
                 var compressorInputStream =
-                        compressorStreamFactory.createCompressorInputStream(compressor, inputStream)) {
-            return compressorInputStream.readAllBytes();
+                        compressorStreamFactory.createCompressorInputStream(compressor, inputStream);
+                var boundedInputStream = BoundedInputStream.builder()
+                        .setInputStream(compressorInputStream)
+                        .setMaxCount(MAX_DECOMPRESSED_BYTES + 1)
+                        .get()) {
+            var decompressed = boundedInputStream.readAllBytes();
+            if (decompressed.length > MAX_DECOMPRESSED_BYTES) {
+                throw new InvalidStreamFileException("Decompressed size of stream file " + filename
+                        + " exceeds the maximum allowed size of " + MAX_DECOMPRESSED_BYTES + " bytes");
+            }
+            return decompressed;
         } catch (IOException e) {
-            var filename = streamFilename.getFilename();
             log.error("Failed to decompress stream file {}", filename);
             throw new InvalidStreamFileException(filename, e);
         }

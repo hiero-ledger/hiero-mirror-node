@@ -90,4 +90,20 @@ class StreamFileDataTest {
         StreamFileData streamFileData = StreamFileData.from(filename, uncompressedBytes);
         assertThrows(InvalidStreamFileException.class, streamFileData::getInputStream);
     }
+
+    @Test
+    void decompressionIsBoundedAgainstDecompressionBomb() throws IOException {
+        String filename = "2021-03-10T16_00_00Z.rcd.gz";
+        byte[] uncompressedBytes = new byte[2_000_000_000]; // exceeds MAX_DECOMPRESSED_BYTES (1 GiB)
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            try (OutputStream os = new GZIPOutputStream(baos)) {
+                os.write(uncompressedBytes);
+            }
+
+            StreamFileData streamFileData = StreamFileData.from(filename, baos.toByteArray());
+
+            assertThrows(InvalidStreamFileException.class, streamFileData::getDecompressedBytes);
+        }
+    }
 }
