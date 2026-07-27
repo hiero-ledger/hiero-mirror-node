@@ -38,13 +38,17 @@ import org.hiero.mirror.common.domain.transaction.ContractSlotKey;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
+@ExtendWith(OutputCaptureExtension.class)
 final class DomainUtilsTest {
 
     private static final String ED25519_KEY = "60beee88a761e079f71b03b5fe041979369e96450a7455b203a2578c8a7d4852";
@@ -267,6 +271,12 @@ final class DomainUtilsTest {
     @MethodSource("paddingByteProvider")
     void leftPadBytes(byte[] bytes, int paddingLength, byte[] expected) {
         assertThat(DomainUtils.leftPadBytes(bytes, paddingLength)).isEqualTo(expected);
+    }
+
+    @Test
+    void logRecoverableError(CapturedOutput capturedOutput) {
+        DomainUtils.logRecoverableError("Some error {} {}", 1, 2);
+        assertThat(capturedOutput.getAll()).contains("Some error 1 2");
     }
 
     @ParameterizedTest

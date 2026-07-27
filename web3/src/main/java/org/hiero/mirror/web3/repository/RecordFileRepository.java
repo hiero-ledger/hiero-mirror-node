@@ -9,7 +9,6 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_RE
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_RECORD_FILE_LATEST;
 
-import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.springframework.cache.annotation.CachePut;
@@ -47,7 +46,4 @@ public interface RecordFileRepository extends PagingAndSortingRepository<RecordF
             put = @CachePut(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_RECORD_FILE_INDEX))
     @Query("select * from record_file where consensus_end >= :timestamp order by consensus_end asc limit 1")
     Optional<RecordFile> findByTimestamp(long timestamp);
-
-    @Query(value = "select * from record_file where index >= :startIndex and index <= :endIndex order by index asc")
-    List<RecordFile> findByIndexRange(long startIndex, long endIndex);
 }
