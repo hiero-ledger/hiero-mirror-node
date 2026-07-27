@@ -46,7 +46,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -94,19 +94,16 @@ jobs:
           echo "TAG=${TAG}" >> $GITHUB_ENV
           echo "TRIGGERED_BY_TAG=${TRIGGERED_BY_TAG}" >> $GITHUB_ENV
 
-          if [[ "$TRIGGERED_BY_TAG" == "true" ]]; then
-            # wait for images becoming ready if it's a tagged commit
-            for module in grpc importer monitor rest rest-java test web3; do
-              while ! docker manifest inspect "gcr.io/mirrornode/hedera-mirror-$module:$TAG" >/dev/null 2>&1; do
-                sleep 10
-              done
-            done
-          fi
+      - name: Wait for images
+        if: env.TRIGGERED_BY_TAG == 'true'
+        uses: ./.github/actions/wait-for-images
+        with:
+          version: ${{ env.TAG }}
 
       - name: Find changed modules
         id: changeset
         if: env.TRIGGERED_BY_TAG != 'true' && github.event_name != 'schedule'
-        uses: step-security/paths-filter@5c5241b8233e77b55b9046daf88f1cb7560281de # v4.0.1
+        uses: step-security/paths-filter@9098a7821b83402dbe267c0c801e7d580ce74f92 # v4.0.2
         with:
           base: ${{ env.BASE }}
           filters: |
@@ -207,10 +204,15 @@ jobs:
           echo "Scale up block-node sts"
           kubectl scale sts block-node-1 -n "${SOLO_NAMESPACE}" --replicas 1
           kubectl wait sts block-node-1 -n "${SOLO_NAMESPACE}" --for=jsonpath='{.status.readyReplicas}'=1 --timeout=300s
+          # readyReplicas can be set before gRPC on :40840 is accepting connections
+          echo "Waiting for block-node gRPC"
+          kubectl run bn-grpc-wait --rm -i --restart=Never -n "${SOLO_NAMESPACE}" \
+            --image=busybox:1.36.1 --command -- \
+            sh -c 'for i in $(seq 1 90); do nc -z -w 2 block-node-1 40840 && exit 0; sleep 2; done; echo "Timed out waiting for block-node gRPC"; exit 1'
           echo "Scaled up block-node sts"
 
       - name: Run acceptance tests
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: |
           helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
             --timeout 10m | tee output_log.txt

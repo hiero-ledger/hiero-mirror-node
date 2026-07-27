@@ -2,11 +2,12 @@
 
 package org.hiero.mirror.common.converter;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.math.BigInteger;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-class WeiBarTinyBarConverterTest {
+final class WeiBarTinyBarConverterTest {
 
     private static final WeiBarTinyBarConverter CONVERTER = WeiBarTinyBarConverter.INSTANCE;
     private static final Long DEFAULT_GAS = 1234567890123L;
@@ -15,26 +16,24 @@ class WeiBarTinyBarConverterTest {
     void convertBytes() {
         var emptyBytes = new byte[] {};
         var bigInteger = BigInteger.valueOf(DEFAULT_GAS);
-        var expectedBytes = BigInteger.valueOf(123).toByteArray();
-        var expectedNegativeBytes = BigInteger.valueOf(-123).toByteArray();
+        var expected = BigInteger.valueOf(123);
+        var expectedNegative = BigInteger.valueOf(-123);
 
-        Assertions.assertThat(CONVERTER.convert(null, true)).isNull();
-        Assertions.assertThat(CONVERTER.convert(null, false)).isNull();
-        Assertions.assertThat(CONVERTER.convert(emptyBytes, true)).isSameAs(emptyBytes);
-        Assertions.assertThat(CONVERTER.convert(emptyBytes, false)).isSameAs(emptyBytes);
-        Assertions.assertThat(CONVERTER.convert(bigInteger.toByteArray(), true)).isEqualTo(expectedBytes);
-        Assertions.assertThat(CONVERTER.convert(bigInteger.toByteArray(), false))
-                .isEqualTo(expectedBytes);
-        Assertions.assertThat(CONVERTER.convert(bigInteger.negate().toByteArray(), true))
-                .isEqualTo(expectedNegativeBytes);
-        Assertions.assertThat(CONVERTER.convert(bigInteger.negate().toByteArray(), false))
-                .isNotEqualTo(expectedBytes)
-                .isNotEqualTo(expectedNegativeBytes);
+        assertThat(CONVERTER.convert(null, true)).isNull();
+        assertThat(CONVERTER.convert(null, false)).isNull();
+        assertThat(CONVERTER.convert(emptyBytes, true)).isNull();
+        assertThat(CONVERTER.convert(emptyBytes, false)).isNull();
+        assertThat(CONVERTER.convert(bigInteger.toByteArray(), true)).isEqualTo(expected);
+        assertThat(CONVERTER.convert(bigInteger.toByteArray(), false)).isEqualTo(expected);
+        assertThat(CONVERTER.convert(bigInteger.negate().toByteArray(), true)).isEqualTo(expectedNegative);
+        assertThat(CONVERTER.convert(bigInteger.negate().toByteArray(), false))
+                .isNotEqualTo(expected)
+                .isNotEqualTo(expectedNegative);
     }
 
     @Test
     void convertLong() {
-        Assertions.assertThat(CONVERTER.convert(null)).isNull();
-        Assertions.assertThat(CONVERTER.convert(DEFAULT_GAS)).isEqualTo(123L);
+        assertThat(CONVERTER.convert(null)).isNull();
+        assertThat(CONVERTER.convert(DEFAULT_GAS)).isEqualTo(123L);
     }
 }

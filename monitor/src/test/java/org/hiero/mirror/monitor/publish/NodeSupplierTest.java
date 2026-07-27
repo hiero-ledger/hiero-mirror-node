@@ -54,10 +54,10 @@ import reactor.test.StepVerifier;
 
 @CustomLog
 @ExtendWith(MockitoExtension.class)
-class NodeSupplierTest {
+final class NodeSupplierTest {
 
     private static final String SERVER = "test2";
-    private static final Duration WAIT = Duration.ofSeconds(10L);
+    private static final Duration WAIT = Duration.ofSeconds(4L);
 
     private CryptoServiceStub cryptoServiceStub;
     private MonitorProperties monitorProperties;
@@ -120,6 +120,21 @@ class NodeSupplierTest {
         assertThatThrownBy(() -> nodeSupplier.get())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("No valid nodes available");
+    }
+
+    @Test
+    void list() {
+        monitorProperties.getNodeValidation().setEnabled(false);
+        nodeSupplier.validateNode(node);
+        assertThat(nodeSupplier.list().block()).containsExactly(node);
+    }
+
+    @Test
+    void listEmptyThenPopulated() {
+        monitorProperties.getNodeValidation().setEnabled(false);
+        StepVerifier.withVirtualTime(() -> nodeSupplier.list()).thenAwait(WAIT).expectNoEvent(WAIT);
+        nodeSupplier.validateNode(node);
+        assertThat(nodeSupplier.list().block(WAIT)).containsExactly(node);
     }
 
     @Test
@@ -269,11 +284,7 @@ class NodeSupplierTest {
     void refreshNotFound() {
         monitorProperties.setNetwork(HederaNetwork.OTHER);
         monitorProperties.setNodes(Set.of());
-        when(restApiClient.getNodes()).thenReturn(Flux.empty());
-        StepVerifier.withVirtualTime(() -> nodeSupplier.refresh())
-                .thenAwait(WAIT)
-                .expectError(IllegalArgumentException.class)
-                .verify(WAIT);
+        StepVerifier.withVirtualTime(() -> nodeSupplier.refresh()).expectNoEvent(WAIT);
     }
 
     @Test

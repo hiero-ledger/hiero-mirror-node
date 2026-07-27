@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Wait for images
+
+description: Wait until mirror node container images are available in the registry.
+
+inputs:
+  native:
+    description: Wait for native GHCR images or JVM images on GCR
+    required: false
+    default: "false"
+  version:
+    description: Image tag to wait for (e.g. 0.160.0)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Wait for images
+      shell: bash
+      env:
+        NATIVE: ${{ inputs.native }}
+        VERSION: ${{ inputs.version }}
+        GHCR_REGISTRY: ghcr.io/hiero-ledger/hiero-mirror-node
+        GCR_REGISTRY: gcr.io/mirrornode/hedera-mirror
+      run: |
+        set -ex
+        VERSION="${VERSION#v}"
+
+        wait_for_image() {
+          local image="$1"
+          echo "Waiting for ${image}"
+          while ! docker manifest inspect "${image}" >/dev/null 2>&1; do
+            sleep 10
+          done
+          echo "Ready: ${image}"
+        }
+
+        if [[ "${NATIVE}" == "true" ]]; then
+          for module in grpc importer monitor rest-java web3; do
+            wait_for_image "${GHCR_REGISTRY}/${module}:${VERSION}"
+          done
+          for module in rest test; do
+            wait_for_image "${GCR_REGISTRY}-${module}:${VERSION}"
+          done
+        else
+          for module in grpc importer monitor rest rest-java test web3; do
+            wait_for_image "${GCR_REGISTRY}-${module}:${VERSION}"
+          done
+        fi

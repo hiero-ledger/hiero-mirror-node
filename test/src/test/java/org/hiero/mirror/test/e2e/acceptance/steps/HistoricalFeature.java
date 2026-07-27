@@ -196,7 +196,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         // the block number where contract storage variable is still with initial value
         var initialBlockNumber = getLastBlockNumber();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         ContractFunctionParameters parameters = new ContractFunctionParameters().addUint256(BigInteger.valueOf(5));
         var maxGas = contractClient
@@ -219,7 +219,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var initialResponse = callContract(data, estimateContractSolidityAddress, ADDRESS_BALANCE.getActualGas())
                 .getResultAsNumber();
         var initialBlockNumber = getLastBlockNumber();
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
         networkTransactionResponse =
                 accountClient.sendCryptoTransfer(receiverAccountId.getAccountId(), Hbar.fromTinybars(50000000), null);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -265,7 +265,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var initialResponse = callContract(data, estimateContractSolidityAddress, ADDRESS_BALANCE.getActualGas());
         var initialBlock = getLastBlockNumber();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = accountClient.delete(deletableAccountId);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -283,7 +283,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, precompileContractSolidityAddress, GET_TOKEN_INFO.getActualGas());
         final var trimmedResponse = trimTotalSupplyForGetTokenInfo(response.toString());
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = tokenClient.updateToken(tokenId, admin);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -303,7 +303,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, precompileContractSolidityAddress, GET_TOKEN_INFO.getActualGas());
         final var trimmedResponse = trimTotalSupplyForGetTokenInfo(response.toString());
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = tokenClient.burnFungible(tokenId, 5L);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -322,7 +322,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var initialBlockNumber = getLastBlockNumber();
         var response = callContract(data, precompileContractSolidityAddress, GET_TOKEN_INFO.getActualGas());
         final var trimmedResponse = trimTotalSupplyForGetTokenInfo(response.toString());
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = tokenClient.mint(tokenId, 5L);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -361,7 +361,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, ercContractSolidityAddress, BALANCE_OF.getActualGas());
         var initialBalance = response.getResultAsNumber();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         if (tokenName.name().toLowerCase().contains("fungible")) {
             networkTransactionResponse = tokenClient.transferFungibleToken(
@@ -398,7 +398,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, tokenId.toEvmAddress());
         var initialBalance = response.getResultAsNumber();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         if (tokenName.name().toLowerCase().contains("fungible")) {
             networkTransactionResponse = tokenClient.mint(tokenId, 10L);
@@ -421,7 +421,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, ercContractSolidityAddress, BALANCE_OF.getActualGas());
         var initialBalance = response.getResultAsNumber();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         if (tokenName.name().toLowerCase().contains("fungible")) {
             tokenClient.burnFungible(tokenId, 5L);
@@ -443,7 +443,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, ercContractSolidityAddress, BALANCE_OF.getActualGas());
         var initialBalance = response.getResultAsNumber();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         if (tokenName.name().toLowerCase().contains("fungible")) {
             tokenClient.wipeFungible(tokenId, 1L, receiverAccountId);
@@ -465,7 +465,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, estimatePrecompileContractSolidityAddress, ALLOWANCE.getActualGas());
         var initialAllowance = response.getResultAsNumber();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = accountClient.approveToken(tokenId, receiverAccountId.getAccountId(), 100L);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -487,7 +487,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, estimatePrecompileContractSolidityAddress, GET_APPROVED.getActualGas());
         var initialApprovedAddress = response.getResultAsAddress();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = accountClient.approveNft(nftId, secondReceiverAccountId.getAccountId());
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -505,7 +505,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, ercContractSolidityAddress);
         var initialAllowance = response.getResultAsNumber();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = accountClient.approveToken(tokenId, receiverAccountId.getAccountId(), 150L);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -526,7 +526,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, ercContractSolidityAddress);
         var initialApprovedAddress = response.getResultAsAddress();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = accountClient.approveNft(nftId, secondReceiverAccountId.getAccountId());
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -543,7 +543,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, tokenId.toEvmAddress());
         var initialAllowance = response.getResultAsNumber();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = accountClient.approveToken(tokenId, receiverAccountId.getAccountId(), 200L);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -564,7 +564,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, tokenId.toEvmAddress());
         var initialApprovedAddress = response.getResultAsAddress();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = accountClient.approveNft(nftId, secondReceiverAccountId.getAccountId());
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -584,7 +584,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
                 callContract(data, estimatePrecompileContractSolidityAddress, IS_APPROVED_FOR_ALL.getActualGas());
         var initialResult = response.getResultAsAddress();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = accountClient.approveNftAllSerials(tokenId, receiverAccountId.getAccountId());
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -605,7 +605,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, ercContractSolidityAddress);
         var initialOwner = response.getResultAsAddress();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = tokenClient.transferNonFungibleToken(
                 tokenId,
@@ -629,7 +629,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var initialBlockNumber = getLastBlockNumber();
         var initialFreezeStatus = response.getResultAsBoolean();
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = tokenClient.freeze(tokenId, receiverAccountId.getAccountId());
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -649,7 +649,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var data = encodeData(PRECOMPILE, GET_FUNGIBLE_TOKEN_INFO, asAddress(tokenId));
         var response = callContract(data, precompileContractSolidityAddress, GET_FUNGIBLE_TOKEN_INFO.getActualGas());
         final var trimmedResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         switch (action) {
             case "update" -> networkTransactionResponse = tokenClient.updateToken(tokenId, admin);
@@ -679,7 +679,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response = callContract(data, precompileContractSolidityAddress, GET_FUNGIBLE_TOKEN_INFO.getActualGas());
         final var trimmedResponse = trimTotalSupplyForFungibleTokenInfo(response.toString());
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         tokenClient.transferFungibleToken(tokenId, admin, receiverAccountId.getAccountId(), null, 10L);
         switch (action) {
@@ -727,7 +727,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var response =
                 callContract(data, precompileContractSolidityAddress, GET_NON_FUNGIBLE_TOKEN_INFO.getActualGas());
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         switch (action) {
             case "mint" -> networkTransactionResponse = tokenClient.mint(tokenId, "TEST_metadata".getBytes());
@@ -790,7 +790,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
                     callContract(data, estimatePrecompileContractSolidityAddress, GET_TOKEN_KEY.getActualGas()));
         }
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         // Perform update
         var updateData = encodeDataToByteArray(ESTIMATE_PRECOMPILE, UPDATE_TOKEN_KEYS, asAddress(tokenId));
@@ -815,7 +815,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         var data = encodeData(PRECOMPILE, IS_KYC_GRANTED_SELECTOR, asAddress(tokenId), receiverAccountAddress);
         var response = callContract(data, precompileContractSolidityAddress);
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         networkTransactionResponse = tokenClient.revokeKyc(tokenId, receiverAccountId.getAccountId());
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -856,7 +856,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
             }
         }
 
-        waitForNextBlock();
+        mirrorClient.waitForNextBlock();
 
         // deleting the token to change the state
         networkTransactionResponse = tokenClient.delete(admin, tokenId);
@@ -908,20 +908,6 @@ public class HistoricalFeature extends AbstractEstimateFeature {
                 .getFirst()
                 .getNumber()
                 .toString();
-    }
-
-    private void waitForNextBlock() {
-        int currentBlockNumber = Integer.parseInt(getLastBlockNumber());
-
-        try {
-            Awaitility.await()
-                    .atMost(3, TimeUnit.SECONDS)
-                    .pollInterval(250, TimeUnit.MILLISECONDS)
-                    .ignoreExceptions()
-                    .until(() -> Integer.parseInt(getLastBlockNumber()) > currentBlockNumber);
-        } catch (ConditionTimeoutException e) {
-            log.info("No new block found within 3 seconds");
-        }
     }
 
     private void waitUntilAccountIsImported(AccountId accountId) {

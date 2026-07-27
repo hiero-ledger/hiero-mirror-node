@@ -36,11 +36,9 @@ jobs:
             runner: ubuntu-latest
           - architecture: arm64
             runner: ubuntu-24.04-arm
-    env:
-      IMAGE: ghcr.io/hiero-ledger/hiero-mirror-node/${{ matrix.project }}
     permissions:
-      contents: "read"
-      packages: "write"
+      contents: read
+      packages: write
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Harden Runner
@@ -49,19 +47,13 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Get version
-        run: echo "VERSION=$(grep -oP 'version=\K.+' gradle.properties)" >> $GITHUB_ENV
-
-      - name: Install JDK
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - name: Build native image
+        uses: ./.github/actions/build-native-image
         with:
-          distribution: temurin
-          java-version: 25
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v4
+          architecture: ${{ matrix.architecture }}
+          project: ${{ matrix.project }}
 
       - name: Install Skopeo
         run: sudo apt-get update && sudo apt-get install -y skopeo
@@ -69,11 +61,10 @@ jobs:
       - name: Skopeo Login
         run: skopeo login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build
-        run: ./gradlew :${{matrix.project}}:bootBuildImage -PimagePlatform=linux/${{matrix.architecture}}
-
       - name: Convert to OCI
-        run: skopeo copy docker-daemon:${{env.IMAGE}}:${{env.VERSION}} docker://${{env.IMAGE}}:${{env.VERSION}}-${{matrix.architecture}} --format oci
+        env:
+          IMAGE: ghcr.io/hiero-ledger/hiero-mirror-node/${{ matrix.project }}
+        run: skopeo copy docker-daemon:${{ env.IMAGE }}:${{ env.VERSION }} docker://${{ env.IMAGE }}:${{ env.VERSION }}-${{ matrix.architecture }} --format oci
 
   manifest:
     needs: image
@@ -100,7 +91,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install envsubst Dependency for Cosign
         run: sudo apt-get update && sudo apt-get install -y gettext-base
@@ -112,7 +103,7 @@ jobs:
         run: echo "VERSION=$(grep -oP 'version=\K.+' gradle.properties)" >> $GITHUB_ENV
 
       - name: Login to GHCR
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
         with:
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
