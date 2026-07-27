@@ -8,13 +8,13 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -40,6 +40,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @NullUnmarked
 final class CutoverServiceTest {
 
+    private static final Duration BACKOFF_EPSILON = Duration.ofMillis(50);
+    private static final Duration BASE_BACKOFF = Duration.ofMillis(150);
     private static final Duration CUTOVER_THRESHOLD = Duration.ofMillis(200);
 
     private BlockProperties blockProperties;
@@ -405,6 +407,7 @@ final class CutoverServiceTest {
         // given
         cutoverProperties.setEnabled(true);
         final var firstStage = cutoverProperties.getFirstStage();
+        firstStage.setBaseBackoff(Duration.ofMillis(10));
         firstStage.setEnabled(true);
         firstStage.setMaxLatency(Duration.ofMillis(500));
         firstStage.setLatencyCheckThreshold(Duration.ofSeconds(1));
@@ -422,30 +425,12 @@ final class CutoverServiceTest {
         cutoverService.get(StreamType.BLOCK, blockStreamTask);
         cutoverService.get(StreamType.RECORD, recordStreamTask);
 
-        // then, first blockstream, then recordstream due to fast fallback
+        // then, first blockstream, then recordstream since the block didn't advance and BLOCK is in backoff
         verify(blockStreamTask).run();
         verify(recordStreamTask).run();
 
-        // when trying blockStreamTask again, it wouldn't run because the first stage cutover logic needs RECORD to
-        // process at least one block to switch back to BLOCK
-        reset(blockStreamTask);
-        reset(recordStreamTask);
-        cutoverService.get(StreamType.BLOCK, blockStreamTask);
-        cutoverService.get(StreamType.RECORD, recordStreamTask);
-
-        // then
-        verify(blockStreamTask, never()).run();
-        verify(recordStreamTask).run();
-
-        // download one recordstream file so the cutover service will switch back to BLOCK
-        cutoverService.get(StreamType.RECORD, () -> {
-            final var verifiedRecordFile = nextRecordFile(
-                    recordFileBuilder,
-                    consensusStart,
-                    blockNumber,
-                    Duration.ofMillis(1).toNanos());
-            cutoverService.verified(verifiedRecordFile);
-        });
+        // when the backoff expires, BLOCK is re-admitted
+        awaitBlockReadmitted(recordFileBuilder, consensusStart, blockNumber, Duration.ofMillis(50));
 
         // when streaming WRBs exceeds latency
         reset(blockStreamTask);
@@ -471,15 +456,8 @@ final class CutoverServiceTest {
                     verify(recordStreamTask).run();
                 });
 
-        // download one recordstream file so the cutover service will switch back to BLOCK
-        cutoverService.get(StreamType.RECORD, () -> {
-            final var verifiedRecordFile = nextRecordFile(
-                    recordFileBuilder,
-                    consensusStart,
-                    blockNumber,
-                    Duration.ofMillis(1).toNanos());
-            cutoverService.verified(verifiedRecordFile);
-        });
+        // when the backoff from the latency fallback expires, BLOCK is re-admitted again
+        awaitBlockReadmitted(recordFileBuilder, consensusStart, blockNumber, Duration.ofMillis(150));
 
         // when streaming WRBs again with low latency
         reset(blockStreamTask);
@@ -502,6 +480,66 @@ final class CutoverServiceTest {
                     verify(blockStreamTask, atLeast(1)).run();
                     verifyNoInteractions(recordStreamTask);
                 });
+    }
+
+    @Test
+    void getFirstStageBlockBackoff() {
+        // given
+        cutoverProperties.setEnabled(true);
+        final var firstStage = cutoverProperties.getFirstStage();
+        firstStage.setEnabled(true);
+        firstStage.setBaseBackoff(BASE_BACKOFF);
+        firstStage.setMaxBackoffMultiplier(4);
+
+        final var blockNumber = new AtomicLong(100);
+        final var last = recordFile(blockNumber.get(), false);
+        final var consensusStart = new AtomicLong(last.getConsensusStart());
+        last.setHapiVersionMajor(0);
+        last.setHapiVersionMinor(75);
+        last.setHapiVersionPatch(0);
+        doReturn(Optional.of(last)).when(recordFileRepository).findLatest();
+        final var recordFileBuilder = last.toBuilder();
+
+        final Runnable downloadRecordFileTask = () -> cutoverService.verified(nextRecordFile(
+                recordFileBuilder,
+                consensusStart,
+                blockNumber,
+                Duration.ofMillis(1).toNanos()));
+
+        // warm up awaitility so the first timed poll isn't delayed by class loading
+        await().pollDelay(Duration.ZERO).atMost(Duration.ofSeconds(1)).until(() -> true);
+
+        // when the first BLOCK try fails to advance blocks
+        var backoffStart = Instant.now();
+        cutoverService.get(StreamType.BLOCK, blockStreamTask);
+        verify(blockStreamTask).run();
+
+        // then BLOCK is backed off for 2 x baseBackoff even though RECORD keeps advancing blocks; the re-admitted
+        // try fails to advance blocks again
+        var elapsed = awaitBlockRetry(downloadRecordFileTask, () -> {}, backoffStart);
+        assertThat(elapsed)
+                .isGreaterThanOrEqualTo(BASE_BACKOFF.multipliedBy(2))
+                .isLessThan(BASE_BACKOFF.multipliedBy(4));
+
+        // then the second consecutive failure doubles the backoff to the capped 4 x baseBackoff, and the re-admitted
+        // try advances blocks to reset the backoff
+        backoffStart = Instant.now();
+        elapsed = awaitBlockRetry(downloadRecordFileTask, downloadRecordFileTask, backoffStart);
+        assertThat(elapsed)
+                .isGreaterThanOrEqualTo(BASE_BACKOFF.multipliedBy(4).minus(BACKOFF_EPSILON))
+                .isLessThan(BASE_BACKOFF.multipliedBy(8));
+
+        // when BLOCK fails to advance blocks again after the reset
+        reset(blockStreamTask);
+        backoffStart = Instant.now();
+        cutoverService.get(StreamType.BLOCK, blockStreamTask);
+        verify(blockStreamTask).run();
+
+        // then the backoff restarts at 2 x baseBackoff instead of continuing at the capped multiplier
+        elapsed = awaitBlockRetry(downloadRecordFileTask, () -> {}, backoffStart);
+        assertThat(elapsed)
+                .isGreaterThanOrEqualTo(BASE_BACKOFF.multipliedBy(2))
+                .isLessThan(BASE_BACKOFF.multipliedBy(4));
     }
 
     @Test
@@ -555,6 +593,39 @@ final class CutoverServiceTest {
         verify(blockStreamTask).run();
         verifyNoInteractions(recordStreamTask);
         assertThat(blockProperties.isEnabled()).isTrue();
+    }
+
+    private Duration awaitBlockRetry(final Runnable recordTask, final Runnable blockTask, final Instant backoffStart) {
+        final var retried = new AtomicBoolean(false);
+        await().atMost(Duration.ofSeconds(2))
+                .pollInterval(Duration.ofMillis(50))
+                .until(() -> {
+                    cutoverService.get(StreamType.RECORD, recordTask);
+                    cutoverService.get(StreamType.BLOCK, () -> {
+                        retried.set(true);
+                        blockTask.run();
+                    });
+                    return retried.get();
+                });
+        return Duration.between(backoffStart, Instant.now());
+    }
+
+    private void awaitBlockReadmitted(
+            final RecordFile.RecordFileBuilder recordFileBuilder,
+            final AtomicLong consensusStart,
+            final AtomicLong blockNumber,
+            final Duration timestampStep) {
+        final var readmitted = new AtomicBoolean(false);
+        await().atMost(Duration.ofSeconds(1))
+                .pollInterval(Duration.ofMillis(50))
+                .until(() -> {
+                    cutoverService.get(StreamType.BLOCK, () -> {
+                        readmitted.set(true);
+                        cutoverService.verified(nextRecordFile(
+                                recordFileBuilder, consensusStart, blockNumber, timestampStep.toNanos()));
+                    });
+                    return readmitted.get();
+                });
     }
 
     private static RecordFile nextRecordFile(

@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
+import org.hiero.mirror.importer.exception.NoBlockNodeAvailableException;
 import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.annotation.Scheduled;
 
@@ -49,7 +50,12 @@ final class CompositeBlockSource implements BlockSource {
                 sourceHealth.getSource().get();
                 sourceHealth.reset();
             } catch (Throwable t) {
-                log.error("Failed to get block from {} source", sourceHealth.getType(), t);
+                if (t instanceof NoBlockNodeAvailableException ex) {
+                    log.error("Failed to get block from {} source: {}", sourceHealth.getType(), ex.getMessage());
+                } else {
+                    log.error("Failed to get block from {} source", sourceHealth.getType(), t);
+                }
+
                 sourceHealth.onError();
             }
         });
