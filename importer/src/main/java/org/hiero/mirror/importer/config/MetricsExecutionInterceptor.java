@@ -133,7 +133,7 @@ public class MetricsExecutionInterceptor implements ExecutionInterceptor {
             return new UriAttributes(action, BLOCK_NODE, shard, StreamType.BLOCK.name());
         }
 
-        throw new IllegalStateException("Could not detect a node ID or account ID in URI: " + uri);
+        throw new IllegalStateException("Could not detect an account ID or block path in URI: " + uri);
     }
 
     // Instead of tagging the URI path, simplify it to the 3 actions we use from the S3 API

@@ -9,45 +9,38 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 class ImporterPropertiesTest {
 
-    @ParameterizedTest(name = "Network {2} is canonical network {0}, with prefix {1}")
+    @ParameterizedTest(name = "Network {1} is canonical network {0}")
     @CsvSource({
-        "testnet, , testnet",
-        "testnet, , testnet-",
-        "testnet, 2023-01, teSTnet-2023-01",
-        "testnet, someprefix, testnet-someprefix",
-        "mainnet, , mainnet",
-        "mainnet, 2023-01, mainnet-2023-01",
-        "mainnet, someprefix, maiNNet-someprefix",
-        "previewnet, , previewnet",
-        "previewnet, 2025-04, Previewnet-2025-04",
-        "previewnet, abcdef, previewnet-abcdef",
-        "demo, , deMo",
-        "demo, 2023-01, demo-2023-01",
-        "demo, someprefix, demo-someprefix",
-        "other, , other",
-        "other, 2050-02, other-2050-02",
-        "other, world, othER-world"
+        "testnet, testnet",
+        "testnet, testnet-",
+        "testnet, teSTnet-2023-01",
+        "testnet, testnet-someprefix",
+        "mainnet, mainnet",
+        "mainnet, mainnet-2023-01",
+        "mainnet, maiNNet-someprefix",
+        "previewnet, previewnet",
+        "previewnet, Previewnet-2025-04",
+        "previewnet, previewnet-abcdef",
+        "demo, deMo",
+        "demo, demo-2023-01",
+        "demo, demo-someprefix",
+        "other, other",
+        "other, other-2050-02",
+        "other, othER-world"
     })
-    void verifyCanonicalNetworkWithPrefix(String expectedHederaNetwork, String expectedPrefix, String networkName) {
+    void verifyCanonicalNetwork(String expectedHederaNetwork, String networkName) {
 
         var properties = new ImporterProperties();
         properties.setNetwork(networkName);
         assertThat(properties.getNetwork()).isEqualTo(expectedHederaNetwork);
-        assertThat(properties.getNetworkPrefix()).isEqualTo(expectedPrefix);
     }
 
-    @ParameterizedTest(name = "Network {2} is non-canonical network {0}, with prefix {1}")
-    @CsvSource({
-        "integration, , integration",
-        "integration, 2023-01, integration-2023-01",
-        "dev, , dev",
-        "dev, 2025-02, dev-2025-02"
-    })
-    void verifyNonCanonicalNetworkWithPrefix(String expectedNetwork, String expectedPrefix, String networkName) {
+    @ParameterizedTest(name = "Network {1} is non-canonical network {0}")
+    @CsvSource({"integration, integration", "integration, integration-2023-01", "dev, dev", "dev, dev-2025-02"})
+    void verifyNonCanonicalNetwork(String expectedNetwork, String networkName) {
 
         var properties = new ImporterProperties();
         properties.setNetwork(networkName);
         assertThat(properties.getNetwork()).isEqualTo(expectedNetwork);
-        assertThat(properties.getNetworkPrefix()).isEqualTo(expectedPrefix);
     }
 }

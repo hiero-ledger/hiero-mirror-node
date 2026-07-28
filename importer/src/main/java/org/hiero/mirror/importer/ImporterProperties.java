@@ -31,7 +31,6 @@ import org.springframework.validation.annotation.Validated;
 public class ImporterProperties {
 
     public static final String STREAMS = "streams";
-    static final String NETWORK_PREFIX_DELIMITER = "-";
 
     @NotNull
     private ConsensusMode consensusMode = ConsensusMode.STAKE_IN_ADDRESS_BOOK;
@@ -82,13 +81,7 @@ public class ImporterProperties {
     }
 
     public String getNetwork() {
-        return StringUtils.substringBefore(this.network, NETWORK_PREFIX_DELIMITER)
-                .toLowerCase();
-    }
-
-    public String getNetworkPrefix() {
-        var networkPrefix = StringUtils.substringAfter(this.network, NETWORK_PREFIX_DELIMITER);
-        return StringUtils.isEmpty(networkPrefix) ? null : networkPrefix.toLowerCase();
+        return StringUtils.substringBefore(this.network, "-").toLowerCase();
     }
 
     public enum ConsensusMode {
