@@ -127,7 +127,7 @@ runs:
         set -ex
         for module in grpc importer monitor rest-java web3; do
           if [[ "${TRIGGERED_BY_TAG}" == "true" ]]; then
-            docker pull "${IMAGE_REGISTRY}/${module}:${VERSION}"
+            docker pull --platform linux/amd64 "${IMAGE_REGISTRY}/${module}:${VERSION}"
           fi
           kind load docker-image "${IMAGE_REGISTRY}/${module}:${VERSION}" -n "${SOLO_CLUSTER_NAME}"
         done
@@ -147,6 +147,16 @@ runs:
         set -ex
         ./gradlew :test:dockerBuild -x :rest:monitoring:dockerBuild -PimageTag="${TAG}"
         kind load docker-image "gcr.io/mirrornode/hedera-mirror-test:${TAG}" -n "${SOLO_CLUSTER_NAME}"
+
+    - name: Load JVM images
+      if: env.TRIGGERED_BY_TAG == 'true' && inputs.image-source == 'native'
+      shell: bash
+      run: |
+        set -ex
+        for module in rest test; do
+          docker pull --platform linux/amd64 "gcr.io/mirrornode/hedera-mirror-${module}:${VERSION}"
+          kind load docker-image "gcr.io/mirrornode/hedera-mirror-${module}:${VERSION}" -n "${SOLO_CLUSTER_NAME}"
+        done
 
     - name: Install yq
       shell: bash

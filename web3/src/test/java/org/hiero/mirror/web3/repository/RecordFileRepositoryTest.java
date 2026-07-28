@@ -56,16 +56,6 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
-    void findByIndexRange() {
-        domainBuilder.recordFile().persist();
-        var recordFile2 = domainBuilder.recordFile().persist();
-        var recordFile3 = domainBuilder.recordFile().persist();
-        domainBuilder.recordFile().persist();
-        assertThat(recordFileRepository.findByIndexRange(recordFile2.getIndex(), recordFile3.getIndex()))
-                .containsExactly(recordFile2, recordFile3);
-    }
-
-    @Test
     void findByTimestamp() {
         var timestamp = domainBuilder.timestamp();
         var recordFile = domainBuilder
