@@ -27,6 +27,16 @@ tasks.withType<ProcessAot>().configureEach {
         "--add-opens=java.base/java.lang.ref=ALL-UNNAMED",
         "--add-opens=java.base/java.io=ALL-UNNAMED",
     )
+
+    // Spring Data 4.0 generates bytecode property accessors (Entity__Accessor classes). In a native
+    // image, setting a primitive `boolean` field through the generated MethodHandle setter hits a
+    // GraalVM bug (oracle/graal#12596 / GR-71699, fixed on master via graal#13042 but not yet in a
+    // released builder) that fails with "Can not set boolean field ... to java.lang.Integer".
+    // Disabling generated accessors falls back to reflection-based access, which is unaffected.
+    // TODO(GR-71699): drop the flag once the native builder ships the graal#13042 fix.
+    if (project.name == "importer") {
+        jvmArgs("-Dspring.aot.data.accessors.enabled=false")
+    }
 }
 
 gitProperties { dotGitDirectory = rootDir.resolve(".git") }

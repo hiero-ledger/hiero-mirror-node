@@ -9,6 +9,7 @@ import javax.sql.DataSource;
 import org.hiero.mirror.common.config.AddressBookEntryEndpointCallback;
 import org.hiero.mirror.common.config.CommonRuntimeHints;
 import org.hiero.mirror.common.config.NullIdQueryMappingConfiguration;
+import org.hiero.mirror.common.converter.BooleanJdbcConverters;
 import org.hiero.mirror.common.converter.ByteArrayArrayJdbcConverters;
 import org.hiero.mirror.common.converter.DigestAlgorithmJdbcConverters;
 import org.hiero.mirror.common.converter.EntityIdToLongConverter;
@@ -209,6 +210,7 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
     @Override
     protected List<?> userConverters() {
         return List.of(
+                new BooleanJdbcConverters.IntegerToBoolean(),
                 new ByteArrayArrayJdbcConverters.MaxCustomFeesHolderToJdbcValue(),
                 new ByteArrayArrayJdbcConverters.SqlArrayToMaxCustomFeesHolder(),
                 new ByteArrayArrayJdbcConverters.PGobjectToByteArrayArray(),
