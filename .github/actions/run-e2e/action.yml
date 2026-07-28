@@ -65,6 +65,17 @@ runs:
       run: |
         set -ex
 
+        # TEMP: remove this FORCE_NATIVE_TAG_PATH block after validating the tag path in CI
+        if [[ "${FORCE_NATIVE_TAG_PATH:-}" == "true" ]]; then
+          TAG="${FORCE_NATIVE_TAG_VERSION}"
+          VERSION="${FORCE_NATIVE_TAG_VERSION}"
+          TRIGGERED_BY_TAG=true
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "TRIGGERED_BY_TAG=${TRIGGERED_BY_TAG}" >> $GITHUB_ENV
+          exit 0
+        fi
+
         TAG=$(sed -nE 's/^version: (.+)$/\1/p' charts/hedera-mirror/Chart.yaml)
         VERSION=$(grep -oP 'version=\K.+' gradle.properties)
         TRIGGERED_BY_TAG=false
@@ -126,10 +137,12 @@ runs:
       run: |
         set -ex
         for module in grpc importer monitor rest-java web3; do
+          image="${IMAGE_REGISTRY}/${module}:${VERSION}"
           if [[ "${TRIGGERED_BY_TAG}" == "true" ]]; then
-            docker pull --platform linux/amd64 "${IMAGE_REGISTRY}/${module}:${VERSION}"
+            docker pull "${image}-amd64"
+            docker tag "${image}-amd64" "${image}"
           fi
-          kind load docker-image "${IMAGE_REGISTRY}/${module}:${VERSION}" -n "${SOLO_CLUSTER_NAME}"
+          kind load docker-image "${image}" -n "${SOLO_CLUSTER_NAME}"
         done
 
     - name: Build image (rest)
@@ -154,8 +167,12 @@ runs:
       run: |
         set -ex
         for module in rest test; do
-          docker pull --platform linux/amd64 "gcr.io/mirrornode/hedera-mirror-${module}:${VERSION}"
-          kind load docker-image "gcr.io/mirrornode/hedera-mirror-${module}:${VERSION}" -n "${SOLO_CLUSTER_NAME}"
+          image="gcr.io/mirrornode/hedera-mirror-${module}:${VERSION}"
+          archive="$(mktemp)"
+          docker pull --platform linux/amd64 "${image}"
+          docker save --platform linux/amd64 -o "${archive}" "${image}"
+          kind load image-archive "${archive}" -n "${SOLO_CLUSTER_NAME}"
+          rm -f "${archive}"
         done
 
     - name: Install yq

@@ -3,6 +3,8 @@
 name: Test native images
 
 on:
+  # TEMP: remove pull_request trigger after validating the tag path in CI
+  pull_request:
   push:
     tags:
       - "v*"
@@ -25,10 +27,15 @@ defaults:
 
 env:
   LC_ALL: C.UTF-8
+  # TEMP: remove FORCE_* vars after validating the tag path in CI
+  FORCE_NATIVE_TAG_PATH: "true"
+  FORCE_NATIVE_TAG_VERSION: "0.160.0-rc1"
 
 jobs:
   image:
-    if: github.ref_type != 'tag'
+    # TEMP: also skip on pull_request (tag path pulls published images). Restore to:
+    #   if: github.ref_type != 'tag'
+    if: github.ref_type != 'tag' && github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
