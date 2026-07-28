@@ -23,7 +23,7 @@ on:
         type: string
         default: "100"
       tolerance_percent:
-        description: "Max |estimate - gas_consumed| / gas_consumed percent"
+        description: "Max estimate overhead above gas_consumed percent (min is always 5%)"
         required: false
         type: string
         default: "20"
