@@ -30,7 +30,7 @@ hex_to_dec() {
 within_tolerance() {
   local estimated="$1"
   local consumed="$2"
-  # Estimate must be at least 5% above gas_consumed and at most TOLERANCE_PERCENT above it.
+  # Estimate must be at least 5% above gas_used and at most TOLERANCE_PERCENT above it.
   awk -v e="${estimated}" -v c="${consumed}" -v t="${TOLERANCE_PERCENT}" 'BEGIN {
     if (c <= 0) exit 1
     lower = c * 1.05
@@ -61,7 +61,7 @@ should_skip() {
   local reason
   reason="$(jq -r '
     if .result != "SUCCESS" then "non-success result"
-    elif .gas_consumed == null then "missing gas_consumed"
+    elif .gas_used == null then "missing gas_used"
     elif (.to == null or .to == "" or .to == "0x") and
          (.function_parameters == null or .function_parameters == "" or .function_parameters == "0x") then
       "missing data for contract deploy"
@@ -85,7 +85,7 @@ check_result() {
   local request body http_code response estimated consumed hash
   request="$(build_request "${result_json}")"
   hash="$(jq -r '.hash // "unknown"' <<<"${result_json}")"
-  consumed="$(jq -r '.gas_consumed' <<<"${result_json}")"
+  consumed="$(jq -r '.gas_used' <<<"${result_json}")"
 
   response="$(mktemp)"
   http_code="$(curl -sS -o "${response}" -w '%{http_code}' \
@@ -101,10 +101,13 @@ check_result() {
     # Count those separately; only unexpected API failures fail the job.
     if [[ "${http_code}" == "400" ]] && grep -q 'CONTRACT_REVERT_EXECUTED' <<<"${body}"; then
       estimate_reverts=$((estimate_reverts + 1))
-      log "Estimate revert for hash=${hash} request=${request}"
+      log "Estimate revert for hash=${hash}"
+      log "request=${request}"
     else
       api_errors=$((api_errors + 1))
-      log "API ${http_code} for hash=${hash} request=${request}: $(head -c 200 <<<"${body}")"
+      log "API ${http_code} for hash=${hash}"
+      log "request=${request}"
+      log "response=${body}"
     fi
     return 0
   fi
@@ -113,7 +116,9 @@ check_result() {
   result_hex="$(jq -r '.result // empty' <<<"${body}")"
   if [[ -z "${result_hex}" || "${result_hex}" == "null" ]]; then
     api_errors=$((api_errors + 1))
-    log "Missing estimate result for hash=${hash} request=${request}: $(head -c 200 <<<"${body}")"
+    log "Missing estimate result for hash=${hash}"
+    log "request=${request}"
+    log "response=${body}"
     return 0
   fi
 
@@ -128,7 +133,8 @@ check_result() {
     pct="$(awk -v e="${estimated}" -v c="${consumed}" 'BEGIN {
       printf "%.2f", ((e - c) * 100.0 / c)
     }')"
-    log "Out of tolerance for hash=${hash} request=${request}: estimated=${estimated} gas_consumed=${consumed} overhead=${pct}% (expected 5-${TOLERANCE_PERCENT}%)"
+    log "Out of tolerance for hash=${hash}: estimated=${estimated} gas_used=${consumed} overhead=${pct}% (expected 5-${TOLERANCE_PERCENT}%)"
+    log "request=${request}"
   fi
 }
 
