@@ -22,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.importer.exception.FileOperationException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.jspecify.annotations.NullMarked;
+import org.springframework.util.unit.DataSize;
 
 @CustomLog
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
@@ -29,7 +30,10 @@ import org.jspecify.annotations.NullMarked;
 @Value
 public class StreamFileData {
 
-    private static final long MAX_DECOMPRESSED_BYTES = 1_073_741_824L; // 1 GiB
+    public static final String MAX_DECOMPRESSED_BYTES_PROPERTY = "HIERO_MIRROR_IMPORTER_MAXDECOMPRESSEDBYTES";
+
+    private static final long DEFAULT_MAX_DECOMPRESSED_BYTES =
+            DataSize.ofMegabytes(200).toBytes();
 
     private static final CompressorStreamFactory compressorStreamFactory = new CompressorStreamFactory(true);
 
@@ -112,22 +116,25 @@ public class StreamFileData {
         }
 
         var filename = streamFilename.getFilename();
-        try (var inputStream = new ByteArrayInputStream(getBytes());
-                var compressorInputStream =
-                        compressorStreamFactory.createCompressorInputStream(compressor, inputStream);
-                var boundedInputStream = BoundedInputStream.builder()
-                        .setInputStream(compressorInputStream)
-                        .setMaxCount(MAX_DECOMPRESSED_BYTES + 1)
-                        .get()) {
-            var decompressed = boundedInputStream.readAllBytes();
-            if (decompressed.length > MAX_DECOMPRESSED_BYTES) {
-                throw new InvalidStreamFileException("Decompressed size of stream file " + filename
-                        + " exceeds the maximum allowed size of " + MAX_DECOMPRESSED_BYTES + " bytes");
-            }
-            return decompressed;
+        var maxDecompressedBytes = getMaxDecompressedBytes();
+        try (var boundedInputStream = BoundedInputStream.builder()
+                .setInputStream(compressorStreamFactory.createCompressorInputStream(
+                        compressor, new ByteArrayInputStream(getBytes())))
+                .setMaxCount(maxDecompressedBytes + 1)
+                .setOnMaxCount((max, count) -> {
+                    throw new InvalidStreamFileException("Decompressed size of stream file " + filename
+                            + " exceeds the maximum allowed size of " + maxDecompressedBytes + " bytes");
+                })
+                .get()) {
+            return boundedInputStream.readAllBytes();
         } catch (IOException e) {
             log.error("Failed to decompress stream file {}", filename);
             throw new InvalidStreamFileException(filename, e);
         }
+    }
+
+    private static long getMaxDecompressedBytes() {
+        var property = System.getProperty(MAX_DECOMPRESSED_BYTES_PROPERTY);
+        return StringUtils.isBlank(property) ? DEFAULT_MAX_DECOMPRESSED_BYTES : Long.parseLong(property);
     }
 }

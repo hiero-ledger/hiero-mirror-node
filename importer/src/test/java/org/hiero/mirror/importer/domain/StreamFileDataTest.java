@@ -92,18 +92,28 @@ class StreamFileDataTest {
     }
 
     @Test
-    void decompressionIsBoundedAgainstDecompressionBomb() throws IOException {
-        String filename = "2021-03-10T16_00_00Z.rcd.gz";
-        byte[] uncompressedBytes = new byte[2_000_000_000]; // exceeds MAX_DECOMPRESSED_BYTES (1 GiB)
+    void decompressionExceedingMaxSizeThrows() throws IOException {
+        String previousProperty = System.getProperty(StreamFileData.MAX_DECOMPRESSED_BYTES_PROPERTY);
+        System.setProperty(StreamFileData.MAX_DECOMPRESSED_BYTES_PROPERTY, "100");
+        try {
+            String filename = "2021-03-10T16_00_00Z.rcd.gz";
+            byte[] uncompressedBytes = new byte[1000];
 
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            try (OutputStream os = new GZIPOutputStream(baos)) {
-                os.write(uncompressedBytes);
+            try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                try (OutputStream os = new GZIPOutputStream(baos)) {
+                    os.write(uncompressedBytes);
+                }
+
+                StreamFileData streamFileData = StreamFileData.from(filename, baos.toByteArray());
+
+                assertThrows(InvalidStreamFileException.class, streamFileData::getDecompressedBytes);
             }
-
-            StreamFileData streamFileData = StreamFileData.from(filename, baos.toByteArray());
-
-            assertThrows(InvalidStreamFileException.class, streamFileData::getDecompressedBytes);
+        } finally {
+            if (previousProperty == null) {
+                System.clearProperty(StreamFileData.MAX_DECOMPRESSED_BYTES_PROPERTY);
+            } else {
+                System.setProperty(StreamFileData.MAX_DECOMPRESSED_BYTES_PROPERTY, previousProperty);
+            }
         }
     }
 }
