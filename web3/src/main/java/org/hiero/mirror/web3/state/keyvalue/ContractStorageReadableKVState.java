@@ -22,9 +22,14 @@ import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.jspecify.annotations.NonNull;
 
 @Named
-final class ContractStorageReadableKVState extends AbstractContractReadableKVState<SlotKey, SlotValue> {
+public final class ContractStorageReadableKVState extends AbstractContractReadableKVState<SlotKey, SlotValue> {
 
     public static final int STATE_ID = STORAGE_STATE_ID;
+
+    private static final Bytes DUMMY_STORAGE_VALUE = Bytes.wrap(new byte[Bytes32.SIZE]);
+
+    private static final SlotValue DISCOVERY_SLOT_VALUE =
+            SlotValue.newBuilder().value(DUMMY_STORAGE_VALUE).build();
 
     private final ContractStateService contractStateService;
 
@@ -82,12 +87,23 @@ final class ContractStorageReadableKVState extends AbstractContractReadableKVSta
     private SlotValue readStorageFromDatabase(@NonNull ContractCallContext context, @NonNull SlotKey slotKey) {
         final var contractID = slotKey.contractID();
         final var entityId = EntityIdUtils.entityIdFromContractId(contractID);
+
+        if (context.isStorageDiscoveryMode()) {
+            return DISCOVERY_SLOT_VALUE;
+        }
+
+        // Track how many storage slots this request resolves so repeated, storage-heavy requests can be flagged for
+        // the discovery pass on subsequent invocations.
+        context.incrementContractStorageReadCount();
+
         final var keyBytes = slotKey.key().toByteArray();
         final var timestamp = context.getTimestamp();
+        // Use orElseGet (lazy) rather than orElse here: orElse's argument is a plain method parameter and would be
+        // evaluated eagerly on every call, meaning findStorage(latest) would run unconditionally even when a
+        // historical timestamp is present, doubling DB/cache lookups and mixing real timestamps with -1 in logs.
         return timestamp
-                .map(t -> contractStateService.findStorageByBlockTimestamp(
-                        entityId, Bytes32.wrap(keyBytes).trimLeadingZeros().toArrayUnsafe(), t))
-                .orElse(contractStateService.findStorage(entityId, keyBytes))
+                .map(t -> contractStateService.findStorage(entityId, keyBytes, t))
+                .orElseGet(() -> contractStateService.findStorage(entityId, keyBytes))
                 .map(byteArr ->
                         new SlotValue(Bytes.wrap(leftPadBytes(byteArr, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY))
                 .orElse(null);

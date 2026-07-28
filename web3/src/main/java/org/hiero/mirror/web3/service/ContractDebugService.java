@@ -2,6 +2,9 @@
 
 package org.hiero.mirror.web3.service;
 
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_STORAGE_DISCOVERY_CANDIDATES;
+
+import com.github.benmanes.caffeine.cache.Cache;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
@@ -13,11 +16,13 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
+import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.validation.annotation.Validated;
 
 @CustomLog
@@ -34,14 +39,18 @@ public class ContractDebugService extends ContractCallService {
             ThrottleProperties throttleProperties,
             MeterRegistry meterRegistry,
             EvmProperties evmProperties,
-            TransactionExecutionService transactionExecutionService) {
+            TransactionExecutionService transactionExecutionService,
+            CacheProperties cacheProperties,
+            @Qualifier(CACHE_STORAGE_DISCOVERY_CANDIDATES) Cache<Long, Boolean> storageDiscoveryCandidates) {
         super(
                 throttleManager,
                 throttleProperties,
                 meterRegistry,
                 recordFileService,
                 evmProperties,
-                transactionExecutionService);
+                transactionExecutionService,
+                cacheProperties,
+                storageDiscoveryCandidates);
         this.contractActionRepository = contractActionRepository;
     }
 

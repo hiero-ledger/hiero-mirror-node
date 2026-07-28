@@ -4,8 +4,8 @@ package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
-import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SLOTS_PER_CONTRACT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
@@ -21,12 +21,12 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.RandomUtils;
-import org.awaitility.Durations;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
@@ -35,8 +35,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.Cache;
 import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.cache.interceptor.SimpleKey;
 
 @RequiredArgsConstructor
 final class ContractStateServiceTest extends Web3IntegrationTest {
@@ -45,6 +47,9 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
 
     @Qualifier(CACHE_MANAGER_CONTRACT_SLOTS)
     private final CaffeineCacheManager cacheManagerContractSlots;
+
+    @Qualifier(CACHE_MANAGER_CONTRACT_STATE)
+    private final CaffeineCacheManager cacheManagerContractState;
 
     @Qualifier(CACHE_MANAGER_SLOTS_PER_CONTRACT)
     private final CaffeineCacheManager cacheManagerSlotsPerContract;
@@ -60,79 +65,61 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
-    void verifyCacheReturnsValuesAfterDeletion() {
-        // Given
+    void verifyBatchLoadsAllPendingSlotsInSingleQuery() {
+        // Given a contract and slots that are requested before they exist in the DB
         final var contract = persistContract();
-        var cachedSlots = getCachedSlots(contract);
-        assertThat(cachedSlots.size()).isEqualTo(0);
+        final var contractId = contract.toEntityId();
+        final var slotA = generateSlotKey(1);
+        final var slotB = generateSlotKey(2);
+        final var slotC = generateSlotKey(3);
 
-        final var contractStates = persistContractStates(contract.getId(), 10);
-        findStorage(contract, contractStates);
-        cachedSlots = getCachedSlots(contract);
-        assertThat(cachedSlots.size()).isEqualTo(10);
+        assertThat(contractStateService.findStorage(contractId, slotA)).isEmpty();
+        assertThat(contractStateService.findStorage(contractId, slotB)).isEmpty();
 
-        // When
-        contractStateRepository.deleteAll();
+        // When the values are later persisted and each slot is explicitly requested again
+        final byte[] valueA = (EXPECTED_SLOT_VALUE + "A").getBytes();
+        final byte[] valueB = (EXPECTED_SLOT_VALUE + "B").getBytes();
+        final byte[] valueC = (EXPECTED_SLOT_VALUE + "C").getBytes();
+        persistContractState(contract.getId(), slotA, valueA);
+        persistContractState(contract.getId(), slotB, valueB);
+        persistContractState(contract.getId(), slotC, valueC);
 
-        // Then
-        cachedSlots = getCachedSlots(contract);
-        assertThat(cachedSlots.size()).isEqualTo(10);
+        assertThat(contractStateService.findStorage(contractId, slotA)).get().isEqualTo(valueA);
+        assertThat(contractStateService.findStorage(contractId, slotB)).get().isEqualTo(valueB);
+        final var result = contractStateService.findStorage(contractId, slotC);
+
+        // Then the requested slot values are cached
+        assertThat(result).get().isEqualTo(valueC);
+        assertThat(getCachedState(contractId, slotA)).isEqualTo(valueA);
+        assertThat(getCachedState(contractId, slotB)).isEqualTo(valueB);
+        assertThat(getCachedState(contractId, slotC)).isEqualTo(valueC);
     }
 
     @Test
-    void verifyTheOldestEntryInTheCacheIsDeleted() {
-        // Given
-        final int maxCacheSize = 10;
-        cacheProperties.setSlotsPerContract("expireAfterAccess=2s,maximumSize=" + maxCacheSize);
-        cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
-        final var contract = persistContract();
-
-        final var contractState = persistContractStates(contract.getId(), 1).getFirst();
-        final var slot = ByteBuffer.wrap(contractState.getSlot());
-        final var result = contractStateService.findStorage(contract.toEntityId(), contractState.getSlot());
-
-        final var cachedSlots = getCachedSlots(contract);
-        assertThat(result).get().isEqualTo(contractState.getValue());
-        assertThat(cachedSlots).asInstanceOf(LIST).hasSize(1).contains(slot);
-
-        // When
-        final var contractStates = persistContractStates(contract.getId(), maxCacheSize);
-        findStorage(contract, contractStates);
-
-        // Then
-        getSlotsPerContractCache().cleanUp();
-
-        await("cacheIsEvicted")
-                .atMost(Durations.TWO_SECONDS)
-                .pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
-                .until(() -> getCachedSlots(contract).size() == maxCacheSize);
-
-        final var finalCachedSlots = getCachedSlots(contract);
-
-        assertThat(finalCachedSlots).asInstanceOf(LIST).hasSize(maxCacheSize).doesNotContain(slot);
-    }
-
-    @Test
-    void verifyCacheKeysAreNotDuplicated() {
+    void verifyFoundSlotValueIsCachedAndSlotKeyEvicted() {
         // Given
         final var contract = persistContract();
-        final var contractState = persistContractStates(contract.getId(), 1).getFirst();
-        final var result = contractStateService.findStorage(contract.toEntityId(), contractState.getSlot());
-
-        var cachedSlots = getCachedSlots(contract);
-        assertThat(result).get().isEqualTo(contractState.getValue());
-        assertThat(cachedSlots.size()).isEqualTo(1);
-        assertThat(cachedSlots.contains(ByteBuffer.wrap(contractState.getSlot())))
-                .isTrue();
+        final var contractId = contract.toEntityId();
+        final var contractState = persistContractState(contract.getId(), 1);
 
         // When
-        final var result2 = contractStateService.findStorage(contract.toEntityId(), contractState.getSlot());
+        final var result = contractStateService.findStorage(contractId, contractState.getSlot());
 
-        // Then
+        // Then the value is cached in the contract state cache and the slot key is evicted from the slots cache
+        assertThat(result).get().isEqualTo(contractState.getValue());
+        assertThat(getCachedState(contractId, contractState.getSlot())).isEqualTo(contractState.getValue());
+        assertThat(getCachedSlots(contract))
+                .asInstanceOf(LIST)
+                .doesNotContain(ByteBuffer.wrap(contractState.getSlot()));
+
+        // When the same slot is requested again
+        final var result2 = contractStateService.findStorage(contractId, contractState.getSlot());
+
+        // Then it is served from the contract state cache and the slot key remains evicted from the slots cache
         assertThat(result2).get().isEqualTo(contractState.getValue());
-        assertThat(cachedSlots.size()).isEqualTo(1);
-        assertThat(cachedSlots.contains(ByteBuffer.wrap(contractState.getSlot())))
-                .isTrue();
+        assertThat(getCachedSlots(contract))
+                .asInstanceOf(LIST)
+                .doesNotContain(ByteBuffer.wrap(contractState.getSlot()));
     }
 
     @ParameterizedTest
@@ -155,79 +142,21 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
-    void verifyTheCorrectEntriesExistInTheCache() {
-        // Given
-        final int maxCacheSize = 10;
-        cacheProperties.setSlotsPerContract("expireAfterAccess=2s,maximumSize=" + maxCacheSize);
-        cacheManagerSlotsPerContract.setCacheSpecification(cacheProperties.getSlotsPerContract());
+    void verifyMissingSlotKeyDoesNotAffectSubsequentFoundSlotKey() {
+        // Given a contract with one existing slot
         final var contract = persistContract();
-        final var contractStates = persistContractStates(contract.getId(), maxCacheSize);
+        final var contractId = contract.toEntityId();
+        final var existingState = persistContractState(contract.getId(), 1);
+        final var missingSlot = generateSlotKey(999);
 
-        // Read slots 1, 2, 3
-        final var firstThreeSlots = contractStates.subList(0, 3);
-        findStorage(contract, firstThreeSlots);
-        var cachedSlots = getCachedSlots(contract);
+        // When a missing slot is requested
+        assertThat(contractStateService.findStorage(contractId, missingSlot)).isEmpty();
 
-        // Verify the cache contains only 0, 1, 2 slots
-        assertThat(cachedSlots.size()).isEqualTo(3);
-        assertThat(cachedSlots.containsAll(firstThreeSlots.stream()
-                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
-                        .toList()))
-                .isTrue();
-
-        // Read slots 3, 4, 5
-        final var secondThreeSlots = contractStates.subList(3, 6);
-        findStorage(contract, secondThreeSlots);
-        cachedSlots = getCachedSlots(contract);
-
-        // Verify the cache contains 0, 1, 2, 3, 4, 5 slots
-        assertThat(cachedSlots.size()).isEqualTo(6);
-        assertThat(cachedSlots.containsAll(firstThreeSlots.stream()
-                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
-                        .toList()))
-                .isTrue();
-        assertThat(cachedSlots.containsAll(secondThreeSlots.stream()
-                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
-                        .toList()))
-                .isTrue();
-
-        // Delete slots 0, 1, 2 from the cache
-        for (int i = 0; i < 3; i++) {
-            final var slotExistsInCache = cacheManagerSlotsPerContract
-                    .getCache(contract.toEntityId().toString())
-                    .evictIfPresent(ByteBuffer.wrap(firstThreeSlots.get(i).getSlot()));
-            assertThat(slotExistsInCache).isTrue();
-        }
-        await("cacheIsEvicted")
-                .atMost(Durations.TWO_SECONDS)
-                .pollInterval(Durations.ONE_HUNDRED_MILLISECONDS)
-                .until(() -> getCachedSlots(contract).size() == secondThreeSlots.size());
-
-        cachedSlots = getCachedSlots(contract);
-        assertThat(cachedSlots.containsAll(firstThreeSlots.stream()
-                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
-                        .toList()))
-                .isFalse();
-        assertThat(cachedSlots.containsAll(secondThreeSlots.stream()
-                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
-                        .toList()))
-                .isTrue();
-
-        // Read slots 6, 7, 8, 9
-        final var lastFourSlots = contractStates.subList(6, 10);
-        findStorage(contract, lastFourSlots);
-        cachedSlots = getCachedSlots(contract);
-
-        // Verify the cache contains 3, 4, 5, 6, 7, 8, 9 slots
-        assertThat(cachedSlots.size()).isEqualTo(7);
-        assertThat(cachedSlots.containsAll(secondThreeSlots.stream()
-                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
-                        .toList()))
-                .isTrue();
-        assertThat(cachedSlots.containsAll(lastFourSlots.stream()
-                        .map(contractState -> ByteBuffer.wrap(contractState.getSlot()))
-                        .toList()))
-                .isTrue();
+        // Then an existing slot can still be requested and its value is cached correctly
+        assertThat(contractStateService.findStorage(contractId, existingState.getSlot()))
+                .get()
+                .isEqualTo(existingState.getValue());
+        assertThat(getCachedState(contractId, existingState.getSlot())).isEqualTo(existingState.getValue());
     }
 
     @Test
@@ -241,7 +170,7 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
                 .persist();
 
         // Then
-        assertThat(contractStateService.findStorageByBlockTimestamp(
+        assertThat(contractStateService.findStorage(
                         EntityId.of(olderContractState.getContractId()),
                         contractStateChange.getSlot(),
                         contractStateChange.getConsensusTimestamp()))
@@ -262,7 +191,7 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         // Then
         assertThat(contractStateChange.getConsensusTimestamp() > olderContractState.getConsensusTimestamp())
                 .isTrue();
-        assertThat(contractStateService.findStorageByBlockTimestamp(
+        assertThat(contractStateService.findStorage(
                         EntityId.of(olderContractState.getContractId()),
                         olderContractState.getSlot(),
                         olderContractState.getConsensusTimestamp()))
@@ -276,7 +205,7 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         final var contractStateChange = domainBuilder.contractStateChange().persist();
 
         // Then
-        assertThat(contractStateService.findStorageByBlockTimestamp(
+        assertThat(contractStateService.findStorage(
                         EntityId.of(contractStateChange.getContractId()),
                         contractStateChange.getSlot(),
                         contractStateChange.getConsensusTimestamp() - 1))
@@ -409,6 +338,187 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
+    void verifyHistoricalFoundSlotValueIsCachedAndSlotKeyEvicted() {
+        // Given
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+        final var contractStateChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()))
+                .persist();
+        final var blockTimestamp = contractStateChange.getConsensusTimestamp();
+
+        // When
+        final var result = contractStateService.findStorage(contractId, contractStateChange.getSlot(), blockTimestamp);
+
+        // Then the value is cached under the (contractId, slot, blockTimestamp) key and the slot key is evicted
+        assertThat(result).get().isEqualTo(contractStateChange.getValueWritten());
+        assertThat(getCachedHistoricalState(contractId, contractStateChange.getSlot(), blockTimestamp))
+                .isEqualTo(contractStateChange.getValueWritten());
+        assertThat(getCachedHistoricalSlots(contractId, blockTimestamp))
+                .asInstanceOf(LIST)
+                .doesNotContain(ByteBuffer.wrap(contractStateChange.getSlot()));
+
+        // When the same slot is requested again at the same block
+        final var result2 = contractStateService.findStorage(contractId, contractStateChange.getSlot(), blockTimestamp);
+
+        // Then it is served from the historical state cache
+        assertThat(result2).get().isEqualTo(contractStateChange.getValueWritten());
+    }
+
+    @Test
+    void verifyHistoricalAbsentSlotReturnsEmpty() {
+        // Given a slot change at timestamp T; querying before T should return empty
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+        final var contractStateChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()))
+                .persist();
+        final var blockTimestamp = contractStateChange.getConsensusTimestamp() - 1;
+
+        // When
+        final var result = contractStateService.findStorage(contractId, contractStateChange.getSlot(), blockTimestamp);
+
+        // Then no value is found for this block
+        assertThat(result).isEmpty();
+
+        // And querying at the block where the change actually happened returns the value
+        assertThat(contractStateService.findStorage(
+                        contractId, contractStateChange.getSlot(), contractStateChange.getConsensusTimestamp()))
+                .get()
+                .isEqualTo(contractStateChange.getValueWritten());
+    }
+
+    @Test
+    void verifyHistoricalAndLatestCachesAreIsolated() {
+        // Given a slot that exists in both contract_state (latest) and contract_state_change (historical)
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+        final var contractState = persistContractState(contract.getId(), 1);
+        final var contractStateChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(contractState.getSlot()))
+                .persist();
+        final var blockTimestamp = contractStateChange.getConsensusTimestamp();
+
+        // When both latest and historical are queried
+        final var latestResult = contractStateService.findStorage(contractId, contractState.getSlot());
+        final var historicalResult =
+                contractStateService.findStorage(contractId, contractStateChange.getSlot(), blockTimestamp);
+
+        // Then both return a value ...
+        assertThat(latestResult).get().isEqualTo(contractState.getValue());
+        assertThat(historicalResult).get().isEqualTo(contractStateChange.getValueWritten());
+
+        // ... and they are stored under separate cache keys
+        assertThat(getCachedState(contractId, contractState.getSlot())).isEqualTo(contractState.getValue());
+        assertThat(getCachedHistoricalState(contractId, contractStateChange.getSlot(), blockTimestamp))
+                .isEqualTo(contractStateChange.getValueWritten());
+
+        // A different block timestamp for the same slot must NOT share the historical cache entry
+        assertThat(getCachedHistoricalState(contractId, contractStateChange.getSlot(), blockTimestamp - 1))
+                .isNull();
+    }
+
+    @Test
+    void verifyHistoricalBatchFlagPropertyRespected() {
+        // Given
+        cacheProperties.setEnableBatchContractSlotCaching(false);
+        final var contractStateChange = domainBuilder.contractStateChange().persist();
+        final var contractId = EntityId.of(contractStateChange.getContractId());
+
+        // When
+        final var result = contractStateService.findStorage(
+                contractId, contractStateChange.getSlot(), contractStateChange.getConsensusTimestamp());
+
+        // Then the value is returned correctly but nothing is added to the slots cache
+        assertThat(result).get().isEqualTo(contractStateChange.getValueWritten());
+        assertThat(getCacheSizeContractSlot()).isEqualTo(0);
+    }
+
+    @Test
+    void verifyHistoricalBatchLoadsMultipleSlotsAtSameBlock() {
+        // Given a contract with several slots written at increasing timestamps
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+        final var slotA = generateSlotKey(50);
+        final var slotB = generateSlotKey(100);
+        final var slotC = generateSlotKey(150);
+        final byte[] valueA = (EXPECTED_SLOT_VALUE + "histA").getBytes();
+        final byte[] valueB = (EXPECTED_SLOT_VALUE + "histB").getBytes();
+        final byte[] valueC = (EXPECTED_SLOT_VALUE + "histC").getBytes();
+
+        domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(slotA).valueWritten(valueA))
+                .persist();
+        domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(slotB).valueWritten(valueB))
+                .persist();
+        // Use the last change's timestamp so all three slots are visible at the queried block
+        final var lastChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(slotC).valueWritten(valueC))
+                .persist();
+        final var blockTimestamp = lastChange.getConsensusTimestamp();
+
+        // When each slot is queried at blockTimestamp (they are non-adjacent so each call loads adjacent slots batch)
+        final var resultA = contractStateService.findStorage(contractId, slotA, blockTimestamp);
+        final var resultB = contractStateService.findStorage(contractId, slotB, blockTimestamp);
+        final var resultC = contractStateService.findStorage(contractId, slotC, blockTimestamp);
+
+        // Then all values are found and the historical state cache contains them
+        assertThat(resultA).get().isEqualTo(valueA);
+        assertThat(resultB).get().isEqualTo(valueB);
+        assertThat(resultC).get().isEqualTo(valueC);
+        assertThat(getCachedHistoricalState(contractId, slotA, blockTimestamp)).isEqualTo(valueA);
+        assertThat(getCachedHistoricalState(contractId, slotB, blockTimestamp)).isEqualTo(valueB);
+        assertThat(getCachedHistoricalState(contractId, slotC, blockTimestamp)).isEqualTo(valueC);
+    }
+
+    @Test
+    void verifyHistoricalDifferentBlockTimestampsUseSeparateCaches() {
+        // Given a slot with two different values at two different timestamps
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+        final var slot = generateSlotKey(77);
+        final byte[] olderValue = (EXPECTED_SLOT_VALUE + "older").getBytes();
+        final byte[] newerValue = (EXPECTED_SLOT_VALUE + "newer").getBytes();
+
+        final var olderChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(slot).valueWritten(olderValue))
+                .persist();
+        final var newerChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(slot).valueWritten(newerValue))
+                .persist();
+
+        final var olderTimestamp = olderChange.getConsensusTimestamp();
+        final var newerTimestamp = newerChange.getConsensusTimestamp();
+
+        // When the slot is queried at each block
+        final var olderResult = contractStateService.findStorage(contractId, slot, olderTimestamp);
+        final var newerResult = contractStateService.findStorage(contractId, slot, newerTimestamp);
+
+        // Then each block returns its own value and caches it independently
+        assertThat(olderResult).get().isEqualTo(olderValue);
+        assertThat(newerResult).get().isEqualTo(newerValue);
+        assertThat(getCachedHistoricalState(contractId, slot, olderTimestamp)).isEqualTo(olderValue);
+        assertThat(getCachedHistoricalState(contractId, slot, newerTimestamp)).isEqualTo(newerValue);
+
+        // Caches for distinct blocks are separate – querying one should not affect the other
+        assertThat(getCachedHistoricalSlots(contractId, olderTimestamp))
+                .asInstanceOf(LIST)
+                .doesNotContain(ByteBuffer.wrap(slot));
+        assertThat(getCachedHistoricalSlots(contractId, newerTimestamp))
+                .asInstanceOf(LIST)
+                .doesNotContain(ByteBuffer.wrap(slot));
+    }
+
+    @Test
     void verifyDeletedHistoricalContractSlotIsNotReturned() {
         // Given
         final var olderContractState = domainBuilder.contractStateChange().persist();
@@ -422,12 +532,50 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         // Then
         assertThat(contractStateChange.getConsensusTimestamp() > olderContractState.getConsensusTimestamp())
                 .isTrue();
-        assertThat(contractStateService.findStorageByBlockTimestamp(
+        assertThat(contractStateService.findStorage(
                         EntityId.of(contractStateChange.getContractId()),
                         contractStateChange.getSlot(),
                         contractStateChange.getConsensusTimestamp()))
                 .get()
                 .isEqualTo(contractStateChange.getValueRead());
+    }
+
+    @Test
+    void verifyDiscoveredSlotKeysAreNotConsumedByMismatchedTimestampMode() {
+        // Given a contract with the same slot visible both historically and at latest
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+        final var slot = generateSlotKey(42);
+        final byte[] latestValue = (EXPECTED_SLOT_VALUE + "latest").getBytes();
+        final byte[] historicalValue = (EXPECTED_SLOT_VALUE + "historical").getBytes();
+
+        // Persist a historical state change
+        final var stateChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(contractId.getId()).slot(slot).valueWritten(historicalValue))
+                .persist();
+        final var blockTimestamp = stateChange.getConsensusTimestamp();
+
+        // Persist the current (latest) state with a different value
+        persistContractState(contract.getId(), slot, latestValue);
+
+        // Simulate the discovery pass having run in a historical context (timestamp = blockTimestamp).
+        // Discovered keys should NOT be consumed by a latest (NO_BLOCK_TIMESTAMP) batch query.
+        ContractCallContext.get().setDiscoveryBlockTimestamp(blockTimestamp);
+
+        // When a latest lookup is attempted (mismatched mode – discovery was historical)
+        final var latestResult = contractStateService.findStorage(contractId, slot);
+
+        // Then the latest lookup returns the current value correctly
+        assertThat(latestResult).get().isEqualTo(latestValue);
+
+        // And a historical lookup at the same block returns the historical value correctly
+        final var historicalResult = contractStateService.findStorage(contractId, slot, blockTimestamp);
+        assertThat(historicalResult).get().isEqualTo(historicalValue);
+
+        // Both are cached under isolated keys – no cross-contamination
+        assertThat(getCachedState(contractId, slot)).isEqualTo(latestValue);
+        assertThat(getCachedHistoricalState(contractId, slot, blockTimestamp)).isEqualTo(historicalValue);
     }
 
     @Test
@@ -488,10 +636,18 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
                 .persist();
     }
 
+    private Cache getContractStateCache() {
+        return cacheManagerContractState.getCache(CACHE_NAME);
+    }
+
+    private byte[] getCachedState(final EntityId contractId, final byte[] slot) {
+        return getContractStateCache().get(new SimpleKey(contractId, slot), byte[].class);
+    }
+
     private byte[] generateSlotKey(final int index) {
         final byte[] slotKey = new byte[32];
         final byte[] indexBytes = ByteBuffer.allocate(4).putInt(index).array();
-        System.arraycopy(indexBytes, 0, slotKey, 0, indexBytes.length);
+        System.arraycopy(indexBytes, 0, slotKey, slotKey.length - indexBytes.length, indexBytes.length);
         return slotKey;
     }
 
@@ -501,10 +657,6 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
 
     private com.github.benmanes.caffeine.cache.Cache<Object, Object> getSlotsCache() {
         return ((CaffeineCache) cacheManagerContractSlots.getCache(CACHE_NAME)).getNativeCache();
-    }
-
-    private com.github.benmanes.caffeine.cache.Cache<Object, Object> getSlotsPerContractCache() {
-        return ((CaffeineCache) cacheManagerSlotsPerContract.getCache(CACHE_NAME)).getNativeCache();
     }
 
     public List<ByteBuffer> getCachedSlots(Entity contract) {
@@ -523,5 +675,20 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
             final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
             assertThat(result.get()).isEqualTo(state.getValue());
         }
+    }
+
+    private byte[] getCachedHistoricalState(final EntityId contractId, final byte[] slot, final long blockTimestamp) {
+        return getContractStateCache().get(new SimpleKey(contractId, slot, blockTimestamp), byte[].class);
+    }
+
+    public List<ByteBuffer> getCachedHistoricalSlots(final EntityId contractId, final long blockTimestamp) {
+        var cacheKey = new SimpleKey(contractId, blockTimestamp);
+        var slotsPerContractCache = getSlotsCache().asMap().get(cacheKey);
+        return slotsPerContractCache != null
+                ? ((CaffeineCache) slotsPerContractCache)
+                        .getNativeCache().asMap().keySet().stream()
+                                .map(slot -> (ByteBuffer) slot)
+                                .collect(Collectors.toList())
+                : List.of();
     }
 }
