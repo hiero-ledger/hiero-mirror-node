@@ -8,6 +8,12 @@ import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SLOTS_PER_CONTRACT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -37,6 +43,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 @RequiredArgsConstructor
 final class ContractStateServiceTest extends Web3IntegrationTest {
@@ -51,12 +58,16 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
 
     private final CacheProperties cacheProperties;
     private final ContractStateService contractStateService;
-    private final ContractStateRepository contractStateRepository;
     private final EntityRepository entityRepository;
+
+    @MockitoSpyBean
+    private ContractStateRepository contractStateRepository;
 
     @BeforeEach
     void setup() {
         cacheProperties.setEnableBatchContractSlotCaching(true);
+        cacheProperties.setMaxSlotKeysPerBatch(200);
+        clearInvocations(contractStateRepository);
     }
 
     @Test
@@ -152,6 +163,67 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         // Assure that the slots cache is filled only when the flag is enabled.
         assertThat(result).get().isEqualTo(contractState.getValue());
         assertThat(getCacheSizeContractSlot()).isEqualTo(flagEnabled ? contractSlotsCount : 0);
+    }
+
+    @Test
+    void verifyBatchQueryIsCappedAtMaxSlotKeysPerBatch() {
+        // Given
+        final int maxSlotKeysPerBatch = 2;
+        final int slotCount = 5;
+        cacheProperties.setMaxSlotKeysPerBatch(maxSlotKeysPerBatch);
+
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+
+        for (int i = 0; i < slotCount; i++) {
+            assertThat(contractStateService.findStorage(contractId, generateSlotKey(i)))
+                    .isEmpty();
+        }
+        assertThat(getCachedSlots(contract)).asInstanceOf(LIST).hasSize(slotCount);
+
+        clearInvocations(contractStateRepository);
+
+        // When values are persisted and each slot is requested again
+        final var contractStates = new ArrayList<ContractState>();
+        for (int i = 0; i < slotCount; i++) {
+            contractStates.add(persistContractState(contract.getId(), i));
+        }
+
+        // When
+        findStorage(contract, contractStates);
+
+        // Then
+        verify(contractStateRepository, atLeastOnce())
+                .findStorageBatch(eq(contractId.getId()), argThat(slots -> slots.size() == maxSlotKeysPerBatch));
+        verify(contractStateRepository, never())
+                .findStorageBatch(eq(contractId.getId()), argThat(slots -> slots.size() > maxSlotKeysPerBatch));
+    }
+
+    @Test
+    void verifySlotBeyondBatchCapStillReturnsCorrectValue() {
+        // Given
+        final int maxSlotKeysPerBatch = 2;
+        cacheProperties.setMaxSlotKeysPerBatch(maxSlotKeysPerBatch);
+
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+
+        for (int i = 0; i < maxSlotKeysPerBatch; i++) {
+            assertThat(contractStateService.findStorage(contractId, generateSlotKey(100 + i)))
+                    .isEmpty();
+        }
+        assertThat(getCachedSlots(contract)).asInstanceOf(LIST).hasSize(maxSlotKeysPerBatch);
+
+        final var contractState = persistContractState(contract.getId(), 1);
+        clearInvocations(contractStateRepository);
+
+        // When
+        final var result = contractStateService.findStorage(contractId, contractState.getSlot());
+
+        // Then
+        assertThat(result).get().isEqualTo(contractState.getValue());
+        verify(contractStateRepository, never())
+                .findStorageBatch(eq(contractId.getId()), argThat(slots -> slots.size() > maxSlotKeysPerBatch));
     }
 
     @Test

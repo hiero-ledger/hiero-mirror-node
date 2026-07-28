@@ -32,6 +32,12 @@ public class CacheProperties {
     @NotBlank
     private String entity = ENTITY_CACHE_CONFIG;
 
+    /**
+     * The maximum number of contract storage slot keys loaded (and searched) in a single {@code findStorageBatch}
+     * query.
+     */
+    private int maxSlotKeysPerBatch = 200;
+
     @NotBlank
     private String fee = "expireAfterWrite=60m,maximumSize=20,recordStats";
 

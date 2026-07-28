@@ -89,13 +89,23 @@ final class ContractStateServiceImpl implements ContractStateService {
         // Cached slot keys for contract, whose slot values are not present in the contractStateCache
         contractSlotsCache.putIfAbsent(wrappedKey, EMPTY_VALUE);
         final var cachedSlotKeys = contractSlotsCache.getNativeCache().asMap().keySet();
+        final var maxSlotKeysPerBatch = cacheProperties.getMaxSlotKeysPerBatch();
 
-        final var cachedSlots = new ArrayList<byte[]>(cachedSlotKeys.size());
+        final var cachedSlots = new ArrayList<byte[]>(Math.min(cachedSlotKeys.size(), maxSlotKeysPerBatch));
         boolean isKeyEvictedFromCache = true;
 
-        for (var slot : cachedSlotKeys) {
-            cachedSlots.add(((ByteBuffer) slot).array());
-            if (wrappedKey.equals(slot)) {
+        for (final var slotKey : cachedSlotKeys) {
+            // Cap the batch at maxSlotKeysPerBatch slots; any remaining slots (including the requested key, if beyond
+            // the cap) fall back to an individual query below.
+            if (cachedSlots.size() >= maxSlotKeysPerBatch) {
+                break;
+            }
+
+            final var slotValueCacheKey = generateCacheKey(contractId, ((ByteBuffer) slotKey).array());
+            if (contractStateCache.get(slotValueCacheKey) == null) {
+                cachedSlots.add(((ByteBuffer) slotKey).array());
+            }
+            if (wrappedKey.equals(slotKey)) {
                 isKeyEvictedFromCache = false;
             }
         }
@@ -104,8 +114,8 @@ final class ContractStateServiceImpl implements ContractStateService {
         byte[] cachedValue = null;
 
         for (final var contractSlotValue : contractSlotValues) {
-            final byte[] slotKey = contractSlotValue.getSlot();
-            final byte[] slotValue = contractSlotValue.getValue();
+            final var slotKey = contractSlotValue.getSlot();
+            final var slotValue = contractSlotValue.getValue();
             contractStateCache.put(generateCacheKey(contractId, slotKey), slotValue);
 
             if (Arrays.equals(slotKey, key)) {
