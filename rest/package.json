@@ -1,6 +1,6 @@
 {
   "name": "@hiero-ledger/mirror-rest",
-  "version": "0.160.0-SNAPSHOT",
+  "version": "0.161.0-SNAPSHOT",
   "description": "Mirror Node REST API",
   "type": "module",
   "main": "server.js",
@@ -20,10 +20,10 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@bufbuild/protobuf": "2.12.1",
+    "@bufbuild/protobuf": "2.13.0",
     "@godaddy/terminus": "4.12.1",
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/exporter-prometheus": "^0.220.0",
+    "@opentelemetry/exporter-prometheus": "^0.221.0",
     "@opentelemetry/sdk-metrics": "^2.6.1",
     "asn1js": "3.0.10",
     "basic-auth": "2.0.1",
@@ -34,7 +34,7 @@
     "express-openapi-validator": "5.6.2",
     "extend": "3.0.2",
     "ioredis": "5.11.1",
-    "js-yaml": "5.2.1",
+    "js-yaml": "5.2.2",
     "json-bigint": "1.0.0",
     "lodash": "4.18.1",
     "negotiator": "1.0.0",
@@ -50,10 +50,10 @@
   },
   "devDependencies": {
     "@bufbuild/buf": "1.72.0",
-    "@bufbuild/protoc-gen-es": "2.12.1",
+    "@bufbuild/protoc-gen-es": "2.13.0",
     "@testcontainers/postgresql": "12.0.4",
     "cross-env": "10.1.0",
-    "crypto-random-string": "5.0.0",
+    "crypto-random-string": "6.0.0",
     "esbuild": "^0.28.1",
     "extensionless": "2.0.6",
     "jest": "30.4.2",
@@ -61,10 +61,10 @@
     "jest-junit": "17.0.0",
     "nodemon": "3.1.14",
     "pg-format": "1.0.4",
-    "pgsql-parser": "17.9.17",
-    "sinon": "22.0.0",
+    "pgsql-parser": "18.1.1",
+    "sinon": "22.1.0",
     "supertest": "7.2.2",
-    "tar": "7.5.20"
+    "tar": "7.5.22"
   },
   "peerDependencies": {
     "ansi-regex": "6.2.2",

@@ -103,9 +103,10 @@ public class NodeSupplier {
     }
 
     public Mono<List<NodeProperties>> list() {
-        return Mono.fromCallable(() -> List.copyOf(nodes))
+        return Flux.interval(Duration.ZERO, Duration.ofSeconds(1L), Schedulers.boundedElastic())
+                .map(i -> List.copyOf(nodes))
                 .filter(list -> !list.isEmpty())
-                .repeatWhenEmpty(retries -> retries.delayElements(Duration.ofSeconds(1L)));
+                .next();
     }
 
     @VisibleForTesting
