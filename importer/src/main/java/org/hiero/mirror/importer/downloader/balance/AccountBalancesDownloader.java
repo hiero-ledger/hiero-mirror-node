@@ -10,6 +10,7 @@ import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
+import org.hiero.mirror.importer.db.DiskSpaceService;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.downloader.Downloader;
 import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
@@ -38,7 +39,8 @@ public class AccountBalancesDownloader extends Downloader<AccountBalanceFile, Ac
             SignatureFileReader signatureFileReader,
             StreamFileNotifier streamFileNotifier,
             StreamFileProvider streamFileProvider,
-            BalanceFileReader streamFileReader) {
+            BalanceFileReader streamFileReader,
+            DiskSpaceService diskSpaceService) {
         super(
                 consensusNodeService,
                 downloaderProperties,
@@ -49,7 +51,8 @@ public class AccountBalancesDownloader extends Downloader<AccountBalanceFile, Ac
                 signatureFileReader,
                 streamFileNotifier,
                 streamFileProvider,
-                streamFileReader);
+                streamFileReader,
+                diskSpaceService);
         this.accountBalanceFileRepository = accountBalanceFileRepository;
     }
 

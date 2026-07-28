@@ -16,6 +16,7 @@ import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
+import org.hiero.mirror.importer.db.DiskSpaceService;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
 import org.hiero.mirror.importer.parser.batch.BatchPersister;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
@@ -37,8 +38,9 @@ public class AccountBalanceFileParser extends AbstractStreamFileParser<AccountBa
             BalanceParserProperties parserProperties,
             StreamFileRepository<AccountBalanceFile, Long> accountBalanceFileRepository,
             DateRangeCalculator dateRangeCalculator,
-            BalanceStreamFileListener streamFileListener) {
-        super(meterRegistry, parserProperties, streamFileListener, accountBalanceFileRepository);
+            BalanceStreamFileListener streamFileListener,
+            DiskSpaceService diskSpaceService) {
+        super(meterRegistry, parserProperties, streamFileListener, accountBalanceFileRepository, diskSpaceService);
         this.batchPersister = batchPersister;
         this.dateRangeCalculator = dateRangeCalculator;
     }

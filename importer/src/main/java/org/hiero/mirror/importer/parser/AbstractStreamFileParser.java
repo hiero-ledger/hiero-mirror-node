@@ -12,7 +12,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.hiero.mirror.common.domain.StreamFile;
+import org.hiero.mirror.importer.db.DiskSpaceService;
 import org.hiero.mirror.importer.exception.HashMismatchException;
+import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +25,7 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
     public static final String STREAM_PARSE_DURATION_METRIC_NAME = "hiero.mirror.importer.parse.duration";
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
+    protected final DiskSpaceService diskSpaceService;
     protected final MeterRegistry meterRegistry;
     protected final ParserProperties parserProperties;
     protected final StreamFileListener<T> streamFileListener;
@@ -38,7 +41,9 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
             MeterRegistry meterRegistry,
             ParserProperties parserProperties,
             StreamFileListener<T> streamFileListener,
-            StreamFileRepository<T, Long> streamFileRepository) {
+            StreamFileRepository<T, Long> streamFileRepository,
+            DiskSpaceService diskSpaceService) {
+        this.diskSpaceService = diskSpaceService;
         this.last = new AtomicReference<>();
         this.meterRegistry = meterRegistry;
         this.parserProperties = parserProperties;
@@ -87,6 +92,16 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
                 return;
             }
 
+            if (diskSpaceService.isExceeded()) {
+                log.warn("Database disk space exceeded, pausing before retry");
+                try {
+                    Thread.sleep(diskSpaceService.getCheckFrequency());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                throw new ParserException("Database disk space exceeded");
+            }
+
             doParse(streamFile);
             doFlush(streamFile);
 
@@ -126,6 +141,16 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
         String first = null;
 
         try {
+            if (diskSpaceService.isExceeded()) {
+                log.warn("Database disk space exceeded, pausing before retry");
+                try {
+                    Thread.sleep(diskSpaceService.getCheckFrequency());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                throw new ParserException("Database disk space exceeded");
+            }
+
             for (int i = 0; i < size; ++i) {
                 streamFile = streamFiles.get(i);
                 if (first == null) {

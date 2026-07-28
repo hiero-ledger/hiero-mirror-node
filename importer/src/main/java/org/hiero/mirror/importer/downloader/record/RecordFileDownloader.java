@@ -18,6 +18,7 @@ import org.hiero.mirror.common.domain.transaction.SidecarFile;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
+import org.hiero.mirror.importer.db.DiskSpaceService;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.Downloader;
@@ -59,7 +60,8 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
             SignatureFileReader signatureFileReader,
             StreamFileNotifier streamFileNotifier,
             StreamFileProvider streamFileProvider,
-            RecordFileReader streamFileReader) {
+            RecordFileReader streamFileReader,
+            DiskSpaceService diskSpaceService) {
         super(
                 consensusNodeService,
                 downloaderProperties,
@@ -70,7 +72,8 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
                 signatureFileReader,
                 streamFileNotifier,
                 streamFileProvider,
-                streamFileReader);
+                streamFileReader,
+                diskSpaceService);
         this.cutoverService = cutoverService;
         this.sidecarFileReader = sidecarFileReader;
         this.sidecarProperties = sidecarProperties;

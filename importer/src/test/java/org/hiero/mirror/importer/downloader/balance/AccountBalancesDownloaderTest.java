@@ -70,7 +70,8 @@ final class AccountBalancesDownloaderTest extends AbstractDownloaderTest<Account
                 signatureFileReader,
                 streamFileNotifier,
                 streamFileProvider,
-                balanceFileReader);
+                balanceFileReader,
+                diskSpaceService);
     }
 
     @Override
@@ -137,7 +138,8 @@ final class AccountBalancesDownloaderTest extends AbstractDownloaderTest<Account
                 signatureFileReader,
                 streamFileNotifier,
                 streamFileProvider,
-                protoBalanceFileReader);
+                protoBalanceFileReader,
+                diskSpaceService);
         fileCopier = FileCopier.create(TestUtils.getResource("data").toPath(), s3Path)
                 .from(Path.of("accountBalances", "mixed"))
                 .to(commonDownloaderProperties.getBucketName(), streamType.getPath());

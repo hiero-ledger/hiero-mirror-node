@@ -101,7 +101,8 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
                 signatureFileReader,
                 streamFileNotifier,
                 streamFileProvider,
-                recordFileReader);
+                recordFileReader,
+                diskSpaceService);
     }
 
     protected void setupRecordFiles(Map<String, RecordFile> recordFileMap) {
