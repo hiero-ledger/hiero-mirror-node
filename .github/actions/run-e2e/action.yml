@@ -65,17 +65,6 @@ runs:
       run: |
         set -ex
 
-        # TEMP: remove this FORCE_NATIVE_TAG_PATH block after validating the tag path in CI
-        if [[ "${FORCE_NATIVE_TAG_PATH:-}" == "true" ]]; then
-          TAG="${FORCE_NATIVE_TAG_VERSION}"
-          VERSION="${FORCE_NATIVE_TAG_VERSION}"
-          TRIGGERED_BY_TAG=true
-          echo "TAG=${TAG}" >> $GITHUB_ENV
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-          echo "TRIGGERED_BY_TAG=${TRIGGERED_BY_TAG}" >> $GITHUB_ENV
-          exit 0
-        fi
-
         TAG=$(sed -nE 's/^version: (.+)$/\1/p' charts/hedera-mirror/Chart.yaml)
         VERSION=$(grep -oP 'version=\K.+' gradle.properties)
         TRIGGERED_BY_TAG=false
