@@ -48,7 +48,7 @@ build_request() {
       from: .from,
       gas: (.gas_limit // 15000000),
       value: (.amount // 0),
-      block: (if .block_number != null then (.block_number | tostring) else "latest" end)
+      block: (if .block_number != null then ((.block_number - 1) | tostring) else "latest" end)
     }
     + (if (.created_contract_ids | length) > 0 then {}
        elif (.to != null and .to != "" and .to != "0x") then {to: .to}
