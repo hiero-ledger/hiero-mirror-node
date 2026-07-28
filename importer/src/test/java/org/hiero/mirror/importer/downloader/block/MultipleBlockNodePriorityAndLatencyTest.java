@@ -11,7 +11,7 @@ import java.time.Instant;
 import java.util.stream.LongStream;
 import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerType;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
-import org.hiero.mirror.importer.exception.BlockStreamException;
+import org.hiero.mirror.importer.exception.NoBlockNodeAvailableException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -60,7 +60,7 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
         // when, then
         await().atMost(Duration.ofSeconds(10)).pollDelay(Duration.ofMillis(1)).untilAsserted(() -> assertThatThrownBy(
                         subscriber::get)
-                .isInstanceOf(BlockStreamException.class)
+                .isInstanceOf(NoBlockNodeAvailableException.class)
                 .hasMessage("No block node can provide block 20"));
         assertVerifiedBlockFiles(LongStream.range(0, 20).boxed().toList());
 
@@ -107,7 +107,7 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
         // when, then
         await().atMost(Duration.ofSeconds(20)).pollDelay(Duration.ofMillis(1)).untilAsserted(() -> assertThatThrownBy(
                         subscriber::get)
-                .isInstanceOf(BlockStreamException.class)
+                .isInstanceOf(NoBlockNodeAvailableException.class)
                 .hasMessage("No block node can provide block 40"));
         assertVerifiedBlockFiles(LongStream.range(0, 40).boxed().toList());
 
