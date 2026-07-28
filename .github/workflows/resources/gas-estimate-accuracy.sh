@@ -58,6 +58,7 @@ should_skip() {
   local reason
   reason="$(jq -r '
     if .result != "SUCCESS" then "non-success result"
+    elif .gas_consumed == null then "missing gas_consumed"
     elif (.to == null or .to == "" or .to == "0x") and
          (.function_parameters == null or .function_parameters == "" or .function_parameters == "0x") then
       "missing data for contract deploy"
@@ -97,10 +98,10 @@ check_result() {
     # Count those separately; only unexpected API failures fail the job.
     if [[ "${http_code}" == "400" ]] && grep -q 'CONTRACT_REVERT_EXECUTED' <<<"${body}"; then
       estimate_reverts=$((estimate_reverts + 1))
-      log "Estimate revert for timestamp=${timestamp}"
+      log "Estimate revert for timestamp=${timestamp} request=${request}"
     else
       api_errors=$((api_errors + 1))
-      log "API ${http_code} for timestamp=${timestamp}: $(head -c 200 <<<"${body}")"
+      log "API ${http_code} for timestamp=${timestamp} request=${request}: $(head -c 200 <<<"${body}")"
     fi
     return 0
   fi
@@ -109,7 +110,7 @@ check_result() {
   result_hex="$(jq -r '.result // empty' <<<"${body}")"
   if [[ -z "${result_hex}" || "${result_hex}" == "null" ]]; then
     api_errors=$((api_errors + 1))
-    log "Missing estimate result for timestamp=${timestamp}: $(head -c 200 <<<"${body}")"
+    log "Missing estimate result for timestamp=${timestamp} request=${request}: $(head -c 200 <<<"${body}")"
     return 0
   fi
 
@@ -125,7 +126,7 @@ check_result() {
       diff = e > c ? e - c : c - e
       printf "%.2f", (diff * 100.0 / c)
     }')"
-    log "Out of tolerance for timestamp=${timestamp}: estimated=${estimated} gas_consumed=${consumed} delta=${pct}%"
+    log "Out of tolerance for timestamp=${timestamp} request=${request}: estimated=${estimated} gas_consumed=${consumed} delta=${pct}%"
   fi
 }
 
