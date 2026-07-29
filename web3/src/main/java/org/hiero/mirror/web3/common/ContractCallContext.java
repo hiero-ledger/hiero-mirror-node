@@ -35,6 +35,12 @@ public class ContractCallContext {
     @Getter(AccessLevel.NONE)
     private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
 
+    /**
+     * Optional API endpoint key used to resolve a per-endpoint request timeout (e.g. {@code call}, {@code opcodes}).
+     */
+    @Setter
+    private String api;
+
     @Setter
     private OpcodeContext opcodeContext = null;
 
