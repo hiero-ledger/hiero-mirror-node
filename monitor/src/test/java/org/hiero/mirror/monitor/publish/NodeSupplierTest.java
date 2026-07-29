@@ -132,9 +132,9 @@ final class NodeSupplierTest {
     @Test
     void listEmptyThenPopulated() {
         monitorProperties.getNodeValidation().setEnabled(false);
-        var listMono = nodeSupplier.list();
+        StepVerifier.withVirtualTime(() -> nodeSupplier.list()).thenAwait(WAIT).expectNoEvent(WAIT);
         nodeSupplier.validateNode(node);
-        assertThat(listMono.block(WAIT)).containsExactly(node);
+        assertThat(nodeSupplier.list().block(WAIT)).containsExactly(node);
     }
 
     @Test

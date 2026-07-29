@@ -8,6 +8,7 @@ import jakarta.inject.Named;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Collection;
+import java.util.HashSet;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.domain.StreamFileSignature;
@@ -63,8 +64,11 @@ public class ConsensusValidatorImpl implements ConsensusValidator {
             var validatedSignatures = signatureHashMap.get(key);
             long stake = 0L;
 
+            var countedNodeIds = new HashSet<>();
             for (var signature : validatedSignatures) {
-                stake += signature.getNode().getStake();
+                if (countedNodeIds.add(signature.getNode().getNodeId())) {
+                    stake += signature.getNode().getStake();
+                }
             }
 
             if (canReachConsensus(stake, stakeRequiredForConsensus)) {
