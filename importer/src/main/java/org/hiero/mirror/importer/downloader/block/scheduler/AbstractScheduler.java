@@ -20,7 +20,7 @@ import org.hiero.mirror.importer.downloader.block.BlockNodeDiscoveryService;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.downloader.block.ManagedChannelBuilderProvider;
 import org.hiero.mirror.importer.downloader.block.StreamProperties;
-import org.hiero.mirror.importer.exception.BlockStreamException;
+import org.hiero.mirror.importer.exception.NoBlockNodeAvailableException;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,7 +103,7 @@ abstract class AbstractScheduler implements Scheduler {
             }
         }
 
-        throw new BlockStreamException("No block node can provide block " + blockNumber);
+        throw new NoBlockNodeAvailableException(blockNumber);
     }
 
     protected abstract Iterator<BlockNode> getOrderedNodes();
