@@ -9,8 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import org.apache.commons.lang3.ArrayUtils;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.converter.EntityIdConverter;
@@ -66,6 +65,7 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
             from contract_result cr
             left join et on et.consensus_timestamp = cr.consensus_timestamp
             where cr.consensus_timestamp between :consensusStart and :consensusEnd and cr.transaction_nonce = 0
+              and cr.transaction_result <> 312
             """;
 
     private static final String SELECT_CONTRACT_LOGS = """
@@ -198,14 +198,12 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
 
     private record BlockRange(long consensusStart, long consensusEnd) {}
 
-    @Getter
-    @Setter
+    @Data
     static class ContractResultAndType extends ContractResult {
         private Integer type;
     }
 
-    @Getter
-    @Setter
+    @Data
     static class ContractLogAndEvmAddress extends ContractLog {
         private byte[] evmAddress;
     }
