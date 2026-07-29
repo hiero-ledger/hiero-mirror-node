@@ -125,11 +125,20 @@ runs:
       shell: bash
       run: |
         set -ex
-        for module in grpc importer monitor rest-java web3; do
+        load_image() {
+          local image="$1"
+          local archive
+          archive="$(mktemp)"
           if [[ "${TRIGGERED_BY_TAG}" == "true" ]]; then
-            docker pull "${IMAGE_REGISTRY}/${module}:${VERSION}"
+            docker pull --platform linux/amd64 "${image}"
           fi
-          kind load docker-image "${IMAGE_REGISTRY}/${module}:${VERSION}" -n "${SOLO_CLUSTER_NAME}"
+          docker save --platform linux/amd64 -o "${archive}" "${image}"
+          kind load image-archive "${archive}" -n "${SOLO_CLUSTER_NAME}"
+          rm -f "${archive}"
+        }
+
+        for module in grpc importer monitor rest-java web3; do
+          load_image "${IMAGE_REGISTRY}/${module}:${VERSION}"
         done
 
     - name: Build image (rest)
@@ -147,6 +156,26 @@ runs:
         set -ex
         ./gradlew :test:dockerBuild -x :rest:monitoring:dockerBuild -PimageTag="${TAG}"
         kind load docker-image "gcr.io/mirrornode/hedera-mirror-test:${TAG}" -n "${SOLO_CLUSTER_NAME}"
+
+    - name: Load JVM images
+      if: env.TRIGGERED_BY_TAG == 'true' && inputs.image-source == 'native'
+      shell: bash
+      run: |
+        set -ex
+        load_image() {
+          local image="$1"
+          local archive
+          archive="$(mktemp)"
+          docker pull --platform linux/amd64 "${image}"
+          docker save --platform linux/amd64 -o "${archive}" "${image}"
+          kind load image-archive "${archive}" -n "${SOLO_CLUSTER_NAME}"
+          rm -f "${archive}"
+        }
+
+        for module in rest test; do
+          image="gcr.io/mirrornode/hedera-mirror-${module}:${VERSION}"
+          load_image "${image}"
+        done
 
     - name: Install yq
       shell: bash
