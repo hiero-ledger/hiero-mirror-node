@@ -16,6 +16,7 @@ import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
+import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptRoot;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.Tag;
@@ -35,6 +36,7 @@ class BackfillReceiptsRootMigrationTest extends AbstractAsyncJavaMigrationTest<B
 
     private final DBProperties dbProperties;
     private final Environment environment;
+    private final EntityProperties entityProperties;
 
     @Owner
     private final ObjectProvider<JdbcOperations> jdbcOperationsProvider;
@@ -331,6 +333,29 @@ class BackfillReceiptsRootMigrationTest extends AbstractAsyncJavaMigrationTest<B
     }
 
     @Test
+    void migrateSkippedWhenContractResultsDisabled() {
+        // Receipts roots are not computed at ingestion when contract result persistence is off, so the migration must
+        // skip: leave the block untouched and not create the progress table.
+        var start = domainBuilder.timestamp();
+        var block = persistBlockMissingReceiptsRoot(start, start + 10);
+
+        entityProperties.getPersist().setContractResults(false);
+        try {
+            runMigration();
+            waitForCompletion();
+        } finally {
+            entityProperties.getPersist().setContractResults(true);
+        }
+
+        // then
+        assertThat(recordFileRepository.findById(block.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isNull();
+        assertThat(progressTableExists()).isFalse();
+    }
+
+    @Test
     void invalidBatchSize() {
         assertThatThrownBy(() -> migrationWithBatchSize("0"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -350,7 +375,8 @@ class BackfillReceiptsRootMigrationTest extends AbstractAsyncJavaMigrationTest<B
         var importerProperties = new ImporterProperties();
         importerProperties.getMigration().put("backfillReceiptsRootMigration", migrationProperties);
 
-        return new BackfillReceiptsRootMigration(dbProperties, environment, importerProperties, jdbcOperationsProvider);
+        return new BackfillReceiptsRootMigration(
+                dbProperties, environment, entityProperties, importerProperties, jdbcOperationsProvider);
     }
 
     private RecordFile persistBlockMissingReceiptsRoot(long consensusStart, long consensusEnd) {

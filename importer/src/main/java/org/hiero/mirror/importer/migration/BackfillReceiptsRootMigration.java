@@ -21,6 +21,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
+import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptBlockUtils;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptRoot;
 import org.jspecify.annotations.NonNull;
@@ -109,7 +110,10 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
             values (:upperBound)
             """;
 
+    private static final String SET_CITUS_LIMIT = "set citus.max_intermediate_result_size = -1";
+
     private final int batchSize;
+    private final EntityProperties entityProperties;
     private final boolean v2;
     private long initialUpperBound = Long.MAX_VALUE;
 
@@ -119,6 +123,7 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
     public BackfillReceiptsRootMigration(
             DBProperties dbProperties,
             Environment environment,
+            EntityProperties entityProperties,
             ImporterProperties importerProperties,
             @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider) {
         super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
@@ -127,6 +132,7 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
         if (batchSize <= 0) {
             throw new IllegalArgumentException("Invalid non-positive %s %d".formatted(BATCH_SIZE_KEY, batchSize));
         }
+        this.entityProperties = entityProperties;
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
     }
 
@@ -159,6 +165,11 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
 
     @Override
     protected boolean performSynchronousSteps() {
+        if (!entityProperties.getPersist().isContractResults()) {
+            log.info("Skipping receipts_root backfill since contract result persistence is disabled");
+            return false;
+        }
+
         getJdbcOperations().execute(CREATE_PROGRESS_TABLE);
         var savedProgress = getJdbcOperations().queryForObject(SELECT_PROGRESS_UPPER_BOUND, Long.class);
         initialUpperBound = savedProgress != null ? savedProgress : Long.MAX_VALUE;
@@ -170,6 +181,10 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
     @Override
     protected Optional<Long> migratePartial(Long lastConsensusEnd) {
         var jdbcOperations = getNamedParameterJdbcOperations();
+        if (v2) {
+            getJdbcOperations().execute(SET_CITUS_LIMIT);
+        }
+
         var blocks = jdbcOperations.query(
                 SELECT_BLOCKS,
                 Map.of("consensusEnd", lastConsensusEnd, "limit", batchSize),
