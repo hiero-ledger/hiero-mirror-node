@@ -3,9 +3,6 @@
 name: Test native images
 
 on:
-  # >>> TEMPORARY: exercise published-tag / load-native-images path on PRs — REVERT AFTER TEST <<<
-  pull_request:
-  # <<< TEMPORARY
   push:
     tags:
       - "v*"
@@ -28,16 +25,10 @@ defaults:
 
 env:
   LC_ALL: C.UTF-8
-  # >>> TEMPORARY: force tag path with published images — REVERT AFTER TEST <<<
-  FORCE_TAG_PATH_VERSION: v0.160.0-rc1
-  # <<< TEMPORARY
 
 jobs:
   image:
-    # >>> TEMPORARY: skip local native builds; use FORCE_TAG_PATH_VERSION images — REVERT AFTER TEST <<<
-    # Original: if: github.ref_type != 'tag'
-    if: false
-    # <<< TEMPORARY
+    if: github.ref_type != 'tag'
     strategy:
       fail-fast: false
       matrix:
