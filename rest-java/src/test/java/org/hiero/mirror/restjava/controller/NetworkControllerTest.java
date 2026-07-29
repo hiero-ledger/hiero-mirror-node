@@ -9,18 +9,12 @@ import static org.assertj.core.api.InstanceOfAssertFactories.list;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
-import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
-import com.hederahashgraph.api.proto.java.FeeComponents;
-import com.hederahashgraph.api.proto.java.FeeData;
-import com.hederahashgraph.api.proto.java.FeeSchedule;
-import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.Arrays;
@@ -31,6 +25,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.hapi.support.fees.VariableRateDefinition;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -273,7 +268,7 @@ final class NetworkControllerTest extends ControllerTest {
     final class FeesEndpointTest extends EndpointTest {
 
         private static final long CURRENT_RATE_EXPIRATION_NANOS = 1759951090L * DomainUtils.NANOS_PER_SECOND;
-        private final EntityId feeFileId = systemEntity.feeScheduleFile();
+        private final EntityId feeFileId = systemEntity.simpleFeeScheduleFile();
         private final EntityId exchangeRateFileId = systemEntity.exchangeRateFile();
         private long feeFileTimestampSeq = 0;
 
@@ -286,7 +281,7 @@ final class NetworkControllerTest extends ControllerTest {
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
             final var feeSchedule = feeSchedule();
             final var exchangeRateSet = exchangeRateSet(1);
-            feeScheduleFile(feeSchedule.toByteArray());
+            feeScheduleFile(toFeeScheduleBytes(feeSchedule));
             exchangeRateFile(exchangeRateSet.toByteArray());
             return uriSpec.uri("");
         }
@@ -493,35 +488,19 @@ final class NetworkControllerTest extends ControllerTest {
                     org.hiero.mirror.restjava.jooq.domain.tables.FileData.FILE_DATA.CONSENSUS_TIMESTAMP);
         }
 
-        private CurrentAndNextFeeSchedule feeSchedule() {
-            return CurrentAndNextFeeSchedule.newBuilder()
-                    .setCurrentFeeSchedule(FeeSchedule.newBuilder()
-                            .addTransactionFeeSchedule(TransactionFeeSchedule.newBuilder()
-                                    .setHederaFunctionality(HederaFunctionality.ContractCall)
-                                    .addFees(FeeData.newBuilder()
-                                            .setServicedata(FeeComponents.newBuilder()
-                                                    .setGas(852000L)
-                                                    .build())
-                                            .build())
-                                    .build())
-                            .addTransactionFeeSchedule(TransactionFeeSchedule.newBuilder()
-                                    .setHederaFunctionality(HederaFunctionality.ContractCreate)
-                                    .addFees(FeeData.newBuilder()
-                                            .setServicedata(FeeComponents.newBuilder()
-                                                    .setGas(1068000L)
-                                                    .build())
-                                            .build())
-                                    .build())
-                            .addTransactionFeeSchedule(TransactionFeeSchedule.newBuilder()
-                                    .setHederaFunctionality(HederaFunctionality.EthereumTransaction)
-                                    .addFees(FeeData.newBuilder()
-                                            .setServicedata(FeeComponents.newBuilder()
-                                                    .setGas(953000L)
-                                                    .build())
-                                            .build())
-                                    .build())
+        private org.hiero.hapi.support.fees.FeeSchedule feeSchedule() {
+            return org.hiero.hapi.support.fees.FeeSchedule.newBuilder()
+                    .extras(org.hiero.hapi.support.fees.ExtraFeeDefinition.newBuilder()
+                            .name(org.hiero.hapi.support.fees.Extra.GAS)
+                            .fee(852L)
                             .build())
                     .build();
+        }
+
+        private byte[] toFeeScheduleBytes(org.hiero.hapi.support.fees.FeeSchedule feeSchedule) {
+            return org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF
+                    .toBytes(feeSchedule)
+                    .toByteArray();
         }
 
         private ExchangeRateSet exchangeRateSet(int hbars) {
@@ -537,9 +516,9 @@ final class NetworkControllerTest extends ControllerTest {
                     .build();
         }
 
-        private SystemFile<CurrentAndNextFeeSchedule> systemFileFee() {
+        private SystemFile<FeeSchedule> systemFileFee() {
             final var feeSchedule = feeSchedule();
-            return new SystemFile<>(feeScheduleFile(feeSchedule.toByteArray()), feeSchedule);
+            return new SystemFile<>(feeScheduleFile(toFeeScheduleBytes(feeSchedule)), feeSchedule);
         }
 
         private SystemFile<ExchangeRateSet> systemFileExchangeRate() {

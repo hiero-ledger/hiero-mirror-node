@@ -4,16 +4,12 @@ package org.hiero.mirror.restjava.mapper;
 
 import static org.hiero.mirror.restjava.mapper.CommonMapper.QUALIFIER_TIMESTAMP;
 
-import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
-import com.hederahashgraph.api.proto.java.FeeSchedule;
-import com.hederahashgraph.api.proto.java.HederaFunctionality;
-import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import org.hiero.hapi.support.fees.Extra;
+import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.NetworkFee;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
@@ -27,16 +23,11 @@ import org.springframework.data.domain.Sort;
 @Mapper(config = MapperConfiguration.class)
 public interface FeeScheduleMapper {
 
-    long FEE_DIVISOR_FACTOR = 1000L;
-
     Comparator<NetworkFee> ASC_COMPARATOR =
             Comparator.comparing(NetworkFee::getTransactionType, String.CASE_INSENSITIVE_ORDER);
     Comparator<NetworkFee> DESC_COMPARATOR = ASC_COMPARATOR.reversed();
 
-    Map<HederaFunctionality, String> ENABLED_TRANSACTION_TYPES = Map.of(
-            HederaFunctionality.ContractCall, "ContractCall",
-            HederaFunctionality.ContractCreate, "ContractCreate",
-            HederaFunctionality.EthereumTransaction, "EthereumTransaction");
+    List<String> TRANSACTION_TYPES = List.of("ContractCall", "ContractCreate", "EthereumTransaction");
 
     @Mapping(target = "fees", expression = "java(mapFees(feeScheduleFile, exchangeRateFile, bound, order))")
     @Mapping(
@@ -44,30 +35,37 @@ public interface FeeScheduleMapper {
             target = "timestamp",
             qualifiedByName = QUALIFIER_TIMESTAMP)
     NetworkFeesResponse map(
-            SystemFile<CurrentAndNextFeeSchedule> feeScheduleFile,
+            SystemFile<FeeSchedule> feeScheduleFile,
             SystemFile<ExchangeRateSet> exchangeRateFile,
             Bound bound,
             Sort.Direction order);
 
     default List<NetworkFee> mapFees(
-            SystemFile<CurrentAndNextFeeSchedule> feeScheduleFile,
+            SystemFile<FeeSchedule> feeScheduleFile,
             SystemFile<ExchangeRateSet> exchangeRateFile,
             Bound bound,
             Sort.Direction order) {
 
-        final var refTimestampNanos = getReferenceTimestampNanos(feeScheduleFile, bound);
-        final var feeSchedule = getEffectiveFeeSchedule(feeScheduleFile.data(), refTimestampNanos);
-        final var exchangeRate = getEffectiveExchangeRate(exchangeRateFile.data(), refTimestampNanos);
+        final var gasTinycents = getGasPriceTinycents(feeScheduleFile.data());
+        if (gasTinycents == null) {
+            return List.of();
+        }
 
-        return feeSchedule.getTransactionFeeScheduleList().stream()
-                .filter(s -> ENABLED_TRANSACTION_TYPES.containsKey(s.getHederaFunctionality()) && s.getFeesCount() > 0)
-                .map(s -> mapToNetworkFee(s, exchangeRate))
-                .filter(Objects::nonNull)
+        final var refTimestampNanos = getReferenceTimestampNanos(feeScheduleFile, bound);
+        final var exchangeRate = getEffectiveExchangeRate(exchangeRateFile.data(), refTimestampNanos);
+        final var tinyBars =
+                convertGasPriceToTinyBars(gasTinycents, exchangeRate.getHbarEquiv(), exchangeRate.getCentEquiv());
+        if (tinyBars == null) {
+            return List.of();
+        }
+
+        return TRANSACTION_TYPES.stream()
+                .map(type -> new NetworkFee().gas(tinyBars).transactionType(type))
                 .sorted(getComparator(order))
                 .toList();
     }
 
-    private long getReferenceTimestampNanos(SystemFile<CurrentAndNextFeeSchedule> feeScheduleFile, Bound bound) {
+    private long getReferenceTimestampNanos(SystemFile<FeeSchedule> feeScheduleFile, Bound bound) {
         final long upperBound = bound.adjustUpperBound();
 
         if (upperBound == Long.MAX_VALUE) {
@@ -88,40 +86,22 @@ public interface FeeScheduleMapper {
         return currentRate;
     }
 
-    private FeeSchedule getEffectiveFeeSchedule(CurrentAndNextFeeSchedule feeSchedules, long refTimestampNanos) {
-
-        final var currentFeeSchedule = feeSchedules.getCurrentFeeSchedule();
-        final var feeScheduleExpirationTime = currentFeeSchedule.getExpiryTime().getSeconds();
-
-        if (refTimestampNanos > feeScheduleExpirationTime * DomainUtils.NANOS_PER_SECOND) {
-            return feeSchedules.getNextFeeSchedule();
+    @Nullable
+    private Long getGasPriceTinycents(FeeSchedule feeSchedule) {
+        for (final var extra : feeSchedule.extras()) {
+            if (extra.name() == Extra.GAS) {
+                return extra.fee();
+            }
         }
-
-        return currentFeeSchedule;
+        return null;
     }
 
     @Nullable
-    private NetworkFee mapToNetworkFee(TransactionFeeSchedule schedule, ExchangeRate rate) {
-
-        var feeData = schedule.getFees(0);
-        if (!feeData.hasServicedata()) {
-            return null;
-        }
-
-        var type = ENABLED_TRANSACTION_TYPES.get(schedule.getHederaFunctionality());
-        var gas = feeData.getServicedata().getGas();
-        var tinyBars = convertGasPriceToTinyBars(gas, rate.getHbarEquiv(), rate.getCentEquiv());
-
-        return tinyBars == null ? null : new NetworkFee().gas(tinyBars).transactionType(type);
-    }
-
-    @Nullable
-    default Long convertGasPriceToTinyBars(long gasPrice, int hbars, int cents) {
+    default Long convertGasPriceToTinyBars(long gasPriceTinycents, int hbars, int cents) {
         if (cents == 0) {
             return null;
         }
-        final long gasInTinyCents = gasPrice / FEE_DIVISOR_FACTOR;
-        final long gasInTinyBars = gasInTinyCents * hbars / cents;
+        final long gasInTinyBars = gasPriceTinycents * hbars / cents;
         return Math.max(gasInTinyBars, 1L);
     }
 

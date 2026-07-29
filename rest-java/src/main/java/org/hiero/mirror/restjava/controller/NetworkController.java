@@ -102,7 +102,7 @@ final class NetworkController {
             @RequestParam(required = false) @Size(max = 2) TimestampParameter[] timestamp,
             @RequestParam(required = false, defaultValue = "ASC") Sort.Direction order) {
         final var bound = Bound.of(timestamp, TIMESTAMP, FileData.FILE_DATA.CONSENSUS_TIMESTAMP);
-        final var feeSchedule = fileService.getFeeSchedule(bound);
+        final var feeSchedule = fileService.getSimpleFeeSchedule(bound);
         final var exchangeRate = fileService.getExchangeRate(bound);
         return feeScheduleMapper.map(feeSchedule, exchangeRate, bound, order);
     }
