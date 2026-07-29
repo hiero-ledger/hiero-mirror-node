@@ -65,6 +65,19 @@ runs:
       run: |
         set -ex
 
+        # >>> TEMPORARY: force published-tag path for native-image PR test — REVERT AFTER TEST <<<
+        if [[ -n "${FORCE_TAG_PATH_VERSION:-}" ]]; then
+          VERSION="${FORCE_TAG_PATH_VERSION#v}"
+          TAG="${VERSION}"
+          TRIGGERED_BY_TAG=true
+          echo "Forcing tag path with VERSION=${VERSION}"
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "TRIGGERED_BY_TAG=${TRIGGERED_BY_TAG}" >> $GITHUB_ENV
+          exit 0
+        fi
+        # <<< TEMPORARY
+
         TAG=$(sed -nE 's/^version: (.+)$/\1/p' charts/hedera-mirror/Chart.yaml)
         VERSION=$(grep -oP 'version=\K.+' gradle.properties)
         TRIGGERED_BY_TAG=false
@@ -125,13 +138,23 @@ runs:
       shell: bash
       run: |
         set -ex
+        # kind load docker-image uses `ctr import --all-platforms`. Pulling a multi-arch GHCR
+        # tag (even with --platform) keeps the full index, so import fails with missing digests.
+        # Export a single-platform archive instead.
+        load_image() {
+          local image="$1"
+          local archive
+          archive="$(mktemp)"
+          docker save --platform linux/amd64 -o "${archive}" "${image}"
+          kind load image-archive "${archive}" -n "${SOLO_CLUSTER_NAME}"
+          rm -f "${archive}"
+        }
+
         for module in grpc importer monitor rest-java web3; do
-          image="${IMAGE_REGISTRY}/${module}:${VERSION}"
           if [[ "${TRIGGERED_BY_TAG}" == "true" ]]; then
-            docker pull "${image}-amd64"
-            docker tag "${image}-amd64" "${image}"
+            docker pull --platform linux/amd64 "${IMAGE_REGISTRY}/${module}:${VERSION}"
           fi
-          kind load docker-image "${image}" -n "${SOLO_CLUSTER_NAME}"
+          load_image "${IMAGE_REGISTRY}/${module}:${VERSION}"
         done
 
     - name: Build image (rest)
@@ -155,13 +178,19 @@ runs:
       shell: bash
       run: |
         set -ex
-        for module in rest test; do
-          image="gcr.io/mirrornode/hedera-mirror-${module}:${VERSION}"
+        load_image() {
+          local image="$1"
+          local archive
           archive="$(mktemp)"
-          docker pull --platform linux/amd64 "${image}"
           docker save --platform linux/amd64 -o "${archive}" "${image}"
           kind load image-archive "${archive}" -n "${SOLO_CLUSTER_NAME}"
           rm -f "${archive}"
+        }
+
+        for module in rest test; do
+          image="gcr.io/mirrornode/hedera-mirror-${module}:${VERSION}"
+          docker pull --platform linux/amd64 "${image}"
+          load_image "${image}"
         done
 
     - name: Install yq
