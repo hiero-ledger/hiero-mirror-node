@@ -16,7 +16,6 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.apache.commons.collections4.map.CaseInsensitiveMap;
-import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.migration.MigrationProperties;
 import org.hiero.mirror.importer.util.Utility;
@@ -81,7 +80,7 @@ public class ImporterProperties {
     }
 
     public String getNetwork() {
-        return StringUtils.substringBefore(this.network, "-").toLowerCase();
+        return network.toLowerCase();
     }
 
     public enum ConsensusMode {
