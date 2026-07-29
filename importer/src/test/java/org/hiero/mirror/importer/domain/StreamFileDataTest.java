@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.util.unit.DataSize;
 
 class StreamFileDataTest {
 
@@ -93,8 +94,7 @@ class StreamFileDataTest {
 
     @Test
     void decompressionExceedingMaxSizeThrows() throws IOException {
-        String previousProperty = System.getProperty(StreamFileData.MAX_DECOMPRESSED_BYTES_PROPERTY);
-        System.setProperty(StreamFileData.MAX_DECOMPRESSED_BYTES_PROPERTY, "100");
+        StreamFileData.setMaxDecompressedBytes(100);
         try {
             String filename = "2021-03-10T16_00_00Z.rcd.gz";
             byte[] uncompressedBytes = new byte[1000];
@@ -109,11 +109,7 @@ class StreamFileDataTest {
                 assertThrows(InvalidStreamFileException.class, streamFileData::getDecompressedBytes);
             }
         } finally {
-            if (previousProperty == null) {
-                System.clearProperty(StreamFileData.MAX_DECOMPRESSED_BYTES_PROPERTY);
-            } else {
-                System.setProperty(StreamFileData.MAX_DECOMPRESSED_BYTES_PROPERTY, previousProperty);
-            }
+            StreamFileData.setMaxDecompressedBytes(DataSize.ofMegabytes(512).toBytes());
         }
     }
 }

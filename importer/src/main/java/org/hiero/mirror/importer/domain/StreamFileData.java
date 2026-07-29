@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.EqualsAndHashCode;
@@ -30,10 +31,8 @@ import org.springframework.util.unit.DataSize;
 @Value
 public class StreamFileData {
 
-    public static final String MAX_DECOMPRESSED_BYTES_PROPERTY = "HIERO_MIRROR_IMPORTER_MAXDECOMPRESSEDBYTES";
-
-    private static final long DEFAULT_MAX_DECOMPRESSED_BYTES =
-            DataSize.ofMegabytes(200).toBytes();
+    private static final AtomicLong maxDecompressedBytes =
+            new AtomicLong(DataSize.ofMegabytes(512).toBytes());
 
     private static final CompressorStreamFactory compressorStreamFactory = new CompressorStreamFactory(true);
 
@@ -88,6 +87,10 @@ public class StreamFileData {
         return new StreamFileData(StreamFilename.from(filename), () -> bytes, Instant.now());
     }
 
+    public static void setMaxDecompressedBytes(long bytes) {
+        maxDecompressedBytes.set(bytes);
+    }
+
     public byte[] getBytes() {
         return bytes.get();
     }
@@ -116,14 +119,14 @@ public class StreamFileData {
         }
 
         var filename = streamFilename.getFilename();
-        var maxDecompressedBytes = getMaxDecompressedBytes();
+        var decompressionLimit = maxDecompressedBytes.get();
         try (var boundedInputStream = BoundedInputStream.builder()
                 .setInputStream(compressorStreamFactory.createCompressorInputStream(
                         compressor, new ByteArrayInputStream(getBytes())))
-                .setMaxCount(maxDecompressedBytes + 1)
+                .setMaxCount(decompressionLimit + 1)
                 .setOnMaxCount((max, count) -> {
                     throw new InvalidStreamFileException("Decompressed size of stream file " + filename
-                            + " exceeds the maximum allowed size of " + maxDecompressedBytes + " bytes");
+                            + " exceeds the maximum allowed size of " + decompressionLimit + " bytes");
                 })
                 .get()) {
             return boundedInputStream.readAllBytes();
@@ -131,10 +134,5 @@ public class StreamFileData {
             log.error("Failed to decompress stream file {}", filename);
             throw new InvalidStreamFileException(filename, e);
         }
-    }
-
-    private static long getMaxDecompressedBytes() {
-        var property = System.getProperty(MAX_DECOMPRESSED_BYTES_PROPERTY);
-        return StringUtils.isBlank(property) ? DEFAULT_MAX_DECOMPRESSED_BYTES : Long.parseLong(property);
     }
 }
