@@ -3,12 +3,11 @@
 package org.hiero.mirror.web3;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hiero.mirror.web3.Web3Properties.CALL;
-import static org.hiero.mirror.web3.Web3Properties.OPCODES;
+import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.CALL;
+import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.OPCODES;
 
 import java.time.Duration;
-import org.hiero.mirror.web3.Web3Properties.ApiProperties;
-import org.hiero.mirror.web3.Web3Properties.RequestProperties;
+import org.hiero.mirror.web3.ApiProperties.RequestProperties;
 import org.junit.jupiter.api.Test;
 
 class Web3PropertiesTest {
@@ -18,15 +17,8 @@ class Web3PropertiesTest {
         var properties = new Web3Properties();
 
         assertThat(properties.getRequestTimeout(CALL)).isEqualTo(Duration.ofSeconds(4L));
-        assertThat(properties.getRequestTimeout((String) null)).isEqualTo(Duration.ofSeconds(4L));
-        assertThat(properties.getRequestTimeout("unknown")).isEqualTo(Duration.ofSeconds(4L));
-    }
-
-    @Test
-    void getRequestTimeoutUsesOpcodesDefault() {
-        var properties = new Web3Properties();
-
-        assertThat(properties.getRequestTimeout(OPCODES)).isEqualTo(Duration.ofSeconds(10L));
+        assertThat(properties.getRequestTimeout(OPCODES)).isEqualTo(Duration.ofSeconds(4L));
+        assertThat(properties.getRequestTimeout(null)).isEqualTo(Duration.ofSeconds(4L));
     }
 
     @Test
@@ -40,7 +32,9 @@ class Web3PropertiesTest {
 
         var opcodesRequest = new RequestProperties();
         opcodesRequest.setTimeout(Duration.ofSeconds(20L));
-        properties.getApi().get(OPCODES).setRequest(opcodesRequest);
+        var opcodesApi = new ApiProperties();
+        opcodesApi.setRequest(opcodesRequest);
+        properties.getApi().put(OPCODES, opcodesApi);
 
         assertThat(properties.getRequestTimeout(CALL)).isEqualTo(Duration.ofSeconds(6L));
         assertThat(properties.getRequestTimeout(OPCODES)).isEqualTo(Duration.ofSeconds(20L));

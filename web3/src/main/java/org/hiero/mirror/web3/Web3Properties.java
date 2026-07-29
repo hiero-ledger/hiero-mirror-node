@@ -18,11 +18,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class Web3Properties {
 
-    public static final String CALL = "call";
-    public static final String OPCODES = "opcodes";
-
     @NotNull
-    private Map<String, @Valid ApiProperties> api = defaultApi();
+    private Map<ApiEndpointName, @Valid ApiProperties> api = new HashMap<>();
 
     private boolean enableStateOverrides = false;
 
@@ -36,7 +33,7 @@ public class Web3Properties {
      * Returns the request timeout for the given API endpoint, falling back to {@link #requestTimeout} when the endpoint
      * has no configured override.
      */
-    public Duration getRequestTimeout(String endpoint) {
+    public Duration getRequestTimeout(ApiEndpointName endpoint) {
         if (endpoint != null) {
             var properties = api.get(endpoint);
             if (properties != null
@@ -48,28 +45,8 @@ public class Web3Properties {
         return requestTimeout;
     }
 
-    private static Map<String, ApiProperties> defaultApi() {
-        var opcodes = new ApiProperties();
-        opcodes.getRequest().setTimeout(Duration.ofSeconds(10L));
-        var api = new HashMap<String, ApiProperties>();
-        api.put(OPCODES, opcodes);
-        return api;
-    }
-
-    @Data
-    @Validated
-    public static class ApiProperties {
-
-        @NotNull
-        @Valid
-        private RequestProperties request = new RequestProperties();
-    }
-
-    @Data
-    @Validated
-    public static class RequestProperties {
-
-        @DurationMin(seconds = 1L)
-        private Duration timeout;
+    public enum ApiEndpointName {
+        CALL,
+        OPCODES
     }
 }

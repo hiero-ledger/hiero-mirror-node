@@ -14,6 +14,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.web3.Web3Properties.ApiEndpointName;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -36,10 +37,10 @@ public class ContractCallContext {
     private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
 
     /**
-     * Optional API endpoint key used to resolve a per-endpoint request timeout (e.g. {@code call}, {@code opcodes}).
+     * Optional API endpoint used to resolve a per-endpoint request timeout.
      */
     @Setter
-    private String api;
+    private ApiEndpointName api;
 
     @Setter
     private OpcodeContext opcodeContext = null;
