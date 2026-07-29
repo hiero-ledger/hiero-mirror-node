@@ -19,12 +19,13 @@ import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.operation.BlockHashOperation;
 
 /**
- * Custom version of the Besu's BlockHashOperation class. The difference is that in the mirror node we have the block
- * hash values of all the blocks so the restriction for the latest 256 blocks is removed. The latest block value can be
- * returned as well.
+ * Custom version of the Besu's BlockHashOperation class. The difference is that the latest block value can be
+ * returned as well, in addition to the standard 256-block lookback window.
  */
 @Named
 class MirrorBlockHashOperation extends BlockHashOperation {
+
+    private static final long BLOCKHASH_MAX_LOOKBACK = 256L;
 
     private final RecordFileRepository recordFileRepository;
 
@@ -56,7 +57,9 @@ class MirrorBlockHashOperation extends BlockHashOperation {
         final BlockValues blockValues = frame.getBlockValues();
         final long currentBlockNumber = blockValues.getNumber();
 
-        if (currentBlockNumber <= 0 || soughtBlock > currentBlockNumber) {
+        if (currentBlockNumber <= 0
+                || soughtBlock > currentBlockNumber
+                || soughtBlock <= currentBlockNumber - BLOCKHASH_MAX_LOOKBACK) {
             frame.pushStackItem(Bytes32.ZERO);
         } else if (currentBlockNumber == soughtBlock) {
             final var latestBlock = ContractCallContext.get().getRecordFile();
