@@ -29,7 +29,7 @@ import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.downloader.block.InProcessManagedChannelBuilderProvider;
 import org.hiero.mirror.importer.downloader.block.ManagedChannelBuilderProvider;
 import org.hiero.mirror.importer.downloader.block.StreamProperties;
-import org.hiero.mirror.importer.exception.BlockStreamException;
+import org.hiero.mirror.importer.exception.NoBlockNodeAvailableException;
 import org.jspecify.annotations.NullUnmarked;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
@@ -96,7 +96,7 @@ abstract class AbstractSchedulerTest {
 
         // when, then
         assertThatThrownBy(() -> scheduler.getNode(1))
-                .isInstanceOf(BlockStreamException.class)
+                .isInstanceOf(NoBlockNodeAvailableException.class)
                 .hasMessageContaining("No block node can provide block 1");
     }
 
