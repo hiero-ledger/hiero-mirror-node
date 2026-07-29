@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.repository.properties;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -36,7 +37,8 @@ public class CacheProperties {
      * The maximum number of contract storage slot keys loaded (and searched) in a single {@code findStorageBatch}
      * query.
      */
-    private int maxSlotKeysPerBatch = 200;
+    @Min(1)
+    private int maxSlotKeysPerBatch = 40;
 
     @NotBlank
     private String fee = "expireAfterWrite=60m,maximumSize=20,recordStats";

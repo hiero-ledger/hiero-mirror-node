@@ -101,9 +101,10 @@ final class ContractStateServiceImpl implements ContractStateService {
                 break;
             }
 
-            final var slotValueCacheKey = generateCacheKey(contractId, ((ByteBuffer) slotKey).array());
+            final var slotKeyBytes = ((ByteBuffer) slotKey).array();
+            final var slotValueCacheKey = generateCacheKey(contractId, slotKeyBytes);
             if (contractStateCache.get(slotValueCacheKey) == null) {
-                cachedSlots.add(((ByteBuffer) slotKey).array());
+                cachedSlots.add(slotKeyBytes);
             }
             if (wrappedKey.equals(slotKey)) {
                 isKeyEvictedFromCache = false;
