@@ -56,7 +56,7 @@ final class FeeScheduleMapperTest {
                 .fileData()
                 .customize(f -> f.consensusTimestamp(TIMESTAMP_BEFORE_EXPIRATION_NANOS))
                 .get();
-        final var feeSchedule = createFeeSchedule(852L);
+        final var feeSchedule = createFeeSchedule();
         final var feeScheduleFile = new SystemFile<>(fileData, feeSchedule);
         final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
 
@@ -89,7 +89,7 @@ final class FeeScheduleMapperTest {
                 .fileData()
                 .customize(f -> f.consensusTimestamp(TIMESTAMP_BEFORE_EXPIRATION_NANOS))
                 .get();
-        final var feeSchedule = createFeeSchedule(852L);
+        final var feeSchedule = createFeeSchedule();
         final var feeScheduleFile = new SystemFile<>(fileData, feeSchedule);
         final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
 
@@ -142,7 +142,7 @@ final class FeeScheduleMapperTest {
                 .fileData()
                 .customize(f -> f.consensusTimestamp(TIMESTAMP_AFTER_EXPIRATION_NANOS))
                 .get();
-        final var feeSchedule = createFeeSchedule(852L);
+        final var feeSchedule = createFeeSchedule();
         final var feeScheduleFile = new SystemFile<>(fileData, feeSchedule);
         final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
 
@@ -162,11 +162,11 @@ final class FeeScheduleMapperTest {
                 .returns(56L, NetworkFee::getGas);
     }
 
-    private FeeSchedule createFeeSchedule(long gasTinycents) {
+    private FeeSchedule createFeeSchedule() {
         return FeeSchedule.newBuilder()
                 .extras(ExtraFeeDefinition.newBuilder()
                         .name(Extra.GAS)
-                        .fee(gasTinycents)
+                        .fee(852L)
                         .build())
                 .build();
     }
