@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -28,6 +29,7 @@ import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
+import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.hiero.mirror.importer.util.Utility;
@@ -170,6 +172,11 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
         parserContext.add(recordFile);
         parserContext.addAll(recordFile.getSidecars());
+    }
+
+    @Override
+    protected StreamType getStreamType(final RecordFile recordFile) {
+        return recordFile.getVersion() == BlockStreamReader.VERSION ? StreamType.BLOCK : StreamType.RECORD;
     }
 
     private void logItem(RecordItem recordItem) {

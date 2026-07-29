@@ -59,7 +59,7 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
     @Override
     @SuppressWarnings("java:S2139")
     public void parse(final T streamFile) {
-        final var parserMetric = getParserMetric(streamFile.getType());
+        final var parserMetric = getParserMetric(streamFile);
         final var stopwatch = Stopwatch.createStarted();
         boolean success = true;
 
@@ -107,7 +107,7 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
         int size = streamFiles.size();
         final var stopwatch = Stopwatch.createStarted();
         boolean success = true;
-        final var parserMetric = getParserMetric(streamFiles.getFirst().getType());
+        final var parserMetric = getParserMetric(streamFiles.getFirst());
         T streamFile = null;
         String first = null;
 
@@ -170,6 +170,10 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
         return streamFileRepository.findLatest().orElse(null);
     }
 
+    protected StreamType getStreamType(final T streamFile) {
+        return streamFile.getType();
+    }
+
     private ParserMetric createParserMetric(final StreamType streamType) {
         final var type = streamType.toString();
         final var parseDurationTimerBuilder = Timer.builder(STREAM_PARSE_DURATION_METRIC_NAME)
@@ -199,8 +203,8 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
         streamFile.clear();
     }
 
-    private ParserMetric getParserMetric(final StreamType streamType) {
-        return parserMetrics.computeIfAbsent(streamType, this::createParserMetric);
+    private ParserMetric getParserMetric(final T streamFile) {
+        return parserMetrics.computeIfAbsent(getStreamType(streamFile), this::createParserMetric);
     }
 
     private boolean shouldParse(T previous, T current) {
