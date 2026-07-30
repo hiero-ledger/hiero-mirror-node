@@ -747,6 +747,56 @@ class TokenReadableKVStateTest {
     }
 
     @Test
+    void fixedFeeWhenCollectorEntityNotFound() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        setupToken(Optional.empty());
+        when(commonEntityAccessor.get(TOKEN_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+
+        var fixedFee = FixedFee.builder()
+                .collectorAccountId(collectorId)
+                .denominatingTokenId(denominatingTokenId)
+                .amount(20L)
+                .build();
+        customFee.setFixedFees(List.of(fixedFee));
+
+        when(customFeeRepository.findById(TOKEN_ENCODED_ID)).thenReturn(Optional.of(customFee));
+        // The collector entity cannot be resolved (e.g. created after the simulated block or never persisted).
+        when(commonEntityAccessor.get(collectorId, Optional.empty())).thenReturn(Optional.empty());
+
+        final var token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
+        // Must not throw; the absent collector falls back to the numeric id from the fee itself (0.0.<num>),
+        // matching how sibling states resolve referenced accounts, rather than collapsing to 0.0.0.
+        var results = token.customFeesSupplier().get();
+        Assertions.assertThat(results).hasSize(1).first().satisfies(fee -> Assertions.assertThat(
+                        fee.feeCollectorAccountId())
+                .isEqualTo(collectorAccountId));
+    }
+
+    @Test
+    void fixedFeeWhenCollectorAccountIdIsNull() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        setupToken(Optional.empty());
+        when(commonEntityAccessor.get(TOKEN_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+
+        var fixedFee = FixedFee.builder()
+                .collectorAccountId(null)
+                .denominatingTokenId(denominatingTokenId)
+                .amount(20L)
+                .build();
+        customFee.setFixedFees(List.of(fixedFee));
+
+        when(customFeeRepository.findById(TOKEN_ENCODED_ID)).thenReturn(Optional.of(customFee));
+
+        final var token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
+        // Defensive branch: a null collector id must not be looked up (would NPE in the accessor); it degrades to
+        // AccountID.DEFAULT without throwing, keeping the fee and its economics in the returned schedule.
+        var results = token.customFeesSupplier().get();
+        Assertions.assertThat(results).hasSize(1).first().satisfies(fee -> Assertions.assertThat(
+                        fee.feeCollectorAccountId())
+                .isEqualTo(AccountID.DEFAULT));
+    }
+
+    @Test
     void mapOnlyFeesWithCollectorAccountId() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         setupToken(Optional.empty());
