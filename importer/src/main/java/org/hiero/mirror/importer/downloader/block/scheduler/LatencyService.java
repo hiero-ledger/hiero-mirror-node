@@ -124,7 +124,7 @@ public final class LatencyService implements AutoCloseable {
                     return;
                 }
 
-                if (!node.getBlockRange().contains(nextBlockNumber)) {
+                if (node.containsBlockOrEarliest(nextBlockNumber) < 0) {
                     if (++skipped >= 3) {
                         // Mark the latency stale in case at least 3 times in a row the node doesn't have the block
                         node.getLatency().markStale();

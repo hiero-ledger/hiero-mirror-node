@@ -31,9 +31,10 @@ import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
+import org.hiero.block.api.protoc.BlockRange;
 import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
+import org.hiero.block.api.protoc.ServerStatusDetailResponse;
 import org.hiero.block.api.protoc.ServerStatusRequest;
-import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.block.api.protoc.SubscribeStreamResponse.Code;
@@ -485,16 +486,19 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         calls.compute(name, (_, value) -> value == null ? 1 : value + 1);
     }
 
-    private ServerStatusResponse serverStatusResponse(long firstBlockNumber, long lastBlockNumber) {
-        return ServerStatusResponse.newBuilder()
-                .setFirstAvailableBlock(firstBlockNumber)
-                .setLastAvailableBlock(lastBlockNumber)
+    private ServerStatusDetailResponse serverStatusResponse(long firstBlockNumber, long lastBlockNumber) {
+        return ServerStatusDetailResponse.newBuilder()
+                .addAvailableRanges(
+                        BlockRange.newBuilder().setRangeStart(firstBlockNumber).setRangeEnd(lastBlockNumber))
                 .build();
     }
 
     @SneakyThrows
     private void startServer(
-            String name, Resources resources, ServerStatusResponse statusResponse, ResponsesOrError streamResponse) {
+            String name,
+            Resources resources,
+            ServerStatusDetailResponse statusResponse,
+            ResponsesOrError streamResponse) {
         if (servers.containsKey(name)) {
             var server = servers.get(name);
             server.shutdown();
@@ -503,8 +507,8 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
         var statusService = new BlockNodeServiceGrpc.BlockNodeServiceImplBase() {
             @Override
-            public void serverStatus(
-                    ServerStatusRequest request, StreamObserver<ServerStatusResponse> responseObserver) {
+            public void serverStatusDetail(
+                    ServerStatusRequest request, StreamObserver<ServerStatusDetailResponse> responseObserver) {
                 recordCall(name, statusCalls);
                 responseObserver.onNext(statusResponse);
                 responseObserver.onCompleted();

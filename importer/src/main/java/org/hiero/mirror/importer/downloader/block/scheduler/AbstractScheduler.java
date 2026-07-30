@@ -162,18 +162,8 @@ abstract class AbstractScheduler implements Scheduler {
     }
 
     private static @Nullable ScheduledBlockNode hasBlock(final long nextBlockNumber, final BlockNode node) {
-        final var blockRange = node.getBlockRange();
-        if (blockRange.isEmpty()) {
-            return null;
-        }
-
-        if (nextBlockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER) {
-            return new ScheduledBlockNode(node, blockRange.lowerEndpoint());
-        } else if (blockRange.contains(nextBlockNumber)) {
-            return new ScheduledBlockNode(node, nextBlockNumber);
-        }
-
-        return null;
+        final long availableBlockNumber = node.containsBlockOrEarliest(nextBlockNumber);
+        return availableBlockNumber >= 0 ? new ScheduledBlockNode(node, availableBlockNumber) : null;
     }
 
     private static boolean nodesChanged(final List<BlockNodeProperties> current, final List<BlockNodeProperties> next) {
