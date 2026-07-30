@@ -6,8 +6,6 @@ on:
   pull_request:
     branches:
       - "main"
-    paths:
-      - ".github/workflows/wrb-differential.yaml"
   push:
     tags:
       - "v*"
@@ -37,6 +35,7 @@ jobs:
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
       SOLO_VERSION: v0.77.0
+    if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository)
     permissions:
       pull-requests: read
     steps:

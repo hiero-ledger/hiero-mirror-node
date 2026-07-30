@@ -48,8 +48,11 @@ jobs:
 
       - name: Get chart version
         id: release
+        env:
+          REVISION: ${{ github.event.client_payload.metadata.revision }}
         run: |
-          VERSION=$(echo ${{ github.event.client_payload.metadata.revision }} | cut -d '+' -f1)
+          grep -Eq -- "^[0-9]+\.[0-9]+\.[0-9]+(\+[0-9]+)?$" <<<"${REVISION}"
+          VERSION=$(echo ${REVISION} | cut -d '+' -f1)
           echo VERSION=${VERSION} >> $GITHUB_OUTPUT
 
       - name: Set chart version in HelmRelease
@@ -58,7 +61,9 @@ jobs:
           CLUSTER: ${{ github.event.client_payload.metadata.cluster }}
           NAMESPACES: ${{ github.event.client_payload.metadata.namespaces }}
         run: |
+          grep -Eq -- "^[a-z-]+$" <<<"${CLUSTER}"
           for namespace in $(echo "${NAMESPACES}" | tr "," "\n"); do
+            grep -Eq -- "^[a-z-]+$" <<<"${namespace}"
             yq eval '.spec.chart.spec.version=env(CHART_VERSION)' -i "./clusters/${CLUSTER}/${namespace}/helmrelease.yaml"
           done
 
