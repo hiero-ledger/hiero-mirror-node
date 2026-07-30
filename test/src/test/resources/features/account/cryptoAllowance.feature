@@ -19,7 +19,7 @@ Feature: Account Crypto Allowance Coverage Feature
     Then the mirror node REST API should confirm the crypto allowance no longer exists
     Examples:
       | spender | approvedAmount | recipient | transferAmount |
-      | "BOB"   | 100            | "ALICE"   | 1              |
+      | "BOB"   | 100            | "CAROL"   | 1              |
 
   @critical @release @acceptance
   Scenario Outline: Validate contract spender debits CryptoAllowance via the HTS precompile
