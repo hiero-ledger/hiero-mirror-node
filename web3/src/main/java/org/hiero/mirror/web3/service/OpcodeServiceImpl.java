@@ -6,6 +6,7 @@ import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRAC
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
+import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.OPCODES;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
@@ -65,6 +66,7 @@ public class OpcodeServiceImpl implements OpcodeService {
     @Override
     public OpcodesResponse processOpcodeCall(@NonNull OpcodeRequest opcodeRequest) {
         return ContractCallContext.run(ctx -> {
+            ctx.setApi(OPCODES);
             final var params = buildCallServiceParameters(opcodeRequest.getTransactionIdOrHashParameter());
             final var opcodeContext = new OpcodeContext(opcodeRequest, (int) params.getGas() / 3);
 

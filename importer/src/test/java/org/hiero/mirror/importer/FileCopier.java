@@ -7,20 +7,14 @@ import java.io.FileFilter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.function.Function;
 import lombok.CustomLog;
 import lombok.Setter;
-import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.file.AccumulatorPathVisitor;
-import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
-import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.domain.StreamType;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.jspecify.annotations.NonNull;
 
 @CustomLog
@@ -128,44 +122,6 @@ public class FileCopier {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Copy a {@code from} account ID based directory structure to the destination as a node ID based structure.
-     *
-     * @param destinationAdjuster adjustment to make to {@code to} path. Often {@code to} as been configured to be a
-     *                            specific account ID directory stream type, such as {@code accountBalances} or
-     *                            {@code recordstreams} etc. Provide a function to adjust this prior to files being
-     *                            copied. If no adjustment is required, provide {@link Function#identity()}
-     * @param network             Hiero or dev/test network name, typically found in mirror node properties.
-     */
-    @SneakyThrows
-    public void copyAsNodeIdStructure(Function<Path, Path> destinationAdjuster, String network) {
-        var destination = destinationAdjuster.apply(to);
-        var networkDir = destination.resolve(network);
-        var sourceNodeDirs = FileUtils.listFilesAndDirs(from.toFile(), TrueFileFilter.INSTANCE, null);
-        long shard = ignoreNonZeroRealmShard ? 0 : COMMON_PROPERTIES.getShard();
-
-        for (var sourceNodeDir : sourceNodeDirs) {
-            var sourceNodeDirName = sourceNodeDir.getName();
-            for (var streamType : StreamType.values()) {
-                var nodePrefix = streamType.getNodePrefix();
-                if (StringUtils.isEmpty(nodePrefix) || !sourceNodeDirName.startsWith(nodePrefix)) {
-                    continue;
-                }
-
-                var nodeAccountId = sourceNodeDirName.substring(nodePrefix.length());
-                var nodeEntityId = EntityId.of(nodeAccountId);
-
-                var destinationNodeIdPath = networkDir.resolve(Path.of(
-                        String.valueOf(shard),
-                        String.valueOf(nodeEntityId.getNum() - 3L), // Node ID
-                        streamType.getNodeIdBasedSuffix()));
-
-                FileUtils.copyDirectory(sourceNodeDir, destinationNodeIdPath.toFile());
-                break;
-            }
         }
     }
 

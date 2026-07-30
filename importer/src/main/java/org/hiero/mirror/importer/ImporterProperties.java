@@ -16,7 +16,6 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.apache.commons.collections4.map.CaseInsensitiveMap;
-import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.migration.MigrationProperties;
 import org.hiero.mirror.importer.util.Utility;
@@ -31,7 +30,6 @@ import org.springframework.validation.annotation.Validated;
 public class ImporterProperties {
 
     public static final String STREAMS = "streams";
-    static final String NETWORK_PREFIX_DELIMITER = "-";
 
     @NotNull
     private ConsensusMode consensusMode = ConsensusMode.STAKE_IN_ADDRESS_BOOK;
@@ -82,13 +80,7 @@ public class ImporterProperties {
     }
 
     public String getNetwork() {
-        return StringUtils.substringBefore(this.network, NETWORK_PREFIX_DELIMITER)
-                .toLowerCase();
-    }
-
-    public String getNetworkPrefix() {
-        var networkPrefix = StringUtils.substringAfter(this.network, NETWORK_PREFIX_DELIMITER);
-        return StringUtils.isEmpty(networkPrefix) ? null : networkPrefix.toLowerCase();
+        return network.toLowerCase();
     }
 
     public enum ConsensusMode {
@@ -96,8 +88,6 @@ public class ImporterProperties {
         STAKE, // all nodes specify their node stake
         STAKE_IN_ADDRESS_BOOK // like STAKE, but only the nodes found in the address book are used in the calculation.
     }
-
-    private record CloudBucket(String blockStream, String recordStream) {}
 
     @NullMarked
     public final class HederaNetwork {
@@ -107,33 +97,47 @@ public class ImporterProperties {
         public static final String PREVIEWNET = "previewnet";
         public static final String TESTNET = "testnet";
 
-        private static final Map<String, CloudBucket> NETWORK_DEFAULT_BUCKETS = Map.of(
-                DEMO, new CloudBucket("hedera-demo-recent-block-streams", "hedera-demo-streams"),
-                MAINNET, new CloudBucket("hedera-mainnet-recent-block-streams", "hedera-mainnet-streams"),
-                // OTHER has no default bucket
-                PREVIEWNET, new CloudBucket("hedera-previewnet-recent-block-streams", "hedera-preview-testnet-streams"),
-                TESTNET, new CloudBucket("hedera-testnet-recent-block-streams", "hedera-testnet-streams-2024-02"));
-
         private HederaNetwork() {}
 
         public static String getBlockStreamBucketName(final String network) {
-            return Optional.ofNullable(NETWORK_DEFAULT_BUCKETS.get(network))
-                    .map(CloudBucket::blockStream)
-                    .orElse("");
+            return Bucket.from(network).map(Bucket::getBlockStreamBucketName).orElse("");
         }
 
         public static String getBucketName(final String network) {
-            return Optional.ofNullable(NETWORK_DEFAULT_BUCKETS.get(network))
-                    .map(CloudBucket::recordStream)
-                    .orElse("");
+            return Bucket.from(network).map(Bucket::getBucketName).orElse("");
         }
 
         public static boolean hasCutover(final String network) {
-            return MAINNET.equals(network) || TESTNET.equals(network);
+            return MAINNET.equalsIgnoreCase(network) || TESTNET.equalsIgnoreCase(network);
         }
 
         public static boolean isAllowAnonymousAccess(final String network) {
-            return DEMO.equals(network);
+            return DEMO.equalsIgnoreCase(network);
+        }
+
+        @Getter
+        private enum Bucket {
+            DEMO("hedera-demo-recent-block-streams", "hedera-demo-streams"),
+            MAINNET("hedera-mainnet-recent-block-streams", "hedera-mainnet-streams"),
+            // OTHER has no default bucket
+            PREVIEWNET("hedera-previewnet-recent-block-streams", "hedera-preview-testnet-streams"),
+            TESTNET("hedera-testnet-recent-block-streams", "hedera-testnet-streams-2024-02");
+
+            private final String blockStreamBucketName;
+            private final String bucketName;
+
+            Bucket(String blockStreamBucketName, String bucketName) {
+                this.blockStreamBucketName = blockStreamBucketName;
+                this.bucketName = bucketName;
+            }
+
+            private static Optional<Bucket> from(String network) {
+                try {
+                    return Optional.of(valueOf(network.toUpperCase()));
+                } catch (IllegalArgumentException e) {
+                    return Optional.empty();
+                }
+            }
         }
     }
 }

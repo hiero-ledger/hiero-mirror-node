@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.downloader.provider;
 
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.jspecify.annotations.NullMarked;
 import reactor.core.publisher.Flux;
@@ -14,7 +13,6 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 abstract class AbstractStreamFileProvider implements StreamFileProvider {
 
-    protected final CommonProperties commonProperties;
     protected final CommonDownloaderProperties downloaderProperties;
 
     @Override
