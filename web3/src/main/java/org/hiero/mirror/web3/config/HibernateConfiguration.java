@@ -29,14 +29,14 @@ class HibernateConfiguration implements HibernatePropertiesCustomizer {
 
     @Bean
     StatementInspector statementInspector() {
-        long timeout = web3Properties.getRequestTimeout().toMillis();
         return sql -> {
             if (!ContractCallContext.isInitialized()) {
                 return sql;
             }
 
-            var startTime = ContractCallContext.get().getStartTime();
-            long elapsed = System.currentTimeMillis() - startTime;
+            var context = ContractCallContext.get();
+            long timeout = web3Properties.getRequestTimeout(context.getApi()).toMillis();
+            long elapsed = System.currentTimeMillis() - context.getStartTime();
 
             if (elapsed >= timeout) {
                 throw new QueryTimeoutException("Transaction timed out after %s ms".formatted(elapsed));

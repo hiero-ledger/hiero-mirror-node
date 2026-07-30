@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 final class FixEvmTransactionIndexMigrationTest
         extends AbstractAsyncJavaMigrationTest<FixEvmTransactionIndexMigration> {
 
-    private static final long INTERVAL = Duration.ofHours(12).toNanos();
+    private static final long INTERVAL = Duration.ofHours(3).toNanos();
 
     @Getter
     private final FixEvmTransactionIndexMigration migration;

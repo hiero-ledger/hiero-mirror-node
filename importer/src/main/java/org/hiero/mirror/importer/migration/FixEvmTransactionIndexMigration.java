@@ -30,7 +30,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Named
 final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
-    static final String DEFAULT_BATCH_INTERVAL = "12h";
+    static final String DEFAULT_BATCH_INTERVAL = "3h";
 
     private static final String BATCH_INTERVAL_PROPERTIES_KEY = "batchInterval";
 
