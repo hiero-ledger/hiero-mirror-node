@@ -61,13 +61,6 @@ public class CommonDownloaderProperties {
     @Min(2L)
     private long maxSize = 50L * 1024L * 1024L; // 50 MiB
 
-    @DurationMin(seconds = 1)
-    @NotNull
-    private Duration pathRefreshInterval = Duration.ofSeconds(10L);
-
-    @NotNull
-    private PathType pathType = PathType.ACCOUNT_ID;
-
     private String pathPrefix = "";
 
     private String region = "us-east-1";
@@ -133,12 +126,6 @@ public class CommonDownloaderProperties {
         return allowAnonymousAccess != null
                 ? allowAnonymousAccess
                 : HederaNetwork.isAllowAnonymousAccess(importerProperties.getNetwork());
-    }
-
-    public enum PathType {
-        ACCOUNT_ID,
-        AUTO,
-        NODE_ID
     }
 
     @Getter

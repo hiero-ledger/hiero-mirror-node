@@ -14,6 +14,7 @@ import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.ho
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.makeIdentical;
 
 import com.google.common.primitives.Bytes;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
@@ -36,9 +37,13 @@ import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.Topic;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
@@ -379,6 +384,59 @@ final class BlockTransactionTest {
                 .build();
         assertThat(blockTransaction.getTransactionHash())
                 .isEqualTo(DomainUtils.fromBytes(Hex.decodeHex(expectedTransactionHash)));
+    }
+
+    @Test
+    void getTransactionHashIsThreadSafeAcrossConcurrentInstances() throws InterruptedException {
+        // given - regression test: BlockTransaction previously shared a single non-thread-safe static
+        // MessageDigest across instances, corrupting hashes when computed concurrently
+        var threadCount = 64;
+        var transactions = new ArrayList<BlockTransaction>(threadCount);
+        var expectedHashes = new ArrayList<ByteString>(threadCount);
+        var digest = DomainUtils.createSha384Digest();
+
+        for (int i = 0; i < threadCount; i++) {
+            var signedTransactionBytes = ("payload-" + i + "-" + "x".repeat(i)).getBytes();
+            var transactionResult = TransactionResult.newBuilder()
+                    .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(i).build())
+                    .build();
+            var blockTransaction = defaultBuilder()
+                    .signedTransaction(SignedTransaction.getDefaultInstance())
+                    .signedTransactionBytes(signedTransactionBytes)
+                    .transactionResult(transactionResult)
+                    .build();
+            transactions.add(blockTransaction);
+
+            digest.reset();
+            expectedHashes.add(DomainUtils.fromBytes(digest.digest(signedTransactionBytes)));
+        }
+
+        var executor = Executors.newFixedThreadPool(threadCount);
+        var readyLatch = new CountDownLatch(threadCount);
+        var startLatch = new CountDownLatch(1);
+        var results = new ByteString[threadCount];
+
+        // when
+        for (int i = 0; i < threadCount; i++) {
+            var index = i;
+            executor.submit(() -> {
+                readyLatch.countDown();
+                try {
+                    startLatch.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                results[index] = transactions.get(index).getTransactionHash();
+            });
+        }
+
+        readyLatch.await();
+        startLatch.countDown();
+        executor.shutdown();
+        executor.awaitTermination(10, TimeUnit.SECONDS);
+
+        // then
+        assertThat(results).containsExactlyElementsOf(expectedHashes);
     }
 
     @Test
