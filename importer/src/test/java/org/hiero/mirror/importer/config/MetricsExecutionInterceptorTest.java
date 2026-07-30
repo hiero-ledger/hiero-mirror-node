@@ -20,16 +20,14 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Collection;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.domain.StreamFilename;
-import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.EnumSource.Mode;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.core.interceptor.Context;
@@ -55,7 +53,6 @@ class MetricsExecutionInterceptorTest {
     private static final String REALM = "0";
     private static final String ACCOUNT_NUM = "4";
     private static final String NODE_ID = "1";
-    private static final String NETWORK_NAME = "network";
     private static final String BATCH_SIZE = "100";
     private ExecutionAttributes executionAttributes;
 
@@ -74,19 +71,13 @@ class MetricsExecutionInterceptorTest {
     @BeforeEach
     void setup() {
         meterRegistry = new SimpleMeterRegistry();
-        metricsExecutionInterceptor = new MetricsExecutionInterceptor(meterRegistry);
+        metricsExecutionInterceptor = new MetricsExecutionInterceptor(new CommonProperties(), meterRegistry);
         executionAttributes = new ExecutionAttributes();
     }
 
-    @ParameterizedTest(name = "S3 List using pathType {0}")
-    @EnumSource(value = PathType.class, mode = Mode.EXCLUDE, names = "AUTO")
-    void s3ListExecution(PathType pathType) {
-        var prefix =
-                switch (pathType) {
-                    case ACCOUNT_ID, AUTO -> accountIdPrefix(StreamType.RECORD, SHARD, REALM, ACCOUNT_NUM);
-                    case NODE_ID -> nodeIdPrefix(StreamType.RECORD, NETWORK_NAME, SHARD, NODE_ID);
-                };
-
+    @Test
+    void s3ListExecution() {
+        var prefix = accountIdPrefix(StreamType.RECORD, SHARD, REALM, ACCOUNT_NUM);
         var sdkHttpRequest = createListObjectsRequest(prefix, StreamFilename.EPOCH.getFilename());
 
         when(afterExecutionContext.httpResponse()).thenReturn(sdkHttpResponse);
@@ -102,30 +93,16 @@ class MetricsExecutionInterceptorTest {
 
     @ParameterizedTest
     @CsvSource({
-        "ACCOUNT_ID, RECORD, 2022-06-21T09_14_34.364804003Z.rcd, signed",
-        "ACCOUNT_ID, RECORD, 2020-02-09T18_30_00.000084Z.rcd_sig, signature",
-        "ACCOUNT_ID, RECORD, 2022-07-13T08_46_11.304284003Z_01.rcd.gz, sidecar",
-        "NODE_ID, RECORD, 2022-06-21T09_14_34.364804003Z.rcd, signed",
-        "NODE_ID, RECORD, 2020-02-09T18_30_00.000084Z.rcd_sig, signature",
-        "NODE_ID, RECORD, 2022-07-13T08_46_11.304284003Z_01.rcd.gz, sidecar",
-        "ACCOUNT_ID, BALANCE, 2021-03-10T22_12_56.075092Z_Balances.csv, signed",
-        "ACCOUNT_ID, BALANCE, 2021-03-10T22_12_56.075092Z_Balances.csv_sig, signature",
-        "ACCOUNT_ID, BALANCE, 2021-03-10T22_12_56.075092Z_Balances.pb.gz, signed",
-        "ACCOUNT_ID, BALANCE, 2021-03-10T22_12_56.075092Z_Balances.pb_sig.gz, signature",
-        "NODE_ID, BALANCE, 2021-03-10T22_12_56.075092Z_Balances.csv, signed",
-        "NODE_ID, BALANCE, 2021-03-10T22_12_56.075092Z_Balances.csv_sig, signature",
-        "NODE_ID, BALANCE, 2021-03-10T22_12_56.075092Z_Balances.pb.gz, signed",
-        "NODE_ID, BALANCE, 2021-03-10T22_12_56.075092Z_Balances.pb_sig.gz, signature",
-        "NODE_ID, BLOCK, 000000000000000000000000000007858853.blk.gz, signed"
+        "RECORD, 2022-06-21T09_14_34.364804003Z.rcd, signed",
+        "RECORD, 2020-02-09T18_30_00.000084Z.rcd_sig, signature",
+        "RECORD, 2022-07-13T08_46_11.304284003Z_01.rcd.gz, sidecar",
+        "BALANCE, 2021-03-10T22_12_56.075092Z_Balances.csv, signed",
+        "BALANCE, 2021-03-10T22_12_56.075092Z_Balances.csv_sig, signature",
+        "BALANCE, 2021-03-10T22_12_56.075092Z_Balances.pb.gz, signed",
+        "BALANCE, 2021-03-10T22_12_56.075092Z_Balances.pb_sig.gz, signature"
     })
-    void s3GetObjectExecution(PathType pathType, StreamType streamType, String fileName, String expectedAction) {
-
-        var prefix =
-                switch (pathType) {
-                    case ACCOUNT_ID, AUTO -> accountIdPrefix(streamType, SHARD, REALM, ACCOUNT_NUM);
-                    case NODE_ID -> nodeIdPrefix(streamType, NETWORK_NAME, SHARD, NODE_ID);
-                };
-
+    void s3GetObjectExecution(StreamType streamType, String fileName, String expectedAction) {
+        var prefix = accountIdPrefix(streamType, SHARD, REALM, ACCOUNT_NUM);
         var objectKey = prefix + fileName;
         var sdkHttpRequest = createGetObjectRequest(objectKey);
 
@@ -137,6 +114,25 @@ class MetricsExecutionInterceptorTest {
         assertNotNull(executionAttributes.getAttribute(MetricsExecutionInterceptor.START_TIME));
         metricsExecutionInterceptor.afterExecution(afterExecutionContext, executionAttributes);
         verifyTimerTags(expectedAction, NODE_ID, streamType);
+    }
+
+    /*
+     * Per HIP-1193, block bucket paths never encode a shard or node (e.g. network/block/0000/0000/.../nnn.blk.gz),
+     * so node is tagged with the "cloud" sentinel and shard comes from CommonProperties rather than the URI.
+     */
+    @Test
+    void s3GetObjectExecutionBlock() {
+        var objectKey = "network/block/0000/0000/0000/0000/000000007858853.blk.gz";
+        var sdkHttpRequest = createGetObjectRequest(objectKey);
+
+        when(afterExecutionContext.httpResponse()).thenReturn(sdkHttpResponse);
+        when(sdkHttpResponse.statusCode()).thenReturn(HTTP_STATUS_SUCCESS);
+        when(afterExecutionContext.httpRequest()).thenReturn(sdkHttpRequest);
+
+        metricsExecutionInterceptor.beforeTransmission(beforeTransmissionContext, executionAttributes);
+        assertNotNull(executionAttributes.getAttribute(MetricsExecutionInterceptor.START_TIME));
+        metricsExecutionInterceptor.afterExecution(afterExecutionContext, executionAttributes);
+        verifyTimerTags("signed", "cloud", StreamType.BLOCK);
     }
 
     /*
@@ -154,12 +150,6 @@ class MetricsExecutionInterceptorTest {
         metricsExecutionInterceptor.afterExecution(afterExecutionContext, executionAttributes);
         Collection<Timer> timers = meterRegistry.find(METRIC_DOWNLOAD_REQUEST).timers();
         assertEquals(0, timers.size());
-    }
-
-    private String nodeIdPrefix(StreamType streamType, String network, String shard, String nodeId) {
-        return streamType != StreamType.BLOCK
-                ? "%s/%s/%s/%s/".formatted(network, shard, nodeId, streamType.getNodeIdBasedSuffix())
-                : "%s/%s/".formatted(shard, nodeId);
     }
 
     private String accountIdPrefix(StreamType streamType, String shard, String realm, String accountNum) {

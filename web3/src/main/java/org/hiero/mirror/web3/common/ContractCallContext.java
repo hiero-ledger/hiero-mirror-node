@@ -14,6 +14,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.web3.Web3Properties.ApiEndpointName;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -38,6 +39,12 @@ public class ContractCallContext {
 
     @Setter
     private ActionContext actionContext = null;
+
+    /**
+     * Optional API endpoint used to resolve a per-endpoint request timeout.
+     */
+    @Setter
+    private ApiEndpointName api;
 
     @Setter
     private OpcodeContext opcodeContext = null;
