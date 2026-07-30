@@ -47,6 +47,7 @@ import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerProperties;
 import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerSupplier;
 import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerType;
 import org.hiero.mirror.importer.exception.BlockStreamException;
+import org.hiero.mirror.importer.exception.NoBlockNodeAvailableException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.junit.jupiter.api.AutoClose;
@@ -229,7 +230,7 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
         // when
         assertThatThrownBy(blockNodeSubscriber::get)
-                .isInstanceOf(BlockStreamException.class)
+                .isInstanceOf(NoBlockNodeAvailableException.class)
                 .hasMessage("No block node can provide block 21");
 
         // then

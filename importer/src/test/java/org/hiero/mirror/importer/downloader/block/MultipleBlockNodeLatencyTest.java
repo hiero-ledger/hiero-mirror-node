@@ -5,14 +5,13 @@ package org.hiero.mirror.importer.downloader.block;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
-import static org.hiero.mirror.importer.TestUtils.findAllMatches;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.stream.LongStream;
 import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerType;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
-import org.hiero.mirror.importer.exception.BlockStreamException;
+import org.hiero.mirror.importer.exception.NoBlockNodeAvailableException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -49,12 +48,12 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
         // when, then
         await().atMost(Duration.ofSeconds(10)).pollDelay(Duration.ofMillis(1)).untilAsserted(() -> assertThatThrownBy(
                         subscriber::get)
-                .isInstanceOf(BlockStreamException.class)
+                .isInstanceOf(NoBlockNodeAvailableException.class)
                 .hasMessage("No block node can provide block 20"));
         assertVerifiedBlockFiles(LongStream.range(0, 20).boxed().toList());
         // it's non-deterministic that at exactly which block, based on latency, the scheduler will switch from one
         // block node server to the lower latency one. However, there should be exactly one switch
-        assertThat(dedupNodeLogs(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)")))
+        assertThat(findAndDedupNodeLogs(output))
                 .containsExactly(
                         String.format("from BlockNode(%s)", endpoint(0)),
                         String.format("from BlockNode(%s)", endpoint(1)));
@@ -95,7 +94,7 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
         // when, then
         await().atMost(Duration.ofSeconds(20)).pollDelay(Duration.ofMillis(1)).untilAsserted(() -> assertThatThrownBy(
                         subscriber::get)
-                .isInstanceOf(BlockStreamException.class)
+                .isInstanceOf(NoBlockNodeAvailableException.class)
                 .hasMessage("No block node can provide block 40"));
         assertVerifiedBlockFiles(LongStream.range(0, 40).boxed().toList());
 
@@ -104,7 +103,7 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
         // - switch to node1
         // - switch to node2
         // - switch to node3
-        assertThat(dedupNodeLogs(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)")))
+        assertThat(findAndDedupNodeLogs(output))
                 .containsExactly(
                         String.format("from BlockNode(%s)", endpoint(0)),
                         String.format("from BlockNode(%s)", endpoint(1)),

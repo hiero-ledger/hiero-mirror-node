@@ -6,7 +6,7 @@
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24.18.1 <25"
   },
   "scripts": {
     "dev": "nodemon --import=extensionless/register server.js",
@@ -29,7 +29,7 @@
     "nodemon": "3.1.14"
   },
   "overrides": {
-    "brace-expansion": "5.0.7"
+    "brace-expansion": "5.0.8"
   },
   "peerDependencies": {
     "debug": "4.4.3"

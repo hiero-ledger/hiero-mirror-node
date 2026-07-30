@@ -9,7 +9,6 @@ import java.util.List;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.StreamSourceProperties;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
@@ -39,7 +38,6 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 class CloudStorageConfiguration {
 
     private final BlockProperties blockProperties;
-    private final CommonProperties commonProperties;
     private final CommonDownloaderProperties commonDownloaderProperties;
     private final LocalStreamFileProperties localProperties;
     private final MetricsExecutionInterceptor metricsExecutionInterceptor;
@@ -64,11 +62,9 @@ class CloudStorageConfiguration {
         for (var source : commonDownloaderProperties.getSources()) {
             var provider =
                     switch (source.getType()) {
-                        case LOCAL ->
-                            new LocalStreamFileProvider(commonProperties, commonDownloaderProperties, localProperties);
+                        case LOCAL -> new LocalStreamFileProvider(commonDownloaderProperties, localProperties);
                         case GCP, S3 ->
-                            new S3StreamFileProvider(
-                                    blockProperties, commonProperties, commonDownloaderProperties, s3Client(source));
+                            new S3StreamFileProvider(blockProperties, commonDownloaderProperties, s3Client(source));
                     };
 
             providers.add(provider);
