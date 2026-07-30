@@ -7,11 +7,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import org.flywaydb.core.api.callback.Event;
+import org.flywaydb.core.api.configuration.FluentConfiguration;
+import org.flywaydb.core.internal.callback.SimpleContext;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.EnabledIfV1;
-import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
+import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptRoot;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.Tag;
@@ -19,23 +24,35 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcOperations;
-import org.springframework.transaction.support.TransactionOperations;
 
 @EnabledIfV1
 @RequiredArgsConstructor
 @Tag("migration")
-class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
+class BackfillReceiptsRootMigrationTest extends AbstractAsyncJavaMigrationTest<BackfillReceiptsRootMigration> {
+
+    private static final String PROGRESS_TABLE = "backfill_receipts_root_progress_temp";
+    private static final String PROGRESS_TABLE_EXISTS =
+            "select exists(select from information_schema.tables where table_name = '" + PROGRESS_TABLE + "')";
 
     private final DBProperties dbProperties;
     private final Environment environment;
+    private final EntityProperties entityProperties;
+
+    @Owner
     private final ObjectProvider<JdbcOperations> jdbcOperationsProvider;
+
     private final BackfillReceiptsRootMigration migration;
     private final RecordFileRepository recordFileRepository;
-    private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
+
+    @Override
+    protected BackfillReceiptsRootMigration getMigration() {
+        return migration;
+    }
 
     @Test
     void empty() {
-        migration.migrateAsync();
+        runMigration();
+        waitForCompletion();
         assertThat(recordFileRepository.findAll()).isEmpty();
     }
 
@@ -79,7 +96,8 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
                 .persist();
 
         // when
-        migration.migrateAsync();
+        runMigration();
+        waitForCompletion();
 
         // then
         var expectedRootBlock2 = new ReceiptRoot();
@@ -128,7 +146,8 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
                 .persist();
 
         // when
-        migration.migrateAsync();
+        runMigration();
+        waitForCompletion();
 
         // then
         assertThat(recordFileRepository.findById(block.getConsensusEnd()))
@@ -162,7 +181,8 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
                 .persist();
 
         // when
-        migration.migrateAsync();
+        runMigration();
+        waitForCompletion();
 
         // then
         var expectedRoot = new ReceiptRoot();
@@ -204,7 +224,8 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
         var block3 = persistBlockMissingReceiptsRoot(start3, end3);
 
         // when
-        migration.migrateAsync();
+        runMigration();
+        waitForCompletion();
 
         // then
         assertThat(recordFileRepository.findById(block1.getConsensusEnd()))
@@ -232,7 +253,8 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
         }
 
         // when
-        migration.migrateAsync();
+        runMigration();
+        waitForCompletion();
 
         // then
         assertThat(recordFileRepository.findAll()).hasSize(blockCount).allSatisfy(recordFile -> assertThat(
@@ -249,7 +271,8 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
         var block2 = persistBlockMissingReceiptsRoot(end1 + 1, end1 + 11);
 
         // when
-        migrationWithBatchSize("1").migrateAsync();
+        runMigration(migrationWithBatchSize("1"));
+        waitForCompletion();
 
         // then
         assertThat(recordFileRepository.findById(block1.getConsensusEnd()))
@@ -263,11 +286,87 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void migrateDropsProgressTableOnCompletion() {
+        var start = domainBuilder.timestamp();
+        var block = persistBlockMissingReceiptsRoot(start, start + 10);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then the block is backfilled and the transient progress table is cleaned up
+        assertThat(recordFileRepository.findById(block.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(new byte[32]);
+        assertThat(progressTableExists()).isFalse();
+    }
+
+    @Test
+    void migrateResumesFromProgressCheckpoint() {
+        // A prior run backfilled down to block2 and checkpointed its consensus_end as the next upper bound. On resume
+        // the migration must only process blocks strictly below the checkpoint, leaving block2 untouched.
+        var start1 = domainBuilder.timestamp();
+        var end1 = start1 + 10;
+        var block1 = persistBlockMissingReceiptsRoot(start1, end1);
+
+        var start2 = end1 + 1;
+        var end2 = start2 + 10;
+        var block2 = persistBlockMissingReceiptsRoot(start2, end2);
+
+        seedProgressCheckpoint(block2.getConsensusEnd());
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then block1 (below the checkpoint) is backfilled while block2 (at the checkpoint) is skipped
+        assertThat(recordFileRepository.findById(block1.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isEqualTo(new byte[32]);
+        assertThat(recordFileRepository.findById(block2.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isNull();
+        assertThat(progressTableExists()).isFalse();
+    }
+
+    @Test
+    void migrateSkippedWhenContractResultsDisabled() {
+        // Receipts roots are not computed at ingestion when contract result persistence is off, so the migration must
+        // skip: leave the block untouched and not create the progress table.
+        var start = domainBuilder.timestamp();
+        var block = persistBlockMissingReceiptsRoot(start, start + 10);
+
+        entityProperties.getPersist().setContractResults(false);
+        try {
+            runMigration();
+            waitForCompletion();
+        } finally {
+            entityProperties.getPersist().setContractResults(true);
+        }
+
+        // then
+        assertThat(recordFileRepository.findById(block.getConsensusEnd()))
+                .get()
+                .extracting(RecordFile::getReceiptsRoot)
+                .isNull();
+        assertThat(progressTableExists()).isFalse();
+    }
+
+    @Test
     void invalidBatchSize() {
         assertThatThrownBy(() -> migrationWithBatchSize("0"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("batchSize");
         assertThatThrownBy(() -> migrationWithBatchSize("junk")).isInstanceOf(NumberFormatException.class);
+    }
+
+    @SneakyThrows
+    private void runMigration(BackfillReceiptsRootMigration migration) {
+        migration.doMigrate();
+        migration.handle(Event.AFTER_MIGRATE_OPERATION_FINISH, new SimpleContext(new FluentConfiguration()));
     }
 
     private BackfillReceiptsRootMigration migrationWithBatchSize(String batchSize) {
@@ -277,7 +376,7 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
         importerProperties.getMigration().put("backfillReceiptsRootMigration", migrationProperties);
 
         return new BackfillReceiptsRootMigration(
-                dbProperties, environment, importerProperties, jdbcOperationsProvider, transactionOperationsProvider);
+                dbProperties, environment, entityProperties, importerProperties, jdbcOperationsProvider);
     }
 
     private RecordFile persistBlockMissingReceiptsRoot(long consensusStart, long consensusEnd) {
@@ -287,5 +386,14 @@ class BackfillReceiptsRootMigrationTest extends ImporterIntegrationTest {
                         .consensusEnd(consensusEnd)
                         .receiptsRoot(null))
                 .persist();
+    }
+
+    private void seedProgressCheckpoint(long upperBound) {
+        ownerJdbcTemplate.execute("create table if not exists " + PROGRESS_TABLE + "(upper_bound bigint not null)");
+        ownerJdbcTemplate.update("insert into " + PROGRESS_TABLE + "(upper_bound) values (" + upperBound + ")");
+    }
+
+    private boolean progressTableExists() {
+        return Boolean.TRUE.equals(ownerJdbcTemplate.queryForObject(PROGRESS_TABLE_EXISTS, Boolean.class));
     }
 }
