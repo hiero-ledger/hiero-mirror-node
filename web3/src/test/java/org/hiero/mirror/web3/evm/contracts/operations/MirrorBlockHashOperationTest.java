@@ -160,6 +160,26 @@ class MirrorBlockHashOperationTest {
     }
 
     @Test
+    void wellBelowLookbackWindow() {
+        // Given
+        var recordFile = domainBuilder.recordFile().get();
+        var blockValues = new SimpleBlockValues();
+        blockValues.setNumber(recordFile.getIndex() + 1000);
+        given(messageFrame.popStackItem()).willReturn(Bytes.ofUnsignedLong(recordFile.getIndex()));
+        given(messageFrame.getBlockValues()).willReturn(blockValues);
+
+        // When
+        var result = operation.execute(messageFrame, null);
+
+        // Then
+        assertThat(result)
+                .isNotNull()
+                .extracting(OperationResult::getHaltReason)
+                .isNull();
+        verify(messageFrame).pushStackItem(UInt256.ZERO);
+    }
+
+    @Test
     void notFound() {
         // Given
         var blockValues = new SimpleBlockValues();
