@@ -88,7 +88,7 @@ function getCitusClusters() {
                .spec.postgres.version as $pgVersion|
                ((.metadata.labels["stackgres.io/coordinator"] // "false")| test("true")) as $isCoordinator |
                .spec.configurations.patroni.initialConfig.citus.group as $citusGroup|
-               .status.podStatuses[]|
+               (.status.podStatuses // [])[]|
                  {
                    citusGroup: $citusGroup,
                    clusterName: $metadata.name,
@@ -428,9 +428,59 @@ function waitForRecordStreamSync() {
   done
 }
 
+function resyncCitusNodeAddresses() {
+  local namespace="${1}"
+
+  log "Verifying Citus node addresses match current pod IPs"
+
+  local distNodes
+  distNodes=$(kubectl exec -n "${namespace}" "${HELM_RELEASE_NAME}-citus-coord-0" -c postgres-util -- \
+    psql -U postgres -d mirror_node -P format=unaligned -t -F',' \
+    -c "select nodeid, groupid, nodename, nodeport from pg_dist_node where noderole = 'primary' order by nodeid")
+
+  local staleUpdates=()
+  while IFS=',' read -r nodeid groupid nodename nodeport; do
+    [[ -z "${nodeid}" ]] && continue
+    local currentIp
+    currentIp=$(kubectl get pods -n "${namespace}" -l "citus-group=${groupid},role=primary" \
+      -o jsonpath='{.items[0].status.podIP}')
+    if [[ -z "${currentIp}" ]]; then
+      log "WARN: no primary pod found for citus-group ${groupid}; skipping nodeid ${nodeid}"
+      continue
+    fi
+    if [[ "${currentIp}" != "${nodename}" ]]; then
+      log "Node ${nodeid} (group ${groupid}) stale: registered ${nodename}:${nodeport}, actual ${currentIp}:${nodeport}"
+      staleUpdates+=("${nodeid}:${currentIp}:${nodeport}")
+    fi
+  done <<<"${distNodes}"
+
+  if [[ ${#staleUpdates[@]} -eq 0 ]]; then
+    log "All Citus node addresses are up to date"
+    return 0
+  fi
+
+  # citus_update_node enforces a unique (host, port) pair, so jumping straight to the real
+  # port can collide with another stale entry - stage everyone through a scratch port first
+  local i=0 entry
+  for entry in "${staleUpdates[@]}"; do
+    IFS=':' read -r nodeid currentIp nodeport <<<"${entry}"
+    kubectl exec -n "${namespace}" "${HELM_RELEASE_NAME}-citus-coord-0" -c postgres-util -- \
+      psql -U postgres -d mirror_node -c "SELECT citus_update_node(${nodeid}, '${currentIp}', $((19000 + i)));" >/dev/null
+    i=$((i + 1))
+  done
+
+  for entry in "${staleUpdates[@]}"; do
+    IFS=':' read -r nodeid currentIp nodeport <<<"${entry}"
+    kubectl exec -n "${namespace}" "${HELM_RELEASE_NAME}-citus-coord-0" -c postgres-util -- \
+      psql -U postgres -d mirror_node -c "SELECT citus_update_node(${nodeid}, '${currentIp}', ${nodeport});" >/dev/null
+    log "Updated nodeid ${nodeid} -> ${currentIp}:${nodeport}"
+  done
+}
+
 function routeTraffic() {
   local namespace="${1}"
 
+  resyncCitusNodeAddresses "${namespace}"
   checkCitusMetadataSyncStatus "${namespace}"
   runTestQueries "${namespace}"
   scaleDeployment "${namespace}" 1 "app.kubernetes.io/component=importer"
@@ -823,6 +873,14 @@ function waitForClusterOperations() {
   done
 }
 
+function captureCitusPoolTotals() {
+  # Snapshot the current per-role totals so a later scale-up can restore the same count
+  CITUS_COORDINATOR_NODE_COUNT="$(kubectl get nodes -l 'citus-role=coordinator' --no-headers 2>/dev/null | wc -l | tr -d ' ')"
+  CITUS_WORKER_NODE_COUNT="$(kubectl get nodes -l 'citus-role=worker' --no-headers 2>/dev/null | wc -l | tr -d ' ')"
+  export CITUS_COORDINATOR_NODE_COUNT CITUS_WORKER_NODE_COUNT
+  log "Captured Citus node totals: coordinator=${CITUS_COORDINATOR_NODE_COUNT}, worker=${CITUS_WORKER_NODE_COUNT}"
+}
+
 function resizeCitusNodePools() {
   local numNodes="${1}"
 
@@ -842,12 +900,40 @@ function resizeCitusNodePools() {
   fi
 
   for pool in "${citusPools[@]}"; do
-    log "Scaling pool ${pool} to ${numNodes} nodes"
+    local targetNodes="${numNodes}"
+
+    # --num-nodes is per-zone, so convert our per-role total to per-zone using this pool's
+    # zone count - fall back to numNodes if we don't have a total to work with
+    if [[ "${numNodes}" -gt 0 ]]; then
+      local poolJson role zones total
+      poolJson="$(gcloud container node-pools describe "${pool}" \
+        --project="${GCP_TARGET_PROJECT}" \
+        --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
+        --cluster="${GCP_K8S_TARGET_CLUSTER_NAME}" \
+        --format="json(config.labels, locations)" 2>/dev/null || true)"
+      [[ -z "${poolJson}" ]] && poolJson='{}'
+      role="$(jq -r '.config.labels["citus-role"] // ""' <<<"${poolJson}")"
+      zones="$(jq -r '.locations | length' <<<"${poolJson}")"
+      case "${role}" in
+        coordinator) total="${CITUS_COORDINATOR_NODE_COUNT:-}" ;;
+        worker) total="${CITUS_WORKER_NODE_COUNT:-}" ;;
+        *) total="" ;;
+      esac
+      if [[ "${total:-0}" -gt 0 ]]; then
+        if [[ "${zones}" -gt 0 && $(( total % zones )) -eq 0 ]]; then
+          targetNodes=$(( total / zones ))
+        else
+          log "WARN: ${role} total ${total} not divisible by ${zones} zone(s) for ${pool}; using ${numNodes}/zone"
+        fi
+      fi
+    fi
+
+    log "Scaling pool ${pool} to ${targetNodes} nodes"
     waitForClusterOperations "${pool}"
 
     gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
       --node-pool="${pool}" \
-      --num-nodes="${numNodes}" \
+      --num-nodes="${targetNodes}" \
       --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
       --project="${GCP_TARGET_PROJECT}" --quiet &
   done
@@ -1012,6 +1098,9 @@ function waitForPodReady() {
 
 AUTO_CONFIRM="${AUTO_CONFIRM:-false}"
 AUTO_UNROUTE="${AUTO_UNROUTE:-true}"
+# Per-role totals (all zones) for scale-up - resizeCitusNodePools converts to per-zone; empty means just use numNodes/zone
+CITUS_COORDINATOR_NODE_COUNT="${CITUS_COORDINATOR_NODE_COUNT:-}"
+CITUS_WORKER_NODE_COUNT="${CITUS_WORKER_NODE_COUNT:-}"
 CITUS_NAMESPACES=
 COMMON_NAMESPACE="${COMMON_NAMESPACE:-common}"
 DISK_PREFIX=

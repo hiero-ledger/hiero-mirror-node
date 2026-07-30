@@ -7,6 +7,7 @@ import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_AUTO_RENEW_PERIOD;
 
+import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.Fraction;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.base.TokenSupplyType;
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
@@ -148,28 +150,30 @@ final class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token>
             var customFees = timestamp
                     .map(t -> customFeeRepository.findByTokenIdAndTimestamp(tokenId, t))
                     .orElseGet(() -> customFeeRepository.findById(tokenId))
-                    .map(this::convertCustomFees);
+                    .map(customFee -> convertCustomFees(customFee, timestamp));
 
             return Collections.unmodifiableList(customFees.orElseGet(ArrayList::new));
         });
     }
 
-    private List<CustomFee> convertCustomFees(final org.hiero.mirror.common.domain.token.CustomFee customFees) {
+    private List<CustomFee> convertCustomFees(
+            final org.hiero.mirror.common.domain.token.CustomFee customFees, final Optional<Long> timestamp) {
         var customFeesConstructed = new ArrayList<CustomFee>();
-        customFeesConstructed.addAll(mapFixedFees(customFees));
-        customFeesConstructed.addAll(mapFractionalFees(customFees));
-        customFeesConstructed.addAll(mapRoyaltyFees(customFees));
+        customFeesConstructed.addAll(mapFixedFees(customFees, timestamp));
+        customFeesConstructed.addAll(mapFractionalFees(customFees, timestamp));
+        customFeesConstructed.addAll(mapRoyaltyFees(customFees, timestamp));
         return customFeesConstructed;
     }
 
-    private List<CustomFee> mapFixedFees(final org.hiero.mirror.common.domain.token.CustomFee customFee) {
+    private List<CustomFee> mapFixedFees(
+            final org.hiero.mirror.common.domain.token.CustomFee customFee, final Optional<Long> timestamp) {
         if (CollectionUtils.isEmpty(customFee.getFixedFees())) {
             return Collections.emptyList();
         }
 
         var fixedFees = new ArrayList<CustomFee>();
         customFee.getFixedFees().forEach(f -> {
-            final var collector = toAccountId(f.getCollectorAccountId());
+            final var collector = resolveCollector(f.getCollectorAccountId(), timestamp);
             final var denominatingTokenId = f.getDenominatingTokenId();
 
             final var fixedFee = new FixedFee(f.getAmount(), toTokenId(denominatingTokenId));
@@ -181,14 +185,15 @@ final class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token>
         return fixedFees;
     }
 
-    private List<CustomFee> mapFractionalFees(final org.hiero.mirror.common.domain.token.CustomFee customFee) {
+    private List<CustomFee> mapFractionalFees(
+            final org.hiero.mirror.common.domain.token.CustomFee customFee, final Optional<Long> timestamp) {
         if (CollectionUtils.isEmpty(customFee.getFractionalFees())) {
             return Collections.emptyList();
         }
 
         var fractionalFees = new ArrayList<CustomFee>();
         customFee.getFractionalFees().forEach(f -> {
-            final var collector = toAccountId(f.getCollectorAccountId());
+            final var collector = resolveCollector(f.getCollectorAccountId(), timestamp);
             final var fractionalFee = new FractionalFee(
                     new Fraction(f.getNumerator(), f.getDenominator()),
                     f.getMinimumAmount(),
@@ -202,14 +207,15 @@ final class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token>
         return fractionalFees;
     }
 
-    private List<CustomFee> mapRoyaltyFees(org.hiero.mirror.common.domain.token.CustomFee customFee) {
+    private List<CustomFee> mapRoyaltyFees(
+            org.hiero.mirror.common.domain.token.CustomFee customFee, final Optional<Long> timestamp) {
         if (CollectionUtils.isEmpty(customFee.getRoyaltyFees())) {
             return Collections.emptyList();
         }
 
         var royaltyFees = new ArrayList<CustomFee>();
         customFee.getRoyaltyFees().forEach(f -> {
-            final var collector = toAccountId(f.getCollectorAccountId());
+            final var collector = resolveCollector(f.getCollectorAccountId(), timestamp);
             final var fallbackFee = f.getFallbackFee();
 
             FixedFee convertedFallbackFee = null;
@@ -225,6 +231,21 @@ final class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token>
         });
 
         return royaltyFees;
+    }
+
+    /**
+     * Resolves a fee collector into an AccountID. The DB lookup is required because a
+     * collector that is an auto-created / ECDSA account must be rendered with its EVM address/alias.
+     */
+    private AccountID resolveCollector(final EntityId collectorAccountId, final Optional<Long> timestamp) {
+        if (collectorAccountId == null) {
+            return AccountID.DEFAULT;
+        }
+
+        return commonEntityAccessor
+                .get(collectorAccountId, timestamp)
+                .map(EntityIdUtils::toAccountId)
+                .orElseGet(() -> toAccountId(collectorAccountId));
     }
 
     @Override
