@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
+import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.common.util.DomainUtils.fromEvmAddress;
 import static org.hiero.mirror.common.util.DomainUtils.isLongZeroAddress;
@@ -19,6 +20,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -43,7 +45,10 @@ import org.springframework.stereotype.Service;
 
 @Service
 @CustomLog
-public class PrestateServiceImpl implements PrestateService {
+@RequiredArgsConstructor
+public final class PrestateServiceImpl implements PrestateService {
+
+    public static final long MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS = 35 * 60 * NANOS_PER_SECOND;
 
     private final AccountBalanceRepository accountBalanceRepository;
     private final ContractActionRepository contractActionRepository;
@@ -52,34 +57,13 @@ public class PrestateServiceImpl implements PrestateService {
     private final ContractStateChangeRepository contractStateChangeRepository;
     private final ContractTransactionHashRepository contractTransactionHashRepository;
     private final EntityRepository entityRepository;
-    private final long treasuryAccountId;
     private final TransactionRepository transactionRepository;
+    private final SystemEntity systemEntity;
     private static final String ZERO_BALANCE = "0x0";
-
-    public PrestateServiceImpl(
-            final AccountBalanceRepository accountBalanceRepository,
-            final ContractActionRepository contractActionRepository,
-            final ContractRepository contractRepository,
-            final ContractResultRepository contractResultRepository,
-            final ContractStateChangeRepository contractStateChangeRepository,
-            final ContractTransactionHashRepository contractTransactionHashRepository,
-            final EntityRepository entityRepository,
-            final SystemEntity systemEntity,
-            final TransactionRepository transactionRepository) {
-        this.accountBalanceRepository = accountBalanceRepository;
-        this.contractActionRepository = contractActionRepository;
-        this.contractRepository = contractRepository;
-        this.contractResultRepository = contractResultRepository;
-        this.contractStateChangeRepository = contractStateChangeRepository;
-        this.contractTransactionHashRepository = contractTransactionHashRepository;
-        this.entityRepository = entityRepository;
-        this.treasuryAccountId = systemEntity.treasuryAccount().getId();
-        this.transactionRepository = transactionRepository;
-    }
 
     @Override
     public PrestateResponse processPrestateCall(final PrestateRequest prestateRequest) {
-        final var consensusTimestamp = resolveConsensusTimestamp(prestateRequest.getTransactionIdOrHashParameter());
+        final var consensusTimestamp = resolveConsensusTimestamp(prestateRequest.transactionIdOrHashParameter());
         final var contractResult = contractResultRepository
                 .findById(consensusTimestamp)
                 .orElseThrow(() -> new EntityNotFoundException("Contract result not found: " + consensusTimestamp));
@@ -89,7 +73,7 @@ public class PrestateServiceImpl implements PrestateService {
         loadAccountTraces(prestateContext);
 
         final var response = new PrestateResponse();
-        if (prestateContext.isDiff()) {
+        if (prestateContext.getPrestateRequest().diffMode()) {
             applyDiffFilter(prestateContext.getPreAccountTraces(), prestateContext.getPostAccountTraces());
             response.setPre(
                     new ArrayList<>(prestateContext.getPreAccountTraces().values()));
@@ -128,17 +112,21 @@ public class PrestateServiceImpl implements PrestateService {
         final var preEntityById = toEntityById(entityRepository
                 .findActiveByIdsAndTimestamp(accounts, timestampBeforeTransaction)
                 .orElse(null));
-        final var postEntityById = prestateContext.isDiff()
+        final var postEntityById = prestateContext.getPrestateRequest().diffMode()
                 ? toEntityById(entityRepository
                         .findActiveByIdsAndTimestamp(accounts, consensusTimestamp)
                         .orElse(null))
                 : null;
 
         final var preBalances = loadBalances(accounts, timestampBeforeTransaction);
-        final var postBalances = prestateContext.isDiff() ? loadBalances(accounts, consensusTimestamp) : null;
+        final var postBalances =
+                prestateContext.getPrestateRequest().diffMode() ? loadBalances(accounts, consensusTimestamp) : null;
 
-        final var preBytecodes = prestateContext.isCode() ? loadBytecodes(accounts, timestampBeforeTransaction) : null;
-        final var preStorageByContract = prestateContext.isStorage() ? prestateContext.getPreStorageByContract() : null;
+        final var preBytecodes = prestateContext.getPrestateRequest().code()
+                ? loadBytecodes(accounts, timestampBeforeTransaction)
+                : null;
+        final var preStorageByContract =
+                prestateContext.getPrestateRequest().storage() ? prestateContext.getPreStorageByContract() : null;
 
         for (final var accountId : accounts) {
             final var preEntity = preEntityById.get(accountId);
@@ -148,14 +136,18 @@ public class PrestateServiceImpl implements PrestateService {
                 prestateContext.getPreAccountTraces().put(preAccountTrace.getAddress(), preAccountTrace);
             }
 
-            if (prestateContext.isDiff()) {
+            if (prestateContext.getPrestateRequest().diffMode()) {
                 final var postEntity = postEntityById != null ? postEntityById.get(accountId) : null;
                 if (postEntity != null) {
 
                     final var postBytecodes =
-                            prestateContext.isCode() ? loadBytecodes(accounts, consensusTimestamp) : null;
+                            prestateContext.getPrestateRequest().code()
+                                    ? loadBytecodes(accounts, consensusTimestamp)
+                                    : null;
                     final var postStorageByContract =
-                            prestateContext.isStorage() ? prestateContext.getPostStorageByContract() : null;
+                            prestateContext.getPrestateRequest().storage()
+                                    ? prestateContext.getPostStorageByContract()
+                                    : null;
                     final var postAccountTrace = buildAccountTrace(
                             postEntity,
                             postBalances != null ? postBalances.get(accountId) : null,
@@ -236,7 +228,10 @@ public class PrestateServiceImpl implements PrestateService {
             balances.put(
                     accountId,
                     accountBalanceRepository
-                            .findHistoricalAccountBalanceUpToTimestamp(accountId, blockTimestamp, treasuryAccountId)
+                            .findHistoricalAccountBalanceUpToTimestamp(
+                                    accountId,
+                                    blockTimestamp,
+                                    systemEntity.treasuryAccount().getId())
                             .orElse(0L));
         }
         return balances;
@@ -273,7 +268,7 @@ public class PrestateServiceImpl implements PrestateService {
             final var contractId = stateChange.getContractId();
             prestateContext.addAccount(contractId);
             prestateContext.addPreStorageSlot(contractId, stateChange.getSlot(), stateChange.getValueRead());
-            if (prestateContext.isDiff()) {
+            if (prestateContext.getPrestateRequest().diffMode()) {
                 prestateContext.addPostStorageSlot(contractId, stateChange.getSlot(), stateChange.getValueWritten());
             }
         }
@@ -315,15 +310,15 @@ public class PrestateServiceImpl implements PrestateService {
             case TransactionIdParameter transactionId -> {
                 final var validStartNs = convertToNanosMax(transactionId.validStart());
                 final var payerAccountId = transactionId.payerAccountId();
-                final var transactionList = transactionRepository.findByPayerAccountIdAndValidStartNs(
-                        payerAccountId.getId(),
-                        validStartNs,
-                        validStartNs,
-                        validStartNs + TraceService.MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS);
-                if (transactionList.isEmpty()) {
-                    throw new EntityNotFoundException("Transaction not found: " + transactionId);
-                }
-                yield transactionList.getFirst().getConsensusTimestamp();
+                final var transaction = transactionRepository
+                        .findByPayerAccountIdAndValidStartNs(
+                                payerAccountId.getId(),
+                                validStartNs,
+                                validStartNs,
+                                validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS)
+                        .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + transactionId));
+
+                yield transaction.getConsensusTimestamp();
             }
         };
     }

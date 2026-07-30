@@ -4,131 +4,56 @@ package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
 
+import com.google.common.collect.Range;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.domain.SystemEntity;
-import org.hiero.mirror.common.domain.contract.Contract;
-import org.hiero.mirror.common.domain.contract.ContractAction;
-import org.hiero.mirror.common.domain.contract.ContractResult;
-import org.hiero.mirror.common.domain.contract.ContractStateChange;
-import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
-import org.hiero.mirror.common.domain.entity.Entity;
+import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
-import org.hiero.mirror.web3.repository.AccountBalanceRepository;
-import org.hiero.mirror.web3.repository.ContractActionRepository;
-import org.hiero.mirror.web3.repository.ContractRepository;
-import org.hiero.mirror.web3.repository.ContractResultRepository;
-import org.hiero.mirror.web3.repository.ContractStateChangeRepository;
-import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
-import org.hiero.mirror.web3.repository.EntityRepository;
-import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
-class PrestateServiceTest {
+@RequiredArgsConstructor
+class PrestateServiceTest extends Web3IntegrationTest {
 
-    private static final EntityId PAYER_ACCOUNT_ID = EntityId.of(0L, 0L, 1001L);
-    private static final EntityId ACCOUNT_ID = EntityId.of(0L, 0L, 100L);
-    private static final EntityId CONTRACT_ID = EntityId.of(0L, 0L, 200L);
-    private static final long CONSENSUS_TIMESTAMP = 1_000_000_000L;
-    private static final byte[] TRANSACTION_HASH = new byte[] {0x01, 0x02, 0x03, 0x04};
+    private static final byte[] RUNTIME_BYTECODE = new byte[] {0x60, 0x40};
+    private static final byte[] STORAGE_SLOT =
+            new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
+    private static final byte[] VALUE_READ = new byte[] {0x14};
+    private static final byte[] VALUE_WRITTEN = new byte[] {0x28};
 
-    private PrestateServiceImpl prestateService;
-
-    @Mock
-    private AccountBalanceRepository accountBalanceRepository;
-
-    @Mock
-    private ContractActionRepository contractActionRepository;
-
-    @Mock
-    private ContractRepository contractRepository;
-
-    @Mock
-    private ContractResultRepository contractResultRepository;
-
-    @Mock
-    private ContractStateChangeRepository contractStateChangeRepository;
-
-    @Mock
-    private ContractTransactionHashRepository contractTransactionHashRepository;
-
-    @Mock
-    private EntityRepository entityRepository;
-
-    @Mock
-    private TransactionRepository transactionRepository;
-
-    @BeforeEach
-    void setUp() {
-        final var commonProperties = new CommonProperties();
-        commonProperties.setShard(0L);
-        commonProperties.setRealm(0L);
-        final var systemEntity = new SystemEntity(commonProperties);
-        prestateService = new PrestateServiceImpl(
-                accountBalanceRepository,
-                contractActionRepository,
-                contractRepository,
-                contractResultRepository,
-                contractStateChangeRepository,
-                contractTransactionHashRepository,
-                entityRepository,
-                systemEntity,
-                transactionRepository);
-    }
+    private final PrestateService prestateService;
 
     @Test
     void callWithDiffEnabledReturnsBothPreAndPost() {
-        final var request = createRequest(true, false, false);
-        setupTransactionHashLookup();
-        setupContractResult();
-        setupSidecars();
+        final var fixture = persistTransferFixture(true);
+        persistTreasuryBalance(fixture.createdTimestamp());
+        persistAccountBalance(fixture.accountId(), fixture.createdTimestamp(), 100L);
+        persistCryptoTransfer(fixture.accountId(), fixture.consensusTimestamp(), 50L);
 
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(Optional.of(List.of(entity(ACCOUNT_ID, 1L, EntityType.ACCOUNT))));
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
-                .thenReturn(Optional.of(List.of(entity(ACCOUNT_ID, 2L, EntityType.ACCOUNT))));
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
-                .thenReturn(Optional.of(100L));
-
-        final var response = prestateService.processPrestateCall(request);
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), true, false, false));
 
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPost()).hasSize(1);
+        assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0x64");
+        assertThat(response.getPost().getFirst().getBalance()).isEqualTo("0x96");
         assertThat(response.getPost().getFirst().getNonce()).isEqualTo(2L);
     }
 
     @Test
     void callWithDiffDisabledReturnsOnlyPre() {
-        final var request = createRequest(false, false, false);
-        setupTransactionHashLookup();
-        setupContractResult();
-        setupSidecars();
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(Optional.of(List.of(entity(ACCOUNT_ID, 1L, EntityType.ACCOUNT))));
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
-                .thenReturn(Optional.of(100L));
+        final var fixture = persistTransferFixture(false);
+        persistTreasuryBalance(fixture.createdTimestamp());
+        persistAccountBalance(fixture.accountId(), fixture.createdTimestamp(), 100L);
 
-        final var response = prestateService.processPrestateCall(request);
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, false, false));
 
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPost()).isNullOrEmpty();
@@ -136,18 +61,11 @@ class PrestateServiceTest {
 
     @Test
     void callWithDiffEnabledExcludesUnchangedEntries() {
-        final var request = createRequest(true, false, false);
-        setupTransactionHashLookup();
-        setupContractResult();
-        setupSidecars();
+        final var fixture = persistTransferFixture(false);
+        persistTreasuryBalance(fixture.createdTimestamp());
+        persistAccountBalance(fixture.accountId(), fixture.createdTimestamp(), 100L);
 
-        final var unchangedEntity = entity(ACCOUNT_ID, 5L, EntityType.ACCOUNT);
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), anyLong()))
-                .thenReturn(Optional.of(List.of(unchangedEntity)));
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
-                .thenReturn(Optional.of(100L));
-
-        final var response = prestateService.processPrestateCall(request);
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), true, false, false));
 
         assertThat(response.getPre()).isEmpty();
         assertThat(response.getPost()).isEmpty();
@@ -155,100 +73,67 @@ class PrestateServiceTest {
 
     @Test
     void callWithCodeEnabled() {
-        final var request = createRequest(false, true, false);
-        setupTransactionHashLookup();
-        setupContractResultWithContract();
-        when(contractActionRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(List.of(contractAction(CONTRACT_ID, ACCOUNT_ID)));
-        when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(Collections.emptyList());
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 1L, EntityType.CONTRACT))));
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
-                .thenReturn(Optional.of(50L));
-        when(contractRepository.findByIdsAndConsensusTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(List.of(contract(CONTRACT_ID.getId(), new byte[] {0x60, 0x40})));
+        final var fixture = persistContractFixture(RUNTIME_BYTECODE);
 
-        final var response = prestateService.processPrestateCall(request);
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, true, false));
 
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPre().getFirst().getCode())
-                .isEqualTo(Bytes.wrap(new byte[] {0x60, 0x40}).toHex());
+                .isEqualTo(Bytes.wrap(RUNTIME_BYTECODE).toHex());
     }
 
     @Test
     void callWithStorageEnabled() {
-        final var request = createRequest(false, false, true);
-        setupTransactionHashLookup();
-        setupContractResultWithContract();
-        final var slot = new byte[] {
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
-        };
-        final var valueRead = new byte[] {0x14};
-        when(contractActionRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(Collections.emptyList());
-        when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(List.of(ContractStateChange.builder()
-                        .consensusTimestamp(CONSENSUS_TIMESTAMP)
-                        .contractId(CONTRACT_ID.getId())
-                        .slot(slot)
-                        .valueRead(valueRead)
-                        .build()));
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 1L, EntityType.CONTRACT))));
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
-                .thenReturn(Optional.of(50L));
+        final var fixture = persistContractFixture(null);
+        domainBuilder
+                .contractStateChange()
+                .customize(c -> c.consensusTimestamp(fixture.consensusTimestamp())
+                        .contractId(fixture.contractId().getId())
+                        .slot(STORAGE_SLOT)
+                        .valueRead(VALUE_READ)
+                        .valueWritten(null))
+                .persist();
 
-        final var response = prestateService.processPrestateCall(request);
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, false, true));
 
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPre().getFirst().getStorage())
-                .containsEntry(Bytes.wrap(slot).toHex(), Bytes.wrap(valueRead).toHex());
+                .containsEntry(
+                        Bytes.wrap(STORAGE_SLOT).toHex(), Bytes.wrap(VALUE_READ).toHex());
     }
 
     @Test
     void callWithDiffAndStorageEnabledPopulatesPreAndPostStorageFromStateChanges() {
-        final var request = createRequest(true, false, true);
-        setupTransactionHashLookup();
-        setupContractResultWithContract();
-        final var slot = new byte[] {
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
-        };
-        final var valueRead = new byte[] {0x14};
-        final var valueWritten = new byte[] {0x28};
-        when(contractActionRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(Collections.emptyList());
-        when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(List.of(ContractStateChange.builder()
-                        .consensusTimestamp(CONSENSUS_TIMESTAMP)
-                        .contractId(CONTRACT_ID.getId())
-                        .slot(slot)
-                        .valueRead(valueRead)
-                        .valueWritten(valueWritten)
-                        .build()));
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 1L, EntityType.CONTRACT))));
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
-                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 2L, EntityType.CONTRACT))));
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
-                .thenReturn(Optional.of(50L));
+        final var fixture = persistContractFixture(null);
+        persistTreasuryBalance(fixture.createdTimestamp());
+        persistAccountBalance(fixture.contractId(), fixture.createdTimestamp(), 50L);
+        persistCryptoTransfer(fixture.contractId(), fixture.consensusTimestamp(), 10L);
+        domainBuilder
+                .contractStateChange()
+                .customize(c -> c.consensusTimestamp(fixture.consensusTimestamp())
+                        .contractId(fixture.contractId().getId())
+                        .slot(STORAGE_SLOT)
+                        .valueRead(VALUE_READ)
+                        .valueWritten(VALUE_WRITTEN))
+                .persist();
 
-        final var response = prestateService.processPrestateCall(request);
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), true, false, true));
 
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPost()).hasSize(1);
         assertThat(response.getPre().getFirst().getStorage())
-                .containsEntry(Bytes.wrap(slot).toHex(), Bytes.wrap(valueRead).toHex());
+                .containsEntry(
+                        Bytes.wrap(STORAGE_SLOT).toHex(), Bytes.wrap(VALUE_READ).toHex());
         assertThat(response.getPost().getFirst().getStorage())
                 .containsEntry(
-                        Bytes.wrap(slot).toHex(), Bytes.wrap(valueWritten).toHex());
+                        Bytes.wrap(STORAGE_SLOT).toHex(),
+                        Bytes.wrap(VALUE_WRITTEN).toHex());
     }
 
     @Test
     void callWithContractTransactionHashNotFound() {
-        final var request = new PrestateRequest(
-                new TransactionHashParameter(org.apache.tuweni.bytes.Bytes.of(TRANSACTION_HASH)), false, false, false);
-        when(contractTransactionHashRepository.findByHash(TRANSACTION_HASH)).thenReturn(Optional.empty());
+        final var hash = domainBuilder.bytes(32);
+        final var request = createRequest(hash, false, false, false);
 
         assertThatThrownBy(() -> prestateService.processPrestateCall(request))
                 .isInstanceOf(EntityNotFoundException.class)
@@ -257,155 +142,131 @@ class PrestateServiceTest {
 
     @Test
     void callWithContractResultNotFound() {
-        setupTransactionHashLookup();
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP)).thenReturn(Optional.empty());
+        final var hash = domainBuilder.bytes(32);
+        final var consensusTimestamp = domainBuilder.timestamp();
+        domainBuilder
+                .contractTransactionHash()
+                .customize(h -> h.hash(hash).consensusTimestamp(consensusTimestamp))
+                .persist();
 
-        assertThatThrownBy(() -> prestateService.processPrestateCall(createRequest(false, false, false)))
+        assertThatThrownBy(() -> prestateService.processPrestateCall(createRequest(hash, false, false, false)))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessageContaining("Contract result not found");
     }
 
     @Test
     void callWithDiffEnabledIncludesOnlyChangedEntriesInPreAndPost() {
-        final var request = createRequest(true, false, false);
-        setupTransactionHashLookup();
-        setupContractResult();
+        final var payerId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var changedAccount = domainBuilder.entityId();
+        final var unchangedAccount = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
 
-        final var changedAccount = EntityId.of(0L, 0L, 100L);
-        final var unchangedAccount = EntityId.of(0L, 0L, 101L);
-        when(contractActionRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(List.of(
-                        contractAction(CONTRACT_ID, changedAccount), contractAction(CONTRACT_ID, unchangedAccount)));
-        when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(Collections.emptyList());
+        persistBareEntity(changedAccount, EntityType.ACCOUNT, 1L, createdTimestamp);
+        persistBareEntity(unchangedAccount, EntityType.ACCOUNT, 2L, createdTimestamp);
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(changedAccount, createdTimestamp, 100L);
+        persistAccountBalance(unchangedAccount, createdTimestamp, 200L);
+        persistCryptoTransfer(changedAccount, consensusTimestamp, 50L);
 
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(Optional.of(List.of(
-                        entity(changedAccount, 1L, EntityType.ACCOUNT),
-                        entity(unchangedAccount, 2L, EntityType.ACCOUNT))));
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
-                .thenReturn(Optional.of(List.of(
-                        entity(changedAccount, 100L, EntityType.ACCOUNT),
-                        entity(unchangedAccount, 2L, EntityType.ACCOUNT))));
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
-                .thenAnswer(invocation -> {
-                    final long accountId = invocation.getArgument(0);
-                    return Optional.of(accountId == changedAccount.getId() ? 100L : 200L);
-                });
+        persistTransactionArtifacts(hash, consensusTimestamp, payerId, contractId);
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(contractId)
+                        .callerType(EntityType.CONTRACT)
+                        .recipientAccount(changedAccount)
+                        .index(0))
+                .persist();
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(contractId)
+                        .callerType(EntityType.CONTRACT)
+                        .recipientAccount(unchangedAccount)
+                        .index(1))
+                .persist();
 
-        final var response = prestateService.processPrestateCall(request);
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
 
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPost()).hasSize(1);
         assertThat(response.getPre().getFirst().getAddress()).isEqualTo(changedAccount.toString());
-        assertThat(response.getPost().getFirst().getNonce()).isEqualTo(100L);
+        assertThat(response.getPost().getFirst().getBalance()).isEqualTo("0x96");
     }
 
     @Test
     void callWithoutCodeStillIncludesContractWithBalanceAndNonce() {
-        final var request = createRequest(false, false, false);
-        setupTransactionHashLookup();
-        setupContractResult();
-        when(contractActionRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(Collections.emptyList());
-        when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(Collections.emptyList());
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 3L, EntityType.CONTRACT))));
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
-                .thenReturn(Optional.of(50L));
+        final var fixture = persistContractFixture(null);
+        persistTreasuryBalance(fixture.createdTimestamp());
+        persistAccountBalance(fixture.contractId(), fixture.createdTimestamp(), 50L);
 
-        final var response = prestateService.processPrestateCall(request);
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, false, false));
 
         assertThat(response.getPre()).hasSize(1);
-        assertThat(response.getPre().getFirst().getAddress()).isEqualTo(CONTRACT_ID.toString());
+        assertThat(response.getPre().getFirst().getAddress())
+                .isEqualTo(fixture.contractId().toString());
         assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0x32");
         assertThat(response.getPre().getFirst().getNonce()).isEqualTo(3L);
         assertThat(response.getPre().getFirst().getCode()).isNull();
-        assertThat(response.getPre().getFirst().getStorage()).isEmpty();
+        assertThat(response.getPre().getFirst().getStorage()).isNullOrEmpty();
     }
 
     @Test
     void callWithCodeLoadsBytecodeByIdsAndTimestamp() {
-        final byte[] runtimeBytecode = new byte[] {0x60, 0x40};
-        final var request = createRequest(false, true, false);
-        setupTransactionHashLookup();
-        setupContractResult();
-        when(contractActionRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(Collections.emptyList());
-        when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(Collections.emptyList());
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 1L, EntityType.CONTRACT))));
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
-                .thenReturn(Optional.of(50L));
-        when(contractRepository.findByIdsAndConsensusTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(List.of(contract(CONTRACT_ID.getId(), runtimeBytecode)));
+        final var fixture = persistContractFixture(RUNTIME_BYTECODE);
 
-        final var response = prestateService.processPrestateCall(request);
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, true, false));
 
         assertThat(response.getPre()).hasSize(1);
-        assertThat(response.getPre().getFirst().getAddress()).isEqualTo(CONTRACT_ID.toString());
+        assertThat(response.getPre().getFirst().getAddress())
+                .isEqualTo(fixture.contractId().toString());
         assertThat(response.getPre().getFirst().getCode())
-                .isEqualTo(Bytes.wrap(runtimeBytecode).toHex());
+                .isEqualTo(Bytes.wrap(RUNTIME_BYTECODE).toHex());
     }
 
     @Test
-    void callWithDiffAndCodePopulatesPreAndPostBytecodeIndependently() {
-        final byte[] runtimeBytecode = new byte[] {0x60, 0x40};
-        final var request = createRequest(true, true, false);
-        setupTransactionHashLookup();
-        setupContractResult();
-        when(contractActionRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(Collections.emptyList());
-        when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(Collections.emptyList());
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 1L, EntityType.CONTRACT))));
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
-                .thenReturn(Optional.of(List.of(entity(CONTRACT_ID, 1L, EntityType.CONTRACT))));
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
-                .thenReturn(Optional.of(50L));
-        when(contractRepository.findByIdsAndConsensusTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(Collections.emptyList());
-        when(contractRepository.findByIdsAndConsensusTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP)))
-                .thenReturn(List.of(contract(CONTRACT_ID.getId(), runtimeBytecode)));
+    void callWithDiffAndCodePopulatesPreAndPostBytecode() {
+        final var fixture = persistContractFixture(RUNTIME_BYTECODE);
+        persistTreasuryBalance(fixture.createdTimestamp());
+        persistAccountBalance(fixture.contractId(), fixture.createdTimestamp(), 50L);
+        persistCryptoTransfer(fixture.contractId(), fixture.consensusTimestamp(), 10L);
 
-        final var response = prestateService.processPrestateCall(request);
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), true, true, false));
 
         assertThat(response.getPre()).hasSize(1);
-        assertThat(response.getPre().getFirst().getCode()).isNull();
+        assertThat(response.getPre().getFirst().getCode())
+                .isEqualTo(Bytes.wrap(RUNTIME_BYTECODE).toHex());
         assertThat(response.getPost()).hasSize(1);
         assertThat(response.getPost().getFirst().getCode())
-                .isEqualTo(Bytes.wrap(runtimeBytecode).toHex());
+                .isEqualTo(Bytes.wrap(RUNTIME_BYTECODE).toHex());
     }
 
     @Test
     void callIncludesMirrorRecipientAddress() {
-        final var mirrorAccount = EntityId.of(0L, 0L, 300L);
-        final var request = createRequest(false, false, false);
-        setupTransactionHashLookup();
-        setupContractResult();
-        when(contractActionRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(List.of(ContractAction.builder()
-                        .consensusTimestamp(CONSENSUS_TIMESTAMP)
-                        .caller(CONTRACT_ID)
+        final var payerId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var mirrorAccount = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        persistBareEntity(mirrorAccount, EntityType.ACCOUNT, 1L, createdTimestamp);
+        persistTransactionArtifacts(hash, consensusTimestamp, payerId, contractId);
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(contractId)
                         .callerType(EntityType.CONTRACT)
+                        .recipientAccount(null)
+                        .recipientContract(null)
                         .recipientAddress(DomainUtils.toEvmAddress(mirrorAccount))
-                        .index(0)
-                        .build()));
-        when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(Collections.emptyList());
+                        .index(0))
+                .persist();
 
-        final var mirrorEntity = mirrorAccount.toEntity();
-        mirrorEntity.setType(EntityType.ACCOUNT);
-        when(entityRepository.findByIdAndDeletedIsFalse(mirrorAccount.getId())).thenReturn(Optional.of(mirrorEntity));
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), eq(CONSENSUS_TIMESTAMP - 1)))
-                .thenReturn(Optional.of(List.of(entity(mirrorAccount, 1L, EntityType.ACCOUNT))));
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
-                .thenReturn(Optional.of(100L));
-
-        final var response = prestateService.processPrestateCall(request);
+        final var response = prestateService.processPrestateCall(createRequest(hash, false, false, false));
 
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPre().getFirst().getAddress()).isEqualTo(mirrorAccount.toString());
@@ -423,16 +284,14 @@ class PrestateServiceTest {
         "false, false, false"
     })
     void callWithDifferentCombinationsOfFlags(final boolean diff, final boolean code, final boolean storage) {
-        final var request = createRequest(diff, code, storage);
-        setupTransactionHashLookup();
-        setupContractResult();
-        setupSidecars();
-        when(entityRepository.findActiveByIdsAndTimestamp(anyCollection(), anyLong()))
-                .thenReturn(Optional.of(List.of(entity(ACCOUNT_ID, 1L, EntityType.ACCOUNT))));
-        when(accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(anyLong(), anyLong(), anyLong()))
-                .thenReturn(Optional.of(100L));
+        final var fixture = persistTransferFixture(false);
+        persistTreasuryBalance(fixture.createdTimestamp());
+        persistAccountBalance(fixture.accountId(), fixture.createdTimestamp(), 100L);
+        if (diff) {
+            persistCryptoTransfer(fixture.accountId(), fixture.consensusTimestamp(), 1L);
+        }
 
-        final var response = prestateService.processPrestateCall(request);
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), diff, code, storage));
 
         assertThat(response.getPre()).isNotNull();
         if (diff) {
@@ -442,57 +301,113 @@ class PrestateServiceTest {
         }
     }
 
-    private PrestateRequest createRequest(boolean diff, boolean code, boolean storage) {
+    private PrestateRequest createRequest(
+            final byte[] hash, final boolean diff, final boolean code, final boolean storage) {
         return new PrestateRequest(
-                new TransactionHashParameter(org.apache.tuweni.bytes.Bytes.of(TRANSACTION_HASH)), diff, code, storage);
+                new TransactionHashParameter(org.apache.tuweni.bytes.Bytes.of(hash)), diff, code, storage);
     }
 
-    private void setupTransactionHashLookup() {
-        final var contractTxHash = new ContractTransactionHash();
-        contractTxHash.setHash(TRANSACTION_HASH);
-        contractTxHash.setConsensusTimestamp(CONSENSUS_TIMESTAMP);
-        contractTxHash.setPayerAccountId(PAYER_ACCOUNT_ID.getId());
-        when(contractTransactionHashRepository.findByHash(TRANSACTION_HASH)).thenReturn(Optional.of(contractTxHash));
+    private Fixture persistTransferFixture(final boolean nonceChange) {
+        final var payerId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var accountId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        persistBareEntity(accountId, EntityType.ACCOUNT, nonceChange ? 2L : 5L, createdTimestamp);
+        persistTransactionArtifacts(hash, consensusTimestamp, payerId, contractId);
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(contractId)
+                        .callerType(EntityType.CONTRACT)
+                        .recipientAccount(accountId)
+                        .index(0))
+                .persist();
+
+        return new Fixture(hash, createdTimestamp, consensusTimestamp, payerId, contractId, accountId);
     }
 
-    private void setupContractResult() {
-        final var contractResult = new ContractResult();
-        contractResult.setConsensusTimestamp(CONSENSUS_TIMESTAMP);
-        contractResult.setSenderId(PAYER_ACCOUNT_ID);
-        contractResult.setContractId(CONTRACT_ID.getId());
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP)).thenReturn(Optional.of(contractResult));
+    private Fixture persistContractFixture(final byte[] runtimeBytecode) {
+        final var payerId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        persistBareEntity(contractId, EntityType.CONTRACT, 3L, createdTimestamp);
+        if (runtimeBytecode != null) {
+            domainBuilder
+                    .contract()
+                    .customize(c -> c.id(contractId.getId()).runtimeBytecode(runtimeBytecode))
+                    .persist();
+        }
+        persistTransactionArtifacts(hash, consensusTimestamp, payerId, contractId);
+
+        return new Fixture(hash, createdTimestamp, consensusTimestamp, payerId, contractId, null);
     }
 
-    private void setupContractResultWithContract() {
-        setupContractResult();
+    private void persistTransactionArtifacts(
+            final byte[] hash, final long consensusTimestamp, final EntityId payerId, final EntityId contractId) {
+        domainBuilder
+                .contractTransactionHash()
+                .customize(h -> h.hash(hash)
+                        .consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId.getId())
+                        .entityId(contractId.getId()))
+                .persist();
+        domainBuilder
+                .contractResult()
+                .customize(r -> r.consensusTimestamp(consensusTimestamp)
+                        .senderId(payerId)
+                        .contractId(contractId.getId()))
+                .persist();
     }
 
-    private void setupSidecars() {
-        when(contractActionRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(List.of(contractAction(CONTRACT_ID, ACCOUNT_ID)));
-        when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP))
-                .thenReturn(Collections.emptyList());
+    private void persistBareEntity(
+            final EntityId entityId, final EntityType type, final long nonce, final long createdTimestamp) {
+        domainBuilder
+                .entity(entityId, createdTimestamp)
+                .customize(e -> e.type(type)
+                        .ethereumNonce(nonce)
+                        .evmAddress(null)
+                        .alias(null)
+                        .deleted(false)
+                        .timestampRange(Range.atLeast(createdTimestamp)))
+                .persist();
     }
 
-    private static ContractAction contractAction(final EntityId caller, final EntityId recipient) {
-        return ContractAction.builder()
-                .consensusTimestamp(CONSENSUS_TIMESTAMP)
-                .caller(caller)
-                .callerType(EntityType.CONTRACT)
-                .recipientAccount(recipient)
-                .index(0)
-                .build();
+    private void persistTreasuryBalance(final long timestamp) {
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new AccountBalance.Id(timestamp, systemEntity.treasuryAccount()))
+                        .balance(1L))
+                .persist();
     }
 
-    private static Entity entity(final EntityId entityId, final long nonce, final EntityType type) {
-        final var entity = new Entity();
-        entity.setId(entityId.getId());
-        entity.setEthereumNonce(nonce);
-        entity.setType(type);
-        return entity;
+    private void persistAccountBalance(final EntityId accountId, final long timestamp, final long balance) {
+        domainBuilder
+                .accountBalance()
+                .customize(
+                        ab -> ab.id(new AccountBalance.Id(timestamp, accountId)).balance(balance))
+                .persist();
     }
 
-    private static Contract contract(final long contractId, final byte[] bytecode) {
-        return Contract.builder().id(contractId).runtimeBytecode(bytecode).build();
+    private void persistCryptoTransfer(final EntityId accountId, final long consensusTimestamp, final long amount) {
+        domainBuilder
+                .cryptoTransfer()
+                .customize(t -> t.entityId(accountId.getId())
+                        .consensusTimestamp(consensusTimestamp)
+                        .amount(amount))
+                .persist();
     }
+
+    private record Fixture(
+            byte[] hash,
+            long createdTimestamp,
+            long consensusTimestamp,
+            EntityId payerId,
+            EntityId contractId,
+            EntityId accountId) {}
 }

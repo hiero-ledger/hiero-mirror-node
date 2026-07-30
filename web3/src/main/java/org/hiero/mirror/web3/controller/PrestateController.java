@@ -21,7 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/contracts/results")
-public class PrestateController {
+final class PrestateController {
 
     private final PrestateService prestateService;
     private final ThrottleManager throttleManager;
@@ -46,13 +46,13 @@ public class PrestateController {
             @RequestParam(required = false, defaultValue = "false") boolean diff,
             @RequestParam(required = false, defaultValue = "false") boolean code,
             @RequestParam(required = false, defaultValue = "false") boolean storage) {
-        if (prestateProperties.isEnabled()) {
-            throttleManager.throttlePrestateRequest();
+        throttleManager.throttlePrestateRequest();
 
+        if (prestateProperties.isEnabled()) {
             final var request = new PrestateRequest(transactionIdOrHash, diff, code, storage);
             return prestateService.processPrestateCall(request);
         }
 
-        throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
     }
 }

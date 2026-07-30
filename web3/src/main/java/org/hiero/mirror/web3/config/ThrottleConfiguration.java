@@ -24,7 +24,7 @@ public class ThrottleConfiguration {
 
     @Bean(name = RATE_LIMIT_BUCKET)
     Bucket rateLimitBucket() {
-        final var rateLimit = throttleProperties.getRequestsPerSecond();
+        final long rateLimit = throttleProperties.getRequestsPerSecond();
         final var limit = Bandwidth.builder()
                 .capacity(rateLimit)
                 .refillGreedy(rateLimit, Duration.ofSeconds(1))
@@ -34,7 +34,7 @@ public class ThrottleConfiguration {
 
     @Bean(name = GAS_LIMIT_BUCKET)
     Bucket gasLimitBucket() {
-        final var gasLimit = throttleProperties.getGasPerSecond();
+        final long gasLimit = throttleProperties.getGasPerSecond();
         final var limit = Bandwidth.builder()
                 .capacity(gasLimit)
                 .refillGreedy(gasLimit, Duration.ofSeconds(1))
@@ -47,7 +47,7 @@ public class ThrottleConfiguration {
 
     @Bean(name = OPCODE_RATE_LIMIT_BUCKET)
     Bucket opcodeRateLimitBucket() {
-        final var rateLimit = throttleProperties.getOpcodeRequestsPerSecond();
+        final long rateLimit = throttleProperties.getOpcodeRequestsPerSecond();
         final var limit = Bandwidth.builder()
                 .capacity(rateLimit)
                 .refillGreedy(rateLimit, Duration.ofSeconds(1))
@@ -57,7 +57,7 @@ public class ThrottleConfiguration {
 
     @Bean(name = PRESTATE_RATE_LIMIT_BUCKET)
     Bucket prestateRateLimitBucket() {
-        final var rateLimit = throttleProperties.getPrestateRequestsPerSecond();
+        final long rateLimit = throttleProperties.getPrestateRequestsPerSecond();
         final var limit = Bandwidth.builder()
                 .capacity(rateLimit)
                 .refillGreedy(rateLimit, Duration.ofSeconds(1))

@@ -7,7 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.CommonUtils.instant;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.controller.OpcodesController.MISSING_GZIP_HEADER_MESSAGE;
-import static org.hiero.mirror.web3.service.TraceService.MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
+import static org.hiero.mirror.web3.service.OpcodeServiceImpl.MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
 import static org.hiero.mirror.web3.utils.Constants.OPCODES_URI;
 import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -142,9 +142,6 @@ class OpcodesControllerTest {
 
     @MockitoBean
     private CommonEntityAccessor commonEntityAccessor;
-
-    @MockitoBean
-    private Web3Properties web3Properties;
 
     @Captor
     private ArgumentCaptor<ContractDebugParameters> callServiceParametersCaptor;
@@ -312,7 +309,7 @@ class OpcodesControllerTest {
                             validStartNs,
                             validStartNs,
                             validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS))
-                    .thenReturn(List.of(transaction));
+                    .thenReturn(Optional.of(transaction));
         }
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(
                         contractTransactionHash.getConsensusTimestamp(),
@@ -436,7 +433,7 @@ class OpcodesControllerTest {
                                         convertToNanosMax(parameter.validStart()),
                                         convertToNanosMax(parameter.validStart())
                                                 + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS))
-                                .thenReturn(Collections.emptyList());
+                                .thenReturn(Optional.empty());
                         yield new GenericErrorResponse(message, "Transaction not found: " + parameter);
                     }
                 };
@@ -753,24 +750,29 @@ class OpcodesControllerTest {
         OpcodeService opcodeService(
                 final RecordFileService recordFileService,
                 final ContractDebugService contractDebugService,
-                final EthereumTransactionRepository ethereumTransactionRepository,
-                final ContractResultRepository contractResultRepository,
-                final CommonEntityAccessor commonEntityAccessor,
                 final ContractTransactionHashRepository contractTransactionHashRepository,
-                final TransactionRepository transactionRepository) {
+                final EthereumTransactionRepository ethereumTransactionRepository,
+                final TransactionRepository transactionRepository,
+                final ContractResultRepository contractResultRepository,
+                final CommonEntityAccessor commonEntityAccessor) {
             return new OpcodeServiceImpl(
-                    contractDebugService,
-                    commonEntityAccessor,
                     recordFileService,
-                    ethereumTransactionRepository,
-                    contractResultRepository,
+                    contractDebugService,
                     contractTransactionHashRepository,
-                    transactionRepository);
+                    ethereumTransactionRepository,
+                    transactionRepository,
+                    contractResultRepository,
+                    commonEntityAccessor);
         }
 
         @Bean
         OpcodesProperties opCodeTracerConfiguration() {
             return new OpcodesProperties();
+        }
+
+        @Bean
+        Web3Properties web3Properties() {
+            return new Web3Properties();
         }
     }
 }

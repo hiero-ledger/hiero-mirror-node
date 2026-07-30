@@ -3,18 +3,10 @@
 package org.hiero.mirror.web3.service.model;
 
 import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 
-@Value
-@RequiredArgsConstructor
-public class PrestateRequest {
-
-    @NotNull
-    TransactionIdOrHashParameter transactionIdOrHashParameter;
-
-    boolean diffMode;
-    boolean code;
-    boolean storage;
-}
+public record PrestateRequest(
+        @NotNull TransactionIdOrHashParameter transactionIdOrHashParameter,
+        boolean diffMode,
+        boolean code,
+        boolean storage) {}

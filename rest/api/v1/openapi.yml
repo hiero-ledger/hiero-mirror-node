@@ -710,48 +710,6 @@ paths:
           $ref: "#/components/responses/NotFoundError"
       tags:
         - contracts
-  /api/v1/contracts/results/{transactionIdOrHash}/prestate:
-    get:
-      summary: Get the account traces for a historical transaction on the network with the given transaction ID or hash
-      description: |
-        Re-executes a transaction and returns a result containing detailed information for the accounts needed for the
-        transaction execution with some basic fields about them.
-
-        Note that to provide the output, the transaction needs to be re-executed on the EVM,
-        which may take a significant amount of time to complete if storage information is requested.
-      operationId: getContractPrestate
-      parameters:
-        - $ref: "#/components/parameters/transactionIdOrEthHashPathParam"
-        - $ref: "#/components/parameters/diff"
-        - $ref: "#/components/parameters/code"
-        - $ref: "#/components/parameters/storage"
-      responses:
-        200:
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PrestateResponse"
-        400:
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        404:
-          description: Transaction or record file not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        429:
-          description: Too many requests
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      tags:
-        - contracts
   /api/v1/contracts/results/{transactionIdOrHash}/opcodes:
     get:
       summary: Get the opcode traces for a historical transaction on the network with the given transaction ID or hash
@@ -775,6 +733,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OpcodesResponse"
+        400:
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        404:
+          description: Transaction or record file not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        429:
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - contracts
+  /api/v1/contracts/results/{transactionIdOrHash}/prestate:
+    get:
+      summary: Get the account traces for a historical transaction on the network with the given transaction ID or hash
+      description: |
+        Inspects contract result related data for a transaction and returns a response containing detailed information
+        for the accounts needed for the transaction execution with some basic fields about them.
+
+      operationId: getContractPrestate
+      parameters:
+        - $ref: "#/components/parameters/transactionIdOrEthHashPathParam"
+        - $ref: "#/components/parameters/diff"
+        - $ref: "#/components/parameters/code"
+        - $ref: "#/components/parameters/storage"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrestateResponse"
         400:
           description: Validation error
           content:
@@ -1916,10 +1914,11 @@ components:
             format: binary
         storage:
           description: The storage slots (keys and values in hex) of the current contract which is read from and written to
-          type: [object, "null"]
+          type: object
           additionalProperties:
             type: string
             format: binary
+          default: {}
     PrestateResponse:
       type: object
       properties:
@@ -1951,10 +1950,11 @@ components:
           format: int64
         storage:
           description: The storage slots (keys and values in hex) of the contract which is read from and written to
-          type: [object, "null"]
+          type: object
           additionalProperties:
             type: string
             format: binary
+          default: {}
     RegisteredNodesResponse:
       type: object
       required:
@@ -4809,6 +4809,14 @@ components:
       schema:
         type: boolean
         default: true
+    code:
+      name: code
+      description: If provided and set to true, bytecode information will be included in the response
+      in: query
+      example: true
+      schema:
+        type: boolean
+        default: false
     contractIdQueryParam:
       name: contract.id
       description: The ID of the smart contract
@@ -4875,6 +4883,14 @@ components:
       schema:
         pattern: ^(\d{1,10}\.){0,2}(\d{1,10}|(0x)?[A-Fa-f0-9]{40})$
         type: string
+    diff:
+      name: diff
+      description: If provided and set to true, include account trace information with changes from transaction execution
+      in: query
+      example: true
+      schema:
+        type: boolean
+        default: false
     hashOrNumberPathParam:
       name: hashOrNumber
       in: path
@@ -5622,22 +5638,6 @@ components:
       description: If provided and set to true, storage information will be included in the response
       in: query
       example: false
-      schema:
-        type: boolean
-        default: false
-    code:
-      name: code
-      description: If provided and set to true, bytecode information will be included in the response
-      in: query
-      example: true
-      schema:
-        type: boolean
-        default: false
-    diff:
-      name: diff
-      description: If provided and set to true, include account trace information with changes from transaction execution
-      in: query
-      example: true
       schema:
         type: boolean
         default: false

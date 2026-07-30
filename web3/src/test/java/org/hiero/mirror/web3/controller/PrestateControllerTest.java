@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.controller;
 
 import static org.hiero.mirror.common.util.CommonUtils.instant;
-import static org.hiero.mirror.web3.utils.Constants.PRESTATE_URI;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -25,7 +24,6 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.hamcrest.core.StringContains;
@@ -78,6 +76,7 @@ import org.springframework.util.StringUtils;
 class PrestateControllerTest {
 
     private static final DomainBuilder DOMAIN_BUILDER = new DomainBuilder();
+    private static final String PRESTATE_URI = "/api/v1/contracts/results/{transactionIdOrHash}/prestate";
 
     @Resource
     private MockMvc mockMvc;
@@ -115,9 +114,6 @@ class PrestateControllerTest {
     @MockitoBean
     private ContractResultRepository contractResultRepository;
 
-    @MockitoBean
-    private Web3Properties web3Properties;
-
     @Resource
     private PrestateProperties prestateProperties;
 
@@ -143,7 +139,7 @@ class PrestateControllerTest {
         when(contractTransactionHashRepository.findByHash(hash)).thenReturn(Optional.of(contractTransactionHash));
         when(transactionRepository.findByPayerAccountIdAndValidStartNs(
                         eq(payerAccountId.getId()), eq(validStartNs), anyLong(), anyLong()))
-                .thenReturn(List.of(transaction));
+                .thenReturn(Optional.of(transaction));
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(
                         contractTransactionHash.getConsensusTimestamp(),
                         EntityId.of(contractTransactionHash.getPayerAccountId())))
@@ -172,7 +168,11 @@ class PrestateControllerTest {
     void successfulCallReturnsOk(final TransactionProviderEnum providerEnum) throws Exception {
         final var transactionIdOrHash = setUp(providerEnum);
 
-        mockMvc.perform(prestateRequest(transactionIdOrHash)).andExpect(status().isOk());
+        mockMvc.perform(prestateRequest(transactionIdOrHash))
+                .andExpect(status().isOk())
+                // Based on application.yml response headers configuration
+                .andExpect(header().string("Access-Control-Allow-Origin", "*"))
+                .andExpect(header().string("Cache-Control", "public, max-age=600"));
     }
 
     @ParameterizedTest
@@ -271,7 +271,7 @@ class PrestateControllerTest {
         prestateProperties.setEnabled(false);
         final var transactionIdOrHash = setUp(TransactionProviderEnum.CONTRACT_CALL);
 
-        mockMvc.perform(prestateRequest(transactionIdOrHash)).andExpect(status().isNotFound());
+        mockMvc.perform(prestateRequest(transactionIdOrHash)).andExpect(status().isNotImplemented());
     }
 
     @ParameterizedTest
@@ -409,8 +409,8 @@ class PrestateControllerTest {
                     contractStateChangeRepository,
                     contractTransactionHashRepository,
                     entityRepository,
-                    new SystemEntity(commonProperties),
-                    transactionRepository);
+                    transactionRepository,
+                    new SystemEntity(commonProperties));
         }
 
         @Bean
@@ -419,6 +419,11 @@ class PrestateControllerTest {
             tracerProperties.setEnabled(true);
 
             return tracerProperties;
+        }
+
+        @Bean
+        Web3Properties web3Properties() {
+            return new Web3Properties();
         }
     }
 }
