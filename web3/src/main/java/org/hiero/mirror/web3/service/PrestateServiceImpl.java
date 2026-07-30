@@ -46,7 +46,7 @@ import org.springframework.stereotype.Service;
 @Service
 @CustomLog
 @RequiredArgsConstructor
-public final class PrestateServiceImpl implements PrestateService {
+final class PrestateServiceImpl implements PrestateService {
 
     public static final long MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS = 35 * 60 * NANOS_PER_SECOND;
 
