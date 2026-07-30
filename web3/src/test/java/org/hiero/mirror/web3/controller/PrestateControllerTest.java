@@ -31,6 +31,7 @@ import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.web3.ApiProperties;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
@@ -423,7 +424,14 @@ class PrestateControllerTest {
 
         @Bean
         Web3Properties web3Properties() {
-            return new Web3Properties();
+            final var properties = new Web3Properties();
+            final var request = new ApiProperties.RequestProperties();
+            request.getHeaders().put("Access-Control-Allow-Origin", "*");
+            request.getHeaders().put("Cache-Control", "public, max-age=600");
+            final var api = new ApiProperties();
+            api.setRequest(request);
+            properties.getApi().put(Web3Properties.ApiEndpointName.PRESTATE, api);
+            return properties;
         }
     }
 }

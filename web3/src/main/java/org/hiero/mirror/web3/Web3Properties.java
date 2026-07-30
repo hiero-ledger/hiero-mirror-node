@@ -2,17 +2,13 @@
 
 package org.hiero.mirror.web3;
 
-import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.Data;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -39,64 +35,54 @@ public class Web3Properties {
      * has no configured override.
      */
     public Duration getRequestTimeout(ApiEndpointName endpoint) {
+        var timeout = getRequestProperties(endpoint).getTimeout();
+        return timeout != null ? timeout : requestTimeout;
+    }
+
+    /**
+     * Returns the configured response headers for the given API endpoint, or an empty map when none are configured.
+     */
+    public Map<String, String> getResponseHeaders(ApiEndpointName endpoint) {
+        return getRequestProperties(endpoint).getHeaders();
+    }
+
+    private ApiProperties.RequestProperties getRequestProperties(ApiEndpointName endpoint) {
         if (endpoint != null) {
             var properties = api.get(endpoint);
-            if (properties != null
-                    && properties.getRequest() != null
-                    && properties.getRequest().getTimeout() != null) {
-                return properties.getRequest().getTimeout();
+            if (properties != null && properties.getRequest() != null) {
+                return properties.getRequest();
             }
         }
-        return requestTimeout;
+        return new ApiProperties.RequestProperties();
     }
 
     public enum ApiEndpointName {
-        CALL,
-        OPCODES
-    }
+        CALL("/api/v1/contracts/call"),
+        OPCODES("/api/v1/contracts/results/{transactionIdOrHash}/opcodes"),
+        PRESTATE("/api/v1/contracts/results/{transactionIdOrHash}/prestate");
 
-    @NotNull
-    @Valid
-    private ResponseConfig response = new ResponseConfig();
+        private static final Map<String, ApiEndpointName> BY_PATH;
 
-    /*
-     * Post process the configured response headers. All header names are treated case insensitively, and, for each path,
-     * the default headers are first inherited and their values possibly overridden.
-     */
-    @PostConstruct
-    void mergeHeaders() {
-        for (var pathHeaders : response.headers.path.entrySet()) {
-            var mergedHeaders = Stream.concat(
-                            response.headers.defaults.entrySet().stream(), pathHeaders.getValue().entrySet().stream())
-                    .collect(Collectors.toMap(
-                            Entry::getKey,
-                            Entry::getValue,
-                            (v1, v2) -> v2,
-                            () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER)));
-
-            pathHeaders.setValue(mergedHeaders);
+        static {
+            var byPath = new HashMap<String, ApiEndpointName>();
+            for (var endpoint : values()) {
+                byPath.put(endpoint.path, endpoint);
+            }
+            BY_PATH = Collections.unmodifiableMap(byPath);
         }
-    }
 
-    @Data
-    @Validated
-    public static class ResponseConfig {
-        @NotNull
-        @Valid
-        private ResponseHeadersConfig headers = new ResponseHeadersConfig();
-    }
+        private final String path;
 
-    @Data
-    @Validated
-    public static class ResponseHeadersConfig {
-        @NotNull
-        private Map<String, String> defaults = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        ApiEndpointName(String path) {
+            this.path = path;
+        }
 
-        @NotNull
-        private Map<String, Map<String, String>> path = new HashMap<>();
+        public static ApiEndpointName fromPath(String path) {
+            return path == null ? null : BY_PATH.get(path);
+        }
 
-        public Map<String, String> getHeadersForPath(String apiPath) {
-            return apiPath == null ? defaults : path.getOrDefault(apiPath, defaults);
+        public String getPath() {
+            return path;
         }
     }
 }
