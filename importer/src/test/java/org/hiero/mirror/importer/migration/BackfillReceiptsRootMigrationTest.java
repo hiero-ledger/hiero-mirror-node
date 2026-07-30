@@ -5,12 +5,14 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.flywaydb.core.api.callback.Event;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.flywaydb.core.internal.callback.SimpleContext;
+import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterProperties;
@@ -100,11 +102,10 @@ class BackfillReceiptsRootMigrationTest extends AbstractAsyncJavaMigrationTest<B
         waitForCompletion();
 
         // then
-        var expectedRootBlock2 = new ReceiptRoot();
-        expectedRootBlock2.add(contractResult);
-        expectedRootBlock2.add(contractLog);
-        var expectedBlock2 = expectedRootBlock2.getRootHash(
-                Map.of(timestamp2, 2), Map.of(contract.getId(), contract.getEvmAddress()));
+        var ethereumTransaction = EthereumTransaction.builder().type(2).build();
+        var expectedRootBlock2 = receiptRoot(Map.of(contract.getId(), contract.getEvmAddress()));
+        expectedRootBlock2.put(contractResult, List.of(contractLog), ethereumTransaction);
+        var expectedBlock2 = expectedRootBlock2.getRootHash();
 
         assertThat(recordFileRepository.findById(block1.getConsensusEnd()))
                 .get()
@@ -185,9 +186,9 @@ class BackfillReceiptsRootMigrationTest extends AbstractAsyncJavaMigrationTest<B
         waitForCompletion();
 
         // then
-        var expectedRoot = new ReceiptRoot();
-        expectedRoot.add(parentResult);
-        var expected = expectedRoot.getRootHash(Map.of(), Map.of());
+        var expectedRoot = receiptRoot(Map.of());
+        expectedRoot.put(parentResult, List.of(), null);
+        var expected = expectedRoot.getRootHash();
 
         assertThat(recordFileRepository.findById(block.getConsensusEnd()))
                 .get()
@@ -386,6 +387,10 @@ class BackfillReceiptsRootMigrationTest extends AbstractAsyncJavaMigrationTest<B
                         .consensusEnd(consensusEnd)
                         .receiptsRoot(null))
                 .persist();
+    }
+
+    private static ReceiptRoot receiptRoot(final Map<Long, byte[]> evmAddresses) {
+        return new ReceiptRoot(evmAddresses);
     }
 
     private void seedProgressCheckpoint(long upperBound) {

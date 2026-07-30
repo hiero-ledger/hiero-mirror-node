@@ -3,19 +3,19 @@
 package org.hiero.mirror.importer.parser.record.receipt;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.function.Function;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.util.Utility;
@@ -24,10 +24,14 @@ import org.hyperledger.besu.ethereum.trie.patricia.SimpleMerklePatriciaTrie;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Accumulates one block's contract results and logs as they stream by and computes the Ethereum block-header
- * receipts-trie root, byte-identical to the root the JSON-RPC relay computes for the same block. Additions may arrive
- * in any order and are grouped by consensus timestamp; receipts are encoded from the domain objects only when the
- * root is computed, so late mutations (e.g. synthetic log topics resolved at the end of the block) are reflected.
+ * Computes the block-header receipts-trie root for a record file. The trie is kept up to date as each top-level EVM
+ * transaction is {@link #put(ContractResult, Collection, EthereumTransaction) put}. All state lives in this instance,
+ * which is created per record file by the {@code RecordItemAggregator}.
+ *
+ * <p>Because cumulative gas is accumulated incrementally, transactions must be put in ascending transaction-index order.
+ * EVM addresses (a log's contract address and a synthetic log's resolved topics) come from {@code evmAddressById}, which
+ * the caller resolves in a single batch, so the computation does not depend on the synthetic log topics/blooms being
+ * finalized later in {@code SyntheticLogListener.onEnd()}.
  */
 public final class ReceiptRoot {
 
@@ -45,73 +49,66 @@ public final class ReceiptRoot {
             ResponseCodeEnum.FEE_SCHEDULE_FILE_PART_UPLOADED_VALUE,
             ResponseCodeEnum.SUCCESS_BUT_MISSING_EXPECTED_OPERATION_VALUE);
 
-    private final Map<Long, TransactionData> transactionsByTimestamp = new LinkedHashMap<>();
-    private final Set<Long> contractIds = new LinkedHashSet<>();
+    // Trimmed EVM address aliases by entity id; entities absent from the map fall back to their long-zero address
+    private final Map<Long, byte[]> evmAddressById;
 
-    /**
-     * Adds a transaction's contract result. Child (internal) contract results must be filtered out by the caller.
-     */
-    public void add(final ContractResult contractResult) {
-        transaction(contractResult.getConsensusTimestamp()).contractResult = contractResult;
+    private final SimpleMerklePatriciaTrie<Bytes, Bytes> trie = new SimpleMerklePatriciaTrie<>(Function.identity());
+    private long cumulativeGas = 0L;
+    private boolean empty = true;
+
+    public ReceiptRoot(final Map<Long, byte[]> evmAddressById) {
+        this.evmAddressById = evmAddressById;
     }
 
     /**
-     * Adds a contract log to its transaction's receipt; a transaction with logs but no contract result becomes a
-     * synthetic receipt.
+     * Adds a top-level EVM transaction's receipt to the trie. Child (internal) contract results and their logs must be
+     * excluded by the caller. A transaction with logs but no contract result is encoded as a synthetic receipt. Must be
+     * called in ascending transaction-index order so cumulative gas accumulates correctly.
+     *
+     * @param contractResult      the transaction's contract result, or {@code null} for a synthetic-only receipt
+     * @param contractLogs        the transaction's logs; encoded in ascending log index order
+     * @param ethereumTransaction the transaction's ethereum transaction, or {@code null}; supplies the EIP-2718 type
      */
-    public void add(final ContractLog contractLog) {
-        transaction(contractLog.getConsensusTimestamp()).logs.put(contractLog.getIndex(), contractLog);
-        if (!EntityId.isEmpty(contractLog.getContractId())) {
-            contractIds.add(contractLog.getContractId().getId());
-        }
-    }
-
-    /**
-     * @return the distinct contract ids of the added logs, for EVM address alias resolution
-     */
-    public Set<Long> getContractIds() {
-        return Collections.unmodifiableSet(contractIds);
-    }
-
-    /**
-     * @param typeByConsensusTimestamp the EIP-2718 ethereum transaction types by consensus timestamp; transactions
-     *                                 absent from the map are encoded as legacy (type 0) receipts
-     * @param evmAddressById           the EVM address aliases of the contracts emitting the block's logs; contracts
-     *                                 absent from the map use their long-zero address
-     * @return the 32-byte receipts-trie root; 32 zero bytes when nothing was added
-     */
-    public byte[] getRootHash(
-            final Map<Long, Integer> typeByConsensusTimestamp, final Map<Long, byte[]> evmAddressById) {
+    public void put(
+            @Nullable final ContractResult contractResult,
+            final Collection<ContractLog> contractLogs,
+            @Nullable final EthereumTransaction ethereumTransaction) {
+        final var transactionIndex = transactionIndex(contractResult, contractLogs);
         // A null transaction index means the transaction holds no EVM transaction index slot (e.g. a WRONG_NONCE
         // ethereum transaction that never entered EVM execution) and is not part of the receipts trie
-        final var transactions = transactionsByTimestamp.values().stream()
-                .filter(transaction -> transaction.transactionIndex() != null)
-                .sorted(Comparator.comparingInt(TransactionData::transactionIndex))
-                .toList();
-        if (transactions.isEmpty()) {
-            return EMPTY_RECEIPTS_ROOT;
+        if (transactionIndex == null) {
+            return;
         }
 
-        final var trie = new SimpleMerklePatriciaTrie<Bytes, Bytes>(Function.identity());
-        long cumulativeGas = 0L;
-        for (final var transaction : transactions) {
-            final var contractResult = transaction.contractResult;
-            if (contractResult != null && contractResult.getGasUsed() != null) {
-                cumulativeGas += contractResult.getGasUsed();
-            }
-            final var type = transaction.contractResult != null
-                    ? typeByConsensusTimestamp.get(transaction.consensusTimestamp)
-                    : null;
-            trie.put(
-                    trieKey(transaction.transactionIndex()),
-                    encodeReceipt(transaction, type, cumulativeGas, evmAddressById));
+        if (contractResult != null && contractResult.getGasUsed() != null) {
+            cumulativeGas += contractResult.getGasUsed();
         }
 
-        return trie.getRootHash().toArrayUnsafe();
+        final var logs = new ArrayList<>(contractLogs);
+        logs.sort(Comparator.comparingInt(ContractLog::getIndex));
+        final var type = ethereumTransaction != null ? ethereumTransaction.getType() : null;
+        trie.put(trieKey(transactionIndex), encodeReceipt(contractResult, logs, type, cumulativeGas));
+        empty = false;
     }
 
-    private TransactionData transaction(final long consensusTimestamp) {
-        return transactionsByTimestamp.computeIfAbsent(consensusTimestamp, TransactionData::new);
+    /**
+     * @return the 32-byte receipts-trie root; 32 zero bytes when nothing was added
+     */
+    public byte[] getRootHash() {
+        return empty ? EMPTY_RECEIPTS_ROOT : trie.getRootHash().toArrayUnsafe();
+    }
+
+    @Nullable
+    private Integer transactionIndex(
+            @Nullable final ContractResult contractResult, final Collection<ContractLog> contractLogs) {
+        if (contractResult != null) {
+            return contractResult.getTransactionIndex();
+        }
+
+        return contractLogs.stream()
+                .findFirst()
+                .map(ContractLog::getTransactionIndex)
+                .orElse(null);
     }
 
     private Bytes trieKey(final int transactionIndex) {
@@ -121,11 +118,10 @@ public final class ReceiptRoot {
     }
 
     private Bytes encodeReceipt(
-            final TransactionData transaction,
+            @Nullable final ContractResult contractResult,
+            final List<ContractLog> contractLogs,
             @Nullable final Integer type,
-            final long cumulativeGas,
-            final Map<Long, byte[]> evmAddressById) {
-        final var contractResult = transaction.contractResult;
+            final long cumulativeGas) {
         final var out = new BytesValueRLPOutput();
         out.startList();
 
@@ -137,13 +133,16 @@ public final class ReceiptRoot {
         }
 
         out.writeLongScalar(cumulativeGas);
-        out.writeBytes(normalizeBloom(bloom(transaction, evmAddressById)));
+        out.writeBytes(normalizeBloom(bloom(contractResult, contractLogs)));
         out.startList();
-        for (final var contractLog : transaction.logs.values()) {
+        for (final var contractLog : contractLogs) {
             out.startList();
-            out.writeBytes(Bytes.wrap(logAddress(contractLog, evmAddressById)));
+            out.writeBytes(Bytes.wrap(logAddress(contractLog)));
             out.startList();
-            writeTopics(out, contractLog);
+            writeTopic(out, contractLog.getTopic0());
+            writeTopic(out, resolveTopic(contractLog, contractLog.getTopic1()));
+            writeTopic(out, resolveTopic(contractLog, contractLog.getTopic2()));
+            writeTopic(out, contractLog.getTopic3());
             out.endList();
             out.writeBytes(Bytes.wrap(data(contractLog.getData())));
             out.endList();
@@ -156,18 +155,18 @@ public final class ReceiptRoot {
         return type == null || type == 0 ? encoded : Bytes.concatenate(Bytes.of(type), encoded);
     }
 
-    private byte[] bloom(final TransactionData transaction, final Map<Long, byte[]> evmAddressById) {
-        if (transaction.contractResult != null) {
-            return transaction.contractResult.getBloom();
+    private byte[] bloom(@Nullable final ContractResult contractResult, final List<ContractLog> contractLogs) {
+        if (contractResult != null) {
+            return contractResult.getBloom();
         }
 
         var bloom = new byte[LogsBloomFilter.BYTE_SIZE];
-        for (final var contractLog : transaction.logs.values()) {
+        for (final var contractLog : contractLogs) {
             final var filter = new LogsBloomFilter();
-            filter.insertAddress(logAddress(contractLog, evmAddressById));
+            filter.insertAddress(logAddress(contractLog));
             filter.insertTopic(contractLog.getTopic0());
-            filter.insertTopic(contractLog.getTopic1());
-            filter.insertTopic(contractLog.getTopic2());
+            filter.insertTopic(resolveTopic(contractLog, contractLog.getTopic1()));
+            filter.insertTopic(resolveTopic(contractLog, contractLog.getTopic2()));
             filter.insertTopic(contractLog.getTopic3());
             bloom = LogsBloomFilter.or(filter.toArrayUnsafe(), bloom);
         }
@@ -192,25 +191,39 @@ public final class ReceiptRoot {
         return Bytes.wrap(bloom);
     }
 
-    private byte[] logAddress(final ContractLog contractLog, final Map<Long, byte[]> evmAddressById) {
+    private byte[] logAddress(final ContractLog contractLog) {
         final var contractId = contractLog.getContractId();
         if (EntityId.isEmpty(contractId)) {
             return EMPTY_ADDRESS;
         }
 
-        final var evmAddress = evmAddressById.get(contractId.getId());
+        final var evmAddress = resolveEvmAddress(contractId);
         return DomainUtils.leftPadBytes(
                 evmAddress != null ? evmAddress : DomainUtils.toEvmAddress(contractId), ADDRESS_LENGTH);
     }
 
-    private void writeTopics(final BytesValueRLPOutput out, final ContractLog contractLog) {
-        writeTopic(out, contractLog.getTopic0());
-        writeTopic(out, contractLog.getTopic1());
-        writeTopic(out, contractLog.getTopic2());
-        writeTopic(out, contractLog.getTopic3());
+    /**
+     * Resolves a synthetic log's sender/receiver topic to its EVM address alias when available, mirroring the
+     * resolution {@code SyntheticLogListener} performs on the persisted log. Non-synthetic logs and null topics are
+     * returned unchanged.
+     */
+    private byte @Nullable [] resolveTopic(final ContractLog contractLog, final byte @Nullable [] topic) {
+        if (!contractLog.isSynthetic() || topic == null) {
+            return topic;
+        }
+
+        final var evmAddress = resolveEvmAddress(DomainUtils.fromTrimmedEvmAddress(topic));
+        return evmAddress != null ? evmAddress : topic;
     }
 
-    private void writeTopic(final BytesValueRLPOutput out, final byte[] topic) {
+    /**
+     * @return the entity's trimmed EVM address alias, or {@code null} if it has none
+     */
+    private byte @Nullable [] resolveEvmAddress(final EntityId entityId) {
+        return EntityId.isEmpty(entityId) ? null : evmAddressById.get(entityId.getId());
+    }
+
+    private void writeTopic(final BytesValueRLPOutput out, final byte @Nullable [] topic) {
         if (topic != null) {
             out.writeBytes(Bytes.wrap(DomainUtils.leftPadBytes(topic, WORD_LENGTH)));
         }
@@ -222,30 +235,5 @@ public final class ReceiptRoot {
         }
 
         return DomainUtils.leftPadBytes(data, WORD_LENGTH);
-    }
-
-    /**
-     * A single transaction's data, grouped by consensus timestamp as additions stream by.
-     */
-    private static final class TransactionData {
-
-        private final long consensusTimestamp;
-        private final TreeMap<Integer, ContractLog> logs = new TreeMap<>();
-
-        @Nullable
-        private ContractResult contractResult;
-
-        private TransactionData(final long consensusTimestamp) {
-            this.consensusTimestamp = consensusTimestamp;
-        }
-
-        @Nullable
-        private Integer transactionIndex() {
-            if (contractResult != null) {
-                return contractResult.getTransactionIndex();
-            }
-
-            return logs.firstEntry().getValue().getTransactionIndex();
-        }
     }
 }

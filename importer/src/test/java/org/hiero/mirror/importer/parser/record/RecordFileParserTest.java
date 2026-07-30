@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -51,10 +52,10 @@ import org.hiero.mirror.importer.config.DateRangeCalculator.DateRangeFilter;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParserTest;
+import org.hiero.mirror.importer.parser.contractlog.EvmAddressCache;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
-import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootService;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.junit.jupiter.api.Test;
@@ -89,8 +90,8 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
     @Mock
     private RecordItemListener recordItemListener;
 
-    @Mock
-    private ReceiptRootService receiptRootService;
+    @Mock(strictness = LENIENT)
+    private EvmAddressCache evmAddressCache;
 
     @Mock(strictness = LENIENT)
     private RecordStreamFileListener recordStreamFileListener;
@@ -124,15 +125,16 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
     protected RecordFileParser getParser() {
         final RecordParserProperties parserProperties = new RecordParserProperties();
         when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+        lenient().when(entityProperties.getPersist()).thenReturn(mock(EntityProperties.PersistProperties.class));
         return new RecordFileParser(
                 applicationEventPublisher,
                 dateRangeCalculator,
                 entityListener,
                 entityProperties,
+                evmAddressCache,
                 new SimpleMeterRegistry(),
                 new ParserContext(),
                 parserProperties,
-                receiptRootService,
                 recordItemListener,
                 recordStreamFileListener,
                 recordFileRepository);

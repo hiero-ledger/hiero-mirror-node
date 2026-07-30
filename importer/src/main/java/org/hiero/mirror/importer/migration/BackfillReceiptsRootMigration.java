@@ -4,12 +4,16 @@ package org.hiero.mirror.importer.migration;
 
 import jakarta.inject.Named;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.function.ToLongFunction;
 import lombok.Data;
 import lombok.Getter;
 import org.apache.commons.lang3.ArrayUtils;
@@ -18,11 +22,11 @@ import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
-import org.hiero.mirror.importer.parser.record.receipt.ReceiptBlockUtils;
 import org.hiero.mirror.importer.parser.record.receipt.ReceiptRoot;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
@@ -199,14 +203,7 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
                 "consensusEnd", blocks.getFirst().consensusEnd());
 
         var rows = jdbcOperations.query(SELECT_CONTRACT_RESULTS, rangeParams, CONTRACT_RESULT_ROW_MAPPER);
-        var contractResults = new ArrayList<ContractResult>(rows.size());
-        var transactionTypes = new HashMap<Long, Integer>();
-        for (var row : rows) {
-            contractResults.add(row);
-            if (row.getType() != null) {
-                transactionTypes.put(row.getConsensusTimestamp(), row.getType());
-            }
-        }
+        var contractResults = new ArrayList<ContractResult>(rows);
 
         var logRows = jdbcOperations.query(SELECT_CONTRACT_LOGS, rangeParams, CONTRACT_LOG_ROW_MAPPER);
         var contractLogs = new ArrayList<ContractLog>(logRows.size());
@@ -220,18 +217,21 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
 
         var blockRanges = new TreeMap<Long, Long>();
         blocks.forEach(block -> blockRanges.put(block.consensusStart(), block.consensusEnd()));
-        var resultsByBlock =
-                ReceiptBlockUtils.groupByBlock(contractResults, blockRanges, ContractResult::getConsensusTimestamp);
-        var logsByBlock = ReceiptBlockUtils.groupByBlock(contractLogs, blockRanges, ContractLog::getConsensusTimestamp);
+        var resultsByBlock = groupByBlock(contractResults, blockRanges, ContractResult::getConsensusTimestamp);
+        var logsByBlock = groupByBlock(contractLogs, blockRanges, ContractLog::getConsensusTimestamp);
 
+        // Persisted logs already carry resolved topics/addresses, so the receipts root is computed directly from the
+        // evm addresses joined into the log query; no further resolution is needed during the backfill.
         var updates = new MapSqlParameterSource[blocks.size()];
         for (int i = 0; i < blocks.size(); i++) {
             var block = blocks.get(i);
-            var receiptRoot = new ReceiptRoot();
-            resultsByBlock.getOrDefault(block.consensusStart(), List.of()).forEach(receiptRoot::add);
-            logsByBlock.getOrDefault(block.consensusStart(), List.of()).forEach(receiptRoot::add);
+            var receiptRoot = new ReceiptRoot(evmAddresses);
+            putReceipts(
+                    receiptRoot,
+                    resultsByBlock.getOrDefault(block.consensusStart(), List.of()),
+                    logsByBlock.getOrDefault(block.consensusStart(), List.of()));
             updates[i] = new MapSqlParameterSource()
-                    .addValue("receiptsRoot", receiptRoot.getRootHash(transactionTypes, evmAddresses))
+                    .addValue("receiptsRoot", receiptRoot.getRootHash())
                     .addValue("consensusEnd", block.consensusEnd());
         }
         jdbcOperations.batchUpdate(UPDATE_RECEIPTS_ROOT, updates);
@@ -239,6 +239,55 @@ final class BackfillReceiptsRootMigration extends AsyncJavaMigration<Long> {
         var nextUpperBound = blocks.getLast().consensusEnd();
         jdbcOperations.update(CHECKPOINT_SQL, new MapSqlParameterSource("upperBound", nextUpperBound));
         return Optional.of(nextUpperBound);
+    }
+
+    // Groups items into their enclosing blocks by consensus timestamp. An item belongs to the block whose consensus
+    // range [start, end] contains its timestamp; items falling outside every block are dropped.
+    private static <T> Map<Long, List<T>> groupByBlock(
+            Collection<T> items, NavigableMap<Long, Long> consensusEndByStart, ToLongFunction<T> timestampExtractor) {
+        var grouped = new HashMap<Long, List<T>>();
+        for (var item : items) {
+            var timestamp = timestampExtractor.applyAsLong(item);
+            var block = consensusEndByStart.floorEntry(timestamp);
+            if (block != null && timestamp <= block.getValue()) {
+                grouped.computeIfAbsent(block.getKey(), k -> new ArrayList<>()).add(item);
+            }
+        }
+
+        return grouped;
+    }
+
+    // Groups the block's persisted results and logs into per-transaction receipts and adds them to the trie in
+    // ascending transaction-index order, matching how ingestion streams each top-level transaction.
+    private static void putReceipts(
+            ReceiptRoot receiptRoot, List<ContractResult> contractResults, List<ContractLog> contractLogs) {
+        var resultsByIndex = new TreeMap<Integer, ContractResult>();
+        for (var contractResult : contractResults) {
+            if (contractResult.getTransactionIndex() != null) {
+                resultsByIndex.put(contractResult.getTransactionIndex(), contractResult);
+            }
+        }
+
+        var logsByIndex = new HashMap<Integer, List<ContractLog>>();
+        for (var contractLog : contractLogs) {
+            if (contractLog.getTransactionIndex() != null) {
+                logsByIndex
+                        .computeIfAbsent(contractLog.getTransactionIndex(), k -> new ArrayList<>())
+                        .add(contractLog);
+            }
+        }
+
+        var indexes = new TreeSet<Integer>();
+        indexes.addAll(resultsByIndex.keySet());
+        indexes.addAll(logsByIndex.keySet());
+
+        for (var index : indexes) {
+            var contractResult = resultsByIndex.get(index);
+            var type = contractResult instanceof ContractResultAndType typed ? typed.getType() : null;
+            var ethereumTransaction =
+                    type != null ? EthereumTransaction.builder().type(type).build() : null;
+            receiptRoot.put(contractResult, logsByIndex.getOrDefault(index, List.of()), ethereumTransaction);
+        }
     }
 
     private static <T> RowMapper<T> rowMapper(Class<T> type) {

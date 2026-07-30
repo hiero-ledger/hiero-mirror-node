@@ -15,6 +15,7 @@ import org.bouncycastle.crypto.digests.KeccakDigest;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.junit.jupiter.api.Test;
@@ -26,13 +27,13 @@ final class ReceiptRootTest {
 
     @Test
     void empty() {
-        assertThat(new ReceiptRoot().getRootHash(Map.of(), Map.of())).isEqualTo(new byte[32]);
+        assertThat(receiptRoot().getRootHash()).isEqualTo(new byte[32]);
     }
 
     @Test
     void singleReceiptMatchesIndependentTrieRoot() {
-        final var receiptRoot = new ReceiptRoot();
-        receiptRoot.add(contractResult(0, true, 0L, new byte[256]));
+        final var receiptRoot = receiptRoot();
+        receiptRoot.put(contractResult(0, true, 0L, new byte[256]), List.of(), null);
 
         // reconstruct the single-leaf Merkle Patricia Trie root
         final var value = rlpList(
@@ -43,7 +44,7 @@ final class ReceiptRootTest {
 
         final var leaf = rlpList(rlpString(new byte[] {0x20, (byte) 0x80}), rlpString(value));
 
-        assertThat(receiptRoot.getRootHash(Map.of(), Map.of())).isEqualTo(keccak256(leaf));
+        assertThat(receiptRoot.getRootHash()).isEqualTo(keccak256(leaf));
     }
 
     @Test
@@ -57,8 +58,8 @@ final class ReceiptRootTest {
                 .topic0(topic)
                 .transactionIndex(0)
                 .build();
-        final var receiptRoot = new ReceiptRoot();
-        receiptRoot.add(contractLog);
+        final var receiptRoot = receiptRoot();
+        receiptRoot.put(null, List.of(contractLog), null);
 
         final var address = DomainUtils.toEvmAddress(EntityId.of(0, 0, 600));
         final var bloomFilter = new LogsBloomFilter();
@@ -72,19 +73,19 @@ final class ReceiptRootTest {
                 rlpList(rlpList(rlpString(address), rlpList(rlpString(topic)), rlpString(new byte[0]))));
         final var leaf = rlpList(rlpString(new byte[] {0x20, (byte) 0x80}), rlpString(value));
 
-        assertThat(receiptRoot.getRootHash(Map.of(), Map.of())).isEqualTo(keccak256(leaf));
+        assertThat(receiptRoot.getRootHash()).isEqualTo(keccak256(leaf));
     }
 
     @Test
     void nonZeroCumulativeGasUsesMinimalScalar() {
-        final var receiptRoot = new ReceiptRoot();
-        receiptRoot.add(contractResult(0, true, 256L, new byte[256]));
+        final var receiptRoot = receiptRoot();
+        receiptRoot.put(contractResult(0, true, 256L, new byte[256]), List.of(), null);
 
         final var value = rlpList(
                 rlpString(new byte[] {0x01}), rlpString(new byte[] {0x01, 0x00}), rlpString(new byte[256]), rlpList());
         final var leaf = rlpList(rlpString(new byte[] {0x20, (byte) 0x80}), rlpString(value));
 
-        assertThat(receiptRoot.getRootHash(Map.of(), Map.of())).isEqualTo(keccak256(leaf));
+        assertThat(receiptRoot.getRootHash()).isEqualTo(keccak256(leaf));
     }
 
     /**
@@ -96,11 +97,11 @@ final class ReceiptRootTest {
      */
     @Test
     void mainnetBlockWithZeroCumulativeGasUsesCanonicalScalar() {
-        final var receiptRoot = new ReceiptRoot();
-        receiptRoot.add(contractResult(4, false, 0L, new byte[256]));
-        receiptRoot.add(contractResult(7, false, 0L, new byte[256]));
+        final var receiptRoot = receiptRoot();
+        receiptRoot.put(contractResult(4, false, 0L, new byte[256]), List.of(), null);
+        receiptRoot.put(contractResult(7, false, 0L, new byte[256]), List.of(), null);
 
-        assertThat(receiptRoot.getRootHash(Map.of(), Map.of()))
+        assertThat(receiptRoot.getRootHash())
                 .isEqualTo(bytes("46e3a8baf0e3de5cfce58e12dfa221b5d643f51fdd38e4f22dbf7866b85146b1"));
     }
 
@@ -166,17 +167,17 @@ final class ReceiptRootTest {
                 ALIASED_CONTRACT_A, bytes("47cbb1f75fa2a98a87f861c5039fcb522b93a640"),
                 ALIASED_CONTRACT_B, bytes("f09afe78d3c7d359b334d7cb88995751f7ec5e13"));
 
-        final var receiptRoot = new ReceiptRoot();
-        receiptRoot.add(contractResult(4, true, 0x1fd7dL, bloom));
-        logs.forEach(receiptRoot::add);
-        receiptRoot.add(contractResult(5, false, 0L, new byte[256]));
+        final var receiptRoot = receiptRoot(evmAddresses);
+        receiptRoot.put(contractResult(4, true, 0x1fd7dL, bloom), logs, null);
+        receiptRoot.put(contractResult(5, false, 0L, new byte[256]), List.of(), null);
 
-        assertThat(receiptRoot.getRootHash(Map.of(), evmAddresses))
+        assertThat(receiptRoot.getRootHash())
                 .isEqualTo(bytes("8fecfc53901017434f8a078ddc11119fa6117bbbf937a4ac3b2086d0b3b37c57"));
     }
 
     @Test
-    void orderIndependentOfInputOrdering() {
+    void typedTransactionEncodesDeterministically() {
+        // An ethereum transaction contributes its EIP-2718 type; the same ordered puts must produce the same root
         final var first = contractResult(0, true, 21000L, new byte[256]);
         final var second = contractResult(1, false, 42000L, new byte[256]);
         final var secondLog = ContractLog.builder()
@@ -185,30 +186,35 @@ final class ReceiptRootTest {
                 .topic0(new byte[32])
                 .transactionIndex(1)
                 .build();
+        final var ethereumTransaction = EthereumTransaction.builder().type(2).build();
 
-        final var types = Map.of(consensusTimestamp(1), 2);
-        final var forward = new ReceiptRoot();
-        forward.add(first);
-        forward.add(second);
-        forward.add(secondLog);
-        final var reverse = new ReceiptRoot();
-        reverse.add(secondLog);
-        reverse.add(second);
-        reverse.add(first);
+        final var receiptRoot = receiptRoot();
+        receiptRoot.put(first, List.of(), null);
+        receiptRoot.put(second, List.of(secondLog), ethereumTransaction);
 
-        assertThat(forward.getRootHash(types, Map.of()))
-                .isEqualTo(reverse.getRootHash(types, Map.of()))
-                .hasSize(32);
+        final var other = receiptRoot();
+        other.put(first, List.of(), null);
+        other.put(second, List.of(secondLog), ethereumTransaction);
+
+        assertThat(receiptRoot.getRootHash()).isEqualTo(other.getRootHash()).hasSize(32);
     }
 
     @Test
     void distinctReceiptsProduceDistinctRoots() {
-        final var success = new ReceiptRoot();
-        success.add(contractResult(0, true, 21000L, new byte[256]));
-        final var failure = new ReceiptRoot();
-        failure.add(contractResult(0, false, 21000L, new byte[256]));
+        final var success = receiptRoot();
+        success.put(contractResult(0, true, 21000L, new byte[256]), List.of(), null);
+        final var failure = receiptRoot();
+        failure.put(contractResult(0, false, 21000L, new byte[256]), List.of(), null);
 
-        assertThat(success.getRootHash(Map.of(), Map.of())).isNotEqualTo(failure.getRootHash(Map.of(), Map.of()));
+        assertThat(success.getRootHash()).isNotEqualTo(failure.getRootHash());
+    }
+
+    private static ReceiptRoot receiptRoot() {
+        return receiptRoot(Map.of());
+    }
+
+    private static ReceiptRoot receiptRoot(final Map<Long, byte[]> evmAddresses) {
+        return new ReceiptRoot(evmAddresses);
     }
 
     private static long consensusTimestamp(final int transactionIndex) {

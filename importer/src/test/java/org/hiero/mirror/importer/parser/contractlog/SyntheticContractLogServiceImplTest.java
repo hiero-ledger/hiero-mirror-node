@@ -330,7 +330,7 @@ final class SyntheticContractLogServiceImplTest {
         assertThat(capturedLog.getConsensusTimestamp()).isEqualTo(parentTimestamp);
         assertThat(capturedLog.getContractResult()).isSameAs(contractResult);
 
-        // Simulate BlockListener replacing the marker bloom with the computed log bloom; ContractLog.setBloom
+        // Simulate SyntheticLogListener replacing the marker bloom with the computed log bloom; ContractLog.setBloom
         // merges that into the parent's ContractResult (same behavior as end-of-record processing).
         var syntheticLogBloom = new LogsBloomFilter();
         syntheticLogBloom.insertAddress(DomainUtils.toEvmAddress(capturedLog.getContractId()));

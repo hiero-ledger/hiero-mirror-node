@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.importer.parser.record.entity;
+package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.hiero.mirror.common.util.DomainUtils.trim;
 import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
 import static org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogServiceImpl.CONTRACT_LOG_MARKER;
-import static org.hiero.mirror.importer.parser.record.entity.SyntheticLogTestUtils.aggregateExpectedContractResultBloom;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.aggregateExpectedContractResultBloom;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.mockito.Mockito.*;
 
@@ -23,7 +23,8 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
 import org.hiero.mirror.importer.domain.EvmAddressMapping;
-import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootService;
+import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class BlockListenerTest {
+class SyntheticLogListenerTest {
 
     private static final DomainBuilder domainBuilder = new DomainBuilder();
     private static final BinaryOperator<Entity> NO_OP_MERGE = (e1, e2) -> e1;
@@ -54,19 +55,15 @@ class BlockListenerTest {
     @Mock
     private EntityRepository entityRepository;
 
-    @Mock
-    private ReceiptRootService receiptRootService;
-
     private EntityProperties entityProperties;
     private ParserContext parserContext;
-    private BlockListener listener;
+    private SyntheticLogListener listener;
 
     @BeforeEach
     void setup() {
         entityProperties = new EntityProperties(new SystemEntity(CommonProperties.getInstance()));
         parserContext = new ParserContext();
-        listener = new BlockListener(
-                parserContext, new CacheProperties(), entityRepository, entityProperties, receiptRootService);
+        listener = new SyntheticLogListener(parserContext, new CacheProperties(), entityRepository, entityProperties);
     }
 
     @Test

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.importer.parser.record.entity;
+package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.hiero.mirror.common.util.DomainUtils.fromTrimmedEvmAddress;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
@@ -36,15 +36,17 @@ import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
 import org.hiero.mirror.importer.domain.EvmAddressMapping;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
-import org.hiero.mirror.importer.parser.record.receipt.ReceiptRootService;
+import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.springframework.core.annotation.Order;
 
 @Named
-@Order(1)
+@Order(2)
 @CustomLog
 @RequiredArgsConstructor
-final class BlockListener implements EntityListener, RecordStreamFileListener {
+final class SyntheticLogListener implements EntityListener, RecordStreamFileListener, EvmAddressCache {
     static final int MAX_CACHE_LOAD_ENTRIES = 30000;
 
     @Getter(lazy = true)
@@ -54,7 +56,6 @@ final class BlockListener implements EntityListener, RecordStreamFileListener {
     private final CacheProperties cacheProperties;
     private final EntityRepository entityRepository;
     private final EntityProperties entityProperties;
-    private final ReceiptRootService receiptRootService;
 
     @Override
     public boolean isEnabled() {
@@ -62,15 +63,13 @@ final class BlockListener implements EntityListener, RecordStreamFileListener {
     }
 
     @Override
-    @Timed
-    public void onEnd(RecordFile recordFile) {
-        if (recordFile != null) {
-            updateSyntheticLogBloom(recordFile);
-        }
-        receiptRootService.updateReceiptsRoots();
+    public Map<Long, byte[]> getAll(Collection<Long> entityIds) {
+        return entityIds.isEmpty() ? Map.of() : getEvmCache().getAll(entityIds);
     }
 
-    private void updateSyntheticLogBloom(RecordFile recordFile) {
+    @Override
+    @Timed
+    public void onEnd(RecordFile recordFile) {
         if (!isEnabled()) {
             return;
         }
