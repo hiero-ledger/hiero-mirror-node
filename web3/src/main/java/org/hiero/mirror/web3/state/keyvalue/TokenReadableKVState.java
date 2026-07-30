@@ -148,23 +148,21 @@ final class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token>
             var customFees = timestamp
                     .map(t -> customFeeRepository.findByTokenIdAndTimestamp(tokenId, t))
                     .orElseGet(() -> customFeeRepository.findById(tokenId))
-                    .map(customFee -> convertCustomFees(customFee, timestamp));
+                    .map(this::convertCustomFees);
 
             return Collections.unmodifiableList(customFees.orElseGet(ArrayList::new));
         });
     }
 
-    private List<CustomFee> convertCustomFees(
-            final org.hiero.mirror.common.domain.token.CustomFee customFees, final Optional<Long> timestamp) {
+    private List<CustomFee> convertCustomFees(final org.hiero.mirror.common.domain.token.CustomFee customFees) {
         var customFeesConstructed = new ArrayList<CustomFee>();
-        customFeesConstructed.addAll(mapFixedFees(customFees, timestamp));
-        customFeesConstructed.addAll(mapFractionalFees(customFees, timestamp));
-        customFeesConstructed.addAll(mapRoyaltyFees(customFees, timestamp));
+        customFeesConstructed.addAll(mapFixedFees(customFees));
+        customFeesConstructed.addAll(mapFractionalFees(customFees));
+        customFeesConstructed.addAll(mapRoyaltyFees(customFees));
         return customFeesConstructed;
     }
 
-    private List<CustomFee> mapFixedFees(
-            final org.hiero.mirror.common.domain.token.CustomFee customFee, final Optional<Long> timestamp) {
+    private List<CustomFee> mapFixedFees(final org.hiero.mirror.common.domain.token.CustomFee customFee) {
         if (CollectionUtils.isEmpty(customFee.getFixedFees())) {
             return Collections.emptyList();
         }
@@ -183,8 +181,7 @@ final class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token>
         return fixedFees;
     }
 
-    private List<CustomFee> mapFractionalFees(
-            final org.hiero.mirror.common.domain.token.CustomFee customFee, final Optional<Long> timestamp) {
+    private List<CustomFee> mapFractionalFees(final org.hiero.mirror.common.domain.token.CustomFee customFee) {
         if (CollectionUtils.isEmpty(customFee.getFractionalFees())) {
             return Collections.emptyList();
         }
@@ -205,8 +202,7 @@ final class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token>
         return fractionalFees;
     }
 
-    private List<CustomFee> mapRoyaltyFees(
-            org.hiero.mirror.common.domain.token.CustomFee customFee, final Optional<Long> timestamp) {
+    private List<CustomFee> mapRoyaltyFees(org.hiero.mirror.common.domain.token.CustomFee customFee) {
         if (CollectionUtils.isEmpty(customFee.getRoyaltyFees())) {
             return Collections.emptyList();
         }
