@@ -146,18 +146,29 @@ public abstract class AbstractEntity implements History {
         this.memo = DomainUtils.sanitize(memo);
     }
 
+    /**
+     * Sets the entity's key. Note publicKey is extracted from the key as a side effect. A null key indicates there
+     * is no key / public key change and publicKey is set to null as well. For an empty key or unparsable key, publicKey
+     * is set to the sentinel value, an empty string, and the upsert SQL will clear the public_key column by setting it
+     * to null.
+     *
+     * @param key - The protobuf key bytes
+     */
     public void setKey(byte[] key) {
         this.key = key;
-        this.publicKey = getPublicKey(key);
+        publicKey = getPublicKey(key);
     }
 
-    public void addBalance(Long delta) {
-        if (balance == null && delta == null) {
+    public void addBalance(Long balance) {
+        if (balance == null) {
             return;
         }
-        long base = balance != null ? balance : 0L;
-        long d = delta != null ? delta : 0L;
-        setBalance(base + d);
+
+        if (this.balance == null) {
+            this.balance = balance;
+        } else {
+            this.balance += balance;
+        }
     }
 
     @JsonIgnore

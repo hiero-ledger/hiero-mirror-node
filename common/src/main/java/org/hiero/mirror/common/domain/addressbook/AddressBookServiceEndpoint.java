@@ -10,13 +10,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.With;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
-@Builder(toBuilder = true)
+@Builder
 @Data
 @Table("address_book_service_endpoint")
 @NoArgsConstructor
@@ -40,23 +39,31 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
     }
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        id = (id == null ? new Id() : id).withConsensusTimestamp(consensusTimestamp);
+        id().setConsensusTimestamp(consensusTimestamp);
     }
 
     public void setIpAddressV4(String ipAddressV4) {
-        id = (id == null ? new Id() : id).withIpAddressV4(ipAddressV4);
+        id().setIpAddressV4(ipAddressV4);
     }
 
     public void setNodeId(long nodeId) {
-        id = (id == null ? new Id() : id).withNodeId(nodeId);
+        id().setNodeId(nodeId);
     }
 
     public void setPort(Integer port) {
-        id = (id == null ? new Id() : id).withPort(port);
+        id().setPort(port);
     }
 
     public void setDomainName(String domainName) {
-        id = (id == null ? new Id() : id).withDomainName(domainName);
+        id().setDomainName(domainName);
+    }
+
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+
+        return id;
     }
 
     public long getConsensusTimestamp() {
@@ -82,7 +89,6 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    @With
     public static class Id implements Serializable {
 
         @Serial
@@ -102,28 +108,37 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
 
     public static class AddressBookServiceEndpointBuilder {
         public AddressBookServiceEndpointBuilder consensusTimestamp(long consensusTimestamp) {
-            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
+            id().setConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public AddressBookServiceEndpointBuilder ipAddressV4(String ipAddressV4) {
-            this.id = (this.id == null ? new Id() : this.id).withIpAddressV4(ipAddressV4);
+            id().setIpAddressV4(ipAddressV4);
             return this;
         }
 
         public AddressBookServiceEndpointBuilder nodeId(long nodeId) {
-            this.id = (this.id == null ? new Id() : this.id).withNodeId(nodeId);
+            id().setNodeId(nodeId);
             return this;
         }
 
         public AddressBookServiceEndpointBuilder port(Integer port) {
-            this.id = (this.id == null ? new Id() : this.id).withPort(port);
+            id().setPort(port);
             return this;
         }
 
         public AddressBookServiceEndpointBuilder domainName(String domainName) {
-            this.id = (this.id == null ? new Id() : this.id).withDomainName(domainName);
+            id().setDomainName(domainName);
             return this;
+        }
+
+        // Builder-owned id (never aliased since toBuilder is not enabled), so mutate in place instead of copying.
+        private Id id() {
+            if (this.id == null) {
+                this.id = new Id();
+            }
+
+            return this.id;
         }
     }
 }
