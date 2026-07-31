@@ -19,7 +19,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 @Builder(toBuilder = true)
 @Data
-@Table("address_book")
+@Table
 @NoArgsConstructor
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class AddressBook {

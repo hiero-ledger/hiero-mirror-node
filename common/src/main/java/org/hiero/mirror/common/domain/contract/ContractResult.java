@@ -20,7 +20,7 @@ import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Table("contract_result")
+@Table
 @NoArgsConstructor
 @SuperBuilder
 public class ContractResult implements Persistable<Long> {

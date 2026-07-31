@@ -23,7 +23,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@Table("assessed_custom_fee")
+@Table
 @NoArgsConstructor
 public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
 

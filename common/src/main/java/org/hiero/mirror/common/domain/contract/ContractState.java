@@ -18,7 +18,7 @@ import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Table("contract_state")
+@Table
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @NoArgsConstructor

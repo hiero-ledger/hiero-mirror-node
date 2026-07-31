@@ -20,7 +20,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@Table("contract_state_change")
+@Table
 @NoArgsConstructor
 public class ContractStateChange implements Persistable<ContractStateChange.Id> {
 

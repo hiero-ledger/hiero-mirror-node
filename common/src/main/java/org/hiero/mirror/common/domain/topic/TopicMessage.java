@@ -20,7 +20,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @Builder(toBuilder = true)
 @Data
-@Table("topic_message")
+@Table
 @JsonTypeInfo(use = com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME)
 @JsonTypeName("TopicMessage")
 @NoArgsConstructor

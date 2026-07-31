@@ -19,7 +19,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@Table("staking_reward_transfer")
+@Table
 @NoArgsConstructor
 public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.Id> {
 

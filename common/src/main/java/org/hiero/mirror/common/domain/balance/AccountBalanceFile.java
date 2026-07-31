@@ -19,7 +19,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 @Builder(toBuilder = true)
 @Data
-@Table("account_balance_file")
+@Table
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor
 public class AccountBalanceFile implements StreamFile<AccountBalance> {

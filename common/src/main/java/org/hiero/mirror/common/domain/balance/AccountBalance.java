@@ -23,7 +23,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Table("account_balance")
+@Table
 public class AccountBalance implements Persistable<AccountBalance.Id>, StreamItem {
 
     private long balance;

@@ -13,7 +13,7 @@ import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Table("contract")
+@Table
 @NoArgsConstructor
 @SuperBuilder
 public class Contract {

@@ -18,7 +18,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @Builder(toBuilder = true)
 @Data
-@Table("node_stake")
+@Table
 @NoArgsConstructor
 public class NodeStake implements Persistable<NodeStake.Id> {
 

@@ -24,7 +24,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Data
 @EqualsAndHashCode(exclude = "contractResult")
 @NoArgsConstructor
-@Table("contract_log")
+@Table
 public class ContractLog implements Persistable<ContractLog.Id> {
 
     @ToString.Exclude

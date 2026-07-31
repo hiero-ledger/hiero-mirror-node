@@ -17,7 +17,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Table("schedule")
+@Table
 @NoArgsConstructor
 @Upsertable
 public class Schedule {

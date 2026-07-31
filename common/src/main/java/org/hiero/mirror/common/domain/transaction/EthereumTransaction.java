@@ -21,7 +21,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Table("ethereum_transaction")
+@Table
 @NoArgsConstructor
 public class EthereumTransaction implements Persistable<Long> {
 

@@ -19,7 +19,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@Table("token_transfer")
+@Table
 @NoArgsConstructor
 public class TokenTransfer implements Persistable<TokenTransfer.Id> {
 

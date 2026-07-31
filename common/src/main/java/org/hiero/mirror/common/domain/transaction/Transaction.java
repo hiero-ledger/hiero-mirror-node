@@ -24,7 +24,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Table("transaction")
+@Table
 @NoArgsConstructor
 public class Transaction implements Persistable<Long> {
 

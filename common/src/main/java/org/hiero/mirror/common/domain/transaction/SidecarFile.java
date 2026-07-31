@@ -29,7 +29,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@Table("sidecar_file")
+@Table
 @NoArgsConstructor
 public class SidecarFile implements Persistable<SidecarFile.Id> {
 

@@ -17,7 +17,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 @Builder
 @Data
-@Table("address_book_service_endpoint")
+@Table
 @NoArgsConstructor
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class AddressBookServiceEndpoint implements Persistable<AddressBookServiceEndpoint.Id> {

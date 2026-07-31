@@ -18,7 +18,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Table("token_balance")
+@Table
 public class TokenBalance implements Persistable<TokenBalance.Id> {
 
     private long balance;

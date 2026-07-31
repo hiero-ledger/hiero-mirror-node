@@ -16,7 +16,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 @Builder(toBuilder = true)
 @Data
-@Table("file_data") // Explicit table name naming is recommended
+@Table
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(exclude = "fileData")

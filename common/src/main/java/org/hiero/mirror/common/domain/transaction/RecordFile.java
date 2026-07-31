@@ -26,7 +26,7 @@ import org.springframework.data.util.Version;
 
 @Builder(toBuilder = true)
 @Data
-@Table("record_file")
+@Table
 @AllArgsConstructor
 @NoArgsConstructor
 public class RecordFile implements StreamFile<RecordItem> {

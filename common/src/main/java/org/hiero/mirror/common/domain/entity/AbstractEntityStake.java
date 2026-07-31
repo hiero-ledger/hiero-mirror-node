@@ -16,6 +16,7 @@ import org.springframework.data.annotation.Id;
 @Upsertable(history = true)
 public abstract class AbstractEntityStake implements History {
 
+    // The epoch day of the period for which the pending reward has included so far
     private long endStakePeriod;
 
     @Id
@@ -23,6 +24,7 @@ public abstract class AbstractEntityStake implements History {
 
     private long pendingReward;
 
+    // The *Start properties are the entity's staking state at the beginning of the endStakePeriod + 1 staking period
     private long stakedNodeIdStart;
 
     private long stakedToMe;

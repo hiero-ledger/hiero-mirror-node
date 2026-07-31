@@ -22,7 +22,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Table("contract_action")
+@Table
 @NoArgsConstructor
 public class ContractAction implements Persistable<ContractAction.Id> {
 

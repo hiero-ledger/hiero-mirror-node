@@ -16,7 +16,7 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Table("ledger")
+@Table
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @ToString(onlyExplicitlyIncluded = true)

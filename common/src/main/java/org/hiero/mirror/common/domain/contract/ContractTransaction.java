@@ -19,7 +19,7 @@ import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Table("contract_transaction")
+@Table
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder(toBuilder = true)

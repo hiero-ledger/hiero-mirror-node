@@ -20,7 +20,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@Table("transaction_signature")
+@Table
 @NoArgsConstructor
 public class TransactionSignature implements Persistable<TransactionSignature.Id> {
 
