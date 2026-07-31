@@ -110,15 +110,24 @@ abstract class AbstractScheduler implements Scheduler {
 
     protected abstract void setNodes(final List<BlockNode> blockNodes);
 
-    private void drainGrpcBuffer(final BlockingClientCall<?, ?> grpcCall) {
+    private void drainGrpcBuffer(final String blockNode, final BlockingClientCall<?, ?> grpcCall) {
         // Run a task to drain grpc buffer to avoid memory leak. Remove the logic when grpc-java releases the fix for
         // https://github.com/grpc/grpc-java/issues/12355
         executor.submit(() -> {
             try {
+                final int maxDrainAttempts = streamProperties.getMaxDrainAttempts();
                 final long readTimeout = streamProperties.getResponseTimeout().toMillis();
-                while (grpcCall.read(readTimeout, TimeUnit.MILLISECONDS) != null) {
+                int attempt = 0;
+
+                while (attempt++ < maxDrainAttempts) {
+                    if (grpcCall.read(readTimeout, TimeUnit.MILLISECONDS) == null) {
+                        return;
+                    }
+
                     log.debug("Drained grpc buffer");
                 }
+
+                log.warn("Reached max drain attempts of {} for {}", maxDrainAttempts, blockNode);
             } catch (final InterruptedException _) {
                 Thread.currentThread().interrupt();
             } catch (final Exception ex) {

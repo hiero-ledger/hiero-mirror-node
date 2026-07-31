@@ -29,6 +29,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -63,7 +64,7 @@ import org.springframework.util.unit.DataSize;
 final class BlockNodeTest extends BlockNodeTestBase {
 
     private static final BiFunction<BlockStream, String, Boolean> IGNORE = (_, _) -> false;
-    private static final Consumer<BlockingClientCall<?, ?>> NOOP_GRPC_BUFFER_DISPOSER = _ -> {};
+    private static final BiConsumer<String, BlockingClientCall<?, ?>> NOOP_GRPC_BUFFER_DISPOSER = (_, _) -> {};
     private static final String SERVER = "test1";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 

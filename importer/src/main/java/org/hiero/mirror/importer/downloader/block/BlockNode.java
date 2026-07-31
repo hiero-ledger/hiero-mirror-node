@@ -25,8 +25,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -62,7 +62,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     private final AtomicInteger errors = new AtomicInteger();
     private final Counter errorsMetric;
-    private final Consumer<BlockingClientCall<?, ?>> grpcBufferDisposer;
+    private final BiConsumer<String, BlockingClientCall<?, ?>> grpcBufferDisposer;
     private final String name;
 
     @Getter
@@ -82,7 +82,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     public BlockNode(
             final ManagedChannelBuilderProvider channelBuilderProvider,
-            final Consumer<BlockingClientCall<?, ?>> grpcBufferDisposer,
+            final BiConsumer<String, BlockingClientCall<?, ?>> grpcBufferDisposer,
             final MeterRegistry meterRegistry,
             final BlockNodeProperties properties,
             final StreamProperties streamProperties) {
@@ -198,7 +198,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         } finally {
             if (grpcCall != null) {
                 grpcCall.cancel("unsubscribe", null);
-                grpcBufferDisposer.accept(grpcCall);
+                grpcBufferDisposer.accept(name, grpcCall);
             }
         }
     }
