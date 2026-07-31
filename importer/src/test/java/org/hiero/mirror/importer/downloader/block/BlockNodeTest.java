@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
@@ -136,31 +137,31 @@ final class BlockNodeTest extends BlockNodeTestBase {
             20, 20
             50, 50
             100, 100
-            19, -1
-            101, -1
+            19,
+            101,
             -1, 20
             """)
-    void containsBlockOrEarliest(long blockNumber, long expected, Resources resources) {
+    void getBlockOrEarliest(long blockNumber, Long expected, Resources resources) {
         // given
         runBlockNodeService(resources, () -> serverStatusDetailResponse(20, 100));
 
         // when, then
-        assertThat(node.containsBlockOrEarliest(blockNumber)).isEqualTo(expected);
+        assertThat(node.getBlockOrEarliest(blockNumber)).isEqualTo(Optional.ofNullable(expected));
     }
 
     @ParameterizedTest
     @CsvSource(textBlock = """
             3, 3
             12, 12
-            7, -1
+            7,
             -1, 0
             """)
-    void containsBlockOrEarliestWithGap(long blockNumber, long expected, Resources resources) {
+    void getBlockOrEarliestWithGap(long blockNumber, Long expected, Resources resources) {
         // given the ranges [0, 5] and [10, 20], sent out of order since a node may return them in any order
         runBlockNodeService(resources, () -> serverStatusDetailResponse(10, 20, 0, 5));
 
         // when, then
-        assertThat(node.containsBlockOrEarliest(blockNumber)).isEqualTo(expected);
+        assertThat(node.getBlockOrEarliest(blockNumber)).isEqualTo(Optional.ofNullable(expected));
     }
 
     @ParameterizedTest
@@ -168,15 +169,15 @@ final class BlockNodeTest extends BlockNodeTestBase {
             0, 0
             7, 7
             15, 15
-            16, -1
+            16,
             -1, 0
             """)
-    void containsBlockOrEarliestWithOverlap(long blockNumber, long expected, Resources resources) {
+    void getBlockOrEarliestWithOverlap(long blockNumber, Long expected, Resources resources) {
         // given the overlapping ranges [5, 15] and [0, 10], sent out of order
         runBlockNodeService(resources, () -> serverStatusDetailResponse(5, 15, 0, 10));
 
         // when, then
-        assertThat(node.containsBlockOrEarliest(blockNumber)).isEqualTo(expected);
+        assertThat(node.getBlockOrEarliest(blockNumber)).isEqualTo(Optional.ofNullable(expected));
     }
 
     @ParameterizedTest
@@ -185,37 +186,37 @@ final class BlockNodeTest extends BlockNodeTestBase {
             -1, 5
             10, 5
             """)
-    void containsBlockOrEarliestSkipsMalformedRange(long rangeStart, long rangeEnd, Resources resources) {
+    void getBlockOrEarliestSkipsMalformedRange(long rangeStart, long rangeEnd, Resources resources) {
         // given a malformed range alongside a valid [20, 100] one
         runBlockNodeService(resources, () -> serverStatusDetailResponse(rangeStart, rangeEnd, 20, 100));
 
         // when, then the malformed range is ignored and the valid one is still honored
-        assertThat(node.containsBlockOrEarliest(50)).isEqualTo(50);
-        assertThat(node.containsBlockOrEarliest(-1)).isEqualTo(20);
-        assertThat(node.containsBlockOrEarliest(15)).isEqualTo(-1);
+        assertThat(node.getBlockOrEarliest(50)).contains(50L);
+        assertThat(node.getBlockOrEarliest(-1)).contains(20L);
+        assertThat(node.getBlockOrEarliest(15)).isEmpty();
     }
 
     @Test
-    void containsBlockOrEarliestFromEmptyBlockNode(Resources resources) {
+    void getBlockOrEarliestFromEmptyBlockNode(Resources resources) {
         // given
         runBlockNodeService(resources, ServerStatusDetailResponse::getDefaultInstance);
 
         // when, then
-        assertThat(node.containsBlockOrEarliest(0)).isEqualTo(-1);
-        assertThat(node.containsBlockOrEarliest(-1)).isEqualTo(-1);
+        assertThat(node.getBlockOrEarliest(0)).isEmpty();
+        assertThat(node.getBlockOrEarliest(-1)).isEmpty();
     }
 
     @Test
-    void containsBlockOrEarliestOnError(Resources resources) {
+    void getBlockOrEarliestOnError(Resources resources) {
         // given
         runBlockNodeService(resources, List.of(new StatusException(Status.UNIMPLEMENTED)));
 
         // when, then
-        assertThat(node.containsBlockOrEarliest(50)).isEqualTo(-1);
+        assertThat(node.getBlockOrEarliest(50)).isEmpty();
     }
 
     @Test
-    void containsBlockOrEarliestTimeout(Resources resources) {
+    void getBlockOrEarliestTimeout(Resources resources) {
         // given
         streamProperties.setResponseTimeout(Duration.ofMillis(1));
         runBlockNodeService(resources, () -> {
@@ -228,7 +229,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         });
 
         // when, then
-        assertThat(node.containsBlockOrEarliest(50)).isEqualTo(-1);
+        assertThat(node.getBlockOrEarliest(50)).isEmpty();
     }
 
     @Test

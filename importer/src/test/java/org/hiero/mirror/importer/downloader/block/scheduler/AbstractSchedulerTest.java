@@ -73,7 +73,7 @@ abstract class AbstractSchedulerTest {
         doReturn(List.of(nodeA)).when(blockNodeDiscoveryService).getBlockNodes();
         scheduler = createScheduler();
         final var removed = scheduler.getNode(0).blockNode();
-        assertThat(removed.containsBlockOrEarliest(0)).isZero();
+        assertThat(removed.getBlockOrEarliest(0)).contains(0L);
 
         // when nodeA is no longer discovered (replaced by nodeB)
         final var nodeB = runBlockNodeService(0, resources, withAllBlocks());
@@ -81,8 +81,8 @@ abstract class AbstractSchedulerTest {
         scheduler.getNode(0);
 
         // then the removed node's channel is shut down so its status request now fails and yields no block
-        await().atMost(Duration.ofSeconds(2)).untilAsserted(() -> assertThat(removed.containsBlockOrEarliest(0))
-                .isEqualTo(-1));
+        await().atMost(Duration.ofSeconds(2))
+                .untilAsserted(() -> assertThat(removed.getBlockOrEarliest(0)).isEmpty());
     }
 
     @Test

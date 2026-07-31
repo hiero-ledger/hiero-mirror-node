@@ -162,8 +162,9 @@ abstract class AbstractScheduler implements Scheduler {
     }
 
     private static @Nullable ScheduledBlockNode hasBlock(final long nextBlockNumber, final BlockNode node) {
-        final long availableBlockNumber = node.containsBlockOrEarliest(nextBlockNumber);
-        return availableBlockNumber >= 0 ? new ScheduledBlockNode(node, availableBlockNumber) : null;
+        return node.getBlockOrEarliest(nextBlockNumber)
+                .map(availableBlockNumber -> new ScheduledBlockNode(node, availableBlockNumber))
+                .orElse(null);
     }
 
     private static boolean nodesChanged(final List<BlockNodeProperties> current, final List<BlockNodeProperties> next) {

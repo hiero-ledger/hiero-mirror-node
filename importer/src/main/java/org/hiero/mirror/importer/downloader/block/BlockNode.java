@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -125,15 +126,15 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
      *
      * @param blockNumber The block number to look for, or {@link Scheduler#EARLIEST_AVAILABLE_BLOCK_NUMBER} to ask for
      *                    the node's earliest available block
-     * @return The block number the node can serve, or -1 when it can't serve the request
+     * @return The block number the node can serve, or empty when it can't serve the request
      */
-    public long containsBlockOrEarliest(final long blockNumber) {
+    public Optional<Long> getBlockOrEarliest(final long blockNumber) {
         try {
             final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(statusChannel)
                     .withDeadlineAfter(streamProperties.getResponseTimeout());
             final var response = blockNodeService.serverStatusDetail(SERVER_STATUS_REQUEST);
 
-            long earliest = -1;
+            Long earliest = null;
             for (final var range : response.getAvailableRangesList()) {
                 final long start = range.getRangeStart();
                 final long end = range.getRangeEnd();
@@ -143,16 +144,16 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
                 if (blockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER) {
                     // The ranges aren't guaranteed sorted, so scan them all for the minimum
-                    earliest = earliest < 0 ? start : Math.min(earliest, start);
+                    earliest = earliest == null ? start : Math.min(earliest, start);
                 } else if (blockNumber >= start && blockNumber <= end) {
-                    return blockNumber;
+                    return Optional.of(blockNumber);
                 }
             }
 
-            return earliest;
+            return Optional.ofNullable(earliest);
         } catch (final Exception ex) {
             log.error("Failed to get server status detail for {}", this, ex);
-            return -1;
+            return Optional.empty();
         }
     }
 

@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
@@ -47,7 +48,9 @@ final class LatencyServiceTest {
         // given
         final var blockNode = mock(BlockNode.class);
         // the node has every block
-        doAnswer(invocation -> invocation.<Long>getArgument(0)).when(blockNode).containsBlockOrEarliest(anyLong());
+        doAnswer(invocation -> Optional.of(invocation.<Long>getArgument(0)))
+                .when(blockNode)
+                .getBlockOrEarliest(anyLong());
         doReturn(0L).when(cutoverService).getNextBlockNumber();
 
         // when
@@ -59,7 +62,7 @@ final class LatencyServiceTest {
                 .pollInterval(Duration.ofMillis(10))
                 .untilAsserted(() -> verify(blockNode).streamBlocks(anyLong(), anyLong(), any(), any()));
         verify(cutoverService).getNextBlockNumber();
-        verify(blockNode).containsBlockOrEarliest(anyLong());
+        verify(blockNode).getBlockOrEarliest(anyLong());
 
         // when schedule again
         latencyService.schedule();
@@ -68,7 +71,7 @@ final class LatencyServiceTest {
         await().atMost(Duration.ofSeconds(2))
                 .pollInterval(Duration.ofMillis(10))
                 .untilAsserted(() -> verify(cutoverService, times(2)).getNextBlockNumber());
-        verify(blockNode).containsBlockOrEarliest(anyLong());
+        verify(blockNode).getBlockOrEarliest(anyLong());
         verify(blockNode).streamBlocks(anyLong(), anyLong(), any(), any());
 
         // when next block advances
@@ -79,7 +82,7 @@ final class LatencyServiceTest {
         await().atMost(Duration.ofSeconds(2))
                 .pollInterval(Duration.ofMillis(10))
                 .untilAsserted(() -> verify(cutoverService, times(3)).getNextBlockNumber());
-        verify(blockNode, times(2)).containsBlockOrEarliest(anyLong());
+        verify(blockNode, times(2)).getBlockOrEarliest(anyLong());
         verify(blockNode, times(2)).streamBlocks(anyLong(), anyLong(), any(), any());
     }
 
@@ -87,7 +90,7 @@ final class LatencyServiceTest {
     void scheduleBlockNodeSkipped() {
         // given
         final var blockNode = mock(BlockNode.class);
-        doReturn(-1L).when(blockNode).containsBlockOrEarliest(anyLong());
+        doReturn(Optional.empty()).when(blockNode).getBlockOrEarliest(anyLong());
         final var latency = mock(Latency.class);
         doReturn(latency).when(blockNode).getLatency();
         doReturn(1L).when(cutoverService).getNextBlockNumber();
@@ -100,7 +103,7 @@ final class LatencyServiceTest {
                     latencyService.schedule();
                     verify(latency, atLeast(1)).markStale();
                 });
-        verify(blockNode, atLeast(3)).containsBlockOrEarliest(anyLong());
+        verify(blockNode, atLeast(3)).getBlockOrEarliest(anyLong());
         verify(blockNode, never()).streamBlocks(anyLong(), anyLong(), any(), any());
         verify(cutoverService, atLeast(3)).getNextBlockNumber();
     }
