@@ -76,6 +76,12 @@ public class AssignedIdDataAccessStrategy extends DelegatingDataAccessStrategy {
         return ids.toArray();
     }
 
+    // TODO: retest whether this override is still needed once spring-data-relational 4.1.1 ships the composite-id
+    // write-SQL fix (https://github.com/spring-projects/spring-data-relational/issues/2313). As of 4.1.0,
+    // super.update()
+    // still emits the embedded id columns in the UPDATE SET clause, which is illegal on Citus (the id is the
+    // distribution column). To verify: delegate to super.update() and run the embedded-id repository tests on the
+    // v2/Citus profile.
     @Override
     public <S> boolean update(S instance, Class<S> domainType) {
         var entity = mappingContext.getRequiredPersistentEntity(domainType);

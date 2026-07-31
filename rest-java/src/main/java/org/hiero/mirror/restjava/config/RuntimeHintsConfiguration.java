@@ -54,6 +54,7 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.type.filter.AssignableTypeFilter;
+import org.springframework.jdbc.datasource.ConnectionProxy;
 
 @Configuration(proxyBeanMethods = false)
 @ImportRuntimeHints(CustomRuntimeHints.class)
@@ -81,6 +82,8 @@ final class RuntimeHintsConfiguration {
                     "genesis/**");
 
             registerJooqClasses(hints, loader);
+
+            hints.proxies().registerJdkProxy(ConnectionProxy.class);
         }
 
         /**

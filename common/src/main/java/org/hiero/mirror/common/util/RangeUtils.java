@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common.util;
 
+import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import lombok.experimental.UtilityClass;
 
@@ -10,9 +11,11 @@ public class RangeUtils {
 
     public static String rangeToString(Range<Long> range) {
         if (range == null) return null;
-        String lower = range.hasLowerBound() ? range.lowerEndpoint().toString() : "";
-        String upper = range.hasUpperBound() ? range.upperEndpoint().toString() : "";
-        return "[" + lower + "," + upper + ")";
+        final var lowerBracket = range.hasLowerBound() && range.lowerBoundType() == BoundType.CLOSED ? "[" : "(";
+        final var lower = range.hasLowerBound() ? range.lowerEndpoint().toString() : "";
+        final var upper = range.hasUpperBound() ? range.upperEndpoint().toString() : "";
+        final var upperBracket = range.hasUpperBound() && range.upperBoundType() == BoundType.CLOSED ? "]" : ")";
+        return lowerBracket + lower + "," + upper + upperBracket;
     }
 
     public static Range<Long> rangeLong(String rangeStr) {

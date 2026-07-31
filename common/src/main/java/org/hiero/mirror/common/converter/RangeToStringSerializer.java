@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.common.collect.Range;
 import java.io.IOException;
+import org.hiero.mirror.common.util.RangeUtils;
 
 public class RangeToStringSerializer extends StdSerializer<Range<Long>> {
 
@@ -24,9 +25,6 @@ public class RangeToStringSerializer extends StdSerializer<Range<Long>> {
             return;
         }
 
-        String lower = range.hasLowerBound() ? range.lowerEndpoint().toString() : "";
-        String upper = range.hasUpperBound() ? range.upperEndpoint().toString() : "";
-
-        gen.writeString(String.format("[%s,%s)", lower, upper));
+        gen.writeString(RangeUtils.rangeToString(range));
     }
 }

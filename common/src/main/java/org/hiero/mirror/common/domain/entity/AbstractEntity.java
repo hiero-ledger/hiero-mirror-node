@@ -8,7 +8,6 @@ import java.sql.Date;
 import java.util.concurrent.TimeUnit;
 import lombok.AccessLevel;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
@@ -76,7 +75,6 @@ public abstract class AbstractEntity implements History {
     @Id
     private Long id;
 
-    @EqualsAndHashCode.Exclude
     @Setter(AccessLevel.NONE)
     @ToString.Exclude
     private byte[] key;

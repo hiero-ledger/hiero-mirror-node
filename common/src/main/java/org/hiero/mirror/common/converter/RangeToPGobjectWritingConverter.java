@@ -4,6 +4,7 @@ package org.hiero.mirror.common.converter;
 
 import com.google.common.collect.Range;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.postgresql.util.PGobject;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.WritingConverter;
@@ -22,10 +23,7 @@ public class RangeToPGobjectWritingConverter implements Converter<Range<Long>, P
 
         PGobject pgObject = new PGobject();
         pgObject.setType("int8range");
-        // Logic to convert Range to "[lower,upper)" format
-        String lower = source.hasLowerBound() ? source.lowerEndpoint().toString() : "";
-        String upper = source.hasUpperBound() ? source.upperEndpoint().toString() : "";
-        pgObject.setValue(String.format("[%s,%s)", lower, upper));
+        pgObject.setValue(RangeUtils.rangeToString(source));
         return pgObject;
     }
 }

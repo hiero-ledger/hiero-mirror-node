@@ -28,12 +28,15 @@ class RangeToStringSerializerTest {
     static java.util.stream.Stream<Arguments> rangesAndExpectedJsonStrings() {
         return java.util.stream.Stream.of(
                 Arguments.of(Range.closedOpen(0L, 1L), "[0,1)"),
-                Arguments.of(Range.closed(0L, 1L), "[0,1)"),
-                Arguments.of(Range.open(0L, 1L), "[0,1)"),
-                Arguments.of(Range.openClosed(0L, 1L), "[0,1)"),
+                // bound types are honored rather than forced to closed-lower/open-upper
+                Arguments.of(Range.closed(0L, 1L), "[0,1]"),
+                Arguments.of(Range.open(0L, 1L), "(0,1)"),
+                Arguments.of(Range.openClosed(0L, 1L), "(0,1]"),
                 Arguments.of(Range.closedOpen(0L, 2L), "[0,2)"),
                 Arguments.of(Range.atLeast(0L), "[0,)"),
-                Arguments.of(Range.lessThan(1L), "[,1)"));
+                Arguments.of(Range.greaterThan(0L), "(0,)"),
+                Arguments.of(Range.lessThan(1L), "(,1)"),
+                Arguments.of(Range.atMost(1L), "(,1]"));
     }
 
     @ParameterizedTest
