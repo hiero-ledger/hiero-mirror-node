@@ -167,18 +167,30 @@ function runBackupsForAllNamespaces() {
 }
 
 function getBackupPaths() {
-  kubectl get sgshardedclusters --all-namespaces -o json \
-    | jq '[
-        .items[]
-        | {
-            (.metadata.namespace): {
-              (.metadata.name): (
-                .spec.configurations.backups[0].paths // []
-              )
-            }
+  # StackGres actually keeps backup paths on each member's .status.backupPaths, not the
+  # sharded cluster's spec - fall back to spec.paths to keep previous default unchanged
+  local sharded members
+  sharded="$(kubectl get sgshardedclusters --all-namespaces -o json)"
+  members="$(kubectl get sgclusters --all-namespaces -o json)"
+  jq -n --argjson sharded "${sharded}" --argjson members "${members}" '[
+      $sharded.items[]
+      | .metadata.namespace as $ns
+      | .metadata.name as $name
+      | ([
+          $members.items[]
+          | select(.metadata.namespace == $ns
+              and ((.metadata.ownerReferences // []) | any(.name == $name)))
+          | (.status.backupPaths // [])[]
+        ] | unique) as $statusPaths
+      | {
+          ($ns): {
+            ($name): (if ($statusPaths | length) > 0
+              then $statusPaths
+              else (.spec.configurations.backups[0].paths // []) end)
           }
-      ]
-      | add'
+        }
+    ]
+    | add'
 }
 
 function getLatestBackup() {

@@ -39,7 +39,6 @@ import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.gaul.s3proxy.S3Proxy;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -48,7 +47,6 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
-import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
 import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverProperties;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
@@ -123,7 +121,6 @@ final class BlockFileSourceTest {
         importerProperties = new ImporterProperties();
         importerProperties.setDataPath(archivePath);
         commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
-        commonDownloaderProperties.setPathType(PathType.NODE_ID);
         properties = new BlockProperties(importerProperties);
         properties.setEnabled(true);
         meterRegistry = new SimpleMeterRegistry();
@@ -135,8 +132,7 @@ final class BlockFileSourceTest {
                 .forcePathStyle(true)
                 .region(Region.of(commonDownloaderProperties.getRegion()))
                 .build();
-        var streamFileProvider = new S3StreamFileProvider(
-                properties, CommonProperties.getInstance(), commonDownloaderProperties, s3AsyncClient);
+        var streamFileProvider = new S3StreamFileProvider(properties, commonDownloaderProperties, s3AsyncClient);
         var blockFileTransformer = mock(BlockFileTransformer.class);
         lenient()
                 .doAnswer(invocation -> {

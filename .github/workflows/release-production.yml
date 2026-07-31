@@ -145,6 +145,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 15
     env:
+      K8S_VERSION: v1.35.6
       MPDEV: "/home/runner/mpdev"
     steps:
       - name: Harden Runner
@@ -171,18 +172,16 @@ jobs:
           password: ${{ steps.auth.outputs.access_token }}
 
       - name: Install k3d
-        run: curl --retry 3 -fsL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+        run: curl -fsSL -o k3d "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-amd64" && chmod +x k3d
 
       - name: Create k3d cluster
-        run: k3d cluster create mirror --agents 1 --wait --image rancher/k3s:v1.35.4-k3s1
+        run: ./k3d cluster create mirror --agents 1 --wait --image rancher/k3s:${K8S_VERSION}-k3s1
 
       - name: Get tag
         run: echo "TAG=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
 
       - name: Install kubectl
-        run: |
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x ./kubectl
+        run: curl -fsSLO "https://dl.k8s.io/release/${K8S_VERSION}/bin/linux/amd64/kubectl" && chmod +x kubectl
 
       - name: Install mpdev
         run:
@@ -190,7 +189,7 @@ jobs:
           && chmod +x ${MPDEV}
 
       - name: Install application
-        run: ./kubectl apply -f "https://raw.githubusercontent.com/GoogleCloudPlatform/marketplace-k8s-app-tools/master/crd/app-crd.yaml"
+        run: ./kubectl apply -f "https://raw.githubusercontent.com/GoogleCloudPlatform/marketplace-k8s-app-tools/refs/tags/13.0.4/crd/app-crd.yaml"
 
       - name: Setup QEMU
         uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0

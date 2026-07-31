@@ -251,10 +251,6 @@ public class StreamFilename implements Comparable<StreamFilename> {
         return compressor != null;
     }
 
-    public boolean isNodeId() {
-        return !bucketFilePath.contains(streamType.getPath());
-    }
-
     @Override
     public String toString() {
         return filename;

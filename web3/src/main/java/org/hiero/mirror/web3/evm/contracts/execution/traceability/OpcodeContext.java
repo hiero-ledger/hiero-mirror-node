@@ -26,6 +26,13 @@ import org.hiero.mirror.web3.service.model.OpcodeRequest;
 public final class OpcodeContext {
 
     /**
+     * Upper bound for the initial opcode list capacity. The list still grows as needed
+     * for genuinely large traces, this only caps the up-front allocation so a single request cannot force a huge
+     * backing array before any opcode executes.
+     */
+    private static final int MAX_INITIAL_OPCODES_CAPACITY = 10_000;
+
+    /**
      * Actions pre-grouped by call depth and sorted by index within each depth.
      * Populated once via {@link #setActions(List)} to avoid repeated filtering and sorting.
      */
@@ -64,7 +71,7 @@ public final class OpcodeContext {
         this.stack = opcodeRequest.isStack();
         this.memory = opcodeRequest.isMemory();
         this.storage = opcodeRequest.isStorage();
-        this.opcodes = new ArrayList<>(opcodesSize);
+        this.opcodes = new ArrayList<>(Math.min(Math.max(opcodesSize, 0), MAX_INITIAL_OPCODES_CAPACITY));
     }
 
     public void addOpcodes(Opcode opcode) {

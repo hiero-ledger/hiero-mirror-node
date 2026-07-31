@@ -22,7 +22,6 @@ import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.TopicID;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -53,8 +52,6 @@ import org.springframework.util.CollectionUtils;
 @ToString(onlyExplicitlyIncluded = true)
 @Value
 public class BlockTransaction implements StreamItem {
-
-    private static final MessageDigest DIGEST = createSha384Digest();
 
     @ToString.Include
     private final long consensusTimestamp;
@@ -290,7 +287,7 @@ public class BlockTransaction implements StreamItem {
     }
 
     private static ByteString digest(final byte[] data) {
-        return DomainUtils.fromBytes(DIGEST.digest(data));
+        return DomainUtils.fromBytes(createSha384Digest().digest(data));
     }
 
     private static <T extends MessageLite> T getTraceDataItem(
