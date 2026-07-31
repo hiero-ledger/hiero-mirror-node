@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.evm.contracts.operations;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 import java.util.Optional;
@@ -12,12 +13,14 @@ import org.apache.tuweni.units.bigints.UInt256;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.evm.fluent.SimpleBlockValues;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -36,10 +39,18 @@ class MirrorBlockHashOperationTest {
     private GasCalculator gasCalculator;
 
     @Mock
+    private EvmProperties evmProperties;
+
+    @Mock
     private RecordFileRepository recordFileRepository;
 
     @InjectMocks
     private MirrorBlockHashOperation operation;
+
+    @BeforeEach
+    void setup() {
+        lenient().when(evmProperties.getBlockHashWindow()).thenReturn(256L);
+    }
 
     @Test
     void invalid() {

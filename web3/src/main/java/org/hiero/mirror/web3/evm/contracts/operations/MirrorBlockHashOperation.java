@@ -9,6 +9,7 @@ import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.evm.EVM;
@@ -25,8 +26,7 @@ import org.hyperledger.besu.evm.operation.BlockHashOperation;
 @Named
 class MirrorBlockHashOperation extends BlockHashOperation {
 
-    private static final long BLOCKHASH_MAX_LOOKBACK = 256L;
-
+    private final EvmProperties evmProperties;
     private final RecordFileRepository recordFileRepository;
 
     /**
@@ -34,8 +34,10 @@ class MirrorBlockHashOperation extends BlockHashOperation {
      *
      * @param gasCalculator the gas calculator
      */
-    MirrorBlockHashOperation(GasCalculator gasCalculator, RecordFileRepository recordFileRepository) {
+    MirrorBlockHashOperation(
+            GasCalculator gasCalculator, EvmProperties evmProperties, RecordFileRepository recordFileRepository) {
         super(gasCalculator);
+        this.evmProperties = evmProperties;
         this.recordFileRepository = recordFileRepository;
     }
 
@@ -59,7 +61,7 @@ class MirrorBlockHashOperation extends BlockHashOperation {
 
         if (currentBlockNumber <= 0
                 || soughtBlock > currentBlockNumber
-                || soughtBlock <= currentBlockNumber - BLOCKHASH_MAX_LOOKBACK) {
+                || soughtBlock <= currentBlockNumber - evmProperties.getBlockHashWindow()) {
             frame.pushStackItem(Bytes32.ZERO);
         } else if (currentBlockNumber == soughtBlock) {
             final var latestBlock = ContractCallContext.get().getRecordFile();
