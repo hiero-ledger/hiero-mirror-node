@@ -323,7 +323,7 @@ final class FixEvmTransactionIndexMigrationTest
         // given
         final var earlyBlock = persistBlock(0);
         final var recentBase =
-                earlyBlock.getConsensusEnd() + INTERVAL + Duration.ofSeconds(1).toNanos();
+                earlyBlock.getConsensusEnd() + INTERVAL - Duration.ofSeconds(1).toNanos();
         final var recentBlock = domainBuilder
                 .recordFile()
                 .customize(r -> r.index(1L)
