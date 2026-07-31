@@ -27,7 +27,7 @@ extra.apply {
     set("logback.version", "1.5.36") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
     set("netty.version", "4.2.16.Final") // Temporary until next Spring Boot
-    set("nodeJsVersion", "24.18.0")
+    set("nodeJsVersion", "24.18.1")
     set("postgresql.version", "42.7.13") // Temporary until next Spring Boot
     set("tomcat.version", "11.0.23") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
@@ -54,7 +54,9 @@ dependencies {
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
         api("com.hedera.cryptography:hedera-cryptography-wraps:3.13.0")
-        api("com.hedera.hashgraph:app:$consensusNodeVersion")
+        api(
+            "com.hedera.hashgraph:app:$consensusNodeVersion"
+        ) // Needs to use variable for compare workflow
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
         api("com.hedera.hashgraph:sdk:2.74.0")

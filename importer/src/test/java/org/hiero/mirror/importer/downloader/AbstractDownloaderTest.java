@@ -62,7 +62,6 @@ import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.domain.ConsensusNodeStub;
 import org.hiero.mirror.importer.domain.StreamFilename;
-import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.reader.signature.CompositeSignatureFileReader;
 import org.hiero.mirror.importer.reader.signature.ProtoSignatureFileReader;
@@ -76,7 +75,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -260,10 +259,10 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         s3Proxy.stop();
     }
 
-    @ParameterizedTest(name = "Download and verify files with path type: {0}")
-    @EnumSource(PathType.class)
-    void download(PathType pathType) {
-        preparePathType(pathType);
+    @Test
+    @DisplayName("Download and verify files")
+    void download() {
+        fileCopier.copy();
 
         expectLastStreamFile(Instant.EPOCH);
         downloader.download();
@@ -374,19 +373,12 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     }
 
     @ParameterizedTest
-    @CsvSource(textBlock = """
-            ACCOUNT_ID, true
-            ACCOUNT_ID, false
-            AUTO, true
-            AUTO, false
-            NODE_ID, true
-            NODE_ID, false
-            """)
+    @ValueSource(booleans = {true, false})
     @SneakyThrows
-    void writeFiles(PathType pathType, boolean groupByDay) {
+    void writeFiles(boolean groupByDay) {
         importerProperties.setGroupByDay(groupByDay);
         downloaderProperties.setWriteFiles(true);
-        preparePathType(pathType);
+        fileCopier.copy();
         expectLastStreamFile(Instant.EPOCH);
         downloader.download();
         final var archivedFilePathPredicate = getArchivedFilePathPredicate();
@@ -401,11 +393,10 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
                 });
     }
 
-    @ParameterizedTest(name = "Write signature files with path type: {0}")
-    @EnumSource(PathType.class)
-    void writeSignatureFiles(PathType pathType) throws Exception {
+    @Test
+    void writeSignatureFiles() throws Exception {
         downloaderProperties.setWriteSignatures(true);
-        preparePathType(pathType);
+        fileCopier.copy();
         expectLastStreamFile(Instant.EPOCH);
         downloader.download();
         assertThat(Files.walk(importerProperties.getDataPath()))
@@ -663,27 +654,16 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         var optionalDatePrefix = importerProperties.isGroupByDay() ? "\\d{4}-\\d{2}-\\d{2}/" : "";
         var optionalSidecarRegex = streamType == StreamType.RECORD ? "(sidecar/)?" : "";
 
-        String regex;
         final long realm = fileCopier.isIgnoreNonZeroRealmShard() ? 0 : commonProperties.getRealm();
         final long shard = fileCopier.isIgnoreNonZeroRealmShard() ? 0 : commonProperties.getShard();
-        if (commonDownloaderProperties.getPathType() == PathType.ACCOUNT_ID) {
-            regex = "^/%s%s/%s%d\\.%d\\.\\d+/%s[^/]+$"
-                    .formatted(
-                            optionalDatePrefix,
-                            streamType.getPath(),
-                            streamType.getNodePrefix(),
-                            shard,
-                            realm,
-                            optionalSidecarRegex);
-        } else {
-            regex = "^/%s%s/%d/\\d+/%s/%s[^/]+$"
-                    .formatted(
-                            optionalDatePrefix,
-                            importerProperties.getNetwork(),
-                            shard,
-                            streamType.getNodeIdBasedSuffix(),
-                            optionalSidecarRegex);
-        }
+        var regex = "^/%s%s/%s%d\\.%d\\.\\d+/%s[^/]+$"
+                .formatted(
+                        optionalDatePrefix,
+                        streamType.getPath(),
+                        streamType.getNodePrefix(),
+                        shard,
+                        realm,
+                        optionalSidecarRegex);
 
         return Pattern.compile(regex).asPredicate();
     }
@@ -703,16 +683,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         }
 
         throw new IllegalArgumentException("Invalid stream filename " + filename);
-    }
-
-    private void preparePathType(PathType pathType) {
-        commonDownloaderProperties.setPathType(pathType);
-        commonDownloaderProperties.setPathRefreshInterval(Duration.ZERO);
-        if (pathType == PathType.ACCOUNT_ID) {
-            fileCopier.copy();
-        } else {
-            fileCopier.copyAsNodeIdStructure(Path::getParent, importerProperties.getNetwork());
-        }
     }
 
     protected void verifyUnsuccessful() {

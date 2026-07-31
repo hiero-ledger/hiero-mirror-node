@@ -372,6 +372,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
             final var filename = BlockFile.getFilename(blockNumber, false);
             final var blockStream = new BlockStream(block, blockCompleteTime, null, filename, loadStart, blockSize);
+            log.info("Streamed block {} from {}", blockNumber, name);
 
             // when either condition becomes true, inform the caller to stop sending items for assembling
             return blockStreamConsumer.apply(blockStream, name) || blockHeader.getNumber() == endBlockNumber;

@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block;
 
 import static org.hiero.mirror.importer.downloader.block.BlockNodeProperties.FULL_BLOCK_NODE_APIS;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
@@ -15,6 +16,7 @@ import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.domain.StreamFileData;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
@@ -34,7 +36,7 @@ public final class BlockProperties {
     private boolean enabled = false;
 
     @NotNull
-    private Duration frequency = Duration.ofMillis(100L);
+    private Duration frequency = Duration.ofMillis(500L);
 
     private Path initialLedgerIdPublication;
 
@@ -51,6 +53,11 @@ public final class BlockProperties {
     private StreamProperties stream = new StreamProperties();
 
     private boolean writeFiles = false;
+
+    @PostConstruct
+    void init() {
+        StreamFileData.setMaxDecompressedBytes(stream.getMaxBlockSize().toBytes());
+    }
 
     public String getBucketName() {
         return StringUtils.isNotBlank(bucketName)
