@@ -323,7 +323,7 @@ final class FixEvmTransactionIndexMigrationTest
         // given
         final var earlyBlock = persistBlock(0);
         final var recentBase =
-                earlyBlock.getConsensusEnd() + INTERVAL - Duration.ofSeconds(1).toNanos();
+                earlyBlock.getConsensusEnd() + INTERVAL + Duration.ofSeconds(1).toNanos();
         final var recentBlock = domainBuilder
                 .recordFile()
                 .customize(r -> r.index(1L)
@@ -347,6 +347,50 @@ final class FixEvmTransactionIndexMigrationTest
         // then
         assertContractResultIndex(earlyContractResult.getConsensusTimestamp(), 0);
         assertContractResultIndex(recentContractResult.getConsensusTimestamp(), 0);
+    }
+
+    @Test
+    void missedTransactions() {
+        // given
+        final var block1 = persistBlock(1);
+        final var timestamp = block1.getConsensusStart() - INTERVAL * 2;
+        final var block0 = domainBuilder
+                .recordFile()
+                .customize(r -> r.index(0L)
+                        .consensusStart(timestamp)
+                        .consensusEnd(timestamp + Duration.ofSeconds(2).toNanos()))
+                .persist();
+
+        final var earlyTimestamp = block0.getConsensusStart() + 100;
+        persistTransaction(earlyTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+
+        final var earlyContractResult = persistContractResult(earlyTimestamp, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(earlyContractResult.getConsensusTimestamp(), 0);
+    }
+
+    @Test
+    void singleTransactionInIntervalNotInfiniteLoop() {
+        // given
+        final long timestamp1 = domainBuilder.timestamp();
+        final var block1 = domainBuilder
+                .recordFile()
+                .customize(r -> r.index(1L).consensusStart(timestamp1).consensusEnd(timestamp1))
+                .persist();
+        final long timestamp0 = block1.getConsensusEnd() - INTERVAL + 1;
+        final var block0 = domainBuilder
+                .recordFile()
+                .customize(r -> r.index(0L).consensusStart(timestamp0).consensusEnd(timestamp0))
+                .persist();
+
+        // when
+        runMigration();
+        waitForCompletion();
     }
 
     @Test
