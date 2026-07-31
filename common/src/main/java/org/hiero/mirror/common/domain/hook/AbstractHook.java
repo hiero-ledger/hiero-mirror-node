@@ -16,7 +16,6 @@ import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
@@ -48,7 +47,6 @@ public abstract class AbstractHook implements History {
     private Boolean deleted;
 
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
-    @Column("extension_point")
     private HookExtensionPoint extensionPoint;
 
     @org.springframework.data.annotation.Id
@@ -58,7 +56,6 @@ public abstract class AbstractHook implements History {
     private Range<Long> timestampRange;
 
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
-    @Column("type")
     private HookType type;
 
     public long getHookId() {

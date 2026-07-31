@@ -77,7 +77,7 @@ public abstract class AbstractToken implements History {
     private Long tokenId;
 
     @UpsertColumn(coalesce = "case when {0} >= 0 then {0} else e_{0} + coalesce({0}, {1}) end")
-    private Long totalSupply;
+    private Long totalSupply; // Increment with initialSupply and mint amounts, decrement with burn amount
 
     private EntityId treasuryAccountId;
 
@@ -101,6 +101,7 @@ public abstract class AbstractToken implements History {
         }
 
         if (newTotalSupply < 0) {
+            // Negative from a token transfer of a token dissociate of a deleted token, so we aggregate the change.
             totalSupply = totalSupply == null ? newTotalSupply : totalSupply + newTotalSupply;
         } else {
             totalSupply = newTotalSupply;

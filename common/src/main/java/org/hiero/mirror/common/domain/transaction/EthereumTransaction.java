@@ -69,15 +69,12 @@ public class EthereumTransaction implements Persistable<Long> {
 
     private Integer recoveryId;
 
-    @Column("signature_r")
     @ToString.Exclude
     private byte[] signatureR;
 
-    @Column("signature_s")
     @ToString.Exclude
     private byte[] signatureS;
 
-    @Column("signature_v")
     @ToString.Exclude
     private byte[] signatureV;
 

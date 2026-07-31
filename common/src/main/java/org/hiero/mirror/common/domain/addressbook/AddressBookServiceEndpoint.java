@@ -11,7 +11,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.domain.Persistable;
-import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -96,7 +95,6 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
 
         private long consensusTimestamp;
 
-        @Column("ip_address_v4")
         private String ipAddressV4;
 
         private long nodeId;
