@@ -24,23 +24,14 @@ public abstract class AbstractTokenAirdrop implements History {
 
     private Long amount;
 
-    @JsonIgnore
     @Column("state")
-    private PostgresAirdropState airdropState;
+    private TokenAirdropStateEnum state;
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
     private Range<Long> timestampRange;
-
-    public TokenAirdropStateEnum getState() {
-        return airdropState == null ? null : airdropState.getState();
-    }
-
-    public void setState(TokenAirdropStateEnum state) {
-        airdropState = PostgresAirdropState.of(state);
-    }
 
     public long getReceiverAccountId() {
         return id != null ? id.getReceiverAccountId() : 0L;
@@ -117,11 +108,6 @@ public abstract class AbstractTokenAirdrop implements History {
 
         public B tokenId(long tokenId) {
             this.id = (this.id == null ? new Id() : this.id).withTokenId(tokenId);
-            return self();
-        }
-
-        public B state(TokenAirdropStateEnum state) {
-            this.airdropState = PostgresAirdropState.of(state);
             return self();
         }
     }
