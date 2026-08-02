@@ -53,7 +53,7 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.13.0")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.14.0")
         api(
             "com.hedera.hashgraph:app:$consensusNodeVersion"
         ) // Needs to use variable for compare workflow
