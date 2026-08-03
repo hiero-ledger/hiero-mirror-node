@@ -5,8 +5,10 @@ package org.hiero.mirror.web3.common;
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.AccessLevel;
@@ -19,6 +21,7 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.springframework.cache.interceptor.SimpleKey;
 
 @SuppressWarnings("deprecation")
 @Getter
@@ -35,6 +38,13 @@ public class ContractCallContext {
 
     @Getter(AccessLevel.NONE)
     private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
+
+    /**
+     * Slot cache keys currently owned (being loaded) by this call. Used to detect re-entrant storage lookups that
+     * would otherwise await their own incomplete in-flight future and deadlock.
+     */
+    @Getter(AccessLevel.NONE)
+    private final Set<SimpleKey> ownedInFlightSlotKeys = new HashSet<>();
 
     /**
      * Optional API endpoint used to resolve a per-endpoint request timeout.
@@ -113,6 +123,18 @@ public class ContractCallContext {
 
     public void reset() {
         writeCache.clear();
+    }
+
+    public void markOwnedInFlightSlot(final SimpleKey key) {
+        ownedInFlightSlotKeys.add(key);
+    }
+
+    public void unmarkOwnedInFlightSlot(final SimpleKey key) {
+        ownedInFlightSlotKeys.remove(key);
+    }
+
+    public boolean isOwnedInFlightSlot(final SimpleKey key) {
+        return ownedInFlightSlotKeys.contains(key);
     }
 
     public boolean useHistorical() {

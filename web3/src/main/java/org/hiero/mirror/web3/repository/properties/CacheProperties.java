@@ -4,6 +4,8 @@ package org.hiero.mirror.web3.repository.properties;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.time.Duration;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -34,11 +36,18 @@ public class CacheProperties {
     private String entity = ENTITY_CACHE_CONFIG;
 
     /**
+     * Maximum time a thread waits for another thread's in-flight slot load before falling back to its own DB query.
+     * Bounds hangs when the owning thread is stuck.
+     */
+    @NotNull
+    private Duration inFlightWaitTimeout = Duration.ofSeconds(5);
+
+    /**
      * The maximum number of contract storage slot keys loaded (and searched) in a single {@code findStorageBatch}
      * query.
      */
     @Min(1)
-    private int maxSlotKeysPerBatch = 40;
+    private int maxSlotKeysPerBatch = 750;
 
     @NotBlank
     private String fee = "expireAfterWrite=60m,maximumSize=20,recordStats";

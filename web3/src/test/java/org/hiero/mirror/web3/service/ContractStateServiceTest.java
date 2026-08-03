@@ -6,19 +6,26 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SLOTS_PER_CONTRACT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +43,7 @@ import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
+import org.hiero.mirror.web3.state.ContractSlotValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -53,6 +61,9 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     @Qualifier(CACHE_MANAGER_CONTRACT_SLOTS)
     private final CaffeineCacheManager cacheManagerContractSlots;
 
+    @Qualifier(CACHE_MANAGER_CONTRACT_STATE)
+    private final CaffeineCacheManager cacheManagerContractState;
+
     @Qualifier(CACHE_MANAGER_SLOTS_PER_CONTRACT)
     private final CaffeineCacheManager cacheManagerSlotsPerContract;
 
@@ -67,6 +78,7 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     void setup() {
         cacheProperties.setEnableBatchContractSlotCaching(true);
         cacheProperties.setMaxSlotKeysPerBatch(200);
+        cacheProperties.setInFlightWaitTimeout(Duration.ofSeconds(5));
         clearInvocations(contractStateRepository);
     }
 
@@ -166,6 +178,24 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
+    void verifyMissingSlotValueIsCachedAsEmpty() {
+        // Given
+        final var contract = persistContract();
+        final var contractId = contract.toEntityId();
+        final var missingSlot = generateSlotKey(42);
+
+        // When
+        assertThat(contractStateService.findStorage(contractId, missingSlot)).isEmpty();
+        clearInvocations(contractStateRepository);
+        final var secondLookup = contractStateService.findStorage(contractId, missingSlot);
+
+        // Then
+        assertThat(secondLookup).isEmpty();
+        verify(contractStateRepository, never()).findStorageBatch(eq(contractId.getId()), any());
+        verify(contractStateRepository, never()).findStorage(eq(contractId.getId()), any());
+    }
+
+    @Test
     void verifyBatchQueryIsCappedAtMaxSlotKeysPerBatch() {
         // Given
         final int maxSlotKeysPerBatch = 2;
@@ -181,6 +211,8 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         }
         assertThat(getCachedSlots(contract)).asInstanceOf(LIST).hasSize(slotCount);
 
+        // Clear negative cache entries so newly persisted values can be loaded, while keeping the slot-key cache.
+        cacheManagerContractState.getCache(CACHE_NAME).clear();
         clearInvocations(contractStateRepository);
 
         // When values are persisted and each slot is requested again
@@ -382,6 +414,135 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         assertThat(result1).get().isEqualTo(value1);
         assertThat(result2).get().isEqualTo(value2);
 
+        executor.shutdown();
+    }
+
+    @Test
+    void verifyConcurrentSameSlotLookupsCoalesceToSingleDbCall() throws Exception {
+        // Given
+        final var contract = persistContract();
+        final var slot = generateSlotKey(1);
+        final byte[] value = Hex.decodeHex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        final var contractId = contract.toEntityId();
+
+        final var enteredBatch = new CountDownLatch(1);
+        final var releaseBatch = new CountDownLatch(1);
+        // Spring Data repository methods are abstract to Mockito; return a canned batch result instead of
+        // callRealMethod.
+        doAnswer(invocation -> {
+                    enteredBatch.countDown();
+                    if (!releaseBatch.await(2, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Timed out waiting to release batch query");
+                    }
+                    return List.of(new ContractSlotValue(slot, value));
+                })
+                .when(contractStateRepository)
+                .findStorageBatch(anyLong(), any());
+
+        // When: many threads request the same uncached slot while the first DB call is in flight
+        final int threadCount = 8;
+        final var executor = Executors.newFixedThreadPool(threadCount);
+        final var futures = new ArrayList<Future<Optional<byte[]>>>();
+        for (int i = 0; i < threadCount; i++) {
+            futures.add(executor.submit(() -> contractStateService.findStorage(contractId, slot)));
+        }
+
+        assertThat(enteredBatch.await(2, TimeUnit.SECONDS)).isTrue();
+        // Allow waiters to observe the in-flight future before releasing the DB call.
+        Thread.sleep(100);
+        releaseBatch.countDown();
+
+        // Then
+        for (final var future : futures) {
+            assertThat(future.get(2, TimeUnit.SECONDS)).get().isEqualTo(value);
+        }
+        verify(contractStateRepository, times(1)).findStorageBatch(eq(contractId.getId()), any());
+        verify(contractStateRepository, never()).findStorage(eq(contractId.getId()), any());
+        executor.shutdown();
+    }
+
+    @Test
+    void verifyConcurrentSameMissingSlotLookupsCoalesceToSingleDbCall() throws Exception {
+        // Given
+        final var contract = persistContract();
+        final var missingSlot = generateSlotKey(99);
+        final var contractId = contract.toEntityId();
+
+        final var enteredBatch = new CountDownLatch(1);
+        final var releaseBatch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+                    enteredBatch.countDown();
+                    if (!releaseBatch.await(2, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Timed out waiting to release batch query");
+                    }
+                    return List.of();
+                })
+                .when(contractStateRepository)
+                .findStorageBatch(anyLong(), any());
+
+        // When
+        final int threadCount = 8;
+        final var executor = Executors.newFixedThreadPool(threadCount);
+        final var futures = new ArrayList<Future<Optional<byte[]>>>();
+        for (int i = 0; i < threadCount; i++) {
+            futures.add(executor.submit(() -> contractStateService.findStorage(contractId, missingSlot)));
+        }
+
+        assertThat(enteredBatch.await(2, TimeUnit.SECONDS)).isTrue();
+        Thread.sleep(100);
+        releaseBatch.countDown();
+
+        // Then
+        for (final var future : futures) {
+            assertThat(future.get(2, TimeUnit.SECONDS)).isEmpty();
+        }
+        verify(contractStateRepository, times(1)).findStorageBatch(eq(contractId.getId()), any());
+        verify(contractStateRepository, never()).findStorage(eq(contractId.getId()), any());
+        executor.shutdown();
+    }
+
+    @Test
+    void verifyInFlightWaitTimeoutFallsBackToDirectQuery() throws Exception {
+        // Given: owner holds the batch query longer than the waiter timeout
+        cacheProperties.setInFlightWaitTimeout(Duration.ofMillis(100));
+
+        final var contract = persistContract();
+        final var slot = generateSlotKey(1);
+        final byte[] value = Hex.decodeHex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        final var contractId = contract.toEntityId();
+
+        final var enteredBatch = new CountDownLatch(1);
+        final var releaseBatch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+                    enteredBatch.countDown();
+                    if (!releaseBatch.await(2, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Timed out waiting to release batch query");
+                    }
+                    return List.of(new ContractSlotValue(slot, value));
+                })
+                .when(contractStateRepository)
+                .findStorageBatch(anyLong(), any());
+        doAnswer(invocation -> Optional.of(value))
+                .when(contractStateRepository)
+                .findStorage(eq(contractId.getId()), any());
+
+        final var executor = Executors.newFixedThreadPool(2);
+        final var owner = executor.submit(() -> contractStateService.findStorage(contractId, slot));
+
+        assertThat(enteredBatch.await(2, TimeUnit.SECONDS)).isTrue();
+        clearInvocations(contractStateRepository);
+
+        // When: waiter times out and falls back to a direct findStorage query
+        final var waiterResult = executor.submit(() -> contractStateService.findStorage(contractId, slot))
+                .get(2, TimeUnit.SECONDS);
+
+        // Then
+        assertThat(waiterResult).get().isEqualTo(value);
+        verify(contractStateRepository, times(1)).findStorage(eq(contractId.getId()), any());
+        verify(contractStateRepository, never()).findStorageBatch(anyLong(), any());
+
+        releaseBatch.countDown();
+        assertThat(owner.get(2, TimeUnit.SECONDS)).get().isEqualTo(value);
         executor.shutdown();
     }
 
