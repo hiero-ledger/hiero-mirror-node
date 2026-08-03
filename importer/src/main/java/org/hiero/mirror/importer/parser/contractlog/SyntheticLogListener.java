@@ -63,8 +63,15 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
     }
 
     @Override
-    public Map<Long, byte[]> getAll(Collection<Long> entityIds) {
-        return entityIds.isEmpty() ? Map.of() : getEvmCache().getAll(entityIds);
+    public byte[] get(EntityId entityId) {
+        return EntityId.isEmpty(entityId) ? null : getEvmCache().get(entityId.getId());
+    }
+
+    @Override
+    public void put(EntityId entityId, byte[] evmAddress) {
+        if (!EntityId.isEmpty(entityId) && evmAddress != null) {
+            getEvmCache().put(entityId.getId(), evmAddress);
+        }
     }
 
     @Override

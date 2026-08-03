@@ -30,8 +30,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Because cumulative gas is accumulated incrementally, transactions must be put in ascending transaction-index order.
  * EVM addresses (a log's contract address and a synthetic log's resolved topics) come from {@code evmAddressById}, which
- * the caller resolves in a single batch, so the computation does not depend on the synthetic log topics/blooms being
- * finalized later in {@code SyntheticLogListener.onEnd()}.
+ * the caller populates incrementally as it processes each transaction, so the computation does not depend on the
+ * synthetic log topics/blooms being finalized later in {@code SyntheticLogListener.onEnd()}.
  */
 public final class ReceiptRoot {
 

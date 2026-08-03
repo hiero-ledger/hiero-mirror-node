@@ -2,19 +2,28 @@
 
 package org.hiero.mirror.importer.parser.contractlog;
 
-import java.util.Collection;
-import java.util.Map;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.jspecify.annotations.Nullable;
 
 /**
- * A batch lookup for entities' EVM address aliases, backed by a shared cache. Lets components that need to resolve EVM
- * addresses (e.g. receipts root calculation) reuse the same cache the synthetic log processing relies on, resolving all
- * ids in one round trip instead of maintaining their own batched resolution.
+ * A lookup for an entity's EVM address alias, backed by a shared cache. Lets components that need to resolve EVM
+ * addresses (e.g. receipts root calculation) reuse the same cache the synthetic log processing relies on, instead of
+ * maintaining their own resolution.
  */
 public interface EvmAddressCache {
 
     /**
-     * @param entityIds the entity ids to resolve
-     * @return the trimmed EVM address aliases by entity id; ids without an alias are absent from the map
+     * @param entityId the entity to resolve
+     * @return the entity's trimmed EVM address alias, or {@code null} if it has none
      */
-    Map<Long, byte[]> getAll(Collection<Long> entityIds);
+    @Nullable
+    byte[] get(EntityId entityId);
+
+    /**
+     * Caches the entity's trimmed EVM address alias.
+     *
+     * @param entityId   the entity
+     * @param evmAddress the entity's trimmed EVM address alias
+     */
+    void put(EntityId entityId, byte[] evmAddress);
 }

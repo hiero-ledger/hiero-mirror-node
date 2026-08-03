@@ -13,7 +13,6 @@ import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -175,6 +174,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             if (dateRangeFilter.filter(recordItem.getConsensusTimestamp())) {
                 recordItem.setLogIndex(logIndex);
                 recordItemListener.onItem(recordItem);
+                aggregator.putReceipt(recordItem);
                 recordMetrics(recordItem);
                 count.incrementAndGet();
             }
@@ -269,7 +269,12 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
         private final boolean receiptsEnabled = entityProperties.getPersist().isContractResults();
         private final LogsBloomFilter logsBloom = new LogsBloomFilter();
+        private final Map<Long, byte[]> evmAddressById = new HashMap<>();
+        private final Set<Long> requestedEvmAddressIds = new HashSet<>();
+        private final ReceiptRoot receiptRoot = new ReceiptRoot(evmAddressById);
         private long gasUsed = 0L;
+        // Number of ContractLogs already assigned to a receipt; the logs added past it are the current transaction's
+        private int assignedContractLogs = 0;
 
         @Override
         public void accept(RecordItem recordItem) {
@@ -283,69 +288,61 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             logsBloom.or(DomainUtils.toBytes(result.getBloom()));
         }
 
+        public void putReceipt(RecordItem recordItem) {
+            if (!receiptsEnabled) {
+                return;
+            }
+
+            final var contractLogs = (List<ContractLog>) parserContext.get(ContractLog.class);
+            final var transactionLogs = List.copyOf(contractLogs.subList(assignedContractLogs, contractLogs.size()));
+            assignedContractLogs = contractLogs.size();
+
+            if (!recordItem.isTopLevel() || recordItem.getEvmTransactionIndex() == null) {
+                return;
+            }
+
+            final var contractResult = parserContext.get(ContractResult.class, recordItem.getConsensusTimestamp());
+            resolveEvmAddresses(transactionLogs);
+            receiptRoot.put(contractResult, transactionLogs, recordItem.getEthereumTransaction());
+        }
+
         public void update(RecordFile recordFile) {
             recordFile.setGasUsed(gasUsed);
             recordFile.setLoadEnd(System.currentTimeMillis());
             recordFile.setLogsBloom(logsBloom.toArrayUnsafe());
             if (receiptsEnabled) {
-                recordFile.setReceiptsRoot(receiptsRoot(recordFile));
+                recordFile.setReceiptsRoot(receiptRoot.getRootHash());
             }
         }
 
-        // Builds the receipts trie for the record file. Logs are grouped by consensus timestamp and every referenced
-        // EVM address is resolved in a single batch, then each top-level transaction is put in ascending index order.
-        // Child (internal) transactions are skipped: their contract results (transaction_nonce != 0) and logs sit at
-        // their own consensus timestamps and are never fetched, matching the relay's default internal=false view.
-        private byte[] receiptsRoot(RecordFile recordFile) {
-            var consensusStart = recordFile.getConsensusStart();
-            var consensusEnd = recordFile.getConsensusEnd();
-            var logsByTimestamp = new HashMap<Long, List<ContractLog>>();
-            var entityIds = new HashSet<>(parserContext.getEvmAddressLookupIds());
-
-            for (var contractLog : parserContext.get(ContractLog.class)) {
-                var timestamp = contractLog.getConsensusTimestamp();
-                if (timestamp < consensusStart || timestamp > consensusEnd) {
-                    continue;
-                }
-                logsByTimestamp
-                        .computeIfAbsent(timestamp, key -> new ArrayList<>())
-                        .add(contractLog);
-                if (!EntityId.isEmpty(contractLog.getContractId())) {
-                    entityIds.add(contractLog.getContractId().getId());
-                }
+        private void resolveEvmAddresses(List<ContractLog> contractLogs) {
+            for (var contractLog : contractLogs) {
+                resolveEvmAddress(contractLog.getContractId());
             }
-
-            var receiptRoot = new ReceiptRoot(resolveEvmAddresses(entityIds));
-            for (var recordItem : recordFile.getItems()) {
-                if (recordItem.isTopLevel() && recordItem.getEvmTransactionIndex() != null) {
-                    var timestamp = recordItem.getConsensusTimestamp();
-                    receiptRoot.put(
-                            parserContext.get(ContractResult.class, timestamp),
-                            logsByTimestamp.getOrDefault(timestamp, List.of()),
-                            recordItem.getEthereumTransaction());
-                }
+            for (var entityId : parserContext.getEvmAddressLookupIds()) {
+                resolveEvmAddress(EntityId.of(entityId));
             }
-
-            return receiptRoot.getRootHash();
         }
 
-        private Map<Long, byte[]> resolveEvmAddresses(Set<Long> entityIds) {
-            if (entityIds.isEmpty()) {
-                return Map.of();
+        private void resolveEvmAddress(EntityId entityId) {
+            // requestedEvmAddressIds guards against re-querying an id (Caffeine doesn't cache alias-less misses)
+            if (EntityId.isEmpty(entityId) || !requestedEvmAddressIds.add(entityId.getId())) {
+                return;
             }
 
-            var resolved = new HashMap<>(evmAddressCache.getAll(entityIds));
-            // entities created within the parsed batch aren't visible to the cache's backing repository yet
-            for (var entityId : entityIds) {
-                if (!resolved.containsKey(entityId)) {
-                    var entity = parserContext.get(Entity.class, entityId);
-                    if (entity != null && !ArrayUtils.isEmpty(entity.getEvmAddress())) {
-                        resolved.put(entityId, DomainUtils.trim(entity.getEvmAddress()));
-                    }
+            var evmAddress = evmAddressCache.get(entityId);
+            if (evmAddress == null) {
+                // entities created earlier in this batch aren't visible to the cache's backing repository yet
+                final var entity = parserContext.get(Entity.class, entityId.getId());
+                if (entity != null && !ArrayUtils.isEmpty(entity.getEvmAddress())) {
+                    evmAddress = DomainUtils.trim(entity.getEvmAddress());
+                    evmAddressCache.put(entityId, evmAddress);
                 }
             }
 
-            return resolved;
+            if (evmAddress != null) {
+                evmAddressById.put(entityId.getId(), evmAddress);
+            }
         }
     }
 }
