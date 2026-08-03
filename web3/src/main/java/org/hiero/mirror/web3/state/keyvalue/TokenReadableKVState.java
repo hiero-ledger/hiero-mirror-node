@@ -7,6 +7,7 @@ import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_AUTO_RENEW_PERIOD;
 
+import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.Fraction;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.base.TokenSupplyType;
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
@@ -171,9 +173,7 @@ final class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token>
 
         var fixedFees = new ArrayList<CustomFee>();
         customFee.getFixedFees().forEach(f -> {
-            final var collector = toAccountId(commonEntityAccessor
-                    .get(f.getCollectorAccountId(), timestamp)
-                    .get());
+            final var collector = resolveCollector(f.getCollectorAccountId(), timestamp);
             final var denominatingTokenId = f.getDenominatingTokenId();
 
             final var fixedFee = new FixedFee(f.getAmount(), toTokenId(denominatingTokenId));
@@ -193,9 +193,7 @@ final class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token>
 
         var fractionalFees = new ArrayList<CustomFee>();
         customFee.getFractionalFees().forEach(f -> {
-            final var collector = toAccountId(commonEntityAccessor
-                    .get(f.getCollectorAccountId(), timestamp)
-                    .get());
+            final var collector = resolveCollector(f.getCollectorAccountId(), timestamp);
             final var fractionalFee = new FractionalFee(
                     new Fraction(f.getNumerator(), f.getDenominator()),
                     f.getMinimumAmount(),
@@ -217,9 +215,7 @@ final class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token>
 
         var royaltyFees = new ArrayList<CustomFee>();
         customFee.getRoyaltyFees().forEach(f -> {
-            final var collector = toAccountId(commonEntityAccessor
-                    .get(f.getCollectorAccountId(), timestamp)
-                    .get());
+            final var collector = resolveCollector(f.getCollectorAccountId(), timestamp);
             final var fallbackFee = f.getFallbackFee();
 
             FixedFee convertedFallbackFee = null;
@@ -235,6 +231,21 @@ final class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token>
         });
 
         return royaltyFees;
+    }
+
+    /**
+     * Resolves a fee collector into an AccountID. The DB lookup is required because a
+     * collector that is an auto-created / ECDSA account must be rendered with its EVM address/alias.
+     */
+    private AccountID resolveCollector(final EntityId collectorAccountId, final Optional<Long> timestamp) {
+        if (collectorAccountId == null) {
+            return AccountID.DEFAULT;
+        }
+
+        return commonEntityAccessor
+                .get(collectorAccountId, timestamp)
+                .map(EntityIdUtils::toAccountId)
+                .orElseGet(() -> toAccountId(collectorAccountId));
     }
 
     @Override

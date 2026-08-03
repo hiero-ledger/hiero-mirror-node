@@ -225,8 +225,8 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
         }
 
         getNamedParameterJdbcOperations()
-                .update(CHECKPOINT_SQL, new MapSqlParameterSource("upperBound", slice.minConsensusTimestamp()));
-        return Optional.of(slice.minConsensusTimestamp());
+                .update(CHECKPOINT_SQL, new MapSqlParameterSource("upperBound", consensusStartTimestamp));
+        return Optional.of(consensusStartTimestamp);
     }
 
     private TransactionOperations transactionOperations() {
