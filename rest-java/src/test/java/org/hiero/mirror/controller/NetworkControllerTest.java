@@ -35,6 +35,7 @@ import org.hiero.hapi.support.fees.VariableRateDefinition;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
+import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
@@ -1719,9 +1720,18 @@ final class NetworkControllerTest extends ControllerTest {
                     .persist();
 
             // Add corresponding node stake data
-            domainBuilder.nodeStake().customize(ns -> ns.nodeId(1L)).persist();
-            domainBuilder.nodeStake().customize(ns -> ns.nodeId(2L)).persist();
-            domainBuilder.nodeStake().customize(ns -> ns.nodeId(3L)).persist();
+            domainBuilder
+                    .nodeStake()
+                    .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 1L)))
+                    .persist();
+            domainBuilder
+                    .nodeStake()
+                    .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 2L)))
+                    .persist();
+            domainBuilder
+                    .nodeStake()
+                    .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 3L)))
+                    .persist();
 
             // Add corresponding node data
             domainBuilder

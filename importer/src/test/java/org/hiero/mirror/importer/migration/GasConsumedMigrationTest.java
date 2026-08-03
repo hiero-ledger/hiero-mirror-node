@@ -118,7 +118,8 @@ class GasConsumedMigrationTest extends ImporterIntegrationTest {
 
         var ca1 = domainBuilder
                 .contractAction()
-                .customize(ca -> ca.consensusTimestamp(ethTx.getConsensusTimestamp()))
+                .customize(
+                        ca -> ca.id(new ContractAction.Id(ethTx.getConsensusTimestamp(), (int) domainBuilder.number())))
                 .customize(ca -> ca.gasUsed(200L))
                 .customize(ca -> ca.callDepth(0))
                 .get();
@@ -126,7 +127,8 @@ class GasConsumedMigrationTest extends ImporterIntegrationTest {
 
         var ca2 = domainBuilder
                 .contractAction()
-                .customize(ca -> ca.consensusTimestamp(ethTx.getConsensusTimestamp()))
+                .customize(
+                        ca -> ca.id(new ContractAction.Id(ethTx.getConsensusTimestamp(), (int) domainBuilder.number())))
                 .customize(ca -> ca.callDepth(1))
                 .get();
         persistContractAction(ca2);

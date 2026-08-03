@@ -17,6 +17,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.Assertions;
 import org.hiero.mirror.RestJavaIntegrationTest;
+import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.restjava.common.RangeOperator;
@@ -270,9 +271,18 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
                 .persist();
 
         // Add corresponding node stake data
-        domainBuilder.nodeStake().customize(ns -> ns.nodeId(1L)).persist();
-        domainBuilder.nodeStake().customize(ns -> ns.nodeId(2L)).persist();
-        domainBuilder.nodeStake().customize(ns -> ns.nodeId(3L)).persist();
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 1L)))
+                .persist();
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 2L)))
+                .persist();
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 3L)))
+                .persist();
 
         // Add corresponding node data
         domainBuilder.node().customize(n -> n.nodeId(1L)).persist();

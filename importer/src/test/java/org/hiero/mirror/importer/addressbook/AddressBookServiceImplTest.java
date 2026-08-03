@@ -33,6 +33,7 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
+import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -1050,8 +1051,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
             // node stake
             domainBuilder
                     .nodeStake()
-                    .customize(n -> n.consensusTimestamp(timestamp)
-                            .nodeId(nodeId.getAndIncrement())
+                    .customize(n -> n.id(new NodeStake.Id(timestamp, nodeId.getAndIncrement()))
                             .stake(stake))
                     .persist();
         }
@@ -1081,8 +1081,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
             // node stake
             domainBuilder
                     .nodeStake()
-                    .customize(n -> n.consensusTimestamp(timestamp)
-                            .nodeId(nodeId.getAndIncrement())
+                    .customize(n -> n.id(new NodeStake.Id(timestamp, nodeId.getAndIncrement()))
                             .stake(10000L))
                     .persist();
         }
@@ -1103,19 +1102,19 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         long timestamp = domainBuilder.timestamp();
         domainBuilder
                 .nodeStake()
-                .customize(n -> n.consensusTimestamp(timestamp).nodeId(0))
+                .customize(n -> n.id(new NodeStake.Id(timestamp, 0)))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(n -> n.consensusTimestamp(timestamp).nodeId(1))
+                .customize(n -> n.id(new NodeStake.Id(timestamp, 1)))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(n -> n.consensusTimestamp(timestamp).nodeId(2))
+                .customize(n -> n.id(new NodeStake.Id(timestamp, 2)))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(n -> n.consensusTimestamp(timestamp).nodeId(3))
+                .customize(n -> n.id(new NodeStake.Id(timestamp, 3)))
                 .persist();
 
         // Verify cache is empty to start

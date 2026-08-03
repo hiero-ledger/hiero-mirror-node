@@ -59,10 +59,12 @@ class AddressBookEntryEndpointCallbackTest {
 
     private AddressBookServiceEndpoint endpoint(long nodeId, int index) {
         return AddressBookServiceEndpoint.builder()
-                .consensusTimestamp(TIMESTAMP)
-                .nodeId(nodeId)
-                .ipAddressV4("127.0.0." + nodeId)
-                .port(50211 + index)
+                .id(AddressBookServiceEndpoint.Id.builder()
+                        .consensusTimestamp(TIMESTAMP)
+                        .nodeId(nodeId)
+                        .ipAddressV4("127.0.0." + nodeId)
+                        .port(50211 + index)
+                        .build())
                 .build();
     }
 }

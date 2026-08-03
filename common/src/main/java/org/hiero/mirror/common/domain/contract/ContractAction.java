@@ -98,6 +98,7 @@ public class ContractAction implements Persistable<ContractAction.Id> {
 
     @Data
     @AllArgsConstructor
+    @Builder
     @NoArgsConstructor
     @With
     public static class Id implements Serializable {
@@ -106,17 +107,5 @@ public class ContractAction implements Persistable<ContractAction.Id> {
         private long consensusTimestamp;
 
         private int index;
-    }
-
-    public static class ContractActionBuilder {
-        public ContractActionBuilder consensusTimestamp(long consensusTimestamp) {
-            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
-            return this;
-        }
-
-        public ContractActionBuilder index(int index) {
-            this.id = (this.id == null ? new Id() : this.id).withIndex(index);
-            return this;
-        }
     }
 }

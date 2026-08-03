@@ -85,6 +85,7 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
         return id != null ? id.getDomainName() : null;
     }
 
+    @Builder
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
@@ -102,41 +103,5 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
         private Integer port;
 
         private String domainName;
-    }
-
-    public static class AddressBookServiceEndpointBuilder {
-        public AddressBookServiceEndpointBuilder consensusTimestamp(long consensusTimestamp) {
-            id().setConsensusTimestamp(consensusTimestamp);
-            return this;
-        }
-
-        public AddressBookServiceEndpointBuilder ipAddressV4(String ipAddressV4) {
-            id().setIpAddressV4(ipAddressV4);
-            return this;
-        }
-
-        public AddressBookServiceEndpointBuilder nodeId(long nodeId) {
-            id().setNodeId(nodeId);
-            return this;
-        }
-
-        public AddressBookServiceEndpointBuilder port(Integer port) {
-            id().setPort(port);
-            return this;
-        }
-
-        public AddressBookServiceEndpointBuilder domainName(String domainName) {
-            id().setDomainName(domainName);
-            return this;
-        }
-
-        // Builder-owned id (never aliased since toBuilder is not enabled), so mutate in place instead of copying.
-        private Id id() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-
-            return this.id;
-        }
     }
 }

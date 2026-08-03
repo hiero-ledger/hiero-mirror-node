@@ -150,11 +150,13 @@ public class NetworkServiceImpl implements NetworkService {
             var set = new java.util.LinkedHashSet<AddressBookServiceEndpoint>(rows.size());
             for (var row : rows) {
                 set.add(AddressBookServiceEndpoint.builder()
-                        .consensusTimestamp(consensusTimestamp)
-                        .nodeId(nodeId)
-                        .ipAddressV4(row.ipAddressV4())
-                        .port(row.port())
-                        .domainName(row.domainName())
+                        .id(AddressBookServiceEndpoint.Id.builder()
+                                .consensusTimestamp(consensusTimestamp)
+                                .nodeId(nodeId)
+                                .ipAddressV4(row.ipAddressV4())
+                                .port(row.port())
+                                .domainName(row.domainName())
+                                .build())
                         .build());
             }
             return set;

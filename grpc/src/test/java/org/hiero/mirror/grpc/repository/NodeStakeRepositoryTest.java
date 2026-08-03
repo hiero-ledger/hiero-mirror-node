@@ -101,8 +101,8 @@ class NodeStakeRepositoryTest extends GrpcIntegrationTest {
     private NodeStake nodeStake(long consensusTimestamp, long nodeId, long stake) {
         return domainBuilder
                 .nodeStake()
-                .customize(e ->
-                        e.consensusTimestamp(consensusTimestamp).nodeId(nodeId).stake(stake))
+                .customize(
+                        e -> e.id(new NodeStake.Id(consensusTimestamp, nodeId)).stake(stake))
                 .persist();
     }
 }

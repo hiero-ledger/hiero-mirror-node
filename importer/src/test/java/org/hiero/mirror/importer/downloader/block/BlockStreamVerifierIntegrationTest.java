@@ -15,6 +15,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
+import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -219,7 +220,7 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
             final long nodeId = i;
             domainBuilder
                     .nodeStake()
-                    .customize(ns -> ns.consensusTimestamp(0L).nodeId(nodeId).stake(1000))
+                    .customize(ns -> ns.id(new NodeStake.Id(0L, nodeId)).stake(1000))
                     .persist();
         }
     }

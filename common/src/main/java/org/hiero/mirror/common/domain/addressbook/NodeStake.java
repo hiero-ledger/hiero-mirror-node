@@ -101,6 +101,7 @@ public class NodeStake implements Persistable<NodeStake.Id> {
     }
 
     @AllArgsConstructor
+    @Builder
     @Data
     @NoArgsConstructor
     @With
@@ -110,17 +111,5 @@ public class NodeStake implements Persistable<NodeStake.Id> {
 
         private long consensusTimestamp;
         private long nodeId;
-    }
-
-    public static class NodeStakeBuilder {
-        public NodeStakeBuilder consensusTimestamp(long consensusTimestamp) {
-            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
-            return this;
-        }
-
-        public NodeStakeBuilder nodeId(long nodeId) {
-            this.id = (this.id == null ? new Id() : this.id).withNodeId(nodeId);
-            return this;
-        }
     }
 }

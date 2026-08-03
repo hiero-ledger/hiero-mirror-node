@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
+import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.util.ProtoUtil;
@@ -209,7 +210,13 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
 
         final var endpoint = domainBuilder
                 .addressBookServiceEndpoint()
-                .customize(e -> e.consensusTimestamp(CONSENSUS_TIMESTAMP).nodeId(addressBookEntry.getNodeId()))
+                .customize(e -> e.id(AddressBookServiceEndpoint.Id.builder()
+                        .consensusTimestamp(CONSENSUS_TIMESTAMP)
+                        .nodeId(addressBookEntry.getNodeId())
+                        .ipAddressV4("10.0.0.1")
+                        .port(50211)
+                        .domainName("")
+                        .build()))
                 .persist();
         addressBookEntry.getServiceEndpoints().add(endpoint);
         return addressBookEntry;
@@ -223,11 +230,13 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
 
         final var endpoint = domainBuilder
                 .addressBookServiceEndpoint()
-                .customize(e -> e.consensusTimestamp(CONSENSUS_TIMESTAMP)
+                .customize(e -> e.id(AddressBookServiceEndpoint.Id.builder()
+                        .consensusTimestamp(CONSENSUS_TIMESTAMP)
                         .nodeId(addressBookEntry.getNodeId())
                         .domainName(domainName)
                         .ipAddressV4(ipAddress)
-                        .port(port))
+                        .port(port)
+                        .build()))
                 .persist();
         addressBookEntry.getServiceEndpoints().add(endpoint);
         return addressBookEntry;

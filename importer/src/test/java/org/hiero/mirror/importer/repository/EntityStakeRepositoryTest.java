@@ -75,12 +75,13 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
         domainBuilder
                 .nodeStake()
-                .customize(
-                        ns -> ns.consensusTimestamp(previousNodeStakeTimestamp).epochDay(epochDay - 1))
+                .customize(ns -> ns.id(new NodeStake.Id(previousNodeStakeTimestamp, domainBuilder.number()))
+                        .epochDay(epochDay - 1))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp).epochDay(epochDay))
+                .customize(ns -> ns.id(new NodeStake.Id(nodeStakeTimestamp, domainBuilder.number()))
+                        .epochDay(epochDay))
                 .persist();
 
         var stakingRewardAccount = domainBuilder
@@ -239,7 +240,8 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         long timestamp = DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
         domainBuilder
                 .nodeStake()
-                .customize(n -> n.consensusTimestamp(timestamp).epochDay(epochDay))
+                .customize(n -> n.id(new NodeStake.Id(timestamp, domainBuilder.number()))
+                        .epochDay(epochDay))
                 .persist();
         long balanceTimestamp = timestamp - 1000L;
         domainBuilder
@@ -267,7 +269,8 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         long timestamp = DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(timestamp).epochDay(epochDay))
+                .customize(ns -> ns.id(new NodeStake.Id(timestamp, domainBuilder.number()))
+                        .epochDay(epochDay))
                 .persist();
         domainBuilder.entity(stakingRewardAccountId, timestamp - 5000L).persist();
 
@@ -358,21 +361,17 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(previousNodeStakeTimestamp)
-                        .epochDay(epochDay - 1)
-                        .nodeId(0))
+                .customize(ns ->
+                        ns.id(new NodeStake.Id(previousNodeStakeTimestamp, 0)).epochDay(epochDay - 1))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp)
-                        .epochDay(epochDay)
-                        .nodeId(0))
+                .customize(ns -> ns.id(new NodeStake.Id(nodeStakeTimestamp, 0)).epochDay(epochDay))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(nextNodeStakeTimestamp)
-                        .epochDay(epochDay + 1)
-                        .nodeId(0))
+                .customize(
+                        ns -> ns.id(new NodeStake.Id(nextNodeStakeTimestamp, 0)).epochDay(epochDay + 1))
                 .persist();
 
         // Account balance and crypto transfer before nodeStakeTimestamp
@@ -466,7 +465,8 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp).epochDay(epochDay))
+                .customize(ns -> ns.id(new NodeStake.Id(nodeStakeTimestamp, domainBuilder.number()))
+                        .epochDay(epochDay))
                 .persist();
         final var stakingRewardAccount = domainBuilder
                 .entity(stakingRewardAccountId, nodeStakeTimestamp - 10)
@@ -511,7 +511,8 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp).epochDay(epochDay))
+                .customize(ns -> ns.id(new NodeStake.Id(nodeStakeTimestamp, domainBuilder.number()))
+                        .epochDay(epochDay))
                 .persist();
         final var stakingRewardAccount = domainBuilder
                 .entity(stakingRewardAccountId, nodeStakeTimestamp - 10)
@@ -562,7 +563,8 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp).epochDay(epochDay))
+                .customize(ns -> ns.id(new NodeStake.Id(nodeStakeTimestamp, domainBuilder.number()))
+                        .epochDay(epochDay))
                 .persist();
         final var stakingRewardAccount = domainBuilder
                 .entity(stakingRewardAccountId, nodeStakeTimestamp - 10)
@@ -732,7 +734,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         long timestamp = domainBuilder.timestamp();
         var nodeStake = domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(timestamp).nodeId(1L).rewardRate(0L))
+                .customize(ns -> ns.id(new NodeStake.Id(timestamp, 1L)).rewardRate(0L))
                 .persist();
         // account balance
         long balanceTimestamp = nodeStake.getConsensusTimestamp() - 1000L;
@@ -927,16 +929,14 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp)
+                .customize(ns -> ns.id(new NodeStake.Id(nodeStakeTimestamp, 1L))
                         .epochDay(nodeStakeEpochDay)
-                        .nodeId(1L)
                         .rewardRate(10L))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp)
+                .customize(ns -> ns.id(new NodeStake.Id(nodeStakeTimestamp, 2L))
                         .epochDay(nodeStakeEpochDay)
-                        .nodeId(2L)
                         .rewardRate(0L))
                 .persist();
         domainBuilder
@@ -946,15 +946,13 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         // The following two are old NodeStake, which shouldn't be used in pending reward calculation
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.epochDay(previousNodeStakeEpochDay)
-                        .consensusTimestamp(nodeStakeTimestamp - 100)
-                        .nodeId(1L))
+                .customize(
+                        ns -> ns.epochDay(previousNodeStakeEpochDay).id(new NodeStake.Id(nodeStakeTimestamp - 100, 1L)))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.epochDay(previousNodeStakeEpochDay)
-                        .consensusTimestamp(nodeStakeTimestamp - 100)
-                        .nodeId(2L))
+                .customize(
+                        ns -> ns.epochDay(previousNodeStakeEpochDay).id(new NodeStake.Id(nodeStakeTimestamp - 100, 2L)))
                 .persist();
         existingEntityStake.setTimestampUpper(nodeStakeTimestamp);
 
@@ -1020,26 +1018,23 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         long rewardRateDiff = forfeitedRewardRate - latestRewardRate;
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(forfeitedNodeStakeTimestamp)
+                .customize(ns -> ns.id(new NodeStake.Id(forfeitedNodeStakeTimestamp, 0L))
                         .epochDay(forfeitedStakingPeriod)
-                        .nodeId(0L)
                         .rewardRate(forfeitedRewardRate))
                 .persist();
         if (multipleNodeStakeUpdatesOnForfeitedPeriod) {
             domainBuilder
                     .nodeStake()
-                    .customize(ns -> ns.consensusTimestamp(forfeitedNodeStakeTimestamp + 1)
+                    .customize(ns -> ns.id(new NodeStake.Id(forfeitedNodeStakeTimestamp + 1, 0L))
                             .epochDay(forfeitedStakingPeriod)
-                            .nodeId(0L)
                             .rewardRate(forfeitedRewardRate))
                     .persist();
         }
 
         var nodeStake = domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp)
+                .customize(ns -> ns.id(new NodeStake.Id(nodeStakeTimestamp, 0L))
                         .epochDay(epochDay)
-                        .nodeId(0L)
                         .rewardRate(200))
                 .persist();
         var accountStake = domainBuilder
@@ -1143,16 +1138,14 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(forfeitedNodeStakeTimestamp)
+                .customize(ns -> ns.id(new NodeStake.Id(forfeitedNodeStakeTimestamp, 0L))
                         .epochDay(forfeitedStakingPeriod)
-                        .nodeId(0L)
                         .rewardRate(300))
                 .persist();
         final var nodeStake = domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp)
+                .customize(ns -> ns.id(new NodeStake.Id(nodeStakeTimestamp, 0L))
                         .epochDay(epochDay)
-                        .nodeId(0L)
                         .rewardRate(200))
                 .persist();
 

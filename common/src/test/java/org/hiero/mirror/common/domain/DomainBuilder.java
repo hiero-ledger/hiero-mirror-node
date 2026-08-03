@@ -226,9 +226,9 @@ public class DomainBuilder {
         builder.serviceEndpoints(serviceEndpoints);
 
         for (int i = 0; i < endpoints; ++i) {
-            var endpoint = addressBookServiceEndpoint()
-                    .customize(a -> a.consensusTimestamp(consensusTimestamp).nodeId(nodeId))
-                    .get();
+            var endpoint = addressBookServiceEndpoint().get();
+            endpoint.setConsensusTimestamp(consensusTimestamp);
+            endpoint.setNodeId(nodeId);
             serviceEndpoints.add(endpoint);
         }
 
@@ -245,11 +245,13 @@ public class DomainBuilder {
         }
 
         var builder = AddressBookServiceEndpoint.builder()
-                .consensusTimestamp(timestamp())
-                .ipAddressV4(ipAddress)
-                .nodeId(number())
-                .domainName("")
-                .port(50211);
+                .id(AddressBookServiceEndpoint.Id.builder()
+                        .consensusTimestamp(timestamp())
+                        .ipAddressV4(ipAddress)
+                        .nodeId(number())
+                        .domainName("")
+                        .port(50211)
+                        .build());
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -280,10 +282,12 @@ public class DomainBuilder {
                 .callerType(CONTRACT)
                 .callOperationType(CallOperationType.OP_CALL.getNumber())
                 .callType(ContractActionType.CALL.getNumber())
-                .consensusTimestamp(timestamp())
+                .id(ContractAction.Id.builder()
+                        .consensusTimestamp(timestamp())
+                        .index((int) number())
+                        .build())
                 .gas(100L)
                 .gasUsed(50L)
-                .index((int) number())
                 .input(bytes(256))
                 .payerAccountId(entityId())
                 .recipientAccount(entityId())
@@ -836,11 +840,13 @@ public class DomainBuilder {
         long timestamp = timestamp();
 
         var builder = NodeStake.builder()
-                .consensusTimestamp(timestamp)
+                .id(NodeStake.Id.builder()
+                        .consensusTimestamp(timestamp)
+                        .nodeId(number())
+                        .build())
                 .epochDay(getEpochDay(timestamp))
                 .maxStake(maxStake)
                 .minStake(maxStake / 2L)
-                .nodeId(number())
                 .rewardRate(number())
                 .stake(stake)
                 .stakeNotRewarded(TINYBARS_IN_ONE_HBAR)
