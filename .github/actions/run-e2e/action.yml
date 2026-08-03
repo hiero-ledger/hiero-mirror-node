@@ -23,14 +23,14 @@ runs:
         {
           echo "LC_ALL=C.UTF-8"
           echo "IMAGE_REGISTRY=ghcr.io/hiero-ledger/hiero-mirror-node"
-          echo "BLOCK_NODE_VERSION=v0.39.0"
+          echo "BLOCK_NODE_VERSION=v0.38.1"
           echo "CONSENSUS_NODE_VERSION=v0.75.1"
           echo "HELM_RELEASE_NAME=mirror-1"
           echo "SOLO_CLUSTER_NAME=test"
           echo "SOLO_NAMESPACE=mirror"
           echo "SOLO_CLUSTER_SETUP_NAMESPACE=solo"
           echo "SOLO_DEPLOYMENT=solo-deployment"
-          echo "SOLO_VERSION=v0.84.0"
+          echo "SOLO_VERSION=v0.77.0"
         } >> "$GITHUB_ENV"
 
     - name: Setup Node
