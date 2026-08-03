@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.evm.contracts.operations;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 import java.util.Optional;
@@ -12,14 +13,18 @@ import org.apache.tuweni.units.bigints.UInt256;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.evm.fluent.SimpleBlockValues;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -36,10 +41,18 @@ class MirrorBlockHashOperationTest {
     private GasCalculator gasCalculator;
 
     @Mock
+    private EvmProperties evmProperties;
+
+    @Mock
     private RecordFileRepository recordFileRepository;
 
     @InjectMocks
     private MirrorBlockHashOperation operation;
+
+    @BeforeEach
+    void setup() {
+        lenient().when(evmProperties.getBlockHashWindow()).thenReturn(256L);
+    }
 
     @Test
     void invalid() {
@@ -137,6 +150,37 @@ class MirrorBlockHashOperationTest {
                 .isNull();
         verify(messageFrame)
                 .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {1L, -255L, -256L})
+    void lookbackWindow(long offset) {
+        // Given
+        var currentBlockNumber = 10_000L;
+        var soughtBlock = currentBlockNumber + offset;
+        var recordFile =
+                domainBuilder.recordFile().customize(r -> r.index(soughtBlock)).get();
+        var blockValues = new SimpleBlockValues();
+        blockValues.setNumber(currentBlockNumber);
+        given(messageFrame.popStackItem()).willReturn(Bytes.ofUnsignedLong(soughtBlock));
+        given(messageFrame.getBlockValues()).willReturn(blockValues);
+        lenient().when(recordFileRepository.findByIndex(soughtBlock)).thenReturn(Optional.of(recordFile));
+
+        // When
+        var result = operation.execute(messageFrame, null);
+
+        // Then
+        assertThat(result)
+                .isNotNull()
+                .extracting(OperationResult::getHaltReason)
+                .isNull();
+        boolean withinWindow = soughtBlock <= currentBlockNumber && offset > -256L;
+        if (withinWindow) {
+            verify(messageFrame)
+                    .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64)));
+        } else {
+            verify(messageFrame).pushStackItem(UInt256.ZERO);
+        }
     }
 
     @Test
