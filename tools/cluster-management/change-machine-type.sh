@@ -61,6 +61,7 @@ do
  unrouteTraffic "${namespace}"
  pauseCitus "${namespace}"
 done
+captureCitusPoolTotals
 resizeCitusNodePools 0
 for pool in "${POOLS_TO_UPDATE[@]}"
 do
