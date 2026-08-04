@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Data;
+import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -48,6 +49,7 @@ public class CacheProperties {
      * Bounds hangs when the owning thread is stuck.
      */
     @NotNull
+    @DurationMin(seconds = 1)
     private Duration inFlightWaitTimeout = Duration.ofSeconds(2);
 
     /**
