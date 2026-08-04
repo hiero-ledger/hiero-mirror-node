@@ -93,7 +93,7 @@ final class FileServiceTest extends RestJavaIntegrationTest {
                     .persist();
 
             // when
-            final var actual = service.getSimpleFeeSchedule(Bound.EMPTY);
+            final var actual = service.getFeeSchedule(Bound.EMPTY);
 
             // then
             assertThat(actual.data()).isEqualTo(expected);
@@ -102,8 +102,7 @@ final class FileServiceTest extends RestJavaIntegrationTest {
         @Test
         void notFound() {
             // when / then
-            assertThatThrownBy(() -> service.getSimpleFeeSchedule(Bound.EMPTY))
-                    .isInstanceOf(EntityNotFoundException.class);
+            assertThatThrownBy(() -> service.getFeeSchedule(Bound.EMPTY)).isInstanceOf(EntityNotFoundException.class);
         }
 
         @Test
@@ -116,8 +115,7 @@ final class FileServiceTest extends RestJavaIntegrationTest {
                     .persist();
 
             // when / then
-            assertThatThrownBy(() -> service.getSimpleFeeSchedule(Bound.EMPTY))
-                    .isInstanceOf(EntityNotFoundException.class);
+            assertThatThrownBy(() -> service.getFeeSchedule(Bound.EMPTY)).isInstanceOf(EntityNotFoundException.class);
         }
     }
 

@@ -10,5 +10,5 @@ public interface FileService {
 
     SystemFile<ExchangeRateSet> getExchangeRate(Bound timestamp);
 
-    SystemFile<FeeSchedule> getSimpleFeeSchedule(Bound timestamp);
+    SystemFile<FeeSchedule> getFeeSchedule(Bound timestamp);
 }

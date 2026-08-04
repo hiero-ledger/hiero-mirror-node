@@ -21,6 +21,9 @@ import org.springframework.validation.annotation.Validated;
 public class RestJavaProperties {
 
     @NotNull
+    private HederaNetwork network = HederaNetwork.TESTNET;
+
+    @NotNull
     @Valid
     private ResponseConfig response = new ResponseConfig();
 
@@ -62,6 +65,20 @@ public class RestJavaProperties {
 
         public Map<String, String> getHeadersForPath(String apiPath) {
             return apiPath == null ? defaults : path.getOrDefault(apiPath, defaults);
+        }
+    }
+
+    public enum HederaNetwork {
+        DEMO("demo"),
+        MAINNET("mainnet"),
+        PREVIEWNET("previewnet"),
+        TESTNET("testnet"),
+        OTHER("other");
+
+        private final String name;
+
+        HederaNetwork(String name) {
+            this.name = name;
         }
     }
 }

@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.service;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import jakarta.inject.Named;
 import jakarta.persistence.EntityNotFoundException;
@@ -18,7 +19,10 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.restjava.RestJavaProperties;
+import org.hiero.mirror.restjava.RestJavaProperties.HederaNetwork;
 import org.hiero.mirror.restjava.dto.SystemFile;
+import org.hiero.mirror.restjava.mapper.FeeScheduleMapper;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
 import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryPolicy;
@@ -30,9 +34,13 @@ import org.springframework.util.function.ThrowingFunction;
 @RequiredArgsConstructor
 final class FileServiceImpl implements FileService {
 
+    static final long MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP = 1779296400389248896L;
+
     private final FileDataRepository fileDataRepository;
     private final QueryProperties queryProperties;
     private final SystemEntity systemEntity;
+    private final FeeScheduleMapper feeScheduleMapper;
+    private final RestJavaProperties restJavaProperties;
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
@@ -51,7 +59,20 @@ final class FileServiceImpl implements FileService {
     }
 
     @Override
-    public SystemFile<FeeSchedule> getSimpleFeeSchedule(Bound timestamp) {
+    public SystemFile<FeeSchedule> getFeeSchedule(Bound timestamp) {
+        // For historical calls we need to call the legacy fee schedule file. Supported only for mainnet. The rest of
+        // the networks default to the new simple fee schedule file.
+        if (restJavaProperties.getNetwork() == HederaNetwork.MAINNET
+                && timestamp.adjustUpperBound() < MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP) {
+            final var legacyFeeSchedule =
+                    getSystemFile(systemEntity.feeScheduleFile(), timestamp, CurrentAndNextFeeSchedule::parseFrom);
+
+            final var simpleFeeSchedule = feeScheduleMapper.map(
+                    legacyFeeSchedule.data(), legacyFeeSchedule.fileData().getConsensusTimestamp());
+
+            return new SystemFile<>(legacyFeeSchedule.fileData(), simpleFeeSchedule);
+        }
+
         return getSystemFile(
                 systemEntity.simpleFeeScheduleFile(),
                 timestamp,
