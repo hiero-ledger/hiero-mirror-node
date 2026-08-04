@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
@@ -16,6 +17,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -26,9 +28,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.DecoderException;
@@ -51,6 +55,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.cache.interceptor.SimpleKey;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 @RequiredArgsConstructor
@@ -547,6 +552,199 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
+    void verifyInFlightWaitTimeoutUsesCachedValueWhenAvailable() throws Exception {
+        // Given: owner holds the batch query while a waiter times out after the value is already cached
+        cacheProperties.setInFlightWaitTimeout(Duration.ofMillis(100));
+
+        final var contract = persistContract();
+        final var slot = generateSlotKey(1);
+        final byte[] value = Hex.decodeHex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        final var contractId = contract.toEntityId();
+
+        final var enteredBatch = new CountDownLatch(1);
+        final var releaseBatch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+                    enteredBatch.countDown();
+                    if (!releaseBatch.await(2, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Timed out waiting to release batch query");
+                    }
+                    return List.of(new ContractSlotValue(slot, value));
+                })
+                .when(contractStateRepository)
+                .findStorageBatch(anyLong(), any());
+
+        final var executor = Executors.newFixedThreadPool(2);
+        final var owner = executor.submit(() -> contractStateService.findStorage(contractId, slot));
+        assertThat(enteredBatch.await(2, TimeUnit.SECONDS)).isTrue();
+        clearInvocations(contractStateRepository);
+
+        // Populate the value cache while the owner is still in flight
+        cacheManagerContractState.getCache(CACHE_NAME).put(new SimpleKey(contractId.getId(), slot), value);
+
+        // When: waiter times out and finds the value already cached
+        final var waiterResult = executor.submit(() -> contractStateService.findStorage(contractId, slot))
+                .get(2, TimeUnit.SECONDS);
+
+        // Then
+        assertThat(waiterResult).get().isEqualTo(value);
+        verify(contractStateRepository, never()).findStorage(eq(contractId.getId()), any());
+        verify(contractStateRepository, never()).findStorageBatch(anyLong(), any());
+
+        releaseBatch.countDown();
+        assertThat(owner.get(2, TimeUnit.SECONDS)).get().isEqualTo(value);
+        executor.shutdown();
+    }
+
+    @Test
+    void verifyBatchFailurePropagatesToOwnerAndWaitersAndReleasesInFlight() throws Exception {
+        // Given
+        final var contract = persistContract();
+        final var slot = generateSlotKey(1);
+        final byte[] value = Hex.decodeHex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        final var contractId = contract.toEntityId();
+        final var batchFailure = new IllegalStateException("batch query failed");
+
+        final var enteredBatch = new CountDownLatch(1);
+        final var releaseBatch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+                    enteredBatch.countDown();
+                    if (!releaseBatch.await(2, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Timed out waiting to release batch query");
+                    }
+                    throw batchFailure;
+                })
+                .doAnswer(invocation -> List.of(new ContractSlotValue(slot, value)))
+                .when(contractStateRepository)
+                .findStorageBatch(anyLong(), any());
+
+        final var executor = Executors.newFixedThreadPool(2);
+        final var owner = executor.submit(() -> contractStateService.findStorage(contractId, slot));
+        assertThat(enteredBatch.await(2, TimeUnit.SECONDS)).isTrue();
+
+        // When: waiter joins the failing in-flight load
+        final var waiter = executor.submit(() -> contractStateService.findStorage(contractId, slot));
+        Thread.sleep(100);
+        releaseBatch.countDown();
+
+        // Then: owner and waiter both observe the batch failure (waiter via ExecutionException unwrap)
+        assertThatThrownBy(() -> unwrapExecutionException(owner)).isSameAs(batchFailure);
+        assertThatThrownBy(() -> unwrapExecutionException(waiter)).isSameAs(batchFailure);
+
+        // And: in-flight state was released so a later lookup can succeed
+        assertThat(contractStateService.findStorage(contractId, slot)).get().isEqualTo(value);
+        executor.shutdown();
+    }
+
+    @Test
+    void verifyTimeoutFallbackFindStorageFailurePropagates() throws Exception {
+        // Given
+        cacheProperties.setInFlightWaitTimeout(Duration.ofMillis(100));
+
+        final var contract = persistContract();
+        final var slot = generateSlotKey(1);
+        final var contractId = contract.toEntityId();
+        final var fallbackFailure = new IllegalStateException("direct fallback failed");
+
+        final var enteredBatch = new CountDownLatch(1);
+        final var releaseBatch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+                    enteredBatch.countDown();
+                    if (!releaseBatch.await(2, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Timed out waiting to release batch query");
+                    }
+                    return List.of();
+                })
+                .when(contractStateRepository)
+                .findStorageBatch(anyLong(), any());
+        doThrow(fallbackFailure).when(contractStateRepository).findStorage(eq(contractId.getId()), any());
+
+        final var executor = Executors.newFixedThreadPool(2);
+        final var owner = executor.submit(() -> contractStateService.findStorage(contractId, slot));
+        assertThat(enteredBatch.await(2, TimeUnit.SECONDS)).isTrue();
+
+        // When: waiter times out and the direct fallback query fails
+        assertThatThrownBy(() -> executor.submit(() -> contractStateService.findStorage(contractId, slot))
+                        .get(2, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class)
+                .cause()
+                .isSameAs(fallbackFailure);
+
+        releaseBatch.countDown();
+        assertThat(owner.get(2, TimeUnit.SECONDS)).isEmpty();
+        executor.shutdown();
+    }
+
+    @Test
+    void verifyInterruptedWaiterThrowsIllegalStateException() throws Exception {
+        // Given
+        final var contract = persistContract();
+        final var slot = generateSlotKey(1);
+        final var contractId = contract.toEntityId();
+
+        final var enteredBatch = new CountDownLatch(1);
+        final var releaseBatch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+                    enteredBatch.countDown();
+                    if (!releaseBatch.await(2, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Timed out waiting to release batch query");
+                    }
+                    return List.of();
+                })
+                .when(contractStateRepository)
+                .findStorageBatch(anyLong(), any());
+
+        final var executor = Executors.newFixedThreadPool(2);
+        final var owner = executor.submit(() -> contractStateService.findStorage(contractId, slot));
+        assertThat(enteredBatch.await(2, TimeUnit.SECONDS)).isTrue();
+
+        final var thrown = new AtomicReference<Throwable>();
+        final var waiterStarted = new CountDownLatch(1);
+        final var waiter = new Thread(() -> {
+            waiterStarted.countDown();
+            try {
+                contractStateService.findStorage(contractId, slot);
+            } catch (final Throwable t) {
+                thrown.set(t);
+            }
+        });
+        waiter.start();
+        assertThat(waiterStarted.await(2, TimeUnit.SECONDS)).isTrue();
+        // Allow the waiter to enter future.get before interrupting
+        Thread.sleep(100);
+
+        // When
+        waiter.interrupt();
+        waiter.join(2_000);
+
+        // Then
+        assertThat(thrown.get())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Interrupted while waiting for contract storage load")
+                .cause()
+                .isInstanceOf(InterruptedException.class);
+
+        releaseBatch.countDown();
+        assertThat(owner.get(2, TimeUnit.SECONDS)).isEmpty();
+        executor.shutdown();
+    }
+
+    @Test
+    void verifyBatchDisabledFindStorageFailurePropagates() {
+        // Given
+        cacheProperties.setEnableBatchContractSlotCaching(false);
+        final var contract = persistContract();
+        final var slot = generateSlotKey(1);
+        final var contractId = contract.toEntityId();
+        final var failure = new IllegalStateException("direct storage query failed");
+        doThrow(failure).when(contractStateRepository).findStorage(eq(contractId.getId()), any());
+
+        // When / Then
+        assertThatThrownBy(() -> contractStateService.findStorage(contractId, slot))
+                .isSameAs(failure);
+        verify(contractStateRepository, never()).findStorageBatch(anyLong(), any());
+    }
+
+    @Test
     void verifyConcurrentBatchSlotLoadingReturnsCorrectValuesWithFourConcurrentValues() throws Exception {
         // Given
         try {
@@ -755,6 +953,24 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         for (final var state : slotKeyValuePairs) {
             final var result = contractStateService.findStorage(contract.toEntityId(), state.getSlot());
             assertThat(result.get()).isEqualTo(state.getValue());
+        }
+    }
+
+    private static <T> T unwrapExecutionException(final Future<T> future) throws Exception {
+        try {
+            return future.get(2, TimeUnit.SECONDS);
+        } catch (final ExecutionException e) {
+            final var cause = e.getCause();
+            if (cause instanceof Error error) {
+                throw error;
+            }
+            if (cause instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            if (cause instanceof Exception exception) {
+                throw exception;
+            }
+            throw e;
         }
     }
 }

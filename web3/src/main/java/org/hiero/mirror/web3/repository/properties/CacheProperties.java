@@ -30,6 +30,14 @@ public class CacheProperties {
     @NotBlank
     private String contractState = "expireAfterWrite=2s,maximumSize=25000,recordStats";
 
+    /**
+     * Caffeine spec for the in-flight LoadingCache. Presence of a key means a request is already loading that slot;
+     * value is the shared {@code CompletableFuture} waiters coalesce on. {@code expireAfterWrite} is a safety net for
+     * abandoned futures and is kept well above {@link #inFlightWaitTimeout}.
+     */
+    @NotBlank
+    private String contractStateInFlight = "expireAfterWrite=5s,maximumSize=5000,recordStats";
+
     private boolean enableBatchContractSlotCaching = true;
 
     @NotBlank
@@ -40,7 +48,7 @@ public class CacheProperties {
      * Bounds hangs when the owning thread is stuck.
      */
     @NotNull
-    private Duration inFlightWaitTimeout = Duration.ofSeconds(5);
+    private Duration inFlightWaitTimeout = Duration.ofSeconds(2);
 
     /**
      * The maximum number of contract storage slot keys loaded (and searched) in a single {@code findStorageBatch}
