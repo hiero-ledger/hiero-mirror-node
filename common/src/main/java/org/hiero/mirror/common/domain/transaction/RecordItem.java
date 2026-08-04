@@ -42,7 +42,7 @@ import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.domain.contract.ContractTransaction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
-import org.hiero.mirror.common.domain.hook.Hook;
+import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.util.Version;
@@ -132,15 +132,14 @@ public class RecordItem implements StreamItem {
     // Transient hook execution queue for CryptoTransfer transactions that may trigger hooks
     @NonFinal
     @Setter
-    private ArrayDeque<Hook.Id> hookExecutionQueue;
+    private ArrayDeque<AbstractHook.Id> hookExecutionQueue;
 
     /**
-     * Gets the next hook context from the execution queue, delegating to the parent record item when this item has no
-     * queue of its own. Returns null if no more contexts are available.
+     * Gets the next hook context from the execution queue. Returns null if no more contexts are available.
      *
      * @return the next hook execution context, or null if queue is empty
      */
-    public Hook.Id nextHookContext() {
+    public AbstractHook.Id nextHookContext() {
         if (hookExecutionQueue == null) {
             return parent != null ? parent.nextHookContext() : null;
         }

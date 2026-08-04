@@ -19,7 +19,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 @Data
 @Table
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @NoArgsConstructor
 @Builder(toBuilder = true)
 @Upsertable

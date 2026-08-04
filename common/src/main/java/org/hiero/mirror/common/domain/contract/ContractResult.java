@@ -93,7 +93,7 @@ public class ContractResult implements Persistable<Long> {
                 .consensusTimestamp(consensusTimestamp)
                 .hash(transactionHash)
                 .entityId(contractId)
-                .payerAccountId(payerAccountId != null ? payerAccountId.getId() : null)
+                .payerAccountId(payerAccountId.getId())
                 .transactionResult(transactionResult)
                 .build();
     }

@@ -21,7 +21,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Data
 @Table
 @NoArgsConstructor
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 public class AddressBook {
 
     // consensusTimestamp + 1ns of transaction containing final fileAppend operation

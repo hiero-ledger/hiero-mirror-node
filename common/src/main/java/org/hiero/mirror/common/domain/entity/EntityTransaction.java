@@ -15,7 +15,7 @@ import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @Builder(toBuilder = true)
 @Data
 @Table
@@ -61,7 +61,7 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true;
+        return true; // Since we never update and use a natural ID, avoid Spring Data JDBC querying before insert
     }
 
     @AllArgsConstructor

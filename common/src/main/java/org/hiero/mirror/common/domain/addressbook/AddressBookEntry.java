@@ -60,7 +60,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Data
 @Table
 @NoArgsConstructor
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
 
     private String description;
@@ -123,7 +123,7 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true;
+        return true; // Since we never update and use a natural ID, avoid Spring Data JDBC querying before insert
     }
 
     @Data

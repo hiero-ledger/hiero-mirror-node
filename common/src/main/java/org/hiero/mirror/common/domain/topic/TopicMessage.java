@@ -65,7 +65,7 @@ public class TopicMessage implements Comparable<TopicMessage>, Persistable<Long>
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Optimizes ingestion performance
+        return true; // Since we never update and use a natural ID, avoid Spring Data JDBC querying before insert
     }
 
     @Override

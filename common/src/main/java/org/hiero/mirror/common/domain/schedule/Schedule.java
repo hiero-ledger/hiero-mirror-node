@@ -14,7 +14,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @Builder
 @Data
 @Table

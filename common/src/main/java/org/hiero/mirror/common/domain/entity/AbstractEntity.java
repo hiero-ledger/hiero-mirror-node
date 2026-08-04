@@ -6,10 +6,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
 import java.sql.Date;
 import java.util.concurrent.TimeUnit;
-import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
@@ -75,13 +73,11 @@ public abstract class AbstractEntity implements History {
     @Id
     private Long id;
 
-    @Setter(AccessLevel.NONE)
     @ToString.Exclude
     private byte[] key;
 
     private Integer maxAutomaticTokenAssociations;
 
-    @Setter(AccessLevel.NONE)
     private String memo;
 
     @UpsertColumn(updatable = false)
@@ -129,21 +125,16 @@ public abstract class AbstractEntity implements History {
         this.entityType = type;
     }
 
-    public EntityId toEntityId() {
-        return id == null ? EntityId.EMPTY : EntityId.of(id);
-    }
-
-    private static String getPublicKey(@Nullable byte[] protobufKey) {
-        if (protobufKey == null) {
-            return null;
+    public void addBalance(Long balance) {
+        if (balance == null) {
+            return;
         }
 
-        var publicKey = DomainUtils.getPublicKey(protobufKey);
-        return publicKey != null ? publicKey : CLEAR_PUBLIC_KEY;
-    }
-
-    public void setMemo(String memo) {
-        this.memo = DomainUtils.sanitize(memo);
+        if (this.balance == null) {
+            this.balance = balance;
+        } else {
+            this.balance += balance;
+        }
     }
 
     /**
@@ -159,16 +150,12 @@ public abstract class AbstractEntity implements History {
         publicKey = getPublicKey(key);
     }
 
-    public void addBalance(Long balance) {
-        if (balance == null) {
-            return;
-        }
+    public void setMemo(String memo) {
+        this.memo = DomainUtils.sanitize(memo);
+    }
 
-        if (this.balance == null) {
-            this.balance = balance;
-        } else {
-            this.balance += balance;
-        }
+    public EntityId toEntityId() {
+        return EntityId.of(shard, realm, num);
     }
 
     @JsonIgnore
@@ -184,7 +171,17 @@ public abstract class AbstractEntity implements History {
         return DEFAULT_EXPIRY_TIMESTAMP;
     }
 
+    private static String getPublicKey(@Nullable byte[] protobufKey) {
+        if (protobufKey == null) {
+            return null;
+        }
+
+        var publicKey = DomainUtils.getPublicKey(protobufKey);
+        return publicKey != null ? publicKey : CLEAR_PUBLIC_KEY;
+    }
+
     @SuppressWarnings("java:S1610")
+    // Necessary since Lombok doesn't use our setters for builders
     public abstract static class AbstractEntityBuilder<
             C extends AbstractEntity, B extends AbstractEntityBuilder<C, B>> {
         public B key(byte[] key) {

@@ -18,7 +18,7 @@ import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @Builder
 @Data
 @Table
@@ -118,14 +118,14 @@ public class EthereumTransaction implements Persistable<Long> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true;
+        return true; // Since we never update and use a natural ID, avoid Spring Data JDBC querying before insert
     }
 
     public TransactionHash toTransactionHash() {
         return TransactionHash.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .hash(hash)
-                .payerAccountId(payerAccountId != null ? payerAccountId.getId() : null)
+                .payerAccountId(payerAccountId.getId())
                 .build();
     }
 

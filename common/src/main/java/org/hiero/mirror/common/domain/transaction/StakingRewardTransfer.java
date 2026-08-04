@@ -68,7 +68,7 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true;
+        return true; // Since we never update and use a natural ID, avoid Spring Data JDBC querying before insert
     }
 
     @AllArgsConstructor
