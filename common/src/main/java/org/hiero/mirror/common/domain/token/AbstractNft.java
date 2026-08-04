@@ -17,6 +17,7 @@ import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 @Data
 @NoArgsConstructor
@@ -30,7 +31,7 @@ public abstract class AbstractNft implements History {
     @UpsertColumn(coalesce = "case when deleted = true then null else coalesce({0}, e_{0}, {1}) end")
     private EntityId accountId;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private Long createdTimestamp;
 
     @UpsertColumn(coalesce = "case when {0} is not null and {0} = 0 then e_{0} else {0} end")

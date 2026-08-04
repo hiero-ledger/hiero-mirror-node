@@ -11,10 +11,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.With;
-import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
@@ -31,7 +31,7 @@ public class ContractState {
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private long createdTimestamp;
 
     private long modifiedTimestamp;

@@ -27,6 +27,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.jdbc.core.JdbcOperations;
 
@@ -112,7 +113,7 @@ public final class EntityMetadataRegistry {
 
         var getter = getter(field);
         var setter = setter(field);
-        boolean updatable = !id && (upsertColumn == null || upsertColumn.updatable());
+        boolean updatable = !id && field.getAnnotation(InsertOnlyProperty.class) == null;
         return new ColumnMetadata(
                 columnSchema.getColumnDefault(),
                 getter,

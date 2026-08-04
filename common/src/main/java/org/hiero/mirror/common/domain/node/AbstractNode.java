@@ -18,6 +18,7 @@ import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 @Data
 @NoArgsConstructor
@@ -30,7 +31,7 @@ public abstract class AbstractNode implements History {
     @ToString.Exclude
     private byte[] adminKey;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private Long createdTimestamp;
 
     private Boolean declineReward;

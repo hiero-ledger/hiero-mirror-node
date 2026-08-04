@@ -8,10 +8,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
@@ -22,28 +22,28 @@ import org.springframework.data.relational.core.mapping.Table;
 @Upsertable
 public class Schedule {
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private Long consensusTimestamp;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private EntityId creatorAccountId;
 
     private Long executedTimestamp;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private Long expirationTime;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private EntityId payerAccountId;
 
     @Id
     private Long scheduleId;
 
     @ToString.Exclude
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private byte[] transactionBody;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private boolean waitForExpiry;
 
     public void setScheduleId(EntityId scheduleId) {

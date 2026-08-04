@@ -13,10 +13,10 @@ import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.History;
-import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 @Data
 @NoArgsConstructor
@@ -27,7 +27,7 @@ public abstract class AbstractRegisteredNode implements History {
     @ToString.Exclude
     private byte[] adminKey;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private Long createdTimestamp;
 
     private boolean deleted;

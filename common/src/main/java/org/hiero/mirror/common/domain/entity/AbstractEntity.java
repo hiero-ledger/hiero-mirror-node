@@ -18,6 +18,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 @Data
 @NoArgsConstructor
@@ -33,7 +34,7 @@ public abstract class AbstractEntity implements History {
     private static final String CLEAR_PUBLIC_KEY = StringUtils.EMPTY;
 
     @ToString.Exclude
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private byte[] alias;
 
     private Long autoRenewAccountId;
@@ -48,7 +49,7 @@ public abstract class AbstractEntity implements History {
 
     private Long balanceTimestamp;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private Long createdTimestamp;
 
     private Boolean declineReward;
@@ -65,7 +66,7 @@ public abstract class AbstractEntity implements History {
     private Long ethereumNonce;
 
     @ToString.Exclude
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private byte[] evmAddress;
 
     private Long expirationTimestamp;
@@ -80,7 +81,7 @@ public abstract class AbstractEntity implements History {
 
     private String memo;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private Long num;
 
     private EntityId obtainerId;
@@ -96,12 +97,12 @@ public abstract class AbstractEntity implements History {
                             end""")
     private String publicKey;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private Long realm;
 
     private Boolean receiverSigRequired;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private Long shard;
 
     private Long stakedAccountId;

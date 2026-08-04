@@ -13,6 +13,7 @@ import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 @Data
 @NoArgsConstructor
@@ -20,34 +21,34 @@ import org.springframework.data.annotation.Id;
 @Upsertable(history = true, skipPartialUpdate = true)
 public abstract class AbstractToken implements History {
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private Long createdTimestamp;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private Integer decimals;
 
     @ToString.Exclude
     private byte[] feeScheduleKey;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private Boolean freezeDefault;
 
     @ToString.Exclude
     private byte[] freezeKey;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private TokenFreezeStatusEnum freezeStatus;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private Long initialSupply;
 
     @ToString.Exclude
     private byte[] kycKey;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private TokenKycStatusEnum kycStatus;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private long maxSupply;
 
     @ToString.Exclude
@@ -66,7 +67,7 @@ public abstract class AbstractToken implements History {
     @ToString.Exclude
     private byte[] supplyKey;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private TokenSupplyTypeEnum supplyType;
 
     private String symbol;
@@ -81,7 +82,7 @@ public abstract class AbstractToken implements History {
 
     private EntityId treasuryAccountId;
 
-    @UpsertColumn(updatable = false)
+    @InsertOnlyProperty
     private TokenTypeEnum type;
 
     @ToString.Exclude
