@@ -115,9 +115,6 @@ public class CommonTestConfiguration {
                 .withDatabaseName("mirror_node")
                 .withLogConsumer(logConsumer)
                 .withPassword("mirror_node_pass")
-                // Bind string parameters untyped so postgres coerces them to enum columns, including nulls, which
-                // Spring Data JDBC otherwise sends as varchar
-                .withUrlParam("stringtype", "unspecified")
                 .withUsername("mirror_node");
     }
 

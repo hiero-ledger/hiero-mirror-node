@@ -2,36 +2,37 @@
 
 package org.hiero.mirror.common.converter;
 
+import java.sql.JDBCType;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.transaction.ErrataType;
 import org.postgresql.util.PGobject;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.ReadingConverter;
 import org.springframework.data.convert.WritingConverter;
+import org.springframework.data.jdbc.core.mapping.JdbcValue;
 
 public final class PostgresErrataTypeJdbcConverters {
 
     private PostgresErrataTypeJdbcConverters() {}
 
     /**
-     * Some Spring Data JDBC code paths bind enums as VARCHAR unless we explicitly provide a PGobject. Returning a
-     * {@link PGobject} ensures the driver sends the parameter as PostgreSQL enum (OTHER). This must be the only
-     * writing converter so the resolved column type is PGobject and null values also bind as OTHER instead of the
-     * enum default VARCHAR.
+     * Binds a non-null value as {@link JdbcValue} of {@link JDBCType#OTHER} so the driver sends it as the PostgreSQL
+     * enum, consistent with the other enum converters. Null enum values never reach this converter (Spring Data JDBC
+     * skips converters for nulls); those are typed as OTHER by {@code NativeEnumJdbcConverter.getTargetSqlType}.
      */
     @WritingConverter
-    public static final class ErrataTypeToPGobject implements Converter<ErrataType, PGobject> {
+    public static final class ErrataTypeToJdbcValue implements Converter<ErrataType, JdbcValue> {
 
         @Override
         @SneakyThrows
-        public PGobject convert(ErrataType source) {
+        public JdbcValue convert(ErrataType source) {
             if (source == null) {
-                return null;
+                return JdbcValue.of(null, JDBCType.OTHER);
             }
             var pg = new PGobject();
             pg.setType("errata_type");
             pg.setValue(source.name());
-            return pg;
+            return JdbcValue.of(pg, JDBCType.OTHER);
         }
     }
 

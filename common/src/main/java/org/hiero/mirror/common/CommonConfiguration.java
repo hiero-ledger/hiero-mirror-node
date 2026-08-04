@@ -17,6 +17,7 @@ import org.hiero.mirror.common.converter.JsonbReadingConverters;
 import org.hiero.mirror.common.converter.JsonbWritingConverters;
 import org.hiero.mirror.common.converter.LongArrayJdbcConverters;
 import org.hiero.mirror.common.converter.LongToEntityIdConverter;
+import org.hiero.mirror.common.converter.NativeEnumJdbcConverter;
 import org.hiero.mirror.common.converter.PGobjectToRangeReadingConverter;
 import org.hiero.mirror.common.converter.PostgresAirdropStateJdbcConverters;
 import org.hiero.mirror.common.converter.PostgresEntityTypeJdbcConverters;
@@ -45,6 +46,7 @@ import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
+import org.springframework.data.jdbc.core.convert.DefaultJdbcTypeFactory;
 import org.springframework.data.jdbc.core.convert.IdGeneratingEntityCallback;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.jdbc.core.convert.JdbcCustomConversions;
@@ -58,6 +60,7 @@ import org.springframework.data.jdbc.repository.config.DefaultQueryMappingConfig
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 import org.springframework.data.jdbc.repository.config.JdbcConfiguration;
 import org.springframework.data.mapping.callback.EntityCallbacks;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -151,8 +154,16 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
             @Lazy RelationResolver relationResolver,
             JdbcCustomConversions conversions,
             JdbcDialect dialect) {
-        return JdbcConfiguration.createConverter(
-                mappingContext, internalJdbcOperations(), relationResolver, conversions, dialect);
+        // Mirrors JdbcConfiguration.createConverter but returns a NativeEnumJdbcConverter so null values for native
+        // enum columns bind as OTHER instead of VARCHAR (see NativeEnumJdbcConverter).
+        final var jdbcOperations = internalJdbcOperations();
+        final var typeFactory =
+                new DefaultJdbcTypeFactory(jdbcOperations.getJdbcOperations(), JdbcDialect.getArraySupport(dialect));
+        final var converter = new NativeEnumJdbcConverter(mappingContext, relationResolver, conversions, typeFactory);
+        if (jdbcOperations.getJdbcOperations() instanceof JdbcTemplate jdbcTemplate) {
+            converter.setExceptionTranslator(jdbcTemplate.getExceptionTranslator());
+        }
+        return converter;
     }
 
     @Bean
@@ -234,7 +245,7 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new PostgresEntityTypeJdbcConverters.EntityTypeToJdbcValue(),
                 new PostgresEntityTypeJdbcConverters.PGobjectToEntityType(),
                 new PostgresEntityTypeJdbcConverters.StringToEntityType(),
-                new PostgresErrataTypeJdbcConverters.ErrataTypeToPGobject(),
+                new PostgresErrataTypeJdbcConverters.ErrataTypeToJdbcValue(),
                 new PostgresErrataTypeJdbcConverters.PGobjectToErrataType(),
                 new PostgresErrataTypeJdbcConverters.StringToErrataType(),
                 new PostgresHookJdbcConverters.HookExtensionPointToJdbcValue(),
