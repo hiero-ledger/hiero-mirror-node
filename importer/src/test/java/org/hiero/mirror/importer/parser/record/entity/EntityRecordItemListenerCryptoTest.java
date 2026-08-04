@@ -1514,6 +1514,109 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     }
 
     @Test
+    void cryptoTransferWithAliasHasCorrectIsApprovalValue() {
+        // given
+        entityProperties.getPersist().setTrackAllowance(true);
+        entityProperties.getPersist().setCryptoTransferAmounts(true);
+
+        var payerAccount = EntityId.of(PAYER);
+        Entity owner = domainBuilder.entity().persist();
+        var ownerAlias = DomainUtils.fromBytes(owner.getAlias());
+        var allowanceAmountGranted = 1000L;
+
+        // Persist the now pre-existing crypto allowance to be debited by the approved transfer below
+        domainBuilder
+                .cryptoAllowance()
+                .customize(ca -> ca.amountGranted(allowanceAmountGranted)
+                        .amount(allowanceAmountGranted)
+                        .owner(owner.getId())
+                        .spender(payerAccount.getId()))
+                .persist();
+
+        long transferAmount = -300L;
+        Transaction transaction = buildTransaction(r -> r.getCryptoTransferBuilder()
+                .getTransfersBuilder()
+                .addAccountAmounts(
+                        accountAliasAmount(ownerAlias, transferAmount).setIsApproval(true))
+                .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -transferAmount)));
+        TransactionBody transactionBody = getTransactionBody(transaction);
+        TransactionRecord txnRecord = buildTransactionRecordWithNoTransactions(
+                builder -> builder.getTransferListBuilder()
+                        .addAccountAmounts(accountAmount(owner.toEntityId(), transferAmount))
+                        .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -transferAmount)),
+                transactionBody,
+                ResponseCodeEnum.SUCCESS.getNumber());
+
+        var recordItem = RecordItem.builder()
+                .transactionRecord(txnRecord)
+                .transaction(transaction)
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertAll(
+                () -> assertEquals(1, transactionRepository.count()),
+                () -> assertThat(cryptoTransferRepository.findAll())
+                        .filteredOn(cryptoTransfer -> cryptoTransfer.getEntityId() == owner.getId())
+                        .singleElement()
+                        .extracting(CryptoTransfer::getIsApproval)
+                        .isEqualTo(true),
+                () -> {
+                    var cryptoAllowanceId = new Id();
+                    cryptoAllowanceId.setOwner(owner.getId());
+                    cryptoAllowanceId.setSpender(payerAccount.getId());
+                    assertThat(cryptoAllowanceRepository.findById(cryptoAllowanceId))
+                            .get()
+                            .extracting(org.hiero.mirror.common.domain.entity.CryptoAllowance::getAmount)
+                            .isEqualTo(allowanceAmountGranted + transferAmount);
+                });
+    }
+
+    @Test
+    void cryptoTransferWithAliasPayerHasCorrectPayerAccountId() {
+        // given: the transaction's payer (TransactionID.accountID) is alias-addressed instead of numeric
+        entityProperties.getPersist().setCryptoTransferAmounts(true);
+        Entity payer = domainBuilder.entity().persist();
+        var payerAlias = DomainUtils.fromBytes(payer.getAlias());
+        var payerAliasAccountId = AccountID.newBuilder()
+                .setShardNum(COMMON_PROPERTIES.getShard())
+                .setRealmNum(COMMON_PROPERTIES.getRealm())
+                .setAlias(payerAlias)
+                .build();
+
+        Transaction transaction = buildTransaction(builder -> {
+            builder.getTransactionIDBuilder().setAccountID(payerAliasAccountId);
+            builder.getCryptoTransferBuilder()
+                    .getTransfersBuilder()
+                    .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -100))
+                    .addAccountAmounts(accountAmount(EntityId.of(PAYER3), 100));
+        });
+        TransactionBody transactionBody = getTransactionBody(transaction);
+        TransactionRecord txnRecord = buildTransactionRecordWithNoTransactions(
+                builder -> builder.getTransferListBuilder()
+                        .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -100))
+                        .addAccountAmounts(accountAmount(EntityId.of(PAYER3), 100)),
+                transactionBody,
+                ResponseCodeEnum.SUCCESS.getNumber());
+
+        var recordItem = RecordItem.builder()
+                .transactionRecord(txnRecord)
+                .transaction(transaction)
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(transactionRepository.findAll())
+                .singleElement()
+                .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getPayerAccountId)
+                .isEqualTo(payer.toEntityId());
+    }
+
+    @Test
     void cryptoTransferUpdatesAllowanceAmount() {
         entityProperties.getPersist().setTrackAllowance(true);
         var allowanceAmountGranted = 1000L;

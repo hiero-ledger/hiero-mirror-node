@@ -54,25 +54,29 @@ class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHa
         consensusTimestamp = DomainUtils.timestampInNanosMax(recordItemBuilder.timestamp());
         payerAccountId = EntityId.of(recordItemBuilder.accountId());
         var cryptoOwner = recordItemBuilder.accountId();
+        var cryptoSpender = recordItemBuilder.accountId();
         expectedCryptoAllowance = CryptoAllowance.builder()
                 .amountGranted(100L)
                 .amount(100L)
                 .owner(EntityId.of(cryptoOwner).getId())
                 .payerAccountId(payerAccountId)
-                .spender(EntityId.of(recordItemBuilder.accountId()).getId())
+                .spender(EntityId.of(cryptoSpender).getId())
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         when(entityIdService.lookup(cryptoOwner)).thenReturn(Optional.of(EntityId.of(cryptoOwner)));
+        when(entityIdService.lookup(cryptoSpender)).thenReturn(Optional.of(EntityId.of(cryptoSpender)));
         var nftOwner = recordItemBuilder.accountId();
+        var nftSpender = recordItemBuilder.accountId();
         long nftTokenId = EntityId.of(recordItemBuilder.tokenId()).getId();
         expectedNft = Nft.builder()
                 .accountId(EntityId.of(nftOwner))
                 .serialNumber(1)
-                .spender(EntityId.of(recordItemBuilder.accountId()).getId())
+                .spender(EntityId.of(nftSpender).getId())
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .tokenId(nftTokenId)
                 .build();
         when(entityIdService.lookup(nftOwner)).thenReturn(Optional.of(expectedNft.getAccountId()));
+        when(entityIdService.lookup(nftSpender)).thenReturn(Optional.of(EntityId.of(nftSpender)));
         expectedNftAllowance = NftAllowance.builder()
                 .approvedForAll(true)
                 .owner(expectedNft.getAccountId().getId())
@@ -82,16 +86,18 @@ class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHa
                 .tokenId(nftTokenId)
                 .build();
         var tokenOwner = recordItemBuilder.accountId();
+        var tokenSpender = recordItemBuilder.accountId();
         expectedTokenAllowance = TokenAllowance.builder()
                 .amountGranted(200L)
                 .amount(200L)
                 .owner(EntityId.of(tokenOwner).getId())
                 .payerAccountId(payerAccountId)
-                .spender(EntityId.of(recordItemBuilder.accountId()).getId())
+                .spender(EntityId.of(tokenSpender).getId())
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .tokenId(EntityId.of(recordItemBuilder.tokenId()).getId())
                 .build();
         when(entityIdService.lookup(tokenOwner)).thenReturn(Optional.of(EntityId.of(tokenOwner)));
+        when(entityIdService.lookup(tokenSpender)).thenReturn(Optional.of(EntityId.of(tokenSpender)));
     }
 
     @Override
@@ -245,6 +251,44 @@ class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHa
                 .thenReturn(Optional.of(ownerEntityId));
         transactionHandler.updateTransaction(transaction, recordItem);
         assertAllowances(ownerEntityId.getId());
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void updateTransactionWithAliasSpender() {
+        var alias = DomainUtils.fromBytes(domainBuilder.key());
+        var spenderAccountId = recordItemBuilder.accountId();
+        var spenderEntityId = EntityId.of(spenderAccountId);
+        var recordItem = recordItemBuilder
+                .cryptoApproveAllowance()
+                .transactionBody(this::customizeTransactionBody)
+                .transactionBody(b -> {
+                    b.getCryptoAllowancesBuilderList()
+                            .forEach(builder -> builder.getSpenderBuilder().setAlias(alias));
+                    b.getNftAllowancesBuilderList()
+                            .forEach(builder -> builder.getSpenderBuilder().setAlias(alias));
+                    b.getTokenAllowancesBuilderList()
+                            .forEach(builder -> builder.getSpenderBuilder().setAlias(alias));
+                })
+                .transactionBodyWrapper(this::setTransactionPayer)
+                .record(r -> r.setConsensusTimestamp(TestUtils.toTimestamp(consensusTimestamp)))
+                .build();
+        var timestamp = recordItem.getConsensusTimestamp();
+        var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp))
+                .get();
+        when(entityIdService.lookup(spenderAccountId.toBuilder().setAlias(alias).build()))
+                .thenReturn(Optional.of(spenderEntityId));
+
+        expectedCryptoAllowance.setSpender(spenderEntityId.getId());
+        expectedNft.setSpender(spenderEntityId.getId());
+        expectedNftAllowance.setSpender(spenderEntityId.getId());
+        expectedTokenAllowance.setSpender(spenderEntityId.getId());
+
+        transactionHandler.updateTransaction(transaction, recordItem);
+        assertAllowances(null);
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }

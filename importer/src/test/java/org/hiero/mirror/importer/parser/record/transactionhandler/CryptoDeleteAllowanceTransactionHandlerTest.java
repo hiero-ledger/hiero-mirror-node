@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -12,6 +13,7 @@ import com.hederahashgraph.api.proto.java.CryptoDeleteAllowanceTransactionBody;
 import com.hederahashgraph.api.proto.java.NftRemoveAllowance;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
@@ -19,13 +21,15 @@ import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.Nft;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
 
 class CryptoDeleteAllowanceTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new CryptoDeleteAllowanceTransactionHandler(entityListener, syntheticContractLogService);
+        return new CryptoDeleteAllowanceTransactionHandler(
+                entityIdService, entityListener, syntheticContractLogService);
     }
 
     @Override
@@ -43,6 +47,7 @@ class CryptoDeleteAllowanceTransactionHandlerTest extends AbstractTransactionHan
     @Test
     void updateTransactionSuccessful() {
         var recordItem = recordItemBuilder.cryptoDeleteAllowance().build();
+        mockOwnerLookups(recordItem);
         var timestamp = recordItem.getConsensusTimestamp();
         var transaction = domainBuilder
                 .transaction()
@@ -60,6 +65,7 @@ class CryptoDeleteAllowanceTransactionHandlerTest extends AbstractTransactionHan
                 .cryptoDeleteAllowance()
                 .transactionBody(b -> b.getNftAllowancesBuilderList().forEach(NftRemoveAllowance.Builder::clearOwner))
                 .build();
+        mockOwnerLookups(recordItem);
         var timestamp = recordItem.getConsensusTimestamp();
         var transaction = domainBuilder
                 .transaction()
@@ -69,6 +75,45 @@ class CryptoDeleteAllowanceTransactionHandlerTest extends AbstractTransactionHan
         assertAllowances(timestamp);
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void updateTransactionSuccessfulWithAliasOwner() {
+        var alias = DomainUtils.fromBytes(domainBuilder.key());
+        var ownerAccountId = recordItemBuilder.accountId();
+        var ownerEntityId = EntityId.of(ownerAccountId);
+        var recordItem = recordItemBuilder
+                .cryptoDeleteAllowance()
+                .transactionBody(b -> b.getNftAllowancesBuilderList()
+                        .forEach(builder -> builder.getOwnerBuilder().setAlias(alias)))
+                .build();
+        when(entityIdService.lookup(ownerAccountId.toBuilder().setAlias(alias).build()))
+                .thenReturn(Optional.of(ownerEntityId));
+        var timestamp = recordItem.getConsensusTimestamp();
+        var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp).entityId(null))
+                .get();
+
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        assertAllowances(timestamp);
+        // Both nft allowances share the same alias-addressed owner, distinct from the payer
+        var body = recordItem.getTransactionBody().getCryptoDeleteAllowance();
+        var entityIds = body.getNftAllowancesList().stream()
+                .flatMap(allowance -> Stream.of(ownerEntityId, EntityId.of(allowance.getTokenId())));
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(
+                        getExpectedEntityTransactions(recordItem, transaction, entityIds.toArray(EntityId[]::new)));
+    }
+
+    private void mockOwnerLookups(RecordItem recordItem) {
+        recordItem
+                .getTransactionBody()
+                .getCryptoDeleteAllowance()
+                .getNftAllowancesList()
+                .forEach(allowance -> when(entityIdService.lookup(allowance.getOwner()))
+                        .thenReturn(Optional.of(EntityId.of(allowance.getOwner()))));
     }
 
     private void assertAllowances(long timestamp) {
