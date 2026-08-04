@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.service;
 
+import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.SIMULATE;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
@@ -90,6 +91,7 @@ public class ContractSimulateService extends ContractCallService {
 
         return ContractCallContext.run(context -> {
             context.setSimulate(true);
+            context.setApi(SIMULATE);
             context.setTraceTransfers(request.isTraceTransfers());
             context.setStateOverrides(new HashMap<>());
             final var entryResults = new ArrayList<List<SimulateCallResult>>(

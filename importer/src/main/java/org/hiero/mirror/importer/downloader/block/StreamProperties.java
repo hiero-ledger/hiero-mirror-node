@@ -23,6 +23,9 @@ public final class StreamProperties {
     @NotNull
     private DataSize maxBlockSize = DataSize.ofMegabytes(512);
 
+    @Min(6)
+    private int maxDrainAttempts = 32;
+
     @DataSizeUnit(DataUnit.MEGABYTES)
     @NotNull
     private DataSize maxStreamResponseSize = DataSize.ofMegabytes(125);

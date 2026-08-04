@@ -11,15 +11,11 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import lombok.SneakyThrows;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
-import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 import reactor.test.StepVerifier;
 
 final class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
@@ -36,7 +32,7 @@ final class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
     void setup() {
         super.setup();
         blockStreamTargetRootPath = STREAMS;
-        streamFileProvider = new LocalStreamFileProvider(commonProperties, properties, localProperties);
+        streamFileProvider = new LocalStreamFileProvider(properties, localProperties);
         targetRootPath = STREAMS;
     }
 
@@ -58,21 +54,6 @@ final class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
         var folder = "record" + node.getNodeAccountId();
         createSignature("2022-07-13", "recordstreams", folder, "2022-07-13T08_46_08.041986003Z.rcd_sig");
         createSignature("2022-07-13", "recordstreams", folder, "2022-07-13T08_46_11.304284003Z.rcd_sig");
-        var sigs = streamFileProvider
-                .list(node, StreamFilename.EPOCH)
-                .collectList()
-                .block();
-        assertThat(sigs).hasSize(2);
-        sigs.forEach(sig -> streamFileProvider.get(sig.getStreamFilename()).block());
-    }
-
-    @Test
-    void listByDayAuto() {
-        properties.setPathType(PathType.AUTO);
-        var node = node(3);
-        var shard = String.valueOf(CommonProperties.getInstance().getShard());
-        createSignature("2022-07-13", "demo", shard, "0", "record", "2022-07-13T23_59_59.304284003Z.rcd_sig");
-        createSignature("2022-07-14", "demo", shard, "0", "record", "2022-07-14T00_01_01.203216501Z.rcd_sig");
         var sigs = streamFileProvider
                 .list(node, StreamFilename.EPOCH)
                 .collectList()
@@ -133,30 +114,6 @@ final class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
                         .filter(p -> !p.toString().contains("sidecar"))
                         .noneMatch(p -> p.toFile().isFile()))
                 .isTrue();
-    }
-
-    @ParameterizedTest
-    @EnumSource(PathType.class)
-    void listAllPathTypes(PathType pathType) {
-        properties.setPathType(pathType);
-
-        var fileCopier = createDefaultFileCopier();
-        if (pathType == PathType.ACCOUNT_ID) {
-            fileCopier.copy();
-        } else {
-            fileCopier.copyAsNodeIdStructure(
-                    Path::getParent, properties.getImporterProperties().getNetwork());
-        }
-
-        var node = node(3);
-        var data1 = streamFileData(node, "2022-07-13T08_46_08.041986003Z.rcd_sig");
-        var data2 = streamFileData(node, "2022-07-13T08_46_11.304284003Z.rcd_sig");
-        StepVerifier.withVirtualTime(() -> streamFileProvider.list(node, StreamFilename.EPOCH))
-                .thenAwait(Duration.ofSeconds(10L))
-                .expectNext(data1)
-                .expectNext(data2)
-                .expectComplete()
-                .verify(Duration.ofSeconds(10L));
     }
 
     @Disabled("PathPrefix not supported")

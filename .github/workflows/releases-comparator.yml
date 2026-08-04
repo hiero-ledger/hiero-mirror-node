@@ -31,23 +31,25 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Compare versions
         id: check
         run: |
           set -euo pipefail
 
-          PR_VERSION=$(grep -o 'api("com\.hedera\.hashgraph:app:[^"]*")' build.gradle.kts | sed -E 's/.*app:([^"]*)".*/\1/')
+          REGEX='s/.*set\("consensusNodeVersion", "([0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)[.0-9]+)?)"\)$/\1/p'
+          PR_VERSION=$(sed -nE "${REGEX}" build.gradle.kts)
           PR_VERSION_TAG="v$PR_VERSION"
 
           git fetch origin ${{ github.base_ref }} --depth=1
           git show origin/${{ github.base_ref }}:build.gradle.kts > base_build.gradle.kts
-          BASE_VERSION=$(grep -o 'api("com\.hedera\.hashgraph:app:[^"]*")' base_build.gradle.kts | sed -E 's/.*app:([^"]*)".*/\1/')
+          BASE_VERSION=$(sed -nE "${REGEX}" build.gradle.kts)
           BASE_VERSION_TAG="v$BASE_VERSION"
 
           echo "pr_version=$PR_VERSION_TAG" >> $GITHUB_OUTPUT
           echo "base_version=$BASE_VERSION_TAG" >> $GITHUB_OUTPUT
+          echo "Comparing ${PR_VERSION_TAG} against ${BASE_VERSION_TAG}"
 
           if [ "$PR_VERSION_TAG" != "$BASE_VERSION_TAG" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
@@ -68,7 +70,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install JDK
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
@@ -80,10 +82,12 @@ jobs:
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v4
 
       - name: Run diff script
+        env:
+          CONSENSUS_NODE_REPO: https://github.com/hiero-ledger/hiero-consensus-node.git
+          TAG_ONE: ${{ needs.check-version.outputs.pr_version }}
+          TAG_TWO: ${{ needs.check-version.outputs.base_version }}
         run: |
           set -euo pipefail
-
-          CONSENSUS_NODE_REPO="https://github.com/hiero-ledger/hiero-consensus-node.git"
 
           FILES_TO_COMPARE=(
             "com/hedera/hapi/node/state/token/Account.java"
@@ -113,9 +117,6 @@ jobs:
           # Temp directories to store cloned repos
           TMP_DIR_ONE=$(mktemp -d)
           TMP_DIR_TWO=$(mktemp -d)
-
-          TAG_ONE="${{ needs.check-version.outputs.pr_version }}"
-          TAG_TWO="${{ needs.check-version.outputs.base_version }}"
 
           echo "Comparing consensus node release versions $TAG_ONE and $TAG_TWO ..."
 

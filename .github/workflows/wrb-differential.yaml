@@ -6,8 +6,6 @@ on:
   pull_request:
     branches:
       - "main"
-    paths:
-      - ".github/workflows/wrb-differential.yaml"
   push:
     tags:
       - "v*"
@@ -29,7 +27,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 50
     env:
-      BLOCK_NODE_VERSION: v0.35.1
+      BLOCK_NODE_VERSION: v0.38.1
       CONSENSUS_NODE_VERSION: v0.75.1
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
@@ -37,6 +35,7 @@ jobs:
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
       SOLO_VERSION: v0.77.0
+    if: github.event_name == 'push' || github.event_name == 'schedule' || github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       pull-requests: read
     steps:
@@ -46,7 +45,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -103,7 +102,7 @@ jobs:
       - name: Find changed modules
         id: changeset
         if: env.TRIGGERED_BY_TAG != 'true' && github.event_name != 'schedule'
-        uses: step-security/paths-filter@5c5241b8233e77b55b9046daf88f1cb7560281de # v4.0.1
+        uses: step-security/paths-filter@9098a7821b83402dbe267c0c801e7d580ce74f92 # v4.0.2
         with:
           base: ${{ env.BASE }}
           filters: |
@@ -127,7 +126,7 @@ jobs:
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v4
 
       - name: Login to Docker Hub
-        uses: step-security/docker-login-action@164e21d7e52229904128e2f946001cb88278c33d # v4.2.0
+        uses: step-security/docker-login-action@bd6978fd4ef9a5f78130095b298b8a721afcb0d8 # v4.5.1
         if: vars.DOCKERHUB_USERNAME != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}

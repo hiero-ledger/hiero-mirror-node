@@ -3,6 +3,10 @@
 hiero:
   mirror:
     web3:
+      api:
+        opcodes:
+          request:
+            timeout: 10s
       db:
         host: 127.0.0.1
         name: mirror_node

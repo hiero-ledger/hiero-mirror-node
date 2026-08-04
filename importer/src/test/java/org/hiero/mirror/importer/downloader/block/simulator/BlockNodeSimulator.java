@@ -30,9 +30,10 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.hiero.block.api.protoc.BlockEnd;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
+import org.hiero.block.api.protoc.BlockRange;
 import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
+import org.hiero.block.api.protoc.ServerStatusDetailResponse;
 import org.hiero.block.api.protoc.ServerStatusRequest;
-import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
@@ -219,10 +220,12 @@ public final class BlockNodeSimulator implements AutoCloseable {
     private final class StatusService extends BlockNodeServiceGrpc.BlockNodeServiceImplBase {
 
         @Override
-        public void serverStatus(ServerStatusRequest request, StreamObserver<ServerStatusResponse> responseObserver) {
-            var response = ServerStatusResponse.newBuilder()
-                    .setFirstAvailableBlock(firstBlockNumber)
-                    .setLastAvailableBlock(lastBlockNumber)
+        public void serverStatusDetail(
+                ServerStatusRequest request, StreamObserver<ServerStatusDetailResponse> responseObserver) {
+            var response = ServerStatusDetailResponse.newBuilder()
+                    .addAvailableRanges(BlockRange.newBuilder()
+                            .setRangeStart(firstBlockNumber)
+                            .setRangeEnd(lastBlockNumber))
                     .build();
             responseObserver.onNext(response);
             responseObserver.onCompleted();

@@ -18,6 +18,7 @@ import java.util.List;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.domain.ConsensusNodeStub;
 import org.hiero.mirror.importer.domain.StreamFileSignature;
 import org.hiero.mirror.importer.domain.StreamFileSignature.SignatureType;
@@ -170,6 +171,56 @@ class ConsensusValidatorImplTest {
         signatures.get(2).setStatus(DOWNLOADED);
         signatures.get(3).setStatus(DOWNLOADED);
         assertConsensusNotReached(signatures);
+    }
+
+    @Test
+    void duplicateNodeStakeNotDoubleCounted() {
+        // A single node whose stake is below the 1/3 threshold must not reach consensus by contributing more than one
+        // verified signature for the same file hash.
+        final var node = ConsensusNodeStub.builder()
+                .nodeId(nodeId++)
+                .stake(2)
+                .totalStake(9) // one-third threshold = 3
+                .build();
+        final var fileHash = domainBuilder.bytes(256);
+        final var signatures = List.of(
+                streamFileSignature(node, fileHash, StreamFilename.EPOCH),
+                streamFileSignature(node, fileHash, StreamFilename.from("2022-01-01T00_00_00Z.rcd_sig")));
+
+        assertConsensusNotReached(signatures);
+    }
+
+    @Test
+    void distinctNodeStakeSummed() {
+        final long totalStake = 9;
+        final var nodeOne = ConsensusNodeStub.builder()
+                .nodeId(nodeId++)
+                .stake(2)
+                .totalStake(totalStake)
+                .build();
+        final var nodeTwo = ConsensusNodeStub.builder()
+                .nodeId(nodeId++)
+                .stake(2)
+                .totalStake(totalStake)
+                .build();
+        final var fileHash = domainBuilder.bytes(256);
+        final var signatures = List.of(
+                streamFileSignature(nodeOne, fileHash, StreamFilename.EPOCH),
+                streamFileSignature(nodeTwo, fileHash, StreamFilename.from("2022-01-01T00_00_00Z.rcd_sig")));
+
+        consensusValidator.validate(signatures);
+        assertThat(signatures).map(StreamFileSignature::getStatus).containsOnly(CONSENSUS_REACHED);
+    }
+
+    private StreamFileSignature streamFileSignature(ConsensusNode node, byte[] fileHash, StreamFilename filename) {
+        var signature = new StreamFileSignature();
+        signature.setFileHash(fileHash);
+        signature.setFilename(filename);
+        signature.setNode(node);
+        signature.setSignatureType(SignatureType.SHA_384_WITH_RSA);
+        signature.setStatus(VERIFIED);
+        signature.setStreamType(StreamType.RECORD);
+        return signature;
     }
 
     private void assertConsensusNotReached(List<StreamFileSignature> signatures) {

@@ -30,7 +30,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Named
 final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
-    static final String DEFAULT_BATCH_INTERVAL = "12h";
+    static final String DEFAULT_BATCH_INTERVAL = "3h";
 
     private static final String BATCH_INTERVAL_PROPERTIES_KEY = "batchInterval";
 
@@ -220,8 +220,8 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
         }
 
         getNamedParameterJdbcOperations()
-                .update(CHECKPOINT_SQL, new MapSqlParameterSource("upperBound", slice.minConsensusTimestamp()));
-        return Optional.of(slice.minConsensusTimestamp());
+                .update(CHECKPOINT_SQL, new MapSqlParameterSource("upperBound", consensusStartTimestamp));
+        return Optional.of(consensusStartTimestamp);
     }
 
     private TransactionOperations transactionOperations() {

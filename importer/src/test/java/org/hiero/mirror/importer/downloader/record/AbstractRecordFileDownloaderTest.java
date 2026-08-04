@@ -19,7 +19,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -86,8 +85,7 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
                 new ProtoRecordFileReader());
         sidecarProperties = new SidecarProperties();
         sidecarProperties.setEnabled(true);
-        var streamFileProvider = new S3StreamFileProvider(
-                blockProperties, CommonProperties.getInstance(), commonDownloaderProperties, s3AsyncClient);
+        var streamFileProvider = new S3StreamFileProvider(blockProperties, commonDownloaderProperties, s3AsyncClient);
         return new RecordFileDownloader(
                 consensusNodeService,
                 cutoverService,

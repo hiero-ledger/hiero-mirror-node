@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.web3.service;
 
+import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.CALL;
+
 import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -55,6 +57,7 @@ public class ContractExecutionService extends ContractCallService {
      */
     public ContractExecutionResult processCallWithGas(final ContractExecutionParameters params) {
         return ContractCallContext.run(ctx -> {
+            ctx.setApi(CALL);
             var stopwatch = Stopwatch.createStarted();
             var stringResult = "";
             long gasUsed;

@@ -5,7 +5,6 @@ package org.hiero.mirror.test.e2e.acceptance.client;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.hashgraph.sdk.AccountBalanceQuery;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Client;
 import com.hedera.hashgraph.sdk.KeyList;
@@ -212,17 +211,6 @@ abstract class AbstractNetworkClient implements Cleanable {
 
             return new TransactionRecordQuery().setTransactionId(transactionId).execute(client);
         });
-    }
-
-    public long getBalance() {
-        return getBalance(sdkClient.getExpandedOperatorAccountId());
-    }
-
-    public long getBalance(ExpandedAccountId accountId) {
-        var query = new AccountBalanceQuery().setAccountId(accountId.getAccountId());
-        var balance = executeQuery(() -> query).hbars;
-        log.debug("Account {} balance is {}", accountId, balance);
-        return balance.toTinybars();
     }
 
     protected String getMemo(String message) {

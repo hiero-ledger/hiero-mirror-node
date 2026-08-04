@@ -6,7 +6,6 @@ import com.google.common.collect.ImmutableSortedSet;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.SortedSet;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
@@ -36,7 +35,6 @@ public enum StreamType {
     private final String path;
     private final SortedSet<Extension> signatureExtensions;
     private final String suffix;
-    private final String nodeIdBasedSuffix; // HIP-679
     private final Supplier<? extends StreamFile<?>> supplier;
     private final Duration fileCloseInterval;
 
@@ -51,7 +49,6 @@ public enum StreamType {
         this.path = path;
         this.nodePrefix = nodePrefix;
         this.suffix = suffix;
-        this.nodeIdBasedSuffix = name().toLowerCase(Locale.ENGLISH);
         this.fileCloseInterval = fileCloseInterval;
 
         dataExtensions = IntStream.range(0, extensions.size())

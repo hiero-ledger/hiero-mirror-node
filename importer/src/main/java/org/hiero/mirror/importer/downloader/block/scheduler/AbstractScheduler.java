@@ -20,7 +20,7 @@ import org.hiero.mirror.importer.downloader.block.BlockNodeDiscoveryService;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.downloader.block.ManagedChannelBuilderProvider;
 import org.hiero.mirror.importer.downloader.block.StreamProperties;
-import org.hiero.mirror.importer.exception.BlockStreamException;
+import org.hiero.mirror.importer.exception.NoBlockNodeAvailableException;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,22 +103,31 @@ abstract class AbstractScheduler implements Scheduler {
             }
         }
 
-        throw new BlockStreamException("No block node can provide block " + blockNumber);
+        throw new NoBlockNodeAvailableException(blockNumber);
     }
 
     protected abstract Iterator<BlockNode> getOrderedNodes();
 
     protected abstract void setNodes(final List<BlockNode> blockNodes);
 
-    private void drainGrpcBuffer(final BlockingClientCall<?, ?> grpcCall) {
+    private void drainGrpcBuffer(final String blockNode, final BlockingClientCall<?, ?> grpcCall) {
         // Run a task to drain grpc buffer to avoid memory leak. Remove the logic when grpc-java releases the fix for
         // https://github.com/grpc/grpc-java/issues/12355
         executor.submit(() -> {
             try {
+                final int maxDrainAttempts = streamProperties.getMaxDrainAttempts();
                 final long readTimeout = streamProperties.getResponseTimeout().toMillis();
-                while (grpcCall.read(readTimeout, TimeUnit.MILLISECONDS) != null) {
+                int attempt = 0;
+
+                while (attempt++ < maxDrainAttempts) {
+                    if (grpcCall.read(readTimeout, TimeUnit.MILLISECONDS) == null) {
+                        return;
+                    }
+
                     log.debug("Drained grpc buffer");
                 }
+
+                log.warn("Reached max drain attempts of {} for {}", maxDrainAttempts, blockNode);
             } catch (final InterruptedException _) {
                 Thread.currentThread().interrupt();
             } catch (final Exception ex) {
@@ -162,18 +171,9 @@ abstract class AbstractScheduler implements Scheduler {
     }
 
     private static @Nullable ScheduledBlockNode hasBlock(final long nextBlockNumber, final BlockNode node) {
-        final var blockRange = node.getBlockRange();
-        if (blockRange.isEmpty()) {
-            return null;
-        }
-
-        if (nextBlockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER) {
-            return new ScheduledBlockNode(node, blockRange.lowerEndpoint());
-        } else if (blockRange.contains(nextBlockNumber)) {
-            return new ScheduledBlockNode(node, nextBlockNumber);
-        }
-
-        return null;
+        return node.getBlockOrEarliest(nextBlockNumber)
+                .map(availableBlockNumber -> new ScheduledBlockNode(node, availableBlockNumber))
+                .orElse(null);
     }
 
     private static boolean nodesChanged(final List<BlockNodeProperties> current, final List<BlockNodeProperties> next) {

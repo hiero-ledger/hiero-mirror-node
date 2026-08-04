@@ -12,12 +12,12 @@ import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.sing
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
 import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.BindableService;
 import io.grpc.Server;
+import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.BlockingClientCall;
@@ -27,17 +27,20 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
+import org.hiero.block.api.protoc.BlockRange;
 import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
+import org.hiero.block.api.protoc.ServerStatusDetailResponse;
 import org.hiero.block.api.protoc.ServerStatusRequest;
-import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
@@ -63,7 +66,7 @@ import org.springframework.util.unit.DataSize;
 final class BlockNodeTest extends BlockNodeTestBase {
 
     private static final BiFunction<BlockStream, String, Boolean> IGNORE = (_, _) -> false;
-    private static final Consumer<BlockingClientCall<?, ?>> NOOP_GRPC_BUFFER_DISPOSER = _ -> {};
+    private static final BiConsumer<String, BlockingClientCall<?, ?>> NOOP_GRPC_BUFFER_DISPOSER = (_, _) -> {};
     private static final String SERVER = "test1";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
@@ -130,39 +133,104 @@ final class BlockNodeTest extends BlockNodeTestBase {
         assertThat(all).containsExactly(first, second, third, forth);
     }
 
-    @Test
-    void getBlockRange(Resources resources) {
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            20, 20
+            50, 50
+            100, 100
+            19,
+            101,
+            -1, 20
+            """)
+    void getBlockOrEarliest(long blockNumber, Long expected, Resources resources) {
         // given
-        runBlockNodeService(resources, () -> serverStatusResponse(20, 100));
+        runBlockNodeService(resources, () -> serverStatusDetailResponse(20, 100));
 
         // when, then
-        assertThat(node.getBlockRange()).isEqualTo(Range.closed(20L, 100L));
+        assertThat(node.getBlockOrEarliest(blockNumber)).isEqualTo(Optional.ofNullable(expected));
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            3, 3
+            12, 12
+            7,
+            -1, 0
+            """)
+    void getBlockOrEarliestWithGap(long blockNumber, Long expected, Resources resources) {
+        // given the ranges [0, 5] and [10, 20], sent out of order since a node may return them in any order
+        runBlockNodeService(resources, () -> serverStatusDetailResponse(10, 20, 0, 5));
+
+        // when, then
+        assertThat(node.getBlockOrEarliest(blockNumber)).isEqualTo(Optional.ofNullable(expected));
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 0
+            7, 7
+            15, 15
+            16,
+            -1, 0
+            """)
+    void getBlockOrEarliestWithOverlap(long blockNumber, Long expected, Resources resources) {
+        // given the overlapping ranges [5, 15] and [0, 10], sent out of order
+        runBlockNodeService(resources, () -> serverStatusDetailResponse(5, 15, 0, 10));
+
+        // when, then
+        assertThat(node.getBlockOrEarliest(blockNumber)).isEqualTo(Optional.ofNullable(expected));
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, -1
+            -1, 5
+            10, 5
+            """)
+    void getBlockOrEarliestSkipsMalformedRange(long rangeStart, long rangeEnd, Resources resources) {
+        // given a malformed range alongside a valid [20, 100] one
+        runBlockNodeService(resources, () -> serverStatusDetailResponse(rangeStart, rangeEnd, 20, 100));
+
+        // when, then the malformed range is ignored and the valid one is still honored
+        assertThat(node.getBlockOrEarliest(50)).contains(50L);
+        assertThat(node.getBlockOrEarliest(-1)).contains(20L);
+        assertThat(node.getBlockOrEarliest(15)).isEmpty();
     }
 
     @Test
-    void getBlockRangeFromEmptyBlockNode(Resources resources) {
+    void getBlockOrEarliestFromEmptyBlockNode(Resources resources) {
         // given
-        runBlockNodeService(resources, () -> serverStatusResponse(-1, -1));
+        runBlockNodeService(resources, ServerStatusDetailResponse::getDefaultInstance);
 
         // when, then
-        assertThat(node.getBlockRange().isEmpty()).isTrue();
+        assertThat(node.getBlockOrEarliest(0)).isEmpty();
+        assertThat(node.getBlockOrEarliest(-1)).isEmpty();
     }
 
     @Test
-    void getBlockRangeTimeout(Resources resources) {
+    void getBlockOrEarliestOnError(Resources resources) {
+        // given
+        runBlockNodeService(resources, List.of(new StatusException(Status.UNIMPLEMENTED)));
+
+        // when, then
+        assertThat(node.getBlockOrEarliest(50)).isEmpty();
+    }
+
+    @Test
+    void getBlockOrEarliestTimeout(Resources resources) {
         // given
         streamProperties.setResponseTimeout(Duration.ofMillis(1));
         runBlockNodeService(resources, () -> {
             try {
                 Thread.sleep(20);
-                return serverStatusResponse(20, 100);
+                return serverStatusDetailResponse(20, 100);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         });
 
         // when, then
-        assertThat(node.getBlockRange().isEmpty()).isTrue();
+        assertThat(node.getBlockOrEarliest(50)).isEmpty();
     }
 
     @Test
@@ -524,11 +592,18 @@ final class BlockNodeTest extends BlockNodeTestBase {
         assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isEqualTo(2);
     }
 
-    private static ServerStatusResponse serverStatusResponse(final long first, final long last) {
-        return ServerStatusResponse.newBuilder()
-                .setFirstAvailableBlock(first)
-                .setLastAvailableBlock(last)
-                .build();
+    /**
+     * @param bounds Flattened inclusive range bounds, e.g. {@code serverStatusDetailResponse(0, 5, 10, 20)} for the
+     *     ranges [0, 5] and [10, 20]
+     */
+    private static ServerStatusDetailResponse serverStatusDetailResponse(final long... bounds) {
+        final var builder = ServerStatusDetailResponse.newBuilder();
+        for (int i = 0; i < bounds.length; i += 2) {
+            builder.addAvailableRanges(
+                    BlockRange.newBuilder().setRangeStart(bounds[i]).setRangeEnd(bounds[i + 1]));
+        }
+
+        return builder.build();
     }
 
     private BiFunction<BlockStream, String, Boolean> accumulate(Collection<BlockStream> collection) {
@@ -587,11 +662,11 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 streamProperties);
     }
 
-    private void runBlockNodeService(Resources resources, Supplier<ServerStatusResponse> responseProvider) {
+    private void runBlockNodeService(Resources resources, Supplier<ServerStatusDetailResponse> responseProvider) {
         var service = new BlockNodeServiceGrpc.BlockNodeServiceImplBase() {
             @Override
-            public void serverStatus(
-                    ServerStatusRequest request, StreamObserver<ServerStatusResponse> responseObserver) {
+            public void serverStatusDetail(
+                    ServerStatusRequest request, StreamObserver<ServerStatusDetailResponse> responseObserver) {
                 responseObserver.onNext(responseProvider.get());
                 responseObserver.onCompleted();
             }
@@ -603,12 +678,13 @@ final class BlockNodeTest extends BlockNodeTestBase {
         final var iter = responseOrError.iterator();
         final var service = new BlockNodeServiceGrpc.BlockNodeServiceImplBase() {
             @Override
-            public void serverStatus(
-                    final ServerStatusRequest request, final StreamObserver<ServerStatusResponse> responseObserver) {
+            public void serverStatusDetail(
+                    final ServerStatusRequest request,
+                    final StreamObserver<ServerStatusDetailResponse> responseObserver) {
                 if (iter.hasNext()) {
                     final var object = iter.next();
-                    if (object instanceof ServerStatusResponse serverStatusResponse) {
-                        responseObserver.onNext(serverStatusResponse);
+                    if (object instanceof ServerStatusDetailResponse response) {
+                        responseObserver.onNext(response);
                         responseObserver.onCompleted();
                         return;
                     } else if (object instanceof Throwable error) {
