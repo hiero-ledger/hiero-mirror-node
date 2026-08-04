@@ -128,7 +128,6 @@ rest/__tests__/integration/*.spec.test.js
 rest/buildDist/
 
 # REST vendored protos (regenerate with npm run generate-proto-js after adding sources)
-rest/proto/fees/
 rest/proto/services/
 rest/gen/
 

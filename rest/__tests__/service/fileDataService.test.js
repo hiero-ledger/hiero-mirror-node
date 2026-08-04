@@ -2,7 +2,15 @@
 
 import {jest} from '@jest/globals';
 import {create, toBinary} from '@bufbuild/protobuf';
-import {Extra, ExtraFeeDefinitionSchema, FeeScheduleSchema} from '../../gen/fees/fee_schedule_pb.js';
+import {
+  FeeDataSchema,
+  FeeComponentsSchema,
+  TransactionFeeScheduleSchema,
+  FeeScheduleSchema,
+  CurrentAndNextFeeScheduleSchema,
+  HederaFunctionality,
+} from '../../gen/services/basic_types_pb.js';
+import {TimestampSecondsSchema} from '../../gen/services/timestamp_pb.js';
 import {ExchangeRate, FeeSchedule, FileData} from '../../model';
 import {FileDataService} from '../../service';
 import integrationDomainOps from '../integrationDomainOps';
@@ -12,7 +20,7 @@ import EntityId from '../../entityId';
 setupIntegrationTest();
 
 const exchangeRateEntityId = EntityId.parseString('112');
-const feeScheduleEntityId = EntityId.parseString('113');
+const feeScheduleEntityId = EntityId.parseString('111');
 const exchangeRateFiles = [
   {
     consensus_timestamp: 1,
@@ -40,17 +48,33 @@ const exchangeRateFiles = [
   },
 ];
 
-const makeFeeScheduleFileData = (gasTinycents) => {
+const makeFeeScheduleFileData = (gas, expirySeconds, hederaFunctionality = HederaFunctionality.ContractCall) => {
+  const feeSchedule = create(FeeScheduleSchema, {
+    transactionFeeSchedule: [makeTransactionFeeSchedule(hederaFunctionality, gas)],
+    expiryTime: create(TimestampSecondsSchema, {seconds: BigInt(expirySeconds)}),
+  });
   return Buffer.from(
     toBinary(
-      FeeScheduleSchema,
-      create(FeeScheduleSchema, {
-        extras: [
-          create(ExtraFeeDefinitionSchema, {
-            name: Extra.GAS,
-            fee: BigInt(gasTinycents),
-          }),
-        ],
+      CurrentAndNextFeeScheduleSchema,
+      create(CurrentAndNextFeeScheduleSchema, {
+        currentFeeSchedule: feeSchedule,
+      })
+    )
+  );
+};
+
+const makeMultiTypeFeeScheduleFileData = (gasByFunctionality, expirySeconds) => {
+  const feeSchedule = create(FeeScheduleSchema, {
+    transactionFeeSchedule: Object.entries(gasByFunctionality).map(([functionality, gas]) =>
+      makeTransactionFeeSchedule(Number(functionality), gas)
+    ),
+    expiryTime: create(TimestampSecondsSchema, {seconds: BigInt(expirySeconds)}),
+  });
+  return Buffer.from(
+    toBinary(
+      CurrentAndNextFeeScheduleSchema,
+      create(CurrentAndNextFeeScheduleSchema, {
+        currentFeeSchedule: feeSchedule,
       })
     )
   );
@@ -68,9 +92,18 @@ const makeExchangeRate = (overrides = {}) => {
   });
 };
 
-// max(1, (gasTinycents * hbarEquiv) / centEquiv)
-const gasPriceInTinybars = (gasTinycents, centEquiv = 200, hbarEquiv = 100) => {
-  const fee = (BigInt(gasTinycents) * BigInt(hbarEquiv)) / BigInt(centEquiv);
+const makeTransactionFeeSchedule = (hederaFunctionality, gas) => {
+  const feeComponents = create(FeeComponentsSchema, {gas});
+  const feeData = create(FeeDataSchema, {servicedata: feeComponents});
+  return create(TransactionFeeScheduleSchema, {
+    hederaFunctionality,
+    fees: [feeData],
+  });
+};
+
+// max(1, (gas * hbarEquiv) / (centEquiv * 1000))
+const gasPriceInTinybars = (gas, centEquiv = 200, hbarEquiv = 100) => {
+  const fee = (BigInt(gas) * BigInt(hbarEquiv)) / (BigInt(centEquiv) * 1000n);
   return fee > 0n ? fee : 1n;
 };
 
@@ -161,28 +194,34 @@ describe('FileDataService.getGasPrice tests', () => {
     FileDataService.clearFeeScheduleCache();
   });
 
-  const previousGasTinycents = 123;
-  const latestGasTinycents = 789;
+  const previousGas = 123456;
+  const latestGas = 789012;
+
+  const previousExpiry = 2000000000;
+  const latestExpiry = 3000000000;
+
+  const previousFeeScheduleData = makeFeeScheduleFileData(previousGas, previousExpiry);
+  const latestFeeScheduleData = makeFeeScheduleFileData(latestGas, latestExpiry);
 
   const feeScheduleFiles = [
     {
       consensus_timestamp: 11,
       entity_id: feeScheduleEntityId.toString(),
-      file_data: makeFeeScheduleFileData(previousGasTinycents),
+      file_data: previousFeeScheduleData,
       transaction_type: 17,
     },
     {
       consensus_timestamp: 13,
       entity_id: feeScheduleEntityId.toString(),
-      file_data: makeFeeScheduleFileData(latestGasTinycents),
+      file_data: latestFeeScheduleData,
       transaction_type: 19,
     },
   ];
 
-  // GAS tinycents to tinybars: max(1, gasTinycents * hbarEquiv / centEquiv)
-  // Latest: gas=789, next rate (now > current_expiration): hbar=30000, cent=435305 → 54n
+  // ContractCall gas in tinybars: max(1, (gas * hbarEquiv) / (centEquiv * 1000))
+  // Latest: gas=789012, next rate (now > current_expiration): hbar=30000, cent=435305 → 54n
   const expectedLatestGasPrice = 54n;
-  // At consensus_timestamp <= 12: fee file at 11 (gas=123), current rate cent=450041 → 8n
+  // At consensus_timestamp <= 12: fee file at 11 (gas=123456), current rate cent=450041 → 8n
   const expectedPreviousGasPrice = 8n;
 
   test('FileDataService.getGasPrice - No match', async () => {
@@ -260,12 +299,32 @@ describe('FileDataService.truncateToStartOfHour', () => {
   });
 });
 
-describe('FileDataService.getGasPriceForType', () => {
+describe('FileDataService effective schedule selection', () => {
   const exchangeRate = makeExchangeRate();
 
-  test('converts GAS extra using current exchange rate within the expiry hour', () => {
+  const makeCurrentAndNextFeeScheduleFileData = (currentGas, nextGas, currentExpirySeconds) => {
+    const currentFeeSchedule = create(FeeScheduleSchema, {
+      transactionFeeSchedule: [makeTransactionFeeSchedule(HederaFunctionality.ContractCall, currentGas)],
+      expiryTime: create(TimestampSecondsSchema, {seconds: BigInt(currentExpirySeconds)}),
+    });
+    const nextFeeSchedule = create(FeeScheduleSchema, {
+      transactionFeeSchedule: [makeTransactionFeeSchedule(HederaFunctionality.ContractCall, nextGas)],
+      expiryTime: create(TimestampSecondsSchema, {seconds: BigInt(currentExpirySeconds + 3600)}),
+    });
+    return Buffer.from(
+      toBinary(
+        CurrentAndNextFeeScheduleSchema,
+        create(CurrentAndNextFeeScheduleSchema, {
+          currentFeeSchedule,
+          nextFeeSchedule,
+        })
+      )
+    );
+  };
+
+  test('uses current fee schedule and exchange rate within the expiry hour', () => {
     const feeSchedule = new FeeSchedule({
-      file_data: makeFeeScheduleFileData(1000),
+      file_data: makeCurrentAndNextFeeScheduleFileData(1000, 5000, 7200),
       consensus_timestamp: 1,
     });
     const refTimestamp = 7_200_000_000_000n;
@@ -275,16 +334,16 @@ describe('FileDataService.getGasPriceForType', () => {
     expect(gasPrice).toBe(gasPriceInTinybars(1000, 200, 100));
   });
 
-  test('converts GAS extra using next exchange rate after the expiry hour', () => {
+  test('uses next fee schedule and exchange rate after the expiry hour', () => {
     const feeSchedule = new FeeSchedule({
-      file_data: makeFeeScheduleFileData(1000),
+      file_data: makeCurrentAndNextFeeScheduleFileData(1000, 5000, 7200),
       consensus_timestamp: 1,
     });
     const refTimestamp = 10_800_000_000_000n;
 
     const gasPrice = FileDataService.getGasPriceForType(feeSchedule, exchangeRate, refTimestamp);
 
-    expect(gasPrice).toBe(gasPriceInTinybars(1000, 400, 300));
+    expect(gasPrice).toBe(gasPriceInTinybars(5000, 400, 300));
   });
 });
 
@@ -310,7 +369,7 @@ describe('FileDataService.getEffectiveExchangeRate', () => {
 
 describe('FileDataService.convertGasPriceToTinyBars', () => {
   test('converts gas price using hbar and cent equivalents', () => {
-    expect(FileDataService.convertGasPriceToTinyBars(10, 100, 200)).toBe(5n);
+    expect(FileDataService.convertGasPriceToTinyBars(10000, 100, 200)).toBe(5n);
   });
 
   test('returns minimum fee of 1 tinybar', () => {
@@ -319,6 +378,6 @@ describe('FileDataService.convertGasPriceToTinyBars', () => {
 
   test('returns null for invalid input', () => {
     expect(FileDataService.convertGasPriceToTinyBars(null, 100, 200)).toBeNull();
-    expect(FileDataService.convertGasPriceToTinyBars(10, 100, 0)).toBeNull();
+    expect(FileDataService.convertGasPriceToTinyBars(1000, 100, 0)).toBeNull();
   });
 });
