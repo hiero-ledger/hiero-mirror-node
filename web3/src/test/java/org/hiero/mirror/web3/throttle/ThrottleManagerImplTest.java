@@ -86,6 +86,22 @@ final class ThrottleManagerImplTest {
     }
 
     @Test
+    void traceRequestNotThrottled() {
+        throttleManager.throttleTraceRequest();
+    }
+
+    @Test
+    void throttleTraceRequestRateLimit() {
+        throttleProperties.setTraceRequestsPerSecond(1);
+        throttleManager = createThrottleManager();
+
+        throttleManager.throttleTraceRequest();
+        assertThatThrownBy(() -> throttleManager.throttleTraceRequest())
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
+    }
+
+    @Test
     void throttleGasLimit() {
         var request = request();
         throttleManager.throttle(request);
@@ -283,6 +299,8 @@ final class ThrottleManagerImplTest {
         var gasLimitBucket = createBucket(throttleProperties.getGasPerSecond());
         var rateLimitBucket = createBucket(throttleProperties.getRequestsPerSecond());
         var opcodeRateLimitBucket = createBucket(throttleProperties.getOpcodeRequestsPerSecond());
-        return new ThrottleManagerImpl(gasLimitBucket, rateLimitBucket, opcodeRateLimitBucket, throttleProperties);
+        var traceRateLimitBucket = createBucket(throttleProperties.getTraceRequestsPerSecond());
+        return new ThrottleManagerImpl(
+                gasLimitBucket, rateLimitBucket, opcodeRateLimitBucket, traceRateLimitBucket, throttleProperties);
     }
 }

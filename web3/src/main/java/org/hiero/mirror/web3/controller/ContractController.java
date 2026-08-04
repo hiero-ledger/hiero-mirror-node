@@ -11,11 +11,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.rest.model.TracerResponse;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
+import org.hiero.mirror.web3.service.ContractDebugService;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
+import org.hiero.mirror.web3.service.model.TraceRequest;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
@@ -34,7 +37,9 @@ import org.springframework.web.server.ResponseStatusException;
 class ContractController {
 
     private final ContractExecutionService contractExecutionService;
+    private final ContractDebugService contractDebugService;
     private final EvmProperties evmProperties;
+    private final TracerProperties tracerProperties;
     private final Web3Properties web3Properties;
     private final ThrottleManager throttleManager;
 
@@ -57,6 +62,28 @@ class ContractController {
             throttleManager.restore(request.getGas());
             throw e;
         }
+    }
+
+    @PostMapping(value = "/call/debug")
+    TracerResponse trace(@RequestBody @Valid ContractCallRequest request, HttpServletResponse response) {
+        if (tracerProperties.isEnabled()) {
+            try {
+                throttleManager.throttleTraceRequest();
+
+                final var params = constructServiceParameters(request);
+                final var tracerConfig = request.getTracerConfig();
+                final var onlyTopCall = tracerConfig != null && tracerConfig.isOnlyTopCall();
+                final var traceRequest = new TraceRequest(params, onlyTopCall);
+
+                return contractDebugService.processTraceCall(traceRequest);
+            } catch (InvalidParametersException e) {
+                // The validation failed, but no processing occurred so restore the consumed tokens.
+                throttleManager.restore(request.getGas());
+                throw e;
+            }
+        }
+
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     }
 
     private ContractExecutionParameters constructServiceParameters(ContractCallRequest request) {
