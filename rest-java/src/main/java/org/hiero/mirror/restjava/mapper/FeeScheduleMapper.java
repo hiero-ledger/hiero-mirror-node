@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.mapper;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
+import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.util.Comparator;
 import java.util.List;
@@ -31,10 +32,10 @@ public interface FeeScheduleMapper {
             Comparator.comparing(NetworkFee::getTransactionType, String.CASE_INSENSITIVE_ORDER);
     Comparator<NetworkFee> DESC_COMPARATOR = ASC_COMPARATOR.reversed();
 
-    Map<com.hederahashgraph.api.proto.java.HederaFunctionality, String> ENABLED_TRANSACTION_TYPES = Map.of(
-            com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCall, "ContractCall",
-            com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCreate, "ContractCreate",
-            com.hederahashgraph.api.proto.java.HederaFunctionality.EthereumTransaction, "EthereumTransaction");
+    Map<HederaFunctionality, String> ENABLED_TRANSACTION_TYPES = Map.of(
+            HederaFunctionality.ContractCall, "ContractCall",
+            HederaFunctionality.ContractCreate, "ContractCreate",
+            HederaFunctionality.EthereumTransaction, "EthereumTransaction");
 
     default NetworkFeesResponse mapSimpleFees(
             SystemFile<FeeSchedule> feeScheduleFile,
