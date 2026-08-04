@@ -24,9 +24,11 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class AddressBook {
 
+    // consensusTimestamp + 1ns of transaction containing final fileAppend operation
     @Id
     private Long startConsensusTimestamp;
 
+    // consensusTimestamp of transaction containing final fileAppend operation of next address book
     private Long endConsensusTimestamp;
 
     @EqualsAndHashCode.Exclude

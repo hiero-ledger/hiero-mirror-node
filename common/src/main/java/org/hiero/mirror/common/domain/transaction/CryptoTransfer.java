@@ -86,6 +86,12 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
         return true;
     }
 
+    /*
+     * It used to be that crypto transfers could have multiple amounts for the same account, so all fields were used for
+     * uniqueness. Later a change was made to aggregate amounts by account making the unique key
+     * (consensusTimestamp, entityId). Since we didn't migrate the old data to aggregate we have to treat all fields as
+     * the key still.
+     */
     @Data
     @AllArgsConstructor
     @NoArgsConstructor

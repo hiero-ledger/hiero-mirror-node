@@ -43,7 +43,6 @@ import lombok.experimental.NonFinal;
 import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.springframework.data.annotation.Transient;
 import org.springframework.util.CollectionUtils;
 
 @AllArgsConstructor(access = AccessLevel.NONE)
@@ -82,7 +81,6 @@ public class BlockTransaction implements StreamItem {
     private final TransactionBody transactionBody;
 
     @Getter(lazy = true)
-    @Transient
     private final ByteString transactionHash = calculateTransactionHash();
 
     @Getter(value = AccessLevel.NONE)
@@ -96,7 +94,6 @@ public class BlockTransaction implements StreamItem {
 
     @NonFinal
     @Setter
-    @Transient
     private Map<ContractSlotKey, ByteString> contractStorageReads = Collections.emptyMap();
 
     @Builder(toBuilder = true)

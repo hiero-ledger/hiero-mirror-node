@@ -21,7 +21,7 @@ import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @Builder
 @Data
 @Table
@@ -48,6 +48,7 @@ public class Transaction implements Persistable<Long> {
 
     private Integer index;
 
+    // Repeated sequence of payer_account_id, valid_start_ns
     @JsonSerialize(using = ListToStringSerializer.class)
     private List<Long> innerTransactions;
 

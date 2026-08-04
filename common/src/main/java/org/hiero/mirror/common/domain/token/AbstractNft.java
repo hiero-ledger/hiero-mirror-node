@@ -24,6 +24,7 @@ import org.springframework.data.relational.core.mapping.Embedded;
 @Upsertable(history = true)
 public abstract class AbstractNft implements History {
 
+    // sentinel value to indicate delegating spender / spender should keep its previous value
     public static final long RETAIN_SPENDER = 0L;
 
     @UpsertColumn(coalesce = "case when deleted = true then null else coalesce({0}, e_{0}, {1}) end")

@@ -47,19 +47,24 @@ public class EthereumTransaction implements Persistable<Long> {
     @ToString.Exclude
     private byte[] data;
 
+    // persisted in tinybar
     private Long gasLimit;
 
+    // persisted in tinybar
     @ToString.Exclude
     private byte[] gasPrice;
 
     @ToString.Exclude
     private byte[] hash;
 
+    // persisted in tinybar
     @ToString.Exclude
     private byte[] maxFeePerGas;
 
+    // persisted in tinybar
     private Long maxGasAllowance;
 
+    // persisted in tinybar
     @ToString.Exclude
     private byte[] maxPriorityFeePerGas;
 
