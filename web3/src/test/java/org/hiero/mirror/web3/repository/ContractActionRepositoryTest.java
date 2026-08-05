@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
 
@@ -22,22 +23,22 @@ class ContractActionRepositoryTest extends Web3IntegrationTest {
         final var otherActions = List.of(
                 domainBuilder
                         .contractAction()
-                        .customize(action -> action.consensusTimestamp(timestamp))
+                        .customize(action -> action.id(new ContractAction.Id(timestamp, (int) domainBuilder.number())))
                         .persist(),
                 domainBuilder
                         .contractAction()
-                        .customize(action -> action.consensusTimestamp(timestamp))
+                        .customize(action -> action.id(new ContractAction.Id(timestamp, (int) domainBuilder.number())))
                         .persist());
         final var successSystemAction = domainBuilder
                 .contractAction()
                 .customize(action -> action.callType(SYSTEM.getNumber())
-                        .consensusTimestamp(timestamp)
+                        .id(new ContractAction.Id(timestamp, (int) domainBuilder.number()))
                         .resultDataType(OUTPUT.getNumber()))
                 .persist();
         final var failedSystemAction = domainBuilder
                 .contractAction()
                 .customize(action -> action.callType(SYSTEM.getNumber())
-                        .consensusTimestamp(timestamp)
+                        .id(new ContractAction.Id(timestamp, (int) domainBuilder.number()))
                         .resultDataType(REVERT_REASON.getNumber()))
                 .persist();
 

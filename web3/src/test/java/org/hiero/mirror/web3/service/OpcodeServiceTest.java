@@ -33,6 +33,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -1111,7 +1112,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 .customize(contractAction -> contractAction
                         .caller(senderEntityId)
                         .callerType(EntityType.ACCOUNT)
-                        .consensusTimestamp(consensusTimestamp)
+                        .id(new ContractAction.Id(consensusTimestamp, (int) domainBuilder.number()))
                         .payerAccountId(senderEntityId)
                         .recipientContract(contractEntityId)
                         .recipientAddress(contractAddress.getBytes())
@@ -1225,7 +1226,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         return entity;
     }
 
-    private NestedCalls.HederaToken populateHederaToken(
+    private HederaToken populateHederaToken(
             final String contractAddress,
             final TokenTypeEnum tokenType,
             final EntityId treasuryAccountId,
@@ -1240,16 +1241,15 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 .customize(t -> t.tokenId(tokenEntity.getId()).type(tokenType).treasuryAccountId(treasuryAccountId))
                 .persist();
 
-        final var supplyKey = new NestedCalls.KeyValue(
+        final var supplyKey = new KeyValue(
                 Boolean.FALSE,
                 contractAddress,
                 new byte[0],
                 new byte[0],
                 Address.ZERO.toHexString()); // the key needed for token minting or burning
         final var keys = new ArrayList<TokenKey>();
-        keys.add(new NestedCalls.TokenKey(
-                AbstractContractCallServiceTest.KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
-        return new NestedCalls.HederaToken(
+        keys.add(new TokenKey(KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
+        return new HederaToken(
                 token.getName(),
                 token.getSymbol(),
                 getAddressFromEntityId(treasuryAccountId), // id of the account holding the initial token supply
@@ -1281,7 +1281,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         return populateHederaToken(contractAddress, tokenType, treasuryEntity.toEntityId(), freezeDefault, tokenKeys);
     }
 
-    private NestedCalls.HederaToken populateHederaToken(
+    private HederaToken populateHederaToken(
             final String contractAddress,
             final TokenTypeEnum tokenType,
             final EntityId treasuryAccountId,
@@ -1299,16 +1299,15 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 .customize(t -> t.tokenId(tokenEntity.getId()).type(tokenType).treasuryAccountId(treasuryAccountId))
                 .persist();
 
-        final var supplyKey = new NestedCalls.KeyValue(
+        final var supplyKey = new KeyValue(
                 Boolean.FALSE,
                 contractAddress,
                 new byte[0],
                 new byte[0],
                 Address.ZERO.toHexString()); // the key needed for token minting or burning
-        tokenKeys.add(new NestedCalls.TokenKey(
-                AbstractContractCallServiceTest.KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
+        tokenKeys.add(new TokenKey(KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
 
-        return new NestedCalls.HederaToken(
+        return new HederaToken(
                 token.getName(),
                 token.getSymbol(),
                 getAddressFromEntityId(treasuryAccountId), // id of the account holding the initial token supply

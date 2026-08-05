@@ -4,7 +4,7 @@ package org.hiero.mirror.web3.repository;
 
 import java.util.Optional;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface AccountBalanceRepository extends CrudRepository<AccountBalance, AccountBalance.Id> {
@@ -22,11 +22,11 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
     @Query(value = """
                  select * from account_balance
                  where
-                     account_id = ?1 and
-                     consensus_timestamp <= ?2
+                     account_id = :accountId and
+                     consensus_timestamp <= :blockTimestamp
                  order by consensus_timestamp desc
                  limit 1
-                 """, nativeQuery = true)
+                 """)
     Optional<AccountBalance> findByIdAndTimestampLessThan(long accountId, long blockTimestamp);
 
     /**
@@ -60,15 +60,15 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
                     with balance_timestamp as (
                         select consensus_timestamp
                         from account_balance
-                        where account_id = ?3 and
-                            consensus_timestamp > ?2 - 2678400000000000 and
-                            consensus_timestamp <= ?2
+                        where account_id = :treasuryAccountId and
+                            consensus_timestamp > :blockTimestamp - 2678400000000000 and
+                            consensus_timestamp <= :blockTimestamp
                         order by consensus_timestamp desc
                         limit 1
                     ), balance_snapshot as (
                         select ab.balance, ab.consensus_timestamp
                         from account_balance as ab, balance_timestamp as bt
-                        where account_id = ?1 and
+                        where account_id = :accountId and
                             ab.consensus_timestamp > bt.consensus_timestamp - 2678400000000000 and
                             ab.consensus_timestamp <= bt.consensus_timestamp
                         order by ab.consensus_timestamp desc
@@ -76,13 +76,13 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
                     ), change as (
                         select sum(amount) as amount
                         from crypto_transfer as ct
-                        where ct.entity_id = ?1 and
+                        where ct.entity_id = :accountId and
                             ct.consensus_timestamp > coalesce((select consensus_timestamp from balance_snapshot), 0) and
-                            ct.consensus_timestamp <= ?2 and
+                            ct.consensus_timestamp <= :blockTimestamp and
                         (ct.errata is null or ct.errata <> 'DELETE')
                     )
                     select coalesce((select balance from balance_snapshot), 0) + coalesce((select amount from change), 0)
-                    """, nativeQuery = true)
+                    """)
     Optional<Long> findHistoricalAccountBalanceUpToTimestamp(
             long accountId, long blockTimestamp, long treasuryAccountId);
 }

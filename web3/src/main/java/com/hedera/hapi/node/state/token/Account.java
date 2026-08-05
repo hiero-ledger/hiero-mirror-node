@@ -164,7 +164,7 @@ public record Account(
             boolean deleted,
             long stakedToMe,
             long stakePeriodStart,
-            OneOf<Account.StakedIdOneOfType> stakedId,
+            OneOf<StakedIdOneOfType> stakedId,
             boolean declineReward,
             boolean receiverSigRequired,
             TokenID headTokenId,
@@ -1085,7 +1085,7 @@ public record Account(
         private boolean deleted = false;
         private long stakedToMe = 0;
         private long stakePeriodStart = 0;
-        private OneOf<Account.StakedIdOneOfType> stakedId =
+        private OneOf<StakedIdOneOfType> stakedId =
                 com.hedera.hapi.node.state.token.codec.AccountProtoCodec.STAKED_ID_UNSET;
         private boolean declineReward = false;
         private boolean receiverSigRequired = false;
@@ -1228,7 +1228,7 @@ public record Account(
                 boolean deleted,
                 long stakedToMe,
                 long stakePeriodStart,
-                OneOf<Account.StakedIdOneOfType> stakedId,
+                OneOf<StakedIdOneOfType> stakedId,
                 boolean declineReward,
                 boolean receiverSigRequired,
                 TokenID headTokenId,
@@ -1490,7 +1490,7 @@ public record Account(
          * @return builder to continue building with
          */
         public Builder stakedAccountId(@Nullable AccountID stakedAccountId) {
-            this.stakedId = new OneOf<>(Account.StakedIdOneOfType.STAKED_ACCOUNT_ID, stakedAccountId);
+            this.stakedId = new OneOf<>(StakedIdOneOfType.STAKED_ACCOUNT_ID, stakedAccountId);
             return this;
         }
 
@@ -1502,7 +1502,7 @@ public record Account(
          * @return builder to continue building with
          */
         public Builder stakedAccountId(AccountID.Builder builder) {
-            this.stakedId = new OneOf<>(Account.StakedIdOneOfType.STAKED_ACCOUNT_ID, builder.build());
+            this.stakedId = new OneOf<>(StakedIdOneOfType.STAKED_ACCOUNT_ID, builder.build());
             return this;
         }
 
@@ -1514,7 +1514,7 @@ public record Account(
          * @return builder to continue building with
          */
         public Builder stakedNodeId(long stakedNodeId) {
-            this.stakedId = new OneOf<>(Account.StakedIdOneOfType.STAKED_NODE_ID, stakedNodeId);
+            this.stakedId = new OneOf<>(StakedIdOneOfType.STAKED_NODE_ID, stakedNodeId);
             return this;
         }
 

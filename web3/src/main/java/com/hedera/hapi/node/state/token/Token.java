@@ -76,7 +76,7 @@ import java.util.function.Supplier;
  *                    (token definition and individual NFTs).
  */
 public record Token(
-        @jakarta.annotation.Nullable TokenID tokenId,
+        @Nullable TokenID tokenId,
         @Nonnull String name,
         @Nonnull String symbol,
         int decimals,

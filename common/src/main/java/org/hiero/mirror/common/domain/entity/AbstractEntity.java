@@ -4,12 +4,6 @@ package org.hiero.mirror.common.domain.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
 import java.sql.Date;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
@@ -17,17 +11,16 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.StringUtils;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.Nullable;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 @Data
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
@@ -40,8 +33,8 @@ public abstract class AbstractEntity implements History {
 
     private static final String CLEAR_PUBLIC_KEY = StringUtils.EMPTY;
 
-    @Column(updatable = false)
     @ToString.Exclude
+    @InsertOnlyProperty
     private byte[] alias;
 
     private Long autoRenewAccountId;
@@ -56,7 +49,7 @@ public abstract class AbstractEntity implements History {
 
     private Long balanceTimestamp;
 
-    @Column(updatable = false)
+    @InsertOnlyProperty
     private Long createdTimestamp;
 
     private Boolean declineReward;
@@ -72,8 +65,8 @@ public abstract class AbstractEntity implements History {
                             end""")
     private Long ethereumNonce;
 
-    @Column(updatable = false)
     @ToString.Exclude
+    @InsertOnlyProperty
     private byte[] evmAddress;
 
     private Long expirationTimestamp;
@@ -88,15 +81,13 @@ public abstract class AbstractEntity implements History {
 
     private String memo;
 
-    @Column(updatable = false)
+    @InsertOnlyProperty
     private Long num;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId obtainerId;
 
     private Boolean permanentRemoval;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId proxyAccountId;
 
     @ToString.Exclude
@@ -106,12 +97,12 @@ public abstract class AbstractEntity implements History {
                             end""")
     private String publicKey;
 
-    @Column(updatable = false)
+    @InsertOnlyProperty
     private Long realm;
 
     private Boolean receiverSigRequired;
 
-    @Column(updatable = false)
+    @InsertOnlyProperty
     private Long shard;
 
     private Long stakedAccountId;
@@ -122,9 +113,18 @@ public abstract class AbstractEntity implements History {
 
     private Range<Long> timestampRange;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    private EntityType type;
+    // Hidden from Jackson so batch COPY serialization only sees the "type" property matching the db column
+    @JsonIgnore
+    @Column("type")
+    private EntityType entityType;
+
+    public EntityType getType() {
+        return entityType;
+    }
+
+    public void setType(EntityType type) {
+        this.entityType = type;
+    }
 
     public void addBalance(Long balance) {
         if (balance == null) {
@@ -193,6 +193,11 @@ public abstract class AbstractEntity implements History {
 
         public B memo(String memo) {
             this.memo = DomainUtils.sanitize(memo);
+            return self();
+        }
+
+        public B type(EntityType entityType) {
+            this.entityType = entityType;
             return self();
         }
     }

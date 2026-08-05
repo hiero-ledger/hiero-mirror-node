@@ -101,7 +101,7 @@ public class TopicMessageServiceImpl implements TopicMessageService {
                                         .memo("")
                                         .type(EntityType.TOPIC)
                                         .build()))
-                .filter(e -> e.getType() == EntityType.TOPIC)
+                .filter(e -> e.getEntityType() == EntityType.TOPIC)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Not a valid topic")));
     }
 

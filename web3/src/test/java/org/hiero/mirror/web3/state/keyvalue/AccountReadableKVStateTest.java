@@ -29,7 +29,6 @@ import com.hedera.node.config.VersionedConfiguration;
 import com.hedera.node.config.data.ContractsConfig;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import com.hedera.services.utils.EntityIdUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -94,29 +93,9 @@ class AccountReadableKVStateTest {
     private static final ProtoBytes EVM_ADDRESS_BYTES =
             new ProtoBytes(Bytes.wrap("67d8d32e9bf1a9968a5ff53b87d777aa8ebbee69".getBytes()));
     private static final long DEFAULT_AUTO_RENEW_PERIOD = 7776000L;
-    private static final List<TokenAccountAssociationsCount> associationsCount = Arrays.asList(
-            new TokenAccountAssociationsCount() {
-                @Override
-                public Integer getTokenCount() {
-                    return POSITIVE_BALANCES;
-                }
-
-                @Override
-                public boolean getIsPositiveBalance() {
-                    return true;
-                }
-            },
-            new TokenAccountAssociationsCount() {
-                @Override
-                public Integer getTokenCount() {
-                    return NEGATIVE_BALANCES;
-                }
-
-                @Override
-                public boolean getIsPositiveBalance() {
-                    return false;
-                }
-            });
+    private static final List<TokenAccountAssociationsCount> associationsCount = List.of(
+            new TokenAccountAssociationsCount(POSITIVE_BALANCES, true),
+            new TokenAccountAssociationsCount(NEGATIVE_BALANCES, false));
 
     @AutoClose
     private static final MockedStatic<ContractCallContext> contextMockedStatic = mockStatic(ContractCallContext.class);
@@ -176,7 +155,7 @@ class AccountReadableKVStateTest {
 
         treasuryAccountId = systemEntity.treasuryAccount();
         entity = new Entity();
-        entity.setId(EntityIdUtils.toAccountId(SHARD, REALM, NUM).accountNum());
+        entity.setId(EntityId.of(SHARD, REALM, NUM).getId());
         entity.setCreatedTimestamp(timestamp.get());
         entity.setShard(SHARD);
         entity.setRealm(REALM);
@@ -192,7 +171,7 @@ class AccountReadableKVStateTest {
         entity.setEvmAddress(EVM_ADDRESS_BYTES.value().toByteArray());
 
         token = new Entity();
-        token.setId(EntityIdUtils.toAccountId(SHARD, REALM, TOKEN_NUM).accountNum());
+        token.setId(EntityId.of(SHARD, REALM, TOKEN_NUM).getId());
         token.setCreatedTimestamp(timestamp.get());
         token.setShard(SHARD);
         token.setRealm(REALM);
@@ -212,7 +191,7 @@ class AccountReadableKVStateTest {
                                 entity.getShard(),
                                 entity.getRealm(),
                                 new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
+                        Account::accountId)
                 .returns(
                         TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS),
                         Account::expirationSecond)
@@ -231,7 +210,7 @@ class AccountReadableKVStateTest {
                                 entity.getShard(),
                                 entity.getRealm(),
                                 new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
+                        Account::accountId)
                 .returns(EMPTY_KEY_LIST, Account::key));
     }
 
@@ -251,7 +230,7 @@ class AccountReadableKVStateTest {
                                 contractEntity.getShard(),
                                 contractEntity.getRealm(),
                                 new OneOf<>(AccountOneOfType.ACCOUNT_NUM, contractEntity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
+                        Account::accountId)
                 .returns(
                         Key.newBuilder()
                                 .contractID(ContractID.newBuilder()
@@ -282,7 +261,7 @@ class AccountReadableKVStateTest {
                                 entity.getShard(),
                                 entity.getRealm(),
                                 new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
+                        Account::accountId)
                 .returns(
                         TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS),
                         Account::expirationSecond)
@@ -305,7 +284,7 @@ class AccountReadableKVStateTest {
                                 entity.getShard(),
                                 entity.getRealm(),
                                 new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
+                        Account::accountId)
                 .returns(
                         TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS),
                         Account::expirationSecond)

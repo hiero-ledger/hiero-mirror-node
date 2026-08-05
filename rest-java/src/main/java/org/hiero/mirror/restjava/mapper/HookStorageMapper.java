@@ -2,14 +2,19 @@
 
 package org.hiero.mirror.restjava.mapper;
 
-import static org.hiero.mirror.restjava.mapper.CommonMapper.QUALIFIER_TIMESTAMP;
-
-import org.hiero.mirror.common.domain.hook.HookStorage;
+import java.util.List;
+import org.hiero.mirror.rest.model.HookStorage;
+import org.hiero.mirror.restjava.dto.HookStorageSlot;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 @Mapper(config = MapperConfiguration.class)
-public interface HookStorageMapper extends CollectionMapper<HookStorage, org.hiero.mirror.rest.model.HookStorage> {
-    @Mapping(source = "modifiedTimestamp", target = "timestamp", qualifiedByName = QUALIFIER_TIMESTAMP)
-    org.hiero.mirror.rest.model.HookStorage map(HookStorage source);
+public interface HookStorageMapper {
+
+    List<HookStorage> map(List<HookStorageSlot> slots);
+
+    @Mapping(target = "key", source = "key")
+    @Mapping(target = "value", source = "value")
+    @Mapping(target = "timestamp", source = "timestampNanos", qualifiedByName = CommonMapper.QUALIFIER_TIMESTAMP)
+    HookStorage map(HookStorageSlot slot);
 }

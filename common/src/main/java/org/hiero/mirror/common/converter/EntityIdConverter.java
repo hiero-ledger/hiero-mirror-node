@@ -2,31 +2,29 @@
 
 package org.hiero.mirror.common.converter;
 
-import jakarta.persistence.AttributeConverter;
-import jakarta.persistence.Converter;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.springframework.boot.context.properties.ConfigurationPropertiesBinding;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.data.convert.ReadingConverter;
+import org.springframework.data.convert.WritingConverter;
+import org.springframework.stereotype.Component;
 
-@Converter
-@ConfigurationPropertiesBinding
-@SuppressWarnings("java:S6548")
-public class EntityIdConverter implements AttributeConverter<EntityId, Long> {
+public class EntityIdConverter {
 
-    public static final EntityIdConverter INSTANCE = new EntityIdConverter();
-
-    @Override
-    public Long convertToDatabaseColumn(EntityId entityId) {
-        if (EntityId.isEmpty(entityId)) {
-            return null;
+    @Component
+    @WritingConverter
+    public static class Writer implements Converter<EntityId, Long> {
+        @Override
+        public Long convert(EntityId entityId) {
+            return EntityId.isEmpty(entityId) ? null : entityId.getId();
         }
-        return entityId.getId();
     }
 
-    @Override
-    public EntityId convertToEntityAttribute(Long encodedId) {
-        if (encodedId == null) {
-            return null;
+    @Component
+    @ReadingConverter
+    public static class Reader implements Converter<Long, EntityId> {
+        @Override
+        public EntityId convert(Long encodedId) {
+            return encodedId == null ? null : EntityId.of(encodedId);
         }
-        return EntityId.of(encodedId);
     }
 }

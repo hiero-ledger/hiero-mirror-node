@@ -12,10 +12,11 @@ import com.hederahashgraph.api.proto.java.ServiceEndpoint;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
-import org.assertj.core.api.ListAssert;
 import org.flywaydb.core.api.configuration.ClassicConfiguration;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
@@ -140,7 +141,7 @@ class MissingAddressBooksMigrationTest extends ImporterIntegrationTest {
     private AddressBook addressBook(
             Consumer<AddressBook.AddressBookBuilder> addressBookCustomizer, long consensusTimestamp, int nodeCount) {
         long startConsensusTimestamp = consensusTimestamp + 1;
-        List<AddressBookEntry> addressBookEntryList = new ArrayList<>();
+        Set<AddressBookEntry> addressBookEntryList = new HashSet<>();
         for (long i = 0; i < nodeCount; i++) {
             long nodeId = i;
             long nodeAccountId = 3 + nodeId;
@@ -190,10 +191,8 @@ class MissingAddressBooksMigrationTest extends ImporterIntegrationTest {
         return fileDataRepository.save(fileData);
     }
 
-    @SuppressWarnings("deprecation")
     private void assertAddressBook(AddressBook actual, NodeAddressBook expected) {
-        ListAssert<AddressBookEntry> listAssert =
-                assertThat(actual.getEntries()).hasSize(expected.getNodeAddressCount());
+        var listAssert = assertThat(actual.getEntries()).hasSize(expected.getNodeAddressCount());
 
         for (NodeAddress nodeAddress : expected.getNodeAddressList()) {
             listAssert.anySatisfy(abe -> {

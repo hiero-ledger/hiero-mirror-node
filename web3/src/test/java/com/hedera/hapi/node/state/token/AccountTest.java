@@ -54,12 +54,12 @@ class AccountTest {
         final var stakedToMeList = LONG_TESTS_LIST;
         final var stakePeriodStartList = LONG_TESTS_LIST;
         final var stakedIdList = Stream.of(
-                        List.of(new OneOf<>(Account.StakedIdOneOfType.UNSET, null)),
+                        List.of(new OneOf<>(StakedIdOneOfType.UNSET, null)),
                         AccountIDTest.ARGUMENTS.stream()
-                                .map(value -> new OneOf<>(Account.StakedIdOneOfType.STAKED_ACCOUNT_ID, value))
+                                .map(value -> new OneOf<>(StakedIdOneOfType.STAKED_ACCOUNT_ID, value))
                                 .toList(),
                         LONG_TESTS_LIST.stream()
-                                .map(value -> new OneOf<>(Account.StakedIdOneOfType.STAKED_NODE_ID, value))
+                                .map(value -> new OneOf<>(StakedIdOneOfType.STAKED_NODE_ID, value))
                                 .toList())
                 .flatMap(List::stream)
                 .toList();
@@ -784,27 +784,26 @@ class AccountTest {
     @ParameterizedTest
     @CsvSource({"10, STAKED_ACCOUNT_ID", "11, STAKED_NODE_ID"})
     void testStakedIdFromProtobufOrdinal(final int ordinal, final StakedIdOneOfType expected) {
-        final var stakedId = Account.StakedIdOneOfType.fromProtobufOrdinal(ordinal);
+        final var stakedId = StakedIdOneOfType.fromProtobufOrdinal(ordinal);
         assertThat(stakedId).isEqualTo(expected);
     }
 
     @Test
     void testStakedIdFromProtobufThrowsException() {
-        assertThatThrownBy(() -> Account.StakedIdOneOfType.fromProtobufOrdinal(100))
+        assertThatThrownBy(() -> StakedIdOneOfType.fromProtobufOrdinal(100))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
     @CsvSource({"STAKED_ACCOUNT_ID, STAKED_ACCOUNT_ID", "STAKED_NODE_ID, STAKED_NODE_ID"})
     void testStakedIdFromString(final String name, final StakedIdOneOfType expected) {
-        final var stakedId = Account.StakedIdOneOfType.fromString(name);
+        final var stakedId = StakedIdOneOfType.fromString(name);
         assertThat(stakedId).isEqualTo(expected);
     }
 
     @Test
     void testStakedIdFromStringThrowsException() {
-        assertThatThrownBy(() -> Account.StakedIdOneOfType.fromString("INVALID"))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> StakedIdOneOfType.fromString("INVALID")).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

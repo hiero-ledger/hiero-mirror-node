@@ -3,8 +3,8 @@
 package org.hiero.mirror.importer.repository;
 
 import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Modifying;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface StakingRewardTransferRepository
@@ -12,6 +12,6 @@ public interface StakingRewardTransferRepository
 
     @Modifying
     @Override
-    @Query("delete from StakingRewardTransfer where consensusTimestamp <= ?1")
+    @Query("delete from staking_reward_transfer where consensus_timestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

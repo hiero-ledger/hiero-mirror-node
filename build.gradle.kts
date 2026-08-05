@@ -30,6 +30,8 @@ extra.apply {
     set("netty.version", "4.2.16.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.18.1")
     set("postgresql.version", "42.7.13") // Temporary until next Spring Boot
+    set("protobufVersion", "4.34.1")
+    set("springGrpcVersion", "1.0.3")
     set("tomcat.version", "11.0.23") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
@@ -42,6 +44,8 @@ dependencies {
         val blockNodeVersion = rootProject.extra["blockNodeVersion"] as String
         val consensusNodeVersion = rootProject.extra["consensusNodeVersion"] as String
         val mapStructVersion = rootProject.extra["mapStructVersion"] as String
+        val protobufVersion = rootProject.extra["protobufVersion"] as String
+        val springGrpcVersion = rootProject.extra["springGrpcVersion"] as String
         val tuweniVersion = rootProject.extra["tuweniVersion"] as String
 
         api("com.asarkar.grpc:grpc-test:2.0.1")
@@ -51,6 +55,7 @@ dependencies {
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
         api("com.google.guava:guava:33.6.0-jre")
+        api("com.google.protobuf:protobuf-java:$protobufVersion")
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
@@ -87,6 +92,8 @@ dependencies {
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
+        api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
+        api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:6.0.0")
         api("software.amazon.awssdk:bom:2.49.6")
         api("tech.pegasys:jc-kzg-4844:1.0.0")

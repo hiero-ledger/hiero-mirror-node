@@ -6,7 +6,6 @@ import static org.hiero.mirror.importer.test.verification.wrb.config.DataSourceC
 import static org.hiero.mirror.importer.test.verification.wrb.config.DataSourceContextHolder.WRB;
 
 import com.google.common.collect.Lists;
-import jakarta.persistence.EntityManager;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -35,6 +34,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.transaction.support.TransactionOperations;
@@ -197,9 +197,9 @@ final class WrbVerificationTest {
         @Bean
         DomainBuilder domainBuilder(
                 final CommonProperties commonProperties,
-                final EntityManager entityManager,
+                final JdbcAggregateTemplate jdbcAggregateTemplate,
                 final TransactionOperations transactionOperations) {
-            return new DomainBuilder(commonProperties, entityManager, transactionOperations);
+            return new DomainBuilder(commonProperties, jdbcAggregateTemplate, transactionOperations);
         }
 
         @Bean

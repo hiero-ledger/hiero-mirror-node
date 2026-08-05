@@ -4,9 +4,6 @@ package org.hiero.mirror.common.domain.contract;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -16,13 +13,14 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.ArrayUtils;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Entity
+@Table
 @NoArgsConstructor
 @SuperBuilder
 public class ContractResult implements Persistable<Long> {
@@ -62,10 +60,8 @@ public class ContractResult implements Persistable<Long> {
 
     private Long gasUsed;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId senderId;
 
     private byte[] transactionHash;
@@ -89,7 +85,7 @@ public class ContractResult implements Persistable<Long> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true; // Since we never update and use a natural ID, avoid Spring Data JDBC querying before insert
     }
 
     public ContractTransactionHash toContractTransactionHash() {

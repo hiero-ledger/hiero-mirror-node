@@ -4,31 +4,23 @@ package org.hiero.mirror.common.domain.hook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import jakarta.persistence.Convert;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.MappedSuperclass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import lombok.With;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
-@IdClass(AbstractHook.Id.class)
 @Upsertable(history = true)
 public abstract class AbstractHook implements History {
 
@@ -45,7 +37,6 @@ public abstract class AbstractHook implements History {
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_COALESCE)
     private byte[] adminKey;
 
-    @Convert(converter = EntityIdConverter.class)
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_COALESCE)
     private EntityId contractId;
 
@@ -55,45 +46,80 @@ public abstract class AbstractHook implements History {
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
     private Boolean deleted;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
     private HookExtensionPoint extensionPoint;
 
-    @jakarta.persistence.Id
-    private long hookId;
-
-    @jakarta.persistence.Id
-    private long ownerId;
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    private Id id;
 
     private Range<Long> timestampRange;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
     private HookType type;
 
-    @JsonIgnore
-    public Id getId() {
-        return new Id(hookId, ownerId);
+    public long getHookId() {
+        return id != null ? id.getHookId() : 0L;
+    }
+
+    public void setHookId(long hookId) {
+        id = (id == null ? new Id() : id).withHookId(hookId);
+    }
+
+    public long getOwnerId() {
+        return id != null ? id.getOwnerId() : 0L;
     }
 
     public void setOwnerId(EntityId ownerId) {
-        this.ownerId = ownerId.getId();
+        setOwnerId(ownerId.getId());
     }
 
     public void setOwnerId(long ownerId) {
-        this.ownerId = ownerId;
+        id = (id == null ? new Id() : id).withOwnerId(ownerId);
+    }
+
+    @JsonIgnore
+    public Id getId() {
+        return id;
     }
 
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
+    @With
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = -8745629837592847563L;
 
         private long hookId;
+
         private long ownerId;
+    }
+
+    @SuppressWarnings("java:S1610")
+    public abstract static class AbstractHookBuilder<C extends AbstractHook, B extends AbstractHookBuilder<C, B>> {
+        public B hookId(long hookId) {
+            this.id = (this.id == null ? new Id() : this.id).withHookId(hookId);
+            return self();
+        }
+
+        public B ownerId(long ownerId) {
+            this.id = (this.id == null ? new Id() : this.id).withOwnerId(ownerId);
+            return self();
+        }
+
+        public B ownerId(EntityId ownerId) {
+            return ownerId(ownerId.getId());
+        }
+
+        public B extensionPoint(HookExtensionPoint extensionPoint) {
+            this.extensionPoint = extensionPoint;
+            return self();
+        }
+
+        public B type(HookType hookType) {
+            this.type = hookType;
+            return self();
+        }
     }
 }

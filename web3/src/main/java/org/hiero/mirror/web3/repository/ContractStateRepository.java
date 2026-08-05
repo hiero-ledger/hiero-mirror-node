@@ -10,21 +10,21 @@ import java.util.Optional;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.web3.state.ContractSlotValue;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
 public interface ContractStateRepository extends CrudRepository<ContractState, Long> {
 
-    @Query(value = "select value from contract_state where contract_id = ?1 and slot =?2", nativeQuery = true)
+    @Query(value = "select slot, value from contract_state where contract_id = :contractId and slot = :key")
     @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_CONTRACT_STATE)
-    Optional<byte[]> findStorage(final Long contractId, final byte[] key);
+    Optional<ContractSlotValue> findStorage(final Long contractId, final byte[] key);
 
     @Query(value = """
                     select slot, value from contract_state
                     where contract_id = :contractId
                     and slot in (:slots)
-                    """, nativeQuery = true)
+                    """)
     List<ContractSlotValue> findStorageBatch(@Param("contractId") Long contractId, @Param("slots") List<byte[]> slots);
 
     /**
@@ -43,13 +43,14 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
      */
     @Query(value = """
             select
+                slot,
                 coalesce(value_written, value_read) as value
             from contract_state_change
-            where contract_id = ?1
-            and slot = ?2
-            and consensus_timestamp <= ?3
+            where contract_id = :id
+            and slot = :slot
+            and consensus_timestamp <= :blockTimestamp
             order by consensus_timestamp desc
             limit 1
-            """, nativeQuery = true)
-    Optional<byte[]> findStorageByBlockTimestamp(long id, byte[] slot, long blockTimestamp);
+            """)
+    Optional<ContractSlotValue> findStorageByBlockTimestamp(long id, byte[] slot, long blockTimestamp);
 }
