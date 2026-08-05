@@ -44,19 +44,24 @@ public record EntityIdRangeParameter(RangeOperator operator, Long value) impleme
         }
 
         var properties = CommonProperties.getInstance();
-        return switch (parts.size()) {
-            case 1 -> EntityId.of(properties.getShard(), properties.getRealm(), parts.get(0));
-            case 2 -> EntityId.of(properties.getShard(), parts.get(0), parts.get(1));
-            case 3 -> EntityId.of(parts.get(0), parts.get(1), parts.get(2));
-            default -> throw new IllegalArgumentException("Invalid entity ID");
-        };
+        var result =
+                switch (parts.size()) {
+                    case 1 -> EntityId.of(properties.getShard(), properties.getRealm(), parts.get(0));
+                    case 2 -> EntityId.of(properties.getShard(), parts.get(0), parts.get(1));
+                    case 3 -> EntityId.of(parts.get(0), parts.get(1), parts.get(2));
+                    default -> throw new IllegalArgumentException("Invalid entity ID");
+                };
+
+        // A shard >= 512 packs into the sign bit, producing a negative encoded id. Used as a range bound (e.g.
+        // gt:512.0.0) that inverts to match the entire non-negative id space, so reject it before it becomes a bound.
+        if (result.getId() < 0) {
+            throw new IllegalArgumentException("Invalid entity ID");
+        }
+
+        return result;
     }
 
     public long getInclusiveValue() {
-        return switch (operator) {
-            case GT -> value + 1;
-            case LT -> value - 1;
-            default -> value;
-        };
+        return RangeParameter.toInclusive(operator, value);
     }
 }

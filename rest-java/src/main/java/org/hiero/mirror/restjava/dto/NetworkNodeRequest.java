@@ -4,10 +4,12 @@ package org.hiero.mirror.restjava.dto;
 
 import static org.hiero.mirror.restjava.common.Constants.FILE_ID;
 import static org.hiero.mirror.restjava.common.Constants.LIMIT;
+import static org.hiero.mirror.restjava.common.Constants.MAX_REPEATED_QUERY_PARAMETERS;
 import static org.hiero.mirror.restjava.common.Constants.NODE_ID;
 import static org.hiero.mirror.restjava.common.Constants.ORDER;
 
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,6 +37,7 @@ public class NetworkNodeRequest {
 
     @RestJavaQueryParam(name = NODE_ID, required = false)
     @Builder.Default
+    @Size(max = MAX_REPEATED_QUERY_PARAMETERS)
     private List<NumberRangeParameter> nodeIds = List.of();
 
     @RestJavaQueryParam(name = LIMIT, required = false)

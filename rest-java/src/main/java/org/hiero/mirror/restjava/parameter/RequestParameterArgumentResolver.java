@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.restjava.parameter;
 
+import static org.hiero.mirror.restjava.common.Constants.MAX_REPEATED_QUERY_PARAMETERS;
+
 import jakarta.inject.Named;
 import java.lang.reflect.Field;
 import java.util.Collection;
@@ -230,6 +232,12 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
 
         if (!isMultiValue && paramValues.length > 1) {
             throw new IllegalArgumentException("Only a single instance is supported for " + paramName);
+        }
+
+        // Cap repeated multi-valued parameters regardless of whether the DTO field declares a @Size constraint.
+        if (isMultiValue && paramValues.length > MAX_REPEATED_QUERY_PARAMETERS) {
+            throw new IllegalArgumentException(
+                    "Too many values for " + paramName + " (maximum " + MAX_REPEATED_QUERY_PARAMETERS + ")");
         }
 
         // Add to property values - WebDataBinder will handle type conversion
