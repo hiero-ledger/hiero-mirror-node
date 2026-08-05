@@ -52,7 +52,7 @@ final class FeeScheduleMapperTest {
     @BeforeEach
     void setup() {
         commonMapper = new CommonMapperImpl();
-        feeScheduleMapper = new FeeScheduleMapperImpl();
+        feeScheduleMapper = new FeeScheduleMapperImpl(commonMapper);
     }
 
     @Test
@@ -67,8 +67,7 @@ final class FeeScheduleMapperTest {
         final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
 
         // when
-        final var result =
-                feeScheduleMapper.mapSimpleFees(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
 
         // then
         assertThat(result)
@@ -101,8 +100,7 @@ final class FeeScheduleMapperTest {
         final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
 
         // when
-        final var result =
-                feeScheduleMapper.mapSimpleFees(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.DESC);
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.DESC);
 
         // then
         assertThat(result.getFees()).hasSize(3).isSortedAccordingTo((a, b) -> b.getTransactionType()
@@ -120,8 +118,7 @@ final class FeeScheduleMapperTest {
         final var exchangeRateFile = new SystemFile<>(fileData, ExchangeRateSet.getDefaultInstance());
 
         // when
-        final var result =
-                feeScheduleMapper.mapSimpleFees(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
 
         // then
         assertThat(result)
@@ -144,8 +141,7 @@ final class FeeScheduleMapperTest {
         final var exchangeRateFile = new SystemFile<>(fileData, zeroRateSet);
 
         // when
-        final var result =
-                feeScheduleMapper.mapSimpleFees(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
 
         // then
         assertThat(result.getFees()).isEmpty();
@@ -163,8 +159,7 @@ final class FeeScheduleMapperTest {
         final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
 
         // when
-        final var result =
-                feeScheduleMapper.mapSimpleFees(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
 
         // then: with nextRate (centEquiv=15), gas 852 tinycents -> 852*1/15=56 for all types
         assertThat(result.getFees()).hasSize(3);
@@ -250,8 +245,7 @@ final class FeeScheduleMapperTest {
         final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
 
         // when
-        final var result =
-                feeScheduleMapper.mapSimpleFees(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
 
         // then
         assertThat(result)
@@ -289,8 +283,7 @@ final class FeeScheduleMapperTest {
         final var bound = Bound.of(new TimestampParameter[] {timestampParam}, "timestamp", null);
 
         // when
-        final var result =
-                feeScheduleMapper.mapSimpleFees(feeScheduleFile, exchangeRateFile, bound, Sort.Direction.ASC);
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, bound, Sort.Direction.ASC);
 
         // then: nextRate is used due to upper bound
         assertThat(result.getFees().getFirst().getGas()).isEqualTo(56L);
@@ -309,15 +302,6 @@ final class FeeScheduleMapperTest {
                 .isEqualTo(1L);
         assertThat(feeScheduleMapper.convertGasPriceToTinyBars(defaultGasPriceTinycents, defaultHbars, 0))
                 .isNull();
-    }
-
-    @Test
-    void convertLegacyGasPriceToTinyBars() {
-        final long legacyGasPrice = 852000L; // Equals 852 tinycents
-        final int defaultHbars = 30000;
-        final int defaultCents = 851000;
-        assertThat(feeScheduleMapper.convertLegacyGasPriceToTinyBars(legacyGasPrice, defaultHbars, defaultCents))
-                .isEqualTo(30L);
     }
 
     private FeeSchedule createSimpleFeeSchedule(long gasPrice) {

@@ -69,16 +69,20 @@ public class RestJavaProperties {
     }
 
     public enum HederaNetwork {
-        DEMO("demo"),
-        MAINNET("mainnet"),
-        PREVIEWNET("previewnet"),
-        TESTNET("testnet"),
-        OTHER("other");
+        DEMO(0),
+        MAINNET(1779296400389248896L),
+        PREVIEWNET(0),
+        TESTNET(1777482002529719510L),
+        OTHER(0);
 
-        private final String name;
+        private final long simpleFeesSupportStartTimestamp;
 
-        HederaNetwork(String name) {
-            this.name = name;
+        HederaNetwork(long simpleFeesSupportStartTimestamp) {
+            this.simpleFeesSupportStartTimestamp = simpleFeesSupportStartTimestamp;
+        }
+
+        public long getSimpleFeesSupportStartTimestamp() {
+            return simpleFeesSupportStartTimestamp;
         }
     }
 }

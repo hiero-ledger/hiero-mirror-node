@@ -34,8 +34,6 @@ import org.springframework.util.function.ThrowingFunction;
 @RequiredArgsConstructor
 final class FileServiceImpl implements FileService {
 
-    static final long MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP = 1779296400389248896L;
-
     private final FileDataRepository fileDataRepository;
     private final QueryProperties queryProperties;
     private final SystemEntity systemEntity;
@@ -63,7 +61,9 @@ final class FileServiceImpl implements FileService {
         // For historical calls we need to call the legacy fee schedule file. Supported only for mainnet. The rest of
         // the networks default to the new simple fee schedule file.
         if (restJavaProperties.getNetwork() == HederaNetwork.MAINNET
-                && timestamp.adjustUpperBound() < MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP) {
+                        && timestamp.adjustUpperBound() < HederaNetwork.MAINNET.getSimpleFeesSupportStartTimestamp()
+                || restJavaProperties.getNetwork() == HederaNetwork.TESTNET
+                        && timestamp.adjustUpperBound() < HederaNetwork.TESTNET.getSimpleFeesSupportStartTimestamp()) {
             final var legacyFeeSchedule =
                     getSystemFile(systemEntity.feeScheduleFile(), timestamp, CurrentAndNextFeeSchedule::parseFrom);
 

@@ -2,11 +2,12 @@
 
 package org.hiero.mirror.restjava.mapper;
 
+import static org.hiero.mirror.restjava.mapper.CommonMapper.QUALIFIER_TIMESTAMP;
+
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
-import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +22,7 @@ import org.hiero.mirror.restjava.dto.SystemFile;
 import org.hiero.mirror.restjava.service.Bound;
 import org.jspecify.annotations.Nullable;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import org.springframework.data.domain.Sort;
 
 @Mapper(config = MapperConfiguration.class)
@@ -37,59 +39,33 @@ public interface FeeScheduleMapper {
             HederaFunctionality.ContractCreate, "ContractCreate",
             HederaFunctionality.EthereumTransaction, "EthereumTransaction");
 
-    default NetworkFeesResponse mapSimpleFees(
+    @Mapping(target = "fees", expression = "java(mapFees(feeScheduleFile, exchangeRateFile, bound, order))")
+    @Mapping(
+            source = "feeScheduleFile.fileData.consensusTimestamp",
+            target = "timestamp",
+            qualifiedByName = QUALIFIER_TIMESTAMP)
+    NetworkFeesResponse map(
             SystemFile<FeeSchedule> feeScheduleFile,
             SystemFile<ExchangeRateSet> exchangeRateFile,
             Bound bound,
-            Sort.Direction order) {
-        var response = new NetworkFeesResponse();
-        var consensusTimestamp = feeScheduleFile.fileData().getConsensusTimestamp();
-        if (consensusTimestamp != null) {
-            response.setTimestamp(DomainUtils.toTimestamp(consensusTimestamp));
-        }
-        response.setFees(mapSimpleFeesToNetworkFees(feeScheduleFile, exchangeRateFile, bound, order));
-        return response;
-    }
+            Sort.Direction order);
 
-    default List<NetworkFee> mapFeesToNetworkFees(
-            SystemFile<CurrentAndNextFeeSchedule> feeScheduleFile,
-            SystemFile<ExchangeRateSet> exchangeRateFile,
-            Bound bound,
-            Sort.Direction order) {
-
-        final var refTimestampNanos = getReferenceTimestampNanos(feeScheduleFile, bound);
-        final var feeSchedule = getEffectiveFeeSchedule(feeScheduleFile.data(), refTimestampNanos);
-        final var exchangeRate = getEffectiveExchangeRate(exchangeRateFile.data(), refTimestampNanos);
-
-        return feeSchedule.getTransactionFeeScheduleList().stream()
-                .filter(s -> ENABLED_TRANSACTION_TYPES.containsKey(s.getHederaFunctionality()) && s.getFeesCount() > 0)
-                .map(s -> mapToNetworkFee(s, exchangeRate))
-                .filter(Objects::nonNull)
-                .sorted(getComparator(order))
-                .toList();
-    }
-
-    default List<NetworkFee> mapSimpleFeesToNetworkFees(
+    default List<NetworkFee> mapFees(
             SystemFile<FeeSchedule> feeScheduleFile,
             SystemFile<ExchangeRateSet> exchangeRateFile,
             Bound bound,
             Sort.Direction order) {
 
         final var gasTinycents = getGasPriceTinycents(feeScheduleFile.data());
-        if (gasTinycents == null) {
-            return List.of();
-        }
-
         final var refTimestampNanos = getReferenceTimestampNanos(feeScheduleFile, bound);
         final var exchangeRate = getEffectiveExchangeRate(exchangeRateFile.data(), refTimestampNanos);
-        final var tinyBars =
-                convertGasPriceToTinyBars(gasTinycents, exchangeRate.getHbarEquiv(), exchangeRate.getCentEquiv());
-        if (tinyBars == null) {
-            return List.of();
-        }
+        final var tinyBars = gasTinycents != null
+                ? convertGasPriceToTinyBars(gasTinycents, exchangeRate.getHbarEquiv(), exchangeRate.getCentEquiv())
+                : null;
 
         return ENABLED_TRANSACTION_TYPES.values().stream()
-                .map(type -> new NetworkFee().gas(tinyBars).transactionType(type))
+                .map(type -> tinyBars != null ? new NetworkFee().gas(tinyBars).transactionType(type) : null)
+                .filter(Objects::nonNull)
                 .sorted(getComparator(order))
                 .toList();
     }
@@ -155,20 +131,6 @@ public interface FeeScheduleMapper {
     }
 
     @Nullable
-    private NetworkFee mapToNetworkFee(TransactionFeeSchedule schedule, ExchangeRate rate) {
-        var feeData = schedule.getFees(0);
-        if (!feeData.hasServicedata()) {
-            return null;
-        }
-
-        var type = ENABLED_TRANSACTION_TYPES.get(schedule.getHederaFunctionality());
-        var gas = feeData.getServicedata().getGas();
-        var tinyBars = convertLegacyGasPriceToTinyBars(gas, rate.getHbarEquiv(), rate.getCentEquiv());
-
-        return tinyBars == null ? null : new NetworkFee().gas(tinyBars).transactionType(type);
-    }
-
-    @Nullable
     private Long getGasPriceTinycents(FeeSchedule feeSchedule) {
         for (final var extra : feeSchedule.extras()) {
             if (extra.name() == Extra.GAS) {
@@ -185,12 +147,6 @@ public interface FeeScheduleMapper {
         }
         final long gasInTinyBars = gasPriceTinycents * hbars / cents;
         return Math.max(gasInTinyBars, 1L);
-    }
-
-    @Nullable
-    default Long convertLegacyGasPriceToTinyBars(long gasPrice, int hbars, int cents) {
-        final long gasInTinyCents = gasPrice / FEE_DIVISOR_FACTOR;
-        return convertGasPriceToTinyBars(gasInTinyCents, hbars, cents);
     }
 
     default Comparator<NetworkFee> getComparator(Sort.Direction order) {

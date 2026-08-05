@@ -50,6 +50,7 @@ import org.hiero.mirror.rest.model.NetworkNodesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.rest.model.NetworkSupplyResponse;
 import org.hiero.mirror.rest.model.RegisteredNodesResponse;
+import org.hiero.mirror.restjava.RestJavaProperties.HederaNetwork;
 import org.hiero.mirror.restjava.common.Constants;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.config.NetworkProperties;
@@ -79,8 +80,6 @@ import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 
 @RequiredArgsConstructor
 final class NetworkControllerTest extends ControllerTest {
-
-    private static final long MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP = 1779296400389248896L;
 
     private final CommonMapper commonMapper;
     private final ExchangeRateMapper exchangeRateMapper;
@@ -299,8 +298,7 @@ final class NetworkControllerTest extends ControllerTest {
             // given
             final var feeSchedule = systemFileSimpleFee();
             final var exchangeRate = systemFileExchangeRate();
-            final var expected =
-                    feeScheduleMapper.mapSimpleFees(feeSchedule, exchangeRate, Bound.EMPTY, Sort.Direction.ASC);
+            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Bound.EMPTY, Sort.Direction.ASC);
 
             // when
             final var actual = restClient.get().uri("").retrieve().body(NetworkFeesResponse.class);
@@ -312,7 +310,7 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void successLegacy() {
             // given
-            final long timestamp = MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP - 10_000L;
+            final long timestamp = HederaNetwork.MAINNET.getSimpleFeesSupportStartTimestamp() - 10_000L;
             final var formattedTimestamp = commonMapper.mapTimestamp(timestamp);
             final var legacyFeeScheduleFile = systemFileFee();
             final var simpleFeeSchedule = feeScheduleMapper.map(legacyFeeScheduleFile.data(), timestamp);
@@ -325,7 +323,7 @@ final class NetworkControllerTest extends ControllerTest {
                             .consensusTimestamp(timestamp - 1))
                     .persist();
             final var exchangeRate = new SystemFile<>(exchangeRateFile, exchangeRateSet);
-            final var expected = feeScheduleMapper.mapSimpleFees(
+            final var expected = feeScheduleMapper.map(
                     feeScheduleFile, exchangeRate, boundForTimestamp(timestamp), Sort.Direction.ASC);
 
             // when
@@ -342,7 +340,7 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void fallbackRecoversToLegacyFeeSchedule() {
             // given — legacy timestamp prior to switchover
-            final long timestamp = MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP - 10_000L;
+            final long timestamp = HederaNetwork.MAINNET.getSimpleFeesSupportStartTimestamp() - 10_000L;
             final var formattedTimestamp = commonMapper.mapTimestamp(timestamp);
 
             // Persist a corrupt simple fee schedule file at a newer timestamp so it gets attempted first
@@ -366,7 +364,7 @@ final class NetworkControllerTest extends ControllerTest {
                             .consensusTimestamp(timestamp - 1L))
                     .persist();
             final var exchangeRate = new SystemFile<>(exchangeRateFile, exchangeRateSet);
-            final var expected = feeScheduleMapper.mapSimpleFees(
+            final var expected = feeScheduleMapper.map(
                     feeScheduleFile, exchangeRate, boundForTimestamp(timestamp), Sort.Direction.ASC);
 
             // when
@@ -385,8 +383,7 @@ final class NetworkControllerTest extends ControllerTest {
             // given
             final var feeSchedule = systemFileSimpleFee();
             final var exchangeRate = systemFileExchangeRate();
-            final var expected =
-                    feeScheduleMapper.mapSimpleFees(feeSchedule, exchangeRate, Bound.EMPTY, Sort.Direction.DESC);
+            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Bound.EMPTY, Sort.Direction.DESC);
 
             // when
             final var actual = restClient
@@ -404,8 +401,7 @@ final class NetworkControllerTest extends ControllerTest {
             // given
             final var feeSchedule = systemFileSimpleFee();
             final var exchangeRate = systemFileExchangeRate();
-            final var expected =
-                    feeScheduleMapper.mapSimpleFees(feeSchedule, exchangeRate, Bound.EMPTY, Sort.Direction.ASC);
+            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Bound.EMPTY, Sort.Direction.ASC);
             simpleFeeScheduleFile(domainBuilder.bytes(100)); // The latest file is corrupt and is skipped
 
             // when
@@ -456,10 +452,10 @@ final class NetworkControllerTest extends ControllerTest {
             final var bound0 = boundForTimestamp(fee0.fileData().getConsensusTimestamp());
             final var bound1 = boundForTimestamp(fee1.fileData().getConsensusTimestamp());
             final var bound2 = boundForTimestamp(fee2.fileData().getConsensusTimestamp());
-            final var expected0 = feeScheduleMapper.mapSimpleFees(fee0, exchangeRate0, bound0, Sort.Direction.ASC);
-            final var expected1 = feeScheduleMapper.mapSimpleFees(fee1, exchangeRate1, bound1, Sort.Direction.ASC);
+            final var expected0 = feeScheduleMapper.map(fee0, exchangeRate0, bound0, Sort.Direction.ASC);
+            final var expected1 = feeScheduleMapper.map(fee1, exchangeRate1, bound1, Sort.Direction.ASC);
             // For fee2, use exchangeRate3 as it will be found by gte queries
-            final var expected2 = feeScheduleMapper.mapSimpleFees(fee2, exchangeRate3, bound2, Sort.Direction.ASC);
+            final var expected2 = feeScheduleMapper.map(fee2, exchangeRate3, bound2, Sort.Direction.ASC);
             final var expected = List.of(expected0, expected1, expected2);
 
             // when
@@ -545,7 +541,8 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private FileData feeScheduleFile(final byte[] bytes) {
-            final var timestamp = MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP - 10_000 + (feeFileTimestampSeq++);
+            final var timestamp =
+                    HederaNetwork.MAINNET.getSimpleFeesSupportStartTimestamp() - 10_000 + (feeFileTimestampSeq++);
             return domainBuilder
                     .fileData()
                     .customize(f -> f.entityId(feeFileId).fileData(bytes).consensusTimestamp(timestamp))
@@ -553,7 +550,7 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private FileData simpleFeeScheduleFile(final byte[] bytes) {
-            final var timestamp = MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP + (feeFileTimestampSeq++);
+            final var timestamp = HederaNetwork.MAINNET.getSimpleFeesSupportStartTimestamp() + (feeFileTimestampSeq++);
             return domainBuilder
                     .fileData()
                     .customize(f -> f.entityId(simpleFeeFileId).fileData(bytes).consensusTimestamp(timestamp))
@@ -561,7 +558,7 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private FileData exchangeRateFile(final byte[] bytes) {
-            final var timestamp = MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP + (feeFileTimestampSeq++);
+            final var timestamp = HederaNetwork.MAINNET.getSimpleFeesSupportStartTimestamp() + (feeFileTimestampSeq++);
             return domainBuilder
                     .fileData()
                     .customize(
