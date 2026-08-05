@@ -59,6 +59,35 @@ func TestGetTableOrPartition(t *testing.T) {
 	}
 }
 
+func TestQuoteIdentifier(t *testing.T) {
+	cases := []struct {
+		name     string
+		expected string
+	}{
+		{"account_balance", `"account_balance"`},
+		{"account_balance_p2024_01", `"account_balance_p2024_01"`},
+		{"flyway_schema_history", `"flyway_schema_history"`},
+		{"_leading_underscore", `"_leading_underscore"`},
+		{"123_starts_with_digit", `"123_starts_with_digit"`},
+		{"has-hyphen", `"has-hyphen"`},
+		{"account_balance; DROP TABLE flyway_schema_history; --", `"account_balance; DROP TABLE flyway_schema_history; --"`},
+		{`account_balance" CASCADE; DROP TABLE flyway_schema_history; --`, `"account_balance"" CASCADE; DROP TABLE flyway_schema_history; --"`},
+	}
+	for _, tc := range cases {
+		quoted, err := quoteIdentifier(tc.name)
+		if err != nil {
+			t.Errorf("quoteIdentifier(%q): expected no error, got %v", tc.name, err)
+		}
+		if quoted != tc.expected {
+			t.Errorf("quoteIdentifier(%q): expected %q, got %q", tc.name, tc.expected, quoted)
+		}
+	}
+
+	if _, err := quoteIdentifier(""); err == nil {
+		t.Error("quoteIdentifier(\"\"): expected error for empty identifier, got nil")
+	}
+}
+
 func TestIsPartitioned(t *testing.T) {
 	tests := []struct {
 		filename    string
@@ -111,23 +140,35 @@ func TestIsSpecialFile(t *testing.T) {
 
 func TestParseHeaderToColumns(t *testing.T) {
 	tests := []struct {
-		header   string
-		expected string
+		header    string
+		expected  string
+		expectErr bool
 	}{
-		{"col1,col2,col3\n", `"col1","col2","col3"`},
-		{"id,name,value\r\n", `"id","name","value"`},
-		{"single\n", `"single"`},
-		{"col_with_underscore,another_one\n", `"col_with_underscore","another_one"`},
+		{"col1,col2,col3\n", `"col1","col2","col3"`, false},
+		{"id,name,value\r\n", `"id","name","value"`, false},
+		{"single\n", `"single"`, false},
+		{"col_with_underscore,another_one\n", `"col_with_underscore","another_one"`, false},
 		// Edge cases
-		{"a,b,c", `"a","b","c"`},     // No newline
-		{"\n", `""`},                 // Just newline
-		{"", `""`},                   // Empty
-		{"col1\r", `"col1"`},         // Just CR
-		{"a,b,c\r\n", `"a","b","c"`}, // CRLF
+		{"a,b,c", `"a","b","c"`, false},     // No newline
+		{"\n", "", true},                    // Just newline -> empty column name
+		{"", "", true},                      // Empty -> empty column name
+		{"col1\r", `"col1"`, false},         // Just CR
+		{"a,b,c\r\n", `"a","b","c"`, false}, // CRLF
+		// A header field containing SQL-breaking characters must come out as a single, safely quoted identifier
+		{"foo\",bar); DROP TABLE x; --\n", `"foo,bar); DROP TABLE x; --"`, false},
 	}
 
 	for _, tc := range tests {
-		result := parseHeaderToColumns([]byte(tc.header))
+		result, err := parseHeaderToColumns([]byte(tc.header))
+		if tc.expectErr {
+			if err == nil {
+				t.Errorf("parseHeaderToColumns(%q): expected error, got none", tc.header)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("parseHeaderToColumns(%q): unexpected error: %v", tc.header, err)
+		}
 		if result != tc.expected {
 			t.Errorf("parseHeaderToColumns(%q): expected %q, got %q", tc.header, tc.expected, result)
 		}
@@ -265,7 +306,7 @@ func BenchmarkGetTableOrPartition(b *testing.B) {
 func BenchmarkParseHeaderToColumns(b *testing.B) {
 	header := []byte("consensus_timestamp,payer_account_id,amount,node_account_id,type,result,scheduled\n")
 	for i := 0; i < b.N; i++ {
-		parseHeaderToColumns(header)
+		_, _ = parseHeaderToColumns(header)
 	}
 }
 

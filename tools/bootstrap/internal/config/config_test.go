@@ -3,8 +3,10 @@
 package config
 
 import (
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -25,6 +27,9 @@ func TestDefaultConfig(t *testing.T) {
 	}
 	if cfg.PGDatabase != "mirror_node" {
 		t.Errorf("Expected PGDatabase=mirror_node, got %s", cfg.PGDatabase)
+	}
+	if cfg.PGSSLMode != "verify-full" {
+		t.Errorf("Expected PGSSLMode=verify-full, got %s", cfg.PGSSLMode)
 	}
 	if cfg.IsGCPCloudSQL {
 		t.Error("Expected IsGCPCloudSQL=false")
@@ -81,11 +86,35 @@ export DECOMPRESSOR_THREADS=8
 	if cfg.PGPort != "5433" {
 		t.Errorf("Expected PGPort=5433, got %s", cfg.PGPort)
 	}
+	if cfg.PGSSLMode != "verify-full" {
+		t.Errorf("Expected PGSSLMode=verify-full when unset, got %s", cfg.PGSSLMode)
+	}
 	if !cfg.IsGCPCloudSQL {
 		t.Error("Expected IsGCPCloudSQL=true")
 	}
 	if cfg.DecompressorThreads != 8 {
 		t.Errorf("Expected DecompressorThreads=8, got %d", cfg.DecompressorThreads)
+	}
+}
+
+func TestLoadFromEnvFile_SSLModeOverride(t *testing.T) {
+	content := `export PGSSLMODE="disable"
+export PGSSLROOTCERT="/etc/ssl/ca.pem"
+`
+	tmpDir := t.TempDir()
+	envFile := filepath.Join(tmpDir, "bootstrap.env")
+	os.WriteFile(envFile, []byte(content), 0644)
+
+	cfg, err := LoadFromEnvFile(envFile)
+	if err != nil {
+		t.Fatalf("LoadFromEnvFile failed: %v", err)
+	}
+
+	if cfg.PGSSLMode != "disable" {
+		t.Errorf("Expected PGSSLMode=disable, got %s", cfg.PGSSLMode)
+	}
+	if cfg.PGSSLRootCert != "/etc/ssl/ca.pem" {
+		t.Errorf("Expected PGSSLRootCert=/etc/ssl/ca.pem, got %s", cfg.PGSSLRootCert)
 	}
 }
 
@@ -270,22 +299,6 @@ func TestLoadFromEnv_ZeroMaxJobs(t *testing.T) {
 	}
 }
 
-func TestConnectionString(t *testing.T) {
-	cfg := &Config{
-		PGHost:     "localhost",
-		PGPort:     "5432",
-		PGUser:     "user",
-		PGPassword: "pass",
-		PGDatabase: "db",
-	}
-
-	conn := cfg.ConnectionString()
-	expected := "host=localhost port=5432 user=user password=pass dbname=db sslmode=disable"
-	if conn != expected {
-		t.Errorf("Expected %q, got %q", expected, conn)
-	}
-}
-
 func TestPgxConnectionString(t *testing.T) {
 	cfg := &Config{
 		PGHost:     "localhost",
@@ -296,9 +309,59 @@ func TestPgxConnectionString(t *testing.T) {
 	}
 
 	conn := cfg.PgxConnectionString()
-	expected := "postgres://user:pass@localhost:5432/db?sslmode=disable"
+	expected := "postgres://user:pass@localhost:5432/db?sslmode=verify-full"
 	if conn != expected {
 		t.Errorf("Expected %q, got %q", expected, conn)
+	}
+}
+
+func TestPgxConnectionString_ExplicitSSLModeAndRootCert(t *testing.T) {
+	cfg := &Config{
+		PGHost:        "localhost",
+		PGPort:        "5432",
+		PGUser:        "user",
+		PGPassword:    "pass",
+		PGDatabase:    "db",
+		PGSSLMode:     "require",
+		PGSSLRootCert: "/etc/ssl/ca.pem",
+	}
+
+	conn := cfg.PgxConnectionString()
+	expected := "postgres://user:pass@localhost:5432/db?sslmode=require&sslrootcert=%2Fetc%2Fssl%2Fca.pem"
+	if conn != expected {
+		t.Errorf("Expected %q, got %q", expected, conn)
+	}
+}
+
+func TestPgxConnectionString_EscapesComponents(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  *Config
+	}{
+		{"special chars in password", &Config{PGHost: "localhost", PGPort: "5432", PGUser: "postgres", PGPassword: "p@ss:w/rd?#&=", PGDatabase: "mirror_node"}},
+		{"space in password", &Config{PGHost: "localhost", PGPort: "5432", PGUser: "postgres", PGPassword: "pass word", PGDatabase: "mirror_node"}},
+		{"at sign in user", &Config{PGHost: "localhost", PGPort: "5432", PGUser: "user@domain", PGPassword: "pass", PGDatabase: "mirror_node"}},
+		{"ipv6 host", &Config{PGHost: "::1", PGPort: "5432", PGUser: "postgres", PGPassword: "pass", PGDatabase: "mirror_node"}},
+		{"space in database", &Config{PGHost: "localhost", PGPort: "5432", PGUser: "postgres", PGPassword: "pass", PGDatabase: "mirror node"}},
+	}
+
+	for _, tc := range tests {
+		parsed, err := url.Parse(tc.cfg.PgxConnectionString())
+		if err != nil {
+			t.Errorf("%s: connection string should parse as a URL: %v", tc.name, err)
+			continue
+		}
+		password, _ := parsed.User.Password()
+		if parsed.User.Username() != tc.cfg.PGUser || password != tc.cfg.PGPassword {
+			t.Errorf("%s: credentials did not survive escaping, got user=%q password=%q",
+				tc.name, parsed.User.Username(), password)
+		}
+		if parsed.Hostname() != tc.cfg.PGHost {
+			t.Errorf("%s: expected host %q, got %q", tc.name, tc.cfg.PGHost, parsed.Hostname())
+		}
+		if strings.TrimPrefix(parsed.Path, "/") != tc.cfg.PGDatabase {
+			t.Errorf("%s: expected database %q, got %q", tc.name, tc.cfg.PGDatabase, parsed.Path)
+		}
 	}
 }
 

@@ -5,6 +5,7 @@ package manifest
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -400,6 +401,87 @@ invalid_size.csv.gz,100,notanumber,abc
 	_, ok := m.Get("valid.csv.gz")
 	if !ok {
 		t.Error("Valid entry should be present")
+	}
+}
+
+func TestLoad_RejectsPathTraversal(t *testing.T) {
+	tests := []string{
+		"../../../../etc/passwd",
+		"/etc/passwd",
+		"table/../../etc/passwd",
+	}
+
+	for _, filename := range tests {
+		content := "filename,row_count,file_size,blake3_hash\n" + filename + ",100,200,abc\n"
+		path := createTestManifest(t, content)
+
+		if _, err := Load(path, "/data"); err == nil {
+			t.Errorf("Load should reject filename %q", filename)
+		}
+	}
+}
+
+func TestLoad_AllowsSubdirFilename(t *testing.T) {
+	content := "filename,row_count,file_size,blake3_hash\naccount_balance/account_balance_p2024_01.csv.gz,100,200,abc\n"
+	path := createTestManifest(t, content)
+
+	m, err := Load(path, "/data")
+	if err != nil {
+		t.Fatalf("Load should accept a one-level subdir filename: %v", err)
+	}
+	if m.Count() != 1 {
+		t.Errorf("Expected 1 entry, got %d", m.Count())
+	}
+}
+
+func TestLoad_RejectsSymlinkEscape(t *testing.T) {
+	dataDir := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "secret.csv.gz")
+	if err := os.WriteFile(outside, []byte("data"), 0600); err != nil {
+		t.Fatalf("Failed to create outside file: %v", err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dataDir, "entity.csv.gz")); err != nil {
+		t.Fatalf("Failed to create symlink: %v", err)
+	}
+
+	path := createTestManifest(t, "filename,row_count,file_size,blake3_hash\nentity.csv.gz,100,200,abc\n")
+
+	_, err := Load(path, dataDir)
+	if err == nil {
+		t.Fatal("Load should reject a symlink pointing outside the data directory")
+	}
+	if !strings.Contains(err.Error(), "resolves outside the data directory") {
+		t.Errorf("Unexpected error: %v", err)
+	}
+}
+
+func TestLoad_AllowsSymlinkWithinDataDir(t *testing.T) {
+	dataDir := t.TempDir()
+	real := filepath.Join(dataDir, "real.csv.gz")
+	if err := os.WriteFile(real, []byte("data"), 0600); err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
+	if err := os.Symlink(real, filepath.Join(dataDir, "entity.csv.gz")); err != nil {
+		t.Fatalf("Failed to create symlink: %v", err)
+	}
+
+	path := createTestManifest(t, "filename,row_count,file_size,blake3_hash\nentity.csv.gz,100,200,abc\n")
+
+	if _, err := Load(path, dataDir); err != nil {
+		t.Errorf("Load should accept a symlink that stays inside the data directory: %v", err)
+	}
+}
+
+func TestLoad_MissingFilesAreNotFatal(t *testing.T) {
+	dataDir := t.TempDir()
+	path := createTestManifest(t, "filename,row_count,file_size,blake3_hash\nentity.csv.gz,100,200,abc\n")
+
+	m, err := Load(path, dataDir)
+	if err != nil {
+		t.Fatalf("Load should not fail on files that don't exist yet: %v", err)
+	}
+	if m.Count() != 1 {
+		t.Errorf("Expected 1 entry, got %d", m.Count())
 	}
 }
 
