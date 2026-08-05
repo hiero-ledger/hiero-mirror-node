@@ -2,97 +2,81 @@
 
 package org.hiero.mirror.web3.service;
 
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_SLOTS;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SLOTS_PER_CONTRACT;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
-
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import lombok.CustomLog;
+import java.util.Set;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.caffeine.CaffeineCache;
-import org.springframework.cache.interceptor.SimpleKey;
 import org.springframework.stereotype.Service;
 
 /**
- * Loads contract storage with batch prefetch, negative caching ({@code EMPTY_VALUE}), and per-slot single-flight
- * coalescing so concurrent misses share one DB query.
+ * Loads contract storage with batch prefetch and negative caching ({@code EMPTY_VALUE}). Bulk misses use
+ * {@link CacheLoader#loadAll} with {@code findStorageBatch} so multiple slot values are loaded and cached together.
+ *
+ * <p>The value cache is built asynchronously and used through its synchronous view because only the asynchronous
+ * {@code getAll} reserves a placeholder per key before loading. That gives single-flight coalescing, so concurrent
+ * misses of the same slot share one batch query.
  */
-@CustomLog
 @Service
 final class ContractStateServiceImpl implements ContractStateService {
 
     private static final byte[] EMPTY_VALUE = new byte[0];
 
-    private final CacheManager cacheManagerSlotsPerContract;
     private final CacheProperties cacheProperties;
-    private final Cache contractSlotsCache;
-    private final Cache contractStateCache;
+    private final Cache<EntityId, List<ByteBuffer>> contractSlotsCache;
+    private final LoadingCache<ContractStateCacheKey, byte[]> contractStateCache;
     private final ContractStateRepository contractStateRepository;
-    /**
-     * Bounded single-flight cache. Presence of a key means a load is already in progress for that contract state slot;
-     * waiters coalesce on the stored future, and batch assembly skips keys already in flight.
-     */
-    private final LoadingCache<SimpleKey, CompletableFuture<Optional<byte[]>>> inFlightCache;
 
     ContractStateServiceImpl(
-            final @Qualifier(CACHE_MANAGER_CONTRACT_SLOTS) CacheManager cacheManagerContractSlots,
-            final @Qualifier(CACHE_MANAGER_CONTRACT_STATE) CacheManager cacheManagerContractState,
-            final @Qualifier(CACHE_MANAGER_SLOTS_PER_CONTRACT) CacheManager cacheManagerSlotsPerContract,
-            final CacheProperties cacheProperties,
-            final ContractStateRepository contractStateRepository) {
-        this.cacheManagerSlotsPerContract = cacheManagerSlotsPerContract;
+            final CacheProperties cacheProperties, final ContractStateRepository contractStateRepository) {
         this.cacheProperties = cacheProperties;
-        this.contractSlotsCache = cacheManagerContractSlots.getCache(CACHE_NAME);
-        this.contractStateCache = cacheManagerContractState.getCache(CACHE_NAME);
+        this.contractSlotsCache =
+                Caffeine.from(cacheProperties.getContractSlots()).build();
         this.contractStateRepository = contractStateRepository;
-        this.inFlightCache =
-                Caffeine.from(cacheProperties.getContractStateInFlight()).build(key -> new CompletableFuture<>());
+        this.contractStateCache = Caffeine.from(cacheProperties.getContractState())
+                // Load on the calling thread so the query keeps the caller's transaction and request scoped values.
+                .executor(Runnable::run)
+                .buildAsync(new CacheLoader<ContractStateCacheKey, byte[]>() {
+                    @Override
+                    public byte[] load(final ContractStateCacheKey key) {
+                        return loadContractSlot(key);
+                    }
+
+                    @Override
+                    public Map<ContractStateCacheKey, byte[]> loadAll(final Set<? extends ContractStateCacheKey> keys) {
+                        return loadContractSlots(keys);
+                    }
+                })
+                .synchronous();
     }
 
     @Override
     public Optional<byte[]> findStorage(final EntityId contractId, final byte[] key) {
-        final var cacheKey = generateCacheKey(contractId, key);
-
-        if (!cacheProperties.isEnableBatchContractSlotCaching()) {
-            return loadAndCache(contractId, key, cacheKey);
-        }
-
-        final var cachedValue = contractStateCache.get(cacheKey, byte[].class);
+        final var cacheKey = ContractStateCacheKey.of(contractId.getId(), key);
+        final var cachedValue = contractStateCache.getIfPresent(cacheKey);
         if (cachedValue != null) {
             return toOptional(cachedValue);
         }
 
-        final var created = new CompletableFuture<Optional<byte[]>>();
-        final var existing = claimInFlight(cacheKey, created);
-        if (existing != null) {
-            return await(existing, contractId, key, cacheKey);
+        if (!cacheProperties.isEnableBatchContractSlotCaching()) {
+            return toOptional(contractStateCache.get(cacheKey));
         }
 
-        try {
-            return findStorageBatch(contractId, key, cacheKey, created);
-        } catch (final Exception e) {
-            created.completeExceptionally(e);
-            throw e;
-        } finally {
-            releaseInFlight(cacheKey, created);
-        }
+        ContractCallContext.get().setContractIdForStorageCache(contractId);
+        return toOptional(contractStateCache.getAll(Set.of(cacheKey)).get(cacheKey));
     }
 
     @Override
@@ -101,173 +85,100 @@ final class ContractStateServiceImpl implements ContractStateService {
         return contractStateRepository.findStorageByBlockTimestamp(entityId.getId(), slotKeyByteArray, blockTimestamp);
     }
 
-    private Optional<byte[]> findStorageBatch(
-            final EntityId contractId,
-            final byte[] key,
-            final SimpleKey keyToSearch,
-            final CompletableFuture<Optional<byte[]>> primaryFuture) {
-        final var contractSlotsCache = ((CaffeineCache) this.contractSlotsCache.get(
-                contractId, () -> cacheManagerSlotsPerContract.getCache(contractId.toString())));
-        final var wrappedKey = ByteBuffer.wrap(key);
-        contractSlotsCache.putIfAbsent(wrappedKey, EMPTY_VALUE);
-
-        final var cachedSlotKeys = contractSlotsCache.getNativeCache().asMap().keySet();
-        final var maxSlotKeysPerBatch = cacheProperties.getMaxSlotKeysPerBatch();
-        final var cachedSlots = new ArrayList<byte[]>(Math.min(cachedSlotKeys.size(), maxSlotKeysPerBatch));
-        final var ownedFlights = new HashMap<SimpleKey, CompletableFuture<Optional<byte[]>>>();
-        ownedFlights.put(keyToSearch, primaryFuture);
-
-        boolean keySeen = false;
-        for (final var slotKey : cachedSlotKeys) {
-            if (cachedSlots.size() >= maxSlotKeysPerBatch) {
-                break;
-            }
-
-            final var slotKeyBytes = toByteArray((ByteBuffer) slotKey);
-            final var slotValueCacheKey = generateCacheKey(contractId, slotKeyBytes);
-            final boolean keyFound = wrappedKey.equals(slotKey);
-            if (keyFound) {
-                keySeen = true;
-                cachedSlots.add(slotKeyBytes);
-            }
-
-            if (contractStateCache.get(slotValueCacheKey) != null) {
-                continue;
-            }
-
-            final var nestedFlight = new CompletableFuture<Optional<byte[]>>();
-            if (claimInFlight(slotValueCacheKey, nestedFlight) == null) {
-                ownedFlights.put(slotValueCacheKey, nestedFlight);
-                cachedSlots.add(slotKeyBytes);
-            }
-        }
-
-        try {
-            final var contractSlotValues = contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots);
-            final var foundSlots = HashSet.newHashSet(contractSlotValues.size());
-
-            for (final var contractSlotValue : contractSlotValues) {
-                final var slotKey = contractSlotValue.getSlot();
-                foundSlots.add(ByteBuffer.wrap(slotKey));
-                contractStateCache.put(generateCacheKey(contractId, slotKey), contractSlotValue.getValue());
-            }
-
-            for (final var slotKeyBytes : cachedSlots) {
-                if (!foundSlots.contains(ByteBuffer.wrap(slotKeyBytes))) {
-                    contractStateCache.put(generateCacheKey(contractId, slotKeyBytes), EMPTY_VALUE);
-                }
-            }
-
-            if (!keySeen) {
-                final var result = contractStateRepository.findStorage(contractId.getId(), key);
-                contractStateCache.put(keyToSearch, result.orElse(EMPTY_VALUE));
-            }
-
-            completeOwnedFlights(ownedFlights);
-            return toOptional(contractStateCache.get(keyToSearch, byte[].class));
-        } catch (final Exception e) {
-            failOwnedFlights(ownedFlights, e);
-            throw e;
-        } finally {
-            releaseOwnedFlights(ownedFlights, keyToSearch);
-        }
-    }
-
-    private void completeOwnedFlights(final Map<SimpleKey, CompletableFuture<Optional<byte[]>>> ownedFlights) {
-        for (final var entry : ownedFlights.entrySet()) {
-            entry.getValue().complete(toOptional(contractStateCache.get(entry.getKey(), byte[].class)));
-        }
-    }
-
-    private void failOwnedFlights(
-            final Map<SimpleKey, CompletableFuture<Optional<byte[]>>> ownedFlights, final Throwable t) {
-        for (final var future : ownedFlights.values()) {
-            future.completeExceptionally(t);
-        }
-    }
-
-    private void releaseOwnedFlights(
-            final Map<SimpleKey, CompletableFuture<Optional<byte[]>>> ownedFlights, final SimpleKey primaryKey) {
-        for (final var entry : ownedFlights.entrySet()) {
-            if (!primaryKey.equals(entry.getKey())) {
-                releaseInFlight(entry.getKey(), entry.getValue());
-            }
-        }
+    private byte[] loadContractSlot(final ContractStateCacheKey key) {
+        return contractStateRepository.findStorage(key.contractId(), key.slot()).orElse(EMPTY_VALUE);
     }
 
     /**
-     * Awaits an in-flight load bounded by {@code inFlightWaitTimeout}. On timeout, checks the value cache and falls
-     * back to a direct DB query if needed.
+     * Loads all requested keys and returns a value for every key ({@link #EMPTY_VALUE} when missing). Prefetches
+     * previously searched slots of the same contract that are not already cached.
      */
-    private Optional<byte[]> await(
-            final CompletableFuture<Optional<byte[]>> future,
-            final EntityId contractId,
-            final byte[] key,
-            final SimpleKey cacheKey) {
-        final var timeout = cacheProperties.getInFlightWaitTimeout();
-        try {
-            return future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (final TimeoutException _) {
-            log.warn(
-                    "Timed out after {} waiting for in-flight contract storage load for contract {}; falling back to direct query",
-                    timeout,
-                    contractId);
-            releaseInFlight(cacheKey, future);
-            final var cachedValue = contractStateCache.get(cacheKey, byte[].class);
-            if (cachedValue != null) {
-                return toOptional(cachedValue);
-            }
-            return loadAndCache(contractId, key, cacheKey);
-        } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while waiting for contract storage load", e);
-        } catch (final ExecutionException e) {
-            throw asUnchecked(e.getCause() != null ? e.getCause() : e);
-        }
-    }
+    private Map<ContractStateCacheKey, byte[]> loadContractSlots(final Set<? extends ContractStateCacheKey> keys) {
+        final var contractEntityIdForBatchLoading = ContractCallContext.get().getContractIdForStorageCache();
+        final var contractIdForBatchLoading = contractEntityIdForBatchLoading.getId();
+        final var cachedContractSlots = contractSlotsCache.getIfPresent(contractEntityIdForBatchLoading);
+        final var maxSlotKeysPerBatch = cacheProperties.getMaxSlotKeysPerBatch();
 
-    private Optional<byte[]> loadAndCache(final EntityId contractId, final byte[] key, final SimpleKey cacheKey) {
-        final var result = contractStateRepository.findStorage(contractId.getId(), key);
-        contractStateCache.put(cacheKey, result.orElse(EMPTY_VALUE));
+        // ByteBuffer keys give content-based equality so the same slot is not queried twice.
+        final var slotsToSearch = LinkedHashSet.<ByteBuffer>newLinkedHashSet(maxSlotKeysPerBatch);
+
+        // Always include the requested keys first so they are never dropped by the batch cap.
+        for (final var key : keys) {
+            if (key.contractId() == contractIdForBatchLoading) {
+                slotsToSearch.add(ByteBuffer.wrap(key.slot()));
+            }
+        }
+
+        if (cachedContractSlots != null) {
+            for (final var cachedContractSlot : cachedContractSlots) {
+                if (slotsToSearch.size() >= maxSlotKeysPerBatch) {
+                    break;
+                }
+                final var slot = toByteArray(cachedContractSlot);
+                if (contractStateCache.getIfPresent(ContractStateCacheKey.of(contractIdForBatchLoading, slot))
+                        == null) {
+                    slotsToSearch.add(cachedContractSlot);
+                }
+            }
+        }
+
+        final var slotKeys = toByteArray(slotsToSearch);
+        final var contractSlotValues = contractStateRepository.findStorageBatch(contractIdForBatchLoading, slotKeys);
+        trackSearchedSlots(contractIdForBatchLoading, slotsToSearch);
+        final var foundSlots = HashSet.<ByteBuffer>newHashSet(contractSlotValues.size());
+        final var result = HashMap.<ContractStateCacheKey, byte[]>newHashMap(slotsToSearch.size());
+
+        for (final var contractSlotValue : contractSlotValues) {
+            final var slotKey = contractSlotValue.getSlot();
+            foundSlots.add(ByteBuffer.wrap(slotKey));
+            result.put(ContractStateCacheKey.of(contractIdForBatchLoading, slotKey), contractSlotValue.getValue());
+        }
+
+        for (final var searchedSlot : slotsToSearch) {
+            if (!foundSlots.contains(searchedSlot)) {
+                result.put(ContractStateCacheKey.of(contractIdForBatchLoading, toByteArray(searchedSlot)), EMPTY_VALUE);
+            }
+        }
+
+        // Guarantee every requested key has a mapping so getAll can return it.
+        for (final var key : keys) {
+            result.computeIfAbsent(key, this::loadContractSlot);
+        }
+
         return result;
     }
 
     /**
-     * Atomically claims ownership of an in-flight load for {@code key}.
-     *
-     * @return {@code null} if {@code created} was stored (this caller owns the load); otherwise the existing in-flight
-     * future that waiters should coalesce on. Keys already in flight are not added to a batch DB query.
+     * Records slot keys searched in the DB for a contract so later lookups can prefetch them together.
      */
-    private CompletableFuture<Optional<byte[]>> claimInFlight(
-            final SimpleKey key, final CompletableFuture<Optional<byte[]>> created) {
-        final var future = inFlightCache.get(key, k -> created);
-        // Same instance means this caller inserted it; a different instance is an existing flight to join.
-        return future == created ? null : future;
+    private void trackSearchedSlots(final long contractId, final Collection<ByteBuffer> slotKeys) {
+        final var entityId = EntityId.of(contractId);
+        final var maxSlotsPerContract = cacheProperties.getMaxSlotsPerContract();
+        contractSlotsCache.asMap().compute(entityId, (_, existing) -> {
+            final var updated = new ArrayList<ByteBuffer>(
+                    Math.min(maxSlotsPerContract, (existing == null ? 0 : existing.size()) + slotKeys.size()));
+            if (existing != null) {
+                updated.addAll(existing);
+            }
+            for (final var slotKey : slotKeys) {
+                if (!updated.contains(slotKey)) {
+                    updated.add(slotKey);
+                }
+            }
+            if (updated.size() > maxSlotsPerContract) {
+                return List.copyOf(updated.subList(updated.size() - maxSlotsPerContract, updated.size()));
+            }
+            return List.copyOf(updated);
+        });
     }
 
-    /**
-     * Atomically removes the in-flight entry only when it still refers to {@code expected}, so a newer flight for the
-     * same key is not cleared by a timed-out or finished owner.
-     */
-    private void releaseInFlight(final SimpleKey key, final CompletableFuture<Optional<byte[]>> expected) {
-        inFlightCache.asMap().remove(key, expected);
-    }
-
-    private static RuntimeException asUnchecked(final Throwable t) {
-        if (t instanceof Error error) {
-            throw error;
+    private static byte[][] toByteArray(final Collection<ByteBuffer> slots) {
+        final var slotKeys = new byte[slots.size()][];
+        var index = 0;
+        for (final var slot : slots) {
+            slotKeys[index++] = toByteArray(slot);
         }
-        if (t instanceof RuntimeException runtimeException) {
-            return runtimeException;
-        }
-        return new IllegalStateException("Failed to load contract storage", t);
-    }
-
-    private static Optional<byte[]> toOptional(final byte[] cachedValue) {
-        if (cachedValue == null || cachedValue == EMPTY_VALUE) {
-            return Optional.empty();
-        }
-        return Optional.of(cachedValue);
+        return slotKeys;
     }
 
     /**
@@ -280,7 +191,10 @@ final class ContractStateServiceImpl implements ContractStateService {
         return bytes;
     }
 
-    private static SimpleKey generateCacheKey(final EntityId contractId, final byte[] slotKey) {
-        return new SimpleKey(contractId.getId(), slotKey);
+    private static Optional<byte[]> toOptional(final byte[] cachedValue) {
+        if (cachedValue == null || cachedValue == EMPTY_VALUE) {
+            return Optional.empty();
+        }
+        return Optional.of(cachedValue);
     }
 }
