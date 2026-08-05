@@ -294,13 +294,23 @@ final class FeeScheduleMapperTest {
         final long defaultGasPriceTinycents = 852L;
         final int defaultHbars = 30000;
         final int defaultCents = 851000;
-        assertThat(feeScheduleMapper.convertGasPriceToTinyBars(defaultGasPriceTinycents, defaultHbars, defaultCents))
+        final var exchangeRate = ExchangeRate.newBuilder()
+                .setHbarEquiv(defaultHbars)
+                .setCentEquiv(defaultCents)
+                .build();
+        assertThat(feeScheduleMapper.convertGasPriceToTinyBars(defaultGasPriceTinycents, exchangeRate))
                 .isEqualTo(30L);
-        assertThat(feeScheduleMapper.convertGasPriceToTinyBars((defaultCents * 2L) - 1, defaultHbars, defaultCents))
+        assertThat(feeScheduleMapper.convertGasPriceToTinyBars((defaultCents * 2L) - 1, exchangeRate))
                 .isEqualTo(59999L);
-        assertThat(feeScheduleMapper.convertGasPriceToTinyBars(1L, defaultHbars, defaultCents))
+        assertThat(feeScheduleMapper.convertGasPriceToTinyBars(1L, exchangeRate))
                 .isEqualTo(1L);
-        assertThat(feeScheduleMapper.convertGasPriceToTinyBars(defaultGasPriceTinycents, defaultHbars, 0))
+        assertThat(feeScheduleMapper.convertGasPriceToTinyBars(
+                        defaultGasPriceTinycents,
+                        exchangeRate.toBuilder().setCentEquiv(0).build()))
+                .isNull();
+        assertThat(feeScheduleMapper.convertGasPriceToTinyBars(null, exchangeRate))
+                .isNull();
+        assertThat(feeScheduleMapper.convertGasPriceToTinyBars(defaultGasPriceTinycents, null))
                 .isNull();
     }
 

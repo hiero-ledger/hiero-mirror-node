@@ -20,7 +20,6 @@ import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.restjava.RestJavaProperties;
-import org.hiero.mirror.restjava.RestJavaProperties.HederaNetwork;
 import org.hiero.mirror.restjava.dto.SystemFile;
 import org.hiero.mirror.restjava.mapper.FeeScheduleMapper;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
@@ -34,11 +33,11 @@ import org.springframework.util.function.ThrowingFunction;
 @RequiredArgsConstructor
 final class FileServiceImpl implements FileService {
 
+    private final FeeScheduleMapper feeScheduleMapper;
     private final FileDataRepository fileDataRepository;
     private final QueryProperties queryProperties;
-    private final SystemEntity systemEntity;
-    private final FeeScheduleMapper feeScheduleMapper;
     private final RestJavaProperties restJavaProperties;
+    private final SystemEntity systemEntity;
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
@@ -58,25 +57,18 @@ final class FileServiceImpl implements FileService {
 
     @Override
     public SystemFile<FeeSchedule> getFeeSchedule(Bound timestamp) {
-        // For historical calls we need to call the legacy fee schedule file. Supported only for mainnet. The rest of
-        // the networks default to the new simple fee schedule file.
-        if (restJavaProperties.getNetwork() == HederaNetwork.MAINNET
-                        && timestamp.adjustUpperBound() < HederaNetwork.MAINNET.getSimpleFeesSupportStartTimestamp()
-                || restJavaProperties.getNetwork() == HederaNetwork.TESTNET
-                        && timestamp.adjustUpperBound() < HederaNetwork.TESTNET.getSimpleFeesSupportStartTimestamp()) {
-            final var legacyFeeSchedule =
-                    getSystemFile(systemEntity.feeScheduleFile(), timestamp, CurrentAndNextFeeSchedule::parseFrom);
+        final long upperTimestamp = timestamp.adjustUpperBound();
 
-            final var simpleFeeSchedule = feeScheduleMapper.map(
-                    legacyFeeSchedule.data(), legacyFeeSchedule.fileData().getConsensusTimestamp());
-
+        // For historical calls on public networks we need to use the legacy fee schedule file
+        if (upperTimestamp < restJavaProperties.getNetwork().getSimpleFeesTimestamp()) {
+            final var fileId = systemEntity.feeScheduleFile();
+            final var legacyFeeSchedule = getSystemFile(fileId, timestamp, CurrentAndNextFeeSchedule::parseFrom);
+            final var simpleFeeSchedule = feeScheduleMapper.map(legacyFeeSchedule.data(), upperTimestamp);
             return new SystemFile<>(legacyFeeSchedule.fileData(), simpleFeeSchedule);
         }
 
-        return getSystemFile(
-                systemEntity.simpleFeeScheduleFile(),
-                timestamp,
-                data -> FeeSchedule.PROTOBUF.parseStrict(Bytes.wrap(data)));
+        final var fileId = systemEntity.simpleFeeScheduleFile();
+        return getSystemFile(fileId, timestamp, data -> FeeSchedule.PROTOBUF.parseStrict(Bytes.wrap(data)));
     }
 
     /*

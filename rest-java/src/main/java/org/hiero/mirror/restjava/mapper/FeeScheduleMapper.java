@@ -59,9 +59,7 @@ public interface FeeScheduleMapper {
         final var gasTinycents = getGasPriceTinycents(feeScheduleFile.data());
         final var refTimestampNanos = getReferenceTimestampNanos(feeScheduleFile, bound);
         final var exchangeRate = getEffectiveExchangeRate(exchangeRateFile.data(), refTimestampNanos);
-        final var tinyBars = gasTinycents != null
-                ? convertGasPriceToTinyBars(gasTinycents, exchangeRate.getHbarEquiv(), exchangeRate.getCentEquiv())
-                : null;
+        final var tinyBars = convertGasPriceToTinyBars(gasTinycents, exchangeRate);
 
         return ENABLED_TRANSACTION_TYPES.values().stream()
                 .map(type -> tinyBars != null ? new NetworkFee().gas(tinyBars).transactionType(type) : null)
@@ -71,30 +69,29 @@ public interface FeeScheduleMapper {
     }
 
     default FeeSchedule map(CurrentAndNextFeeSchedule currentAndNextFeeSchedule, long refTimestampNanos) {
-        final var effectiveSchedule = getEffectiveFeeSchedule(currentAndNextFeeSchedule, refTimestampNanos);
+        var feeSchedule = currentAndNextFeeSchedule.getCurrentFeeSchedule();
 
-        Long gasFeeTinycents = null;
-        for (var txSchedule : effectiveSchedule.getTransactionFeeScheduleList()) {
-            if (ENABLED_TRANSACTION_TYPES.containsKey(txSchedule.getHederaFunctionality())
-                    && txSchedule.getFeesCount() > 0) {
-                var feeData = txSchedule.getFees(0);
+        if (refTimestampNanos > feeSchedule.getExpiryTime().getSeconds() * DomainUtils.NANOS_PER_SECOND) {
+            feeSchedule = currentAndNextFeeSchedule.getNextFeeSchedule();
+        }
+
+        for (final var transactionFeeSchedule : feeSchedule.getTransactionFeeScheduleList()) {
+            if (ENABLED_TRANSACTION_TYPES.containsKey(transactionFeeSchedule.getHederaFunctionality())
+                    && transactionFeeSchedule.getFeesCount() > 0) {
+                final var feeData = transactionFeeSchedule.getFees(0);
+
                 if (feeData.hasServicedata()) {
-                    gasFeeTinycents = feeData.getServicedata().getGas() / FEE_DIVISOR_FACTOR;
-                    break;
+                    return FeeSchedule.newBuilder()
+                            .extras(ExtraFeeDefinition.newBuilder()
+                                    .name(Extra.GAS)
+                                    .fee(feeData.getServicedata().getGas() / FEE_DIVISOR_FACTOR)
+                                    .build())
+                            .build();
                 }
             }
         }
 
-        if (gasFeeTinycents == null) {
-            return FeeSchedule.DEFAULT;
-        }
-
-        return FeeSchedule.newBuilder()
-                .extras(ExtraFeeDefinition.newBuilder()
-                        .name(Extra.GAS)
-                        .fee(gasFeeTinycents)
-                        .build())
-                .build();
+        return FeeSchedule.DEFAULT;
     }
 
     private long getReferenceTimestampNanos(SystemFile<?> feeScheduleFile, Bound bound) {
@@ -102,7 +99,7 @@ public interface FeeScheduleMapper {
 
         if (upperBound == Long.MAX_VALUE) {
             final var timestamp = feeScheduleFile.fileData().getConsensusTimestamp();
-            return (timestamp != null) ? timestamp : 0L;
+            return timestamp != null ? timestamp : 0L;
         }
 
         return upperBound;
@@ -115,19 +112,8 @@ public interface FeeScheduleMapper {
         if (refTimestampNanos > currentRateExpirationTime * DomainUtils.NANOS_PER_SECOND) {
             return exchangeRateSet.getNextRate();
         }
+
         return currentRate;
-    }
-
-    private com.hederahashgraph.api.proto.java.FeeSchedule getEffectiveFeeSchedule(
-            CurrentAndNextFeeSchedule feeSchedules, long refTimestampNanos) {
-        final var currentFeeSchedule = feeSchedules.getCurrentFeeSchedule();
-        final var feeScheduleExpirationTime = currentFeeSchedule.getExpiryTime().getSeconds();
-
-        if (refTimestampNanos > feeScheduleExpirationTime * DomainUtils.NANOS_PER_SECOND) {
-            return feeSchedules.getNextFeeSchedule();
-        }
-
-        return currentFeeSchedule;
     }
 
     @Nullable
@@ -141,15 +127,16 @@ public interface FeeScheduleMapper {
     }
 
     @Nullable
-    default Long convertGasPriceToTinyBars(long gasPriceTinycents, int hbars, int cents) {
-        if (cents == 0) {
+    default Long convertGasPriceToTinyBars(@Nullable Long gasPriceTinycents, ExchangeRate exchangeRate) {
+        if (gasPriceTinycents == null || exchangeRate == null || exchangeRate.getCentEquiv() == 0) {
             return null;
         }
-        final long gasInTinyBars = gasPriceTinycents * hbars / cents;
+
+        final long gasInTinyBars = gasPriceTinycents * exchangeRate.getHbarEquiv() / exchangeRate.getCentEquiv();
         return Math.max(gasInTinyBars, 1L);
     }
 
-    default Comparator<NetworkFee> getComparator(Sort.Direction order) {
+    private Comparator<NetworkFee> getComparator(Sort.Direction order) {
         return order == Sort.Direction.DESC ? DESC_COMPARATOR : ASC_COMPARATOR;
     }
 }

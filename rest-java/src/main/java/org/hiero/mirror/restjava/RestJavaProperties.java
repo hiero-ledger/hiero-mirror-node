@@ -12,6 +12,8 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Data;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -68,6 +70,8 @@ public class RestJavaProperties {
         }
     }
 
+    @Getter
+    @RequiredArgsConstructor
     public enum HederaNetwork {
         DEMO(0),
         MAINNET(1779296400389248896L),
@@ -75,14 +79,7 @@ public class RestJavaProperties {
         TESTNET(1777482002529719510L),
         OTHER(0);
 
-        private final long simpleFeesSupportStartTimestamp;
-
-        HederaNetwork(long simpleFeesSupportStartTimestamp) {
-            this.simpleFeesSupportStartTimestamp = simpleFeesSupportStartTimestamp;
-        }
-
-        public long getSimpleFeesSupportStartTimestamp() {
-            return simpleFeesSupportStartTimestamp;
-        }
+        // The consensus timestamp at which consensus nodes enabled simple fees on the network
+        private final long simpleFeesTimestamp;
     }
 }

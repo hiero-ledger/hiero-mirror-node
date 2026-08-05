@@ -273,7 +273,6 @@ final class NetworkControllerTest extends ControllerTest {
     @Nested
     final class FeesEndpointTest extends EndpointTest {
 
-        private static final long CURRENT_RATE_EXPIRATION_NANOS = 1759951090L * DomainUtils.NANOS_PER_SECOND;
         private final EntityId feeFileId = systemEntity.feeScheduleFile();
         private final EntityId simpleFeeFileId = systemEntity.simpleFeeScheduleFile();
         private final EntityId exchangeRateFileId = systemEntity.exchangeRateFile();
@@ -310,7 +309,7 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void successLegacy() {
             // given
-            final long timestamp = HederaNetwork.MAINNET.getSimpleFeesSupportStartTimestamp() - 10_000L;
+            final long timestamp = HederaNetwork.MAINNET.getSimpleFeesTimestamp() - 10_000L;
             final var formattedTimestamp = commonMapper.mapTimestamp(timestamp);
             final var legacyFeeScheduleFile = systemFileFee();
             final var simpleFeeSchedule = feeScheduleMapper.map(legacyFeeScheduleFile.data(), timestamp);
@@ -340,7 +339,7 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void fallbackRecoversToLegacyFeeSchedule() {
             // given — legacy timestamp prior to switchover
-            final long timestamp = HederaNetwork.MAINNET.getSimpleFeesSupportStartTimestamp() - 10_000L;
+            final long timestamp = HederaNetwork.MAINNET.getSimpleFeesTimestamp() - 10_000L;
             final var formattedTimestamp = commonMapper.mapTimestamp(timestamp);
 
             // Persist a corrupt simple fee schedule file at a newer timestamp so it gets attempted first
@@ -541,8 +540,7 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private FileData feeScheduleFile(final byte[] bytes) {
-            final var timestamp =
-                    HederaNetwork.MAINNET.getSimpleFeesSupportStartTimestamp() - 10_000 + (feeFileTimestampSeq++);
+            final var timestamp = HederaNetwork.MAINNET.getSimpleFeesTimestamp() - 10_000 + (feeFileTimestampSeq++);
             return domainBuilder
                     .fileData()
                     .customize(f -> f.entityId(feeFileId).fileData(bytes).consensusTimestamp(timestamp))
@@ -550,7 +548,7 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private FileData simpleFeeScheduleFile(final byte[] bytes) {
-            final var timestamp = HederaNetwork.MAINNET.getSimpleFeesSupportStartTimestamp() + (feeFileTimestampSeq++);
+            final var timestamp = HederaNetwork.MAINNET.getSimpleFeesTimestamp() + (feeFileTimestampSeq++);
             return domainBuilder
                     .fileData()
                     .customize(f -> f.entityId(simpleFeeFileId).fileData(bytes).consensusTimestamp(timestamp))
@@ -558,7 +556,7 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private FileData exchangeRateFile(final byte[] bytes) {
-            final var timestamp = HederaNetwork.MAINNET.getSimpleFeesSupportStartTimestamp() + (feeFileTimestampSeq++);
+            final var timestamp = HederaNetwork.MAINNET.getSimpleFeesTimestamp() + (feeFileTimestampSeq++);
             return domainBuilder
                     .fileData()
                     .customize(
