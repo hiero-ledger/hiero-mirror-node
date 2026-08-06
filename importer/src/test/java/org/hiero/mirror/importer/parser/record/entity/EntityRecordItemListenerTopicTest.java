@@ -768,6 +768,27 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
                 .returns(TransactionType.CONSENSUSSUBMITMESSAGE.getProtoId(), Transaction::getType);
     }
 
+    @Test
+    void submitMessageMaxCustomFeeOutOfRange() {
+        // given
+        final long outOfRangeAccountNum = 1L << 38; // 274,877,906,944
+        final var tokenId = recordItemBuilder.tokenId().toBuilder().setTokenNum(outOfRangeAccountNum);
+        final var customFeeLimit = CustomFeeLimit.newBuilder()
+                .setAccountId(recordItemBuilder.accountId().toBuilder().setAccountNum(outOfRangeAccountNum))
+                .addFees(FixedFee.newBuilder().setAmount(1).setDenominatingTokenId(tokenId))
+                .build();
+        final var recordItem = recordItemBuilder
+                .consensusSubmitMessage()
+                .transactionBodyWrapper(w -> w.clearMaxCustomFees().addMaxCustomFees(customFeeLimit))
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(transactionRepository.count()).isOne();
+    }
+
     @ParameterizedTest
     @CsvSource({
         "9000, test-message0, 9000000, runninghash, 1, 1, , , , false, 0",

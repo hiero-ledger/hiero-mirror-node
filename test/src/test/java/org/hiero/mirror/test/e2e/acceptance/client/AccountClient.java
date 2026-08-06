@@ -54,11 +54,9 @@ public class AccountClient extends AbstractNetworkClient {
             SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
         super(sdkClient, retryTemplate, acceptanceTestProperties);
         try {
-            initialBalance = getBalance();
-            log.info(
-                    "Operator account {} initial balance is {}",
-                    sdkClient.getExpandedOperatorAccountId(),
-                    initialBalance);
+            var operatorAccountId = sdkClient.getExpandedOperatorAccountId().toString();
+            initialBalance = sdkClient.getMirrorNodeClient().waitForAccountBalance(operatorAccountId);
+            log.info("Operator account {} initial balance is {}", operatorAccountId, initialBalance);
         } catch (Throwable t) {
             clean();
             throw t;
@@ -70,7 +68,11 @@ public class AccountClient extends AbstractNetworkClient {
         log.info("Deleting {} accounts", accountIds.size());
         deleteOrLogEntities(accountIds, this::delete);
 
-        var cost = initialBalance - getBalance();
+        var cost = initialBalance
+                - sdkClient
+                        .getMirrorNodeClient()
+                        .waitForAccountBalance(
+                                sdkClient.getExpandedOperatorAccountId().toString());
         log.warn("Tests cost {} to run", Hbar.fromTinybars(cost));
 
         var operatorId = sdkClient.getDefaultOperator();
@@ -191,7 +193,7 @@ public class AccountClient extends AbstractNetworkClient {
     }
 
     private void reclaimFund(final ExpandedAccountId sender) {
-        final var amount = Hbar.fromTinybars(getBalance(sender));
+        final var amount = Hbar.fromTinybars(sdkClient.getMirrorNodeClient().waitForAccountBalance(sender.toString()));
         final var operator = sdkClient.getDefaultOperator();
         final var recipientId = operator.getAccountId();
         final var senderId = sender.getAccountId();
@@ -248,12 +250,16 @@ public class AccountClient extends AbstractNetworkClient {
     }
 
     public AccountCreateTransaction getAccountCreateTransaction(
-            Hbar initialBalance, KeyList publicKeys, boolean receiverSigRequired, String customMemo, EvmAddress alias) {
+            Hbar initialBalance,
+            com.hedera.hashgraph.sdk.Key accountKey,
+            boolean receiverSigRequired,
+            String customMemo,
+            EvmAddress alias) {
         String memo = getMemo(String.format("%s %s ", "Create Crypto Account", customMemo));
         return new AccountCreateTransaction()
                 .setInitialBalance(initialBalance)
                 // The only _required_ property here is `key`
-                .setKeyWithoutAlias(publicKeys)
+                .setKeyWithoutAlias(accountKey)
                 .setAlias(alias)
                 .setAccountMemo(memo)
                 .setReceiverSignatureRequired(receiverSigRequired)
@@ -263,7 +269,7 @@ public class AccountClient extends AbstractNetworkClient {
     public ExpandedAccountId createNewAccount(long initialBalance) {
         // By default, use ALICE's key type if not specified->ED25519
         Key.KeyCase keyType = AccountNameEnum.ALICE.keyType;
-        return createCryptoAccount(Hbar.fromTinybars(initialBalance), false, null, null, keyType);
+        return createCryptoAccount(Hbar.fromTinybars(initialBalance), false, null, keyType);
     }
 
     public ExpandedAccountId createNewAccount(final BigDecimal initialBalance, final AccountNameEnum accountNameEnum) {
@@ -272,13 +278,12 @@ public class AccountClient extends AbstractNetworkClient {
         return createCryptoAccount(
                 sdkClient.convert(initialBalance),
                 accountNameEnum.receiverSigRequired,
-                null,
                 accountNameEnum.name(),
                 keyType);
     }
 
     private ExpandedAccountId createCryptoAccount(
-            Hbar initialBalance, boolean receiverSigRequired, KeyList keyList, String memo, Key.KeyCase keyType) {
+            Hbar initialBalance, boolean receiverSigRequired, String memo, Key.KeyCase keyType) {
         // Depending on keyType, generate an Ed25519 or ECDSA private, public key pair
         PrivateKey privateKey;
         PublicKey publicKey;
@@ -295,17 +300,15 @@ public class AccountClient extends AbstractNetworkClient {
         log.trace("Private key = {}", privateKey);
         log.trace("Public key = {}", publicKey);
 
-        KeyList publicKeyList = KeyList.of(privateKey.getPublicKey());
-        if (keyList != null) {
-            publicKeyList.addAll(keyList);
-        }
+        com.hedera.hashgraph.sdk.Key accountKey =
+                keyType == KeyCase.ECDSA_SECP256K1 ? publicKey : KeyList.of(publicKey);
 
         AccountId newAccountId;
         NetworkTransactionResponse response;
         final boolean isED25519 = keyType == KeyCase.ED25519;
         Transaction<?> transaction = getAccountCreateTransaction(
                 initialBalance,
-                publicKeyList,
+                accountKey,
                 receiverSigRequired,
                 memo == null ? "" : memo,
                 isED25519 ? null : privateKey.getPublicKey().toEvmAddress());

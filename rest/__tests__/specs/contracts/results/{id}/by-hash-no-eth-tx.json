@@ -70,7 +70,7 @@
   ],
   "responseStatus": 200,
   "responseJson": {
-    "access_list": null,
+    "access_list": [],
     "amount": 0,
     "block_gas_used": 50000000,
     "block_hash": "0x6ceecd8bb224da491",

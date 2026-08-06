@@ -171,8 +171,7 @@ public class EntityRecordItemListener implements RecordItemListener {
         final var validDurationSeconds = body.hasTransactionValidDuration()
                 ? body.getTransactionValidDuration().getSeconds()
                 : null;
-        // transactions in stream always have valid node account id.
-        final var nodeAccount = EntityId.of(body.getNodeAccountID());
+        final var nodeAccount = EntityId.tryOf(body.getNodeAccountID());
         final var transactionId = body.getTransactionID();
 
         // build transaction
@@ -236,6 +235,9 @@ public class EntityRecordItemListener implements RecordItemListener {
 
         var payerAccount = recordItem.getPayerAccountId();
         var transfers = body.getCryptoTransfer().getTransfers().getAccountAmountsList();
+
+        long spenderId = transfers.isEmpty() ? payerAccount.getId() : getAllowanceSpenderId(recordItem, payerAccount);
+
         for (var aa : transfers) {
             var entityId = entityIdService.lookup(aa.getAccountID()).orElse(EntityId.EMPTY);
             if (EntityId.isEmpty(entityId)) {
@@ -259,11 +261,26 @@ public class EntityRecordItemListener implements RecordItemListener {
                         .amount(aa.getAmount())
                         .owner(entityId.getId())
                         .payerAccountId(payerAccount)
-                        .spender(payerAccount.getId())
+                        .spender(spenderId)
                         .build();
                 entityListener.onCryptoAllowance(cryptoAllowance);
             }
         }
+    }
+
+    /**
+     * Resolves the spender of an approved transfer. For a transfer initiated by a contract, either directly or from
+     * a contract create's constructor, the spender is identified by the contract function result's sender id;
+     * otherwise it's the transaction payer.
+     */
+    private long getAllowanceSpenderId(RecordItem recordItem, EntityId payerAccountId) {
+        var transactionRecord = recordItem.getTransactionRecord();
+        var contractFunctionResult = transactionRecord.hasContractCreateResult()
+                ? transactionRecord.getContractCreateResult()
+                : transactionRecord.getContractCallResult();
+        return contractFunctionResult.hasSenderId()
+                ? EntityId.of(contractFunctionResult.getSenderId()).getId()
+                : payerAccountId.getId();
     }
 
     private void insertStakingRewardTransfers(RecordItem recordItem) {
@@ -344,13 +361,13 @@ public class EntityRecordItemListener implements RecordItemListener {
     }
 
     private AccountAmount findAccountAmount(
-            Predicate<AccountAmount> accountAmountPredicate, EntityId tokenId, TransactionBody body) {
+            Predicate<AccountAmount> accountAmountPredicate, TokenID tokenId, TransactionBody body) {
         if (!body.hasCryptoTransfer()) {
             return null;
         }
         List<TokenTransferList> tokenTransfersLists = body.getCryptoTransfer().getTokenTransfersList();
         for (TokenTransferList transferList : tokenTransfersLists) {
-            if (!EntityId.of(transferList.getToken()).equals(tokenId)) {
+            if (!transferList.getToken().equals(tokenId)) {
                 continue;
             }
             for (AccountAmount aa : transferList.getTransfersList()) {
@@ -373,9 +390,9 @@ public class EntityRecordItemListener implements RecordItemListener {
         for (int i = 0; i < count; i++) {
             var maxCustomFee = body.getMaxCustomFees(i);
             maxCustomFees[i] = maxCustomFee.toByteArray();
-            recordItem.addEntityId(EntityId.of(maxCustomFee.getAccountId()));
+            recordItem.addEntityId(EntityId.tryOf(maxCustomFee.getAccountId()));
             for (var fixedFee : maxCustomFee.getFeesList()) {
-                recordItem.addEntityId(EntityId.of(fixedFee.getDenominatingTokenId()));
+                recordItem.addEntityId(EntityId.tryOf(fixedFee.getDenominatingTokenId()));
             }
         }
 
@@ -412,7 +429,7 @@ public class EntityRecordItemListener implements RecordItemListener {
             tokenTransfer.setIsApproval(false);
             tokenTransfer.setPayerAccountId(payerAccountId);
 
-            handleNegativeAccountAmounts(tokenId, body, accountAmount, amount, tokenTransfer);
+            handleNegativeAccountAmounts(tokenTransferList.getToken(), body, accountAmount, amount, tokenTransfer);
             entityListener.onTokenTransfer(tokenTransfer);
             recordItem.addEntityId(accountId);
             recordItem.addEntityId(tokenId);
@@ -472,7 +489,7 @@ public class EntityRecordItemListener implements RecordItemListener {
     }
 
     private void handleNegativeAccountAmounts(
-            EntityId tokenId,
+            TokenID tokenId,
             TransactionBody body,
             AccountAmount accountAmount,
             long amount,
@@ -524,29 +541,23 @@ public class EntityRecordItemListener implements RecordItemListener {
             }
         }
 
-        if (!recordItem.getTransactionBody().hasCryptoTransfer()
+        if (!recordItem.isSuccessful()
+                || !recordItem.getTransactionBody().hasCryptoTransfer()
                 || !entityProperties.getPersist().isTrackAllowance()) {
             return;
         }
 
         var tokenTransfers = recordItem.getTransactionBody().getCryptoTransfer().getTokenTransfersList();
-        long spenderId = payerAccountId.getId();
-        if (!tokenTransfers.isEmpty() && recordItem.getTransactionRecord().hasContractCallResult()) {
-            spenderId = EntityId.of(recordItem
-                            .getTransactionRecord()
-                            .getContractCallResult()
-                            .getSenderId())
-                    .getId();
-        }
-        long transferSpenderId = spenderId;
+        long transferSpenderId =
+                tokenTransfers.isEmpty() ? payerAccountId.getId() : getAllowanceSpenderId(recordItem, payerAccountId);
         tokenTransfers.forEach(tokenTransfer -> {
-            var tokenId = EntityId.of(tokenTransfer.getToken());
+            var tokenId = EntityId.tryOf(tokenTransfer.getToken());
             tokenTransfer.getTransfersList().forEach(accountAmount -> {
                 // Emit allowance amount representing approved transfer debit
                 if (accountAmount.getIsApproval() && accountAmount.getAmount() < 0) {
                     var tokenAllowance = TokenAllowance.builder()
                             .amount(accountAmount.getAmount())
-                            .owner(EntityId.of(accountAmount.getAccountID()).getId())
+                            .owner(EntityId.tryOf(accountAmount.getAccountID()).getId())
                             .payerAccountId(payerAccountId)
                             .spender(transferSpenderId)
                             .tokenId(tokenId.getId())

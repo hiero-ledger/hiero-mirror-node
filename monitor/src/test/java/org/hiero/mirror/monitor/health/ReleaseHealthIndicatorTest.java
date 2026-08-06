@@ -4,9 +4,6 @@ package org.hiero.mirror.monitor.health;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.monitor.health.ReleaseHealthIndicator.DEPENDENCY_NOT_READY;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 
 import io.fabric8.kubernetes.api.model.ConditionBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
@@ -14,7 +11,6 @@ import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -25,7 +21,7 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.ObjectProvider;
+import org.mockito.Mock;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.Status;
 import reactor.core.publisher.Flux;
@@ -36,7 +32,7 @@ import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 
 @EnableKubernetesMockClient
 @ExtendWith(SystemStubsExtension.class)
-class ReleaseHealthIndicatorTest {
+final class ReleaseHealthIndicatorTest {
 
     private static final String HELM_RELEASE_PATH =
             "/apis/helm.toolkit.fluxcd.io/v2/namespaces/test/helmreleases/mirror";
@@ -49,18 +45,19 @@ class ReleaseHealthIndicatorTest {
 
     private final ReleaseHealthProperties properties = new ReleaseHealthProperties();
 
-    private KubernetesMockServer server;
     private ReleaseHealthIndicator healthIndicator;
-    private MeterRegistry meterRegistry = mock(MeterRegistry.class);
 
-    @SuppressWarnings("unchecked")
-    private ObjectProvider<KubernetesClient> kubernetesClientProvider = mock(ObjectProvider.class);
+    @Mock
+    private MeterRegistry meterRegistry;
+
+    @Mock
+    private KubernetesMockServer server;
 
     @BeforeEach
     void setUp() {
         var client = server.createClient().inNamespace("test");
-        when(kubernetesClientProvider.getIfAvailable()).thenReturn(client);
-        healthIndicator = new ReleaseHealthIndicator(kubernetesClientProvider, properties, meterRegistry);
+        healthIndicator = new ReleaseHealthIndicator(properties, meterRegistry);
+        healthIndicator.setKubernetesClient(client);
         properties.setEnabled(true);
         server.clearExpectations();
     }
@@ -75,13 +72,12 @@ class ReleaseHealthIndicatorTest {
 
         // then
         assertThat(health).returns(Status.UP, Health::getStatus);
-        verifyNoInteractions(kubernetesClientProvider);
     }
 
     @Test
     void kubernetesClientUnavailable() {
         // given
-        when(kubernetesClientProvider.getIfAvailable()).thenReturn(null);
+        healthIndicator.setKubernetesClient(null);
 
         // when
         var health = healthIndicator.health().block();

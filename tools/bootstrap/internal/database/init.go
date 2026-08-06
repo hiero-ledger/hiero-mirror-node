@@ -5,6 +5,7 @@ package database
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,11 +15,20 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+
+	"mirrornode-bootstrap/internal/config"
 )
 
 const (
+	// InitScriptCommitSHA pins init.sh to a commit
+	InitScriptCommitSHA = "846f9fa0ae4f4069434eca07024767519144294e"
+
 	// InitScriptURL is the URL to download the init.sh script from
-	InitScriptURL = "https://raw.githubusercontent.com/hiero-ledger/hiero-mirror-node/refs/heads/main/importer/src/main/resources/db/scripts/init.sh"
+	InitScriptURL = "https://raw.githubusercontent.com/hiero-ledger/hiero-mirror-node/" + InitScriptCommitSHA +
+		"/importer/src/main/resources/db/scripts/init.sh"
+
+	// InitScriptSHA256 is the expected checksum of the script at InitScriptURL
+	InitScriptSHA256 = "903fd0d0e3c43d0f4839f0603de69290474646d4d050619205483ea87a48974c"
 )
 
 // InitConfig holds configuration for database initialization.
@@ -29,6 +39,8 @@ type InitConfig struct {
 	AdminUser     string
 	AdminPassword string
 	AdminDatabase string
+	PGSSLMode     string
+	PGSSLRootCert string
 
 	// User passwords to set
 	OwnerPassword    string
@@ -56,6 +68,18 @@ const (
 	SkipDBInitFlag = "SKIP_DB_INIT"
 )
 
+func sslModeOrDefault(mode string) string {
+	if mode == "" {
+		return config.DefaultSSLMode
+	}
+	return mode
+}
+
+func buildConnString(user, password, dbname string, cfg InitConfig) string {
+	return config.BuildConnURL(user, password, cfg.AdminHost, cfg.AdminPort, dbname,
+		sslModeOrDefault(cfg.PGSSLMode), cfg.PGSSLRootCert)
+}
+
 // Initialize performs full database initialization: downloads and runs init.sh to create
 // database and roles, executes schema.sql to create tables, verifies setup, and creates
 // success flag on completion. Skips if already initialized.
@@ -76,13 +100,21 @@ func Initialize(ctx context.Context, cfg InitConfig) error {
 		return fmt.Errorf("schema.sql not found at %s", schemaPath)
 	}
 
-	// Download init.sh
-	initURL := cfg.InitScriptURL
-	if initURL == "" {
-		initURL = InitScriptURL
+	// Fail fast if we can't even connect, before touching anything
+	adminConnString := buildConnString(cfg.AdminUser, cfg.AdminPassword, cfg.AdminDatabase, cfg)
+	if err := TestConnection(ctx, adminConnString); err != nil {
+		return fmt.Errorf("cannot connect to database: %w", err)
 	}
 
-	initScript, err := downloadInitScript(initURL)
+	// Download init.sh
+	initURL := cfg.InitScriptURL
+	expectedHash := ""
+	if initURL == "" {
+		initURL = InitScriptURL
+		expectedHash = InitScriptSHA256
+	}
+
+	initScript, err := downloadInitScript(initURL, expectedHash)
 	if err != nil {
 		return fmt.Errorf("failed to download init.sh: %w", err)
 	}
@@ -112,7 +144,8 @@ func Initialize(ctx context.Context, cfg InitConfig) error {
 }
 
 // downloadInitScript downloads init.sh to a temporary file.
-func downloadInitScript(url string) (string, error) {
+// Verify content before writing it to disk (requires expectedHash to be set)
+func downloadInitScript(url, expectedHash string) (string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return "", err
@@ -123,13 +156,25 @@ func downloadInitScript(url string) (string, error) {
 		return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
 	}
 
+	script, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if expectedHash != "" {
+		actualHash := fmt.Sprintf("%x", sha256.Sum256(script))
+		if actualHash != expectedHash {
+			return "", fmt.Errorf("checksum mismatch for %s: expected %s, got %s", url, expectedHash, actualHash)
+		}
+	}
+
 	tmpFile, err := os.CreateTemp("", "init-*.sh")
 	if err != nil {
 		return "", err
 	}
 	defer tmpFile.Close()
 
-	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+	if _, err := tmpFile.Write(script); err != nil {
 		os.Remove(tmpFile.Name())
 		return "", err
 	}
@@ -154,6 +199,8 @@ func runInitScript(ctx context.Context, scriptPath string, cfg InitConfig) error
 		fmt.Sprintf("PGUSER=%s", cfg.AdminUser),
 		fmt.Sprintf("PGPASSWORD=%s", cfg.AdminPassword),
 		fmt.Sprintf("PGDATABASE=%s", cfg.AdminDatabase),
+		fmt.Sprintf("PGSSLMODE=%s", sslModeOrDefault(cfg.PGSSLMode)),
+		fmt.Sprintf("PGSSLROOTCERT=%s", cfg.PGSSLRootCert),
 		fmt.Sprintf("OWNER_PASSWORD=%s", cfg.OwnerPassword),
 		fmt.Sprintf("GRAPHQL_PASSWORD=%s", cfg.GraphQLPassword),
 		fmt.Sprintf("GRPC_PASSWORD=%s", cfg.GRPCPassword),
@@ -190,6 +237,8 @@ func executeSchema(ctx context.Context, cfg InitConfig, schemaPath string) error
 		"PGUSER=mirror_node",
 		fmt.Sprintf("PGPASSWORD=%s", cfg.OwnerPassword),
 		"PGDATABASE=mirror_node",
+		fmt.Sprintf("PGSSLMODE=%s", sslModeOrDefault(cfg.PGSSLMode)),
+		fmt.Sprintf("PGSSLROOTCERT=%s", cfg.PGSSLRootCert),
 	)
 
 	output, err := cmd.CombinedOutput()
@@ -202,8 +251,7 @@ func executeSchema(ctx context.Context, cfg InitConfig, schemaPath string) error
 
 // verifyTables checks that expected tables exist in the database.
 func verifyTables(ctx context.Context, cfg InitConfig) error {
-	connString := fmt.Sprintf("postgres://mirror_node:%s@%s:%s/mirror_node?sslmode=disable",
-		cfg.OwnerPassword, cfg.AdminHost, cfg.AdminPort)
+	connString := buildConnString("mirror_node", cfg.OwnerPassword, "mirror_node", cfg)
 
 	conn, err := pgx.Connect(ctx, connString)
 	if err != nil {

@@ -50,6 +50,9 @@ public class EvmProperties {
             ImmutableSortedMap.of(0L, EVM_VERSION);
 
     @Positive
+    private long blockHashWindow = 256L;
+
+    @Positive
     private long entityNumBuffer = 1000L;
 
     @Positive

@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
+import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.retry.RetryTemplate;
@@ -86,14 +87,14 @@ public class EthereumClient extends AbstractNetworkClient {
     }
 
     public NetworkTransactionResponse transferValue(
-            PrivateKey signerKey, String toEvmAddress, BigInteger value, TransactionType type) {
+            ExpandedAccountId signerAccount, String toEvmAddress, BigInteger value, TransactionType type) {
 
         var rawTransaction =
                 switch (type) {
                     case EIP1559 ->
                         RawTransaction.createTransaction(
                                 acceptanceTestProperties.getNetwork().getChainId(),
-                                getNonce(signerKey),
+                                getNonce(signerAccount.getPrivateKey()),
                                 maxContractFunctionGas(),
                                 toEvmAddress,
                                 value,
@@ -103,7 +104,7 @@ public class EthereumClient extends AbstractNetworkClient {
                     case EIP2930 ->
                         RawTransaction.createTransaction(
                                 acceptanceTestProperties.getNetwork().getChainId(),
-                                getNonce(signerKey),
+                                getNonce(signerAccount.getPrivateKey()),
                                 maxContractFunctionGas(),
                                 toEvmAddress,
                                 value,
@@ -113,15 +114,20 @@ public class EthereumClient extends AbstractNetworkClient {
                                 Collections.emptyList());
                     default ->
                         RawTransaction.createEtherTransaction(
-                                getNonce(signerKey), gasPrice, maxContractFunctionGas(), toEvmAddress, value);
+                                getNonce(signerAccount.getPrivateKey()),
+                                gasPrice,
+                                maxContractFunctionGas(),
+                                toEvmAddress,
+                                value);
                 };
 
-        Credentials credentials = Credentials.create(signerKey.toStringRaw());
+        Credentials credentials =
+                Credentials.create(signerAccount.getPrivateKey().toStringRaw());
         EthereumTransaction ethereumTransaction = new EthereumTransaction()
-                .setMaxGasAllowanceHbar(Hbar.from(100L))
-                .setEthereumData(TransactionEncoder.signMessage(rawTransaction, credentials));
+                .setMaxGasAllowanceHbar(Hbar.from(5L))
+                .setEthereumData(signEthereumData(rawTransaction, type, credentials));
 
-        final var response = executeTransactionAndRetrieveReceipt(ethereumTransaction, null, null);
+        final var response = executeTransactionAndRetrieveReceipt(ethereumTransaction, null, signerAccount);
         log.info(
                 "Transferred {} to {} via {} in {}",
                 value,
@@ -174,7 +180,7 @@ public class EthereumClient extends AbstractNetworkClient {
         Credentials credentials = Credentials.create(signerKey.toStringRaw());
         EthereumTransaction ethereumTransaction = new EthereumTransaction()
                 .setMaxGasAllowanceHbar(Hbar.from(100L))
-                .setEthereumData(TransactionEncoder.signMessage(rawTransaction, credentials));
+                .setEthereumData(signEthereumData(rawTransaction, type, credentials));
 
         var response = executeTransactionAndRetrieveReceipt(ethereumTransaction, null, null);
 
@@ -201,6 +207,15 @@ public class EthereumClient extends AbstractNetworkClient {
                 contractFunctionResult.contractId,
                 contractFunctionResult.gasUsed,
                 contractFunctionResult.logs.size());
+    }
+
+    private byte[] signEthereumData(RawTransaction rawTransaction, TransactionType type, Credentials credentials) {
+        return switch (type) {
+            case EIP1559, EIP2930 ->
+                TransactionEncoder.signMessage(
+                        rawTransaction, acceptanceTestProperties.getNetwork().getChainId(), credentials);
+            default -> TransactionEncoder.signMessage(rawTransaction, credentials);
+        };
     }
 
     private BigInteger getNonce(PrivateKey accountKey) {

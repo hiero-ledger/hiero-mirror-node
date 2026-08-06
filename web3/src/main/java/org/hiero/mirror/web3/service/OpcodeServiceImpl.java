@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCREATEINSTANCE;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
+import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.OPCODES;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
@@ -63,13 +64,14 @@ public class OpcodeServiceImpl implements OpcodeService {
     @Override
     public OpcodesResponse processOpcodeCall(@NonNull OpcodeRequest opcodeRequest) {
         return ContractCallContext.run(ctx -> {
+            ctx.setApi(OPCODES);
             final var params = buildCallServiceParameters(opcodeRequest.getTransactionIdOrHashParameter());
             final var opcodeContext = new OpcodeContext(opcodeRequest, (int) params.getGas() / 3);
 
             ctx.setOpcodeContext(opcodeContext);
 
             final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
-            return buildOpcodesResponse(result);
+            return buildOpcodesResponse(result, params.getConsensusTimestamp());
         });
     }
 
@@ -117,12 +119,13 @@ public class OpcodeServiceImpl implements OpcodeService {
         return buildCallServiceParameters(consensusTimestamp, transaction, ethereumTransaction);
     }
 
-    private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result) {
+    private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result, long consensusTimestamp) {
         final var recipientAddress = result.recipient();
         Entity recipientEntity = null;
         if (recipientAddress != null && !recipientAddress.equals(EMPTY_ADDRESS)) {
-            recipientEntity =
-                    commonEntityAccessor.get(recipientAddress, Optional.empty()).orElse(null);
+            recipientEntity = commonEntityAccessor
+                    .get(recipientAddress, Optional.of(consensusTimestamp))
+                    .orElse(null);
         }
 
         var address = EMPTY_ADDRESS.toHexString();
@@ -168,27 +171,32 @@ public class OpcodeServiceImpl implements OpcodeService {
                 .ethereumData(getEthereumDataBytes(ethTransaction))
                 .consensusTimestamp(consensusTimestamp)
                 .gas(getGasLimit(ethTransaction, contractResult))
-                .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType))
-                .sender(getSenderAddress(contractResult))
+                .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType, consensusTimestamp))
+                .sender(getSenderAddress(contractResult, consensusTimestamp))
                 .value(getValue(ethTransaction, contractResult).longValue())
                 .build();
     }
 
-    private Address getSenderAddress(ContractResult contractResult) {
-        final var address = commonEntityAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.empty());
+    private Address getSenderAddress(ContractResult contractResult, long consensusTimestamp) {
+        final var address =
+                commonEntityAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.of(consensusTimestamp));
         return address != null ? address : EMPTY_ADDRESS;
     }
 
     private Address getReceiverAddress(
-            EthereumTransaction ethereumTransaction, ContractResult contractResult, int transactionType) {
+            EthereumTransaction ethereumTransaction,
+            ContractResult contractResult,
+            int transactionType,
+            long consensusTimestamp) {
         if (ethereumTransaction != null) {
             if (ArrayUtils.isEmpty(ethereumTransaction.getToAddress())) {
                 return EMPTY_ADDRESS;
             }
             final var address = Address.wrap(Bytes.wrap(ethereumTransaction.getToAddress()));
             if (ConversionUtils.isLongZero(address)) {
-                final var entity =
-                        commonEntityAccessor.get(address, Optional.empty()).orElse(null);
+                final var entity = commonEntityAccessor
+                        .get(address, Optional.of(consensusTimestamp))
+                        .orElse(null);
                 if (entity != null) {
                     return getEntityAddress(entity);
                 }
@@ -200,7 +208,7 @@ public class OpcodeServiceImpl implements OpcodeService {
             return EMPTY_ADDRESS;
         }
         final var contractId = EntityId.of(contractResult.getContractId());
-        final var address = commonEntityAccessor.evmAddressFromId(contractId, Optional.empty());
+        final var address = commonEntityAccessor.evmAddressFromId(contractId, Optional.of(consensusTimestamp));
         return address != null ? address : EMPTY_ADDRESS;
     }
 

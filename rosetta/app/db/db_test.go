@@ -29,7 +29,8 @@ func (suite *dbSuite) TearDownSuite() {
 }
 
 func (suite *dbSuite) TestConnectToDb() {
-	dbClient := ConnectToDb(suite.dbResource.GetDbConfig())
+	dbClient, closeDb := ConnectToDb(suite.dbResource.GetDbConfig())
+	defer closeDb()
 	err := dbClient.GetDb().Exec("select 1").Error
 	assert.Nil(suite.T(), err)
 }
@@ -37,7 +38,8 @@ func (suite *dbSuite) TestConnectToDb() {
 func (suite *dbSuite) TestConnectToDbInvalidPassword() {
 	dbConfig := suite.dbResource.GetDbConfig()
 	dbConfig.Password = "bad_password_dab"
-	dbClient := ConnectToDb(dbConfig)
+	dbClient, closeDb := ConnectToDb(dbConfig)
+	defer closeDb()
 	err := dbClient.GetDb().Exec("select 1").Error
 	assert.NotNil(suite.T(), err)
 }

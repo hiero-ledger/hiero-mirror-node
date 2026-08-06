@@ -13,6 +13,7 @@ import com.hedera.hashgraph.sdk.Status;
 import com.hedera.hashgraph.sdk.TransferTransaction;
 import com.hedera.hashgraph.sdk.proto.NodeAddressBook;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.List;
@@ -33,6 +34,7 @@ import org.hiero.mirror.rest.model.NetworkNode;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 
@@ -46,32 +48,48 @@ public class NodeSupplier {
 
     private final AtomicLong counter = new AtomicLong(0L);
     private final CopyOnWriteArrayList<NodeProperties> nodes = new CopyOnWriteArrayList<>();
+    private final Scheduler refreshScheduler = Schedulers.newSingle("nodes");
+    private Scheduler validationScheduler;
+
+    @PreDestroy
+    public void destroy() {
+        refreshScheduler.dispose();
+        if (validationScheduler != null) {
+            validationScheduler.dispose();
+        }
+    }
 
     @PostConstruct
     public void init() {
         var validationProperties = monitorProperties.getNodeValidation();
         int parallelism = validationProperties.getMaxThreads();
         long retryBackoff = validationProperties.getRetryBackoff().toMillis();
+        validationScheduler = Schedulers.newParallel("validator", parallelism + 1);
 
-        var scheduler = Schedulers.newParallel("validator", parallelism + 1);
-        Flux.interval(Duration.ZERO, validationProperties.getFrequency(), scheduler)
-                .flatMap(i -> refresh()
-                        .take(monitorProperties.getNodeValidation().getMaxNodes())
-                        .parallel(parallelism)
-                        .runOn(scheduler)
-                        .map(this::validateNode)
-                        .sequential()
-                        .collectList()
-                        .doOnNext(valid -> log.info(
-                                "{} of {} nodes are functional",
-                                valid.stream().filter(v -> v).count(),
-                                valid.size()))
-                        .repeatWhen(repeat -> repeat.filter(l -> nodes.isEmpty())
-                                .doOnNext(numEmitted -> log.info("Retrying in {} ms", retryBackoff))
-                                .flatMap(numEmitted -> Mono.delay(Duration.ofMillis(retryBackoff), scheduler))))
+        Flux.interval(Duration.ZERO, validationProperties.getFrequency(), validationScheduler)
+                .onBackpressureDrop(
+                        tick -> log.info("Skipping refresh {} since previous refresh is still running", tick))
+                .flatMap(
+                        i -> refresh()
+                                .take(monitorProperties.getNodeValidation().getMaxNodes())
+                                .parallel(parallelism)
+                                .runOn(validationScheduler)
+                                .map(this::validateNode)
+                                .sequential()
+                                .collectList()
+                                .doOnNext(valid -> log.info(
+                                        "{} of {} nodes are functional",
+                                        valid.stream().filter(v -> v).count(),
+                                        valid.size()))
+                                .repeatWhen(repeat -> repeat.filter(l -> nodes.isEmpty())
+                                        .doOnNext(_ -> log.info("Retrying in {} ms", retryBackoff))
+                                        .flatMap(_ -> Mono.delay(Duration.ofMillis(retryBackoff), validationScheduler)))
+                                .onErrorResume(t -> {
+                                    log.warn("Exception validating nodes: {}", t.getMessage());
+                                    return Mono.empty();
+                                }),
+                        1)
                 .doOnSubscribe(s -> log.info("Starting node validation"))
-                .doOnError(t -> log.error("Exception validating nodes: ", t))
-                .onErrorResume(t -> Mono.empty())
                 .subscribe();
     }
 
@@ -84,24 +102,32 @@ public class NodeSupplier {
         return nodes.get((int) nodeIndex);
     }
 
-    public synchronized Flux<NodeProperties> refresh() {
+    public Mono<List<NodeProperties>> list() {
+        return Flux.interval(Duration.ZERO, Duration.ofSeconds(1L), Schedulers.boundedElastic())
+                .map(i -> List.copyOf(nodes))
+                .filter(list -> !list.isEmpty())
+                .next();
+    }
+
+    @VisibleForTesting
+    Flux<NodeProperties> refresh() {
         boolean empty = nodes.isEmpty();
-        Retry retrySpec = Retry.backoff(Long.MAX_VALUE, Duration.ofSeconds(1L))
+        final var retry = Retry.backoff(Long.MAX_VALUE, Duration.ofSeconds(1L))
                 .maxBackoff(Duration.ofSeconds(8L))
-                .scheduler(Schedulers.newSingle("nodes"))
+                .scheduler(refreshScheduler)
                 .doBeforeRetry(r -> log.warn(
                         "Retry attempt #{} after failure: {}",
                         r.totalRetries() + 1,
                         r.failure().getMessage()));
 
+        log.info("Refreshing node list");
         var predicate = monitorProperties.getNodeValidation().getTls().getPredicate();
         return Flux.fromIterable(monitorProperties.getNodes())
-                .doOnSubscribe(s -> log.info("Refreshing node list"))
                 .switchIfEmpty(Flux.defer(this::getAddressBook))
                 .switchIfEmpty(Flux.fromIterable(monitorProperties.getNetwork().getNodes()))
                 .filter(n -> predicate.test(n.getPort()))
-                .retryWhen(retrySpec)
                 .switchIfEmpty(Flux.error(new IllegalArgumentException("Nodes must not be empty")))
+                .retryWhen(retry)
                 .doOnNext(n -> {
                     if (empty) {
                         nodes.addIfAbsent(n);

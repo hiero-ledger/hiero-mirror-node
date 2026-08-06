@@ -6,7 +6,7 @@ import static org.hiero.mirror.importer.reader.record.ProtoRecordFileReader.VERS
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
-import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -28,6 +29,7 @@ import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
+import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.hiero.mirror.importer.util.Utility;
@@ -142,6 +144,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         var count = new AtomicLong(0L);
         boolean shouldLog = log.isDebugEnabled() || log.isTraceEnabled();
         final var logIndex = new AtomicInteger(0);
+        final var evmTransactionIndex = new AtomicInteger(0);
 
         applicationEventPublisher.publishEvent(new RecordFileParsedEvent(this, recordFile.getConsensusEnd()));
 
@@ -152,6 +155,8 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             }
 
             aggregator.accept(recordItem);
+            recordItem.setEvmTransactionIndexCounter(evmTransactionIndex);
+            setEvmTransactionIndex(recordItem);
 
             if (dateRangeFilter.filter(recordItem.getConsensusTimestamp())) {
                 recordItem.setLogIndex(logIndex);
@@ -167,6 +172,11 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
         parserContext.add(recordFile);
         parserContext.addAll(recordFile.getSidecars());
+    }
+
+    @Override
+    protected StreamType getStreamType(final RecordFile recordFile) {
+        return recordFile.getVersion() == BlockStreamReader.VERSION ? StreamType.BLOCK : StreamType.RECORD;
     }
 
     private void logItem(RecordItem recordItem) {
@@ -220,24 +230,40 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         }
     }
 
-    private class RecordItemAggregator implements Consumer<RecordItem> {
+    private void setEvmTransactionIndex(RecordItem recordItem) {
+        final var type = recordItem.getTransactionType();
+        if (type != TransactionType.CONTRACTCALL.getProtoId()
+                && type != TransactionType.CONTRACTCREATEINSTANCE.getProtoId()
+                && type != TransactionType.ETHEREUMTRANSACTION.getProtoId()) {
+            return;
+        }
+
+        // WRONG_NONCE transactions never entered EVM execution; no index slot should be assigned
+        if (recordItem.getTransactionStatus() == ResponseCodeEnum.WRONG_NONCE_VALUE) {
+            return;
+        }
+
+        final var contractRelatedParent = recordItem.getContractRelatedParent();
+        if (contractRelatedParent != null && contractRelatedParent.getEvmTransactionIndex() != null) {
+            recordItem.setEvmTransactionIndex(contractRelatedParent.getEvmTransactionIndex());
+        } else if (recordItem.hasContractResult()) {
+            recordItem.claimEvmTransactionIndex();
+        }
+    }
+
+    private final class RecordItemAggregator implements Consumer<RecordItem> {
 
         private final LogsBloomFilter logsBloom = new LogsBloomFilter();
         private long gasUsed = 0L;
 
         @Override
         public void accept(RecordItem recordItem) {
-            if (!recordItem.isTopLevel()) {
+            if (!recordItem.isTopLevel() || !recordItem.hasContractResult()) {
                 return;
             }
 
             var rec = recordItem.getTransactionRecord();
             var result = rec.hasContractCreateResult() ? rec.getContractCreateResult() : rec.getContractCallResult();
-
-            if (ContractFunctionResult.getDefaultInstance().equals(result)) {
-                return;
-            }
-
             gasUsed += result.getGasUsed();
             logsBloom.or(DomainUtils.toBytes(result.getBloom()));
         }

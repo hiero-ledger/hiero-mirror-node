@@ -178,6 +178,31 @@ Edit the `bootstrap.env` file to set your own credentials and passwords for data
   - Replace `your_postgres_password` with the password for the PostgreSQL superuser (`postgres`).
   - `PGHOST` should be set to the IP address or hostname of your PostgreSQL server.
 
+- **Configure TLS for the PostgreSQL Connection:**
+
+  ```bash
+  # TLS mode for PostgreSQL connections
+  export PGSSLMODE="verify-full"
+
+  # CA certificate for verifying the server (uncomment if your DB uses a private CA)
+  # export PGSSLROOTCERT="/path/to/ca.pem"
+  ```
+
+  - `PGSSLMODE` defaults to `verify-full`, so credentials and data stay encrypted in transit - this matters since bootstrap is often run from a separate machine than the database.
+  - If your server's certificate isn't already trusted by your system (common for Cloud SQL, StackGres, or any private CA), set `PGSSLROOTCERT` to the CA certificate's path.
+  - If you're connecting directly to a Cloud SQL instance's private IP (not through the Cloud SQL Auth Proxy), use `PGSSLMODE="verify-ca"` instead of `verify-full` - Cloud SQL's server certificate doesn't include an IP SAN, so `verify-full`'s hostname check will fail with an `x509: cannot validate certificate` error even though the connection itself is fine.
+  - If your PostgreSQL server doesn't have TLS set up at all (e.g. a local/dev instance), set `PGSSLMODE="disable"`.
+  - Available `PGSSLMODE` values, from least to most secure:
+
+    | Value         | What it does                                                                                              |
+    | ------------- | --------------------------------------------------------------------------------------------------------- |
+    | `disable`     | No TLS at all - plaintext only                                                                            |
+    | `allow`       | Tries plaintext first, upgrades to TLS only if the server insists                                         |
+    | `prefer`      | Tries TLS first, silently falls back to plaintext if unavailable                                          |
+    | `require`     | Always encrypts, but doesn't check the server's certificate (still vulnerable to a MITM with a fake cert) |
+    | `verify-ca`   | Encrypts and checks the cert is signed by a trusted CA, but not that the hostname matches                 |
+    | `verify-full` | Encrypts, checks the CA, and checks the hostname matches - full protection (our default)                  |
+
 - **Set the `IS_GCP_CLOUD_SQL` variable to `true` if you are using a GCP Cloud SQL database:**
 
   ```bash
@@ -337,7 +362,7 @@ After downloading the data, it's crucial to ensure version compatibility between
 
 ### 5. Initialize the Database
 
-The `bootstrap init` command creates the database, roles, and permissions, validates the special files (`MIRRORNODE_VERSION.gz` and `schema.sql.gz`), and executes the schema.
+The `bootstrap init` command creates the database, roles, and permissions, validates the special files (`MIRRORNODE_VERSION.gz` and `schema.sql.gz`), and executes the schema. Before touching anything, it first checks that it can connect to the database with your configured credentials and TLS settings, so a wrong password, unreachable host, or bad `PGSSLROOTCERT` path fails immediately with a clear error.
 
 **Instructions:**
 
@@ -613,6 +638,7 @@ During the import process, the binary tracks the status of each file in `bootstr
   - Monitor system resources (CPU, memory, I/O) on both the bootstrap machine and the database server during the import process.
 - **Security Considerations:**
   - Secure your `bootstrap.env` file and any other files containing sensitive information.
+  - PostgreSQL connections default to `PGSSLMODE="verify-full"`, keeping credentials and data encrypted in transit. Only relax this for trusted local/dev setups.
 - **Debug Mode:**
   - Set `DEBUG_MODE=true` environment variable for verbose logging:
     ```bash
@@ -627,6 +653,7 @@ During the import process, the binary tracks the status of each file in `bootstr
   - Confirm that `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` in `bootstrap.env` are correctly set.
   - Ensure that the database server allows connections from your machine (check `pg_hba.conf` and firewall rules).
   - Verify that the database port (`PGPORT`) is correct and accessible.
+  - If the error mentions a certificate or TLS handshake, check `PGSSLMODE` and `PGSSLROOTCERT`: for a local/dev server without TLS set up, use `PGSSLMODE="disable"`; otherwise make sure `PGSSLROOTCERT` points to a valid, readable CA certificate file.
 - **Import Failures:**
   - Review `bootstrap-logs/bootstrap.log` for detailed error messages.
   - Check `bootstrap-logs/tracking.json` to identify which files failed validation or import.
