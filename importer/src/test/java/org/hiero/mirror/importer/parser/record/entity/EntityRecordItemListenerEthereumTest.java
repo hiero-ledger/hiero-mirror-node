@@ -240,11 +240,11 @@ class EntityRecordItemListenerEthereumTest extends AbstractEntityRecordItemListe
         // given
         final var result = ResponseCodeEnum.INSUFFICIENT_GAS;
         final var recordItem = recordItemBuilder
-                .ethereumTransaction(false)
-                .record(r -> r.setContractCallResult(
-                        r.getContractCallResultBuilder().clearContractID().clearLogInfo()))
+                .ethereumTransaction(true)
+                .record(r -> r.setContractCreateResult(
+                        r.getContractCreateResultBuilder().clearContractID().clearLogInfo()))
                 .record(r -> r.getReceiptBuilder().setStatus(result))
-                .sidecarRecords(s -> s.clear())
+                .sidecarRecords(List::clear)
                 .build();
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
         final var contractIds = List.of(0L, recordItem.getPayerAccountId().getId());

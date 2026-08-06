@@ -6,6 +6,13 @@ with cr as materialized (
     select consensus_timestamp, contract_id, payer_account_id
     from contract_result
     where contract_id = 0 and consensus_timestamp >= 1784869200000000000
+),
+updates as (
+    update contract_transaction ct
+    set contract_ids = 0 || ct.contract_ids
+    from cr
+    where cr.consensus_timestamp = ct.consensus_timestamp and ct.consensus_timestamp >= 1784869200000000000
+          and not (contract_ids @> array[0]::bigint[])
 )
 insert into contract_transaction (consensus_timestamp, entity_id, contract_ids, payer_account_id)
 select ct.consensus_timestamp, cr.contract_id, 0 || ct.contract_ids as contract_ids, cr.payer_account_id

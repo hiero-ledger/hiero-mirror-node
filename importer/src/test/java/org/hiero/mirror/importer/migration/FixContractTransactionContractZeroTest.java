@@ -40,12 +40,12 @@ final class FixContractTransactionContractZeroTest extends ImporterIntegrationTe
     }
 
     @Test
-    void insertsMissingContractZeroTransaction() {
-        // given - a contract result for contract 0 whose transaction has no entity_id = 0 fan out row
-        var timestamp = MIGRATION_TIMESTAMP + 1000;
-        var payerId = domainBuilder.id();
-        var otherEntityId = domainBuilder.id();
-        var contractIds = List.of(1001L, 1002L);
+    void updatesAndInsertsContractZeroRow() {
+        // given - a contract result for contract 0 whose fan out omits 0 entirely
+        final long timestamp = MIGRATION_TIMESTAMP + 1000;
+        final var payerId = domainBuilder.id();
+        final var otherEntityId = domainBuilder.id();
+        final var contractIds = List.of(payerId, otherEntityId);
 
         persistContractResult(timestamp, CONTRACT_ZERO_ID, payerId);
         persistContractTransaction(timestamp, payerId, contractIds, payerId);
@@ -54,130 +54,120 @@ final class FixContractTransactionContractZeroTest extends ImporterIntegrationTe
         // when
         runMigration();
 
-        // then - 0 is prepended, and the pre-existing rows keep their original arrays
+        // then - every row for the transaction carries 0, including the inserted one, which derives its array from the
+        // pre-update snapshot and so must prepend 0 itself
+        final var expected = List.of(CONTRACT_ZERO_ID, payerId, otherEntityId);
         assertThat(findAllContractTransactions())
                 .containsExactlyInAnyOrder(
-                        new ContractTransactionRow(timestamp, CONTRACT_ZERO_ID, List.of(0L, 1001L, 1002L), payerId),
-                        new ContractTransactionRow(timestamp, payerId, contractIds, payerId),
-                        new ContractTransactionRow(timestamp, otherEntityId, contractIds, payerId));
+                        new ContractTransactionRow(timestamp, CONTRACT_ZERO_ID, expected, payerId),
+                        new ContractTransactionRow(timestamp, payerId, expected, payerId),
+                        new ContractTransactionRow(timestamp, otherEntityId, expected, payerId));
     }
 
     @Test
-    void insertsForMultipleTransactions() {
+    void updatesMultipleTransactions() {
         // given - two impacted transactions with different payers and arrays
-        var firstTimestamp = MIGRATION_TIMESTAMP;
-        var secondTimestamp = MIGRATION_TIMESTAMP + 5000;
-        var firstPayerId = domainBuilder.id();
-        var secondPayerId = domainBuilder.id();
+        final long timestamp1 = MIGRATION_TIMESTAMP;
+        final long timestamp2 = MIGRATION_TIMESTAMP + 5000;
+        final var payer1 = domainBuilder.id();
+        final var payer2 = domainBuilder.id();
 
-        persistContractResult(firstTimestamp, CONTRACT_ZERO_ID, firstPayerId);
-        persistContractTransaction(firstTimestamp, firstPayerId, List.of(2001L), firstPayerId);
-        persistContractResult(secondTimestamp, CONTRACT_ZERO_ID, secondPayerId);
-        persistContractTransaction(secondTimestamp, secondPayerId, List.of(3001L, 3002L), secondPayerId);
+        persistContractResult(timestamp1, CONTRACT_ZERO_ID, payer1);
+        persistContractTransaction(timestamp1, payer1, List.of(payer1), payer1);
+        persistContractResult(timestamp2, CONTRACT_ZERO_ID, payer2);
+        persistContractTransaction(timestamp2, payer2, List.of(payer2), payer2);
 
         // when
         runMigration();
 
         // then
+        final var expected1 = List.of(CONTRACT_ZERO_ID, payer1);
+        final var expected2 = List.of(CONTRACT_ZERO_ID, payer2);
         assertThat(findAllContractTransactions())
-                .contains(
-                        new ContractTransactionRow(firstTimestamp, CONTRACT_ZERO_ID, List.of(0L, 2001L), firstPayerId),
-                        new ContractTransactionRow(
-                                secondTimestamp, CONTRACT_ZERO_ID, List.of(0L, 3001L, 3002L), secondPayerId))
-                .hasSize(4);
+                .containsExactlyInAnyOrder(
+                        new ContractTransactionRow(timestamp1, payer1, expected1, payer1),
+                        new ContractTransactionRow(timestamp1, CONTRACT_ZERO_ID, expected1, payer1),
+                        new ContractTransactionRow(timestamp2, payer2, expected2, payer2),
+                        new ContractTransactionRow(timestamp2, CONTRACT_ZERO_ID, expected2, payer2));
     }
 
     @Test
     void respectsTimestampLowerBound() {
         // given - one transaction immediately before the bound and one exactly on it
-        var beforeTimestamp = MIGRATION_TIMESTAMP - 1;
-        var atTimestamp = MIGRATION_TIMESTAMP;
-        var beforePayerId = domainBuilder.id();
-        var atPayerId = domainBuilder.id();
+        final long beforeTimestamp = MIGRATION_TIMESTAMP - 1;
+        final long atTimestamp = MIGRATION_TIMESTAMP;
+        final var beforePayerId = domainBuilder.id();
+        final var atPayerId = domainBuilder.id();
+        final var beforeContractIds = List.of(CONTRACT_ZERO_ID, beforePayerId);
 
         persistContractResult(beforeTimestamp, CONTRACT_ZERO_ID, beforePayerId);
-        persistContractTransaction(beforeTimestamp, beforePayerId, List.of(4001L), beforePayerId);
+        persistContractTransaction(beforeTimestamp, beforePayerId, beforeContractIds, beforePayerId);
         persistContractResult(atTimestamp, CONTRACT_ZERO_ID, atPayerId);
-        persistContractTransaction(atTimestamp, atPayerId, List.of(5001L), atPayerId);
+        persistContractTransaction(atTimestamp, atPayerId, List.of(atPayerId), atPayerId);
 
         // when
         runMigration();
 
-        // then - the bound is inclusive, and nothing before it is touched
+        // then - the bound is inclusive, and neither the update nor the insert reaches before it
+        final var expected = List.of(CONTRACT_ZERO_ID, atPayerId);
         assertThat(findAllContractTransactions())
                 .containsExactlyInAnyOrder(
-                        new ContractTransactionRow(beforeTimestamp, beforePayerId, List.of(4001L), beforePayerId),
-                        new ContractTransactionRow(atTimestamp, atPayerId, List.of(5001L), atPayerId),
-                        new ContractTransactionRow(atTimestamp, CONTRACT_ZERO_ID, List.of(0L, 5001L), atPayerId));
+                        new ContractTransactionRow(beforeTimestamp, beforePayerId, beforeContractIds, beforePayerId),
+                        new ContractTransactionRow(atTimestamp, atPayerId, expected, atPayerId),
+                        new ContractTransactionRow(atTimestamp, CONTRACT_ZERO_ID, expected, atPayerId));
     }
 
     @Test
-    void noopWhenContractZeroRowAlreadyExists() {
-        // given - the fan out row already exists, so the insert must not overwrite its array
-        var timestamp = MIGRATION_TIMESTAMP + 1000;
-        var payerId = domainBuilder.id();
-        var existingContractIds = List.of(6001L);
-
-        persistContractResult(timestamp, CONTRACT_ZERO_ID, payerId);
-        persistContractTransaction(timestamp, payerId, existingContractIds, payerId);
-        persistContractTransaction(timestamp, CONTRACT_ZERO_ID, existingContractIds, payerId);
-
-        // when
-        runMigration();
-
-        // then
-        assertThat(findAllContractTransactions())
-                .containsExactlyInAnyOrder(
-                        new ContractTransactionRow(timestamp, payerId, existingContractIds, payerId),
-                        new ContractTransactionRow(timestamp, CONTRACT_ZERO_ID, existingContractIds, payerId));
-    }
-
-    @Test
-    void noopWhenPayerContractIdsAlreadyContainsZero() {
-        // given - the payer row lists contract 0 but the entity_id = 0 row is still missing.
-        // The migration guards on the payer's array rather than on the missing row, so this stays unfixed.
-        // If the guard is changed to a not exists on entity_id = 0, this expectation must flip.
-        var timestamp = MIGRATION_TIMESTAMP + 1000;
-        var payerId = domainBuilder.id();
-        var contractIds = List.of(0L, 7001L);
+    void noopWhenAlreadyCorrect() {
+        // given - a transaction ingested after the importer fix: entity 0 row present and 0 in every array
+        final long timestamp = MIGRATION_TIMESTAMP + 1000;
+        final var payerId = domainBuilder.id();
+        final var otherEntityId = domainBuilder.id();
+        final var contractIds = List.of(CONTRACT_ZERO_ID, payerId, otherEntityId);
 
         persistContractResult(timestamp, CONTRACT_ZERO_ID, payerId);
         persistContractTransaction(timestamp, payerId, contractIds, payerId);
+        persistContractTransaction(timestamp, otherEntityId, contractIds, payerId);
+        persistContractTransaction(timestamp, CONTRACT_ZERO_ID, contractIds, payerId);
 
         // when
         runMigration();
 
-        // then
+        // then - no second 0 is prepended and no duplicate row is inserted
         assertThat(findAllContractTransactions())
-                .containsExactly(new ContractTransactionRow(timestamp, payerId, contractIds, payerId));
+                .containsExactlyInAnyOrder(
+                        new ContractTransactionRow(timestamp, payerId, contractIds, payerId),
+                        new ContractTransactionRow(timestamp, otherEntityId, contractIds, payerId),
+                        new ContractTransactionRow(timestamp, CONTRACT_ZERO_ID, contractIds, payerId));
     }
 
     @Test
-    void noopWhenPayerTransactionMissing() {
-        // given - a contract result whose payer has no fan out row to copy contract_ids from
-        var timestamp = MIGRATION_TIMESTAMP + 1000;
-        var payerId = domainBuilder.id();
-        var otherEntityId = domainBuilder.id();
-        var contractIds = List.of(8001L);
+    void updatesWhenPayerRowMissing() {
+        // given - no fan out row for the payer, so the insert has nothing to copy from. The update joins on
+        // consensus_timestamp only, so it is broader than the insert and still runs.
+        final long timestamp = MIGRATION_TIMESTAMP + 1000;
+        final var payerId = domainBuilder.id();
+        final var otherEntityId = domainBuilder.id();
 
         persistContractResult(timestamp, CONTRACT_ZERO_ID, payerId);
-        persistContractTransaction(timestamp, otherEntityId, contractIds, payerId);
+        persistContractTransaction(timestamp, otherEntityId, List.of(payerId, otherEntityId), payerId);
 
         // when
         runMigration();
 
         // then
+        final var expected = List.of(CONTRACT_ZERO_ID, payerId, otherEntityId);
         assertThat(findAllContractTransactions())
-                .containsExactly(new ContractTransactionRow(timestamp, otherEntityId, contractIds, payerId));
+                .containsExactly(new ContractTransactionRow(timestamp, otherEntityId, expected, payerId));
     }
 
     @Test
     void noopWhenContractResultIsNotContractZero() {
-        // given - a normal contract result, which the migration must ignore
-        var timestamp = MIGRATION_TIMESTAMP + 1000;
-        var payerId = domainBuilder.id();
-        var contractId = domainBuilder.id();
-        var contractIds = List.of(contractId);
+        // given - a normal contract result, which neither sub-statement may touch
+        final long timestamp = MIGRATION_TIMESTAMP + 1000;
+        final var payerId = domainBuilder.id();
+        final var contractId = domainBuilder.id();
+        final var contractIds = List.of(contractId);
 
         persistContractResult(timestamp, contractId, payerId);
         persistContractTransaction(timestamp, payerId, contractIds, payerId);
@@ -193,18 +183,28 @@ final class FixContractTransactionContractZeroTest extends ImporterIntegrationTe
     @Test
     void isIdempotent() {
         // given
-        var timestamp = MIGRATION_TIMESTAMP + 1000;
-        var payerId = domainBuilder.id();
+        final long timestamp = MIGRATION_TIMESTAMP + 1000;
+        final var payerId = domainBuilder.id();
+        final var otherEntityId = domainBuilder.id();
+        final var contractIds = List.of(payerId, otherEntityId);
 
         persistContractResult(timestamp, CONTRACT_ZERO_ID, payerId);
-        persistContractTransaction(timestamp, payerId, List.of(9001L), payerId);
+        persistContractTransaction(timestamp, payerId, contractIds, payerId);
+        persistContractTransaction(timestamp, otherEntityId, contractIds, payerId);
 
-        // when - the payer row still lacks 0 after the first pass, so the second pass relies on the conflict clause
+        // when - the first pass leaves 0 in every array, so the second matches nothing and never reaches the conflict
+        // clause. A second 0 must not be prepended.
         runMigration();
-        var afterFirstRun = findAllContractTransactions();
+        final var afterFirstRun = findAllContractTransactions();
         runMigration();
 
         // then
+        final var expected = List.of(CONTRACT_ZERO_ID, payerId, otherEntityId);
+        assertThat(afterFirstRun)
+                .containsExactlyInAnyOrder(
+                        new ContractTransactionRow(timestamp, payerId, expected, payerId),
+                        new ContractTransactionRow(timestamp, otherEntityId, expected, payerId),
+                        new ContractTransactionRow(timestamp, CONTRACT_ZERO_ID, expected, payerId));
         assertThat(findAllContractTransactions()).containsExactlyInAnyOrderElementsOf(afterFirstRun);
     }
 
