@@ -8,9 +8,9 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.hiero.mirror.common.domain.StreamFile;
@@ -32,7 +32,7 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
     protected final StreamFileRepository<T, Long> streamFileRepository;
 
     private final AtomicReference<T> last;
-    private final Map<StreamType, ParserMetric> parserMetrics = new HashMap<>();
+    private final Map<StreamType, ParserMetric> parserMetrics = new ConcurrentHashMap<>();
 
     protected AbstractStreamFileParser(
             MeterRegistry meterRegistry,
