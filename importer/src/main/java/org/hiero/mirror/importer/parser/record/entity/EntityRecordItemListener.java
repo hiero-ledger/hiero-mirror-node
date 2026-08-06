@@ -600,9 +600,11 @@ public class EntityRecordItemListener implements RecordItemListener {
             recordItem.addNftTransactionEntityId(receiverId);
             recordItem.addNftTransactionEntityId(senderId);
 
-            transferNftOwnership(consensusTimestamp, serialNumber, entityTokenId, receiverId);
-            syntheticContractLogService.create(
-                    new TransferIndexedContractLog(recordItem, entityTokenId, senderId, receiverId, serialNumber));
+            if (serialNumber != WILDCARD_SERIAL_NUMBER) {
+                transferNftOwnership(consensusTimestamp, serialNumber, entityTokenId, receiverId);
+                syntheticContractLogService.create(
+                        new TransferIndexedContractLog(recordItem, entityTokenId, senderId, receiverId, serialNumber));
+            }
         }
     }
 
@@ -640,7 +642,7 @@ public class EntityRecordItemListener implements RecordItemListener {
 
     private void transferNftOwnership(
             long consensusTimeStamp, long serialNumber, EntityId tokenId, EntityId receiverId) {
-        if (EntityId.isEmpty(receiverId) || serialNumber == WILDCARD_SERIAL_NUMBER) {
+        if (EntityId.isEmpty(receiverId)) {
             // nfts in token burn / wipe transactions are handled in transaction handlers, also skip wildcard nft
             return;
         }

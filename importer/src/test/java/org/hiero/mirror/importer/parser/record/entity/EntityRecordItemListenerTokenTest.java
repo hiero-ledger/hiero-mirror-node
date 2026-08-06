@@ -1311,6 +1311,93 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .build();
         assertThat(nftRepository.findAll()).containsExactly(expectedNft);
         assertThat(findHistory(Nft.class)).containsExactly(expectedNftHistory);
+
+        // Wildcard (-1) treasury NFT transfer must not produce a synthetic Transfer log
+        assertThat(contractLogRepository.findAll())
+                .filteredOn(contractLog -> contractLog.getConsensusTimestamp() == updateTimestamp)
+                .isEmpty();
+    }
+
+    @Test
+    void nftUpdateTreasurySyntheticLog() {
+        // given
+        var account = domainBuilder.entityId();
+        var oldTreasury = domainBuilder.entityId();
+        var newTreasury = domainBuilder.entityId();
+        var tokenId = domainBuilder.entityId();
+        var protoAccount = account.toAccountID();
+        var protoOldTreasury = oldTreasury.toAccountID();
+        var protoNewTreasury = newTreasury.toAccountID();
+        var protoTokenId = tokenId.toTokenID();
+
+        var recordItems = new ArrayList<RecordItem>();
+        recordItems.add(recordItemBuilder
+                .tokenCreate()
+                .transactionBody(b -> b.clearCustomFees()
+                        .clearFreezeKey()
+                        .clearKycKey()
+                        .setInitialSupply(0L)
+                        .setTokenType(NON_FUNGIBLE_UNIQUE)
+                        .setTreasury(protoOldTreasury))
+                .receipt(r -> r.setTokenID(protoTokenId))
+                .record(r -> r.clearAutomaticTokenAssociations()
+                        .addAutomaticTokenAssociations(TokenAssociation.newBuilder()
+                                .setTokenId(protoTokenId)
+                                .setAccountId(protoOldTreasury)))
+                .build());
+
+        var mintSerials = List.of(1L, 2L, 3L);
+        var metadata = recordItemBuilder.bytes(16);
+        var mintTransfers = mintSerials.stream()
+                .map(serial -> NftTransfer.newBuilder()
+                        .setSerialNumber(serial)
+                        .setReceiverAccountID(protoOldTreasury)
+                        .build())
+                .toList();
+        recordItems.add(recordItemBuilder
+                .tokenMint()
+                .transactionBody(
+                        b -> b.setToken(protoTokenId).clearMetadata().addAllMetadata(Collections.nCopies(3, metadata)))
+                .record(r -> r.clearTokenTransferLists()
+                        .addTokenTransferLists(TokenTransferList.newBuilder()
+                                .setToken(protoTokenId)
+                                .addAllNftTransfers(mintTransfers)))
+                .receipt(r -> r.clearSerialNumbers().addAllSerialNumbers(mintSerials))
+                .build());
+
+        recordItems.add(recordItemBuilder
+                .cryptoTransfer()
+                .record(r -> r.addTokenTransferLists(TokenTransferList.newBuilder()
+                        .setToken(protoTokenId)
+                        .addNftTransfers(NftTransfer.newBuilder()
+                                .setSerialNumber(2L)
+                                .setReceiverAccountID(protoAccount)
+                                .setSenderAccountID(protoOldTreasury))))
+                .build());
+
+        var nftUpdateRecordItem = recordItemBuilder
+                .tokenUpdate()
+                .transactionBody(b -> b.setToken(protoTokenId).setTreasury(protoNewTreasury))
+                .record(r -> r.addTokenTransferLists(TokenTransferList.newBuilder()
+                                .setToken(protoTokenId)
+                                .addNftTransfers(NftTransfer.newBuilder()
+                                        .setSerialNumber(WILDCARD_SERIAL_NUMBER)
+                                        .setReceiverAccountID(protoNewTreasury)
+                                        .setSenderAccountID(protoOldTreasury)))
+                        .addAutomaticTokenAssociations(TokenAssociation.newBuilder()
+                                .setAccountId(protoNewTreasury)
+                                .setTokenId(protoTokenId)))
+                .build();
+        recordItems.add(nftUpdateRecordItem);
+
+        // when
+        parseRecordItemsAndCommit(recordItems);
+
+        // then — wildcard (-1) treasury update must not create a synthetic Transfer log
+        long updateTimestamp = nftUpdateRecordItem.getConsensusTimestamp();
+        assertThat(contractLogRepository.findAll())
+                .filteredOn(contractLog -> contractLog.getConsensusTimestamp() == updateTimestamp)
+                .isEmpty();
     }
 
     @ParameterizedTest
