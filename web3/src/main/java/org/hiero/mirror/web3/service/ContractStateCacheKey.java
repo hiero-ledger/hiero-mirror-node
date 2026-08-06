@@ -8,13 +8,14 @@ import java.util.Arrays;
  * Cache key for a single contract storage slot value. Slot keys use deep equality so distinct {@code byte[]} instances
  * with the same contents collide correctly. The hash is memoized because a key is rebuilt for every storage read.
  */
-final class ContractStateCacheKey {
+class ContractStateCacheKey {
 
     private final long contractId;
     private final byte[] slot;
+    // Memoized for performance reasons
     private final int hash;
 
-    private ContractStateCacheKey(final long contractId, final byte[] slot) {
+    protected ContractStateCacheKey(final long contractId, final byte[] slot) {
         this.contractId = contractId;
         this.slot = slot;
         this.hash = 31 * Long.hashCode(contractId) + Arrays.hashCode(slot);
@@ -32,15 +33,20 @@ final class ContractStateCacheKey {
         return slot;
     }
 
+    protected int hash() {
+        return hash;
+    }
+
     @Override
     public boolean equals(final Object o) {
         if (this == o) {
             return true;
         }
-        return o instanceof ContractStateCacheKey that
-                && hash == that.hash
-                && contractId == that.contractId
-                && Arrays.equals(slot, that.slot);
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final var that = (ContractStateCacheKey) o;
+        return hash == that.hash && contractId == that.contractId && Arrays.equals(slot, that.slot);
     }
 
     @Override

@@ -24,9 +24,10 @@ import org.springframework.stereotype.Service;
 
 /**
  * Loads contract storage with batch prefetch and negative caching ({@code EMPTY_VALUE}). Bulk misses use
- * {@link CacheLoader#loadAll} with {@code findStorageBatch} so multiple slot values are loaded and cached together.
+ * {@link CacheLoader#loadAll} with {@code findStorageBatch} / {@code findStorageBatchByBlockTimestamp} so multiple slot
+ * values are loaded and cached together.
  *
- * <p>The value cache is built asynchronously and used through its synchronous view because only the asynchronous
+ * <p>The value caches are built asynchronously and used through their synchronous view because only the asynchronous
  * {@code getAll} reserves a placeholder per key before loading. That gives single-flight coalescing, so concurrent
  * misses of the same slot share one batch query.
  */
@@ -38,6 +39,7 @@ final class ContractStateServiceImpl implements ContractStateService {
     private final CacheProperties cacheProperties;
     private final Cache<EntityId, List<ByteBuffer>> contractSlotsCache;
     private final LoadingCache<ContractStateCacheKey, byte[]> contractStateCache;
+    private final LoadingCache<ContractStateHistoricalCacheKey, byte[]> contractStateHistoricalCache;
     private final ContractStateRepository contractStateRepository;
 
     ContractStateServiceImpl(
@@ -58,6 +60,21 @@ final class ContractStateServiceImpl implements ContractStateService {
                     @Override
                     public Map<ContractStateCacheKey, byte[]> loadAll(final Set<? extends ContractStateCacheKey> keys) {
                         return loadContractSlots(keys);
+                    }
+                })
+                .synchronous();
+        this.contractStateHistoricalCache = Caffeine.from(cacheProperties.getContractStateHistorical())
+                .executor(Runnable::run)
+                .buildAsync(new CacheLoader<ContractStateHistoricalCacheKey, byte[]>() {
+                    @Override
+                    public byte[] load(final ContractStateHistoricalCacheKey key) {
+                        return loadContractSlotHistorical(key);
+                    }
+
+                    @Override
+                    public Map<ContractStateHistoricalCacheKey, byte[]> loadAll(
+                            final Set<? extends ContractStateHistoricalCacheKey> keys) {
+                        return loadContractSlotsHistorical(keys);
                     }
                 })
                 .synchronous();
@@ -82,11 +99,28 @@ final class ContractStateServiceImpl implements ContractStateService {
     @Override
     public Optional<byte[]> findStorageByBlockTimestamp(
             final EntityId entityId, final byte[] slotKeyByteArray, final long blockTimestamp) {
-        return contractStateRepository.findStorageByBlockTimestamp(entityId.getId(), slotKeyByteArray, blockTimestamp);
+        final var cacheKey = ContractStateHistoricalCacheKey.of(entityId.getId(), slotKeyByteArray, blockTimestamp);
+        final var cachedValue = contractStateHistoricalCache.getIfPresent(cacheKey);
+        if (cachedValue != null) {
+            return toOptional(cachedValue);
+        }
+
+        if (!cacheProperties.isEnableBatchContractSlotCaching()) {
+            return toOptional(contractStateHistoricalCache.get(cacheKey));
+        }
+
+        ContractCallContext.get().setContractIdForStorageCache(entityId);
+        return toOptional(contractStateHistoricalCache.getAll(Set.of(cacheKey)).get(cacheKey));
     }
 
     private byte[] loadContractSlot(final ContractStateCacheKey key) {
         return contractStateRepository.findStorage(key.contractId(), key.slot()).orElse(EMPTY_VALUE);
+    }
+
+    private byte[] loadContractSlotHistorical(final ContractStateHistoricalCacheKey key) {
+        return contractStateRepository
+                .findStorageByBlockTimestamp(key.contractId(), key.slot(), key.timestamp())
+                .orElse(EMPTY_VALUE);
     }
 
     /**
@@ -114,7 +148,7 @@ final class ContractStateServiceImpl implements ContractStateService {
                 if (slotsToSearch.size() >= maxSlotKeysPerBatch) {
                     break;
                 }
-                final var slot = toByteArray(cachedContractSlot);
+                final var slot = cachedContractSlot.array();
                 if (contractStateCache.getIfPresent(ContractStateCacheKey.of(contractIdForBatchLoading, slot))
                         == null) {
                     slotsToSearch.add(cachedContractSlot);
@@ -136,7 +170,7 @@ final class ContractStateServiceImpl implements ContractStateService {
 
         for (final var searchedSlot : slotsToSearch) {
             if (!foundSlots.contains(searchedSlot)) {
-                result.put(ContractStateCacheKey.of(contractIdForBatchLoading, toByteArray(searchedSlot)), EMPTY_VALUE);
+                result.put(ContractStateCacheKey.of(contractIdForBatchLoading, searchedSlot.array()), EMPTY_VALUE);
             }
         }
 
@@ -149,46 +183,99 @@ final class ContractStateServiceImpl implements ContractStateService {
     }
 
     /**
+     * Loads all requested historical keys and returns a value for every key ({@link #EMPTY_VALUE} when missing).
+     * Prefetches previously searched slots of the same contract that are not already cached at the same timestamp.
+     */
+    private Map<ContractStateHistoricalCacheKey, byte[]> loadContractSlotsHistorical(
+            final Set<? extends ContractStateHistoricalCacheKey> keys) {
+        final var contractEntityIdForBatchLoading = ContractCallContext.get().getContractIdForStorageCache();
+        final var contractIdForBatchLoading = contractEntityIdForBatchLoading.getId();
+        final var timestamp = keys.iterator().next().timestamp();
+        final var cachedContractSlots = contractSlotsCache.getIfPresent(contractEntityIdForBatchLoading);
+        final var maxSlotKeysPerBatch = cacheProperties.getMaxSlotKeysPerBatch();
+
+        final var slotsToSearch = LinkedHashSet.<ByteBuffer>newLinkedHashSet(maxSlotKeysPerBatch);
+
+        for (final var key : keys) {
+            if (key.contractId() == contractIdForBatchLoading && key.timestamp() == timestamp) {
+                slotsToSearch.add(ByteBuffer.wrap(key.slot()));
+            }
+        }
+
+        if (cachedContractSlots != null) {
+            for (final var cachedContractSlot : cachedContractSlots) {
+                if (slotsToSearch.size() >= maxSlotKeysPerBatch) {
+                    break;
+                }
+                final var slot = cachedContractSlot.array();
+                if (contractStateHistoricalCache.getIfPresent(
+                                ContractStateHistoricalCacheKey.of(contractIdForBatchLoading, slot, timestamp))
+                        == null) {
+                    slotsToSearch.add(cachedContractSlot);
+                }
+            }
+        }
+
+        final var slotKeys = toByteArray(slotsToSearch);
+        final var contractSlotValues = contractStateRepository.findStorageBatchByBlockTimestamp(
+                contractIdForBatchLoading, slotKeys, timestamp);
+        trackSearchedSlots(contractIdForBatchLoading, slotsToSearch);
+        final var foundSlots = HashSet.<ByteBuffer>newHashSet(contractSlotValues.size());
+        final var result = HashMap.<ContractStateHistoricalCacheKey, byte[]>newHashMap(slotsToSearch.size());
+
+        for (final var contractSlotValue : contractSlotValues) {
+            final var slotKey = contractSlotValue.getSlot();
+            foundSlots.add(ByteBuffer.wrap(slotKey));
+            result.put(
+                    ContractStateHistoricalCacheKey.of(contractIdForBatchLoading, slotKey, timestamp),
+                    contractSlotValue.getValue());
+        }
+
+        for (final var searchedSlot : slotsToSearch) {
+            if (!foundSlots.contains(searchedSlot)) {
+                result.put(
+                        ContractStateHistoricalCacheKey.of(contractIdForBatchLoading, searchedSlot.array(), timestamp),
+                        EMPTY_VALUE);
+            }
+        }
+
+        for (final var key : keys) {
+            result.computeIfAbsent(key, this::loadContractSlotHistorical);
+        }
+
+        return result;
+    }
+
+    /**
      * Records slot keys searched in the DB for a contract so later lookups can prefetch them together.
      */
     private void trackSearchedSlots(final long contractId, final Collection<ByteBuffer> slotKeys) {
         final var entityId = EntityId.of(contractId);
         final var maxSlotsPerContract = cacheProperties.getMaxSlotsPerContract();
-        contractSlotsCache.asMap().compute(entityId, (_, existing) -> {
-            final var updated = new ArrayList<ByteBuffer>(
-                    Math.min(maxSlotsPerContract, (existing == null ? 0 : existing.size()) + slotKeys.size()));
-            if (existing != null) {
-                updated.addAll(existing);
-            }
-            for (final var slotKey : slotKeys) {
-                if (!updated.contains(slotKey)) {
-                    updated.add(slotKey);
-                }
-            }
+        final var existing = contractSlotsCache.getIfPresent(entityId);
+        final var updated = new ArrayList<ByteBuffer>(
+                Math.min(maxSlotsPerContract, (existing == null ? 0 : existing.size()) + slotKeys.size()));
+        if (existing != null) {
+            updated.addAll(existing);
+        }
+        for (final var slotKey : slotKeys) {
             if (updated.size() > maxSlotsPerContract) {
-                return List.copyOf(updated.subList(updated.size() - maxSlotsPerContract, updated.size()));
+                updated.removeFirst();
             }
-            return List.copyOf(updated);
-        });
+
+            updated.add(slotKey);
+        }
+
+        contractSlotsCache.put(entityId, updated);
     }
 
     private static byte[][] toByteArray(final Collection<ByteBuffer> slots) {
         final var slotKeys = new byte[slots.size()][];
         var index = 0;
         for (final var slot : slots) {
-            slotKeys[index++] = toByteArray(slot);
+            slotKeys[index++] = slot.array();
         }
         return slotKeys;
-    }
-
-    /**
-     * Copies the buffer's readable bytes so sliced/duplicated buffers do not expose a larger backing array.
-     */
-    private static byte[] toByteArray(final ByteBuffer buffer) {
-        final var view = buffer.asReadOnlyBuffer();
-        final var bytes = new byte[view.remaining()];
-        view.get(bytes);
-        return bytes;
     }
 
     private static Optional<byte[]> toOptional(final byte[] cachedValue) {

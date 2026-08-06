@@ -317,7 +317,7 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
                 .persist();
 
         // Then
-        assertThat(contractStateService.findStorageByBlockTimestamp(
+        assertThat(findStorageByBlockTimestamp(
                         EntityId.of(olderContractState.getContractId()),
                         contractStateChange.getSlot(),
                         contractStateChange.getConsensusTimestamp()))
@@ -338,7 +338,7 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         // Then
         assertThat(contractStateChange.getConsensusTimestamp() > olderContractState.getConsensusTimestamp())
                 .isTrue();
-        assertThat(contractStateService.findStorageByBlockTimestamp(
+        assertThat(findStorageByBlockTimestamp(
                         EntityId.of(olderContractState.getContractId()),
                         olderContractState.getSlot(),
                         olderContractState.getConsensusTimestamp()))
@@ -352,7 +352,7 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         final var contractStateChange = domainBuilder.contractStateChange().persist();
 
         // Then
-        assertThat(contractStateService.findStorageByBlockTimestamp(
+        assertThat(findStorageByBlockTimestamp(
                         EntityId.of(contractStateChange.getContractId()),
                         contractStateChange.getSlot(),
                         contractStateChange.getConsensusTimestamp() - 1))
@@ -608,12 +608,108 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         // Then
         assertThat(contractStateChange.getConsensusTimestamp() > olderContractState.getConsensusTimestamp())
                 .isTrue();
-        assertThat(contractStateService.findStorageByBlockTimestamp(
+        assertThat(findStorageByBlockTimestamp(
                         EntityId.of(contractStateChange.getContractId()),
                         contractStateChange.getSlot(),
                         contractStateChange.getConsensusTimestamp()))
                 .get()
                 .isEqualTo(contractStateChange.getValueRead());
+    }
+
+    @Test
+    void verifyHistoricalCacheReturnsValuesWithoutHittingDbAgain() {
+        // Given
+        final var contractStateChange = domainBuilder.contractStateChange().persist();
+        final var contractId = EntityId.of(contractStateChange.getContractId());
+
+        assertThat(findStorageByBlockTimestamp(
+                        contractId, contractStateChange.getSlot(), contractStateChange.getConsensusTimestamp()))
+                .get()
+                .isEqualTo(contractStateChange.getValueWritten());
+        clearInvocations(contractStateRepository);
+
+        // When
+        final var secondLookup = findStorageByBlockTimestamp(
+                contractId, contractStateChange.getSlot(), contractStateChange.getConsensusTimestamp());
+
+        // Then
+        assertThat(secondLookup).get().isEqualTo(contractStateChange.getValueWritten());
+        verify(contractStateRepository, never()).findStorageBatchByBlockTimestamp(anyLong(), any(), anyLong());
+        verify(contractStateRepository, never()).findStorageByBlockTimestamp(anyLong(), any(), anyLong());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void verifyHistoricalBatchFlagPropertyWorks(final boolean flagEnabled) {
+        // Given
+        cacheProperties.setEnableBatchContractSlotCaching(flagEnabled);
+        final var contractStateChange = domainBuilder.contractStateChange().persist();
+        final var contractId = EntityId.of(contractStateChange.getContractId());
+
+        // When
+        final var result = findStorageByBlockTimestamp(
+                contractId, contractStateChange.getSlot(), contractStateChange.getConsensusTimestamp());
+
+        // Then
+        assertThat(result).get().isEqualTo(contractStateChange.getValueWritten());
+        if (flagEnabled) {
+            verify(contractStateRepository, times(1))
+                    .findStorageBatchByBlockTimestamp(eq(contractId.getId()), any(), anyLong());
+            verify(contractStateRepository, never()).findStorageByBlockTimestamp(anyLong(), any(), anyLong());
+        } else {
+            verify(contractStateRepository, times(1))
+                    .findStorageByBlockTimestamp(eq(contractId.getId()), any(), anyLong());
+            verify(contractStateRepository, never()).findStorageBatchByBlockTimestamp(anyLong(), any(), anyLong());
+        }
+    }
+
+    @Test
+    void verifyPreviouslySearchedHistoricalSlotsArePrefetchedInLaterBatches() {
+        // Given
+        final var firstChange = domainBuilder.contractStateChange().persist();
+        final var secondChange = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(firstChange.getContractId()))
+                .persist();
+        final var contractId = EntityId.of(firstChange.getContractId());
+
+        // Prime tracked slots at the earlier timestamp (cached under a different historical key).
+        assertThat(findStorageByBlockTimestamp(contractId, firstChange.getSlot(), firstChange.getConsensusTimestamp()))
+                .isPresent();
+        clearInvocations(contractStateRepository);
+
+        // When - a later lookup at a different timestamp prefetches the previously tracked slot
+        final var laterTimestamp = secondChange.getConsensusTimestamp();
+        assertThat(findStorageByBlockTimestamp(contractId, secondChange.getSlot(), laterTimestamp))
+                .isPresent();
+
+        // Then
+        final var slotsCaptor = ArgumentCaptor.forClass(byte[][].class);
+        verify(contractStateRepository, times(1))
+                .findStorageBatchByBlockTimestamp(eq(contractId.getId()), slotsCaptor.capture(), eq(laterTimestamp));
+
+        assertThat(containsSlot(slotsCaptor.getValue(), secondChange.getSlot())).isTrue();
+        assertThat(containsSlot(slotsCaptor.getValue(), firstChange.getSlot())).isTrue();
+    }
+
+    @Test
+    void verifyMissingHistoricalSlotValueIsCachedAsEmpty() {
+        // Given
+        final var contractStateChange = domainBuilder.contractStateChange().persist();
+        final var contractId = EntityId.of(contractStateChange.getContractId());
+        final var missingSlot = generateSlotKey(42);
+        final var timestamp = contractStateChange.getConsensusTimestamp();
+
+        // When
+        assertThat(findStorageByBlockTimestamp(contractId, missingSlot, timestamp))
+                .isEmpty();
+        clearInvocations(contractStateRepository);
+        final var secondLookup = findStorageByBlockTimestamp(contractId, missingSlot, timestamp);
+
+        // Then
+        assertThat(secondLookup).isEmpty();
+        verify(contractStateRepository, never()).findStorageBatchByBlockTimestamp(anyLong(), any(), anyLong());
+        verify(contractStateRepository, never()).findStorageByBlockTimestamp(anyLong(), any(), anyLong());
     }
 
     @Test
@@ -679,6 +775,12 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
 
     private Optional<byte[]> findStorage(final EntityId contractId, final byte[] key) {
         return ContractCallContext.run(ctx -> contractStateService.findStorage(contractId, key));
+    }
+
+    private Optional<byte[]> findStorageByBlockTimestamp(
+            final EntityId contractId, final byte[] key, final long blockTimestamp) {
+        return ContractCallContext.run(
+                ctx -> contractStateService.findStorageByBlockTimestamp(contractId, key, blockTimestamp));
     }
 
     private void findStorage(final Entity contract, final List<ContractState> slotKeyValuePairs) {

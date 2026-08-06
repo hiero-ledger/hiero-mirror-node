@@ -28,6 +28,9 @@ public class CacheProperties {
     @NotBlank
     private String contractState = "expireAfterWrite=2s,maximumSize=25000,recordStats";
 
+    @NotBlank
+    private String contractStateHistorical = "expireAfterAccess=10m,maximumSize=25000,recordStats";
+
     private boolean enableBatchContractSlotCaching = true;
 
     @NotBlank
@@ -38,7 +41,7 @@ public class CacheProperties {
      * query.
      */
     @Min(1)
-    private int maxSlotKeysPerBatch = 750;
+    private int maxSlotKeysPerBatch = 100;
 
     /**
      * The maximum number of slot keys tracked per contract for batch prefetch. Oldest keys are dropped when the limit
