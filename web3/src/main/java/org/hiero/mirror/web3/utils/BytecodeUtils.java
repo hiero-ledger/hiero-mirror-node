@@ -4,7 +4,7 @@ package org.hiero.mirror.web3.utils;
 
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
-import java.util.regex.Pattern;
+import com.google.re2j.Pattern;
 import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.NonNull;
 

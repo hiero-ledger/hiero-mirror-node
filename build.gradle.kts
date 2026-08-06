@@ -51,6 +51,7 @@ dependencies {
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
         api("com.google.guava:guava:33.6.0-jre")
+        api("com.google.re2j:re2j:1.8")
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
