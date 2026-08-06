@@ -13,4 +13,4 @@ from cr
          join contract_transaction ct
               on ct.consensus_timestamp = cr.consensus_timestamp and ct.entity_id = cr.payer_account_id
 where ct.consensus_timestamp >= 1784869200000000000 and not (contract_ids @> array[0]::bigint[])
-order by cr.consensus_timestamp asc on conflict do nothing;
+on conflict do nothing;
