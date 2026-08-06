@@ -14,6 +14,8 @@ import {MAX_LONG, NANOS_PER_SECOND} from '../constants.js';
 
 const NANOSECONDS_PER_HOUR = 60n * 60n * NANOS_PER_SECOND;
 const FEE_DIVISOR_FACTOR = 1000n;
+const MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP = 1779296400389248896n;
+const TESTNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP = 1777482002529719510n;
 
 /**
  * File data retrieval business logic
@@ -75,12 +77,6 @@ class FileDataService extends BaseService {
     maxSize: config.cache.feeSchedule.maxSize,
   });
 
-  /**
-   * The function returns the data for the fileId at the provided consensus timestamp.
-   * @param fileId
-   * @param timestamp
-   * @return {data: string}
-   */
   getFileData = async (fileId, timestamp) => {
     const params = [fileId, timestamp];
     const query = FileDataService.getFileDataQuery;
@@ -104,10 +100,6 @@ class FileDataService extends BaseService {
     return this.#fallbackRetry(EntityId.systemEntity.exchangeRateFile.getEncodedId(), filterQueries, ExchangeRate);
   };
 
-  #getFeeSchedule = async (filterQueries) => {
-    return this.#fallbackRetry(EntityId.systemEntity.feeScheduleFile.getEncodedId(), filterQueries, FeeSchedule);
-  };
-
   getGasPrice = async (consensusTimestamp = null) => {
     const cacheKey = this.#getFeeScheduleKey(consensusTimestamp);
     const cached = this.#gasPriceCache.get(cacheKey);
@@ -119,12 +111,6 @@ class FileDataService extends BaseService {
     return this.#loadAndCacheGasPrice(cacheKey, consensusTimestamp);
   };
 
-  /**
-   * Resolves gas prices for multiple contract results, deduplicating cache and DB lookups by hour bucket.
-   *
-   * @param {Array<*>} consensusTimestamps
-   * @returns {Promise<Map>} map of consensus timestamp to gas price
-   */
   getGasPrices = async (consensusTimestamps) => {
     const gasPriceByTimestamp = new Map();
     if (isEmpty(consensusTimestamps)) {
@@ -155,12 +141,25 @@ class FileDataService extends BaseService {
     return gasPriceByTimestamp;
   };
 
+  getGasPriceFromSimpleFeeSchedule(feeSchedule, exchangeRate, refTimestampNanos) {
+    const gasTinycents = feeSchedule.getGasPriceTinycents();
+    if (gasTinycents == null) {
+      return null;
+    }
+    const effectiveExchangeRate = this.getEffectiveExchangeRate(exchangeRate, refTimestampNanos);
+    return this.convertGasPriceToTinyBars(
+      gasTinycents,
+      effectiveExchangeRate.hbarEquiv,
+      effectiveExchangeRate.centEquiv
+    );
+  }
+
   async #loadAndCacheGasPrice(cacheKey, consensusTimestamp) {
     const filterQueries = this.#buildFilterQueries(consensusTimestamp);
 
     const [exchangeRate, feeSchedule] = await Promise.all([
       this.getExchangeRate(filterQueries),
-      this.#getFeeSchedule(filterQueries),
+      this.#getFeeSchedule(filterQueries, consensusTimestamp),
     ]);
 
     if (!feeSchedule || !exchangeRate) {
@@ -175,6 +174,29 @@ class FileDataService extends BaseService {
     );
     this.#gasPriceCache.set(cacheKey, gasPrice);
     return gasPrice;
+  }
+
+  #getFeeSchedule = async (filterQueries, consensusTimestamp) => {
+    const switchoverTimestamp = this.#getSimpleFeesSwitchoverTimestamp();
+    const refTimestampNanos = consensusTimestamp != null ? BigInt(consensusTimestamp) : switchoverTimestamp;
+
+    if (refTimestampNanos >= switchoverTimestamp) {
+      return this.#fallbackRetry(
+        EntityId.systemEntity.simpleFeeScheduleFile.getEncodedId(),
+        filterQueries,
+        FeeSchedule
+      );
+    }
+
+    return this.#fallbackRetry(EntityId.systemEntity.feeScheduleFile.getEncodedId(), filterQueries, FeeSchedule);
+  };
+
+  #getSimpleFeesSwitchoverTimestamp() {
+    const network = config.network?.toUpperCase();
+    if (network === 'TESTNET') {
+      return TESTNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP;
+    }
+    return MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP;
   }
 
   #buildFilterQueries(consensusTimestamp) {
@@ -204,24 +226,30 @@ class FileDataService extends BaseService {
   }
 
   convertGasPriceToTinyBars(gasPrice, hbarEquiv, centEquiv) {
-    if (gasPrice == null || !isNumber(hbarEquiv) || !isNumber(centEquiv)) {
+    const hbar = Number(hbarEquiv);
+    const cent = Number(centEquiv);
+
+    if (gasPrice == null || isNaN(hbar) || isNaN(cent) || cent === 0) {
       return null;
     }
 
-    centEquiv = BigInt(centEquiv);
-    if (centEquiv === 0n) {
-      return null;
-    }
-
-    const fee = (BigInt(gasPrice) * BigInt(hbarEquiv)) / (centEquiv * FEE_DIVISOR_FACTOR);
+    const fee = (BigInt(gasPrice) * BigInt(hbar)) / BigInt(cent);
     return utils.bigIntMax(fee, 1n);
   }
 
-  #getEffectiveFeeSchedule(feeSchedules, refTimestampNanos) {
-    const currentFeeSchedule = feeSchedules.currentFeeSchedule;
-    const feeScheduleExpirationTime = currentFeeSchedule.expiryTime?.seconds;
+  convertLegacyGasPriceToTinyBars(gasPrice, hbarEquiv, centEquiv) {
+    if (gasPrice == null) {
+      return null;
+    }
+    const gasInTinyCents = BigInt(gasPrice) / FEE_DIVISOR_FACTOR;
+    return this.convertGasPriceToTinyBars(gasInTinyCents, hbarEquiv, centEquiv);
+  }
 
-    if (feeScheduleExpirationTime != null && refTimestampNanos > feeScheduleExpirationTime * NANOS_PER_SECOND) {
+  #getEffectiveFeeSchedule(feeSchedules, refTimestampNanos) {
+    const currentFeeSchedule = feeSchedules?.currentFeeSchedule;
+    const feeScheduleExpirationTime = currentFeeSchedule?.expiryTime?.seconds;
+
+    if (feeScheduleExpirationTime != null && refTimestampNanos > BigInt(feeScheduleExpirationTime) * NANOS_PER_SECOND) {
       return feeSchedules.nextFeeSchedule;
     }
 
@@ -235,7 +263,7 @@ class FileDataService extends BaseService {
 
     for (const schedule of feeSchedule.transactionFeeSchedule) {
       const type = schedule?.hederaFunctionality;
-      if (!type || !schedule?.fees?.length || type !== HederaFunctionality.ContractCall) {
+      if (type == null || !schedule?.fees?.length || type !== HederaFunctionality.ContractCall) {
         continue;
       }
 
@@ -246,16 +274,27 @@ class FileDataService extends BaseService {
       }
 
       const gas = serviceData.gas;
-      return this.convertGasPriceToTinyBars(gas, exchangeRate.hbarEquiv, exchangeRate.centEquiv);
+      return this.convertLegacyGasPriceToTinyBars(gas, exchangeRate.hbarEquiv, exchangeRate.centEquiv);
     }
 
     return null;
   }
 
   getGasPriceForType(feeSchedule, exchangeRate, refTimestampNanos) {
-    const effectiveFeeSchedule = this.#getEffectiveFeeSchedule(feeSchedule.feeSchedule, refTimestampNanos);
-    const effectiveExchangeRate = this.getEffectiveExchangeRate(exchangeRate, refTimestampNanos);
-    return this.#lookupGasPrice(effectiveFeeSchedule, effectiveExchangeRate);
+    if (feeSchedule.simpleFeeSchedule || typeof feeSchedule.getGasPriceTinycents === 'function') {
+      const simpleGasPrice = this.getGasPriceFromSimpleFeeSchedule(feeSchedule, exchangeRate, refTimestampNanos);
+      if (simpleGasPrice != null) {
+        return simpleGasPrice;
+      }
+    }
+
+    if (feeSchedule.feeSchedule) {
+      const effectiveFeeSchedule = this.#getEffectiveFeeSchedule(feeSchedule.feeSchedule, refTimestampNanos);
+      const effectiveExchangeRate = this.getEffectiveExchangeRate(exchangeRate, refTimestampNanos);
+      return this.#lookupGasPrice(effectiveFeeSchedule, effectiveExchangeRate);
+    }
+
+    return null;
   }
 
   #fallbackRetry = async (fileEntityId, filterQueries, resultConstructor) => {
