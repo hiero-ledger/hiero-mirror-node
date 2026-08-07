@@ -12,9 +12,13 @@ import com.hedera.hapi.node.base.Timestamp;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.experimental.UtilityClass;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.jspecify.annotations.NonNull;
 
 @UtilityClass
@@ -130,5 +134,24 @@ public class Utils {
                 .realmNum(entityId.getRealm())
                 .fileNum(entityId.getNum())
                 .build();
+    }
+
+    public static Map<Bytes, StateOverride> toOverrideMap(final List<StateOverride> overrides) {
+        final var map = new HashMap<Bytes, StateOverride>(overrides.size());
+        for (final var override : overrides) {
+            map.put(Bytes.wrap(parseHex(override.getAddress())), override);
+        }
+        return map;
+    }
+
+    public static String toHex(final long value) {
+        return HEX_PREFIX + Long.toHexString(value);
+    }
+
+    public static String withHexPrefix(final String hex) {
+        if (hex == null) {
+            return null;
+        }
+        return hex.startsWith(HEX_PREFIX) ? hex : HEX_PREFIX + hex;
     }
 }

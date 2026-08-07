@@ -4,7 +4,9 @@ package org.hiero.mirror.web3.common;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -15,6 +17,7 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.Web3Properties.ApiEndpointName;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.CapturedTransfer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -72,6 +75,14 @@ public class ContractCallContext {
     @Setter
     private Map<Bytes, StateOverride> stateOverrides;
 
+    @Setter
+    private boolean simulate;
+
+    @Setter
+    private boolean traceTransfers;
+
+    private final List<CapturedTransfer> capturedTransfers = new ArrayList<>();
+
     private ContractCallContext() {}
 
     public static ContractCallContext get() {
@@ -113,6 +124,28 @@ public class ContractCallContext {
 
     public void reset() {
         writeCache.clear();
+    }
+
+    /**
+     * Deep copy of the current write cache, so a later call can be rolled back without losing earlier calls' state.
+     */
+    public Map<Integer, Map<Object, Object>> snapshotWriteCache() {
+        final var snapshot = new HashMap<Integer, Map<Object, Object>>(writeCache.size());
+        writeCache.forEach((stateId, cache) -> snapshot.put(stateId, new HashMap<>(cache)));
+        return snapshot;
+    }
+
+    public void restoreWriteCache(final Map<Integer, Map<Object, Object>> snapshot) {
+        writeCache.clear();
+        snapshot.forEach((stateId, cache) -> writeCache.put(stateId, new HashMap<>(cache)));
+    }
+
+    /**
+     * Reads through {@link #stateOverrides} are memoized here, so this must be cleared whenever the active
+     * overrides change - otherwise a later read could still return a value from an override no longer in effect.
+     */
+    public void clearReadCache() {
+        readCache.clear();
     }
 
     public boolean useHistorical() {

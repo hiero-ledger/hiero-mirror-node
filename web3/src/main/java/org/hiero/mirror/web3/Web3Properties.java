@@ -21,6 +21,8 @@ public class Web3Properties {
     @NotNull
     private Map<ApiEndpointName, @Valid ApiProperties> api = new HashMap<>();
 
+    private boolean enableSimulate = false;
+
     private boolean enableStateOverrides = false;
 
     @Positive
@@ -47,6 +49,7 @@ public class Web3Properties {
 
     public enum ApiEndpointName {
         CALL,
-        OPCODES
+        OPCODES,
+        SIMULATE
     }
 }

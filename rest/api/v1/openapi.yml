@@ -516,6 +516,57 @@ paths:
                 $ref: "#/components/schemas/Error"
       tags:
         - contracts
+  /api/v1/contracts/simulate:
+    post:
+      summary: Simulate a bundle of smart contract calls
+      description:
+        Backs `eth_simulateV1`. Each `block_state_calls` entry executes as its own virtual block against the
+        single anchor block selected by `block` - calls within an entry are cumulative with each other, and real
+        execution state resets back to the anchor baseline between entries. `state_overrides` are the exception -
+        they persist and accumulate across entries (later entries win per address). `transaction_index` and
+        `log_index` restart from 0 at the beginning of every entry. A reverted call does not abort the rest of
+        the batch. `state_overrides` reuses the same schema as `POST /api/v1/contracts/call` and is subject to
+        the same feature flag.
+      operationId: contractsSimulate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulateRequest"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulateResponse"
+        400:
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        415:
+          description: Unsupported media type error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        429:
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        500:
+          description: Generic error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - contracts
   /api/v1/contracts:
     get:
       summary: List contract entities on network
@@ -2821,6 +2872,208 @@ components:
           format: binary
           pattern: "^0x[0-9a-fA-F]+$"
           type: string
+    StateOverride:
+      description: Per-address state override for `POST /api/v1/contracts/call` and `POST /api/v1/contracts/simulate`. All fields are optional except `address`. `state` and `state_diff` are mutually exclusive.
+      type: object
+      properties:
+        address:
+          description: The 20-byte hexadecimal EVM address of the account to override.
+          example: "0x00000000000000000000000000000000000004e4"
+          format: binary
+          maxLength: 42
+          minLength: 40
+          pattern: "^(0x)?[A-Fa-f0-9]{40}$"
+          type: string
+        balance:
+          description: Hexadecimal balance override in tinybars.
+          example: "0xFFFFFFFFFFFFFFFF"
+          format: binary
+          maxLength: 18
+          type: [string, "null"]
+        code:
+          description: Hexadecimal runtime bytecode override.
+          example: "0x602a60005260206000f3"
+          format: binary
+          type: [string, "null"]
+        nonce:
+          description: Hexadecimal Ethereum nonce override.
+          example: "0x1"
+          format: binary
+          maxLength: 18
+          type: [string, "null"]
+        state:
+          description: Full storage replacement. All existing storage for this address is discarded; only these slots exist. Mutually exclusive with `state_diff`.
+          items:
+            $ref: "#/components/schemas/StorageEntry"
+          maxItems: 100
+          type: [array, "null"]
+        state_diff:
+          description: Storage patch. Only the listed slots are overridden; all other slots fall through to the underlying state. Mutually exclusive with `state`.
+          items:
+            $ref: "#/components/schemas/StorageEntry"
+          maxItems: 100
+          type: [array, "null"]
+      required:
+        - address
+    StorageEntry:
+      description: A single storage slot key-value pair used within a StateOverride.
+      type: object
+      properties:
+        key:
+          description: 32-byte hexadecimal storage slot identifier.
+          example: "0x0000000000000000000000000000000000000000000000000000000000000002"
+          format: binary
+          maxLength: 66
+          minLength: 64
+          type: string
+        value:
+          description: 32-byte hexadecimal storage slot value.
+          example: "0x000000000000000000000000000000000000000000000000000000000000270f"
+          format: binary
+          maxLength: 66
+          minLength: 64
+          type: string
+      required:
+        - key
+        - value
+    SimulateCall:
+      type: object
+      properties:
+        data:
+          description: Hexadecimal method signature and encoded parameters.
+          example: "0x47f1aae7"
+          format: binary
+          pattern: "^(0x)?[0-9a-fA-F]+$"
+          type: [string, "null"]
+        from:
+          description: The 20-byte hexadecimal EVM address the call is sent from.
+          example: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
+          format: binary
+          maxLength: 42
+          minLength: 40
+          pattern: "^(0x)?[A-Fa-f0-9]{40}$"
+          type: [string, "null"]
+        gas:
+          description: Gas provided for the call execution, as a number or a hexadecimal/decimal string. Defaults to 15000000.
+          example: 15000000
+          minimum: 21000
+          type: [integer, string, "null"]
+        gasPrice:
+          description: Gas price used for each paid gas, as a number or a hexadecimal/decimal string.
+          example: 0
+          minimum: 0
+          type: [integer, string, "null"]
+        max_fee_per_gas:
+          description: Accepted for compatibility with the HIP's example request, but unused - Mirror Node has no EIP-1559 fee market.
+          example: "0xf"
+          format: binary
+          type: [string, "null"]
+        to:
+          description: The 20-byte hexadecimal EVM address the call is directed to.
+          example: "0x014d023e954bAae7F21E56ed8a5d81b12902684D"
+          format: binary
+          maxLength: 42
+          minLength: 40
+          pattern: "^(0x)?[A-Fa-f0-9]{40}$"
+          type: [string, "null"]
+        value:
+          description: Value sent with this call, as a number or a hexadecimal/decimal string (e.g. "0x1"). Defaults to 0.
+          example: 1
+          minimum: 0
+          type: [integer, string, "null"]
+    SimulateBlockStateCall:
+      type: object
+      properties:
+        calls:
+          items:
+            $ref: "#/components/schemas/SimulateCall"
+          type: [array, "null"]
+        state_overrides:
+          description: State overrides taking effect when this entry begins, persisting for the rest of the request (later entries win per address).
+          items:
+            $ref: "#/components/schemas/StateOverride"
+          type: [array, "null"]
+    SimulateRequest:
+      type: object
+      properties:
+        block:
+          description: Hexadecimal block number or the string "latest", "pending", "earliest". Defaults to "latest". Anchors the whole request - all block_state_calls entries execute against this one block.
+          example: "latest"
+          pattern: "^((0x)?[0-9a-fA-F]+|(earliest|pending|latest))$"
+          type: [string, "null"]
+        block_state_calls:
+          description: Each entry executes as its own virtual block against the anchor block - cumulative within an entry, state reset between entries. Limited to 16 total calls across all entries.
+          items:
+            $ref: "#/components/schemas/SimulateBlockStateCall"
+          type: [array, "null"]
+        trace_transfers:
+          description: If true, synthesizes ERC20-style Transfer log entries for value transfers captured during execution. Defaults to false.
+          example: true
+          type: [boolean, "null"]
+    SimulateLog:
+      type: object
+      properties:
+        address:
+          description: The 20-byte hexadecimal EVM address that emitted this log.
+          format: binary
+          type: string
+        block_hash:
+          format: binary
+          type: string
+        block_number:
+          format: binary
+          type: string
+        data:
+          format: binary
+          type: string
+        log_index:
+          format: binary
+          type: string
+        removed:
+          type: boolean
+        topics:
+          items:
+            format: binary
+            type: string
+          type: array
+        transaction_hash:
+          description: Synthetic identifier - simulated calls are never mined, so there is no real transaction hash.
+          format: binary
+          type: string
+        transaction_index:
+          format: binary
+          type: string
+    SimulateCallResult:
+      type: object
+      properties:
+        gas_used:
+          description: Hexadecimal gas consumed by this call.
+          example: "0x5208"
+          format: binary
+          type: string
+        logs:
+          items:
+            $ref: "#/components/schemas/SimulateLog"
+          type: array
+        return_data:
+          description: Hexadecimal return value of this call.
+          example: "0x"
+          format: binary
+          type: string
+        status:
+          description: '"0x1" on success, "0x0" on revert. A reverted call does not abort the rest of the batch.'
+          example: "0x1"
+          type: string
+    SimulateResponse:
+      type: object
+      properties:
+        result:
+          description: One inner array per block_state_calls entry, in order; each inner array maps 1:1, in order, to that entry's calls.
+          items:
+            items:
+              $ref: "#/components/schemas/SimulateCallResult"
+            type: array
+          type: array
     HederaHash:
       type: string
       description: A hex encoded hedera transaction hash.

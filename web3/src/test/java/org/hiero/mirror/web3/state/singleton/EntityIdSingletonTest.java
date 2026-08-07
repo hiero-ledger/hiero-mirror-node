@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.FIRST_USER_ENTITY_ID;
 import static org.mockito.Mockito.when;
 
+import com.hedera.hapi.node.state.common.EntityNumber;
 import org.hiero.mirror.web3.ContextExtension;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,5 +70,19 @@ class EntityIdSingletonTest {
         long maxId = 2000;
         when(entityRepository.findMaxId()).thenReturn(maxId);
         assertThat(entityIdSingleton.get().number()).isEqualTo(maxId + DEFAULT_ENTITY_NUM_BUFFER + 1);
+    }
+
+    @Test
+    void onCommitUpdatesEntityNumberInSimulateContext() {
+        final var context = ContractCallContext.get();
+        context.setSimulate(true);
+        entityIdSingleton.onCommit(new EntityNumber(1234L));
+        assertThat(context.getEntityNumber()).isEqualTo(new EntityNumber(1234L));
+    }
+
+    @Test
+    void onCommitIgnoredOutsideSimulateContext() {
+        entityIdSingleton.onCommit(new EntityNumber(1234L));
+        assertThat(ContractCallContext.get().getEntityNumber()).isNull();
     }
 }

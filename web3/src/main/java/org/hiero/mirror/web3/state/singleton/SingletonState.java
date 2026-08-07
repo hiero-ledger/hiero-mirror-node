@@ -10,4 +10,8 @@ public interface SingletonState<T> extends Supplier<T>, RegisterableState {
     default void set(T value) {
         // Do nothing since our singletons are either immutable static data or dynamically retrieved from the db.
     }
+
+    default void onCommit(T value) {
+        // Do nothing by default.
+    }
 }
