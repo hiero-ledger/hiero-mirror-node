@@ -28,6 +28,9 @@ public class ThrottleProperties {
     @Min(1)
     private long opcodeRequestsPerSecond = 1;
 
+    @Min(1)
+    private long prestateRequestsPerSecond = 10;
+
     @NotNull
     private List<RequestProperties> request = List.of();
 

@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCREATEINSTANCE;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
+import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.OPCODES;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
@@ -50,6 +51,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class OpcodeServiceImpl implements OpcodeService {
 
+    public static final long MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS = 35 * 60 * NANOS_PER_SECOND;
     private static final Address EMPTY_ADDRESS = Address.ZERO;
     private static final BigInteger ZERO = BigInteger.ZERO;
 
@@ -75,7 +77,7 @@ public class OpcodeServiceImpl implements OpcodeService {
         });
     }
 
-    private ContractDebugParameters buildCallServiceParameters(
+    protected ContractDebugParameters buildCallServiceParameters(
             @NonNull TransactionIdOrHashParameter transactionIdOrHash) {
         final Long consensusTimestamp;
         final Transaction transaction;
@@ -99,57 +101,22 @@ public class OpcodeServiceImpl implements OpcodeService {
                 final var validStartNs = convertToNanosMax(transactionId.validStart());
                 final var payerAccountId = transactionId.payerAccountId();
 
-                final var transactionList =
-                        transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
-                                payerAccountId, validStartNs);
-                if (transactionList.isEmpty()) {
-                    throw new EntityNotFoundException("Transaction not found: " + transactionId);
-                }
+                transaction = transactionRepository
+                        .findByPayerAccountIdAndValidStartNs(
+                                payerAccountId.getId(),
+                                validStartNs,
+                                validStartNs,
+                                validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS)
+                        .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + transactionId));
 
-                final var parentTransaction = transactionList.getFirst();
-                transaction = parentTransaction;
-                consensusTimestamp = parentTransaction.getConsensusTimestamp();
+                consensusTimestamp = transaction.getConsensusTimestamp();
                 ethereumTransaction = ethereumTransactionRepository
-                        .findByConsensusTimestampAndPayerAccountId(
-                                consensusTimestamp, parentTransaction.getPayerAccountId())
+                        .findByConsensusTimestampAndPayerAccountId(consensusTimestamp, transaction.getPayerAccountId())
                         .orElse(null);
             }
         }
 
         return buildCallServiceParameters(consensusTimestamp, transaction, ethereumTransaction);
-    }
-
-    private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result, long consensusTimestamp) {
-        final var recipientAddress = result.recipient();
-        Entity recipientEntity = null;
-        if (recipientAddress != null && !recipientAddress.equals(EMPTY_ADDRESS)) {
-            recipientEntity = commonEntityAccessor
-                    .get(recipientAddress, Optional.of(consensusTimestamp))
-                    .orElse(null);
-        }
-
-        var address = EMPTY_ADDRESS.toHexString();
-        String contractId = null;
-        if (recipientEntity != null) {
-            address = getEntityAddress(recipientEntity).toHexString();
-            contractId = recipientEntity.toEntityId().toString();
-        }
-
-        final var txnResult = result.transactionProcessingResult();
-        var returnValue = txnResult != null ? txnResult.contractCallResult() : HEX_PREFIX;
-        if (returnValue == null || returnValue.isEmpty()) {
-            returnValue = HEX_PREFIX;
-        }
-
-        final var opcodes = result.opcodes() != null ? result.opcodes() : new ArrayList<Opcode>();
-
-        return new OpcodesResponse()
-                .address(address)
-                .contractId(contractId)
-                .failed(txnResult == null || !txnResult.isSuccessful())
-                .gas(txnResult != null ? txnResult.gasUsed() : 0L)
-                .opcodes(opcodes)
-                .returnValue(returnValue);
     }
 
     private ContractDebugParameters buildCallServiceParameters(
@@ -212,6 +179,16 @@ public class OpcodeServiceImpl implements OpcodeService {
         return address != null ? address : EMPTY_ADDRESS;
     }
 
+    protected Address getEntityAddress(Entity entity) {
+        if (entity.getEvmAddress() != null && entity.getEvmAddress().length == EVM_ADDRESS_LENGTH) {
+            return Address.wrap(Bytes.wrap(entity.getEvmAddress()));
+        }
+        if (entity.getAlias() != null && entity.getAlias().length == EVM_ADDRESS_LENGTH) {
+            return Address.wrap(Bytes.wrap(entity.getAlias()));
+        }
+        return EntityId.isEmpty(entity.toEntityId()) ? EMPTY_ADDRESS : toAddress(entity.toEntityId());
+    }
+
     private Long getGasLimit(EthereumTransaction ethereumTransaction, ContractResult contractResult) {
         return ethereumTransaction != null ? ethereumTransaction.getGasLimit() : contractResult.getGasLimit();
     }
@@ -241,13 +218,36 @@ public class OpcodeServiceImpl implements OpcodeService {
         return data != null ? data : new byte[0];
     }
 
-    private Address getEntityAddress(Entity entity) {
-        if (entity.getEvmAddress() != null && entity.getEvmAddress().length == EVM_ADDRESS_LENGTH) {
-            return Address.wrap(Bytes.wrap(entity.getEvmAddress()));
+    private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result, long consensusTimestamp) {
+        final var recipientAddress = result.recipient();
+        Entity recipientEntity = null;
+        if (recipientAddress != null && !recipientAddress.equals(EMPTY_ADDRESS)) {
+            recipientEntity = commonEntityAccessor
+                    .get(recipientAddress, Optional.of(consensusTimestamp))
+                    .orElse(null);
         }
-        if (entity.getAlias() != null && entity.getAlias().length == EVM_ADDRESS_LENGTH) {
-            return Address.wrap(Bytes.wrap(entity.getAlias()));
+
+        var address = EMPTY_ADDRESS.toHexString();
+        String contractId = null;
+        if (recipientEntity != null) {
+            address = getEntityAddress(recipientEntity).toHexString();
+            contractId = recipientEntity.toEntityId().toString();
         }
-        return EntityId.isEmpty(entity.toEntityId()) ? EMPTY_ADDRESS : toAddress(entity.toEntityId());
+
+        final var txnResult = result.transactionProcessingResult();
+        var returnValue = txnResult != null ? txnResult.contractCallResult() : HEX_PREFIX;
+        if (returnValue == null || returnValue.isEmpty()) {
+            returnValue = HEX_PREFIX;
+        }
+
+        final var opcodes = result.opcodes() != null ? result.opcodes() : new ArrayList<Opcode>();
+
+        return new OpcodesResponse()
+                .address(address)
+                .contractId(contractId)
+                .failed(txnResult == null || !txnResult.isSuccessful())
+                .gas(txnResult != null ? txnResult.gasUsed() : 0L)
+                .opcodes(opcodes)
+                .returnValue(returnValue);
     }
 }

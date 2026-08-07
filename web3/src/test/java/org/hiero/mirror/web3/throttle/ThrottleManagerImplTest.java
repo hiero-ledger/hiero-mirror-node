@@ -49,6 +49,7 @@ final class ThrottleManagerImplTest {
         throttleProperties.setRequest(List.of(requestProperties));
         throttleProperties.setRequestsPerSecond(2);
         throttleProperties.setOpcodeRequestsPerSecond(1);
+        throttleProperties.setPrestateRequestsPerSecond(1);
 
         throttleManager = createThrottleManager();
     }
@@ -81,6 +82,19 @@ final class ThrottleManagerImplTest {
         request.setGas(21_000L);
         throttleManager.throttleOpcodeRequest();
         assertThatThrownBy(() -> throttleManager.throttleOpcodeRequest())
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    void prestateRequestNotThrottled() {
+        throttleManager.throttlePrestateRequest();
+    }
+
+    @Test
+    void throttlePrestateRequestRateLimit() {
+        throttleManager.throttlePrestateRequest();
+        assertThatThrownBy(() -> throttleManager.throttlePrestateRequest())
                 .isInstanceOf(ThrottleException.class)
                 .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
     }
@@ -283,6 +297,8 @@ final class ThrottleManagerImplTest {
         var gasLimitBucket = createBucket(throttleProperties.getGasPerSecond());
         var rateLimitBucket = createBucket(throttleProperties.getRequestsPerSecond());
         var opcodeRateLimitBucket = createBucket(throttleProperties.getOpcodeRequestsPerSecond());
-        return new ThrottleManagerImpl(gasLimitBucket, rateLimitBucket, opcodeRateLimitBucket, throttleProperties);
+        var prestateRateLimitBucket = createBucket(throttleProperties.getPrestateRequestsPerSecond());
+        return new ThrottleManagerImpl(
+                gasLimitBucket, rateLimitBucket, opcodeRateLimitBucket, prestateRateLimitBucket, throttleProperties);
     }
 }

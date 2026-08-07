@@ -8,6 +8,8 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_ALIAS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_EVM_ADDRESS;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.springframework.cache.annotation.Cacheable;
@@ -153,6 +155,25 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     limit 1
                     """, nativeQuery = true)
     Optional<Entity> findActiveByIdAndTimestamp(long id, long blockTimestamp);
+
+    @Query(value = """
+                    (
+                        select *
+                        from entity
+                        where id in ?1 and lower(timestamp_range) <= ?2
+                        and deleted is not true
+                    )
+                    union all
+                    (
+                        select *
+                        from entity_history
+                        where id in ?1 and lower(timestamp_range) <= ?2
+                        and deleted is not true
+                        order by lower(timestamp_range) desc
+                    )
+                    order by timestamp_range desc
+                    """, nativeQuery = true)
+    Optional<List<Entity>> findActiveByIdsAndTimestamp(Collection<Long> ids, long blockTimestamp);
 
     @Query(value = """
                     select id
