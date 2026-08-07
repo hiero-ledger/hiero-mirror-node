@@ -24,7 +24,7 @@ runs:
           echo "LC_ALL=C.UTF-8"
           echo "IMAGE_REGISTRY=ghcr.io/hiero-ledger/hiero-mirror-node"
           echo "BLOCK_NODE_VERSION=v0.38.1"
-          echo "CONSENSUS_NODE_VERSION=v0.75.1"
+          echo "CONSENSUS_NODE_VERSION=v0.76.1"
           echo "HELM_RELEASE_NAME=mirror-1"
           echo "SOLO_CLUSTER_NAME=test"
           echo "SOLO_NAMESPACE=mirror"
