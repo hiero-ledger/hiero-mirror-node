@@ -82,6 +82,8 @@ public class EntityRecordItemListener implements RecordItemListener {
             return;
         }
 
+        resolvePayerAccountId(recordItem);
+
         final var persistProperties = entityProperties.getPersist();
         recordItem.setEntityTransactionPredicate(persistProperties::shouldPersistEntityTransaction);
         recordItem.setEntityNftTransactionPredicate(persistProperties::shouldPersistEntityNftTransaction);
@@ -162,6 +164,22 @@ public class EntityRecordItemListener implements RecordItemListener {
         }
         entityListener.onTransaction(transaction);
         log.debug("Storing transaction: {}", transaction);
+    }
+
+    // RecordItem resolves the payer eagerly via the numeric-only EntityId.of() since it has no DB access, so it's
+    // only ever empty here when the payer was genuinely alias-addressed (or truly invalid, in which case the lookup
+    // below is a no-op).
+    private void resolvePayerAccountId(RecordItem recordItem) {
+        if (!EntityId.isEmpty(recordItem.getPayerAccountId())) {
+            return;
+        }
+
+        var payerAccountId = entityIdService
+                .lookup(recordItem.getTransactionBody().getTransactionID().getAccountID())
+                .orElse(EntityId.EMPTY);
+        if (!EntityId.isEmpty(payerAccountId)) {
+            recordItem.setPayerAccountId(payerAccountId);
+        }
     }
 
     private Transaction buildTransaction(final EntityId entityId, final RecordItem recordItem) {
@@ -339,6 +357,8 @@ public class EntityRecordItemListener implements RecordItemListener {
                 if (failedTransfer) {
                     cryptoTransfer.setErrata(ErrataType.DELETE);
                 }
+            } else if (aa.getAmount() < 0) {
+                cryptoTransfer.setIsApproval(isApprovedElsewhereInBody(account, aa.getAmount(), body));
             }
 
             entityListener.onCryptoTransfer(cryptoTransfer);
@@ -355,6 +375,18 @@ public class EntityRecordItemListener implements RecordItemListener {
         for (AccountAmount a : accountAmountsList) {
             if (aa.getAmount() == a.getAmount() && aa.getAccountID().equals(a.getAccountID())) {
                 return a;
+            }
+        }
+        return null;
+    }
+
+    private AccountAmount findAccountAmount(Predicate<AccountAmount> accountAmountPredicate, TransactionBody body) {
+        if (!body.hasCryptoTransfer()) {
+            return null;
+        }
+        for (AccountAmount aa : body.getCryptoTransfer().getTransfers().getAccountAmountsList()) {
+            if (accountAmountPredicate.test(aa)) {
+                return aa;
             }
         }
         return null;
@@ -377,6 +409,68 @@ public class EntityRecordItemListener implements RecordItemListener {
             }
         }
         return null;
+    }
+
+    private int countAccountAmounts(Predicate<AccountAmount> accountAmountPredicate, TransactionBody body) {
+        if (!body.hasCryptoTransfer()) {
+            return 0;
+        }
+        int count = 0;
+        for (AccountAmount aa : body.getCryptoTransfer().getTransfers().getAccountAmountsList()) {
+            if (accountAmountPredicate.test(aa)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private int countAccountAmounts(
+            Predicate<AccountAmount> accountAmountPredicate, TokenID tokenId, TransactionBody body) {
+        if (!body.hasCryptoTransfer()) {
+            return 0;
+        }
+        int count = 0;
+        for (TokenTransferList transferList : body.getCryptoTransfer().getTokenTransfersList()) {
+            if (!transferList.getToken().equals(tokenId)) {
+                continue;
+            }
+            for (AccountAmount aa : transferList.getTransfersList()) {
+                if (accountAmountPredicate.test(aa)) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    // Matches by amount first, falling back to alias-resolved identity only when the amount match is ambiguous
+    private boolean isApprovedElsewhereInBody(EntityId accountId, long amount, TokenID tokenId, TransactionBody body) {
+        int amountMatches = countAccountAmounts(aa -> aa.getIsApproval() && aa.getAmount() == amount, tokenId, body);
+        if (amountMatches == 1) {
+            return true;
+        }
+        return findAccountAmount(
+                        aa -> aa.getIsApproval()
+                                && accountId.equals(entityIdService
+                                        .lookup(aa.getAccountID())
+                                        .orElse(EntityId.EMPTY)),
+                        tokenId,
+                        body)
+                != null;
+    }
+
+    private boolean isApprovedElsewhereInBody(EntityId accountId, long amount, TransactionBody body) {
+        int amountMatches = countAccountAmounts(aa -> aa.getIsApproval() && aa.getAmount() == amount, body);
+        if (amountMatches == 1) {
+            return true;
+        }
+        return findAccountAmount(
+                        aa -> aa.getIsApproval()
+                                && accountId.equals(entityIdService
+                                        .lookup(aa.getAccountID())
+                                        .orElse(EntityId.EMPTY)),
+                        body)
+                != null;
     }
 
     @SuppressWarnings("java:S1168")
@@ -419,8 +513,7 @@ public class EntityRecordItemListener implements RecordItemListener {
         boolean isMint = recordItem.getTransactionType() == TransactionType.TOKENMINT.getProtoId()
                 || recordItem.getTransactionType() == TransactionType.TOKENCREATION.getProtoId();
 
-        for (int i = 0; i < tokenTransferCount; i++) {
-            AccountAmount accountAmount = tokenTransfers.get(i);
+        for (AccountAmount accountAmount : tokenTransfers) {
             EntityId accountId = EntityId.of(accountAmount.getAccountID());
             long amount = accountAmount.getAmount();
             var tokenTransfer = isDeletedTokenDissociate ? new DissociateTokenTransfer() : new TokenTransfer();
@@ -429,7 +522,8 @@ public class EntityRecordItemListener implements RecordItemListener {
             tokenTransfer.setIsApproval(false);
             tokenTransfer.setPayerAccountId(payerAccountId);
 
-            handleNegativeAccountAmounts(tokenTransferList.getToken(), body, accountAmount, amount, tokenTransfer);
+            handleNegativeAccountAmounts(
+                    tokenTransferList.getToken(), body, accountAmount, amount, accountId, tokenTransfer);
             entityListener.onTokenTransfer(tokenTransfer);
             recordItem.addEntityId(accountId);
             recordItem.addEntityId(tokenId);
@@ -455,18 +549,36 @@ public class EntityRecordItemListener implements RecordItemListener {
             return false;
         }
 
-        var tokenTransfersList = body.getCryptoTransfer().getTokenTransfersList();
-        for (var transferList : tokenTransfersList) {
+        // A serial number can only be transferred once per token transfer list, so matching on it alone is
+        // normally unambiguous and needs no alias resolution.
+        List<NftTransfer> candidates = new ArrayList<>();
+        for (var transferList : body.getCryptoTransfer().getTokenTransfersList()) {
             if (!transferList.getToken().equals(tokenId)) {
                 continue;
             }
-
             for (var transfer : transferList.getNftTransfersList()) {
-                if (transfer.getSerialNumber() == nftTransfer.getSerialNumber()
-                        && transfer.getReceiverAccountID().equals(nftTransfer.getReceiverAccountID())
-                        && transfer.getSenderAccountID().equals(nftTransfer.getSenderAccountID())) {
-                    return transfer.getIsApproval();
+                if (transfer.getSerialNumber() == nftTransfer.getSerialNumber()) {
+                    candidates.add(transfer);
                 }
+            }
+        }
+
+        if (candidates.size() == 1) {
+            return candidates.get(0).getIsApproval();
+        }
+
+        // Resolve aliases to disambiguate only in the unexpected case of multiple candidates.
+        var receiverId =
+                entityIdService.lookup(nftTransfer.getReceiverAccountID()).orElse(EntityId.EMPTY);
+        var senderId = entityIdService.lookup(nftTransfer.getSenderAccountID()).orElse(EntityId.EMPTY);
+        for (var candidate : candidates) {
+            if (receiverId.equals(entityIdService
+                            .lookup(candidate.getReceiverAccountID())
+                            .orElse(EntityId.EMPTY))
+                    && senderId.equals(entityIdService
+                            .lookup(candidate.getSenderAccountID())
+                            .orElse(EntityId.EMPTY))) {
+                return candidate.getIsApproval();
             }
         }
 
@@ -493,25 +605,12 @@ public class EntityRecordItemListener implements RecordItemListener {
             TransactionBody body,
             AccountAmount accountAmount,
             long amount,
+            EntityId accountId,
             TokenTransfer tokenTransfer) {
-        // If a record AccountAmount with amount < 0 is not in the body;
-        // but an AccountAmount with the same (TokenID, AccountID) combination is in the body with is_approval=true,
-        // then again set is_approval=true
         if (amount < 0) {
-
-            // Is the accountAmount from the record also inside a body's transfer list for the given tokenId?
             AccountAmount accountAmountInsideTransferList = findAccountAmount(accountAmount::equals, tokenId, body);
             if (accountAmountInsideTransferList == null) {
-
-                // Is there any account amount inside the body's transfer list for the given tokenId
-                // with the same accountId as the accountAmount from the record?
-                AccountAmount accountAmountWithSameIdInsideBody = findAccountAmount(
-                        aa -> aa.getAccountID().equals(accountAmount.getAccountID()) && aa.getIsApproval(),
-                        tokenId,
-                        body);
-                if (accountAmountWithSameIdInsideBody != null) {
-                    tokenTransfer.setIsApproval(true);
-                }
+                tokenTransfer.setIsApproval(isApprovedElsewhereInBody(accountId, amount, tokenId, body));
             } else {
                 tokenTransfer.setIsApproval(accountAmountInsideTransferList.getIsApproval());
             }
@@ -555,9 +654,17 @@ public class EntityRecordItemListener implements RecordItemListener {
             tokenTransfer.getTransfersList().forEach(accountAmount -> {
                 // Emit allowance amount representing approved transfer debit
                 if (accountAmount.getIsApproval() && accountAmount.getAmount() < 0) {
+                    var owner =
+                            entityIdService.lookup(accountAmount.getAccountID()).orElse(EntityId.EMPTY);
+                    if (EntityId.isEmpty(owner)) {
+                        Utility.handleRecoverableError(
+                                "Invalid token allowance owner entity id at {}", recordItem.getConsensusTimestamp());
+                        return;
+                    }
+
                     var tokenAllowance = TokenAllowance.builder()
                             .amount(accountAmount.getAmount())
-                            .owner(EntityId.tryOf(accountAmount.getAccountID()).getId())
+                            .owner(owner.getId())
                             .payerAccountId(payerAccountId)
                             .spender(transferSpenderId)
                             .tokenId(tokenId.getId())

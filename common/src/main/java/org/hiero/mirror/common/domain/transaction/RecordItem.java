@@ -74,7 +74,6 @@ public class RecordItem implements StreamItem {
     private final Long congestionPricingMultiplier;
     private final RecordItem hookParent;
     private final RecordItem parent;
-    private final EntityId payerAccountId;
     private final RecordItem previous;
     private final SignatureMap signatureMap;
     private final boolean successful;
@@ -123,6 +122,12 @@ public class RecordItem implements StreamItem {
     @NonFinal
     @Setter
     private EthereumTransaction ethereumTransaction;
+
+    // Built eagerly from the raw, possibly alias-addressed TransactionID.accountID via the numeric-only EntityId.of(),
+    // since common has no DB access to resolve aliases. Mutable so importer can correct it via EntityIdService.
+    @NonFinal
+    @Setter
+    private EntityId payerAccountId;
 
     @Builder.Default
     @NonFinal
