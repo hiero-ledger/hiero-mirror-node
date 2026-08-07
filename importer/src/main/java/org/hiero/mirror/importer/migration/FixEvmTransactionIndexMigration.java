@@ -156,6 +156,11 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
     }
 
     @Override
+    protected int getOrder() {
+        return 1;
+    }
+
+    @Override
     protected MigrationVersion getMinimumVersion() {
         return MigrationVersion.fromVersion("1.61.1");
     }

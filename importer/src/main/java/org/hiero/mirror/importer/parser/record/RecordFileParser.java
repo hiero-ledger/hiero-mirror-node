@@ -13,12 +13,20 @@ import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.StreamType;
+import org.hiero.mirror.common.domain.contract.ContractLog;
+import org.hiero.mirror.common.domain.contract.ContractResult;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -26,9 +34,11 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
+import org.hiero.mirror.importer.parser.contractlog.EvmAddressCache;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
+import org.hiero.mirror.importer.parser.record.receipt.ReceiptRoot;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
@@ -44,6 +54,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
     private final DateRangeCalculator dateRangeCalculator;
     private final EntityListener entityListener;
     private final EntityProperties entityProperties;
+    private final EvmAddressCache evmAddressCache;
     private final ParserContext parserContext;
     private final RecordItemListener recordItemListener;
 
@@ -59,6 +70,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             final DateRangeCalculator dateRangeCalculator,
             final EntityListener entityListener,
             final EntityProperties entityProperties,
+            final EvmAddressCache evmAddressCache,
             final MeterRegistry meterRegistry,
             final ParserContext parserContext,
             final RecordParserProperties parserProperties,
@@ -70,6 +82,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         this.dateRangeCalculator = dateRangeCalculator;
         this.entityListener = entityListener;
         this.entityProperties = entityProperties;
+        this.evmAddressCache = evmAddressCache;
         this.parserContext = parserContext;
         this.recordItemListener = recordItemListener;
 
@@ -161,6 +174,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             if (dateRangeFilter.filter(recordItem.getConsensusTimestamp())) {
                 recordItem.setLogIndex(logIndex);
                 recordItemListener.onItem(recordItem);
+                aggregator.putReceipt(recordItem);
                 recordMetrics(recordItem);
                 count.incrementAndGet();
             }
@@ -253,8 +267,14 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
     private final class RecordItemAggregator implements Consumer<RecordItem> {
 
+        private final boolean receiptsEnabled = entityProperties.getPersist().isContractResults();
         private final LogsBloomFilter logsBloom = new LogsBloomFilter();
+        private final Map<Long, byte[]> evmAddressById = new HashMap<>();
+        private final Set<Long> requestedEvmAddressIds = new HashSet<>();
+        private final ReceiptRoot receiptRoot = new ReceiptRoot(evmAddressById);
         private long gasUsed = 0L;
+        // Number of ContractLogs already assigned to a receipt; the logs added past it are the current transaction's
+        private int assignedContractLogs = 0;
 
         @Override
         public void accept(RecordItem recordItem) {
@@ -268,10 +288,61 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             logsBloom.or(DomainUtils.toBytes(result.getBloom()));
         }
 
+        public void putReceipt(RecordItem recordItem) {
+            if (!receiptsEnabled) {
+                return;
+            }
+
+            final var contractLogs = (List<ContractLog>) parserContext.get(ContractLog.class);
+            final var transactionLogs = List.copyOf(contractLogs.subList(assignedContractLogs, contractLogs.size()));
+            assignedContractLogs = contractLogs.size();
+
+            if (!recordItem.isTopLevel() || recordItem.getEvmTransactionIndex() == null) {
+                return;
+            }
+
+            final var contractResult = parserContext.get(ContractResult.class, recordItem.getConsensusTimestamp());
+            resolveEvmAddresses(transactionLogs);
+            receiptRoot.put(contractResult, transactionLogs, recordItem.getEthereumTransaction());
+        }
+
         public void update(RecordFile recordFile) {
             recordFile.setGasUsed(gasUsed);
             recordFile.setLoadEnd(System.currentTimeMillis());
             recordFile.setLogsBloom(logsBloom.toArrayUnsafe());
+            if (receiptsEnabled) {
+                recordFile.setReceiptsRoot(receiptRoot.getRootHash());
+            }
+        }
+
+        private void resolveEvmAddresses(List<ContractLog> contractLogs) {
+            for (var contractLog : contractLogs) {
+                resolveEvmAddress(contractLog.getContractId());
+            }
+            for (var entityId : parserContext.getEvmAddressLookupIds()) {
+                resolveEvmAddress(EntityId.of(entityId));
+            }
+        }
+
+        private void resolveEvmAddress(EntityId entityId) {
+            // requestedEvmAddressIds guards against re-querying an id (Caffeine doesn't cache alias-less misses)
+            if (EntityId.isEmpty(entityId) || !requestedEvmAddressIds.add(entityId.getId())) {
+                return;
+            }
+
+            var evmAddress = evmAddressCache.get(entityId);
+            if (evmAddress == null) {
+                // entities created earlier in this batch aren't visible to the cache's backing repository yet
+                final var entity = parserContext.get(Entity.class, entityId.getId());
+                if (entity != null && !ArrayUtils.isEmpty(entity.getEvmAddress())) {
+                    evmAddress = DomainUtils.trim(entity.getEvmAddress());
+                    evmAddressCache.put(entityId, evmAddress);
+                }
+            }
+
+            if (evmAddress != null) {
+                evmAddressById.put(entityId.getId(), evmAddress);
+            }
         }
     }
 }
