@@ -4,9 +4,9 @@ package org.hiero.mirror.web3.utils;
 
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
-import com.google.re2j.Pattern;
 import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A utility class for extracting runtime bytecode from init bytecode of a smart contract.
@@ -21,39 +21,23 @@ public class BytecodeUtils {
 
     public static final String SKIP_INIT_CODE_CHECK = "HIERO_MIRROR_WEB3_EVM_SKIPINITCODECHECK";
     private static final String CODECOPY = "39";
-    private static final String RETURN = "f3";
-    private static final long MINIMUM_INIT_CODE_SIZE = 14L;
     private static final String FREE_MEMORY_POINTER = "60806040";
     private static final String FREE_MEMORY_POINTER_2 = "60606040";
+    private static final String RETURN = "f3";
     private static final String RUNTIME_CODE_PREFIX =
             "6080"; // The pattern to find the start of the runtime code in the init bytecode
 
     /**
-     * Compiled regex pattern to match the init bytecode sequence. The pattern checks for a sequence of a free memory
-     * pointer setup, a CODECOPY operation, and a RETURN operation, in that order. The sequence is matched
-     * case-insensitively to account for hexadecimal representations.
-     * <p>
-     * Pattern explanation: - (%s|%s) matches either FREE_MEMORY_POINTER or FREE_MEMORY_POINTER_2, which represent setup
-     * instructions for the free memory pointer, required for initialization bytecode. - [0-9a-z]+ matches one or more
-     * valid hexadecimal characters (0-9, a-f) after the free memory pointer setup. - %s matches the CODECOPY opcode,
-     * which copies code to memory and typically follows the memory pointer setup in init bytecode. - [0-9a-z]+ matches
-     * one or more valid hexadecimal characters (0-9, a-f) between CODECOPY and RETURN. - %s matches the RETURN opcode,
-     * signaling the end of the initialization bytecode.
-     *
-     * <p>
-     * Example pattern: (60806040|60606040)[0-9a-z]+39[0-9a-z]+f3 This example would match any sequence where either
-     * "60806040" or "60606040" appears, followed by "39" (CODECOPY) and then "f3" (RETURN), with valid hexadecimal
-     * characters in between.
+     * The shortest string that can satisfy {@link #isInitBytecode(String)}: an eight character free memory pointer
+     * setup, one filler character, CODECOPY, one filler character and RETURN.
      */
-    private static final Pattern INIT_BYTECODE_PATTERN = Pattern.compile(
-            String.format(
-                    "(%s|%s)[0-9a-z]+%s[0-9a-z]+%s", FREE_MEMORY_POINTER, FREE_MEMORY_POINTER_2, CODECOPY, RETURN),
-            Pattern.CASE_INSENSITIVE);
+    private static final int MINIMUM_INIT_CODE_SIZE =
+            FREE_MEMORY_POINTER.length() + 1 + CODECOPY.length() + 1 + RETURN.length();
 
     public static String extractRuntimeBytecode(String initBytecode) {
         // Check if the bytecode starts with "0x" and remove it if necessary
         if (initBytecode.startsWith(HEX_PREFIX)) {
-            initBytecode = initBytecode.substring(2);
+            initBytecode = initBytecode.substring(HEX_PREFIX.length());
         }
 
         String runtimeBytecode = getRuntimeBytecode(initBytecode);
@@ -82,17 +66,38 @@ public class BytecodeUtils {
     }
 
     /**
-     * Checks if a given data string is likely init bytecode.
+     * Checks if a given data string is likely init bytecode, by looking for a free memory pointer setup followed by a
+     * CODECOPY and then a RETURN, with at least one character separating each.
+     * Selecting the earliest occurrence of each marker is equivalent to the regex: an earlier match only widens the
+     * window available to the markers that follow it, so if any combination satisfies the pattern the greedy leftmost
+     * combination does too.
      *
-     * @param data the data string to check.
+     * @param data the data string to check, with or without a {@code 0x} prefix.
      * @return true if it is init bytecode, false otherwise.
      */
-    public static boolean isInitBytecode(final String data) {
-        if (data == null || data.length() < MINIMUM_INIT_CODE_SIZE) {
+    public static boolean isInitBytecode(@Nullable final String data) {
+        if (data == null) {
             return false;
         }
 
-        return INIT_BYTECODE_PATTERN.matcher(data).find();
+        final int start = data.startsWith(HEX_PREFIX) ? HEX_PREFIX.length() : 0;
+        if (data.length() - start < MINIMUM_INIT_CODE_SIZE || !isHex(data, start)) {
+            return false;
+        }
+
+        final int pointer = indexOfFreeMemoryPointer(data, start);
+        if (pointer < 0) {
+            return false;
+        }
+
+        // CODECOPY, separated from the free memory pointer setup by at least one character
+        final int codeCopy = data.indexOf(CODECOPY, pointer + FREE_MEMORY_POINTER.length() + 1);
+        if (codeCopy < 0) {
+            return false;
+        }
+
+        // RETURN, separated from CODECOPY by at least one character
+        return indexOfReturn(data, codeCopy + CODECOPY.length() + 1) >= 0;
     }
 
     public static boolean isValidInitBytecode(final String data) {
@@ -101,5 +106,47 @@ public class BytecodeUtils {
 
     private static boolean shouldSkipBytecodeCheck() {
         return Boolean.parseBoolean(System.getenv(SKIP_INIT_CODE_CHECK));
+    }
+
+    /**
+     * Returns the first index at or after {@code from} of either free memory pointer setup sequence. Both sequences are
+     * numeric, so no case folding is required.
+     */
+    private static int indexOfFreeMemoryPointer(final String data, final int from) {
+        final int first = data.indexOf(FREE_MEMORY_POINTER, from);
+        final int second = data.indexOf(FREE_MEMORY_POINTER_2, from);
+
+        if (first < 0) {
+            return second;
+        }
+        return second < 0 ? first : Math.min(first, second);
+    }
+
+    /**
+     * Returns the first index at or after {@code from} of the RETURN opcode, matched case insensitively.
+     */
+    private static int indexOfReturn(final String data, final int from) {
+        for (int i = Math.max(from, 0); i < data.length() - 1; i++) {
+            final char c = data.charAt(i);
+            if ((c == 'f' || c == 'F') && data.charAt(i + 1) == '3') {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    /**
+     * Returns whether every character from {@code start} onwards is an ASCII hexadecimal digit.
+     */
+    private static boolean isHex(final String data, final int start) {
+        for (int i = start; i < data.length(); i++) {
+            final char c = data.charAt(i);
+            if ((c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F')) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

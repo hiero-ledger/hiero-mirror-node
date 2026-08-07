@@ -25,7 +25,6 @@ dependencies {
     compileOnly("org.graalvm.nativeimage:svm")
     implementation(project(":common"))
     implementation("com.bucket4j:bucket4j-core")
-    implementation("com.google.re2j:re2j")
     implementation("com.hedera.hashgraph:app") {
         exclude(group = "com.hedera.hashgraph", module = "consensus-pces-noop-impl")
         exclude(group = "io.netty")
