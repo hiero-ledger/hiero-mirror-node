@@ -116,12 +116,20 @@ public class Utils {
         int j = 0;
 
         if (nibbles % 2 != 0) {
-            result[j++] = (byte) Character.digit(hex.charAt(i++), 16);
+            result[j++] = (byte) parseNibble(hex.charAt(i++));
         }
         while (i < len) {
-            result[j++] = (byte) ((Character.digit(hex.charAt(i++), 16) << 4) | Character.digit(hex.charAt(i++), 16));
+            result[j++] = (byte) ((parseNibble(hex.charAt(i++)) << 4) | parseNibble(hex.charAt(i++)));
         }
         return result;
+    }
+
+    private static int parseNibble(final char c) {
+        final int digit = Character.digit(c, 16);
+        if (digit < 0) {
+            throw new NumberFormatException("Invalid hex character: " + c);
+        }
+        return digit;
     }
 
     public static FileID toFileID(final EntityId entityId) {
