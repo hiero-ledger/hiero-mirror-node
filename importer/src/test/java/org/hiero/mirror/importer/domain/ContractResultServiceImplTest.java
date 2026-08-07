@@ -210,7 +210,6 @@ final class ContractResultServiceImplTest {
         ids.add(Objects.requireNonNullElse(rootId, EntityId.EMPTY).getId());
         ids.add(EntityId.of(recordItem.getTransactionBody().getTransactionID().getAccountID())
                 .getId());
-        ids.remove(0L); // Do not store EntityId.EMPTY
 
         var idsList = new ArrayList<>(ids);
         idsList.sort(Long::compareTo);
