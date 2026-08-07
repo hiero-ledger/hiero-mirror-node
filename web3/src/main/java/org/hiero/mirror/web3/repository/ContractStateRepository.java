@@ -2,14 +2,10 @@
 
 package org.hiero.mirror.web3.repository;
 
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
-
 import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.web3.state.ContractSlotValue;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -17,15 +13,17 @@ import org.springframework.data.repository.query.Param;
 public interface ContractStateRepository extends CrudRepository<ContractState, Long> {
 
     @Query(value = "select value from contract_state where contract_id = ?1 and slot =?2", nativeQuery = true)
-    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_CONTRACT_STATE)
     Optional<byte[]> findStorage(final Long contractId, final byte[] key);
 
+    /**
+     * Slots are matched with {@code = any(:slots)} so a single prepared statement is reused regardless of batch size.
+     */
     @Query(value = """
                     select slot, value from contract_state
                     where contract_id = :contractId
-                    and slot in (:slots)
+                    and slot = any(:slots)
                     """, nativeQuery = true)
-    List<ContractSlotValue> findStorageBatch(@Param("contractId") Long contractId, @Param("slots") List<byte[]> slots);
+    List<ContractSlotValue> findStorageBatch(@Param("contractId") Long contractId, @Param("slots") byte[][] slots);
 
     /**
      * This method retrieves the most recent contract state storage value up to given block timestamp.
@@ -52,4 +50,23 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
             limit 1
             """, nativeQuery = true)
     Optional<byte[]> findStorageByBlockTimestamp(long id, byte[] slot, long blockTimestamp);
+
+    /**
+     * Returns the most recent storage value for each requested slot at or before {@code blockTimestamp}.
+     * Slots with no change at or before the timestamp are omitted.
+     */
+    @Query(value = """
+            select distinct on (slot)
+                slot,
+                coalesce(value_written, value_read) as value
+            from contract_state_change
+            where contract_id = :contractId
+            and slot = any(:slots)
+            and consensus_timestamp <= :blockTimestamp
+            order by slot, consensus_timestamp desc
+            """, nativeQuery = true)
+    List<ContractSlotValue> findStorageBatchByBlockTimestamp(
+            @Param("contractId") long contractId,
+            @Param("slots") byte[][] slots,
+            @Param("blockTimestamp") long blockTimestamp);
 }

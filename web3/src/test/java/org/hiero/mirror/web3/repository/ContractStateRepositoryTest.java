@@ -94,7 +94,7 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
     void findStorageBatchSingleValueSuccessfulCall() {
         ContractState contractState = domainBuilder.contractState().persist();
         assertThat(contractStateRepository.findStorageBatch(
-                        contractState.getContractId(), List.of(contractState.getSlot())))
+                        contractState.getContractId(), new byte[][] {contractState.getSlot()}))
                 .isEqualTo(List.of(new ContractSlotValue(contractState.getSlot(), contractState.getValue())));
     }
 
@@ -102,17 +102,17 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
     void findStorageBatchMultipleValuesSuccessfulCall() {
         final var contractId = domainBuilder.id();
         final var contractSlotsCount = 10;
-        final var contractSlotsList = new LinkedList<byte[]>();
+        final var contractSlots = new byte[contractSlotsCount][];
         final var contractSlotValuesList = new LinkedList<ContractSlotValue>();
         for (int i = 0; i < contractSlotsCount; i++) {
             final var contractState = domainBuilder
                     .contractState()
                     .customize(cs -> cs.contractId(contractId))
                     .persist();
-            contractSlotsList.add(contractState.getSlot());
+            contractSlots[i] = contractState.getSlot();
             contractSlotValuesList.add(new ContractSlotValue(contractState.getSlot(), contractState.getValue()));
         }
-        assertThat(contractStateRepository.findStorageBatch(contractId, contractSlotsList))
+        assertThat(contractStateRepository.findStorageBatch(contractId, contractSlots))
                 .isEqualTo(contractSlotValuesList);
     }
 
@@ -120,7 +120,8 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
     void findStorageBatchNotPersistedKeyDoesNotReturnValue() {
         final var contractId = domainBuilder.id();
         assertThat(contractStateRepository.findStorageBatch(
-                        contractId, List.of(domainBuilder.contractState().get().getSlot())))
+                        contractId,
+                        new byte[][] {domainBuilder.contractState().get().getSlot()}))
                 .isEmpty();
     }
 
@@ -128,20 +129,90 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
     void findStorageBatchDuplicateKeysDoesNotReturnDuplicateValues() {
         final var contractId = domainBuilder.id();
         final var contractSlotsCount = 2;
-        final var contractSlotsList = new LinkedList<byte[]>();
         final var contractSlotValuesList = new LinkedList<ContractSlotValue>();
+        final var firstSlot = new byte[1][];
         for (int i = 0; i < contractSlotsCount; i++) {
             final var contractState = domainBuilder
                     .contractState()
                     .customize(cs -> cs.contractId(contractId))
                     .persist();
-            contractSlotsList.add(contractState.getSlot());
+            if (i == 0) {
+                firstSlot[0] = contractState.getSlot();
+            }
             contractSlotValuesList.add(new ContractSlotValue(contractState.getSlot(), contractState.getValue()));
         }
-        // Duplicate one for the keys
-        contractSlotsList.add(contractSlotsList.getFirst());
+        // Pass the first key twice; the query should still return each row once.
+        final var contractSlots = new byte[][] {
+            contractSlotValuesList.get(0).getSlot(),
+            contractSlotValuesList.get(1).getSlot(),
+            firstSlot[0]
+        };
 
-        assertThat(contractStateRepository.findStorageBatch(contractId, contractSlotsList))
-                .containsAll(contractSlotValuesList);
+        assertThat(contractStateRepository.findStorageBatch(contractId, contractSlots))
+                .containsAll(contractSlotValuesList)
+                .hasSize(contractSlotValuesList.size());
+    }
+
+    @Test
+    void findStorageBatchByBlockTimestampSuccessfulCall() {
+        final var olderContractState = domainBuilder.contractStateChange().persist();
+        final var otherSlot = domainBuilder
+                .contractStateChange()
+                .customize(cs -> cs.contractId(olderContractState.getContractId()))
+                .persist();
+        final var newerContractState = domainBuilder
+                .contractStateChange()
+                .customize(
+                        cs -> cs.contractId(olderContractState.getContractId()).slot(olderContractState.getSlot()))
+                .persist();
+
+        assertThat(contractStateRepository.findStorageBatchByBlockTimestamp(
+                        olderContractState.getContractId(),
+                        new byte[][] {olderContractState.getSlot(), otherSlot.getSlot()},
+                        newerContractState.getConsensusTimestamp()))
+                .containsExactlyInAnyOrder(
+                        new ContractSlotValue(newerContractState.getSlot(), newerContractState.getValueWritten()),
+                        new ContractSlotValue(otherSlot.getSlot(), otherSlot.getValueWritten()));
+    }
+
+    @Test
+    void findStorageBatchByBlockTimestampReturnsOlderValueAtEarlierTimestamp() {
+        final var olderContractState = domainBuilder.contractStateChange().persist();
+        domainBuilder
+                .contractStateChange()
+                .customize(
+                        cs -> cs.contractId(olderContractState.getContractId()).slot(olderContractState.getSlot()))
+                .persist();
+
+        assertThat(contractStateRepository.findStorageBatchByBlockTimestamp(
+                        olderContractState.getContractId(),
+                        new byte[][] {olderContractState.getSlot()},
+                        olderContractState.getConsensusTimestamp()))
+                .containsExactly(
+                        new ContractSlotValue(olderContractState.getSlot(), olderContractState.getValueWritten()));
+    }
+
+    @Test
+    void findStorageBatchByBlockTimestampOmitsMissingSlots() {
+        final var contractStateChange = domainBuilder.contractStateChange().persist();
+        final var missingSlot = domainBuilder.contractStateChange().get().getSlot();
+
+        assertThat(contractStateRepository.findStorageBatchByBlockTimestamp(
+                        contractStateChange.getContractId(),
+                        new byte[][] {contractStateChange.getSlot(), missingSlot},
+                        contractStateChange.getConsensusTimestamp()))
+                .containsExactly(
+                        new ContractSlotValue(contractStateChange.getSlot(), contractStateChange.getValueWritten()));
+    }
+
+    @Test
+    void findStorageBatchByBlockTimestampEmptyWhenBeforeAllChanges() {
+        final var contractStateChange = domainBuilder.contractStateChange().persist();
+
+        assertThat(contractStateRepository.findStorageBatchByBlockTimestamp(
+                        contractStateChange.getContractId(),
+                        new byte[][] {contractStateChange.getSlot()},
+                        contractStateChange.getConsensusTimestamp() - 1))
+                .isEmpty();
     }
 }
