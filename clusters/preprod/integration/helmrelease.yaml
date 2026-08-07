@@ -52,10 +52,6 @@ spec:
         HIERO_MIRROR_MONITOR_PUBLISH_SCENARIOS_PINGER_TPS: "1"
     postgresql:
       enabled: false
-    restjava:
-      routes:
-        network:
-          nodes: true
     rosetta:
       enabled: true
     test:

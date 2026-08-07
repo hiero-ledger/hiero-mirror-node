@@ -55,12 +55,8 @@ spec:
             test:
               acceptance:
                 network: OTHER
-                web3:
-                  modularizedServices: true
       enabled: true
     web3:
       env:
-        HIERO_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1.0"
-        HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
         HIERO_MIRROR_WEB3_EVM_NETWORK: OTHER
 
