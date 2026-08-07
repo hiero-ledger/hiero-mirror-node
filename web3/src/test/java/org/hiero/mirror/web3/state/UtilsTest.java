@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -163,5 +164,36 @@ class UtilsTest {
             })
     void parseHexRejectsInvalidInput(final String input) {
         assertThatThrownBy(() -> Utils.parseHex(input)).isInstanceOf(NumberFormatException.class);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "'',0", // empty
+        "0x,0", // prefix only
+        "0X,0", // prefix only, uppercase
+        "0,0", // single zero
+        "00,0", // multiple zeros
+        "0x0,0", // zero with prefix
+        "0x00,0", // zeros with prefix
+        "64,100", // even, no prefix
+        "0x64,100", // even, with prefix
+        "ff,255", // lowercase
+        "FF,255", // uppercase
+        "0x0064,100", // leading zeros stripped
+        "7fffffffffffffff,9223372036854775807" // Long.MAX_VALUE
+    })
+    void hexStringToLong(final String input, final long expected) {
+        assertThat(Utils.hexStringToLong(input)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "10000000000000000", // 17 hex digits, exceeds long range
+                "0x10000000000000000", // same, with prefix
+                "8000000000000000" // > Long.MAX_VALUE (negative when signed)
+            })
+    void hexStringToLongRejectsOutOfRange(final String input) {
+        assertThatThrownBy(() -> Utils.hexStringToLong(input)).isInstanceOf(NumberFormatException.class);
     }
 }

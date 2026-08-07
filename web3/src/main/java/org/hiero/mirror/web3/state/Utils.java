@@ -69,6 +69,12 @@ public class Utils {
             start++;
         }
 
+        // Empty, prefix-only or all-zero input (e.g. "", "0x", "0", "0x0") represents the value zero. Return early
+        // to avoid Long.parseUnsignedLong throwing on an empty range.
+        if (start == hex.length()) {
+            return 0L;
+        }
+
         if (hex.length() - start > 16) {
             throw new NumberFormatException(
                     String.format("%s produces numeric value which is outside long range.", hex));
