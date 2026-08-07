@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 50
     env:
       BLOCK_NODE_VERSION: v0.38.1
-      CONSENSUS_NODE_VERSION: v0.75.1
+      CONSENSUS_NODE_VERSION: v0.76.1
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror

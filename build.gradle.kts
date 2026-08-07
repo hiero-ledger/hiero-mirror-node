@@ -18,7 +18,7 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.39.0")
-    set("consensusNodeVersion", "0.75.1")
+    set("consensusNodeVersion", "0.76.1")
     set("grpc-java.version", "1.83.1") // Temporary until next Spring Boot
     set("httpclient5.version", "5.6.2") // Temporary until next Spring Boot
     set("httpcore5.version", "5.4.3") // Temporary until next Spring Boot
