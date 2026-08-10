@@ -24,7 +24,7 @@ extra.apply {
     set("httpcore5.version", "5.4.3") // Temporary until next Spring Boot
     set("jackson-bom.version", "3.1.5") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.1") // Temporary until next Spring Boot
-    set("jooq.version", "3.21.6") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
     set("logback.version", "1.5.36") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
     set("netty.version", "4.2.16.Final") // Temporary until next Spring Boot
