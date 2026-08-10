@@ -6,8 +6,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransactions;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
 import com.hederahashgraph.api.proto.java.FixedCustomFee;
@@ -17,12 +19,16 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.CustomFee;
 import org.hiero.mirror.common.domain.topic.Topic;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class ConsensusCreateTopicTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
@@ -68,6 +74,8 @@ class ConsensusCreateTopicTransactionHandlerTest extends AbstractTransactionHand
                 .build();
         var body = recordItem.getTransactionBody().getConsensusCreateTopic();
         var autoRenewAccountId = EntityId.of(body.getAutoRenewAccount());
+        when(entityIdService.lookup(body.getAutoRenewAccount())).thenReturn(Optional.of(autoRenewAccountId));
+        when(entityIdService.lookup(feeCollector)).thenReturn(Optional.of(EntityId.of(feeCollector)));
         long timestamp = recordItem.getConsensusTimestamp();
         var topicId = EntityId.of(recordItem.getTransactionRecord().getReceipt().getTopicID());
         var transaction = domainBuilder
@@ -113,6 +121,89 @@ class ConsensusCreateTopicTransactionHandlerTest extends AbstractTransactionHand
                         .toByteArray(),
                 body.getFeeScheduleKey().toByteArray(),
                 body.getSubmitKey().toByteArray());
+        assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
+    }
+
+    @Test
+    void updateTransactionSuccessfulAutoRenewAccountAndFeeCollectorAlias() {
+        // given
+        final var autoRenewAlias = AccountID.newBuilder()
+                .setAlias(DomainUtils.fromBytes(domainBuilder.key()))
+                .build();
+        final var feeCollectorAlias = AccountID.newBuilder()
+                .setAlias(DomainUtils.fromBytes(domainBuilder.key()))
+                .build();
+        final var recordItem = recordItemBuilder
+                .consensusCreateTopic()
+                .transactionBody(b -> b.setAutoRenewAccount(autoRenewAlias)
+                        .clearCustomFees()
+                        .addCustomFees(FixedCustomFee.newBuilder()
+                                .setFixedFee(FixedFee.newBuilder().setAmount(100L))
+                                .setFeeCollectorAccountId(feeCollectorAlias)))
+                .build();
+        final var topicId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getTopicID());
+        final long timestamp = recordItem.getConsensusTimestamp();
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp).entityId(topicId))
+                .get();
+        final var autoRenewAccountId = EntityId.of(10L);
+        final var feeCollectorId = EntityId.of(11L);
+        when(entityIdService.lookup(autoRenewAlias)).thenReturn(Optional.of(autoRenewAccountId));
+        when(entityIdService.lookup(feeCollectorAlias)).thenReturn(Optional.of(feeCollectorId));
+        final var expectedEntityTransactions =
+                getExpectedEntityTransactions(recordItem, transaction, autoRenewAccountId, feeCollectorId);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        final var expectedCustomFee = CustomFee.builder()
+                .entityId(topicId.getId())
+                .fixedFees(List.of(org.hiero.mirror.common.domain.token.FixedFee.builder()
+                        .amount(100L)
+                        .collectorAccountId(feeCollectorId)
+                        .build()))
+                .timestampRange(Range.atLeast(timestamp))
+                .build();
+        verify(entityListener).onCustomFee(assertArg(c -> assertThat(c).isEqualTo(expectedCustomFee)));
+        assertEntity(timestamp, topicId, autoRenewAccountId.getId());
+        assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideEntities")
+    void updateTransactionAutoRenewAccountUnresolved(EntityId entityId) {
+        // given an autoRenewAccount alias that cannot be resolved to a valid entity
+        final var autoRenewAlias = AccountID.newBuilder()
+                .setAlias(DomainUtils.fromBytes(domainBuilder.key()))
+                .build();
+        final var recordItem = recordItemBuilder
+                .consensusCreateTopic()
+                .transactionBody(b -> b.setAutoRenewAccount(autoRenewAlias).clearCustomFees())
+                .build();
+        final var topicId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getTopicID());
+        final long timestamp = recordItem.getConsensusTimestamp();
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp).entityId(topicId))
+                .get();
+        when(entityIdService.lookup(autoRenewAlias)).thenReturn(Optional.ofNullable(entityId));
+        final var expectedEntityTransactions = getExpectedEntityTransactions(recordItem, transaction);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then the autoRenewAccountId is left unset rather than persisted as 0
+        final var expectedCustomFee = CustomFee.builder()
+                .entityId(topicId.getId())
+                .fixedFees(Collections.emptyList())
+                .timestampRange(Range.atLeast(timestamp))
+                .build();
+        verify(entityListener).onCustomFee(assertArg(c -> assertThat(c).isEqualTo(expectedCustomFee)));
+        assertEntity(timestamp, topicId, null);
         assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
     }
 
