@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state;
 
+import static com.hedera.node.app.history.schemas.V071HistorySchema.LEDGER_ID_STATE_ID;
 import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema.EVM_HOOK_STATES_STATE_ID;
 import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema.EVM_HOOK_STORAGE_STATE_ID;
 import static com.hedera.node.app.service.entityid.impl.schemas.V0730EntityIdSchema.HIGHEST_NODE_ID_STATE_ID;
@@ -14,6 +15,7 @@ import static com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSche
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
+import com.hedera.node.app.history.HistoryService;
 import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.node.app.service.entityid.EntityIdService;
 import com.hedera.node.app.service.schedule.ScheduleService;
@@ -176,6 +178,7 @@ public class MirrorNodeState implements State {
         singletonStates.add(new DefaultSingleton(EntityIdService.NAME, HIGHEST_NODE_ID_STATE_ID));
         singletonStates.add(new DefaultSingleton(TokenService.NAME, STAKING_NETWORK_REWARDS_STATE_ID));
         singletonStates.add(new DefaultSingleton(TokenService.NAME, NODE_REWARDS_STATE_ID));
+        singletonStates.add(new DefaultSingleton(HistoryService.NAME, LEDGER_ID_STATE_ID));
         singletonStates.forEach(
                 singletonState -> states.computeIfAbsent(singletonState.getServiceName(), k -> new HashMap<>())
                         .put(singletonState.getStateId(), singletonState));

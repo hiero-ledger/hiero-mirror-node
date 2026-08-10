@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.state;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX_CAPITAL;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -20,7 +21,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -130,10 +133,7 @@ class UtilsTest {
                 Arguments.of("0X1234"), // normal, even, with uppercase prefix
                 Arguments.of("a"), // normal, odd, single nibble
                 Arguments.of("123"), // normal, odd
-                Arguments.of("0xabc"), // normal, odd, with prefix
-                Arguments.of("zz"), // wrong hex, both nibbles invalid
-                Arguments.of("12g4"), // wrong hex, single non-hex character
-                Arguments.of("0xGG")); // wrong hex, with prefix
+                Arguments.of("0xabc")); // normal, odd, with prefix
     }
 
     @ParameterizedTest
@@ -143,15 +143,57 @@ class UtilsTest {
 
         assertThat(result).isNotNull();
 
-        // parseHex decodes any non-hex character to the nibble 'f', so replace invalid characters with 'f'
-        // in the input. Bytes handles the optional prefix, odd-length padding and lower-casing.
+        // Bytes handles the optional prefix, odd-length padding and lower-casing.
         final var body =
                 input.startsWith(HEX_PREFIX) || input.startsWith(HEX_PREFIX_CAPITAL) ? input.substring(2) : input;
-        final var expected =
-                Bytes.fromHexStringLenient(body.replaceAll("[^0-9a-fA-F]", "f")).toUnprefixedHexString();
+        final var expected = Bytes.fromHexStringLenient(body).toUnprefixedHexString();
 
         // Convert the produced bytes back to a hex string and compare with the expected input.
         final var roundTrip = Bytes.wrap(result).toUnprefixedHexString();
         assertThat(roundTrip).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "zz", // both nibbles invalid
+                "12g4", // single non-hex character
+                "0xGG", // invalid nibbles with prefix
+                "g", // odd, single invalid nibble
+                "12 4" // embedded whitespace
+            })
+    void parseHexRejectsInvalidInput(final String input) {
+        assertThatThrownBy(() -> Utils.parseHex(input)).isInstanceOf(NumberFormatException.class);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "'',0", // empty
+        "0x,0", // prefix only
+        "0X,0", // prefix only, uppercase
+        "0,0", // single zero
+        "00,0", // multiple zeros
+        "0x0,0", // zero with prefix
+        "0x00,0", // zeros with prefix
+        "64,100", // even, no prefix
+        "0x64,100", // even, with prefix
+        "ff,255", // lowercase
+        "FF,255", // uppercase
+        "0x0064,100", // leading zeros stripped
+        "7fffffffffffffff,9223372036854775807" // Long.MAX_VALUE
+    })
+    void hexStringToLong(final String input, final long expected) {
+        assertThat(Utils.hexStringToLong(input)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "10000000000000000", // 17 hex digits, exceeds long range
+                "0x10000000000000000", // same, with prefix
+                "8000000000000000" // > Long.MAX_VALUE (negative when signed)
+            })
+    void hexStringToLongRejectsOutOfRange(final String input) {
+        assertThatThrownBy(() -> Utils.hexStringToLong(input)).isInstanceOf(NumberFormatException.class);
     }
 }
