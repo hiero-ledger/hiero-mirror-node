@@ -165,10 +165,15 @@ const makeTransactionFeeSchedule = (hederaFunctionality, gas) => {
   });
 };
 
-// max(1, (gasTinycents * hbarEquiv) / centEquiv)
+// max(1, (gasTinycents * hbarEquiv) / centEquiv) — matches convertGasPriceToTinyBars
 const gasPriceInTinybars = (gasTinycents, centEquiv = 200, hbarEquiv = 100) => {
   const fee = (BigInt(gasTinycents) * BigInt(hbarEquiv)) / BigInt(centEquiv);
   return fee > 0n ? fee : 1n;
+};
+
+// Legacy fee components store gas * 1000; convertLegacyGasPriceToTinyBars divides first
+const legacyGasPriceInTinybars = (legacyGas, centEquiv = 200, hbarEquiv = 100) => {
+  return gasPriceInTinybars(BigInt(legacyGas) / 1000n, centEquiv, hbarEquiv);
 };
 
 const exchangeRateFileId = exchangeRateEntityId.getEncodedId();
@@ -263,12 +268,13 @@ describe('FileDataService.getGasPrice tests', () => {
   const atSwitchoverTs = SIMPLE_FEES_SWITCHOVER_TIMESTAMP;
 
   const latestGasTinycents = 789;
+  const previousLegacyGas = 123000;
 
   const feeScheduleFiles = [
     {
       consensus_timestamp: preSwitchoverTs.toString(),
       entity_id: feeScheduleEntityId.getEncodedId().toString(),
-      file_data: makeFeeScheduleFileData(123000, 2000000000),
+      file_data: makeFeeScheduleFileData(previousLegacyGas, 2000000000),
       transaction_type: 17,
     },
     {
@@ -279,9 +285,9 @@ describe('FileDataService.getGasPrice tests', () => {
     },
   ];
 
-  // Post switchover: gas=789, next rate (now > current_expiration): hbar=30000, cent=435305 → 54n
+  // Post switchover: gas=789 tinycents, next rate (now > current_expiration): hbar=30000, cent=435305 → 54n
   const expectedLatestGasPrice = 54n;
-  // Pre switchover: gas=123000 / 1000 = 123 tinycents, current rate cent=450041 → 8n
+  // Pre switchover: legacy gas=123000 / 1000 = 123 tinycents → 8n
   const expectedPreviousGasPrice = 8n;
 
   test('FileDataService.getGasPrice - No match', async () => {
@@ -368,7 +374,7 @@ describe('FileDataService.getGasPrice tests', () => {
       {
         consensus_timestamp: preTs.toString(),
         entity_id: feeScheduleEntityId.getEncodedId().toString(),
-        file_data: makeFeeScheduleFileData(123000, 2000000000),
+        file_data: makeFeeScheduleFileData(previousLegacyGas, 2000000000),
         transaction_type: 17,
       },
       {
@@ -401,7 +407,7 @@ describe('FileDataService.getGasPrice tests', () => {
         {
           consensus_timestamp: mainnetPre.toString(),
           entity_id: feeScheduleEntityId.getEncodedId().toString(),
-          file_data: makeFeeScheduleFileData(123000, 2000000000),
+          file_data: makeFeeScheduleFileData(previousLegacyGas, 2000000000),
           transaction_type: 17,
         },
         {
@@ -469,7 +475,7 @@ describe('FileDataService.getGasPriceForType', () => {
     const gasPrice = FileDataService.getGasPriceForType(feeSchedule, exchangeRate, refTimestamp);
 
     // 852000 legacy gas / 1000 = 852 tinycents
-    expect(gasPrice).toBe(gasPriceInTinybars(852, 200, 100));
+    expect(gasPrice).toBe(legacyGasPriceInTinybars(852000, 200, 100));
   });
 
   test('uses current fee schedule and exchange rate within the expiry hour', () => {
@@ -482,7 +488,7 @@ describe('FileDataService.getGasPriceForType', () => {
     const gasPrice = FileDataService.getGasPriceForType(feeSchedule, exchangeRate, refTimestamp);
 
     // 1000000 / 1000 = 1000 tinycents
-    expect(gasPrice).toBe(gasPriceInTinybars(1000, 200, 100));
+    expect(gasPrice).toBe(legacyGasPriceInTinybars(1000000, 200, 100));
   });
 
   test('uses next fee schedule and exchange rate after the expiry hour', () => {
@@ -495,7 +501,7 @@ describe('FileDataService.getGasPriceForType', () => {
     const gasPrice = FileDataService.getGasPriceForType(feeSchedule, exchangeRate, refTimestamp);
 
     // 5000000 / 1000 = 5000 tinycents
-    expect(gasPrice).toBe(gasPriceInTinybars(5000, 400, 300));
+    expect(gasPrice).toBe(legacyGasPriceInTinybars(5000000, 400, 300));
   });
 
   test('returns null when simple schedule has no GAS extra', () => {
@@ -521,31 +527,7 @@ describe('FileDataService.getGasPriceForType', () => {
 
     const gasPrice = FileDataService.getGasPriceForType(feeSchedule, exchangeRate, 7_200_000_000_000n);
 
-    expect(gasPrice).toBe(gasPriceInTinybars(852, 200, 100));
-  });
-});
-
-describe('FileDataService.getGasPriceFromSimpleFeeSchedule', () => {
-  const exchangeRate = makeExchangeRate();
-
-  test('converts GAS tinycents using the effective exchange rate', () => {
-    const feeSchedule = new FeeSchedule({
-      file_data: makeSimpleFeeScheduleFileData(1000),
-      consensus_timestamp: 1,
-    });
-
-    expect(FileDataService.getGasPriceFromSimpleFeeSchedule(feeSchedule, exchangeRate, 7_200_000_000_000n)).toBe(
-      gasPriceInTinybars(1000, 200, 100)
-    );
-  });
-
-  test('returns null when GAS extra is missing', () => {
-    const feeSchedule = new FeeSchedule({
-      file_data: makeSimpleFeeScheduleWithoutGas(),
-      consensus_timestamp: 1,
-    });
-
-    expect(FileDataService.getGasPriceFromSimpleFeeSchedule(feeSchedule, exchangeRate, 1n)).toBeNull();
+    expect(gasPrice).toBe(legacyGasPriceInTinybars(852000, 200, 100));
   });
 });
 

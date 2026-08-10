@@ -5,7 +5,7 @@ import {exec} from 'child_process';
 
 import integrationContainerOps from './integrationContainerOps';
 import testExports from '../timestampRange';
-import {TokenService} from '../service';
+import {FileDataService, TokenService} from '../service';
 import {getMirrorConfig} from '../config.js';
 import EntityId from '../entityId.js';
 import {apiPrefix} from '../constants.js';
@@ -145,6 +145,7 @@ const setupIntegrationTest = () => {
   beforeEach(async () => {
     await integrationContainerOps.cleanUp();
     TokenService.clearTokenCache();
+    FileDataService.clearFeeScheduleCache();
     testExports.getFirstTransactionTimestamp.reset();
   });
 };

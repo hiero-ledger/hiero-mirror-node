@@ -77,6 +77,12 @@ class FileDataService extends BaseService {
     maxSize: config.cache.feeSchedule.maxSize,
   });
 
+  /**
+   * The function returns the data for the fileId at the provided consensus timestamp.
+   * @param fileId
+   * @param timestamp
+   * @return {data: string}
+   */
   getFileData = async (fileId, timestamp) => {
     const params = [fileId, timestamp];
     const query = FileDataService.getFileDataQuery;
@@ -111,6 +117,12 @@ class FileDataService extends BaseService {
     return this.#loadAndCacheGasPrice(cacheKey, consensusTimestamp);
   };
 
+  /**
+   * Resolves gas prices for multiple contract results, deduplicating cache and DB lookups by hour bucket.
+   *
+   * @param {Array<*>} consensusTimestamps
+   * @returns {Promise<Map>} map of consensus timestamp to gas price
+   */
   getGasPrices = async (consensusTimestamps) => {
     const gasPriceByTimestamp = new Map();
     if (isEmpty(consensusTimestamps)) {
@@ -141,7 +153,7 @@ class FileDataService extends BaseService {
     return gasPriceByTimestamp;
   };
 
-  getGasPriceFromSimpleFeeSchedule(feeSchedule, exchangeRate, refTimestampNanos) {
+  #getGasPriceFromSimpleFeeSchedule(feeSchedule, exchangeRate, refTimestampNanos) {
     const gasTinycents = feeSchedule.getGasPriceTinycents();
     if (gasTinycents == null) {
       return null;
@@ -178,7 +190,7 @@ class FileDataService extends BaseService {
 
   #getFeeSchedule = async (filterQueries, consensusTimestamp) => {
     const switchoverTimestamp = this.#getSimpleFeesSwitchoverTimestamp();
-    const refTimestampNanos = consensusTimestamp != null ? BigInt(consensusTimestamp) : switchoverTimestamp;
+    const refTimestampNanos = consensusTimestamp != null ? consensusTimestamp : switchoverTimestamp;
 
     if (refTimestampNanos >= switchoverTimestamp) {
       return this.#fallbackRetry(
@@ -195,8 +207,10 @@ class FileDataService extends BaseService {
     const network = config.network?.toUpperCase();
     if (network === 'TESTNET') {
       return TESTNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP;
+    } else if (network === 'MAINNET') {
+      return MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP;
     }
-    return MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP;
+    return 0n;
   }
 
   #buildFilterQueries(consensusTimestamp) {
@@ -226,14 +240,16 @@ class FileDataService extends BaseService {
   }
 
   convertGasPriceToTinyBars(gasPrice, hbarEquiv, centEquiv) {
-    const hbar = Number(hbarEquiv);
-    const cent = Number(centEquiv);
-
-    if (gasPrice == null || isNaN(hbar) || isNaN(cent) || cent === 0) {
+    if (gasPrice == null || !isNumber(hbarEquiv) || !isNumber(centEquiv)) {
       return null;
     }
 
-    const fee = (BigInt(gasPrice) * BigInt(hbar)) / BigInt(cent);
+    centEquiv = BigInt(centEquiv);
+    if (centEquiv === 0n) {
+      return null;
+    }
+
+    const fee = (BigInt(gasPrice) * BigInt(hbarEquiv)) / centEquiv;
     return utils.bigIntMax(fee, 1n);
   }
 
@@ -263,7 +279,7 @@ class FileDataService extends BaseService {
 
     for (const schedule of feeSchedule.transactionFeeSchedule) {
       const type = schedule?.hederaFunctionality;
-      if (type == null || !schedule?.fees?.length || type !== HederaFunctionality.ContractCall) {
+      if (!type || !schedule?.fees?.length || type !== HederaFunctionality.ContractCall) {
         continue;
       }
 
@@ -281,8 +297,8 @@ class FileDataService extends BaseService {
   }
 
   getGasPriceForType(feeSchedule, exchangeRate, refTimestampNanos) {
-    if (feeSchedule.simpleFeeSchedule || typeof feeSchedule.getGasPriceTinycents === 'function') {
-      const simpleGasPrice = this.getGasPriceFromSimpleFeeSchedule(feeSchedule, exchangeRate, refTimestampNanos);
+    if (feeSchedule.simpleFeeSchedule) {
+      const simpleGasPrice = this.#getGasPriceFromSimpleFeeSchedule(feeSchedule, exchangeRate, refTimestampNanos);
       if (simpleGasPrice != null) {
         return simpleGasPrice;
       }
