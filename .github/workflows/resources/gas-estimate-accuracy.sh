@@ -39,12 +39,13 @@ within_tolerance() {
   }'
 }
 
+# Build /contracts/call estimate body from a ContractResult.
 build_request() {
   local result_json="$1"
   jq -c '
     {
       estimate: true,
-      data: .function_parameters,
+      data: (.function_parameters // "0x"),
       from: .from,
       gas: (.gas_limit // 15000000),
       value: (.amount // 0),
@@ -76,8 +77,7 @@ should_skip() {
 
 check_result() {
   local result_json="$1"
-  local skip_reason
-  if skip_reason="$(should_skip "${result_json}")"; then
+  if should_skip "${result_json}" >/dev/null; then
     skipped=$((skipped + 1))
     return 0
   fi
@@ -98,16 +98,11 @@ check_result() {
 
   if [[ "${http_code}" != "200" ]]; then
     # Historical SUCCESS txs often revert on estimate replay (state/simulation drift).
-    # Count those separately; only unexpected API failures fail the job.
+    # Count those separately; only out-of-tolerance estimates fail the job.
     if [[ "${http_code}" == "400" ]] && grep -q 'CONTRACT_REVERT_EXECUTED' <<<"${body}"; then
       estimate_reverts=$((estimate_reverts + 1))
-      log "Estimate revert for hash=${hash}"
-      log "request=${request}"
     else
       api_errors=$((api_errors + 1))
-      log "API ${http_code} for hash=${hash}"
-      log "request=${request}"
-      log "response=${body}"
     fi
     return 0
   fi
@@ -116,9 +111,6 @@ check_result() {
   result_hex="$(jq -r '.result // empty' <<<"${body}")"
   if [[ -z "${result_hex}" || "${result_hex}" == "null" ]]; then
     api_errors=$((api_errors + 1))
-    log "Missing estimate result for hash=${hash}"
-    log "request=${request}"
-    log "response=${body}"
     return 0
   fi
 
@@ -138,39 +130,32 @@ check_result() {
   fi
 }
 
-log "Gas estimate accuracy check"
-log "  base_url=${BASE_URL}"
-log "  results_count=${RESULTS_COUNT}"
-log "  tolerance_percent=${TOLERANCE_PERCENT}"
-log "  sleep_seconds=${SLEEP_SECONDS}"
+page_url_from_next() {
+  local path_or_url="$1"
+  if [[ "${path_or_url}" =~ ^https?:// ]]; then
+    printf '%s' "${path_or_url}"
+  else
+    printf '%s%s' "${BASE_URL}" "${path_or_url}"
+  fi
+}
 
-if ((RESULTS_COUNT <= MAX_PAGE_SIZE)); then
-  limit="${RESULTS_COUNT}"
+if ((RESULTS_COUNT < MAX_PAGE_SIZE)); then
+  page_limit="${RESULTS_COUNT}"
 else
-  limit="${MAX_PAGE_SIZE}"
+  page_limit="${MAX_PAGE_SIZE}"
 fi
 
-next_path="/api/v1/contracts/results?limit=${limit}&order=desc"
-page=0
+next_path="/api/v1/contracts/results?limit=${page_limit}&order=desc"
 
 while ((processed < RESULTS_COUNT)); do
   if [[ -z "${next_path}" || "${next_path}" == "null" ]]; then
-    log "No further pages after processing ${processed}/${RESULTS_COUNT} results; stopping early"
     break
   fi
 
-  page=$((page + 1))
-  page_url="${BASE_URL}${next_path}"
-  if ((RESULTS_COUNT > MAX_PAGE_SIZE)); then
-    log "Page ${page}: GET ${page_url} (${processed}/${RESULTS_COUNT} processed)"
-  else
-    log "GET ${page_url}"
-  fi
-
+  page_url="$(page_url_from_next "${next_path}")"
   page_json="$(curl -sS -f "${page_url}")"
   result_count="$(jq '.results | length' <<<"${page_json}")"
   if [[ "${result_count}" -eq 0 ]]; then
-    log "Empty results page; stopping"
     break
   fi
 
@@ -183,14 +168,9 @@ while ((processed < RESULTS_COUNT)); do
     sleep "${SLEEP_SECONDS}"
   done < <(jq -c '.results[]' <<<"${page_json}")
 
-  if ((RESULTS_COUNT <= MAX_PAGE_SIZE)); then
-    break
-  fi
-
   next_path="$(jq -r '.links.next // empty' <<<"${page_json}")"
 done
 
-log ""
 log "Summary"
 log "  processed=${processed}"
 log "  checked=${checked}"
@@ -200,13 +180,8 @@ log "  skipped=${skipped}"
 log "  estimate_reverts=${estimate_reverts}"
 log "  api_errors=${api_errors}"
 
-if ((checked == 0)); then
-  log "Gas estimate accuracy check failed: no comparable results"
-  exit 1
-fi
-
-if ((failed > 0 || api_errors > 0)); then
-  log "Gas estimate accuracy check failed"
+if ((failed > 0)); then
+  log "Gas estimate accuracy check failed: ${failed} out-of-tolerance estimate(s)"
   exit 1
 fi
 

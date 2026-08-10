@@ -5,8 +5,6 @@ name: Gas Estimate Accuracy
 on:
   schedule:
     - cron: "0 0 * * *" # Daily at midnight UTC
-  # TODO: revert — temporary triggers for testing this workflow; remove before merge
-  pull_request:
   workflow_dispatch:
     inputs:
       network:
