@@ -29,6 +29,14 @@ var (
 	partitionDatePattern = regexp.MustCompile(`_p(\d{4})_(\d{2})`)
 )
 
+// quoteIdentifier applies Postgres quote_ident escaping so name can't break out of the identifier position.
+func quoteIdentifier(name string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("empty table/partition identifier derived from filename")
+	}
+	return pgx.Identifier{name}.Sanitize(), nil
+}
+
 // ImportResult contains the results of an import operation.
 type ImportResult struct {
 	RowsImported int64
@@ -82,8 +90,13 @@ func IsSpecialFile(filename string) bool {
 func TruncateBeforeImport(ctx context.Context, conn *pgx.Conn, filename string) error {
 	target := GetTableOrPartition(filename)
 
-	query := fmt.Sprintf("TRUNCATE TABLE %s", target)
-	_, err := conn.Exec(ctx, query)
+	quoted, err := quoteIdentifier(target)
+	if err != nil {
+		return err
+	}
+
+	query := fmt.Sprintf("TRUNCATE TABLE %s", quoted)
+	_, err = conn.Exec(ctx, query)
 	return err
 }
 
@@ -102,7 +115,12 @@ func TruncateBeforeImportTx(ctx context.Context, tx pgx.Tx, filename string) (bo
 		return false, nil
 	}
 
-	query := fmt.Sprintf("TRUNCATE TABLE %s", target)
+	quoted, err := quoteIdentifier(target)
+	if err != nil {
+		return false, err
+	}
+
+	query := fmt.Sprintf("TRUNCATE TABLE %s", quoted)
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
 		return false, fmt.Errorf("truncate failed: %w", err)
@@ -174,7 +192,7 @@ func ImportFile(ctx context.Context, conn *pgx.Conn, filePath string, decompress
 	baseName := filepath.Base(filePath)
 
 	// Set application name for progress tracking
-	_, err = conn.Exec(ctx, fmt.Sprintf("SET application_name = 'bootstrap_copy_%s'", baseName))
+	_, err = conn.Exec(ctx, "SELECT set_config('application_name', $1, false)", "bootstrap_copy_"+baseName)
 	if err != nil {
 		result.Error = fmt.Errorf("set application_name failed: %w", err)
 		return result
@@ -207,14 +225,24 @@ func ImportFile(ctx context.Context, conn *pgx.Conn, filePath string, decompress
 	result.BytesRead = int64(len(headerLine))
 
 	// Parse header to get column list
-	columns := parseHeaderToColumns(headerLine)
+	columns, err := parseHeaderToColumns(headerLine)
+	if err != nil {
+		result.Error = fmt.Errorf("header parse failed: %w", err)
+		return result
+	}
 
 	// Get table name
 	tableName := GetTableName(filePath)
 	result.TableName = tableName
 
+	quotedTable, err := quoteIdentifier(tableName)
+	if err != nil {
+		result.Error = err
+		return result
+	}
+
 	// Build COPY command
-	copySQL := fmt.Sprintf("COPY %s (%s) FROM STDIN WITH (FORMAT csv)", tableName, columns)
+	copySQL := fmt.Sprintf("COPY %s (%s) FROM STDIN WITH (FORMAT csv)", quotedTable, columns)
 
 	// Execute COPY - streams directly from reader
 	pgConn := conn.PgConn()
@@ -299,7 +327,7 @@ func ImportWithValidation(ctx context.Context, conn *pgx.Conn, filePath string, 
 	defer tx.Rollback(ctx) // No-op if committed
 
 	// Set application name for progress tracking (within transaction)
-	_, err = tx.Exec(ctx, fmt.Sprintf("SET application_name = 'bootstrap_copy_%s'", baseName))
+	_, err = tx.Exec(ctx, "SELECT set_config('application_name', $1, false)", "bootstrap_copy_"+baseName)
 	if err != nil {
 		result.Error = fmt.Errorf("set application_name failed: %w", err)
 		return result
@@ -309,6 +337,12 @@ func ImportWithValidation(ctx context.Context, conn *pgx.Conn, filePath string, 
 	target := GetTableOrPartition(filePath)
 	tableName := GetTableName(filePath)
 	result.TableName = tableName
+
+	quotedTable, err := quoteIdentifier(tableName)
+	if err != nil {
+		result.Error = err
+		return result
+	}
 
 	truncated, err := TruncateBeforeImportTx(ctx, tx, filePath)
 	if err != nil {
@@ -329,7 +363,7 @@ func ImportWithValidation(ctx context.Context, conn *pgx.Conn, filePath string, 
 			result.Error = err
 			return result
 		}
-		deleteSQL := fmt.Sprintf("DELETE FROM %s WHERE %s >= $1 AND %s < $2", tableName, tsCol, tsCol)
+		deleteSQL := fmt.Sprintf("DELETE FROM %s WHERE %s >= $1 AND %s < $2", quotedTable, tsCol, tsCol)
 		if _, err := tx.Exec(ctx, deleteSQL, startNs, endNs); err != nil {
 			result.Error = fmt.Errorf("delete range failed for %s.%s [%d, %d): %w", tableName, tsCol, startNs, endNs, err)
 			return result
@@ -367,10 +401,14 @@ func ImportWithValidation(ctx context.Context, conn *pgx.Conn, filePath string, 
 	result.BytesRead = int64(len(headerLine))
 
 	// Parse header to get column list
-	columns := parseHeaderToColumns(headerLine)
+	columns, err := parseHeaderToColumns(headerLine)
+	if err != nil {
+		result.Error = fmt.Errorf("header parse failed: %w", err)
+		return result
+	}
 
 	// Build COPY command
-	copySQL := fmt.Sprintf("COPY %s (%s) FROM STDIN WITH (FORMAT csv)", tableName, columns)
+	copySQL := fmt.Sprintf("COPY %s (%s) FROM STDIN WITH (FORMAT csv)", quotedTable, columns)
 
 	// Execute COPY within transaction - use tx.Conn().PgConn() to ensure
 	// the COPY is part of the transaction and connection is properly cleaned up
@@ -403,10 +441,10 @@ func ImportWithValidation(ctx context.Context, conn *pgx.Conn, filePath string, 
 }
 
 // parseHeaderToColumns converts a CSV header line to a quoted column list.
-func parseHeaderToColumns(header []byte) string {
+func parseHeaderToColumns(header []byte) (string, error) {
 	header = trimRight(header, '\r', '\n')
 
-	var columns []string
+	var rawColumns []string
 	var current strings.Builder
 	inQuotes := false
 
@@ -416,15 +454,24 @@ func parseHeaderToColumns(header []byte) string {
 		case ch == '"':
 			inQuotes = !inQuotes
 		case ch == ',' && !inQuotes:
-			columns = append(columns, fmt.Sprintf(`"%s"`, current.String()))
+			rawColumns = append(rawColumns, current.String())
 			current.Reset()
 		default:
 			current.WriteByte(ch)
 		}
 	}
-	columns = append(columns, fmt.Sprintf(`"%s"`, current.String()))
+	rawColumns = append(rawColumns, current.String())
 
-	return strings.Join(columns, ",")
+	columns := make([]string, len(rawColumns))
+	for i, col := range rawColumns {
+		quoted, err := quoteIdentifier(col)
+		if err != nil {
+			return "", fmt.Errorf("column %d: %w", i, err)
+		}
+		columns[i] = quoted
+	}
+
+	return strings.Join(columns, ","), nil
 }
 
 // trimRight trims specified bytes from the right side.
