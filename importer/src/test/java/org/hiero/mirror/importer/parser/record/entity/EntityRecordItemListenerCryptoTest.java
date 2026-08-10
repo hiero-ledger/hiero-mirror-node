@@ -1575,29 +1575,29 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     }
 
     @Test
-    void cryptoTransferWithAliasPayerHasCorrectPayerAccountId() {
-        // given: the transaction's payer (TransactionID.accountID) is alias-addressed instead of numeric
+    void cryptoTransferSameAmountDifferentApprovalDisambiguatedByIdentity() {
+        // given: two alias-addressed debits share the same amount, but only one is approved
         entityProperties.getPersist().setCryptoTransferAmounts(true);
-        Entity payer = domainBuilder.entity().persist();
-        var payerAlias = DomainUtils.fromBytes(payer.getAlias());
-        var payerAliasAccountId = AccountID.newBuilder()
-                .setShardNum(COMMON_PROPERTIES.getShard())
-                .setRealmNum(COMMON_PROPERTIES.getRealm())
-                .setAlias(payerAlias)
-                .build();
 
-        Transaction transaction = buildTransaction(builder -> {
-            builder.getTransactionIDBuilder().setAccountID(payerAliasAccountId);
-            builder.getCryptoTransferBuilder()
-                    .getTransfersBuilder()
-                    .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -100))
-                    .addAccountAmounts(accountAmount(EntityId.of(PAYER3), 100));
-        });
+        Entity owner = domainBuilder.entity().persist();
+        var ownerAlias = DomainUtils.fromBytes(owner.getAlias());
+        Entity spender = domainBuilder.entity().persist();
+        var spenderAlias = DomainUtils.fromBytes(spender.getAlias());
+        long transferAmount = -100L;
+
+        Transaction transaction = buildTransaction(r -> r.getCryptoTransferBuilder()
+                .getTransfersBuilder()
+                .addAccountAmounts(
+                        accountAliasAmount(ownerAlias, transferAmount).setIsApproval(true))
+                .addAccountAmounts(
+                        accountAliasAmount(spenderAlias, transferAmount).setIsApproval(false))
+                .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -2 * transferAmount)));
         TransactionBody transactionBody = getTransactionBody(transaction);
         TransactionRecord txnRecord = buildTransactionRecordWithNoTransactions(
                 builder -> builder.getTransferListBuilder()
-                        .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -100))
-                        .addAccountAmounts(accountAmount(EntityId.of(PAYER3), 100)),
+                        .addAccountAmounts(accountAmount(owner.toEntityId(), transferAmount))
+                        .addAccountAmounts(accountAmount(spender.toEntityId(), transferAmount))
+                        .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -2 * transferAmount)),
                 transactionBody,
                 ResponseCodeEnum.SUCCESS.getNumber());
 
@@ -1610,10 +1610,17 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
         parseRecordItemAndCommit(recordItem);
 
         // then
-        assertThat(transactionRepository.findAll())
-                .singleElement()
-                .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getPayerAccountId)
-                .isEqualTo(payer.toEntityId());
+        assertAll(
+                () -> assertThat(cryptoTransferRepository.findAll())
+                        .filteredOn(cryptoTransfer -> cryptoTransfer.getEntityId() == owner.getId())
+                        .singleElement()
+                        .extracting(CryptoTransfer::getIsApproval)
+                        .isEqualTo(true),
+                () -> assertThat(cryptoTransferRepository.findAll())
+                        .filteredOn(cryptoTransfer -> cryptoTransfer.getEntityId() == spender.getId())
+                        .singleElement()
+                        .extracting(CryptoTransfer::getIsApproval)
+                        .isEqualTo(false));
     }
 
     @Test

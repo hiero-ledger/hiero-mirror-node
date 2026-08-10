@@ -2891,6 +2891,73 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
     }
 
     @Test
+    void nftTransferWithAliasSenderHasCorrectIsApprovalValue() {
+        // given: the NFT's owner (sender of the approved transfer) is alias-identified in the body
+        createAndAssociateToken(
+                TOKEN_ID,
+                NON_FUNGIBLE_UNIQUE,
+                SYMBOL,
+                CREATE_TIMESTAMP,
+                ASSOCIATE_TIMESTAMP,
+                PAYER2,
+                false,
+                false,
+                false,
+                TokenFreezeStatusEnum.NOT_APPLICABLE,
+                TokenKycStatusEnum.NOT_APPLICABLE,
+                TokenPauseStatusEnum.NOT_APPLICABLE,
+                0);
+
+        Entity owner = domainBuilder.entity().persist();
+        var ownerAccountId = owner.toEntityId().toAccountID();
+        var ownerAlias = DomainUtils.fromBytes(owner.getAlias());
+
+        long mintTimestamp = 20L;
+        TokenTransferList mintTransfer =
+                nftTransfer(TOKEN_ID, ownerAccountId, DEFAULT_ACCOUNT_ID, List.of(SERIAL_NUMBER_1));
+        Transaction mintTransaction =
+                tokenSupplyTransaction(TOKEN_ID, NON_FUNGIBLE_UNIQUE, true, 0, List.of(SERIAL_NUMBER_1));
+        insertAndParseTransaction(mintTimestamp, mintTransaction, builder -> {
+            builder.getReceiptBuilder().setNewTotalSupply(1L).addSerialNumbers(SERIAL_NUMBER_1);
+            builder.addTokenTransferLists(mintTransfer);
+        });
+
+        // when
+        Transaction transaction = buildTransaction(builder -> {
+            TokenTransferList bodyTransferList = TokenTransferList.newBuilder()
+                    .setToken(TOKEN_ID)
+                    .addNftTransfers(NftTransfer.newBuilder()
+                            .setReceiverAccountID(RECEIVER)
+                            .setSenderAccountID(AccountID.newBuilder()
+                                    .setShardNum(ownerAccountId.getShardNum())
+                                    .setRealmNum(ownerAccountId.getRealmNum())
+                                    .setAlias(ownerAlias))
+                            .setSerialNumber(SERIAL_NUMBER_1)
+                            .setIsApproval(true)
+                            .build())
+                    .build();
+            builder.getCryptoTransferBuilder().addTokenTransfers(bodyTransferList);
+        });
+
+        long transferTimestamp = 40L;
+        insertAndParseTransaction(
+                transferTimestamp,
+                transaction,
+                builder -> builder.addTokenTransferLists(TokenTransferList.newBuilder()
+                        .setToken(TOKEN_ID)
+                        .addNftTransfers(NftTransfer.newBuilder()
+                                .setReceiverAccountID(RECEIVER)
+                                .setSenderAccountID(ownerAccountId)
+                                .setSerialNumber(SERIAL_NUMBER_1)
+                                .build())
+                        .build()));
+
+        // then
+        assertNftTransferInRepository(
+                transferTimestamp, domainNftTransfer(RECEIVER, ownerAccountId, SERIAL_NUMBER_1, TOKEN_ID, true));
+    }
+
+    @Test
     void nftTransferMissingNft() {
         createAndAssociateToken(
                 TOKEN_ID,

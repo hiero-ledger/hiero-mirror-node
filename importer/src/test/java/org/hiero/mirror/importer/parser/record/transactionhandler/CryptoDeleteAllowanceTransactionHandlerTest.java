@@ -87,7 +87,9 @@ class CryptoDeleteAllowanceTransactionHandlerTest extends AbstractTransactionHan
                 .transactionBody(b -> b.getNftAllowancesBuilderList()
                         .forEach(builder -> builder.getOwnerBuilder().setAlias(alias)))
                 .build();
-        when(entityIdService.lookup(ownerAccountId.toBuilder().setAlias(alias).build()))
+        when(entityIdService.lookup(
+                        ownerAccountId.toBuilder().setAlias(alias).build(),
+                        recordItem.getPayerAccountId().toAccountID()))
                 .thenReturn(Optional.of(ownerEntityId));
         var timestamp = recordItem.getConsensusTimestamp();
         var transaction = domainBuilder
@@ -108,12 +110,18 @@ class CryptoDeleteAllowanceTransactionHandlerTest extends AbstractTransactionHan
     }
 
     private void mockOwnerLookups(RecordItem recordItem) {
+        var payerAccountId = recordItem.getPayerAccountId().toAccountID();
         recordItem
                 .getTransactionBody()
                 .getCryptoDeleteAllowance()
                 .getNftAllowancesList()
-                .forEach(allowance -> when(entityIdService.lookup(allowance.getOwner()))
-                        .thenReturn(Optional.of(EntityId.of(allowance.getOwner()))));
+                .forEach(allowance -> {
+                    var owner = allowance.getOwner();
+                    var resolvedOwner = owner.equals(AccountID.getDefaultInstance())
+                            ? recordItem.getPayerAccountId()
+                            : EntityId.of(owner);
+                    when(entityIdService.lookup(owner, payerAccountId)).thenReturn(Optional.of(resolvedOwner));
+                });
     }
 
     private void assertAllowances(long timestamp) {

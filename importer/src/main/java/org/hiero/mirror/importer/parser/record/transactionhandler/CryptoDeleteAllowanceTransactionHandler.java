@@ -37,10 +37,12 @@ class CryptoDeleteAllowanceTransactionHandler extends AbstractTransactionHandler
         long consensusTimestamp = recordItem.getConsensusTimestamp();
         for (var nftAllowance :
                 recordItem.getTransactionBody().getCryptoDeleteAllowance().getNftAllowancesList()) {
-            var ownerId = entityIdService.lookup(nftAllowance.getOwner()).orElse(EntityId.EMPTY);
+            var ownerId = entityIdService
+                    .lookup(
+                            nftAllowance.getOwner(),
+                            recordItem.getPayerAccountId().toAccountID())
+                    .orElse(EntityId.EMPTY);
             var tokenId = EntityId.of(nftAllowance.getTokenId());
-
-            ownerId = EntityId.isEmpty(ownerId) ? recordItem.getPayerAccountId() : ownerId;
             for (var serialNumber : nftAllowance.getSerialNumbersList()) {
                 var nft = Nft.builder()
                         .serialNumber(serialNumber)
