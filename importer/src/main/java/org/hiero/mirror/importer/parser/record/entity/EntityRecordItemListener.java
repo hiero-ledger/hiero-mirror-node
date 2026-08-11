@@ -11,7 +11,6 @@ import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignaturePair;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
@@ -21,7 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.CryptoAllowance;
@@ -121,7 +119,10 @@ public class EntityRecordItemListener implements RecordItemListener {
         Transaction transaction = buildTransaction(entityId, recordItem);
         transactionHandler.updateTransaction(transaction, recordItem);
 
-        var approvedDebits = approvedDebits(recordItem.getTransactionBody());
+        // The body can't be trusted for a non-successful transaction, so skip alias resolution entirely rather
+        // than let an attacker pad a failing transaction with unresolvable aliases to burn mirror node cycles.
+        final var approvedDebits =
+                recordItem.isSuccessful() ? approvedDebits(recordItem.getTransactionBody()) : Set.<ApprovalKey>of();
 
         // Insert transfers even on failure
         insertTransferList(recordItem, approvedDebits);
@@ -322,27 +323,20 @@ public class EntityRecordItemListener implements RecordItemListener {
                 !recordItem.isSuccessful() && body.hasCryptoTransfer() && consensusTimestamp < 1577836799000000000L;
 
         for (int i = 0; i < transferList.getAccountAmountsCount(); ++i) {
-            var aa = transferList.getAccountAmounts(i);
-            var account = EntityId.of(aa.getAccountID());
-            CryptoTransfer cryptoTransfer = new CryptoTransfer();
+            final var aa = transferList.getAccountAmounts(i);
+            final var account = EntityId.of(aa.getAccountID());
+            final var cryptoTransfer = new CryptoTransfer();
             cryptoTransfer.setAmount(aa.getAmount());
             cryptoTransfer.setConsensusTimestamp(consensusTimestamp);
             cryptoTransfer.setEntityId(account.getId());
-            cryptoTransfer.setIsApproval(false);
             cryptoTransfer.setPayerAccountId(payerAccountId);
+            cryptoTransfer.setIsApproval(approvedDebits.contains(new ApprovalKey(account, EntityId.EMPTY, 0L)));
 
-            AccountAmount accountAmountInsideBody = null;
-            if (cryptoTransfer.getAmount() < 0 || failedTransfer) {
-                accountAmountInsideBody = findAccountAmount(aa, body);
-            }
-
-            if (accountAmountInsideBody != null) {
-                cryptoTransfer.setIsApproval(accountAmountInsideBody.getIsApproval());
-                if (failedTransfer) {
+            if (failedTransfer) {
+                final var accountAmountInsideBody = findAccountAmount(aa, body);
+                if (accountAmountInsideBody != null) {
                     cryptoTransfer.setErrata(ErrataType.DELETE);
                 }
-            } else if (aa.getAmount() < 0) {
-                cryptoTransfer.setIsApproval(approvedDebits.contains(new ApprovalKey(account, EntityId.EMPTY, 0L)));
             }
 
             entityListener.onCryptoTransfer(cryptoTransfer);
@@ -364,25 +358,6 @@ public class EntityRecordItemListener implements RecordItemListener {
         return null;
     }
 
-    private AccountAmount findAccountAmount(
-            Predicate<AccountAmount> accountAmountPredicate, TokenID tokenId, TransactionBody body) {
-        if (!body.hasCryptoTransfer()) {
-            return null;
-        }
-        List<TokenTransferList> tokenTransfersLists = body.getCryptoTransfer().getTokenTransfersList();
-        for (TokenTransferList transferList : tokenTransfersLists) {
-            if (!transferList.getToken().equals(tokenId)) {
-                continue;
-            }
-            for (AccountAmount aa : transferList.getTransfersList()) {
-                if (accountAmountPredicate.test(aa)) {
-                    return aa;
-                }
-            }
-        }
-        return null;
-    }
-
     private record ApprovalKey(EntityId account, EntityId token, long serial) {}
 
     private Set<ApprovalKey> approvedDebits(TransactionBody body) {
@@ -390,25 +365,25 @@ public class EntityRecordItemListener implements RecordItemListener {
             return Set.of();
         }
 
-        var cryptoTransfer = body.getCryptoTransfer();
-        var approvals = new HashSet<ApprovalKey>();
+        final var cryptoTransfer = body.getCryptoTransfer();
+        final var approvals = new HashSet<ApprovalKey>();
 
-        for (var accountAmount : cryptoTransfer.getTransfers().getAccountAmountsList()) {
+        for (final var accountAmount : cryptoTransfer.getTransfers().getAccountAmountsList()) {
             if (accountAmount.getIsApproval() && accountAmount.getAmount() < 0) {
                 approvals.add(new ApprovalKey(resolve(accountAmount.getAccountID()), EntityId.EMPTY, 0L));
             }
         }
 
-        for (var tokenTransfers : cryptoTransfer.getTokenTransfersList()) {
-            var token = EntityId.of(tokenTransfers.getToken());
+        for (final var tokenTransfers : cryptoTransfer.getTokenTransfersList()) {
+            final var token = EntityId.of(tokenTransfers.getToken());
 
-            for (var accountAmount : tokenTransfers.getTransfersList()) {
+            for (final var accountAmount : tokenTransfers.getTransfersList()) {
                 if (accountAmount.getIsApproval() && accountAmount.getAmount() < 0) {
                     approvals.add(new ApprovalKey(resolve(accountAmount.getAccountID()), token, 0L));
                 }
             }
 
-            for (var nftTransfer : tokenTransfers.getNftTransfersList()) {
+            for (final var nftTransfer : tokenTransfers.getNftTransfersList()) {
                 if (nftTransfer.getIsApproval()) {
                     approvals.add(new ApprovalKey(
                             resolve(nftTransfer.getSenderAccountID()), token, nftTransfer.getSerialNumber()));
@@ -473,15 +448,9 @@ public class EntityRecordItemListener implements RecordItemListener {
             tokenTransfer.setIsApproval(false);
             tokenTransfer.setPayerAccountId(payerAccountId);
 
-            handleNegativeAccountAmounts(
-                    tokenTransferList.getToken(),
-                    body,
-                    accountAmount,
-                    amount,
-                    accountId,
-                    tokenId,
-                    approvedDebits,
-                    tokenTransfer);
+            if (amount < 0) {
+                tokenTransfer.setIsApproval(approvedDebits.contains(new ApprovalKey(accountId, tokenId, 0L)));
+            }
             entityListener.onTokenTransfer(tokenTransfer);
             recordItem.addEntityId(accountId);
             recordItem.addEntityId(tokenId);
@@ -514,25 +483,6 @@ public class EntityRecordItemListener implements RecordItemListener {
             EntityId receiverId = amount > 0 ? accountId : EntityId.EMPTY;
             syntheticContractLogService.create(
                     new TransferContractLog(recordItem, tokenId, senderId, receiverId, Math.abs(amount)));
-        }
-    }
-
-    private void handleNegativeAccountAmounts(
-            TokenID tokenId,
-            TransactionBody body,
-            AccountAmount accountAmount,
-            long amount,
-            EntityId accountId,
-            EntityId resolvedTokenId,
-            Set<ApprovalKey> approvedDebits,
-            TokenTransfer tokenTransfer) {
-        if (amount < 0) {
-            AccountAmount accountAmountInsideTransferList = findAccountAmount(accountAmount::equals, tokenId, body);
-            if (accountAmountInsideTransferList == null) {
-                tokenTransfer.setIsApproval(approvedDebits.contains(new ApprovalKey(accountId, resolvedTokenId, 0L)));
-            } else {
-                tokenTransfer.setIsApproval(accountAmountInsideTransferList.getIsApproval());
-            }
         }
     }
 
