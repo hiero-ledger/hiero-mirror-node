@@ -792,7 +792,7 @@ const addEthereumTransaction = async (ethereumTransaction) => {
   await insertDomainObject('ethereum_transaction', Object.keys(ethTx), ethTx);
 };
 
-const hexEncodedFileIds = [111, 112];
+const hexEncodedFileIds = [111, 112, 113];
 
 const addFileData = async (fileDataInput) => {
   const encoding = hexEncodedFileIds.includes(fileDataInput.entity_id) ? 'hex' : 'utf8';
