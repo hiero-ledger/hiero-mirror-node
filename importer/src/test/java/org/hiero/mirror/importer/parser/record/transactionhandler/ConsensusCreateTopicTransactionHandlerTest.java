@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
 import com.hederahashgraph.api.proto.java.FixedCustomFee;
@@ -176,7 +175,7 @@ class ConsensusCreateTopicTransactionHandlerTest extends AbstractTransactionHand
     @MethodSource("provideEntities")
     void updateTransactionAutoRenewAccountUnresolved(EntityId entityId) {
         // given an autoRenewAccount alias that cannot be resolved to a valid entity
-        final var autoRenewAlias = AccountID.newBuilder()
+        final var autoRenewAlias = recordItemBuilder.accountId().toBuilder()
                 .setAlias(DomainUtils.fromBytes(domainBuilder.key()))
                 .build();
         final var recordItem = recordItemBuilder
