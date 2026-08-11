@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: "Non-Zero Realm (PR)"
+on:
+  pull_request:
+    branches:
+      - "main"
+      - "release/**"
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  LC_ALL: C.UTF-8
+  CGO_ENABLED: 1
+  # Same non-zero values exercised by the nightly non-zero-realm.yml run
+  HIERO_MIRROR_COMMON_REALM: 127
+  HIERO_MIRROR_COMMON_SHARD: 113
+
+jobs:
+  changed-tests:
+    name: Run Modified Tests
+    runs-on: hiero-mirror-node-linux-large
+    timeout-minutes: 40
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Determine modified tests
+        id: detect
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # Compute the diff separately so a git failure (e.g. no merge base) fails the step
+          # instead of being masked as "no changed tests" by the grep pipeline's || true.
+          diff=$(git diff --name-only --diff-filter=d "${BASE_SHA}...${HEAD_SHA}")
+
+          # Only JVM modules use src/test/java; JS (rest), Go (rosetta) tests are excluded naturally.
+          changed=$(printf '%s\n' "${diff}" | grep -E '/src/test/java/.*Tests?\.java$' || true)
+
+          if [ -z "${changed}" ]; then
+            echo "No changed JVM test classes; skipping non-zero realm run."
+            echo "run=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          # Group the changed tests by Gradle project so each project runs its own
+          # filtered test task (a --tests filter that matches nothing fails the build).
+          declare -A project_tests
+          while IFS= read -r file; do
+            [ -z "${file}" ] && continue
+            module_path="${file%%/src/test/*}"           # e.g. importer, rest-java, rest/monitoring
+            project=":${module_path//\//:}"              # -> :importer, :rest-java, :rest:monitoring
+            class_path="${file#*/src/test/java/}"
+            class="${class_path%.java}"
+            class="${class//\//.}"                       # fully qualified class name
+            project_tests["${project}"]+=" --tests \"${class}\""
+          done <<< "${changed}"
+
+          : > /tmp/gradle-args
+          for project in "${!project_tests[@]}"; do
+            echo "${project}|${project_tests[${project}]}" >> /tmp/gradle-args
+          done
+
+          echo "Selected tests to run with REALM=${HIERO_MIRROR_COMMON_REALM} SHARD=${HIERO_MIRROR_COMMON_SHARD}:"
+          cat /tmp/gradle-args
+          echo "run=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Install JDK
+        if: ${{ steps.detect.outputs.run == 'true' }}
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Setup Gradle
+        if: ${{ steps.detect.outputs.run == 'true' }}
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v4
+
+      - name: Execute Gradle
+        if: ${{ steps.detect.outputs.run == 'true' }}
+        run: |
+          set -euo pipefail
+          status=0
+          while IFS='|' read -r project tests; do
+            [ -z "${project}" ] && continue
+            echo "::group::${project}:test${tests}"
+            # --rerun-tasks: HIERO_MIRROR_COMMON_* env vars are not tracked test inputs, so
+            # without it Gradle could restore a cached shard-0/realm-0 result and skip the run.
+            eval "./gradlew ${project}:test --rerun-tasks ${tests}" || status=1
+            echo "::endgroup::"
+          done < /tmp/gradle-args
+          exit "${status}"
