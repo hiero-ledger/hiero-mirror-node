@@ -26,10 +26,13 @@ env:
   HIERO_MIRROR_COMMON_SHARD: 113
 
 jobs:
-  changed-tests:
-    name: Run Modified Tests
+  detect:
+    name: Detect Modified Tests
     runs-on: hiero-mirror-node-linux-large
-    timeout-minutes: 40
+    timeout-minutes: 10
+    outputs:
+      run: ${{ steps.detect.outputs.run }}
+      gradle_args: ${{ steps.detect.outputs.gradle_args }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
@@ -82,23 +85,45 @@ jobs:
 
           echo "Selected tests to run with REALM=${HIERO_MIRROR_COMMON_REALM} SHARD=${HIERO_MIRROR_COMMON_SHARD}:"
           cat /tmp/gradle-args
+
+          # Pass the per-project Gradle args to the downstream job as a multiline output.
+          {
+            echo "gradle_args<<GRADLE_ARGS_EOF"
+            cat /tmp/gradle-args
+            echo "GRADLE_ARGS_EOF"
+          } >> "${GITHUB_OUTPUT}"
           echo "run=true" >> "${GITHUB_OUTPUT}"
 
+  changed-tests:
+    name: Run Modified Tests
+    needs: detect
+    if: ${{ needs.detect.outputs.run == 'true' }}
+    runs-on: hiero-mirror-node-linux-large
+    timeout-minutes: 40
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Install JDK
-        if: ${{ steps.detect.outputs.run == 'true' }}
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: 25
 
       - name: Setup Gradle
-        if: ${{ steps.detect.outputs.run == 'true' }}
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v4
 
       - name: Execute Gradle
-        if: ${{ steps.detect.outputs.run == 'true' }}
+        env:
+          GRADLE_ARGS: ${{ needs.detect.outputs.gradle_args }}
         run: |
           set -euo pipefail
+          printf '%s\n' "${GRADLE_ARGS}" > /tmp/gradle-args
           status=0
           while IFS='|' read -r project tests; do
             [ -z "${project}" ] && continue
