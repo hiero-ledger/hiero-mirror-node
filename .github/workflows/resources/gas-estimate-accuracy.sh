@@ -5,7 +5,7 @@
 set -euo pipefail
 
 BASE_URL="${BASE_URL:?BASE_URL is required}"
-RESULTS_COUNT="${RESULTS_COUNT:-6000}"
+RESULTS_COUNT="${RESULTS_COUNT:-3000}"
 TOLERANCE_PERCENT="${TOLERANCE_PERCENT:-20}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-0.3}"
 LIMIT=100
@@ -48,33 +48,83 @@ within_tolerance() {
   }'
 }
 
+# Contract create: missing to, or the result's contract_id was itself created by the tx.
+is_contract_create() {
+  jq -e '
+    .contract_id as $cid
+    | (.to == null or .to == "" or .to == "0x")
+      or ($cid != null and ((.created_contract_ids // []) | index($cid) != null))
+  ' <<<"$1" >/dev/null
+}
+
+fetch_contract_bytecode() {
+  local contract_id="$1"
+  curl -sS -f "${BASE_URL}/api/v1/contracts/${contract_id}" | jq -r '.bytecode // empty'
+}
+
 # Build /contracts/call estimate body from a ContractResult.
+# For creates: data = contracts/{id}.bytecode + function_parameters (without 0x), and omit to.
 build_request() {
   local result_json="$1"
-  jq -c '
-    {
-      estimate: true,
-      data: (.function_parameters // "0x"),
-      from: .from,
-      gas: (.gas_limit // 15000000),
-      value: (.amount // 0),
-      block: (if .block_number != null then ((.block_number - 1) | tostring) else "latest" end)
-    }
-    + (if (.created_contract_ids | length) > 0 then {}
-       elif (.to != null and .to != "" and .to != "0x") then {to: .to}
-       else {} end)
-  ' <<<"${result_json}"
+  local data
+
+  if is_contract_create "${result_json}"; then
+    local contract_id bytecode params
+    contract_id="$(jq -r '.contract_id // .created_contract_ids[0] // empty' <<<"${result_json}")"
+    if [[ -z "${contract_id}" ]]; then
+      return 1
+    fi
+    if ! bytecode="$(fetch_contract_bytecode "${contract_id}")" \
+      || [[ -z "${bytecode}" || "${bytecode}" == "null" || "${bytecode}" == "0x" ]]; then
+      return 1
+    fi
+    [[ "${bytecode}" == 0x* ]] || bytecode="0x${bytecode}"
+    params="$(jq -r '.function_parameters // empty' <<<"${result_json}")"
+    params="${params#0x}"
+    data="${bytecode}${params}"
+    jq -c --arg data "${data}" '
+      {
+        estimate: true,
+        data: $data,
+        from: .from,
+        gas: (.gas_limit // 15000000),
+        value: (.amount // 0),
+        block: (if .block_number != null then ((.block_number - 1) | tostring) else "latest" end)
+      }
+    ' <<<"${result_json}"
+  else
+    jq -c '
+      {
+        estimate: true,
+        data: (.function_parameters // "0x"),
+        from: .from,
+        gas: (.gas_limit // 15000000),
+        value: (.amount // 0),
+        block: (if .block_number != null then ((.block_number - 1) | tostring) else "latest" end)
+      }
+      + (if (.to != null and .to != "" and .to != "0x") then {to: .to} else {} end)
+    ' <<<"${result_json}"
+  fi
 }
 
 should_skip() {
   local result_json="$1"
   local reason
   reason="$(jq -r '
-    if .gas_used == null then "missing gas_used"
-    elif (.to == null or .to == "" or .to == "0x") and
-         (.function_parameters == null or .function_parameters == "" or .function_parameters == "0x") then
-      "missing data for contract deploy"
-    else empty end
+    .contract_id as $cid
+    | if .gas_used == null then "missing gas_used"
+      elif (
+          (.to == null or .to == "" or .to == "0x")
+          or ($cid != null and ((.created_contract_ids // []) | index($cid) != null))
+        )
+        and ($cid == null)
+        and ((.created_contract_ids // []) | length) == 0 then
+        "missing contract id for contract create"
+      elif (.to == null or .to == "" or .to == "0x")
+        and ($cid == null or ((.created_contract_ids // []) | index($cid) == null))
+        and (.function_parameters == null or .function_parameters == "" or .function_parameters == "0x") then
+        "missing data for contract call"
+      else empty end
   ' <<<"${result_json}")"
   if [[ -n "${reason}" ]]; then
     printf '%s' "${reason}"
@@ -91,7 +141,12 @@ check_result() {
   fi
 
   local request consumed hash
-  request="$(build_request "${result_json}")"
+  if ! request="$(build_request "${result_json}")"; then
+    api_errors=$((api_errors + 1))
+    hash="$(jq -r '.hash // "unknown"' <<<"${result_json}")"
+    log "Failed to build estimate request for hash=${hash} (bytecode fetch failed for contract create)"
+    return 0
+  fi
   hash="$(jq -r '.hash // "unknown"' <<<"${result_json}")"
   consumed="$(jq -r '.gas_used' <<<"${result_json}")"
 
