@@ -90,11 +90,12 @@ check_result() {
     return 0
   fi
 
-  local request body http_code response estimated consumed hash
+  local request consumed hash
   request="$(build_request "${result_json}")"
   hash="$(jq -r '.hash // "unknown"' <<<"${result_json}")"
   consumed="$(jq -r '.gas_used' <<<"${result_json}")"
 
+  local body http_code response
   response="$(mktemp)"
   http_code="$(curl -sS -o "${response}" -w '%{http_code}' \
     -X POST "${BASE_URL}/api/v1/contracts/call" \
@@ -122,6 +123,7 @@ check_result() {
     return 0
   fi
 
+  local estimated
   estimated="$(hex_to_dec "${result_hex}")"
   checked=$((checked + 1))
 
@@ -202,18 +204,18 @@ while ((processed < RESULTS_COUNT)); do
 done
 
 summary="$(cat <<EOF
-Summary
-  processed=${processed}
-  checked=${checked}
-  passed=${passed}
-  failed=${failed}
-  skipped=${skipped}
-  estimate_reverts=${estimate_reverts}
-  api_errors=${api_errors}
+  Fetched contract result count: ${processed}
+  Executed validation request count: ${checked}
+  Passed estimation count: ${passed}
+  Out of tolerance estimation count: ${failed}
+  Skipped request count: ${skipped}
+  Reverted estimate request count: ${estimate_reverts}
+  Errors count outside CONTRACT_REVERT_EXECUTED: ${api_errors}
 EOF
 )"
 log "${summary}"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+  echo "### Summary:" >> $GITHUB_STEP_SUMMARY
   printf '%s\n' "${summary}" >> "${GITHUB_STEP_SUMMARY}"
 fi
 

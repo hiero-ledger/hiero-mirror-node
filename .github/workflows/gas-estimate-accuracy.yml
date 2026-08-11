@@ -5,8 +5,12 @@ name: Gas Estimate Accuracy
 on:
   schedule:
     - cron: "0 0 * * *" # Daily at midnight UTC
-  # TODO: revert — temporary triggers for testing this workflow; remove before merge
   pull_request:
+    branches:
+      - "main"
+    paths:
+      - ".github/workflows/gas-estimate-accuracy.yml"
+      - ".github/workflows/resources/gas-estimate-accuracy.sh"
   workflow_dispatch:
     inputs:
       network:
