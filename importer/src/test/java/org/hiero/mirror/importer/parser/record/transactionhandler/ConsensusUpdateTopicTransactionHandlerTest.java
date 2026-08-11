@@ -218,19 +218,6 @@ class ConsensusUpdateTopicTransactionHandlerTest extends AbstractTransactionHand
         assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
     }
 
-    @Test
-    void ciProbeNonZeroRealmStageTurnsRed() {
-        // TEMPORARY PROBE — remove once the non-zero-realm CI stage is validated.
-        // It hardcodes a shard 0 / realm 0 assumption: the topic id is built from the configured
-        // shard/realm, so this passes locally (0/0) but fails under the stage (non-zero),
-        // proving the stage actually runs the changed test and turns red on such assumptions.
-        final var recordItem = recordItemBuilder.consensusCreateTopic().build();
-        final var topicId =
-                EntityId.of(recordItem.getTransactionRecord().getReceipt().getTopicID());
-        assertThat(topicId.getShard()).isZero();
-        assertThat(topicId.getRealm()).isZero();
-    }
-
     private void assertEntity(long timestamp, EntityId topicId, Long expectedAutoRenewAccountId) {
         verify(entityListener, times(1)).onEntity(assertArg(t -> assertThat(t)
                 .isNotNull()
