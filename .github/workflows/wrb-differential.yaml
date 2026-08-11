@@ -205,11 +205,11 @@ jobs:
           echo "Scale up block-node sts"
           kubectl scale sts block-node-1 -n "${SOLO_NAMESPACE}" --replicas 1
           kubectl wait sts block-node-1 -n "${SOLO_NAMESPACE}" --for=jsonpath='{.status.readyReplicas}'=1 --timeout=300s
-          # readyReplicas can be set before gRPC on :40840 is accepting connections
+          # readyReplicas can be set before BN is accepting connections
           echo "Waiting for block-node gRPC"
           kubectl run bn-grpc-wait --rm -i --restart=Never -n "${SOLO_NAMESPACE}" \
             --image=busybox:1.36.1 --command -- \
-            sh -c 'for i in $(seq 1 90); do nc -z -w 2 block-node-1 40840 && exit 0; sleep 2; done; echo "Timed out waiting for block-node gRPC"; exit 1'
+            sh -c 'for i in $(seq 1 90); do nc -z -w 2 block-node-1 40982 && exit 0; sleep 2; done; echo "Timed out waiting for block-node gRPC"; exit 1'
           echo "Scaled up block-node sts"
 
       - name: Run acceptance tests
