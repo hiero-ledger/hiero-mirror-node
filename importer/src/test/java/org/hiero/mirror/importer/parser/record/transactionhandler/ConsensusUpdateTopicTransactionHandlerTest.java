@@ -113,7 +113,7 @@ class ConsensusUpdateTopicTransactionHandlerTest extends AbstractTransactionHand
     @Test
     void updateTransactionSuccessfulFeeCollectorAlias() {
         // given a custom fee whose collector is referenced by alias
-        final var feeCollectorAlias = AccountID.newBuilder()
+        final var feeCollectorAlias = recordItemBuilder.accountId().toBuilder()
                 .setAlias(DomainUtils.fromBytes(domainBuilder.key()))
                 .build();
         final var recordItem = recordItemBuilder

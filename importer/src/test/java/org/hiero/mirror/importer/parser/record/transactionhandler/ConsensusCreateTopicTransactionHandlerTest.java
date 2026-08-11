@@ -127,10 +127,10 @@ class ConsensusCreateTopicTransactionHandlerTest extends AbstractTransactionHand
     @Test
     void updateTransactionSuccessfulAutoRenewAccountAndFeeCollectorAlias() {
         // given
-        final var autoRenewAlias = AccountID.newBuilder()
+        final var autoRenewAlias = recordItemBuilder.accountId().toBuilder()
                 .setAlias(DomainUtils.fromBytes(domainBuilder.key()))
                 .build();
-        final var feeCollectorAlias = AccountID.newBuilder()
+        final var feeCollectorAlias = recordItemBuilder.accountId().toBuilder()
                 .setAlias(DomainUtils.fromBytes(domainBuilder.key()))
                 .build();
         final var recordItem = recordItemBuilder
