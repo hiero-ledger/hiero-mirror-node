@@ -7,6 +7,8 @@ on:
     branches:
       - "main"
   push:
+    branches:
+      - bump-solo
     tags:
       - "v*"
   schedule:
@@ -27,14 +29,14 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 50
     env:
-      BLOCK_NODE_VERSION: v0.38.1
+      BLOCK_NODE_VERSION: v0.39.1
       CONSENSUS_NODE_VERSION: v0.76.1
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      SOLO_VERSION: v0.77.0
+      SOLO_VERSION: v0.85.0
     if: github.event_name == 'push' || github.event_name == 'schedule' || github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       pull-requests: read
@@ -55,14 +57,14 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
-          version: "4.0.5"
+          version: "4.2.3"
 
       - name: Setup Kind
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
         with:
           cluster_name: ${{ env.SOLO_CLUSTER_NAME }}
-          kubectl_version: v1.34.0
-          version: v0.31.0
+          kubectl_version: v1.36.3
+          version: v0.32.0
 
       - name: Install JDK
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
