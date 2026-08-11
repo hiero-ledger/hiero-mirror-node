@@ -5,6 +5,8 @@ name: Gas Estimate Accuracy
 on:
   schedule:
     - cron: "0 0 * * *" # Daily at midnight UTC
+  # TODO: revert — temporary triggers for testing this workflow; remove before merge
+  pull_request:
   workflow_dispatch:
     inputs:
       network:
@@ -12,24 +14,25 @@ on:
         required: true
         type: choice
         options:
-          - testnet
           - mainnet
+          - previewnet
+          - testnet
         default: testnet
-      results_count:
+      total:
         description: "Number of contract results to process"
         required: false
-        type: string
-        default: "100"
+        type: number
+        default: 6000
       tolerance_percent:
-        description: "Max estimate overhead above gas_used percent (min is always 5%)"
+        description: "Max estimate overhead above gas_used percent (must be > 5; min overhead is always 5%)"
         required: false
-        type: string
-        default: "20"
+        type: number
+        default: 20
       sleep_seconds:
         description: "Sleep between individual /contracts/call requests"
         required: false
-        type: string
-        default: "0.3"
+        type: number
+        default: 0.3
 
 permissions:
   contents: read
@@ -61,13 +64,20 @@ jobs:
           set -euo pipefail
 
           NETWORK="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.network || 'testnet' }}"
-          RESULTS_COUNT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.results_count || '100' }}"
+          RESULTS_COUNT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.results_count || '6000' }}"
           TOLERANCE_PERCENT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tolerance_percent || '20' }}"
           SLEEP_SECONDS="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sleep_seconds || '0.3' }}"
+          MIN_TOLERANCE_PERCENT=5
+
+          if ! awk -v t="${TOLERANCE_PERCENT}" -v m="${MIN_TOLERANCE_PERCENT}" 'BEGIN { exit (t > m) ? 0 : 1 }'; then
+            echo "TOLERANCE_PERCENT must be greater than ${MIN_TOLERANCE_PERCENT} (got ${TOLERANCE_PERCENT})"
+            exit 1
+          fi
 
           case "${NETWORK}" in
-            mainnet) HOST="mainnet-public.mirrornode.hedera.com" ;;
+            mainnet) HOST="mainnet.mirrornode.hedera.com" ;;
             testnet) HOST="testnet.mirrornode.hedera.com" ;;
+            previewnet) HOST="previewnet.mirrornode.hedera.com" ;;
             *)
               echo "Unsupported network: ${NETWORK}"
               exit 1
@@ -86,5 +96,4 @@ jobs:
 
       - name: Verify gas estimates
         run: |
-          chmod +x .github/workflows/resources/gas-estimate-accuracy.sh
           .github/workflows/resources/gas-estimate-accuracy.sh
