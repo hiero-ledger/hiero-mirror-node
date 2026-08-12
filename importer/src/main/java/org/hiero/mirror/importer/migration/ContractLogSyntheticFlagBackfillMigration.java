@@ -43,6 +43,8 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
     private static final String APPROVE_FOR_ALL_SIGNATURE_HEX =
             "17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31";
 
+    private static final String SET_CITUS_LIMIT = "set citus.max_intermediate_result_size = -1";
+
     private static final String CREATE_PROGRESS_TABLE = """
             create table if not exists contract_log_synthetic_flag_progress_temp(
                 upper_bound bigint not null
@@ -75,16 +77,20 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
             """;
 
     // Only rows with no matching contract_result are touched, since real EVM-native logs of the same signatures
-    // always have one.
+    // always have one. target_topics decodes each signature once instead of per row scanned — topic0 has no index.
     private static final String BACKFILL_SYNTHETIC_SQL = """
+            with target_topics as (
+                select array[
+                    decode(:transferSignature, 'hex'),
+                    decode(:approveSignature, 'hex'),
+                    decode(:approveForAllSignature, 'hex')
+                ] as topics
+            )
             update contract_log
             set synthetic = true
+            from target_topics
             where synthetic is not true
-              and topic0 in (
-                decode(:transferSignature, 'hex'),
-                decode(:approveSignature, 'hex'),
-                decode(:approveForAllSignature, 'hex')
-              )
+              and topic0 = any(target_topics.topics)
               and consensus_timestamp >= :consensusStart
               and consensus_timestamp <= :lastConsensusEnd
               and consensus_timestamp not in (
@@ -106,6 +112,8 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
                   and cr.consensus_timestamp <= :lastConsensusEnd
                   and cr.transaction_result <> 312
                 union all
+                -- Excludes rows whose parent contract call already has a contract_result at the same timestamp,
+                -- otherwise that timestamp is counted twice, inflating the index for every later transaction.
                 select distinct
                     cl.consensus_timestamp,
                     true as is_root
@@ -113,6 +121,11 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
                 where cl.synthetic = true
                   and cl.consensus_timestamp >= :consensusStart
                   and cl.consensus_timestamp <= :lastConsensusEnd
+                  and cl.consensus_timestamp not in (
+                    select consensus_timestamp from contract_result
+                    where consensus_timestamp >= :consensusStart
+                      and consensus_timestamp <= :lastConsensusEnd
+                  )
             ),
             evm_index as (
                 select
@@ -122,7 +135,7 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
                         order by ec.consensus_timestamp
                     ) - 1 as evm_index
                 from evm_candidates ec
-                join record_file rf
+                left join record_file rf
                     on ec.consensus_timestamp between rf.consensus_start and rf.consensus_end
                 where rf.consensus_end between :consensusStart and :lastConsensusEnd
             ),
@@ -248,6 +261,9 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
                 .addValue("approveForAllSignature", APPROVE_FOR_ALL_SIGNATURE_HEX)
                 .addValue("hookContractId", getHookContractId());
 
+        if (v2) {
+            getJdbcOperations().execute(SET_CITUS_LIMIT);
+        }
         final var backfilled = getNamedParameterJdbcOperations().update(BACKFILL_SYNTHETIC_SQL, params);
         var counts = new UpdateCounts(0, 0);
         if (backfilled > 0) {

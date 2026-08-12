@@ -197,6 +197,40 @@ final class ContractLogSyntheticFlagBackfillMigrationTest
     }
 
     @Test
+    void doesNotDoubleCountEvmIndexWhenSyntheticLogSharesTimestampWithContractResult() {
+        // given
+        final var block = persistBlock(0);
+        final var sharedTimestamp = block.getConsensusStart() + 100;
+        final var laterTimestamp = block.getConsensusStart() + 200;
+        final var backfillTimestamp = block.getConsensusStart() + 300;
+
+        final var sharedContractResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(sharedTimestamp)
+                        .transactionIndex(99)
+                        .transactionNonce(0))
+                .persist();
+        persistContractLog(sharedTimestamp, TRANSFER_SIGNATURE, true);
+        final var laterContractResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(laterTimestamp)
+                        .transactionIndex(99)
+                        .transactionNonce(0))
+                .persist();
+        final var needsBackfillLog = persistContractLog(backfillTimestamp, TRANSFER_SIGNATURE, false);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(sharedContractResult.getConsensusTimestamp(), 0);
+        assertContractResultIndex(laterContractResult.getConsensusTimestamp(), 1);
+        assertSynthetic(needsBackfillLog.getConsensusTimestamp(), true);
+        assertTransactionIndex(needsBackfillLog.getConsensusTimestamp(), 2);
+    }
+
+    @Test
     void doesNotRecomputeIndexForBlocksWithoutABackfilledRow() {
         // given
         final var block = persistBlock(0);
