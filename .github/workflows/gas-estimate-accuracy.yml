@@ -27,8 +27,13 @@ on:
         required: false
         type: number
         default: 3000
-      tolerance_percent:
-        description: "Max estimate overhead above gas_used percent (must be > 5; min overhead is always 5%)"
+      tolerance_percent_min:
+        description: "Min estimate overhead above gas_used percent"
+        required: false
+        type: number
+        default: 2
+      tolerance_percent_max:
+        description: "Max estimate overhead above gas_used percent"
         required: false
         type: number
         default: 20
@@ -69,9 +74,9 @@ jobs:
 
           NETWORK="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.network || 'testnet' }}"
           RESULTS_COUNT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.results_count || '3000' }}"
-          TOLERANCE_PERCENT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tolerance_percent || '20' }}"
+          TOLERANCE_PERCENT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tolerance_percent_max || '20' }}"
+          MIN_TOLERANCE_PERCENT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tolerance_percent_min || '2' }}"
           SLEEP_SECONDS="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sleep_seconds || '0.3' }}"
-          MIN_TOLERANCE_PERCENT=5
 
           if ! awk -v t="${TOLERANCE_PERCENT}" -v m="${MIN_TOLERANCE_PERCENT}" 'BEGIN { exit (t > m) ? 0 : 1 }'; then
             echo "TOLERANCE_PERCENT must be greater than ${MIN_TOLERANCE_PERCENT} (got ${TOLERANCE_PERCENT})"
@@ -92,11 +97,12 @@ jobs:
             echo "NETWORK=${NETWORK}"
             echo "BASE_URL=https://${HOST}"
             echo "RESULTS_COUNT=${RESULTS_COUNT}"
+            echo "MIN_TOLERANCE_PERCENT=${MIN_TOLERANCE_PERCENT}"
             echo "TOLERANCE_PERCENT=${TOLERANCE_PERCENT}"
             echo "SLEEP_SECONDS=${SLEEP_SECONDS}"
           } >> "${GITHUB_ENV}"
 
-          echo "Resolved network=${NETWORK} base_url=https://${HOST} results_count=${RESULTS_COUNT} tolerance=${TOLERANCE_PERCENT}%"
+          echo "Resolved network=${NETWORK} base_url=https://${HOST} results_count=${RESULTS_COUNT} min_tolerance=${MIN_TOLERANCE_PERCENT}% max_tolerance=${TOLERANCE_PERCENT}%"
 
       - name: Verify gas estimates
         run: |

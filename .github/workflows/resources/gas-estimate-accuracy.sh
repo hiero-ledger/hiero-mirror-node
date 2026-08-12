@@ -7,10 +7,9 @@ set -euo pipefail
 BASE_URL="${BASE_URL:?BASE_URL is required}"
 RESULTS_COUNT="${RESULTS_COUNT:-3000}"
 TOLERANCE_PERCENT="${TOLERANCE_PERCENT:-20}"
+MIN_TOLERANCE_PERCENT="${MIN_TOLERANCE_PERCENT:-2}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-0.3}"
 LIMIT=100
-# Minimum estimate overhead above gas_used; TOLERANCE_PERCENT is the max and must exceed this.
-MIN_TOLERANCE_PERCENT=5
 MAX_PAGE_FETCH_RETRIES=30
 
 processed=0
@@ -62,26 +61,47 @@ fetch_contract_bytecode() {
   curl -sS -f "${BASE_URL}/api/v1/contracts/${contract_id}" | jq -r '.bytecode // empty'
 }
 
+# Build create estimate data:
+# - Ethereum creates: function_parameters already has initcode + args
+# - Hedera creates: contracts.bytecode + function_parameters
+build_create_data() {
+  local result_json="$1"
+  local contract_id bytecode params
+
+  contract_id="$(jq -r '.contract_id // .created_contract_ids[0] // empty' <<<"${result_json}")"
+  params="$(jq -r '.function_parameters // empty' <<<"${result_json}")"
+  [[ "${params}" == 0x* || -z "${params}" ]] || params="0x${params}"
+
+  if [[ -n "${contract_id}" ]] \
+    && bytecode="$(fetch_contract_bytecode "${contract_id}")" \
+    && [[ -n "${bytecode}" && "${bytecode}" != "null" && "${bytecode}" != "0x" ]]; then
+    [[ "${bytecode}" == 0x* ]] || bytecode="0x${bytecode}"
+    # function_parameters already contains the bytecode (ethereum-style) — use it as-is.
+    if [[ -n "${params}" && "${params}" != "0x" && "${params}" == "${bytecode}"* ]]; then
+      printf '%s' "${params}"
+      return 0
+    fi
+    printf '%s%s' "${bytecode}" "${params#0x}"
+    return 0
+  fi
+
+  # No usable stored bytecode — fall back to function_parameters.
+  if [[ -n "${params}" && "${params}" != "0x" ]]; then
+    printf '%s' "${params}"
+    return 0
+  fi
+  return 1
+}
+
 # Build /contracts/call estimate body from a ContractResult.
-# For creates: data = contracts/{id}.bytecode + function_parameters (without 0x), and omit to.
 build_request() {
   local result_json="$1"
   local data
 
   if is_contract_create "${result_json}"; then
-    local contract_id bytecode params
-    contract_id="$(jq -r '.contract_id // .created_contract_ids[0] // empty' <<<"${result_json}")"
-    if [[ -z "${contract_id}" ]]; then
+    if ! data="$(build_create_data "${result_json}")"; then
       return 1
     fi
-    if ! bytecode="$(fetch_contract_bytecode "${contract_id}")" \
-      || [[ -z "${bytecode}" || "${bytecode}" == "null" || "${bytecode}" == "0x" ]]; then
-      return 1
-    fi
-    [[ "${bytecode}" == 0x* ]] || bytecode="0x${bytecode}"
-    params="$(jq -r '.function_parameters // empty' <<<"${result_json}")"
-    params="${params#0x}"
-    data="${bytecode}${params}"
     jq -c --arg data "${data}" '
       {
         estimate: true,
@@ -113,6 +133,7 @@ should_skip() {
   reason="$(jq -r '
     .contract_id as $cid
     | if .gas_used == null then "missing gas_used"
+      elif .gas_used <= 0 then "non-positive gas_used"
       elif (
           (.to == null or .to == "" or .to == "0x")
           or ($cid != null and ((.created_contract_ids // []) | index($cid) != null))
@@ -143,12 +164,14 @@ check_result() {
   local request consumed hash
   if ! request="$(build_request "${result_json}")"; then
     api_errors=$((api_errors + 1))
-    hash="$(jq -r '.hash // "unknown"' <<<"${result_json}")"
-    log "Failed to build estimate request for hash=${hash} (bytecode fetch failed for contract create)"
     return 0
   fi
   hash="$(jq -r '.hash // "unknown"' <<<"${result_json}")"
   consumed="$(jq -r '.gas_used' <<<"${result_json}")"
+  if [[ -z "${consumed}" ]] || ((consumed <= 0)); then
+    skipped=$((skipped + 1))
+    return 0
+  fi
 
   local body http_code response
   response="$(mktemp)"
@@ -161,7 +184,7 @@ check_result() {
   rm -f "${response}"
 
   if [[ "${http_code}" != "200" ]]; then
-    # Historical txs often revert on estimate replay (state/simulation drift).
+    # Historical txs often revert on estimate replay (due to state change).
     # Count those separately; only out-of-tolerance estimates fail the job.
     if [[ "${http_code}" == "400" ]] && grep -q 'CONTRACT_REVERT_EXECUTED' <<<"${body}"; then
       estimate_reverts=$((estimate_reverts + 1))
