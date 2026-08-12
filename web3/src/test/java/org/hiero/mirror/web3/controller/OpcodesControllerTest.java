@@ -748,7 +748,8 @@ class OpcodesControllerTest {
                 final EthereumTransactionRepository ethereumTransactionRepository,
                 final TransactionRepository transactionRepository,
                 final ContractResultRepository contractResultRepository,
-                final CommonEntityAccessor commonEntityAccessor) {
+                final CommonEntityAccessor commonEntityAccessor,
+                final OpcodesProperties opcodesProperties) {
             return new OpcodeServiceImpl(
                     recordFileService,
                     contractDebugService,
@@ -756,7 +757,8 @@ class OpcodesControllerTest {
                     ethereumTransactionRepository,
                     transactionRepository,
                     contractResultRepository,
-                    commonEntityAccessor);
+                    commonEntityAccessor,
+                    opcodesProperties);
         }
 
         @Bean

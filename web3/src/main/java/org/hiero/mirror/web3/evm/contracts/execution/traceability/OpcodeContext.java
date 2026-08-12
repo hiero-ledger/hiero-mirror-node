@@ -33,6 +33,23 @@ public final class OpcodeContext {
     private static final int MAX_INITIAL_OPCODES_CAPACITY = 10_000;
 
     /**
+     * Default value is applied when a limit is not supplied. Production
+     * requests receive the configured values from {@code OpcodesProperties}.
+     */
+    static final int DEFAULT_MAX_OPCODES = 100_000;
+
+    static final int DEFAULT_MAX_MEMORY_WORDS_PER_OPCODE = 2_048;
+
+    static final int DEFAULT_MAX_STACK_ITEMS_PER_OPCODE = 1_024;
+
+    static final int DEFAULT_MAX_STORAGE_ENTRIES_PER_OPCODE = 1_024;
+
+    /**
+     * Name used for the marker opcode appended when a trace is truncated at maxOpcodes.
+     */
+    static final String TRUNCATED_OP = "TRUNCATED";
+
+    /**
      * Actions pre-grouped by call depth and sorted by index within each depth.
      * Populated once via {@link #setActions(List)} to avoid repeated filtering and sorting.
      */
@@ -67,15 +84,121 @@ public final class OpcodeContext {
      */
     private final boolean storage;
 
-    public OpcodeContext(final OpcodeRequest opcodeRequest, final int opcodesSize) {
+    /**
+     * Maximum number of opcodes recorded for this request.
+     */
+    private final int maxOpcodes;
+
+    /**
+     * Maximum number of 32-byte memory words captured per opcode.
+     */
+    private final int maxMemoryWordsPerOpcode;
+
+    /**
+     * Maximum number of stack items captured per opcode.
+     */
+    private final int maxStackItemsPerOpcode;
+
+    /**
+     * Maximum number of storage entries captured per opcode.
+     */
+    private final int maxStorageEntriesPerOpcode;
+
+    /**
+     * Total number of opcodes offered for this request, including the ones dropped once {@link #maxOpcodes} was
+     * reached. Kept so truncation can be reported (see {@link #isTruncated()}) without walking the opcode list.
+     */
+    @Setter(AccessLevel.NONE)
+    private long executedOpcodes;
+
+    public OpcodeContext(final OpcodeRequest opcodeRequest, final int initialOpcodesCapacity) {
+        this(
+                opcodeRequest,
+                initialOpcodesCapacity,
+                DEFAULT_MAX_OPCODES,
+                DEFAULT_MAX_MEMORY_WORDS_PER_OPCODE,
+                DEFAULT_MAX_STACK_ITEMS_PER_OPCODE,
+                DEFAULT_MAX_STORAGE_ENTRIES_PER_OPCODE);
+    }
+
+    public OpcodeContext(
+            final OpcodeRequest opcodeRequest,
+            final int initialOpcodesCapacity,
+            final int maxOpcodes,
+            final int maxMemoryWordsPerOpcode) {
+        this(
+                opcodeRequest,
+                initialOpcodesCapacity,
+                maxOpcodes,
+                maxMemoryWordsPerOpcode,
+                DEFAULT_MAX_STACK_ITEMS_PER_OPCODE,
+                DEFAULT_MAX_STORAGE_ENTRIES_PER_OPCODE);
+    }
+
+    public OpcodeContext(
+            final OpcodeRequest opcodeRequest,
+            final int initialOpcodesCapacity,
+            final int maxOpcodes,
+            final int maxMemoryWordsPerOpcode,
+            final int maxStackItemsPerOpcode,
+            final int maxStorageEntriesPerOpcode) {
         this.stack = opcodeRequest.isStack();
         this.memory = opcodeRequest.isMemory();
         this.storage = opcodeRequest.isStorage();
-        this.opcodes = new ArrayList<>(Math.min(Math.max(opcodesSize, 0), MAX_INITIAL_OPCODES_CAPACITY));
+        this.maxOpcodes = maxOpcodes;
+        this.maxMemoryWordsPerOpcode = maxMemoryWordsPerOpcode;
+        this.maxStackItemsPerOpcode = maxStackItemsPerOpcode;
+        this.maxStorageEntriesPerOpcode = maxStorageEntriesPerOpcode;
+        this.opcodes = new ArrayList<>(Math.min(Math.max(initialOpcodesCapacity, 0), MAX_INITIAL_OPCODES_CAPACITY));
     }
 
     public void addOpcodes(Opcode opcode) {
-        opcodes.add(opcode);
+        if (opcodes.size() < maxOpcodes) {
+            executedOpcodes++;
+            opcodes.add(opcode);
+        } else {
+            addTruncatedOpcode();
+        }
+    }
+
+    /**
+     * Whether the recorded-opcode list has reached maxOpcodes.
+     */
+    public boolean isAtCapacity() {
+        return opcodes.size() >= maxOpcodes;
+    }
+
+    /**
+     * Append a marker to the opcodes list when maxOpcodes is reached. Still counted in {@link #executedOpcodes}
+     * so the caller can report how much was omitted.
+     */
+    public void addTruncatedOpcode() {
+        executedOpcodes++;
+        // Append a single marker so clients can detect the trace was truncated; further opcodes add nothing to the
+        // list.
+        if (opcodes.size() == maxOpcodes) {
+            opcodes.add(truncationMarker());
+        }
+    }
+
+    /**
+     * Whether the trace was truncated because the number of executed opcodes exceeded {@link #maxOpcodes}.
+     */
+    public boolean isTruncated() {
+        return executedOpcodes > maxOpcodes;
+    }
+
+    private Opcode truncationMarker() {
+        return new Opcode()
+                .pc(0)
+                .op(TRUNCATED_OP)
+                .gas(0L)
+                .gasCost(0L)
+                .depth(0)
+                .stack(List.of())
+                .memory(List.of())
+                .storage(Map.of())
+                .reason("Trace truncated after %d opcodes".formatted(maxOpcodes));
     }
 
     /**

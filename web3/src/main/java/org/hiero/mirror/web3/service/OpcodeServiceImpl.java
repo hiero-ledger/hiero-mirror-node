@@ -30,6 +30,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
@@ -60,17 +61,31 @@ public class OpcodeServiceImpl implements OpcodeService {
     private final TransactionRepository transactionRepository;
     private final ContractResultRepository contractResultRepository;
     private final CommonEntityAccessor commonEntityAccessor;
+    private final OpcodesProperties opcodesProperties;
 
     @Override
     public OpcodesResponse processOpcodeCall(@NonNull OpcodeRequest opcodeRequest) {
         return ContractCallContext.run(ctx -> {
             ctx.setApi(OPCODES);
             final var params = buildCallServiceParameters(opcodeRequest.getTransactionIdOrHashParameter());
-            final var opcodeContext = new OpcodeContext(opcodeRequest, (int) params.getGas() / 3);
+            final var opcodeContext = new OpcodeContext(
+                    opcodeRequest,
+                    (int) params.getGas() / 3,
+                    opcodesProperties.getMaxOpcodes(),
+                    opcodesProperties.getMaxMemoryWordsPerOpcode(),
+                    opcodesProperties.getMaxStackItemsPerOpcode(),
+                    opcodesProperties.getMaxStorageEntriesPerOpcode());
 
             ctx.setOpcodeContext(opcodeContext);
 
             final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
+            if (opcodeContext.isTruncated()) {
+                log.warn(
+                        "Opcode trace for {} truncated at {} of {} opcodes; raise hiero.mirror.web3.opcode.tracer.maxOpcodes to trace it fully",
+                        opcodeRequest.getTransactionIdOrHashParameter(),
+                        opcodesProperties.getMaxOpcodes(),
+                        opcodeContext.getExecutedOpcodes());
+            }
             return buildOpcodesResponse(result, params.getConsensusTimestamp());
         });
     }

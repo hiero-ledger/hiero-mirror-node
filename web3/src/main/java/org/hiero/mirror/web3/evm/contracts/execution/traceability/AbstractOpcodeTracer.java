@@ -40,7 +40,7 @@ public abstract class AbstractOpcodeTracer {
         if (!options.isMemory()) {
             return Collections.emptyList();
         }
-        var size = frame.memoryWordSize();
+        var size = Math.min(frame.memoryWordSize(), options.getMaxMemoryWordsPerOpcode());
         var hexMemoryEntries = new ArrayList<String>(size);
 
         final var wordSize = 32;
@@ -61,7 +61,9 @@ public abstract class AbstractOpcodeTracer {
             return Collections.emptyList();
         }
 
-        var size = frame.stackSize();
+        // The EVM already bounds the stack to 1024 items; cap defensively so a single opcode can never retain more than
+        // the configured number of (top-most) items.
+        var size = Math.min(frame.stackSize(), options.getMaxStackItemsPerOpcode());
         var stack = new ArrayList<String>(size);
         for (var i = 0; i < size; ++i) {
             var item = frame.getStackItem(size - 1 - i);
@@ -108,9 +110,16 @@ public abstract class AbstractOpcodeTracer {
                 return Collections.emptyMap();
             }
 
+            // Storage capture reflects the cumulative transaction storage, which grows with every touched slot. Cap the
+            // number of retained entries so a storage-heavy transaction cannot make each per-opcode snapshot grow with
+            // the whole trace (an O(n^2) heap cost). Entries beyond the cap are omitted.
+            final var maxEntries = options.getMaxStorageEntriesPerOpcode();
             final var result = new TreeMap<String, String>();
             for (final var storageAccesses : updates) {
                 for (final var access : storageAccesses.accesses()) {
+                    if (result.size() >= maxEntries) {
+                        return result;
+                    }
                     final var key = hexCache.get(access.key(), Bytes::toHexString);
                     if (!result.containsKey(key)) {
                         final var value = access.writtenValue() != null
