@@ -29,7 +29,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -40,8 +39,9 @@ import org.apache.commons.beanutils.BeanUtilsBean;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 import org.bouncycastle.util.encoders.Hex;
+import org.eclipse.jetty.util.component.AbstractLifeCycle;
 import org.gaul.s3proxy.S3Proxy;
-import org.gaul.shaded.org.eclipse.jetty.util.component.AbstractLifeCycle;
+import org.gaul.s3proxy.nio2blob.FilesystemNio2BlobStore;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
@@ -51,8 +51,6 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.util.Utility;
-import org.jclouds.ContextBuilder;
-import org.jclouds.blobstore.BlobStoreContext;
 import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -177,26 +175,20 @@ public class TestUtils {
 
     @SneakyThrows
     public static S3Proxy startS3Proxy(Path path) {
-        var properties = new Properties();
-        properties.setProperty(
-                "jclouds.filesystem.basedir", path.toAbsolutePath().toString());
+        final var blobStore = new FilesystemNio2BlobStore(path.toAbsolutePath().toString());
+        final var s3Proxy = S3Proxy.builder()
+                .blobStore(blobStore)
+                .endpoint(URI.create("http://localhost:" + S3_PROXY_PORT))
+                .ignoreUnknownHeaders(true)
+                .build();
+        s3Proxy.start();
 
-        try (var context =
-                ContextBuilder.newBuilder("filesystem").overrides(properties).build(BlobStoreContext.class)) {
-            var s3Proxy = S3Proxy.builder()
-                    .blobStore(context.getBlobStore())
-                    .endpoint(URI.create("http://localhost:" + S3_PROXY_PORT))
-                    .ignoreUnknownHeaders(true)
-                    .build();
-            s3Proxy.start();
-
-            await("S3Proxy")
-                    .dontCatchUncaughtExceptions()
-                    .atMost(Duration.ofMillis(500))
-                    .pollDelay(Duration.ofMillis(1))
-                    .until(() -> AbstractLifeCycle.STARTED.equals(s3Proxy.getState()));
-            return s3Proxy;
-        }
+        await("S3Proxy")
+                .dontCatchUncaughtExceptions()
+                .atMost(Duration.ofMillis(500))
+                .pollDelay(Duration.ofMillis(1))
+                .until(() -> AbstractLifeCycle.STARTED.equals(s3Proxy.getState()));
+        return s3Proxy;
     }
 
     public static AccountID toAccountId(String accountId) {
