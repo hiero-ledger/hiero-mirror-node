@@ -51,10 +51,7 @@ class ContractController {
         try {
             final var result = contractExecutionService.processCall(params);
             return new ContractCallResponse(result);
-        } catch (IllegalArgumentException e) {
-            throttleManager.restore(request.getGas());
-            throw new InvalidParametersException(e.getMessage());
-        } catch (InvalidParametersException e) {
+        } catch (IllegalArgumentException | InvalidParametersException e) {
             // Processing did not complete, so restore the consumed tokens.
             throttleManager.restore(request.getGas());
             throw e;
