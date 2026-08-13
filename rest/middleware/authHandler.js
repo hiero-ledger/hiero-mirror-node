@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import basicAuth from 'basic-auth';
+import {parse} from 'basic-auth';
 import httpContext from 'express-http-context';
 import tsscmp from 'tsscmp';
 
@@ -13,7 +13,7 @@ const findUser = (username, password) => {
 };
 
 const authHandler = async (req, res) => {
-  const credentials = basicAuth(req);
+  const credentials = parse(req.headers.authorization || '');
 
   if (!credentials) {
     return;

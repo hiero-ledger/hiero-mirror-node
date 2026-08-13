@@ -1166,6 +1166,27 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
     }
 
     @Test
+    void tokenUpdateWithEmptyTreasury() {
+        final var tokenCreate = recordItemBuilder.tokenCreate().build();
+        final var tokenId = tokenCreate.getTransactionRecord().getReceipt().getTokenID();
+        final var tokenUpdate = recordItemBuilder
+                .tokenUpdate()
+                .transactionBody(b -> b.setToken(tokenId).setTreasury(AccountID.getDefaultInstance()))
+                .build();
+
+        parseRecordItemsAndCommit(List.of(tokenCreate, tokenUpdate));
+
+        assertThat(tokenRepository.findAll())
+                .hasSize(1)
+                .first()
+                .extracting(Token::getTreasuryAccountId)
+                .isNotNull()
+                .isNotEqualTo(EntityId.EMPTY)
+                .isEqualTo(EntityId.of(
+                        tokenCreate.getTransactionBody().getTokenCreation().getTreasury()));
+    }
+
+    @Test
     void tokenPause() {
         createAndAssociateToken(
                 TOKEN_ID,

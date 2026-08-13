@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Gas Estimate Accuracy
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Daily at midnight UTC
+  workflow_dispatch:
+    inputs:
+      network:
+        description: "Mirror node network"
+        required: true
+        type: choice
+        options:
+          - mainnet
+          - previewnet
+          - testnet
+        default: testnet
+      total:
+        description: "Number of contract results to process"
+        required: false
+        type: number
+        default: 3000
+      tolerance_percent_min:
+        description: "Min estimate overhead above gas_used percent"
+        required: false
+        type: number
+        default: 2
+      tolerance_percent_max:
+        description: "Max estimate overhead above gas_used percent"
+        required: false
+        type: number
+        default: 20
+      sleep_seconds:
+        description: "Sleep between individual /contracts/call requests"
+        required: false
+        type: number
+        default: 0.3
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  LC_ALL: C.UTF-8
+
+jobs:
+  verify:
+    name: verify (${{ github.event_name == 'workflow_dispatch' && github.event.inputs.network || 'testnet' }})
+    runs-on: hiero-mirror-node-linux-medium
+    timeout-minutes: 180
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Resolve configuration
+        id: config
+        run: |
+          set -euo pipefail
+
+          NETWORK="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.network || 'testnet' }}"
+          RESULTS_COUNT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.results_count || '3000' }}"
+          TOLERANCE_PERCENT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tolerance_percent_max || '20' }}"
+          MIN_TOLERANCE_PERCENT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tolerance_percent_min || '2' }}"
+          SLEEP_SECONDS="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sleep_seconds || '0.3' }}"
+
+          if ! awk -v t="${TOLERANCE_PERCENT}" -v m="${MIN_TOLERANCE_PERCENT}" 'BEGIN { exit (t > m) ? 0 : 1 }'; then
+            echo "TOLERANCE_PERCENT must be greater than ${MIN_TOLERANCE_PERCENT} (got ${TOLERANCE_PERCENT})"
+            exit 1
+          fi
+
+          case "${NETWORK}" in
+            mainnet) HOST="mainnet.mirrornode.hedera.com" ;;
+            testnet) HOST="testnet.mirrornode.hedera.com" ;;
+            previewnet) HOST="previewnet.mirrornode.hedera.com" ;;
+            *)
+              echo "Unsupported network: ${NETWORK}"
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "NETWORK=${NETWORK}"
+            echo "BASE_URL=https://${HOST}"
+            echo "RESULTS_COUNT=${RESULTS_COUNT}"
+            echo "MIN_TOLERANCE_PERCENT=${MIN_TOLERANCE_PERCENT}"
+            echo "TOLERANCE_PERCENT=${TOLERANCE_PERCENT}"
+            echo "SLEEP_SECONDS=${SLEEP_SECONDS}"
+          } >> "${GITHUB_ENV}"
+
+          echo "Resolved network=${NETWORK} base_url=https://${HOST} results_count=${RESULTS_COUNT} min_tolerance=${MIN_TOLERANCE_PERCENT}% max_tolerance=${TOLERANCE_PERCENT}%"
+
+      - name: Verify gas estimates
+        run: |
+          .github/workflows/resources/gas-estimate-accuracy.sh
