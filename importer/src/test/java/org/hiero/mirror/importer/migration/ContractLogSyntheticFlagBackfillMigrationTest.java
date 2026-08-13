@@ -4,7 +4,9 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
@@ -114,7 +116,7 @@ final class ContractLogSyntheticFlagBackfillMigrationTest
     }
 
     @Test
-    void preservesLogsWithUnrelatedSignature() {
+    void backfillsLogsRegardlessOfSignature() {
         // given
         final var block = persistBlock(0);
         final var unrelatedLog = domainBuilder
@@ -128,7 +130,7 @@ final class ContractLogSyntheticFlagBackfillMigrationTest
         waitForCompletion();
 
         // then
-        assertSynthetic(unrelatedLog.getConsensusTimestamp(), false);
+        assertSynthetic(unrelatedLog.getConsensusTimestamp(), true);
     }
 
     @Test
@@ -250,6 +252,37 @@ final class ContractLogSyntheticFlagBackfillMigrationTest
     }
 
     @Test
+    void recomputeIsNarrowedToRecordFileContainingBackfilledRow() {
+        // given
+        final var firstBlock = persistBlock(0);
+        final var secondBlock = domainBuilder
+                .recordFile()
+                .customize(r -> r.index(1L)
+                        .consensusStart(firstBlock.getConsensusEnd() + 1)
+                        .consensusEnd(firstBlock.getConsensusEnd()
+                                + Duration.ofSeconds(2).toNanos()))
+                .persist();
+
+        final var untouchedResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(firstBlock.getConsensusStart() + 100)
+                        .transactionIndex(99)
+                        .transactionNonce(0))
+                .persist();
+        final var needsBackfillLog =
+                persistContractLog(secondBlock.getConsensusStart() + 100, TRANSFER_SIGNATURE, false);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(untouchedResult.getConsensusTimestamp(), 99);
+        assertSynthetic(needsBackfillLog.getConsensusTimestamp(), true);
+        assertTransactionIndex(needsBackfillLog.getConsensusTimestamp(), 0);
+    }
+
+    @Test
     void processesMultipleBatchIntervals() {
         // given
         final var earlyBlock = persistBlock(0);
@@ -294,6 +327,43 @@ final class ContractLogSyntheticFlagBackfillMigrationTest
 
         // then
         assertSynthetic(earlyLog.getConsensusTimestamp(), true);
+    }
+
+    @Test
+    void stopsAtLowerBoundFloorFromSyntheticColumnCreation() {
+        // given
+        final var installedOn = Instant.now();
+        jdbcOperations.update(
+                "update flyway_schema_history set installed_on = ? where version in ('1.121.0', '2.26.0')",
+                Timestamp.from(installedOn));
+
+        final var oldBase = domainBuilder.timestamp();
+        final var oldBlock = domainBuilder
+                .recordFile()
+                .customize(r -> r.index(0L)
+                        .consensusStart(oldBase)
+                        .consensusEnd(oldBase + Duration.ofSeconds(2).toNanos())
+                        .loadStart(installedOn.minus(Duration.ofDays(5)).toEpochMilli()))
+                .persist();
+        final var oldLog = persistContractLog(oldBlock.getConsensusStart() + 100, TRANSFER_SIGNATURE, false);
+
+        final var newBase = oldBlock.getConsensusEnd() + 5 * INTERVAL;
+        final var newBlock = domainBuilder
+                .recordFile()
+                .customize(r -> r.index(1L)
+                        .consensusStart(newBase)
+                        .consensusEnd(newBase + Duration.ofSeconds(2).toNanos())
+                        .loadStart(installedOn.plus(Duration.ofDays(5)).toEpochMilli()))
+                .persist();
+        final var newLog = persistContractLog(newBlock.getConsensusStart() + 100, TRANSFER_SIGNATURE, false);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertSynthetic(newLog.getConsensusTimestamp(), true);
+        assertSynthetic(oldLog.getConsensusTimestamp(), false);
     }
 
     // Regression test for the infinite loop fixed by #14010.

@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.migration;
 
 import jakarta.inject.Named;
+import java.sql.Timestamp;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
@@ -36,13 +37,6 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
 
     private static final String BATCH_INTERVAL_PROPERTIES_KEY = "batchInterval";
 
-    private static final String TRANSFER_SIGNATURE_HEX =
-            "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-    private static final String APPROVE_SIGNATURE_HEX =
-            "8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925";
-    private static final String APPROVE_FOR_ALL_SIGNATURE_HEX =
-            "17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31";
-
     private static final String SET_CITUS_LIMIT = "set citus.max_intermediate_result_size = -1";
 
     private static final String CREATE_PROGRESS_TABLE = """
@@ -60,6 +54,20 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
     private static final String SELECT_PROGRESS_UPPER_BOUND =
             "select (select upper_bound from contract_log_synthetic_flag_progress_temp limit 1)";
 
+    // contract_log.synthetic was added in V1.121.0/V2.26.0.
+    private static final String SELECT_MIGRATION_INSTALLED_ON = """
+            select installed_on from flyway_schema_history
+            where version = :version
+            order by installed_rank desc limit 1
+            """;
+
+    private static final String SELECT_RECORD_FILE_INDEX_BOUNDS =
+            "select min(index) as min_index, max(index) as max_index from record_file";
+
+    // No index on load_start; index is sequential with load order and is indexed.
+    private static final String SELECT_RECORD_FILE_AT_INDEX =
+            "select consensus_start, load_start from record_file where index = :index";
+
     private static final String CHECKPOINT_SQL = """
             with clear_table as (delete from contract_log_synthetic_flag_progress_temp)
             insert into contract_log_synthetic_flag_progress_temp(upper_bound)
@@ -76,32 +84,36 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
                     order by consensus_end desc limit 1) as max_consensus_timestamp
             """;
 
-    // Only rows with no matching contract_result are touched, since real EVM-native logs of the same signatures
-    // always have one. target_topics decodes each signature once instead of per row scanned — topic0 has no index.
-    private static final String BACKFILL_SYNTHETIC_SQL = """
-            with target_topics as (
-                select array[
-                    decode(:transferSignature, 'hex'),
-                    decode(:approveSignature, 'hex'),
-                    decode(:approveForAllSignature, 'hex')
-                ] as topics
-            )
-            update contract_log
-            set synthetic = true
-            from target_topics
-            where synthetic is not true
-              and topic0 = any(target_topics.topics)
-              and consensus_timestamp >= :consensusStart
-              and consensus_timestamp <= :lastConsensusEnd
-              and consensus_timestamp not in (
-                select consensus_timestamp from contract_result
-                where consensus_timestamp >= :consensusStart
-                  and consensus_timestamp <= :lastConsensusEnd
-              )
+    private static final String SELECT_RECORD_FILE_BOUNDS_FOR_TIMESTAMPS = """
+            select
+                (select consensus_start from record_file
+                    where :minTimestamp between consensus_start and consensus_end) as min_consensus_timestamp,
+                (select consensus_end from record_file
+                    where :maxTimestamp between consensus_start and consensus_end) as max_consensus_timestamp
             """;
 
-    // Newly-flagged rows were missing from FixEvmTransactionIndexMigration's EVM slot count, so every real
-    // transaction ordered after one in the same block needs its transaction_index recomputed here too.
+    private static final String BACKFILL_SYNTHETIC_SQL = """
+            with backfilled as (
+                update contract_log
+                set synthetic = true
+                where synthetic is not true
+                  and consensus_timestamp >= :consensusStart
+                  and consensus_timestamp <= :lastConsensusEnd
+                  and consensus_timestamp not in (
+                    select consensus_timestamp from contract_result
+                    where consensus_timestamp >= :consensusStart
+                      and consensus_timestamp <= :lastConsensusEnd
+                  )
+                returning consensus_timestamp
+            )
+            select
+                count(*) as backfilled_count,
+                min(consensus_timestamp) as min_timestamp,
+                max(consensus_timestamp) as max_timestamp
+            from backfilled
+            """;
+
+    // Newly-flagged rows were missing from FixEvmTransactionIndexMigration's EVM slot count.
     private static final String RECOMPUTE_EVM_TRANSACTION_INDEX_SQL = """
             with evm_candidates as (
                 select
@@ -165,6 +177,12 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
     private static final RowMapper<RecordFileSlice> ROW_MAPPER = new DataClassRowMapper<>(RecordFileSlice.class);
     private static final RowMapper<UpdateCounts> UPDATE_COUNTS_ROW_MAPPER =
             new DataClassRowMapper<>(UpdateCounts.class);
+    private static final RowMapper<BackfillResult> BACKFILL_RESULT_ROW_MAPPER =
+            new DataClassRowMapper<>(BackfillResult.class);
+    private static final RowMapper<RecordFileIndexBounds> INDEX_BOUNDS_ROW_MAPPER =
+            new DataClassRowMapper<>(RecordFileIndexBounds.class);
+    private static final RowMapper<RecordFileAtIndex> RECORD_FILE_AT_INDEX_ROW_MAPPER =
+            new DataClassRowMapper<>(RecordFileAtIndex.class);
 
     @Getter(lazy = true)
     private final TransactionOperations transactionOperations = transactionOperations();
@@ -180,6 +198,7 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
     private final EntityProperties entityProperties;
     private final boolean v2;
     private long initialUpperBound = -1L;
+    private long lowerBoundFloor = 0L;
 
     ContractLogSyntheticFlagBackfillMigration(
             EntityProperties entityProperties,
@@ -222,12 +241,53 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
             return false;
         }
 
+        lowerBoundFloor = calculateLowerBoundFloor();
+
         getJdbcOperations().execute(CREATE_PROGRESS_TABLE);
 
         final var savedProgress = getJdbcOperations().queryForObject(SELECT_PROGRESS_UPPER_BOUND, Long.class);
         initialUpperBound = savedProgress != null ? savedProgress : maxConsensusEnd;
-        log.info("Starting synthetic flag and EVM index backfill with initial timestamp: {}", initialUpperBound);
+        log.info(
+                "Starting synthetic flag and EVM index backfill with initial timestamp: {}, lower bound floor: {}",
+                initialUpperBound,
+                lowerBoundFloor);
         return true;
+    }
+
+    private long calculateLowerBoundFloor() {
+        final var version = v2 ? "2.26.0" : "1.121.0";
+        final var installedOn = queryForObjectOrNull(
+                SELECT_MIGRATION_INSTALLED_ON, new MapSqlParameterSource("version", version), Timestamp.class);
+        if (installedOn == null) {
+            return 0L;
+        }
+
+        final var thresholdMillis = installedOn.getTime();
+        final var indexBounds =
+                getJdbcOperations().queryForObject(SELECT_RECORD_FILE_INDEX_BOUNDS, INDEX_BOUNDS_ROW_MAPPER);
+        if (indexBounds == null || indexBounds.minIndex() == null || indexBounds.maxIndex() == null) {
+            return 0L;
+        }
+
+        var low = indexBounds.minIndex();
+        var high = indexBounds.maxIndex();
+        var floor = 0L;
+        while (low <= high) {
+            final var mid = low + (high - low) / 2;
+            final var candidate = queryForObjectOrNull(
+                    SELECT_RECORD_FILE_AT_INDEX,
+                    new MapSqlParameterSource("index", mid),
+                    RECORD_FILE_AT_INDEX_ROW_MAPPER);
+            if (candidate == null) {
+                low = mid + 1;
+            } else if (candidate.loadStart() >= thresholdMillis) {
+                floor = candidate.consensusStart();
+                high = mid - 1;
+            } else {
+                low = mid + 1;
+            }
+        }
+        return floor;
     }
 
     @NonNull
@@ -255,31 +315,45 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
 
         final var params = new MapSqlParameterSource()
                 .addValue("consensusStart", slice.minConsensusTimestamp())
-                .addValue("lastConsensusEnd", slice.maxConsensusTimestamp())
-                .addValue("transferSignature", TRANSFER_SIGNATURE_HEX)
-                .addValue("approveSignature", APPROVE_SIGNATURE_HEX)
-                .addValue("approveForAllSignature", APPROVE_FOR_ALL_SIGNATURE_HEX)
-                .addValue("hookContractId", getHookContractId());
+                .addValue("lastConsensusEnd", slice.maxConsensusTimestamp());
 
         if (v2) {
             getJdbcOperations().execute(SET_CITUS_LIMIT);
         }
-        final var backfilled = getNamedParameterJdbcOperations().update(BACKFILL_SYNTHETIC_SQL, params);
+        final var backfillResult = getNamedParameterJdbcOperations()
+                .queryForObject(BACKFILL_SYNTHETIC_SQL, params, BACKFILL_RESULT_ROW_MAPPER);
+
         var counts = new UpdateCounts(0, 0);
-        if (backfilled > 0) {
+        if (backfillResult.backfilledCount() > 0) {
+            final var recomputeBoundsParams = new MapSqlParameterSource()
+                    .addValue("minTimestamp", backfillResult.minTimestamp())
+                    .addValue("maxTimestamp", backfillResult.maxTimestamp());
+            final var recomputeSlice = getNamedParameterJdbcOperations()
+                    .queryForObject(SELECT_RECORD_FILE_BOUNDS_FOR_TIMESTAMPS, recomputeBoundsParams, ROW_MAPPER);
+
+            final var recomputeParams = new MapSqlParameterSource()
+                    .addValue("consensusStart", recomputeSlice.minConsensusTimestamp())
+                    .addValue("lastConsensusEnd", recomputeSlice.maxConsensusTimestamp())
+                    .addValue("hookContractId", getHookContractId());
             counts = getNamedParameterJdbcOperations()
-                    .queryForObject(RECOMPUTE_EVM_TRANSACTION_INDEX_SQL, params, UPDATE_COUNTS_ROW_MAPPER);
+                    .queryForObject(RECOMPUTE_EVM_TRANSACTION_INDEX_SQL, recomputeParams, UPDATE_COUNTS_ROW_MAPPER);
         }
 
-        if (backfilled > 0 || counts.updatedResults() > 0 || counts.updatedLogs() > 0) {
+        if (backfillResult.backfilledCount() > 0 || counts.updatedResults() > 0 || counts.updatedLogs() > 0) {
             log.info(
                     "Backfilled {} contract_log rows and fixed EVM transaction index for {} contract_result and"
                             + " {} contract_log rows in range [{}, {}]",
-                    backfilled,
+                    backfillResult.backfilledCount(),
                     counts.updatedResults(),
                     counts.updatedLogs(),
                     slice.minConsensusTimestamp(),
                     slice.maxConsensusTimestamp());
+        }
+
+        if (consensusStartTimestamp <= lowerBoundFloor) {
+            log.info("Reached lower bound floor {}, stopping", lowerBoundFloor);
+            getJdbcOperations().execute(DROP_PROGRESS_TABLE);
+            return Optional.empty();
         }
 
         getNamedParameterJdbcOperations()
@@ -297,4 +371,10 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
     private record RecordFileSlice(Long minConsensusTimestamp, Long maxConsensusTimestamp) {}
 
     private record UpdateCounts(long updatedResults, long updatedLogs) {}
+
+    private record BackfillResult(long backfilledCount, Long minTimestamp, Long maxTimestamp) {}
+
+    private record RecordFileIndexBounds(Long minIndex, Long maxIndex) {}
+
+    private record RecordFileAtIndex(long consensusStart, long loadStart) {}
 }
