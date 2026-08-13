@@ -40,63 +40,62 @@ class ContractController {
 
     @PostMapping(value = "/call")
     ContractCallResponse call(@RequestBody @Valid ContractCallRequest request, HttpServletResponse response) {
+        validateContractMaxGasLimit(request);
+        final var params = constructServiceParameters(request);
+
+        if (!params.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
+        }
+
+        throttleManager.throttle(request);
         try {
-            throttleManager.throttle(request);
-            validateContractMaxGasLimit(request);
-
-            final var params = constructServiceParameters(request);
-
-            if (!params.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
-            }
-
             final var result = contractExecutionService.processCall(params);
             return new ContractCallResponse(result);
+        } catch (IllegalArgumentException e) {
+            throttleManager.restore(request.getGas());
+            throw new InvalidParametersException(e.getMessage());
         } catch (InvalidParametersException e) {
-            // The validation failed, but no processing occurred so restore the consumed tokens.
+            // Processing did not complete, so restore the consumed tokens.
             throttleManager.restore(request.getGas());
             throw e;
         }
     }
 
     private ContractExecutionParameters constructServiceParameters(ContractCallRequest request) {
-        final var fromAddress = request.getFrom() != null ? Address.fromHexString(request.getFrom()) : Address.ZERO;
-
-        Address receiver;
-
-        /*In case of an empty "to" field, we set a default value of the zero address
-        to avoid any potential NullPointerExceptions throughout the process.*/
-        if (request.getTo() == null || request.getTo().isEmpty()) {
-            receiver = Address.ZERO;
-        } else {
-            receiver = Address.fromHexString(request.getTo());
-        }
-
-        String data;
         try {
-            data = request.getData() != null ? request.getData() : HEX_PREFIX;
-        } catch (final Exception e) {
-            throw new InvalidParametersException(
-                    "data field '%s' contains invalid odd length characters".formatted(request.getData()));
+            final var fromAddress = request.getFrom() != null ? Address.fromHexString(request.getFrom()) : Address.ZERO;
+
+            Address receiver;
+
+            /*In case of an empty "to" field, we set a default value of the zero address
+            to avoid any potential NullPointerExceptions throughout the process.*/
+            if (request.getTo() == null || request.getTo().isEmpty()) {
+                receiver = Address.ZERO;
+            } else {
+                receiver = Address.fromHexString(request.getTo());
+            }
+
+            final var data = request.getData() != null ? request.getData() : HEX_PREFIX;
+            final var isStaticCall = false;
+            final var callType = request.isEstimate() ? ETH_ESTIMATE_GAS : ETH_CALL;
+            final var block = request.getBlock();
+
+            return ContractExecutionParameters.builder()
+                    .block(block)
+                    .callData(hexToBytes(data))
+                    .callType(callType)
+                    .gas(request.getGas())
+                    .gasPrice(request.getGasPrice())
+                    .isEstimate(request.isEstimate())
+                    .isStatic(isStaticCall)
+                    .receiver(receiver)
+                    .sender(fromAddress)
+                    .stateOverrides(request.getStateOverrides())
+                    .value(request.getValue())
+                    .build();
+        } catch (IllegalArgumentException e) {
+            throw new InvalidParametersException(e.getMessage());
         }
-
-        final var isStaticCall = false;
-        final var callType = request.isEstimate() ? ETH_ESTIMATE_GAS : ETH_CALL;
-        final var block = request.getBlock();
-
-        return ContractExecutionParameters.builder()
-                .block(block)
-                .callData(hexToBytes(data))
-                .callType(callType)
-                .gas(request.getGas())
-                .gasPrice(request.getGasPrice())
-                .isEstimate(request.isEstimate())
-                .isStatic(isStaticCall)
-                .receiver(receiver)
-                .sender(fromAddress)
-                .stateOverrides(request.getStateOverrides())
-                .value(request.getValue())
-                .build();
     }
 
     private void validateContractMaxGasLimit(ContractCallRequest request) {

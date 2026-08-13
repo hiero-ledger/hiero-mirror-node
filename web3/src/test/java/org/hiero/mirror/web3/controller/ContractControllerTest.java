@@ -7,9 +7,12 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -172,6 +175,7 @@ final class ContractControllerTest {
     @ValueSource(longs = {2000, -2000, 16_000_000L, 0})
     @ParameterizedTest
     void estimateGasWithInvalidGasParameter(long gas) throws Exception {
+        clearInvocations(throttleManager);
         final var errorString = gas < 21000L
                 ? numberErrorString("gas", "greater", 21000L)
                 : numberErrorString("gas", "less", 15_000_000L);
@@ -182,6 +186,8 @@ final class ContractControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content()
                         .string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), errorString))));
+        verify(throttleManager, never()).throttle(any());
+        verify(throttleManager, never()).restore(anyLong());
     }
 
     @Test
@@ -357,6 +363,19 @@ final class ContractControllerTest {
         contractCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), error))));
+        verify(throttleManager).restore(request.getGas());
+    }
+
+    @Test
+    void callWithIllegalArgumentExceptionRestoresThrottle() throws Exception {
+        final var request = request();
+
+        given(service.processCall(any())).willThrow(new IllegalArgumentException("Invalid hex value"));
+        contractCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), "Invalid hex value"))));
+        verify(throttleManager).restore(request.getGas());
     }
 
     @Test
@@ -488,6 +507,7 @@ final class ContractControllerTest {
     @ParameterizedTest
     @ValueSource(strings = {"1", "1aa"})
     void callBadRequestWithInvalidHexData(String data) throws Exception {
+        clearInvocations(throttleManager);
         final var request = request();
         request.setData(data);
         request.setValue(0);
@@ -495,6 +515,38 @@ final class ContractControllerTest {
         contractCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(new StringContains("Odd number of characters")));
+
+        verify(throttleManager, never()).throttle(any());
+        verify(throttleManager, never()).restore(anyLong());
+        verify(service, never()).processCall(any());
+    }
+
+    @Test
+    void callFromWithUpperCaseHexPrefixDoesNotThrottle() throws Exception {
+        clearInvocations(throttleManager);
+        final var request = request();
+        request.setFrom("0X00000000000000000000000000000000000004e2");
+        request.setValue(0);
+
+        contractCall(request).andExpect(status().isBadRequest());
+
+        verify(throttleManager, never()).throttle(any());
+        verify(throttleManager, never()).restore(anyLong());
+        verify(service, never()).processCall(any());
+    }
+
+    @Test
+    void callToWithUpperCaseHexPrefixDoesNotThrottle() throws Exception {
+        clearInvocations(throttleManager);
+        final var request = request();
+        request.setTo("0X00000000000000000000000000000000000004e4");
+        request.setValue(0);
+
+        contractCall(request).andExpect(status().isBadRequest());
+
+        verify(throttleManager, never()).throttle(any());
+        verify(throttleManager, never()).restore(anyLong());
+        verify(service, never()).processCall(any());
     }
 
     @Test
