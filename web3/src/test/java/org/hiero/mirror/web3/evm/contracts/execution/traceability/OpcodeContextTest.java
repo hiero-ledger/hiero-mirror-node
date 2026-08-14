@@ -40,7 +40,7 @@ final class OpcodeContextTest {
 
     @Test
     void constructorReadsLimitsFromProperties() {
-        final var context = new OpcodeContext(request(), 0);
+        final var context = new OpcodeContext(request(), 0, new OpcodesProperties());
         final var defaults = new OpcodesProperties();
 
         assertThat(context.getMaxOpcodes()).isEqualTo(defaults.getMaxOpcodes());
@@ -118,7 +118,7 @@ final class OpcodeContextTest {
     }
 
     @Test
-    void addTruncatedOpcodeAppendsMarkerOnceAndCountsWithoutStoring() {
+    void addOpcodesAppendsMarkerOnceAndCountsWithoutStoring() {
         final int maxOpcodes = 3;
         final var context = new OpcodeContext(request(), 0, propertiesWithMaxOpcodes(maxOpcodes));
         final var opcode = new Opcode();
@@ -127,9 +127,9 @@ final class OpcodeContextTest {
         for (int i = 0; i < maxOpcodes; i++) {
             context.addOpcodes(opcode);
         }
-        // Then account for dropped opcodes directly, as the tracer does once isAtCapacity() is true
-        context.addTruncatedOpcode();
-        context.addTruncatedOpcode();
+        // Then account for dropped opcodes with a null opcode, as the tracer does once isAtCapacity() is true
+        context.addOpcodes(null);
+        context.addOpcodes(null);
 
         final var opcodes = context.getOpcodes();
         assertThat(opcodes).hasSize(maxOpcodes + 1); // cap + single marker

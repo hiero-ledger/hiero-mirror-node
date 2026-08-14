@@ -59,7 +59,8 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
         // memory/stack/storage capture and opcode allocation and just account for the dropped opcode. The EVM still has
         // to execute the remaining operations (this is a re-execution), but we avoid all per-opcode tracing work.
         if (options.isAtCapacity()) {
-            options.addTruncatedOpcode();
+            // Cap reached: count the dropped opcode (and append the truncation marker once) without building it.
+            options.addOpcodes(null);
             return;
         }
 

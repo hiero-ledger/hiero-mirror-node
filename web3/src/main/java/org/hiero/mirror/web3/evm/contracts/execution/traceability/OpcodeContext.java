@@ -136,44 +136,34 @@ public final class OpcodeContext {
     @Setter(AccessLevel.NONE)
     private long executedOpcodes;
 
-    public OpcodeContext(final OpcodeRequest opcodeRequest, final int initialOpcodesCapacity) {
-        this(opcodeRequest, initialOpcodesCapacity, new OpcodesProperties());
-    }
-
     public OpcodeContext(
             final OpcodeRequest opcodeRequest, final int initialOpcodesCapacity, final OpcodesProperties properties) {
-        this(
-                opcodeRequest,
-                initialOpcodesCapacity,
-                properties.getMaxOpcodes(),
-                properties.getMaxMemoryWords(),
-                properties.getMaxStack(),
-                properties.getMaxStorage());
-    }
-
-    public OpcodeContext(
-            final OpcodeRequest opcodeRequest,
-            final int initialOpcodesCapacity,
-            final int maxOpcodes,
-            final int maxMemoryWords,
-            final int maxStack,
-            final int maxStorage) {
         this.stack = opcodeRequest.isStack();
         this.memory = opcodeRequest.isMemory();
         this.storage = opcodeRequest.isStorage();
-        this.maxOpcodes = maxOpcodes;
-        this.maxMemoryWords = maxMemoryWords;
-        this.maxStack = maxStack;
-        this.maxStorage = maxStorage;
+        this.maxOpcodes = properties.getMaxOpcodes();
+        this.maxMemoryWords = properties.getMaxMemoryWords();
+        this.maxStack = properties.getMaxStack();
+        this.maxStorage = properties.getMaxStorage();
         this.opcodes = new ArrayList<>(Math.min(Math.max(initialOpcodesCapacity, 0), MAX_INITIAL_OPCODES_CAPACITY));
     }
 
+    /**
+     * Records an offered opcode. Every opcode is counted in {@link #executedOpcodes}. While below all budgets the opcode
+     * is stored and its captured memory/stack/storage added to the running totals; once a budget is reached (see
+     * {@link #isAtCapacity()}) the opcode is dropped and a single {@link #TRUNCATED_OPCODE} marker is appended the first
+     * time truncation occurs so clients can detect it. Callers that already know the cap is reached may pass
+     * {@code null} to avoid building an opcode that would be dropped.
+     */
     public void addOpcodes(Opcode opcode) {
+        executedOpcodes++;
         if (isAtCapacity()) {
-            addTruncatedOpcode();
+            if (!truncated) {
+                truncated = true;
+                opcodes.add(TRUNCATED_OPCODE);
+            }
             return;
         }
-        executedOpcodes++;
         opcodes.add(opcode);
         capturedMemoryWords += size(opcode.getMemory());
         capturedStack += size(opcode.getStack());
@@ -189,27 +179,6 @@ public final class OpcodeContext {
                 || capturedMemoryWords >= maxMemoryWords
                 || capturedStack >= maxStack
                 || capturedStorage >= maxStorage;
-    }
-
-    /**
-     * Accounts for an opcode that is dropped because a budget was reached. The offered opcode is still counted in
-     * {@link #executedOpcodes}, and a single {@link #TRUNCATED_OPCODE} marker is appended the first time truncation
-     * occurs so clients can detect it.
-     */
-    public void addTruncatedOpcode() {
-        executedOpcodes++;
-        if (!truncated) {
-            truncated = true;
-            opcodes.add(TRUNCATED_OPCODE);
-        }
-    }
-
-    /**
-     * Whether the trace was truncated because {@link #maxOpcodes} or one of the memory/stack/storage budgets was
-     * reached.
-     */
-    public boolean isTruncated() {
-        return truncated;
     }
 
     private static int size(final List<?> list) {
