@@ -147,7 +147,7 @@ final class LinkFactoryTest {
         assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
     }
 
-    @DisplayName("Get pagination links unknown parameter")
+    @DisplayName("Omits unknown query parameters from pagination links")
     @Test
     void testUnknownParameter() {
         var params = new LinkedHashMap<String, String[]>();
@@ -158,10 +158,53 @@ final class LinkFactoryTest {
         var sort = Sort.by(Direction.ASC, ACCOUNT_ID, TOKEN_ID);
         var pageable = PageRequest.of(0, 1, sort);
 
-        final var expectedLink = "/api?limit=1&account.id=0.0.1000&unknown=value&unknown=value2&token.id=gt:0.0.6458";
+        final var expectedLink = "/api?limit=1&account.id=0.0.1000&token.id=gt:0.0.6458";
         assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
                 .returns(expectedLink, Links::getNext);
         assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
+    }
+
+    @Test
+    @DisplayName("Rejects control characters in query parameter names and values")
+    void testRejectsControlCharacters() {
+        var params = new LinkedHashMap<String, String[]>();
+        params.put("limit", new String[] {"1"});
+        params.put("order", new String[] {"asc\r\nX-Injected: true"});
+        params.put("evil\r\nInjected", new String[] {"value"});
+        params.put("account.id", new String[] {"0.0.1000"});
+        when(request.getParameterMap()).thenReturn(params);
+        var sort = Sort.by(Direction.ASC, ACCOUNT_ID, TOKEN_ID);
+        var pageable = PageRequest.of(0, 1, sort);
+
+        final var expectedLink = "/api?limit=1&account.id=0.0.1000&token.id=gt:0.0.6458";
+        var links = linkFactory.create(List.of(nftAllowance), pageable, extractor);
+        var linkHeader = response.getHeader(HttpHeaders.LINK);
+
+        assertThat(links).returns(expectedLink, Links::getNext);
+        assertThat(linkHeader).isEqualTo(LINK_HEADER.formatted(expectedLink));
+        assertThat(links.getNext()).doesNotContain("\r", "\n", "Injected");
+        assertThat(linkHeader).doesNotContain("\r", "\n", "Injected");
+    }
+
+    @Test
+    @DisplayName("Percent-encodes reserved characters in reflected query values")
+    void testEncodesReservedCharacters() {
+        var params = new LinkedHashMap<String, String[]>();
+        params.put("limit", new String[] {"1"});
+        params.put("order", new String[] {"asc \">evil"});
+        params.put("account.id", new String[] {"0.0.1000"});
+        when(request.getParameterMap()).thenReturn(params);
+        var sort = Sort.by(Direction.ASC, ACCOUNT_ID, TOKEN_ID);
+        var pageable = PageRequest.of(0, 1, sort);
+
+        final var expectedLink = "/api?limit=1&order=asc%20%22%3Eevil&account.id=0.0.1000&token.id=gt:0.0.6458";
+        var links = linkFactory.create(List.of(nftAllowance), pageable, extractor);
+        var linkHeader = response.getHeader(HttpHeaders.LINK);
+
+        assertThat(links).returns(expectedLink, Links::getNext);
+        assertThat(linkHeader).isEqualTo(LINK_HEADER.formatted(expectedLink));
+        assertThat(links.getNext()).doesNotContain("\">");
+        assertThat(linkHeader).doesNotContain("\">");
     }
 
     @DisplayName("Get pagination links with multiple parameter values")

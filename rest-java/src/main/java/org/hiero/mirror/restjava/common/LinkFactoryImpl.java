@@ -2,6 +2,22 @@
 
 package org.hiero.mirror.restjava.common;
 
+import static org.hiero.mirror.restjava.common.Constants.ACCOUNT_ID;
+import static org.hiero.mirror.restjava.common.Constants.FILE_ID;
+import static org.hiero.mirror.restjava.common.Constants.HOOK_ID;
+import static org.hiero.mirror.restjava.common.Constants.KEY;
+import static org.hiero.mirror.restjava.common.Constants.LIMIT;
+import static org.hiero.mirror.restjava.common.Constants.NODE_ID;
+import static org.hiero.mirror.restjava.common.Constants.ORDER;
+import static org.hiero.mirror.restjava.common.Constants.OWNER;
+import static org.hiero.mirror.restjava.common.Constants.RECEIVER_ID;
+import static org.hiero.mirror.restjava.common.Constants.REGISTERED_NODE_ID;
+import static org.hiero.mirror.restjava.common.Constants.REGISTERED_NODE_TYPE;
+import static org.hiero.mirror.restjava.common.Constants.SENDER_ID;
+import static org.hiero.mirror.restjava.common.Constants.SERIAL_NUMBER;
+import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
+import static org.hiero.mirror.restjava.common.Constants.TOKEN_ID;
+
 import com.google.common.collect.Iterables;
 import jakarta.inject.Named;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.Links;
@@ -29,6 +46,23 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RequiredArgsConstructor
 @NullMarked
 final class LinkFactoryImpl implements LinkFactory {
+
+    private static final Set<String> ALLOWED_QUERY_PARAMS = Set.of(
+            ACCOUNT_ID,
+            FILE_ID,
+            HOOK_ID,
+            KEY,
+            LIMIT,
+            NODE_ID,
+            ORDER,
+            OWNER,
+            RECEIVER_ID,
+            REGISTERED_NODE_ID,
+            REGISTERED_NODE_TYPE,
+            SENDER_ID,
+            SERIAL_NUMBER,
+            TIMESTAMP,
+            TOKEN_ID);
 
     private static final Links DEFAULT_LINKS = new Links();
 
@@ -163,7 +197,25 @@ final class LinkFactoryImpl implements LinkFactory {
         }
 
         builder.queryParams(queryParams);
-        return builder.toUriString();
+        return builder.encode().toUriString();
+    }
+
+    private static boolean isAllowedQueryParam(String key, Map<String, String> paginationParamsMap) {
+        return ALLOWED_QUERY_PARAMS.contains(key) || paginationParamsMap.containsKey(key);
+    }
+
+    private static boolean isSafeQueryValue(@Nullable String value) {
+        if (value == null) {
+            return false;
+        }
+
+        for (int i = 0; i < value.length(); i++) {
+            if (Character.isISOControl(value.charAt(i))) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void addParamMapToQueryParams(
@@ -173,9 +225,15 @@ final class LinkFactoryImpl implements LinkFactory {
             LinkedMultiValueMap<String, String> queryParams) {
         for (var entry : paramsMap.entrySet()) {
             var key = entry.getKey();
+            if (!isAllowedQueryParam(key, paginationParamsMap) || !isSafeQueryValue(key)) {
+                continue;
+            }
+
             if (!paginationParamsMap.containsKey(key)) {
                 for (var value : entry.getValue()) {
-                    queryParams.add(entry.getKey(), value);
+                    if (isSafeQueryValue(value)) {
+                        queryParams.add(key, value);
+                    }
                 }
             } else {
                 addQueryParamToLink(entry, order, queryParams);
@@ -187,7 +245,7 @@ final class LinkFactoryImpl implements LinkFactory {
             Entry<String, String[]> entry, Direction order, LinkedMultiValueMap<String, String> queryParams) {
         for (var value : entry.getValue()) {
             // Skip if it's in the same direction as the order, the new bound should come from the extracted value
-            if (isSameDirection(order, value)) {
+            if (!isSafeQueryValue(value) || isSameDirection(order, value)) {
                 continue;
             }
 
@@ -219,7 +277,10 @@ final class LinkFactoryImpl implements LinkFactory {
             int nextParamIndex = i + 1;
             boolean exclusive = sortList.size() > nextParamIndex ? sortEqMap.get(sortList.get(nextParamIndex)) : true;
             var value = paginationParamsMap.get(key);
-            queryParams.add(key, getOperator(order, exclusive) + ":" + value);
+            var paramValue = getOperator(order, exclusive) + ":" + value;
+            if (isSafeQueryValue(paramValue)) {
+                queryParams.add(key, paramValue);
+            }
         }
     }
 }
