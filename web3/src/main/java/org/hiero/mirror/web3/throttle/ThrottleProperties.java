@@ -26,6 +26,9 @@ public class ThrottleProperties {
     private long gasPerSecond = 7_500_000_000L;
 
     @Min(1)
+    private long ipBucketCacheSize = 10_000;
+
+    @Min(1)
     private long opcodeRequestsPerSecond = 1;
 
     @NotNull
@@ -33,6 +36,9 @@ public class ThrottleProperties {
 
     @Min(1)
     private long requestsPerSecond = 500;
+
+    @Min(1)
+    private long requestsPerSecondPerIp = 20;
 
     // Necessary since bucket4j has a max capacity and fill rate of 1 token per nanosecond
     public long getGasPerSecond() {

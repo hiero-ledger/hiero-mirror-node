@@ -17,11 +17,15 @@ import org.hiero.mirror.web3.throttle.RequestFilter.FilterType;
 import org.hiero.mirror.web3.throttle.RequestProperties.ActionType;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 @ExtendWith(OutputCaptureExtension.class)
 final class ThrottleManagerImplTest {
@@ -49,8 +53,14 @@ final class ThrottleManagerImplTest {
         throttleProperties.setRequest(List.of(requestProperties));
         throttleProperties.setRequestsPerSecond(2);
         throttleProperties.setOpcodeRequestsPerSecond(1);
+        throttleProperties.setRequestsPerSecondPerIp(100);
 
         throttleManager = createThrottleManager();
+    }
+
+    @AfterEach
+    void tearDown() {
+        RequestContextHolder.resetRequestAttributes();
     }
 
     @Test
@@ -81,6 +91,44 @@ final class ThrottleManagerImplTest {
         request.setGas(21_000L);
         throttleManager.throttleOpcodeRequest();
         assertThatThrownBy(() -> throttleManager.throttleOpcodeRequest())
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    void throttlePerIpRateLimit() {
+        throttleProperties.setRequestsPerSecond(100);
+        throttleProperties.setRequestsPerSecondPerIp(1);
+        throttleManager = createThrottleManager();
+        var request = request();
+        request.setGas(21_000L);
+
+        withClientIp("10.0.0.1", () -> throttleManager.throttle(request));
+        assertThatThrownBy(() -> withClientIp("10.0.0.1", () -> throttleManager.throttle(request)))
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    void throttlePerIpDoesNotAffectOtherClients() {
+        throttleProperties.setRequestsPerSecond(100);
+        throttleProperties.setRequestsPerSecondPerIp(1);
+        throttleManager = createThrottleManager();
+        var request = request();
+        request.setGas(21_000L);
+
+        withClientIp("10.0.0.1", () -> throttleManager.throttle(request));
+        withClientIp("10.0.0.2", () -> throttleManager.throttle(request));
+    }
+
+    @Test
+    void throttleOpcodeRequestPerIpRateLimit() {
+        throttleProperties.setOpcodeRequestsPerSecond(100);
+        throttleProperties.setRequestsPerSecondPerIp(1);
+        throttleManager = createThrottleManager();
+
+        withClientIp("10.0.0.1", throttleManager::throttleOpcodeRequest);
+        assertThatThrownBy(() -> withClientIp("10.0.0.1", throttleManager::throttleOpcodeRequest))
                 .isInstanceOf(ThrottleException.class)
                 .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
     }
@@ -303,5 +351,16 @@ final class ThrottleManagerImplTest {
         var rateLimitBucket = createBucket(throttleProperties.getRequestsPerSecond());
         var opcodeRateLimitBucket = createBucket(throttleProperties.getOpcodeRequestsPerSecond());
         return new ThrottleManagerImpl(gasLimitBucket, rateLimitBucket, opcodeRateLimitBucket, throttleProperties);
+    }
+
+    private void withClientIp(String ip, Runnable action) {
+        var request = new MockHttpServletRequest();
+        request.setRemoteAddr(ip);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        try {
+            action.run();
+        } finally {
+            RequestContextHolder.resetRequestAttributes();
+        }
     }
 }

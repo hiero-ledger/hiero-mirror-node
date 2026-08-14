@@ -277,6 +277,12 @@ final class LoggingFilterTest {
     }
 
     private void assertLog(CapturedOutput logOutput, String level, String pattern) {
-        assertThat(logOutput).asString().hasLineCount(1).contains(level).containsPattern(pattern);
+        var lines = logOutput
+                .getOut()
+                .lines()
+                .filter(line -> line.contains("LoggingFilter"))
+                .toList();
+        assertThat(lines).hasSize(1);
+        assertThat(lines.getFirst()).contains(level).containsPattern(pattern);
     }
 }

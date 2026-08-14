@@ -71,6 +71,11 @@ public class EvmProperties {
     @Min(21_000L)
     private long maxGasLimit = 15_000_000L;
 
+    // Maximum tinybars the simulated Ethereum transaction payer will cover for gas.
+    @Min(1)
+    @Max(100_000_000_000_000L)
+    private long maxGasAllowance = 100_000_000_000_000L;
+
     // Maximum iteration count for estimate gas' search algorithm
     @Positive
     private int maxGasEstimateRetriesCount = 20;
