@@ -749,7 +749,8 @@ class OpcodesControllerTest {
                 final TransactionRepository transactionRepository,
                 final ContractResultRepository contractResultRepository,
                 final CommonEntityAccessor commonEntityAccessor,
-                final OpcodesProperties opcodesProperties) {
+                final OpcodesProperties opcodesProperties,
+                final MeterRegistry meterRegistry) {
             return new OpcodeServiceImpl(
                     recordFileService,
                     contractDebugService,
@@ -758,7 +759,8 @@ class OpcodesControllerTest {
                     transactionRepository,
                     contractResultRepository,
                     commonEntityAccessor,
-                    opcodesProperties);
+                    opcodesProperties,
+                    meterRegistry);
         }
 
         @Bean

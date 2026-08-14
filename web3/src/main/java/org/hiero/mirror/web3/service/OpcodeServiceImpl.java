@@ -10,10 +10,12 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Optional;
-import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
@@ -47,9 +49,10 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
 @Service
-@CustomLog
 @RequiredArgsConstructor
 public class OpcodeServiceImpl implements OpcodeService {
+
+    static final String OPCODES_METRIC = "hiero.mirror.web3.opcodes";
 
     private static final Address EMPTY_ADDRESS = Address.ZERO;
     private static final BigInteger ZERO = BigInteger.ZERO;
@@ -62,6 +65,15 @@ public class OpcodeServiceImpl implements OpcodeService {
     private final ContractResultRepository contractResultRepository;
     private final CommonEntityAccessor commonEntityAccessor;
     private final OpcodesProperties opcodesProperties;
+    private final MeterRegistry meterRegistry;
+    private Counter opcodesCounter;
+
+    @PostConstruct
+    void init() {
+        opcodesCounter = Counter.builder(OPCODES_METRIC)
+                .description("The cumulative number of opcodes executed across opcode trace requests")
+                .register(meterRegistry);
+    }
 
     @Override
     public OpcodesResponse processOpcodeCall(@NonNull OpcodeRequest opcodeRequest) {
@@ -73,13 +85,7 @@ public class OpcodeServiceImpl implements OpcodeService {
             ctx.setOpcodeContext(opcodeContext);
 
             final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
-            if (opcodeContext.isTruncated()) {
-                log.warn(
-                        "Opcode trace for {} truncated at {} of {} opcodes; raise hiero.mirror.web3.opcode.tracer.maxOpcodes to trace it fully",
-                        opcodeRequest.getTransactionIdOrHashParameter(),
-                        opcodesProperties.getMaxOpcodes(),
-                        opcodeContext.getExecutedOpcodes());
-            }
+            opcodesCounter.increment(opcodeContext.getExecutedOpcodes());
             return buildOpcodesResponse(result, params.getConsensusTimestamp());
         });
     }
