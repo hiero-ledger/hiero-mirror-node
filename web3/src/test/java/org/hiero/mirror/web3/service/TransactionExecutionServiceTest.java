@@ -554,8 +554,7 @@ class TransactionExecutionServiceTest {
             final var outputs = new SingleTransactionRecord.TransactionOutputs(null);
             final var singleRecord = new SingleTransactionRecord(transaction, record, List.of(), outputs);
 
-            when(transactionExecutor.execute(any(), any(), any(ActionSidecarContentTracer[].class)))
-                    .thenReturn(List.of(singleRecord));
+            when(transactionExecutor.execute(any(), any(), any())).thenReturn(List.of(singleRecord));
 
             final var params = buildServiceParams(false, HEX_PREFIX, sender, callType);
             final var result = transactionExecutionService.execute(params, DEFAULT_GAS);
@@ -594,8 +593,7 @@ class TransactionExecutionServiceTest {
             final var outputs = new SingleTransactionRecord.TransactionOutputs(null);
             final var singleRecord = new SingleTransactionRecord(transaction, record, List.of(), outputs);
 
-            when(transactionExecutor.execute(any(), any(), any(ActionSidecarContentTracer[].class)))
-                    .thenReturn(List.of(singleRecord));
+            when(transactionExecutor.execute(any(), any(), any())).thenReturn(List.of(singleRecord));
 
             final var params = buildServiceParams(false, HEX_PREFIX, sender);
             // Then
