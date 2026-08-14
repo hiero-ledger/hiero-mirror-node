@@ -10,6 +10,7 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Optional;
 import lombok.CustomLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -62,8 +63,9 @@ final class ContractStateServiceImpl implements ContractStateService {
 
         final var cachedValue = contractStateCache.get(generateCacheKey(contractId, key), byte[].class);
 
-        if (cachedValue != null && cachedValue != EMPTY_VALUE) {
-            return Optional.of(cachedValue);
+        if (cachedValue != null) {
+            // EMPTY_VALUE is the negative-cache sentinel for a slot known to have no value.
+            return cachedValue == EMPTY_VALUE ? Optional.empty() : Optional.of(cachedValue);
         }
 
         return findStorageBatch(contractId, key);
@@ -94,22 +96,52 @@ final class ContractStateServiceImpl implements ContractStateService {
         boolean isKeyEvictedFromCache = true;
 
         for (var slot : cachedSlotKeys) {
-            cachedSlots.add(((ByteBuffer) slot).array());
             if (wrappedKey.equals(slot)) {
                 isKeyEvictedFromCache = false;
             }
+            final var slotBytes = ((ByteBuffer) slot).array();
+            // Only fetch slots whose value is not already cached. Re-fetching already-cached slots on every miss is
+            // what grew each query to the whole accumulated set (O(n^2)); when the value cache is cold all known keys
+            // are uncached, so this still bulk-loads them in a single query.
+            if (contractStateCache.get(generateCacheKey(contractId, slotBytes), byte[].class) == null) {
+                cachedSlots.add(slotBytes);
+            }
         }
+
+        if (cachedSlots.isEmpty()) {
+            // Nothing new to load (e.g. the requested key was evicted from the slot-key cache). Fall back to the
+            // single-slot query, which resolves from the value cache when present.
+            return contractStateRepository.findStorage(contractId.getId(), key);
+        }
+
+        // Diagnostic (test-only, revert before merge): querySlots is the size of the IN(...) list actually sent to the
+        // DB, knownSlots is the total accumulated slot set for the contract. With the uncached-only fix querySlots
+        // stays small while knownSlots grows (O(n)); one line == one DB batch query.
+        log.info(
+                "findStorageBatch contractId={} querySlots={} knownSlots={}",
+                contractId,
+                cachedSlots.size(),
+                cachedSlotKeys.size());
 
         final var contractSlotValues = contractStateRepository.findStorageBatch(contractId.getId(), cachedSlots);
         byte[] cachedValue = null;
+        final var populatedSlots = new HashSet<ByteBuffer>(contractSlotValues.size());
 
         for (final var contractSlotValue : contractSlotValues) {
             final byte[] slotKey = contractSlotValue.getSlot();
             final byte[] slotValue = contractSlotValue.getValue();
             contractStateCache.put(generateCacheKey(contractId, slotKey), slotValue);
+            populatedSlots.add(ByteBuffer.wrap(slotKey));
 
             if (Arrays.equals(slotKey, key)) {
                 cachedValue = slotValue;
+            }
+        }
+
+        // Negatively cache the queried slots that returned no row, so empty slots stop re-triggering the batch.
+        for (final var slot : cachedSlots) {
+            if (!populatedSlots.contains(ByteBuffer.wrap(slot))) {
+                contractStateCache.put(generateCacheKey(contractId, slot), EMPTY_VALUE);
             }
         }
 
