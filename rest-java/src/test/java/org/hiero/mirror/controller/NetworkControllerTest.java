@@ -14,7 +14,6 @@ import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import com.hederahashgraph.api.proto.java.FeeComponents;
 import com.hederahashgraph.api.proto.java.FeeData;
-import com.hederahashgraph.api.proto.java.FeeSchedule;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
@@ -31,6 +30,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.hapi.support.fees.VariableRateDefinition;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -51,6 +51,7 @@ import org.hiero.mirror.rest.model.NetworkNodesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.rest.model.NetworkSupplyResponse;
 import org.hiero.mirror.rest.model.RegisteredNodesResponse;
+import org.hiero.mirror.restjava.RestJavaProperties.HederaNetwork;
 import org.hiero.mirror.restjava.common.Constants;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.config.NetworkProperties;
@@ -273,8 +274,8 @@ final class NetworkControllerTest extends ControllerTest {
     @Nested
     final class FeesEndpointTest extends EndpointTest {
 
-        private static final long CURRENT_RATE_EXPIRATION_NANOS = 1759951090L * DomainUtils.NANOS_PER_SECOND;
         private final EntityId feeFileId = systemEntity.feeScheduleFile();
+        private final EntityId simpleFeeFileId = systemEntity.simpleFeeScheduleFile();
         private final EntityId exchangeRateFileId = systemEntity.exchangeRateFile();
         private long feeFileTimestampSeq = 0;
 
@@ -285,9 +286,9 @@ final class NetworkControllerTest extends ControllerTest {
 
         @Override
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
-            final var feeSchedule = feeSchedule();
+            final var feeSchedule = simpleFeeSchedule();
             final var exchangeRateSet = exchangeRateSet(1);
-            feeScheduleFile(feeSchedule.toByteArray());
+            simpleFeeScheduleFile(toFeeScheduleBytes(feeSchedule));
             exchangeRateFile(exchangeRateSet.toByteArray());
             return uriSpec.uri("");
         }
@@ -295,7 +296,7 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void success() {
             // given
-            final var feeSchedule = systemFileFee();
+            final var feeSchedule = systemFileSimpleFee();
             final var exchangeRate = systemFileExchangeRate();
             final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Bound.EMPTY, Sort.Direction.ASC);
 
@@ -307,9 +308,80 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         @Test
+        void successLegacy() {
+            // given
+            final long timestamp = HederaNetwork.MAINNET.getSimpleFeesTimestamp() - 10_000L;
+            final var formattedTimestamp = commonMapper.mapTimestamp(timestamp);
+            final var legacyFeeScheduleFile = systemFileFee();
+            final var simpleFeeSchedule = feeScheduleMapper.map(legacyFeeScheduleFile.data(), timestamp);
+            final var feeScheduleFile = new SystemFile<>(legacyFeeScheduleFile.fileData(), simpleFeeSchedule);
+            final var exchangeRateSet = exchangeRateSet(1);
+            final var exchangeRateFile = domainBuilder
+                    .fileData()
+                    .customize(f -> f.entityId(exchangeRateFileId)
+                            .fileData(exchangeRateSet.toByteArray())
+                            .consensusTimestamp(timestamp - 1))
+                    .persist();
+            final var exchangeRate = new SystemFile<>(exchangeRateFile, exchangeRateSet);
+            final var expected = feeScheduleMapper.map(
+                    feeScheduleFile, exchangeRate, boundForTimestamp(timestamp), Sort.Direction.ASC);
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?timestamp=" + formattedTimestamp)
+                    .retrieve()
+                    .body(NetworkFeesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull().isEqualTo(expected);
+        }
+
+        @Test
+        void fallbackRecoversToLegacyFeeSchedule() {
+            // given — legacy timestamp prior to switchover
+            final long timestamp = HederaNetwork.MAINNET.getSimpleFeesTimestamp() - 10_000L;
+            final var formattedTimestamp = commonMapper.mapTimestamp(timestamp);
+
+            // Persist a corrupt simple fee schedule file at a newer timestamp so it gets attempted first
+            domainBuilder
+                    .fileData()
+                    .customize(f -> f.entityId(simpleFeeFileId)
+                            .fileData(domainBuilder.bytes(100))
+                            .consensusTimestamp(timestamp + 10L))
+                    .persist();
+
+            // Persist a valid legacy fee schedule file and exchange rate file at the target timestamp
+            final var legacyFeeScheduleFile = systemFileFee();
+            final var simpleFeeSchedule = feeScheduleMapper.map(legacyFeeScheduleFile.data(), timestamp);
+            final var feeScheduleFile = new SystemFile<>(legacyFeeScheduleFile.fileData(), simpleFeeSchedule);
+
+            final var exchangeRateSet = exchangeRateSet(1);
+            final var exchangeRateFile = domainBuilder
+                    .fileData()
+                    .customize(f -> f.entityId(exchangeRateFileId)
+                            .fileData(exchangeRateSet.toByteArray())
+                            .consensusTimestamp(timestamp - 1L))
+                    .persist();
+            final var exchangeRate = new SystemFile<>(exchangeRateFile, exchangeRateSet);
+            final var expected = feeScheduleMapper.map(
+                    feeScheduleFile, exchangeRate, boundForTimestamp(timestamp), Sort.Direction.ASC);
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?timestamp=" + formattedTimestamp)
+                    .retrieve()
+                    .body(NetworkFeesResponse.class);
+
+            // then — verifies that the corrupt simple fee schedule was bypassed and legacy fees were mapped
+            assertThat(actual).isNotNull().isEqualTo(expected);
+        }
+
+        @Test
         void successWithOrder() {
             // given
-            final var feeSchedule = systemFileFee();
+            final var feeSchedule = systemFileSimpleFee();
             final var exchangeRate = systemFileExchangeRate();
             final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Bound.EMPTY, Sort.Direction.DESC);
 
@@ -327,10 +399,10 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void fallbackRecovers() {
             // given
-            final var feeSchedule = systemFileFee();
+            final var feeSchedule = systemFileSimpleFee();
             final var exchangeRate = systemFileExchangeRate();
             final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Bound.EMPTY, Sort.Direction.ASC);
-            feeScheduleFile(domainBuilder.bytes(100)); // The latest file is corrupt and is skipped
+            simpleFeeScheduleFile(domainBuilder.bytes(100)); // The latest file is corrupt and is skipped
 
             // when
             final var actual = restClient.get().uri("").retrieve().body(NetworkFeesResponse.class);
@@ -363,11 +435,11 @@ final class NetworkControllerTest extends ControllerTest {
         void timestampBounds(String parameters, int expectedIndex) {
             // given - create matching pairs of exchange rates and fee schedules
             final var exchangeRate0 = systemFileExchangeRate();
-            final var fee0 = systemFileFee();
+            final var fee0 = systemFileSimpleFee();
             final var exchangeRate1 = systemFileExchangeRate();
-            final var fee1 = systemFileFee();
+            final var fee1 = systemFileSimpleFee();
             final var exchangeRate2 = systemFileExchangeRate();
-            final var fee2 = systemFileFee();
+            final var fee2 = systemFileSimpleFee();
             // Create one more exchange rate after fee2 to handle gte queries on fee2
             final var exchangeRate3 = systemFileExchangeRate();
 
@@ -428,11 +500,11 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void fallbackRetriesExceeded() {
             // given
-            systemFileFee(); // Create valid file first
+            systemFileSimpleFee(); // Create valid file first
             systemFileExchangeRate(); // Create valid exchange rate
             // Add 10 corrupt files - retry logic will fail before reaching the valid file
             for (int i = 0; i < queryProperties.getMaxFileAttempts(); i++) {
-                feeScheduleFile(domainBuilder.bytes(100));
+                simpleFeeScheduleFile(domainBuilder.bytes(100));
                 exchangeRateFile(exchangeRateSet(1).toByteArray());
             }
 
@@ -440,17 +512,17 @@ final class NetworkControllerTest extends ControllerTest {
             validateError(
                     () -> restClient.get().uri("").retrieve().toEntity(String.class),
                     HttpClientErrorException.NotFound.class,
-                    "File %s not found".formatted(feeFileId));
+                    "File %s not found".formatted(simpleFeeFileId));
         }
 
         @Test
         void unserializableContents() {
-            feeScheduleFile(domainBuilder.bytes(100));
+            simpleFeeScheduleFile(domainBuilder.bytes(100));
             exchangeRateFile(exchangeRateSet(1).toByteArray());
             validateError(
                     () -> restClient.get().uri("").retrieve().toEntity(String.class),
                     HttpClientErrorException.NotFound.class,
-                    "File %s not found".formatted(feeFileId));
+                    "File %s not found".formatted(simpleFeeFileId));
         }
 
         @Test
@@ -458,7 +530,7 @@ final class NetworkControllerTest extends ControllerTest {
             validateError(
                     () -> restClient.get().uri("").retrieve().toEntity(String.class),
                     HttpClientErrorException.NotFound.class,
-                    "File %s not found".formatted(feeFileId));
+                    "File %s not found".formatted(simpleFeeFileId));
         }
 
         @Disabled("Both GET and POST are supported on /network/fees")
@@ -469,17 +541,23 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private FileData feeScheduleFile(final byte[] bytes) {
-            final var timestamp =
-                    CURRENT_RATE_EXPIRATION_NANOS - DomainUtils.NANOS_PER_SECOND + (feeFileTimestampSeq++);
+            final var timestamp = HederaNetwork.MAINNET.getSimpleFeesTimestamp() - 10_000 + (feeFileTimestampSeq++);
             return domainBuilder
                     .fileData()
                     .customize(f -> f.entityId(feeFileId).fileData(bytes).consensusTimestamp(timestamp))
                     .persist();
         }
 
+        private FileData simpleFeeScheduleFile(final byte[] bytes) {
+            final var timestamp = HederaNetwork.MAINNET.getSimpleFeesTimestamp() + (feeFileTimestampSeq++);
+            return domainBuilder
+                    .fileData()
+                    .customize(f -> f.entityId(simpleFeeFileId).fileData(bytes).consensusTimestamp(timestamp))
+                    .persist();
+        }
+
         private FileData exchangeRateFile(final byte[] bytes) {
-            final var timestamp =
-                    CURRENT_RATE_EXPIRATION_NANOS - DomainUtils.NANOS_PER_SECOND + (feeFileTimestampSeq++);
+            final var timestamp = HederaNetwork.MAINNET.getSimpleFeesTimestamp() + (feeFileTimestampSeq++);
             return domainBuilder
                     .fileData()
                     .customize(
@@ -494,9 +572,18 @@ final class NetworkControllerTest extends ControllerTest {
                     org.hiero.mirror.restjava.jooq.domain.tables.FileData.FILE_DATA.CONSENSUS_TIMESTAMP);
         }
 
+        private org.hiero.hapi.support.fees.FeeSchedule simpleFeeSchedule() {
+            return org.hiero.hapi.support.fees.FeeSchedule.newBuilder()
+                    .extras(org.hiero.hapi.support.fees.ExtraFeeDefinition.newBuilder()
+                            .name(org.hiero.hapi.support.fees.Extra.GAS)
+                            .fee(852L)
+                            .build())
+                    .build();
+        }
+
         private CurrentAndNextFeeSchedule feeSchedule() {
             return CurrentAndNextFeeSchedule.newBuilder()
-                    .setCurrentFeeSchedule(FeeSchedule.newBuilder()
+                    .setCurrentFeeSchedule(com.hederahashgraph.api.proto.java.FeeSchedule.newBuilder()
                             .addTransactionFeeSchedule(TransactionFeeSchedule.newBuilder()
                                     .setHederaFunctionality(HederaFunctionality.ContractCall)
                                     .addFees(FeeData.newBuilder()
@@ -525,6 +612,12 @@ final class NetworkControllerTest extends ControllerTest {
                     .build();
         }
 
+        private byte[] toFeeScheduleBytes(org.hiero.hapi.support.fees.FeeSchedule feeSchedule) {
+            return org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF
+                    .toBytes(feeSchedule)
+                    .toByteArray();
+        }
+
         private ExchangeRateSet exchangeRateSet(int hbars) {
             return ExchangeRateSet.newBuilder()
                     .setCurrentRate(ExchangeRate.newBuilder()
@@ -541,6 +634,11 @@ final class NetworkControllerTest extends ControllerTest {
         private SystemFile<CurrentAndNextFeeSchedule> systemFileFee() {
             final var feeSchedule = feeSchedule();
             return new SystemFile<>(feeScheduleFile(feeSchedule.toByteArray()), feeSchedule);
+        }
+
+        private SystemFile<FeeSchedule> systemFileSimpleFee() {
+            final var feeSchedule = simpleFeeSchedule();
+            return new SystemFile<>(simpleFeeScheduleFile(toFeeScheduleBytes(feeSchedule)), feeSchedule);
         }
 
         private SystemFile<ExchangeRateSet> systemFileExchangeRate() {

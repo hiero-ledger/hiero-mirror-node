@@ -2499,6 +2499,27 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void onTokenEmptyTreasury() {
+        // given
+        final var tokenCreate = domainBuilder.token().get();
+        final var tokenUpdate = tokenCreate.toBuilder()
+                .timestampRange(Range.atLeast(tokenCreate.getTimestampLower() + 1))
+                .treasuryAccountId(EntityId.EMPTY)
+                .build();
+        final var tokenMerged = tokenUpdate.toBuilder()
+                .treasuryAccountId(tokenCreate.getTreasuryAccountId())
+                .build();
+
+        // when
+        sqlEntityListener.onToken(tokenCreate);
+        sqlEntityListener.onToken(tokenUpdate);
+        completeFileAndCommit();
+
+        // then
+        assertThat(tokenRepository.findAll()).containsExactly(tokenMerged);
+    }
+
+    @Test
     void onTokenMerge() {
         // given
         var tokenCreate = domainBuilder.token().get();

@@ -804,6 +804,22 @@ class RecordItemTest {
     }
 
     @Test
+    void testAddContractTransactionEmpty() {
+        final var recordItem = RecordItem.builder()
+                .contractTransactionPredicate(_ -> true)
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transactionRecord(TRANSACTION_RECORD)
+                .transaction(DEFAULT_TRANSACTION)
+                .build();
+        recordItem.addContractTransaction(EntityId.EMPTY);
+        assertThat(recordItem.populateContractTransactions())
+                .hasSize(1)
+                .first()
+                .extracting(ContractTransaction::getEntityId)
+                .isEqualTo(0L);
+    }
+
+    @Test
     void testAddContractTransactionDisabled() {
         var random = new SecureRandom();
         long id = random.nextLong(2000) + 2000L;

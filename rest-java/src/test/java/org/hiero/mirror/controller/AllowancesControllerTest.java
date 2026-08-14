@@ -384,7 +384,11 @@ final class AllowancesControllerTest extends ControllerTest {
             "?owner=true&token.id=gt:0.0.1000&limit=1&order=asc,token.id parameter must have account.id present",
             "?owner=true&account.id=gte:0.0.1000&token.id=ne:0.0.1000&limit=1&order=asc,Unsupported range operator ne for token.id",
             "?owner=true&account.id=gte:0.0.1000&account.id=lte:0.0.999&token.id=eq:0.0.1000&limit=1&order=asc,Invalid range provided for account.id",
-            "?owner=true&account.id=gte:0.0.1000&token.id=gt:0.0.1000&&token.id=lt:0.0.800&limit=1&order=asc,Invalid range provided for token.id"
+            "?owner=true&account.id=gte:0.0.1000&token.id=gt:0.0.1000&&token.id=lt:0.0.800&limit=1&order=asc,Invalid range provided for token.id",
+            // gt at the max encodable id (Long.MAX_VALUE) would overflow the inclusive bound
+            "?owner=true&account.id=gt:511.65535.274877906943&limit=1&order=asc,Invalid range",
+            // shard 512 encodes to a negative id (rejected at parse); gt on it would otherwise match the whole id space
+            "?owner=true&account.id=gt:512.0.0&limit=1&order=asc,Failed to convert 'account.id'"
         })
         void invalidRange(String uriParams, String message) {
             // Given

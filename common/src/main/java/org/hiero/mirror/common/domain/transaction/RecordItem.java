@@ -147,9 +147,8 @@ public class RecordItem implements StreamItem {
     }
 
     public void addContractTransaction(EntityId entityId) {
-        if (EntityId.isEmpty(entityId)
-                || contractTransactionPredicate == null
-                || !contractTransactionPredicate.test(entityId)) {
+        // Explicitly allow empty entity IDs for failed transactions
+        if (contractTransactionPredicate == null || !contractTransactionPredicate.test(entityId)) {
             return;
         }
         getContractTransactions().computeIfAbsent(entityId.getId(), key -> ContractTransaction.builder()

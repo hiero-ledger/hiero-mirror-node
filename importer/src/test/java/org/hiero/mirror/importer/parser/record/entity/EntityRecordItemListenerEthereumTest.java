@@ -17,13 +17,16 @@ import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
+import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.contract.ContractResult;
+import org.hiero.mirror.common.domain.contract.ContractTransaction;
 import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -31,6 +34,7 @@ import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.ethereum.LegacyEthereumTransactionParserTest;
+import org.hiero.mirror.importer.repository.ContractTransactionRepository;
 import org.hiero.mirror.importer.repository.EthereumTransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,6 +49,7 @@ class EntityRecordItemListenerEthereumTest extends AbstractEntityRecordItemListe
     private static final Version HAPI_VERSION_0_46_0 = new Version(0, 46, 0);
     private static final long SIGNER_NONCE = 10L;
 
+    private final ContractTransactionRepository contractTransactionRepository;
     private final EthereumTransactionRepository ethereumTransactionRepository;
 
     private static Stream<Arguments> provideSignerNonceArguments() {
@@ -228,6 +233,44 @@ class EntityRecordItemListenerEthereumTest extends AbstractEntityRecordItemListe
                 .returns(expectedHash, EthereumTransaction::getHash)
                 .returns(body.getMaxGasAllowance(), EthereumTransaction::getMaxGasAllowance);
         softly.assertThat(transactionRepository.count()).isOne();
+    }
+
+    @Test
+    void ethereumTransactionNoContractId() {
+        // given
+        final var result = ResponseCodeEnum.INSUFFICIENT_GAS;
+        final var recordItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .record(r -> r.setContractCreateResult(
+                        r.getContractCreateResultBuilder().clearContractID().clearLogInfo()))
+                .record(r -> r.getReceiptBuilder().setStatus(result))
+                .sidecarRecords(List::clear)
+                .build();
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var contractIds = List.of(0L, recordItem.getPayerAccountId().getId());
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        softly.assertThat(contractResultRepository.findAll())
+                .hasSize(1)
+                .first()
+                .returns(consensusTimestamp, ContractResult::getConsensusTimestamp)
+                .returns(0L, ContractResult::getContractId);
+        softly.assertThat(contractTransactionRepository.findAll())
+                .hasSize(2)
+                .allSatisfy(ct -> assertThat(ct)
+                        .returns(consensusTimestamp, ContractTransaction::getConsensusTimestamp)
+                        .returns(contractIds, ContractTransaction::getContractIds)
+                        .returns(recordItem.getPayerAccountId().getId(), ContractTransaction::getPayerAccountId))
+                .anyMatch(ct -> ct.getEntityId() == 0L);
+        softly.assertThat(contractTransactionHashRepository.findAll())
+                .hasSize(1)
+                .first()
+                .returns(consensusTimestamp, ContractTransactionHash::getConsensusTimestamp)
+                .returns(0L, ContractTransactionHash::getEntityId)
+                .returns(recordItem.getPayerAccountId().getId(), ContractTransactionHash::getPayerAccountId)
+                .returns(result.getNumber(), ContractTransactionHash::getTransactionResult);
     }
 
     @Test

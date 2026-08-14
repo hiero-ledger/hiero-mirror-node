@@ -1165,6 +1165,27 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
     }
 
     @Test
+    void tokenUpdateWithEmptyTreasury() {
+        final var tokenCreate = recordItemBuilder.tokenCreate().build();
+        final var tokenId = tokenCreate.getTransactionRecord().getReceipt().getTokenID();
+        final var tokenUpdate = recordItemBuilder
+                .tokenUpdate()
+                .transactionBody(b -> b.setToken(tokenId).setTreasury(AccountID.getDefaultInstance()))
+                .build();
+
+        parseRecordItemsAndCommit(List.of(tokenCreate, tokenUpdate));
+
+        assertThat(tokenRepository.findAll())
+                .hasSize(1)
+                .first()
+                .extracting(Token::getTreasuryAccountId)
+                .isNotNull()
+                .isNotEqualTo(EntityId.EMPTY)
+                .isEqualTo(EntityId.of(
+                        tokenCreate.getTransactionBody().getTokenCreation().getTreasury()));
+    }
+
+    @Test
     void tokenPause() {
         createAndAssociateToken(
                 TOKEN_ID,
@@ -2890,6 +2911,73 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
     }
 
     @Test
+    void nftTransferWithAliasSenderHasCorrectIsApprovalValue() {
+        // given: the NFT's owner (sender of the approved transfer) is alias-identified in the body
+        createAndAssociateToken(
+                TOKEN_ID,
+                NON_FUNGIBLE_UNIQUE,
+                SYMBOL,
+                CREATE_TIMESTAMP,
+                ASSOCIATE_TIMESTAMP,
+                PAYER2,
+                false,
+                false,
+                false,
+                TokenFreezeStatusEnum.NOT_APPLICABLE,
+                TokenKycStatusEnum.NOT_APPLICABLE,
+                TokenPauseStatusEnum.NOT_APPLICABLE,
+                0);
+
+        Entity owner = domainBuilder.entity().persist();
+        var ownerAccountId = owner.toEntityId().toAccountID();
+        var ownerAlias = DomainUtils.fromBytes(owner.getAlias());
+
+        long mintTimestamp = 20L;
+        TokenTransferList mintTransfer =
+                nftTransfer(TOKEN_ID, ownerAccountId, DEFAULT_ACCOUNT_ID, List.of(SERIAL_NUMBER_1));
+        Transaction mintTransaction =
+                tokenSupplyTransaction(TOKEN_ID, NON_FUNGIBLE_UNIQUE, true, 0, List.of(SERIAL_NUMBER_1));
+        insertAndParseTransaction(mintTimestamp, mintTransaction, builder -> {
+            builder.getReceiptBuilder().setNewTotalSupply(1L).addSerialNumbers(SERIAL_NUMBER_1);
+            builder.addTokenTransferLists(mintTransfer);
+        });
+
+        // when
+        Transaction transaction = buildTransaction(builder -> {
+            TokenTransferList bodyTransferList = TokenTransferList.newBuilder()
+                    .setToken(TOKEN_ID)
+                    .addNftTransfers(NftTransfer.newBuilder()
+                            .setReceiverAccountID(RECEIVER)
+                            .setSenderAccountID(AccountID.newBuilder()
+                                    .setShardNum(ownerAccountId.getShardNum())
+                                    .setRealmNum(ownerAccountId.getRealmNum())
+                                    .setAlias(ownerAlias))
+                            .setSerialNumber(SERIAL_NUMBER_1)
+                            .setIsApproval(true)
+                            .build())
+                    .build();
+            builder.getCryptoTransferBuilder().addTokenTransfers(bodyTransferList);
+        });
+
+        long transferTimestamp = 40L;
+        insertAndParseTransaction(
+                transferTimestamp,
+                transaction,
+                builder -> builder.addTokenTransferLists(TokenTransferList.newBuilder()
+                        .setToken(TOKEN_ID)
+                        .addNftTransfers(NftTransfer.newBuilder()
+                                .setReceiverAccountID(RECEIVER)
+                                .setSenderAccountID(ownerAccountId)
+                                .setSerialNumber(SERIAL_NUMBER_1)
+                                .build())
+                        .build()));
+
+        // then
+        assertNftTransferInRepository(
+                transferTimestamp, domainNftTransfer(RECEIVER, ownerAccountId, SERIAL_NUMBER_1, TOKEN_ID, true));
+    }
+
+    @Test
     void nftTransferMissingNft() {
         createAndAssociateToken(
                 TOKEN_ID,
@@ -3048,6 +3136,207 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
     }
 
     @Test
+    void tokenTransferWithAliasOwnerHasCorrectIsApprovalValue() {
+        // given
+        entityProperties.getPersist().setTrackAllowance(true);
+
+        Entity owner = domainBuilder.entity().persist();
+        var ownerAccountId = owner.toEntityId().toAccountID();
+        var ownerAlias = DomainUtils.fromBytes(owner.getAlias());
+
+        createAndAssociateToken(
+                TOKEN_ID,
+                FUNGIBLE_COMMON,
+                SYMBOL,
+                CREATE_TIMESTAMP,
+                ASSOCIATE_TIMESTAMP,
+                ownerAccountId,
+                false,
+                false,
+                false,
+                TokenFreezeStatusEnum.NOT_APPLICABLE,
+                TokenKycStatusEnum.NOT_APPLICABLE,
+                TokenPauseStatusEnum.NOT_APPLICABLE,
+                INITIAL_SUPPLY);
+
+        // approve allowance for fungible token
+        var allowanceAmount = INITIAL_SUPPLY / 4L;
+        var cryptoApproveAllowanceTransaction = buildTransaction(b -> b.getCryptoApproveAllowanceBuilder()
+                .addTokenAllowances(TokenAllowance.newBuilder()
+                        .setTokenId(TOKEN_ID)
+                        .setOwner(ownerAccountId)
+                        .setSpender(PAYER)
+                        .setAmount(allowanceAmount)));
+        insertAndParseTransaction(ALLOWANCE_TIMESTAMP, cryptoApproveAllowanceTransaction);
+
+        // fund the owner so it has tokens to debit
+        TokenTransferList fundingTransferList = TokenTransferList.newBuilder()
+                .setToken(TOKEN_ID)
+                .addTransfers(AccountAmount.newBuilder()
+                        .setAccountID(PAYER2)
+                        .setAmount(-100)
+                        .build())
+                .addTransfers(AccountAmount.newBuilder()
+                        .setAccountID(ownerAccountId)
+                        .setAmount(100)
+                        .build())
+                .build();
+        Transaction fundingTransaction =
+                buildTransaction(builder -> builder.getCryptoTransferBuilder().addTokenTransfers(fundingTransferList));
+        insertAndParseTransaction(
+                CREATE_TIMESTAMP + 2,
+                fundingTransaction,
+                builder -> builder.addTokenTransferLists(fundingTransferList));
+
+        // when
+        long transferAmount = -50L;
+        Transaction transaction = buildTransaction(builder -> {
+            TokenTransferList bodyTransferList = TokenTransferList.newBuilder()
+                    .setToken(TOKEN_ID)
+                    .addTransfers(AccountAmount.newBuilder()
+                            .setAccountID(AccountID.newBuilder()
+                                    .setShardNum(ownerAccountId.getShardNum())
+                                    .setRealmNum(ownerAccountId.getRealmNum())
+                                    .setAlias(ownerAlias))
+                            .setAmount(transferAmount)
+                            .setIsApproval(true)
+                            .build())
+                    .addTransfers(AccountAmount.newBuilder()
+                            .setAccountID(PAYER2)
+                            .setAmount(-transferAmount)
+                            .build())
+                    .build();
+            builder.getCryptoTransferBuilder().addTokenTransfers(bodyTransferList);
+        });
+        TokenTransferList recordTransferList = TokenTransferList.newBuilder()
+                .setToken(TOKEN_ID)
+                .addTransfers(AccountAmount.newBuilder()
+                        .setAccountID(ownerAccountId)
+                        .setAmount(transferAmount)
+                        .build())
+                .addTransfers(AccountAmount.newBuilder()
+                        .setAccountID(PAYER2)
+                        .setAmount(-transferAmount)
+                        .build())
+                .build();
+        insertAndParseTransaction(
+                TRANSFER_TIMESTAMP, transaction, builder -> builder.addTokenTransferLists(recordTransferList));
+
+        // then
+        assertTokenTransferInRepository(TOKEN_ID, ownerAccountId, TRANSFER_TIMESTAMP, transferAmount, true);
+        assertTokenAllowanceInRepository(
+                TOKEN_ID,
+                ownerAccountId,
+                PAYER,
+                allowanceAmount,
+                allowanceAmount + transferAmount,
+                ALLOWANCE_TIMESTAMP);
+    }
+
+    @Test
+    void tokenTransferWithAliasOwnerAndAssessedFeeHasCorrectIsApprovalValue() {
+        // given: alias-identified owner plus an assessed fee, so neither alias nor amount can match body to
+        // record; only identity resolution can.
+        entityProperties.getPersist().setTrackAllowance(true);
+
+        Entity owner = domainBuilder.entity().persist();
+        var ownerAccountId = owner.toEntityId().toAccountID();
+        var ownerAlias = DomainUtils.fromBytes(owner.getAlias());
+
+        createAndAssociateToken(
+                TOKEN_ID,
+                FUNGIBLE_COMMON,
+                SYMBOL,
+                CREATE_TIMESTAMP,
+                ASSOCIATE_TIMESTAMP,
+                ownerAccountId,
+                false,
+                false,
+                false,
+                TokenFreezeStatusEnum.NOT_APPLICABLE,
+                TokenKycStatusEnum.NOT_APPLICABLE,
+                TokenPauseStatusEnum.NOT_APPLICABLE,
+                INITIAL_SUPPLY);
+
+        var allowanceAmount = INITIAL_SUPPLY / 4L;
+        var cryptoApproveAllowanceTransaction = buildTransaction(b -> b.getCryptoApproveAllowanceBuilder()
+                .addTokenAllowances(TokenAllowance.newBuilder()
+                        .setTokenId(TOKEN_ID)
+                        .setOwner(ownerAccountId)
+                        .setSpender(PAYER)
+                        .setAmount(allowanceAmount)));
+        insertAndParseTransaction(ALLOWANCE_TIMESTAMP, cryptoApproveAllowanceTransaction);
+
+        TokenTransferList fundingTransferList = TokenTransferList.newBuilder()
+                .setToken(TOKEN_ID)
+                .addTransfers(AccountAmount.newBuilder()
+                        .setAccountID(PAYER2)
+                        .setAmount(-100)
+                        .build())
+                .addTransfers(AccountAmount.newBuilder()
+                        .setAccountID(ownerAccountId)
+                        .setAmount(100)
+                        .build())
+                .build();
+        Transaction fundingTransaction =
+                buildTransaction(builder -> builder.getCryptoTransferBuilder().addTokenTransfers(fundingTransferList));
+        insertAndParseTransaction(
+                CREATE_TIMESTAMP + 2,
+                fundingTransaction,
+                builder -> builder.addTokenTransferLists(fundingTransferList));
+
+        // when: body approves -50, consensus assesses an additional -10 fee, so the record nets -60
+        long approvedAmount = -50L;
+        long assessedFee = -10L;
+        long recordAmount = approvedAmount + assessedFee;
+        Transaction transaction = buildTransaction(builder -> {
+            TokenTransferList bodyTransferList = TokenTransferList.newBuilder()
+                    .setToken(TOKEN_ID)
+                    .addTransfers(AccountAmount.newBuilder()
+                            .setAccountID(AccountID.newBuilder()
+                                    .setShardNum(ownerAccountId.getShardNum())
+                                    .setRealmNum(ownerAccountId.getRealmNum())
+                                    .setAlias(ownerAlias))
+                            .setAmount(approvedAmount)
+                            .setIsApproval(true)
+                            .build())
+                    .addTransfers(AccountAmount.newBuilder()
+                            .setAccountID(PAYER2)
+                            .setAmount(-approvedAmount)
+                            .build())
+                    .build();
+            builder.getCryptoTransferBuilder().addTokenTransfers(bodyTransferList);
+        });
+        TokenTransferList recordTransferList = TokenTransferList.newBuilder()
+                .setToken(TOKEN_ID)
+                .addTransfers(AccountAmount.newBuilder()
+                        .setAccountID(ownerAccountId)
+                        .setAmount(recordAmount)
+                        .build())
+                .addTransfers(AccountAmount.newBuilder()
+                        .setAccountID(PAYER2)
+                        .setAmount(-approvedAmount)
+                        .build())
+                .addTransfers(AccountAmount.newBuilder()
+                        .setAccountID(FEE_COLLECTOR_ACCOUNT_ID_1.toAccountID())
+                        .setAmount(-assessedFee)
+                        .build())
+                .build();
+        insertAndParseTransaction(
+                TRANSFER_TIMESTAMP, transaction, builder -> builder.addTokenTransferLists(recordTransferList));
+
+        // then: allowance is decremented by the body's approved amount, not the record's fee-inclusive net
+        assertTokenTransferInRepository(TOKEN_ID, ownerAccountId, TRANSFER_TIMESTAMP, recordAmount, true);
+        assertTokenAllowanceInRepository(
+                TOKEN_ID,
+                ownerAccountId,
+                PAYER,
+                allowanceAmount,
+                allowanceAmount + approvedAmount,
+                ALLOWANCE_TIMESTAMP);
+    }
+
+    @Test
     void tokenTransferWithApprovalViaContract() {
         entityProperties.getPersist().setTrackAllowance(true);
         // given
@@ -3106,6 +3395,86 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         assertTokenTransferInRepository(TOKEN_ID, accountId, TRANSFER_TIMESTAMP, 1000);
         assertTokenAllowanceInRepository(
                 TOKEN_ID, PAYER2, PAYER, allowanceAmount, allowanceAmount - 1000L, ALLOWANCE_TIMESTAMP);
+    }
+
+    @Test
+    void tokenTransferWithApprovalViaContractAndAliasOwner() {
+        // given: same shape as tokenTransferWithApprovalViaContract, but the owner is alias-identified
+        entityProperties.getPersist().setTrackAllowance(true);
+
+        Entity owner = domainBuilder.entity().persist();
+        var ownerAccountId = owner.toEntityId().toAccountID();
+        var ownerAlias = DomainUtils.fromBytes(owner.getAlias());
+
+        createAndAssociateToken(
+                TOKEN_ID,
+                FUNGIBLE_COMMON,
+                SYMBOL,
+                CREATE_TIMESTAMP,
+                ASSOCIATE_TIMESTAMP,
+                ownerAccountId,
+                false,
+                false,
+                false,
+                TokenFreezeStatusEnum.NOT_APPLICABLE,
+                TokenKycStatusEnum.NOT_APPLICABLE,
+                TokenPauseStatusEnum.NOT_APPLICABLE,
+                INITIAL_SUPPLY);
+
+        var allowanceAmount = INITIAL_SUPPLY / 4L;
+        var cryptoApproveAllowanceTransaction = buildTransaction(b -> b.getCryptoApproveAllowanceBuilder()
+                .addTokenAllowances(TokenAllowance.newBuilder()
+                        .setTokenId(TOKEN_ID)
+                        .setOwner(ownerAccountId)
+                        .setSpender(PAYER)
+                        .setAmount(allowanceAmount)));
+        insertAndParseTransaction(ALLOWANCE_TIMESTAMP, cryptoApproveAllowanceTransaction);
+
+        AccountID receiverAccountId = AccountID.newBuilder().setAccountNum(1).build();
+
+        // when: a contract-dispatched transfer debits the alias-identified owner via the allowance
+        TokenTransferList transferList1 = TokenTransferList.newBuilder()
+                .setToken(TOKEN_ID)
+                .addTransfers(AccountAmount.newBuilder()
+                        .setAccountID(receiverAccountId)
+                        .setAmount(1000)
+                        .build())
+                .addTransfers(AccountAmount.newBuilder()
+                        .setAccountID(ownerAccountId)
+                        .setAmount(-1000)
+                        .build())
+                .build();
+
+        Transaction transaction = buildTransaction(builder -> {
+            TokenTransferList bodyTransferList = TokenTransferList.newBuilder()
+                    .setToken(TOKEN_ID)
+                    .addTransfers(AccountAmount.newBuilder()
+                            .setAccountID(receiverAccountId)
+                            .setAmount(1000)
+                            .build())
+                    .addTransfers(AccountAmount.newBuilder()
+                            .setAccountID(AccountID.newBuilder()
+                                    .setShardNum(ownerAccountId.getShardNum())
+                                    .setRealmNum(ownerAccountId.getRealmNum())
+                                    .setAlias(ownerAlias))
+                            .setAmount(-1000)
+                            .setIsApproval(true)
+                            .build())
+                    .build();
+            builder.getCryptoTransferBuilder().addTokenTransfers(bodyTransferList);
+        });
+
+        List<TokenTransferList> transferLists = List.of(transferList1);
+        insertAndParseTransaction(TRANSFER_TIMESTAMP, transaction, builder -> {
+            builder.addAllTokenTransferLists(transferLists);
+            buildContractFunctionResult(builder.getContractCallResultBuilder().setSenderId(PAYER));
+        });
+
+        // then
+        assertTokenTransferInRepository(TOKEN_ID, ownerAccountId, TRANSFER_TIMESTAMP, -1000, true);
+        assertTokenTransferInRepository(TOKEN_ID, receiverAccountId, TRANSFER_TIMESTAMP, 1000);
+        assertTokenAllowanceInRepository(
+                TOKEN_ID, ownerAccountId, PAYER, allowanceAmount, allowanceAmount - 1000L, ALLOWANCE_TIMESTAMP);
     }
 
     @Test

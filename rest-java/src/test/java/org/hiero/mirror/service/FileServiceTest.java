@@ -5,13 +5,12 @@ package org.hiero.mirror.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
-import com.hederahashgraph.api.proto.java.FeeSchedule;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.SystemFile;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
@@ -21,9 +20,6 @@ import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
 final class FileServiceTest extends RestJavaIntegrationTest {
-
-    // LENGTH_DELIMITED wire claims 5 bytes but input ends — parse throws; random shorts often parse as unknown fields.
-    private static final byte[] UNPARSEABLE_PROTOBUF = new byte[] {0x0a, 0x05};
 
     private final FileService service;
 
@@ -68,7 +64,7 @@ final class FileServiceTest extends RestJavaIntegrationTest {
         domainBuilder
                 .fileData()
                 .customize(f -> f.entityId(systemEntity.exchangeRateFile())
-                        .fileData(UNPARSEABLE_PROTOBUF)
+                        .fileData(domainBuilder.bytes(10))
                         .consensusTimestamp(baseTimestamp + 1))
                 .persist();
         final var bound = bound(RangeOperator.GTE, fileData);
@@ -79,59 +75,6 @@ final class FileServiceTest extends RestJavaIntegrationTest {
         // then
         fileData.setTransactionType(null);
         assertThat(actual).isEqualTo(new SystemFile<>(fileData, exchangeRateSet));
-    }
-
-    @Test
-    void getFeeScheduleSuccess() {
-        // given
-        final var feeSchedule = CurrentAndNextFeeSchedule.newBuilder()
-                .setCurrentFeeSchedule(FeeSchedule.newBuilder().build())
-                .build();
-        final var fileData = domainBuilder
-                .fileData()
-                .customize(f -> f.entityId(systemEntity.feeScheduleFile()).fileData(feeSchedule.toByteArray()))
-                .persist();
-        final var bound = bound(RangeOperator.EQ, fileData);
-
-        // when
-        final var actual = service.getFeeSchedule(bound);
-
-        // then
-        fileData.setTransactionType(null);
-        assertThat(actual).isEqualTo(new SystemFile<>(fileData, feeSchedule));
-    }
-
-    @Test
-    void getFeeScheduleNotFound() {
-        // given
-        final var bound = bound(RangeOperator.GTE, domainBuilder.fileData().get());
-
-        // when / then
-        assertThatThrownBy(() -> service.getFeeSchedule(bound)).isInstanceOf(RuntimeException.class);
-    }
-
-    @Test
-    void getFeeScheduleRecovers() {
-        // given
-        final var feeSchedule = CurrentAndNextFeeSchedule.newBuilder()
-                .setCurrentFeeSchedule(FeeSchedule.newBuilder().build())
-                .build();
-        final var fileData = domainBuilder
-                .fileData()
-                .customize(f -> f.entityId(systemEntity.feeScheduleFile()).fileData(feeSchedule.toByteArray()))
-                .persist();
-        domainBuilder
-                .fileData()
-                .customize(f -> f.entityId(systemEntity.feeScheduleFile()).fileData(UNPARSEABLE_PROTOBUF))
-                .persist();
-        final var bound = bound(RangeOperator.GTE, fileData);
-
-        // when
-        final var actual = service.getFeeSchedule(bound);
-
-        // then
-        fileData.setTransactionType(null);
-        assertThat(actual).isEqualTo(new SystemFile<>(fileData, feeSchedule));
     }
 
     @Nested
@@ -152,7 +95,7 @@ final class FileServiceTest extends RestJavaIntegrationTest {
                     .persist();
 
             // when
-            final var actual = service.getSimpleFeeSchedule(Bound.EMPTY);
+            final var actual = service.getFeeSchedule(Bound.EMPTY);
 
             // then
             assertThat(actual.data()).isEqualTo(expected);
@@ -161,7 +104,7 @@ final class FileServiceTest extends RestJavaIntegrationTest {
         @Test
         void notFound() {
             // when / then
-            assertThatThrownBy(() -> service.getSimpleFeeSchedule(Bound.EMPTY)).isInstanceOf(RuntimeException.class);
+            assertThatThrownBy(() -> service.getFeeSchedule(Bound.EMPTY)).isInstanceOf(EntityNotFoundException.class);
         }
 
         @Test
@@ -174,7 +117,7 @@ final class FileServiceTest extends RestJavaIntegrationTest {
                     .persist();
 
             // when / then
-            assertThatThrownBy(() -> service.getSimpleFeeSchedule(Bound.EMPTY)).isInstanceOf(RuntimeException.class);
+            assertThatThrownBy(() -> service.getFeeSchedule(Bound.EMPTY)).isInstanceOf(EntityNotFoundException.class);
         }
     }
 

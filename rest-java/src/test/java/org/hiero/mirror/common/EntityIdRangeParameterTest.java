@@ -83,4 +83,39 @@ class EntityIdRangeParameterTest {
     void testInvalidEntity(String input) {
         assertThrows(InvalidEntityException.class, () -> EntityIdRangeParameter.valueOf(input));
     }
+
+    @Test
+    void getInclusiveValue() {
+        assertThat(new EntityIdRangeParameter(RangeOperator.GT, 2000L).getInclusiveValue())
+                .isEqualTo(2001L);
+        assertThat(new EntityIdRangeParameter(RangeOperator.LT, 2000L).getInclusiveValue())
+                .isEqualTo(1999L);
+        assertThat(new EntityIdRangeParameter(EQ, 2000L).getInclusiveValue()).isEqualTo(2000L);
+    }
+
+    @Test
+    @DisplayName("getInclusiveValue rejects an unsatisfiable edge bound instead of wrapping to the opposite id bound")
+    void getInclusiveValueRejectsUnsatisfiableBound() {
+        assertThrows(IllegalArgumentException.class, () -> new EntityIdRangeParameter(RangeOperator.GT, Long.MAX_VALUE)
+                .getInclusiveValue());
+        assertThrows(IllegalArgumentException.class, () -> new EntityIdRangeParameter(RangeOperator.LT, Long.MIN_VALUE)
+                .getInclusiveValue());
+
+        assertThrows(IllegalArgumentException.class, () -> EntityIdRangeParameter.valueOf("gt:511.65535.274877906943")
+                .getInclusiveValue());
+        assertThrows(IllegalArgumentException.class, () -> EntityIdRangeParameter.valueOf("lt:512.0.0")
+                .getInclusiveValue());
+    }
+
+    @Test
+    @DisplayName("valueOf rejects ids whose shard packs into the sign bit (negative encoded id would invert bounds)")
+    void valueOfRejectsNegativeEncodingId() {
+        // shard 512 sets bit 63 -> Long.MIN_VALUE; gt:512.0.0 would otherwise become an inclusive bound of
+        // Long.MIN_VALUE+1, matching the entire non-negative id space. Must be rejected at parse for every operator.
+        assertThrows(IllegalArgumentException.class, () -> EntityIdRangeParameter.valueOf("gt:512.0.0"));
+        assertThrows(IllegalArgumentException.class, () -> EntityIdRangeParameter.valueOf("lt:512.0.0"));
+        assertThrows(IllegalArgumentException.class, () -> EntityIdRangeParameter.valueOf("eq:512.0.0"));
+        assertThrows(
+                IllegalArgumentException.class, () -> EntityIdRangeParameter.valueOf("gt:1023.65535.274877906943"));
+    }
 }
