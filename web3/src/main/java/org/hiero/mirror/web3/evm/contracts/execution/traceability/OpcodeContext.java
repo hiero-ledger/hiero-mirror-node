@@ -9,20 +9,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.Setter;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.rest.model.Opcode;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 
 /**
  * Properties for tracing opcodes
  */
 @Data
-@Builder(toBuilder = true)
-@AllArgsConstructor
 public final class OpcodeContext {
 
     /**
@@ -33,21 +30,24 @@ public final class OpcodeContext {
     private static final int MAX_INITIAL_OPCODES_CAPACITY = 10_000;
 
     /**
-     * Default value is applied when a limit is not supplied. Production
-     * requests receive the configured values from {@code OpcodesProperties}.
-     */
-    static final int DEFAULT_MAX_OPCODES = 100_000;
-
-    static final int DEFAULT_MAX_MEMORY_WORDS_PER_OPCODE = 2_048;
-
-    static final int DEFAULT_MAX_STACK_ITEMS_PER_OPCODE = 1_024;
-
-    static final int DEFAULT_MAX_STORAGE_ENTRIES_PER_OPCODE = 1_024;
-
-    /**
      * Name used for the marker opcode appended when a trace is truncated at maxOpcodes.
      */
     static final String TRUNCATED_OP = "TRUNCATED";
+
+    /**
+     * Immutable marker opcode appended once when a trace reaches maxOpcodes. Shared across requests since it carries no
+     * per-request state and is never mutated after construction.
+     */
+    private static final Opcode TRUNCATED_OPCODE = new Opcode()
+            .pc(0)
+            .op(TRUNCATED_OP)
+            .gas(0L)
+            .gasCost(0L)
+            .depth(0)
+            .stack(List.of())
+            .memory(List.of())
+            .storage(Map.of())
+            .reason("Trace truncated after reaching the configured maxOpcodes limit");
 
     /**
      * Actions pre-grouped by call depth and sorted by index within each depth.
@@ -112,27 +112,18 @@ public final class OpcodeContext {
     private long executedOpcodes;
 
     public OpcodeContext(final OpcodeRequest opcodeRequest, final int initialOpcodesCapacity) {
-        this(
-                opcodeRequest,
-                initialOpcodesCapacity,
-                DEFAULT_MAX_OPCODES,
-                DEFAULT_MAX_MEMORY_WORDS_PER_OPCODE,
-                DEFAULT_MAX_STACK_ITEMS_PER_OPCODE,
-                DEFAULT_MAX_STORAGE_ENTRIES_PER_OPCODE);
+        this(opcodeRequest, initialOpcodesCapacity, new OpcodesProperties());
     }
 
     public OpcodeContext(
-            final OpcodeRequest opcodeRequest,
-            final int initialOpcodesCapacity,
-            final int maxOpcodes,
-            final int maxMemoryWordsPerOpcode) {
+            final OpcodeRequest opcodeRequest, final int initialOpcodesCapacity, final OpcodesProperties properties) {
         this(
                 opcodeRequest,
                 initialOpcodesCapacity,
-                maxOpcodes,
-                maxMemoryWordsPerOpcode,
-                DEFAULT_MAX_STACK_ITEMS_PER_OPCODE,
-                DEFAULT_MAX_STORAGE_ENTRIES_PER_OPCODE);
+                properties.getMaxOpcodes(),
+                properties.getMaxMemoryWordsPerOpcode(),
+                properties.getMaxStackItemsPerOpcode(),
+                properties.getMaxStorageEntriesPerOpcode());
     }
 
     public OpcodeContext(
@@ -177,7 +168,7 @@ public final class OpcodeContext {
         // Append a single marker so clients can detect the trace was truncated; further opcodes add nothing to the
         // list.
         if (opcodes.size() == maxOpcodes) {
-            opcodes.add(truncationMarker());
+            opcodes.add(TRUNCATED_OPCODE);
         }
     }
 
@@ -186,19 +177,6 @@ public final class OpcodeContext {
      */
     public boolean isTruncated() {
         return executedOpcodes > maxOpcodes;
-    }
-
-    private Opcode truncationMarker() {
-        return new Opcode()
-                .pc(0)
-                .op(TRUNCATED_OP)
-                .gas(0L)
-                .gasCost(0L)
-                .depth(0)
-                .stack(List.of())
-                .memory(List.of())
-                .storage(Map.of())
-                .reason("Trace truncated after %d opcodes".formatted(maxOpcodes));
     }
 
     /**

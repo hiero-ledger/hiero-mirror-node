@@ -68,13 +68,7 @@ public class OpcodeServiceImpl implements OpcodeService {
         return ContractCallContext.run(ctx -> {
             ctx.setApi(OPCODES);
             final var params = buildCallServiceParameters(opcodeRequest.getTransactionIdOrHashParameter());
-            final var opcodeContext = new OpcodeContext(
-                    opcodeRequest,
-                    (int) params.getGas() / 3,
-                    opcodesProperties.getMaxOpcodes(),
-                    opcodesProperties.getMaxMemoryWordsPerOpcode(),
-                    opcodesProperties.getMaxStackItemsPerOpcode(),
-                    opcodesProperties.getMaxStorageEntriesPerOpcode());
+            final var opcodeContext = new OpcodeContext(opcodeRequest, (int) params.getGas() / 3, opcodesProperties);
 
             ctx.setOpcodeContext(opcodeContext);
 

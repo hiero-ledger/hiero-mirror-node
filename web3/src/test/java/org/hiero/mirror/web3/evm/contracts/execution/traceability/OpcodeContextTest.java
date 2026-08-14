@@ -8,6 +8,7 @@ import java.time.Instant;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.junit.jupiter.api.Test;
 
@@ -17,21 +18,27 @@ final class OpcodeContextTest {
         return new OpcodeRequest(new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), false, false, false);
     }
 
+    private static OpcodesProperties propertiesWithMaxOpcodes(final int maxOpcodes) {
+        final var properties = new OpcodesProperties();
+        properties.setMaxOpcodes(maxOpcodes);
+        return properties;
+    }
+
     @Test
     void twoArgConstructorAppliesDefaults() {
         final var context = new OpcodeContext(request(), 0);
+        final var defaults = new OpcodesProperties();
 
-        assertThat(context.getMaxOpcodes()).isEqualTo(OpcodeContext.DEFAULT_MAX_OPCODES);
-        assertThat(context.getMaxMemoryWordsPerOpcode()).isEqualTo(OpcodeContext.DEFAULT_MAX_MEMORY_WORDS_PER_OPCODE);
-        assertThat(context.getMaxStackItemsPerOpcode()).isEqualTo(OpcodeContext.DEFAULT_MAX_STACK_ITEMS_PER_OPCODE);
-        assertThat(context.getMaxStorageEntriesPerOpcode())
-                .isEqualTo(OpcodeContext.DEFAULT_MAX_STORAGE_ENTRIES_PER_OPCODE);
+        assertThat(context.getMaxOpcodes()).isEqualTo(defaults.getMaxOpcodes());
+        assertThat(context.getMaxMemoryWordsPerOpcode()).isEqualTo(defaults.getMaxMemoryWordsPerOpcode());
+        assertThat(context.getMaxStackItemsPerOpcode()).isEqualTo(defaults.getMaxStackItemsPerOpcode());
+        assertThat(context.getMaxStorageEntriesPerOpcode()).isEqualTo(defaults.getMaxStorageEntriesPerOpcode());
     }
 
     @Test
     void addOpcodesRetainsAllOpcodesBelowTheConfiguredCap() {
         final int maxOpcodes = 5;
-        final var context = new OpcodeContext(request(), 0, maxOpcodes, 8_192);
+        final var context = new OpcodeContext(request(), 0, propertiesWithMaxOpcodes(maxOpcodes));
         final var opcode = new Opcode();
 
         for (int i = 0; i < maxOpcodes; i++) {
@@ -50,7 +57,7 @@ final class OpcodeContextTest {
     @Test
     void addTruncatedOpcodeAppendsMarkerOnceAndCountsWithoutStoring() {
         final int maxOpcodes = 3;
-        final var context = new OpcodeContext(request(), 0, maxOpcodes, 8_192);
+        final var context = new OpcodeContext(request(), 0, propertiesWithMaxOpcodes(maxOpcodes));
         final var opcode = new Opcode();
 
         // Fill to capacity through the normal path
@@ -71,7 +78,7 @@ final class OpcodeContextTest {
     @Test
     void addOpcodesTruncatesAtConfiguredCapAndAppendsMarker() {
         final int maxOpcodes = 5;
-        final var context = new OpcodeContext(request(), 0, maxOpcodes, 8_192);
+        final var context = new OpcodeContext(request(), 0, propertiesWithMaxOpcodes(maxOpcodes));
         final var opcode = new Opcode();
 
         for (int i = 0; i < maxOpcodes + 10; i++) {

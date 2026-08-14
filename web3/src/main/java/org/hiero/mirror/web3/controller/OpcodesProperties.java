@@ -20,7 +20,7 @@ public class OpcodesProperties {
      * {@code maxMemoryWordsPerOpcode} × 32 bytes, so raising either knob compounds the other.
      */
     @Positive
-    private int maxOpcodes = 100_000;
+    private int maxOpcodes = 20_000;
 
     /**
      * Maximum number of 32-byte EVM memory words captured per opcode (default 2048 = 64 KB). Opcodes whose memory
