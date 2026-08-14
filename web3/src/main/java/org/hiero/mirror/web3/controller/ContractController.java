@@ -40,20 +40,19 @@ class ContractController {
 
     @PostMapping(value = "/call")
     ContractCallResponse call(@RequestBody @Valid ContractCallRequest request, HttpServletResponse response) {
+        validateContractMaxGasLimit(request);
+        final var params = constructServiceParameters(request);
+
+        if (!params.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
+        }
+
+        throttleManager.throttle(request);
         try {
-            throttleManager.throttle(request);
-            validateContractMaxGasLimit(request);
-
-            final var params = constructServiceParameters(request);
-
-            if (!params.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
-            }
-
             final var result = contractExecutionService.processCall(params);
             return new ContractCallResponse(result);
-        } catch (InvalidParametersException e) {
-            // The validation failed, but no processing occurred so restore the consumed tokens.
+        } catch (IllegalArgumentException | InvalidParametersException e) {
+            // Processing did not complete, so restore the consumed tokens.
             throttleManager.restore(request.getGas());
             throw e;
         }
