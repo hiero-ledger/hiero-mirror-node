@@ -14,33 +14,35 @@ public class OpcodesProperties {
     private boolean enabled = true;
 
     /**
-     * Maximum number of opcodes recorded per trace request. Once reached the trace is truncated with a
-     * single marker opcode and further opcodes are dropped. Raise this to trace larger transactions at the cost of a
-     * higher worst-case heap footprint. Note the worst-case trace size is roughly {@code maxOpcodes} ×
-     * {@code maxMemoryWordsPerOpcode} × 32 bytes, so raising either knob compounds the other.
+     * Maximum number of opcodes recorded per trace request. Once reached the trace is truncated with a single marker
+     * opcode and the remaining opcodes are dropped. This bounds the base opcode list (pc/op/gas/…) independently of the
+     * memory/stack/storage budgets below, which is the only thing limiting a trace when those captures are disabled.
      */
     @Positive
     private int maxOpcodes = 20_000;
 
     /**
-     * Maximum number of 32-byte EVM memory words captured per opcode (default 2048 = 64 KB). Opcodes whose memory
-     * exceeds this are captured up to this many words, the remainder is omitted.
+     * Maximum total number of 32-byte EVM memory words captured across all opcodes of a single trace (default
+     * 3,000,000 ≈ 96 MB). Once the running total reaches this limit the trace is truncated and the remaining opcodes are
+     * dropped. Unlike a per-opcode cap this bounds the whole response, so a single large opcode is captured in full as
+     * long as the trace total stays within budget.
      */
     @Positive
-    private int maxMemoryWordsPerOpcode = 2_048;
+    private int maxMemoryWords = 3_000_000;
 
     /**
-     * Maximum number of stack items captured per opcode. The EVM already bounds the stack to 1024 items, so this is a
-     * defensive cap; stacks larger than this are captured up to this many (top-most) items and the remainder is omitted.
+     * Maximum total number of stack items captured across all opcodes of a single trace. Once the running total reaches
+     * this limit the trace is truncated and the remaining opcodes are dropped.
      */
     @Positive
-    private int maxStackItemsPerOpcode = 1_024;
+    private int maxStack = 1_000_000;
 
     /**
-     * Maximum number of storage entries captured per opcode. Storage capture reflects the cumulative transaction
-     * storage, which grows with every touched slot, so without this cap a storage-heavy transaction would retain a
-     * per-opcode snapshot that grows with the whole trace. Entries beyond this limit are omitted.
+     * Maximum total number of storage entries captured across all opcodes of a single trace. Storage capture reflects
+     * the cumulative transaction storage, which grows with every touched slot; capping the total across opcodes bounds
+     * the whole response (and the otherwise O(n^2) heap cost) for storage-heavy transactions. Once reached the trace is
+     * truncated and the remaining opcodes are dropped.
      */
     @Positive
-    private int maxStorageEntriesPerOpcode = 1_024;
+    private int maxStorage = 100_000;
 }

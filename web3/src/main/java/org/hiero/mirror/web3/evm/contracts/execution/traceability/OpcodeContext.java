@@ -90,23 +90,48 @@ public final class OpcodeContext {
     private final int maxOpcodes;
 
     /**
-     * Maximum number of 32-byte memory words captured per opcode.
+     * Maximum total number of 32-byte memory words captured across all opcodes of this request.
      */
-    private final int maxMemoryWordsPerOpcode;
+    private final int maxMemoryWords;
 
     /**
-     * Maximum number of stack items captured per opcode.
+     * Maximum total number of stack items captured across all opcodes of this request.
      */
-    private final int maxStackItemsPerOpcode;
+    private final int maxStack;
 
     /**
-     * Maximum number of storage entries captured per opcode.
+     * Maximum total number of storage entries captured across all opcodes of this request.
      */
-    private final int maxStorageEntriesPerOpcode;
+    private final int maxStorage;
 
     /**
-     * Total number of opcodes offered for this request, including the ones dropped once {@link #maxOpcodes} was
-     * reached. Kept so truncation can be reported (see {@link #isTruncated()}) without walking the opcode list.
+     * Running total of memory words captured so far across all recorded opcodes.
+     */
+    @Setter(AccessLevel.NONE)
+    private long capturedMemoryWords;
+
+    /**
+     * Running total of stack items captured so far across all recorded opcodes.
+     */
+    @Setter(AccessLevel.NONE)
+    private long capturedStack;
+
+    /**
+     * Running total of storage entries captured so far across all recorded opcodes.
+     */
+    @Setter(AccessLevel.NONE)
+    private long capturedStorage;
+
+    /**
+     * Whether the trace has been truncated because {@link #maxOpcodes} or one of the memory/stack/storage budgets was
+     * reached. Once set, the single {@link #TRUNCATED_OPCODE} marker has been appended and further opcodes are dropped.
+     */
+    @Setter(AccessLevel.NONE)
+    private boolean truncated;
+
+    /**
+     * Total number of opcodes offered for this request, including the ones dropped once a budget was reached. Kept so
+     * truncation can be reported without walking the opcode list.
      */
     @Setter(AccessLevel.NONE)
     private long executedOpcodes;
@@ -121,62 +146,78 @@ public final class OpcodeContext {
                 opcodeRequest,
                 initialOpcodesCapacity,
                 properties.getMaxOpcodes(),
-                properties.getMaxMemoryWordsPerOpcode(),
-                properties.getMaxStackItemsPerOpcode(),
-                properties.getMaxStorageEntriesPerOpcode());
+                properties.getMaxMemoryWords(),
+                properties.getMaxStack(),
+                properties.getMaxStorage());
     }
 
     public OpcodeContext(
             final OpcodeRequest opcodeRequest,
             final int initialOpcodesCapacity,
             final int maxOpcodes,
-            final int maxMemoryWordsPerOpcode,
-            final int maxStackItemsPerOpcode,
-            final int maxStorageEntriesPerOpcode) {
+            final int maxMemoryWords,
+            final int maxStack,
+            final int maxStorage) {
         this.stack = opcodeRequest.isStack();
         this.memory = opcodeRequest.isMemory();
         this.storage = opcodeRequest.isStorage();
         this.maxOpcodes = maxOpcodes;
-        this.maxMemoryWordsPerOpcode = maxMemoryWordsPerOpcode;
-        this.maxStackItemsPerOpcode = maxStackItemsPerOpcode;
-        this.maxStorageEntriesPerOpcode = maxStorageEntriesPerOpcode;
+        this.maxMemoryWords = maxMemoryWords;
+        this.maxStack = maxStack;
+        this.maxStorage = maxStorage;
         this.opcodes = new ArrayList<>(Math.min(Math.max(initialOpcodesCapacity, 0), MAX_INITIAL_OPCODES_CAPACITY));
     }
 
     public void addOpcodes(Opcode opcode) {
-        if (opcodes.size() < maxOpcodes) {
-            executedOpcodes++;
-            opcodes.add(opcode);
-        } else {
+        if (isAtCapacity()) {
             addTruncatedOpcode();
+            return;
         }
+        executedOpcodes++;
+        opcodes.add(opcode);
+        capturedMemoryWords += size(opcode.getMemory());
+        capturedStack += size(opcode.getStack());
+        capturedStorage += size(opcode.getStorage());
     }
 
     /**
-     * Whether the recorded-opcode list has reached maxOpcodes.
+     * Whether recording another opcode would exceed one of the configured budgets: the opcode count, or the cumulative
+     * memory/stack/storage captured so far. Once true the trace is truncated and no further opcodes are recorded.
      */
     public boolean isAtCapacity() {
-        return opcodes.size() >= maxOpcodes;
+        return opcodes.size() >= maxOpcodes
+                || capturedMemoryWords >= maxMemoryWords
+                || capturedStack >= maxStack
+                || capturedStorage >= maxStorage;
     }
 
     /**
-     * Append a marker to the opcodes list when maxOpcodes is reached. Still counted in {@link #executedOpcodes}
-     * so the caller can report how much was omitted.
+     * Accounts for an opcode that is dropped because a budget was reached. The offered opcode is still counted in
+     * {@link #executedOpcodes}, and a single {@link #TRUNCATED_OPCODE} marker is appended the first time truncation
+     * occurs so clients can detect it.
      */
     public void addTruncatedOpcode() {
         executedOpcodes++;
-        // Append a single marker so clients can detect the trace was truncated; further opcodes add nothing to the
-        // list.
-        if (opcodes.size() == maxOpcodes) {
+        if (!truncated) {
+            truncated = true;
             opcodes.add(TRUNCATED_OPCODE);
         }
     }
 
     /**
-     * Whether the trace was truncated because the number of executed opcodes exceeded {@link #maxOpcodes}.
+     * Whether the trace was truncated because {@link #maxOpcodes} or one of the memory/stack/storage budgets was
+     * reached.
      */
     public boolean isTruncated() {
-        return executedOpcodes > maxOpcodes;
+        return truncated;
+    }
+
+    private static int size(final List<?> list) {
+        return list == null ? 0 : list.size();
+    }
+
+    private static int size(final Map<?, ?> map) {
+        return map == null ? 0 : map.size();
     }
 
     /**

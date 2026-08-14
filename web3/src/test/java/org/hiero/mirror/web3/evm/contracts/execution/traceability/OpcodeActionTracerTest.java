@@ -308,22 +308,6 @@ class OpcodeActionTracerTest {
     }
 
     @Test
-    @DisplayName("given a stack larger than the per-opcode cap, should truncate to the top-most items")
-    void shouldTruncateStackWhenExceedingCap() {
-        // Given (three items are pushed by the fixture; cap the capture to the top two)
-        final var properties = new OpcodesProperties();
-        properties.setMaxStackItemsPerOpcode(2);
-        opcodeContext = opcodeContext(true, false, false, properties);
-        frame = setupInitialFrame(opcodeContext);
-
-        // When
-        final Opcode opcode = executeOperation(frame);
-
-        // Then
-        assertThat(opcode.getStack()).containsExactly(stackItems[1], stackItems[2]);
-    }
-
-    @Test
     @DisplayName("given stack is disabled in tracer options, should not record stack")
     void shouldNotRecordStackWhenDisabled() {
         // Given
@@ -350,23 +334,6 @@ class OpcodeActionTracerTest {
         // Then
         assertThat(opcode.getMemory()).isNotEmpty();
         assertThat(opcode.getMemory()).containsExactly(wordsInMemory);
-    }
-
-    @Test
-    @DisplayName("given memory larger than the per-opcode cap, should truncate the captured memory")
-    void shouldTruncateMemoryWhenExceedingCap() {
-        // Given
-        opcodeContext = opcodeContext(false, true, false);
-        frame = setupInitialFrame(opcodeContext);
-        final int maxWords = opcodeContext.getMaxMemoryWordsPerOpcode();
-        // Expand memory one word beyond the per-opcode capture cap
-        frame.writeMemory((long) maxWords * 32, 32, Bytes.fromHexString("0xff", 32));
-
-        // When
-        final Opcode opcode = executeOperation(frame);
-
-        // Then
-        assertThat(opcode.getMemory()).hasSize(maxWords);
     }
 
     @Test
@@ -397,24 +364,6 @@ class OpcodeActionTracerTest {
 
         // Then
         assertThat(opcode.getStorage()).isNotEmpty().containsAllEntriesOf(updatedStorage);
-    }
-
-    @Test
-    @DisplayName("given more storage entries than the per-opcode cap, should truncate the captured storage")
-    void shouldTruncateStorageWhenExceedingCap() {
-        // Given (the fixture yields two storage entries; cap the capture to one)
-        final var properties = new OpcodesProperties();
-        properties.setMaxStorageEntriesPerOpcode(1);
-        opcodeContext = opcodeContext(false, false, true, properties);
-        frame = setupInitialFrame(opcodeContext);
-        when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
-        when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(txStorageUsage);
-
-        // When
-        final Opcode opcode = executeOperation(frame);
-
-        // Then
-        assertThat(opcode.getStorage()).hasSize(1);
     }
 
     @Test

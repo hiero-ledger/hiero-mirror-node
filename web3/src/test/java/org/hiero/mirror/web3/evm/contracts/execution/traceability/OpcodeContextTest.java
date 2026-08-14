@@ -5,6 +5,9 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
@@ -24,15 +27,75 @@ final class OpcodeContextTest {
         return properties;
     }
 
+    private static Opcode opcode(final int memory, final int stack, final int storage) {
+        final Map<String, String> storageMap = new HashMap<>();
+        for (int i = 0; i < storage; i++) {
+            storageMap.put("key" + i, "value");
+        }
+        return new Opcode()
+                .memory(Collections.nCopies(memory, "0x00"))
+                .stack(Collections.nCopies(stack, "0x00"))
+                .storage(storageMap);
+    }
+
     @Test
-    void twoArgConstructorAppliesDefaults() {
+    void constructorReadsLimitsFromProperties() {
         final var context = new OpcodeContext(request(), 0);
         final var defaults = new OpcodesProperties();
 
         assertThat(context.getMaxOpcodes()).isEqualTo(defaults.getMaxOpcodes());
-        assertThat(context.getMaxMemoryWordsPerOpcode()).isEqualTo(defaults.getMaxMemoryWordsPerOpcode());
-        assertThat(context.getMaxStackItemsPerOpcode()).isEqualTo(defaults.getMaxStackItemsPerOpcode());
-        assertThat(context.getMaxStorageEntriesPerOpcode()).isEqualTo(defaults.getMaxStorageEntriesPerOpcode());
+        assertThat(context.getMaxMemoryWords()).isEqualTo(defaults.getMaxMemoryWords());
+        assertThat(context.getMaxStack()).isEqualTo(defaults.getMaxStack());
+        assertThat(context.getMaxStorage()).isEqualTo(defaults.getMaxStorage());
+    }
+
+    @Test
+    void truncatesWhenCumulativeMemoryBudgetReached() {
+        // maxMemoryWords=10; each opcode captures 4 memory words, so the 4th offered opcode is dropped
+        final var properties = new OpcodesProperties();
+        properties.setMaxMemoryWords(10);
+        final var context = new OpcodeContext(request(), 0, properties);
+
+        for (int i = 0; i < 5; i++) {
+            context.addOpcodes(opcode(4, 0, 0));
+        }
+
+        final var opcodes = context.getOpcodes();
+        assertThat(opcodes).hasSize(4); // 3 recorded + single truncation marker
+        assertThat(opcodes.getLast().getOp()).isEqualTo(OpcodeContext.TRUNCATED_OP);
+        assertThat(context.getCapturedMemoryWords()).isEqualTo(12L);
+        assertThat(context.isTruncated()).isTrue();
+        assertThat(context.getExecutedOpcodes()).isEqualTo(5L);
+    }
+
+    @Test
+    void truncatesWhenCumulativeStackBudgetReached() {
+        final var properties = new OpcodesProperties();
+        properties.setMaxStack(10);
+        final var context = new OpcodeContext(request(), 0, properties);
+
+        for (int i = 0; i < 5; i++) {
+            context.addOpcodes(opcode(0, 4, 0));
+        }
+
+        assertThat(context.getOpcodes()).hasSize(4);
+        assertThat(context.getCapturedStack()).isEqualTo(12L);
+        assertThat(context.isTruncated()).isTrue();
+    }
+
+    @Test
+    void truncatesWhenCumulativeStorageBudgetReached() {
+        final var properties = new OpcodesProperties();
+        properties.setMaxStorage(10);
+        final var context = new OpcodeContext(request(), 0, properties);
+
+        for (int i = 0; i < 5; i++) {
+            context.addOpcodes(opcode(0, 0, 4));
+        }
+
+        assertThat(context.getOpcodes()).hasSize(4);
+        assertThat(context.getCapturedStorage()).isEqualTo(12L);
+        assertThat(context.isTruncated()).isTrue();
     }
 
     @Test
