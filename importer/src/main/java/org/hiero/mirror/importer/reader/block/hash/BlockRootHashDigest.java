@@ -9,6 +9,7 @@ import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullUnmarked;
@@ -16,7 +17,7 @@ import org.jspecify.annotations.NullUnmarked;
 @NullUnmarked
 public final class BlockRootHashDigest {
 
-    private static final int HASH_LENGTH = 48;
+    private static final int HASH_LENGTH = DigestAlgorithm.SHA_384.getSize();
     // Slots 0-7 carry the block's subtree roots, slots 8-15 are reserved for future extension
     private static final int RESERVED_SLOT_COUNT = 8;
     private static final int SLOT_COUNT = 16;
@@ -74,9 +75,9 @@ public final class BlockRootHashDigest {
         }
 
         final var slots = new ArrayList<byte[]>(SLOT_COUNT);
-        slots.add(normalize(0, previousHash));
-        slots.add(normalize(1, previousBlocksTreeHash));
-        slots.add(normalize(2, startOfBlockStateHash));
+        slots.add(validate(previousHash, 0));
+        slots.add(validate(previousBlocksTreeHash, 1));
+        slots.add(validate(startOfBlockStateHash, 2));
         slots.add(consensusHeaderHasher.computeRootHash());
         slots.add(inputHasher.computeRootHash());
         slots.add(outputHasher.computeRootHash());
@@ -106,18 +107,11 @@ public final class BlockRootHashDigest {
         }
     }
 
-    /**
-     * An absent slot is the empty tree. Anything else must be a full length hash, since the streaming hasher would
-     * otherwise silently fold a truncated value into the block root.
-     */
-    private static byte[] normalize(final int slot, final byte[] hash) {
-        if (hash.length == 0) {
-            return EMPTY_TREE_HASH;
-        }
-
-        if (hash.length != HASH_LENGTH) {
+    private static byte[] validate(final byte[] hash, final int slot) {
+        if (hash == null || hash.length != HASH_LENGTH) {
+            final int length = hash != null ? hash.length : 0;
             throw new IllegalStateException(
-                    "Block root tree slot %d is %d bytes, expected %d".formatted(slot, hash.length, HASH_LENGTH));
+                    "Block root tree slot %d is %d bytes, expected %d".formatted(slot, length, HASH_LENGTH));
         }
 
         return hash;

@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 final class BlockRootHashDigestTest {
 
@@ -57,30 +58,20 @@ final class BlockRootHashDigestTest {
                         EMPTY_TREE_HASH));
     }
 
-    @Test
-    void digestWithAbsentStartOfBlockStateRootHash() {
-        // given a wrapped record block, whose footer carries no start of block state root hash
+    @ParameterizedTest(name = "hash {0} has incorrect length")
+    @ValueSource(ints = {0, 1, 2})
+    void throwWhenIncorrectHashLengthInFooter(final int index) {
+        // given
         final var digest = new BlockRootHashDigest();
-        final byte[] previousRootHash = hashOf((byte) 1);
-        final byte[] previousBlocksTreeHash = hashOf((byte) 2);
-        final var blockHeader = blockHeader();
-        digest.addBlockItem(blockHeader);
-        digest.addBlockItem(blockFooter(previousRootHash, previousBlocksTreeHash, new byte[0]));
+        final var hashes = new byte[][] {hashOf((byte) 1), hashOf((byte) 2), hashOf((byte) 2)};
+        hashes[index] = new byte[index];
+        digest.addBlockItem(blockHeader());
+        digest.addBlockItem(blockFooter(hashes[0], hashes[1], hashes[2]));
 
-        // when
-        final var actual = digest.digest();
-
-        // then the absent slot contributes the empty tree hash
-        assertThat(actual)
-                .isEqualTo(expectedRootHash(
-                        previousRootHash,
-                        previousBlocksTreeHash,
-                        EMPTY_TREE_HASH,
-                        EMPTY_TREE_HASH,
-                        EMPTY_TREE_HASH,
-                        HashUtils.hashLeaf(createSha384Digest(), blockHeader.toByteArray()),
-                        EMPTY_TREE_HASH,
-                        EMPTY_TREE_HASH));
+        // when, then
+        assertThatThrownBy(digest::digest)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Block root tree slot %d is %d bytes, expected 48".formatted(index, index));
     }
 
     @ParameterizedTest(name = "root of {0} empty leaves")

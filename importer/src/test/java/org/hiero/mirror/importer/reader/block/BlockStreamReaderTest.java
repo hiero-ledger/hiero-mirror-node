@@ -859,7 +859,10 @@ public final class BlockStreamReaderTest {
 
     private BlockItem blockFooter() {
         return BlockItem.newBuilder()
-                .setBlockFooter(BlockFooter.getDefaultInstance())
+                .setBlockFooter(BlockFooter.newBuilder()
+                        .setPreviousBlockRootHash(recordItemBuilder.bytes(48))
+                        .setRootHashOfAllBlockHashesTree(recordItemBuilder.bytes(48))
+                        .setStartOfBlockStateRootHash(recordItemBuilder.bytes(48)))
                 .build();
     }
 

@@ -10,6 +10,7 @@ import jakarta.inject.Named;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 
 @Named
@@ -18,6 +19,7 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
     // The merkle path 1 carries the current block's root hash and the sibling nodes leading up to the signed block's
     // mountain top root. The signed block's timestamp leaf lives in the first merkle path (index 0).
     private static final int BLOCK_CONTENTS_PATH_INDEX = 1;
+    private static final int HASH_LENGTH = DigestAlgorithm.SHA_384.getSize();
     // Each block contributes 4 real sibling nodes (one per depth level in the fixed 16-leaf mountain top).
     // The signed block contributes only those (its timestamp is in the first merkle path), so the minimum sibling
     // count is 4, corresponding to the current block being directly proven by the immediately following signed block.
@@ -29,6 +31,12 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
         if (merklePaths.size() != 3) {
             throw new InvalidStreamFileException(
                     "Number of merkle paths in block %d's StateProof is not 3".formatted(blockNumber));
+        }
+
+        final var timestampLeafPath = merklePaths.getFirst();
+        if (!timestampLeafPath.hasTimestampLeaf()) {
+            throw new InvalidStreamFileException(
+                    "The first merkle path in block %d's StateProof is not the timestamp leaf".formatted(blockNumber));
         }
 
         // The merkle path 1 starts from the current block's own root hash, which must match the hash independently
@@ -53,6 +61,11 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
         // instead applied below via the first merkle path.
         final var digest = createSha384Digest();
         for (final var sibling : siblings) {
+            if (sibling.getHash().size() != HASH_LENGTH) {
+                throw new InvalidStreamFileException("Sibling hash length %d != %d"
+                        .formatted(sibling.getHash().size(), HASH_LENGTH));
+            }
+
             final byte[] siblingHash = toBytes(sibling.getHash());
             if (sibling.getIsLeft()) {
                 hash = HashUtils.hashInternalNode(digest, siblingHash, hash);
@@ -61,8 +74,7 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
             }
         }
 
-        final byte[] depth1Left =
-                HashUtils.hashLeaf(digest, toBytes(merklePaths.getFirst().getTimestampLeaf()));
+        final byte[] depth1Left = HashUtils.hashLeaf(digest, toBytes(timestampLeafPath.getTimestampLeaf()));
         return HashUtils.hashInternalNode(digest, depth1Left, hash);
     }
 }
