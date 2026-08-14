@@ -3,10 +3,12 @@
 package org.hiero.mirror.importer.reader.block.hash;
 
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
+import static org.hiero.mirror.importer.reader.block.hash.IncrementalStreamingHasher.EMPTY_TREE_HASH;
 
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hederahashgraph.api.proto.java.Timestamp;
-import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.List;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullUnmarked;
@@ -14,8 +16,12 @@ import org.jspecify.annotations.NullUnmarked;
 @NullUnmarked
 public final class BlockRootHashDigest {
 
+    private static final int HASH_LENGTH = 48;
+    // Slots 0-7 carry the block's subtree roots, slots 8-15 are reserved for future extension
+    private static final int RESERVED_SLOT_COUNT = 8;
+    private static final int SLOT_COUNT = 16;
+
     private final IncrementalStreamingHasher consensusHeaderHasher = new IncrementalStreamingHasher();
-    private final MessageDigest digest = createSha384Digest();
     private final IncrementalStreamingHasher inputHasher = new IncrementalStreamingHasher();
     private final IncrementalStreamingHasher outputHasher = new IncrementalStreamingHasher();
     private final IncrementalStreamingHasher stateChangesHasher = new IncrementalStreamingHasher();
@@ -67,62 +73,53 @@ public final class BlockRootHashDigest {
                     "blockTimestamp / previousBlocksTreeHash / previousHash / startOfBlockStateHash are not set");
         }
 
-        // Block merkle tree:
-        //                 Root
-        //                /    \
-        //               t   [internal]
-        //                      /
-        //                [internal]
-        //             _______/ \_______
-        //            /                 \
-        //        [internal]         [internal]
-        //         /    \             /       \
-        //  [internal] [internal] [internal] [internal]
-        //       /  \     /  \       /  \       /  \
-        //      L1  L2   L3  L4     L5  L6     L7  L8
-        // t  - The block timestamp leaf
-        // L1 - Previous block root hash
-        // L2 - Root of tree of all previous block hashes
-        // L3 - Root of state at start of block
-        // L4 - Root of consensus headers
-        // L5 - Root of input block items
-        // L6 - Root of output block items
-        // L7 - Root of state change block items
-        // L8 - Root of trace data block items
-        // Note the depth1 right node doesn't have a right child node, by design it's reserved for future extension.
-        final byte[] depth2Left = combine(
-                previousHash,
-                previousBlocksTreeHash,
-                startOfBlockStateHash,
-                consensusHeaderHasher.computeRootHash(),
-                inputHasher.computeRootHash(),
-                outputHasher.computeRootHash(),
-                stateChangesHasher.computeRootHash(),
-                traceDataHasher.computeRootHash());
-        final byte[] depth1Right = HashUtils.hashInternalNode(digest, depth2Left);
-        final byte[] depth1Left = HashUtils.hashLeaf(digest, blockTimestamp.toByteArray());
+        final var slots = new ArrayList<byte[]>(SLOT_COUNT);
+        slots.add(normalize(0, previousHash));
+        slots.add(normalize(1, previousBlocksTreeHash));
+        slots.add(normalize(2, startOfBlockStateHash));
+        slots.add(consensusHeaderHasher.computeRootHash());
+        slots.add(inputHasher.computeRootHash());
+        slots.add(outputHasher.computeRootHash());
+        slots.add(stateChangesHasher.computeRootHash());
+        slots.add(traceDataHasher.computeRootHash());
+        appendReservedSlots(slots);
 
-        final byte[] rootHash = combine(depth1Left, depth1Right);
+        final byte[] streamedRootHash = streamedRootOf(slots);
+        final var digest = createSha384Digest();
+        final byte[] timestampLeaf = HashUtils.hashLeaf(digest, blockTimestamp.toByteArray());
+        final byte[] rootHash = HashUtils.hashInternalNode(digest, timestampLeaf, streamedRootHash);
         finalized = true;
-
         return rootHash;
     }
 
-    private byte[] combine(final byte[]... leaves) {
-        int size = leaves.length;
-        if (size == 0 || (size & (size - 1)) != 0) {
-            throw new IllegalArgumentException("The leaves must be non-empty and the count must be a power of 2");
+    static byte[] streamedRootOf(final List<byte[]> slots) {
+        final var hasher = new IncrementalStreamingHasher();
+        for (final byte[] slot : slots) {
+            hasher.addNodeByHash(slot);
+        }
+        return hasher.computeRootHash();
+    }
+
+    private static void appendReservedSlots(final List<byte[]> slots) {
+        for (int i = 0; i < RESERVED_SLOT_COUNT; i++) {
+            slots.add(EMPTY_TREE_HASH);
+        }
+    }
+
+    /**
+     * An absent slot is the empty tree. Anything else must be a full length hash, since the streaming hasher would
+     * otherwise silently fold a truncated value into the block root.
+     */
+    private static byte[] normalize(final int slot, final byte[] hash) {
+        if (hash.length == 0) {
+            return EMPTY_TREE_HASH;
         }
 
-        while (size > 1) {
-            for (int i = 0; i < size >> 1; i++) {
-                final byte[] internal = HashUtils.hashInternalNode(digest, leaves[2 * i], leaves[2 * i + 1]);
-                leaves[i] = internal;
-            }
-
-            size = size >> 1;
+        if (hash.length != HASH_LENGTH) {
+            throw new IllegalStateException(
+                    "Block root tree slot %d is %d bytes, expected %d".formatted(slot, hash.length, HASH_LENGTH));
         }
 
-        return leaves[0];
+        return hash;
     }
 }

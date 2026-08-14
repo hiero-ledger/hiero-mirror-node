@@ -16,9 +16,9 @@ import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 final class BlockStateProofHasherImpl implements BlockStateProofHasher {
 
     // The merkle path 1 carries the current block's root hash and the sibling nodes leading up to the signed block's
-    // depth1 right child node. The signed block's timestamp leaf lives in the first merkle path (index 0).
+    // mountain top root. The signed block's timestamp leaf lives in the first merkle path (index 0).
     private static final int BLOCK_CONTENTS_PATH_INDEX = 1;
-    // Each block contributes 3 real sibling nodes plus a null-hash sentinel for the single-child internal node wrap.
+    // Each block contributes 4 real sibling nodes (one per depth level in the fixed 16-leaf mountain top).
     // The signed block contributes only those (its timestamp is in the first merkle path), so the minimum sibling
     // count is 4, corresponding to the current block being directly proven by the immediately following signed block.
     private static final int MIN_SIBLING_COUNT = 4;
@@ -47,17 +47,14 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
         }
 
         // Walk the sibling nodes up the tree. Starting from the current block's root hash, each subsequent block
-        // contributes its right sibling nodes, a null-hash sentinel encoding the single-child internal node wrap,
+        // contributes its 4 sibling nodes (one per depth level in the fixed 16-leaf mountain top),
         // and (for intermediate blocks only) its timestamp as a left sibling to reach that block's root - which in
-        // turn is the left-most leaf of the next block. The last block is the signed block, whose timestamp is
+        // turn is branch [0] of the next block. The last block is the signed block, whose timestamp is
         // instead applied below via the first merkle path.
         final var digest = createSha384Digest();
         for (final var sibling : siblings) {
             final byte[] siblingHash = toBytes(sibling.getHash());
-            if (siblingHash.length == 0) {
-                // Null-hash sentinel: apply the single-child internal node wrap.
-                hash = HashUtils.hashInternalNode(digest, hash);
-            } else if (sibling.getIsLeft()) {
+            if (sibling.getIsLeft()) {
                 hash = HashUtils.hashInternalNode(digest, siblingHash, hash);
             } else {
                 hash = HashUtils.hashInternalNode(digest, hash, siblingHash);
