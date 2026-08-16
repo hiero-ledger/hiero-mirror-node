@@ -70,7 +70,7 @@ dependencies {
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.4")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("net.java.dev.jna:jna:5.19.0")
-        api("org.apache.commons:commons-collections4:4.5.0")
+        api("org.apache.commons:commons-collections4:4.6.0")
         api("org.apache.commons:commons-compress:1.28.0")
         api("org.apache.commons:commons-math3:3.6.1")
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
