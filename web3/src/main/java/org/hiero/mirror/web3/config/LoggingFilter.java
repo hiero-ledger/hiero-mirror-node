@@ -29,10 +29,14 @@ import org.springframework.web.util.WebUtils;
 @RequiredArgsConstructor
 class LoggingFilter extends OncePerRequestFilter {
 
+    static final int PAYLOAD_CACHE_MULTIPLIER = 10;
+
     private static final String ACTUATOR_PATH = "/actuator/";
-    private static final Pattern DATA_PATTERN = Pattern.compile("(\"data\":.*?),(.+)(}[^}]*)$");
+    private static final String DATA_FIELD = "\"data\":";
     private static final String LOG_FORMAT = "{} {} {} in {} ms : {} {} - {}";
     private static final String SUCCESS = "Success";
+    // Use possessive quantifiers (*+) to prevent catastrophic backtracking on malformed JSON
+    private static final Pattern DATA_PATTERN = Pattern.compile("(\"data\":[^,}]*+),(.+)(}[^}]*+)$");
     private final Web3Properties web3Properties;
 
     @Override
@@ -41,7 +45,8 @@ class LoggingFilter extends OncePerRequestFilter {
         Exception cause = null;
 
         if (!(request instanceof ContentCachingRequestWrapper)) {
-            request = new ContentCachingRequestWrapper(request, web3Properties.getMaxPayloadLogSize() * 10);
+            request = new ContentCachingRequestWrapper(
+                    request, web3Properties.getMaxPayloadLogSize() * PAYLOAD_CACHE_MULTIPLIER);
         }
 
         try {
@@ -107,8 +112,13 @@ class LoggingFilter extends OncePerRequestFilter {
         if (log.isInfoEnabled()
                 && content.length() > maxPayloadLogSize
                 && status < HttpStatus.INTERNAL_SERVER_ERROR.value()) {
-            content = reorderFields(content);
-            content = StringUtils.substring(content, 0, maxPayloadLogSize);
+            // Cap the input length that regex operates on to prevent catastrophic backtracking
+            final int regexLimit = Math.min(content.length(), Math.max(maxPayloadLogSize * 2, 10240));
+            final var boundedContent = content.substring(0, regexLimit);
+            final var reordered = reorderFields(boundedContent);
+
+            // Finally truncate to max payload size
+            content = StringUtils.substring(reordered, 0, maxPayloadLogSize);
         }
 
         return content;
