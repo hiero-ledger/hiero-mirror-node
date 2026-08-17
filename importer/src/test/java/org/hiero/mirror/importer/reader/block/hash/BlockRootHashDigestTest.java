@@ -24,12 +24,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 final class BlockRootHashDigestTest {
 
+    private static final Timestamp BLOCK_TIMESTAMP =
+            Timestamp.newBuilder().setSeconds(1L).build();
+
     // The root of the reserved slots 8-15
     private static final byte[] EMPTY_HALF = Hex.decode(
             "cf7e7647f57807006f4f5870d2210b5b4038d000b2bfa711bceeb7f4a327346b50c61fda4e5c68110b03ce708fb91cf8");
-
-    private static final Timestamp BLOCK_TIMESTAMP =
-            Timestamp.newBuilder().setSeconds(1L).build();
 
     @Test
     void digest() {

@@ -19,7 +19,6 @@ public final class BlockRootHashDigest {
 
     private static final int HASH_LENGTH = DigestAlgorithm.SHA_384.getSize();
     // Slots 0-7 carry the block's subtree roots, slots 8-15 are reserved for future extension
-    private static final int RESERVED_SLOT_COUNT = 8;
     private static final int SLOT_COUNT = 16;
 
     private final IncrementalStreamingHasher consensusHeaderHasher = new IncrementalStreamingHasher();
@@ -102,7 +101,7 @@ public final class BlockRootHashDigest {
     }
 
     private static void appendReservedSlots(final List<byte[]> slots) {
-        for (int i = 0; i < RESERVED_SLOT_COUNT; i++) {
+        while (slots.size() < SLOT_COUNT) {
             slots.add(EMPTY_TREE_HASH);
         }
     }

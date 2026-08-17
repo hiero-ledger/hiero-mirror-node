@@ -117,24 +117,24 @@ public final class BlockStreamReaderTest {
                     .version(BlockStreamReader.VERSION)
                     .build(),
             BlockFile.builder()
-                    .consensusStart(1786397841853141104L)
-                    .consensusEnd(1786397843286338104L)
-                    .count(23L)
+                    .consensusStart(1786398539530723104L)
+                    .consensusEnd(1786398541005567104L)
+                    .count(25L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "15c9a3e7d027c112e3378a1a66277e5b1e3d9b1aa4ec67749ad3ef0e4d99859e0784672c8c5f838717a5da8e6fcbf67f")
-                    .index(322L)
-                    .name(BlockFile.getFilename(322, true))
+                            "1c417b370965dd85e274b568694d0a5b3325b39f619a840df0161339864a30e389ba3aec4c7763236d2f4c505d031921")
+                    .index(5L)
+                    .name(BlockFile.getFilename(5, true))
                     .previousHash(
-                            "51b6a517d512cccf096835842eab62d0336e4c6e9d8370302933e929e97b546d1f95f3121e766b5b7222261b20ba43bd")
+                            "e313796875ef100613684c0ee4ef1a80a13b73aa9c97f5f9592f9b9a25c798b33e36e397fa0e1456b17cee2155b8d7ac")
                     .rawHash(
                             Hex.decode(
-                                    "15c9a3e7d027c112e3378a1a66277e5b1e3d9b1aa4ec67749ad3ef0e4d99859e0784672c8c5f838717a5da8e6fcbf67f"))
+                                    "1c417b370965dd85e274b568694d0a5b3325b39f619a840df0161339864a30e389ba3aec4c7763236d2f4c505d031921"))
                     .rawPreviousHash(
                             Hex.decode(
-                                    "51b6a517d512cccf096835842eab62d0336e4c6e9d8370302933e929e97b546d1f95f3121e766b5b7222261b20ba43bd"))
-                    .roundStart(10812L)
-                    .roundEnd(10846L)
+                                    "e313796875ef100613684c0ee4ef1a80a13b73aa9c97f5f9592f9b9a25c798b33e36e397fa0e1456b17cee2155b8d7ac"))
+                    .roundStart(282L)
+                    .roundEnd(315L)
                     .version(BlockStreamReader.VERSION)
                     .build());
 
