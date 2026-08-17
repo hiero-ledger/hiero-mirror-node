@@ -32,6 +32,7 @@ final class ThrottleManagerImpl implements ThrottleManager {
     private final Bucket opcodeRateLimitBucket;
     private final ThrottleProperties throttleProperties;
     private final Cache<String, Bucket> ipBuckets;
+    private final IpWhitelist ipWhitelist;
 
     ThrottleManagerImpl(
             @Qualifier(GAS_LIMIT_BUCKET) Bucket gasLimitBucket,
@@ -46,6 +47,7 @@ final class ThrottleManagerImpl implements ThrottleManager {
                 .expireAfterAccess(Duration.ofMinutes(1))
                 .maximumSize(throttleProperties.getIpBucketCacheSize())
                 .build();
+        this.ipWhitelist = IpWhitelist.parse(throttleProperties.getWhitelistedIps());
     }
 
     @Override
@@ -81,7 +83,11 @@ final class ThrottleManagerImpl implements ThrottleManager {
     }
 
     private void throttlePerIp() {
-        if (!ipBucket(clientIp()).tryConsume(1)) {
+        if (throttleProperties.getRequestsPerSecondPerIp() <= 0) {
+            return;
+        }
+        var ip = clientIp();
+        if (!ipBucket(ip).tryConsume(1) && !ipWhitelist.contains(ip)) {
             throw new ThrottleException(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
         }
     }

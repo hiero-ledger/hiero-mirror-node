@@ -122,6 +122,65 @@ final class ThrottleManagerImplTest {
     }
 
     @Test
+    void throttlePerIpDisabledWhenZero() {
+        throttleProperties.setRequestsPerSecond(100);
+        throttleProperties.setRequestsPerSecondPerIp(0);
+        throttleManager = createThrottleManager();
+        var request = request();
+        request.setGas(21_000L);
+
+        withClientIp("10.0.0.1", () -> {
+            throttleManager.throttle(request);
+            throttleManager.throttle(request);
+        });
+    }
+
+    @Test
+    void throttlePerIpWhitelistedExactIp() {
+        throttleProperties.setRequestsPerSecond(100);
+        throttleProperties.setRequestsPerSecondPerIp(1);
+        throttleProperties.getWhitelistedIps().add("10.0.0.1");
+        throttleManager = createThrottleManager();
+        var request = request();
+        request.setGas(21_000L);
+
+        withClientIp("10.0.0.1", () -> {
+            throttleManager.throttle(request);
+            throttleManager.throttle(request);
+        });
+    }
+
+    @Test
+    void throttlePerIpWhitelistedCidr() {
+        throttleProperties.setRequestsPerSecond(100);
+        throttleProperties.setRequestsPerSecondPerIp(1);
+        throttleProperties.getWhitelistedIps().add("10.244.0.0/16");
+        throttleManager = createThrottleManager();
+        var request = request();
+        request.setGas(21_000L);
+
+        withClientIp("10.244.1.20", () -> {
+            throttleManager.throttle(request);
+            throttleManager.throttle(request);
+        });
+    }
+
+    @Test
+    void throttlePerIpWhitelistDoesNotBypassOtherClients() {
+        throttleProperties.setRequestsPerSecond(100);
+        throttleProperties.setRequestsPerSecondPerIp(1);
+        throttleProperties.getWhitelistedIps().add("10.244.0.0/16");
+        throttleManager = createThrottleManager();
+        var request = request();
+        request.setGas(21_000L);
+
+        withClientIp("10.0.0.1", () -> throttleManager.throttle(request));
+        assertThatThrownBy(() -> withClientIp("10.0.0.1", () -> throttleManager.throttle(request)))
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
+    }
+
+    @Test
     void throttleOpcodeRequestPerIpRateLimit() {
         throttleProperties.setOpcodeRequestsPerSecond(100);
         throttleProperties.setRequestsPerSecondPerIp(1);

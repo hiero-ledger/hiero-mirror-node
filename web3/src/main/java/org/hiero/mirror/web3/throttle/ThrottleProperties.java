@@ -5,7 +5,9 @@ package org.hiero.mirror.web3.throttle;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -37,8 +39,11 @@ public class ThrottleProperties {
     @Min(1)
     private long requestsPerSecond = 500;
 
-    @Min(1)
-    private long requestsPerSecondPerIp = 30;
+    @Min(0)
+    private long requestsPerSecondPerIp = 10;
+
+    @NotNull
+    private Set<String> whitelistedIps = new LinkedHashSet<>(Set.of("10.244.0.0/16"));
 
     // Necessary since bucket4j has a max capacity and fill rate of 1 token per nanosecond
     public long getGasPerSecond() {
