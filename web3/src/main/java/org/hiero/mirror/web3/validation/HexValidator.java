@@ -18,6 +18,10 @@ public class HexValidator implements ConstraintValidator<Hex, String> {
 
     @Override
     public void initialize(Hex hex) {
+        if (minLength < 0 || hex.maxLength() < minLength) {
+            throw new IllegalArgumentException("invalid @Hex bounds: [%d, %d]".formatted(minLength, hex.maxLength()));
+        }
+
         allowEmpty = hex.allowEmpty();
         minLength = hex.minLength();
         pattern = Pattern.compile("^(0[xX])?[0-9a-fA-F]{%d,%d}$".formatted(minLength, hex.maxLength()));
