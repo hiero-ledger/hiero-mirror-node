@@ -32,7 +32,6 @@ class LoggingFilter extends OncePerRequestFilter {
     static final int PAYLOAD_CACHE_MULTIPLIER = 10;
 
     private static final String ACTUATOR_PATH = "/actuator/";
-    private static final String DATA_FIELD = "\"data\":";
     private static final String LOG_FORMAT = "{} {} {} in {} ms : {} {} - {}";
     private static final String SUCCESS = "Success";
     // Use possessive quantifiers (*+) to prevent catastrophic backtracking on malformed JSON
@@ -103,7 +102,7 @@ class LoggingFilter extends OncePerRequestFilter {
                 if (compressed.length() <= maxPayloadLogSize) {
                     content = compressed;
                 }
-            } catch (Exception e) {
+            } catch (Exception _) {
                 // Ignore
             }
         }
