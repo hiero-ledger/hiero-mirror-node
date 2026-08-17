@@ -53,7 +53,7 @@ import org.springframework.stereotype.Service;
 public class OpcodeServiceImpl implements OpcodeService {
 
     static final String EXECUTED_OPCODES_METRIC = "hiero.mirror.web3.opcodes.executed";
-    static final String MEMORY_WORDS_METRIC = "hiero.mirror.web3.opcodes.memory.words";
+    static final String MEMORY_WORDS_METRIC = "hiero.mirror.web3.opcodes.memory";
     static final String STACK_METRIC = "hiero.mirror.web3.opcodes.stack";
     static final String STORAGE_METRIC = "hiero.mirror.web3.opcodes.storage";
 

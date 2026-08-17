@@ -43,10 +43,10 @@ final class OpcodeContextTest {
         final var context = new OpcodeContext(request(), 0, new OpcodesProperties());
         final var defaults = new OpcodesProperties();
 
-        assertThat(context.getMaxOpcodes()).isEqualTo(defaults.getMaxOpcodes());
-        assertThat(context.getMaxMemoryWords()).isEqualTo(defaults.getMaxMemoryWords());
-        assertThat(context.getMaxStack()).isEqualTo(defaults.getMaxStack());
-        assertThat(context.getMaxStorage()).isEqualTo(defaults.getMaxStorage());
+        assertThat(context.getProperties().getMaxOpcodes()).isEqualTo(defaults.getMaxOpcodes());
+        assertThat(context.getProperties().getMaxMemoryWords()).isEqualTo(defaults.getMaxMemoryWords());
+        assertThat(context.getProperties().getMaxStack()).isEqualTo(defaults.getMaxStack());
+        assertThat(context.getProperties().getMaxStorage()).isEqualTo(defaults.getMaxStorage());
     }
 
     @Test

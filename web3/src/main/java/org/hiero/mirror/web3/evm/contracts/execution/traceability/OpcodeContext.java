@@ -84,27 +84,7 @@ public final class OpcodeContext {
      */
     private final boolean storage;
 
-    /**
-     * Maximum size of the returned opcode list for this request, including the {@link #TRUNCATED_OPCODE} marker when the
-     * trace is truncated. One slot is reserved for the marker, so at most {@code maxOpcodes - 1} real opcodes are
-     * recorded and the list never exceeds this value.
-     */
-    private final int maxOpcodes;
-
-    /**
-     * Maximum total number of 32-byte memory words captured across all opcodes of this request.
-     */
-    private final int maxMemoryWords;
-
-    /**
-     * Maximum total number of stack items captured across all opcodes of this request.
-     */
-    private final int maxStack;
-
-    /**
-     * Maximum total number of storage entries captured across all opcodes of this request.
-     */
-    private final int maxStorage;
+    private final OpcodesProperties properties;
 
     /**
      * Running total of memory words captured so far across all recorded opcodes.
@@ -125,7 +105,7 @@ public final class OpcodeContext {
     private long capturedStorage;
 
     /**
-     * Whether the trace has been truncated because {@link #maxOpcodes} or one of the memory/stack/storage budgets was
+     * Whether the trace has been truncated because the opcode-count or one of the memory/stack/storage budgets was
      * reached. Once set, the single {@link #TRUNCATED_OPCODE} marker has been appended and further opcodes are dropped.
      */
     @Setter(AccessLevel.NONE)
@@ -143,10 +123,7 @@ public final class OpcodeContext {
         this.stack = opcodeRequest.isStack();
         this.memory = opcodeRequest.isMemory();
         this.storage = opcodeRequest.isStorage();
-        this.maxOpcodes = properties.getMaxOpcodes();
-        this.maxMemoryWords = properties.getMaxMemoryWords();
-        this.maxStack = properties.getMaxStack();
-        this.maxStorage = properties.getMaxStorage();
+        this.properties = properties;
         this.opcodes = new ArrayList<>(Math.min(Math.max(initialOpcodesCapacity, 0), MAX_INITIAL_OPCODES_CAPACITY));
     }
 
@@ -177,14 +154,14 @@ public final class OpcodeContext {
      * memory/stack/storage captured so far. Once true the trace is truncated and no further opcodes are recorded.
      */
     public boolean isAtCapacity() {
-        return truncated || opcodes.size() + 1 >= maxOpcodes;
+        return truncated || opcodes.size() + 1 >= properties.getMaxOpcodes();
     }
 
     private boolean exceedsCaptureBudget(final Opcode opcode) {
         return opcode != null
-                && (capturedMemoryWords + size(opcode.getMemory()) > maxMemoryWords
-                        || capturedStack + size(opcode.getStack()) > maxStack
-                        || capturedStorage + size(opcode.getStorage()) > maxStorage);
+                && (capturedMemoryWords + size(opcode.getMemory()) > properties.getMaxMemoryWords()
+                        || capturedStack + size(opcode.getStack()) > properties.getMaxStack()
+                        || capturedStorage + size(opcode.getStorage()) > properties.getMaxStorage());
     }
 
     private static int size(final List<?> list) {
