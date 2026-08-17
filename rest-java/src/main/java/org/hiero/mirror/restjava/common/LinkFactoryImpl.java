@@ -244,7 +244,8 @@ final class LinkFactoryImpl implements LinkFactory {
     private void addQueryParamToLink(
             Entry<String, String[]> entry, Direction order, LinkedMultiValueMap<String, String> queryParams) {
         for (var value : entry.getValue()) {
-            // Skip if it's in the same direction as the order, the new bound should come from the extracted value
+            // Skip if the value is null or if it contains an ISO control character.
+            // Skip if it's in the same direction as the order, the new bound should come from the extracted value.
             if (!isSafeQueryValue(value) || isSameDirection(order, value)) {
                 continue;
             }
