@@ -52,7 +52,10 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class OpcodeServiceImpl implements OpcodeService {
 
-    static final String OPCODES_METRIC = "hiero.mirror.web3.opcodes";
+    static final String EXECUTED_OPCODES_METRIC = "hiero.mirror.web3.opcodes.executed";
+    static final String MEMORY_WORDS_METRIC = "hiero.mirror.web3.opcodes.memory.words";
+    static final String STACK_METRIC = "hiero.mirror.web3.opcodes.stack";
+    static final String STORAGE_METRIC = "hiero.mirror.web3.opcodes.storage";
 
     private static final Address EMPTY_ADDRESS = Address.ZERO;
     private static final BigInteger ZERO = BigInteger.ZERO;
@@ -67,11 +70,23 @@ public class OpcodeServiceImpl implements OpcodeService {
     private final OpcodesProperties opcodesProperties;
     private final MeterRegistry meterRegistry;
     private Counter opcodesCounter;
+    private Counter memoryWordsCounter;
+    private Counter stackCounter;
+    private Counter storageCounter;
 
     @PostConstruct
     void init() {
-        opcodesCounter = Counter.builder(OPCODES_METRIC)
+        opcodesCounter = Counter.builder(EXECUTED_OPCODES_METRIC)
                 .description("The cumulative number of opcodes executed across opcode trace requests")
+                .register(meterRegistry);
+        memoryWordsCounter = Counter.builder(MEMORY_WORDS_METRIC)
+                .description("The cumulative number of 32-byte memory words captured across opcode trace requests")
+                .register(meterRegistry);
+        stackCounter = Counter.builder(STACK_METRIC)
+                .description("The cumulative number of stack items captured across opcode trace requests")
+                .register(meterRegistry);
+        storageCounter = Counter.builder(STORAGE_METRIC)
+                .description("The cumulative number of storage entries captured across opcode trace requests")
                 .register(meterRegistry);
     }
 
@@ -86,6 +101,9 @@ public class OpcodeServiceImpl implements OpcodeService {
 
             final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
             opcodesCounter.increment(opcodeContext.getExecutedOpcodes());
+            memoryWordsCounter.increment(opcodeContext.getCapturedMemoryWords());
+            stackCounter.increment(opcodeContext.getCapturedStack());
+            storageCounter.increment(opcodeContext.getCapturedStorage());
             return buildOpcodesResponse(result, params.getConsensusTimestamp());
         });
     }
