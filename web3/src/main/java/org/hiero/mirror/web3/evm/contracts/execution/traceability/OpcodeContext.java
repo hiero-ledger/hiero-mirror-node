@@ -85,7 +85,9 @@ public final class OpcodeContext {
     private final boolean storage;
 
     /**
-     * Maximum number of opcodes recorded for this request.
+     * Maximum size of the returned opcode list for this request, including the {@link #TRUNCATED_OPCODE} marker when the
+     * trace is truncated. One slot is reserved for the marker, so at most {@code maxOpcodes - 1} real opcodes are
+     * recorded and the list never exceeds this value.
      */
     private final int maxOpcodes;
 
@@ -149,15 +151,15 @@ public final class OpcodeContext {
     }
 
     /**
-     * Records an offered opcode. Every opcode is counted in {@link #executedOpcodes}. While below all budgets the opcode
-     * is stored and its captured memory/stack/storage added to the running totals; once a budget is reached (see
-     * {@link #isAtCapacity()}) the opcode is dropped and a single {@link #TRUNCATED_OPCODE} marker is appended the first
-     * time truncation occurs so clients can detect it. Callers that already know the cap is reached may pass
-     * {@code null} to avoid building an opcode that would be dropped.
+     * Records an offered opcode. Every opcode is counted in {@link #executedOpcodes}. While within all budgets the opcode
+     * is stored and its captured memory/stack/storage added to the running totals; once a budget would be exceeded (see
+     * {@link #isAtCapacity()} and {@link #exceedsCaptureBudget(Opcode)}) the opcode is dropped and a single
+     * {@link #TRUNCATED_OPCODE} marker is appended the first time truncation occurs so clients can detect it. Callers
+     * that already know the cap is reached may pass {@code null} to avoid building an opcode that would be dropped.
      */
     public void addOpcodes(Opcode opcode) {
         executedOpcodes++;
-        if (isAtCapacity()) {
+        if (isAtCapacity() || exceedsCaptureBudget(opcode)) {
             if (!truncated) {
                 truncated = true;
                 opcodes.add(TRUNCATED_OPCODE);
@@ -175,10 +177,14 @@ public final class OpcodeContext {
      * memory/stack/storage captured so far. Once true the trace is truncated and no further opcodes are recorded.
      */
     public boolean isAtCapacity() {
-        return opcodes.size() >= maxOpcodes
-                || capturedMemoryWords >= maxMemoryWords
-                || capturedStack >= maxStack
-                || capturedStorage >= maxStorage;
+        return truncated || opcodes.size() + 1 >= maxOpcodes;
+    }
+
+    private boolean exceedsCaptureBudget(final Opcode opcode) {
+        return opcode != null
+                && (capturedMemoryWords + size(opcode.getMemory()) > maxMemoryWords
+                        || capturedStack + size(opcode.getStack()) > maxStack
+                        || capturedStorage + size(opcode.getStorage()) > maxStorage);
     }
 
     private static int size(final List<?> list) {
