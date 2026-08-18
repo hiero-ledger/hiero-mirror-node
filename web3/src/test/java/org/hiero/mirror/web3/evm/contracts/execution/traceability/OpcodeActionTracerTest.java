@@ -62,6 +62,7 @@ import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
@@ -179,10 +180,21 @@ class OpcodeActionTracerTest {
         REMAINING_GAS.set(INITIAL_GAS);
         tracer = new OpcodeActionTracer();
         tracer.setSystemContracts(Map.of(HTS_PRECOMPILE_ADDRESS, mock(HederaSystemContract.class)));
-        opcodeContext = new OpcodeContext(
-                new OpcodeRequest(new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), false, false, false), 0);
+        opcodeContext = opcodeContext(false, false, false);
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
         lenient().when(contractCallContext.getOpcodeContext()).thenReturn(opcodeContext);
+    }
+
+    private static OpcodeContext opcodeContext(final boolean stack, final boolean memory, final boolean storage) {
+        return opcodeContext(stack, memory, storage, new OpcodesProperties());
+    }
+
+    private static OpcodeContext opcodeContext(
+            final boolean stack, final boolean memory, final boolean storage, final OpcodesProperties properties) {
+        return new OpcodeContext(
+                new OpcodeRequest(new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), stack, memory, storage),
+                0,
+                properties);
     }
 
     @AfterEach
@@ -284,7 +296,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given stack is enabled in tracer options, should record stack")
     void shouldRecordStackWhenEnabled() {
         // Given
-        opcodeContext = opcodeContext.toBuilder().stack(true).build();
+        opcodeContext = opcodeContext(true, false, false);
         frame = setupInitialFrame(opcodeContext);
 
         // When
@@ -299,7 +311,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given stack is disabled in tracer options, should not record stack")
     void shouldNotRecordStackWhenDisabled() {
         // Given
-        opcodeContext = opcodeContext.toBuilder().stack(false).build();
+        opcodeContext = opcodeContext(false, false, false);
         frame = setupInitialFrame(opcodeContext);
 
         // When
@@ -313,7 +325,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given memory is enabled in tracer options, should record memory")
     void shouldRecordMemoryWhenEnabled() {
         // Given
-        opcodeContext = opcodeContext.toBuilder().memory(true).build();
+        opcodeContext = opcodeContext(false, true, false);
         frame = setupInitialFrame(opcodeContext);
 
         // When
@@ -328,7 +340,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given memory is disabled in tracer options, should not record memory")
     void shouldNotRecordMemoryWhenDisabled() {
         // Given
-        opcodeContext = opcodeContext.toBuilder().memory(false).build();
+        opcodeContext = opcodeContext(false, false, false);
         frame = setupInitialFrame(opcodeContext);
 
         // When
@@ -342,7 +354,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given storage is enabled in tracer options, should record storage")
     void shouldRecordStorage() {
         // Given
-        opcodeContext = opcodeContext.toBuilder().storage(true).build();
+        opcodeContext = opcodeContext(false, false, true);
         frame = setupInitialFrame(opcodeContext);
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(txStorageUsage);
@@ -359,7 +371,7 @@ class OpcodeActionTracerTest {
             "given storage is enabled in tracer options, should return empty storage when there are no updates for modularized services")
     void shouldReturnEmptyStorageWhenThereAreNoUpdates() {
         // Given
-        opcodeContext = opcodeContext.toBuilder().storage(true).build();
+        opcodeContext = opcodeContext(false, false, true);
         frame = setupInitialFrame(opcodeContext);
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(new TxStorageUsage(List.of(), Set.of()));
@@ -375,7 +387,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given account is missing in the world updater, should only log a warning and return empty storage")
     void shouldNotThrowExceptionWhenAccountIsMissingInWorldUpdater() {
         // Given
-        opcodeContext = opcodeContext.toBuilder().storage(true).build();
+        opcodeContext = opcodeContext(false, false, true);
         frame = setupInitialFrame(opcodeContext);
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(new TxStorageUsage(List.of(), Set.of()));
@@ -391,7 +403,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given storage is disabled in tracer options, should not record storage")
     void shouldNotRecordStorageWhenDisabled() {
         // Given
-        opcodeContext = opcodeContext.toBuilder().storage(false).build();
+        opcodeContext = opcodeContext(false, false, false);
         frame = setupInitialFrame(opcodeContext);
 
         // When
@@ -405,8 +417,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given exceptional halt occurs, should capture frame data and halt reason")
     void shouldCaptureFrameWhenExceptionalHaltOccurs() {
         // Given
-        opcodeContext =
-                opcodeContext.toBuilder().stack(true).memory(true).storage(true).build();
+        opcodeContext = opcodeContext(true, true, true);
         frame = setupInitialFrame(opcodeContext);
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(txStorageUsage);
@@ -857,7 +868,7 @@ class OpcodeActionTracerTest {
     @DisplayName("should return updated slot value when access count is unchanged between opcodes")
     void shouldReturnUpdatedSlotValueWhenCountIsUnchangedBetweenOpcodes() {
         // Given - storage enabled
-        opcodeContext = opcodeContext.toBuilder().storage(true).build();
+        opcodeContext = opcodeContext(false, false, true);
         frame = setupInitialFrame(opcodeContext);
 
         final var slotKey = UInt256.ZERO;
@@ -890,7 +901,7 @@ class OpcodeActionTracerTest {
     @DisplayName("should track storage through multiple sequential overwrites of same slot")
     void shouldTrackStorageThroughMultipleSequentialOverwritesOfSameSlot() {
         // Given - storage enabled; K1 written V1 -> V2 -> V3 across three opcodes, count stays 1 throughout
-        opcodeContext = opcodeContext.toBuilder().storage(true).build();
+        opcodeContext = opcodeContext(false, false, true);
         frame = setupInitialFrame(opcodeContext);
 
         final var slotKey = UInt256.ZERO;

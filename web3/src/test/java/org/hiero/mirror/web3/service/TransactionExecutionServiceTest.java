@@ -37,6 +37,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
@@ -120,7 +121,8 @@ class TransactionExecutionServiceTest {
                 .setOpcodeContext(new OpcodeContext(
                         new OpcodeRequest(
                                 new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), true, false, false),
-                        0));
+                        0,
+                        new OpcodesProperties()));
 
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
@@ -324,7 +326,8 @@ class TransactionExecutionServiceTest {
                 .setOpcodeContext(new OpcodeContext(
                         new OpcodeRequest(
                                 new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), true, false, false),
-                        0));
+                        0,
+                        new OpcodesProperties()));
 
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
