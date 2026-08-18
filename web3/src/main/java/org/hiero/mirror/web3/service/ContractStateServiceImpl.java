@@ -141,7 +141,7 @@ final class ContractStateServiceImpl implements ContractStateService {
 
         for (int i = 0; i < size; i++) {
             if (!foundSlots.contains(new Bytes(slots[i]))) {
-                contractStateCache.put(generateCacheKey(contractId, slots[i]), EMPTY_VALUE);
+                contractStateCache.putIfAbsent(generateCacheKey(contractId, slots[i]), EMPTY_VALUE);
             }
         }
 
@@ -175,7 +175,7 @@ final class ContractStateServiceImpl implements ContractStateService {
 
     @EqualsAndHashCode(cacheStrategy = CacheStrategy.LAZY)
     @Value
-    private class SlotKey {
+    private static class SlotKey {
         private final long contractId;
         private final byte[] slot;
     }

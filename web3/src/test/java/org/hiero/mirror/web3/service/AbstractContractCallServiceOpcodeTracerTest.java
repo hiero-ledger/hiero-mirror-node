@@ -10,7 +10,7 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERRO
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.longValueOf;
-import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.OPTIONS;
+import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.OPCODE_REQUEST;
 import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.gasComparator;
 import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.toHumanReadableMessage;
 import static org.mockito.Mockito.doAnswer;
@@ -27,6 +27,7 @@ import org.hiero.mirror.common.tableusage.EndpointContext;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
@@ -121,7 +122,8 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     @SneakyThrows
     protected void verifyThrowingOpcodeTracerCall(
             final ContractDebugParameters params, final ContractFunctionProviderRecord function) {
-        final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, OPTIONS));
+        final var context = new OpcodeContext(OPCODE_REQUEST, 10000, new OpcodesProperties());
+        final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, context));
         assertThat(actual.transactionProcessingResult().isSuccessful()).isFalse();
         assertThat(actual.transactionProcessingResult()
                         .functionResult()
@@ -137,7 +139,8 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     }
 
     protected void verifySuccessfulOpcodeTracerCall(final ContractDebugParameters params) {
-        final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, OPTIONS));
+        final var context = new OpcodeContext(OPCODE_REQUEST, 10000, new OpcodesProperties());
+        final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, context));
         final var expected = new OpcodesProcessingResult(
                 resultCaptor,
                 params.getReceiver(),

@@ -18,8 +18,9 @@ public class HexValidator implements ConstraintValidator<Hex, String> {
 
     @Override
     public void initialize(Hex hex) {
-        if (minLength < 0 || hex.maxLength() < minLength) {
-            throw new IllegalArgumentException("invalid @Hex bounds: [%d, %d]".formatted(minLength, hex.maxLength()));
+        if (hex.minLength() < 0 || hex.maxLength() < hex.minLength()) {
+            throw new IllegalArgumentException(
+                    "invalid @Hex bounds: [%d, %d]".formatted(hex.minLength(), hex.maxLength()));
         }
 
         allowEmpty = hex.allowEmpty();
