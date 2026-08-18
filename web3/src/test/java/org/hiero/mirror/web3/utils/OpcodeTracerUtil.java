@@ -19,6 +19,8 @@ public class OpcodeTracerUtil {
     private static final TransactionIdOrHashParameter DUMMY_TRANSACTION_ID =
             new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH);
 
+    private static final OpcodesProperties OPCODES_PROPERTIES = new OpcodesProperties();
+
     /**
      * Builds a fresh {@link OpcodeContext} for a single opcode-trace call. Production creates a new context per request
      * (see OpcodeServiceImpl#processOpcodeCall); tests must do the same because the context accumulates mutable state
@@ -26,8 +28,7 @@ public class OpcodeTracerUtil {
      * tests lets earlier tests fill the trace to its cap, which corrupts assertions in later tests.
      */
     public static OpcodeContext options() {
-        return new OpcodeContext(
-                new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, false), 0, new OpcodesProperties());
+        return new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, false), 0, OPCODES_PROPERTIES);
     }
 
     public static String toHumanReadableMessage(final String solidityError) {
