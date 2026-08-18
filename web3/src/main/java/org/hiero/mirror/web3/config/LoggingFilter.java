@@ -11,7 +11,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -34,8 +33,6 @@ class LoggingFilter extends OncePerRequestFilter {
     private static final String ACTUATOR_PATH = "/actuator/";
     private static final String LOG_FORMAT = "{} {} {} in {} ms : {} {} - {}";
     private static final String SUCCESS = "Success";
-    // Use possessive quantifiers (*+) to prevent catastrophic backtracking on malformed JSON
-    private static final Pattern DATA_PATTERN = Pattern.compile("(\"data\":[^,}]*+),(.+)(}[^}]*+)$");
     private final Web3Properties web3Properties;
 
     @Override
@@ -91,7 +88,6 @@ class LoggingFilter extends OncePerRequestFilter {
         if (wrapper != null) {
             content = StringUtils.deleteWhitespace(wrapper.getContentAsString());
         }
-
         if (content.length() > maxPayloadLogSize) {
             final var bos = new ByteArrayOutputStream(content.length() / 4);
             try (final var out = new GZIPOutputStream(bos)) {
@@ -111,13 +107,9 @@ class LoggingFilter extends OncePerRequestFilter {
         if (log.isInfoEnabled()
                 && content.length() > maxPayloadLogSize
                 && status < HttpStatus.INTERNAL_SERVER_ERROR.value()) {
-            // Cap the input length that regex operates on to prevent catastrophic backtracking
-            final int regexLimit = Math.min(content.length(), Math.max(maxPayloadLogSize * 2, 10240));
-            final var boundedContent = content.substring(0, regexLimit);
-            final var reordered = reorderFields(boundedContent);
-
             // Finally truncate to max payload size
-            content = StringUtils.substring(reordered, 0, maxPayloadLogSize);
+            content = reorderFields(content);
+            content = StringUtils.substring(content, 0, maxPayloadLogSize);
         }
 
         return content;
@@ -140,6 +132,129 @@ class LoggingFilter extends OncePerRequestFilter {
 
     // Move data field to the end of the JSON so shorter fields are not truncated.
     private String reorderFields(String json) {
-        return DATA_PATTERN.matcher(json).replaceFirst("$2,$1$3");
+        // Find the last occurrence of "data":
+        int dataStart = json.lastIndexOf("\"data\":");
+        if (dataStart == -1) {
+            return json; // No "data" field found
+        }
+
+        // Find the end of the data value (looking for comma or closing brace that's NOT inside the value)
+        int dataValueStart = dataStart + "\"data\":".length();
+        int dataValueEnd = findDataValueEnd(json, dataValueStart);
+        if (dataValueEnd == -1) {
+            return json; // Can't find value end
+        }
+
+        // Check if there's a comma right after the data field
+        int commaAfterData = dataValueEnd;
+        if (commaAfterData >= json.length() || json.charAt(commaAfterData) != ',') {
+            return json; // No comma after data field, leave unchanged (like original regex)
+        }
+
+        // Find the last closing brace
+        int lastBrace = json.lastIndexOf('}');
+        if (lastBrace == -1 || lastBrace <= commaAfterData) {
+            return json; // Malformed or data is already at the end
+        }
+
+        // Extract parts: before data, data with value, after data comma, tail
+        String beforeData = json.substring(0, dataStart);
+        String dataField = json.substring(dataStart, commaAfterData);
+        String afterData = json.substring(commaAfterData + 1, lastBrace);
+        String tail = json.substring(lastBrace);
+
+        // Reconstruct: beforeData + afterData + ',' + dataField + tail
+        return beforeData + afterData + "," + dataField + tail;
+    }
+
+    // Find where the data field value ends (simple approach for strings and primitives)
+    private int findDataValueEnd(String json, int start) {
+        if (start >= json.length()) {
+            return -1;
+        }
+
+        // Skip whitespace
+        while (start < json.length() && Character.isWhitespace(json.charAt(start))) {
+            start++;
+        }
+
+        if (start >= json.length()) {
+            return -1;
+        }
+
+        char first = json.charAt(start);
+
+        // String value: scan until closing quote (handling escapes)
+        if (first == '"') {
+            int pos = start + 1;
+            while (pos < json.length()) {
+                char c = json.charAt(pos);
+                if (c == '\\' && pos + 1 < json.length()) {
+                    // Skip escaped character
+                    pos += 2;
+                } else if (c == '"') {
+                    // Position after closing quote
+                    return pos + 1;
+                } else {
+                    pos++;
+                }
+            }
+            // Unterminated string
+            return -1;
+        }
+
+        // Object or array: use StringUtils.indexOfAny or simple scan
+        if (first == '{' || first == '[') {
+            return findMatchingBrace(json, start);
+        }
+
+        // Primitive value (number, boolean, null): find next delimiter
+        int nextComma = json.indexOf(',', start);
+        int nextBrace = json.indexOf('}', start);
+
+        if (nextComma == -1 && nextBrace == -1) {
+            return json.length();
+        } else if (nextComma == -1) {
+            return nextBrace;
+        } else if (nextBrace == -1) {
+            return nextComma;
+        } else {
+            return Math.min(nextComma, nextBrace);
+        }
+    }
+
+    // Find matching closing brace/bracket for nested structures
+    private int findMatchingBrace(String json, int start) {
+        char openChar = json.charAt(start);
+        char closeChar = (openChar == '{') ? '}' : ']';
+        int depth = 0;
+        boolean inString = false;
+
+        for (int i = start; i < json.length(); i++) {
+            char c = json.charAt(i);
+
+            if (inString) {
+                if (c == '\\' && i + 1 < json.length()) {
+                    // Skip next character
+                    i++;
+                } else if (c == '"') {
+                    inString = false;
+                }
+            } else {
+                if (c == '"') {
+                    inString = true;
+                } else if (c == openChar) {
+                    depth++;
+                } else if (c == closeChar) {
+                    depth--;
+                    if (depth == 0) {
+                        // Position after closing brace
+                        return i + 1;
+                    }
+                }
+            }
+        }
+        // No matching brace
+        return -1;
     }
 }
