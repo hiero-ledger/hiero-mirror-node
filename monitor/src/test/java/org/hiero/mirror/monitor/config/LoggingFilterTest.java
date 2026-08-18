@@ -4,11 +4,17 @@ package org.hiero.mirror.monitor.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.net.URI;
 import java.time.Duration;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.http.HttpMethod;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -55,6 +61,24 @@ class LoggingFilterTest {
     }
 
     @Test
+    void filterLogsPathAndQuery(CapturedOutput output) {
+        var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("https://evil.example:8443/health?foo=bar")
+                .build());
+        exchange.getResponse().setRawStatusCode(200);
+
+        StepVerifier.withVirtualTime(() -> loggingFilter.filter(
+                        exchange,
+                        serverWebExchange ->
+                                Mono.defer(() -> exchange.getResponse().setComplete())))
+                .thenAwait(WAIT)
+                .expectComplete()
+                .verify(WAIT);
+
+        assertLog(output, "INFO", "\\w+ GET /health\\?foo=bar in \\d+ ms: 200");
+        assertThat(output).asString().doesNotContain("evil.example").doesNotContain("https://");
+    }
+
+    @Test
     void filterXForwardedFor(CapturedOutput output) {
         String clientIp = "10.0.0.100";
         var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/")
@@ -71,6 +95,53 @@ class LoggingFilterTest {
                 .verify(WAIT);
 
         assertLog(output, "INFO", clientIp + " GET / in \\d+ ms: 200");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "10.0.0.100\r\nWARN injected",
+                "10.0.0.100\nINFO fake",
+                "10.0.0.100\tinjected",
+                "10.0.0.100\u0000injected"
+            })
+    void filterSanitizesXForwardedFor(String clientIp, CapturedOutput output) {
+        var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/")
+                .header(LoggingFilter.X_FORWARDED_FOR, clientIp)
+                .build());
+        exchange.getResponse().setRawStatusCode(200);
+
+        StepVerifier.withVirtualTime(() -> loggingFilter.filter(
+                        exchange,
+                        serverWebExchange ->
+                                Mono.defer(() -> exchange.getResponse().setComplete())))
+                .thenAwait(WAIT)
+                .expectComplete()
+                .verify(WAIT);
+
+        var sanitizedClient = LoggingFilter.sanitize(clientIp);
+        assertLog(output, "INFO", sanitizedClient + " GET / in \\d+ ms: 200");
+        assertNoControlCharacters(output);
+    }
+
+    @Test
+    @SneakyThrows
+    void filterSanitizesUriControlCharacters(CapturedOutput output) {
+        var uri = new URI("http", "localhost", "/health\ninjected\rpath\tquery", "foo=bar\nbaz", null);
+        var exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.method(HttpMethod.GET, uri).build());
+        exchange.getResponse().setRawStatusCode(200);
+
+        StepVerifier.withVirtualTime(() -> loggingFilter.filter(
+                        exchange,
+                        serverWebExchange ->
+                                Mono.defer(() -> exchange.getResponse().setComplete())))
+                .thenAwait(WAIT)
+                .expectComplete()
+                .verify(WAIT);
+
+        assertLog(output, "INFO", "\\w+ GET /health_injected_path_query\\?foo=bar_baz in \\d+ ms: 200");
+        assertNoControlCharacters(output);
     }
 
     @Test
@@ -114,7 +185,48 @@ class LoggingFilterTest {
         assertLog(output, "WARN", "\\w+ GET / in \\d+ ms: " + exception.getMessage());
     }
 
+    @Test
+    void filterSanitizesErrorMessageControlCharacters(CapturedOutput output) {
+        var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/").build());
+        exchange.getResponse().setRawStatusCode(500);
+
+        var exception = new IllegalArgumentException("error\r\nWARN injected");
+        StepVerifier.withVirtualTime(() -> loggingFilter
+                        .filter(exchange, serverWebExchange -> Mono.error(exception))
+                        .onErrorResume(t -> exchange.getResponse().setComplete()))
+                .thenAwait(WAIT)
+                .expectComplete()
+                .verify(WAIT);
+
+        assertLog(output, "WARN", "\\w+ GET / in \\d+ ms: error__WARN injected");
+        assertNoControlCharacters(output);
+    }
+
+    @Test
+    void sanitize() {
+        assertThat(LoggingFilter.sanitize("abc")).isEqualTo("abc");
+        assertThat(LoggingFilter.sanitize("10.0.0.1")).isEqualTo("10.0.0.1");
+        assertThat(LoggingFilter.sanitize("/health?foo=bar")).isEqualTo("/health?foo=bar");
+        assertThat(LoggingFilter.sanitize("a\rb\nc\td")).isEqualTo("a_b_c_d");
+        assertThat(LoggingFilter.sanitize("error\r\nWARN injected")).isEqualTo("error__WARN injected");
+        assertThat(LoggingFilter.sanitize("\u0000injected")).isEqualTo("_injected");
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    void sanitizeEmpty(String value) {
+        assertThat(LoggingFilter.sanitize(value)).isEqualTo(value);
+    }
+
     private void assertLog(CapturedOutput logOutput, String level, String pattern) {
         assertThat(logOutput).asString().hasLineCount(1).contains(level).containsPattern(pattern);
+    }
+
+    private void assertNoControlCharacters(CapturedOutput logOutput) {
+        assertThat(logOutput.toString().stripTrailing())
+                .doesNotContain("\r")
+                .doesNotContain("\n")
+                .doesNotContain("\t")
+                .doesNotContain("\0");
     }
 }

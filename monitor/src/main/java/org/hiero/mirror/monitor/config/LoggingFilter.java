@@ -6,6 +6,7 @@ import jakarta.inject.Named;
 import java.io.Serial;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.regex.Pattern;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
@@ -26,6 +27,7 @@ class LoggingFilter implements WebFilter {
     @SuppressWarnings("java:S1075")
     private static final String ACTUATOR_PATH = "/actuator/";
 
+    private static final Pattern CONTROL_CHARACTERS = Pattern.compile("[\\p{Cntrl}]");
     private static final String LOCALHOST = "127.0.0.1";
     private static final String LOG_FORMAT = "{} {} {} in {} ms: {}";
 
@@ -53,9 +55,10 @@ class LoggingFilter implements WebFilter {
         long elapsed = System.currentTimeMillis() - startTime;
         ServerHttpRequest request = exchange.getRequest();
         URI uri = request.getURI();
-        var message =
-                cause != null ? cause.getMessage() : exchange.getResponse().getStatusCode();
-        var params = new Object[] {getClient(request), request.getMethod(), uri, elapsed, message};
+        var message = cause != null
+                ? sanitize(cause.getMessage())
+                : exchange.getResponse().getStatusCode();
+        var params = new Object[] {getClient(request), request.getMethod(), getLogUri(uri), elapsed, message};
 
         if (Strings.CS.startsWith(uri.getPath(), ACTUATOR_PATH)) {
             log.debug(LOG_FORMAT, params);
@@ -70,16 +73,27 @@ class LoggingFilter implements WebFilter {
         String xForwardedFor = CollectionUtils.firstElement(request.getHeaders().get(X_FORWARDED_FOR));
 
         if (StringUtils.isNotBlank(xForwardedFor)) {
-            return xForwardedFor;
+            return sanitize(xForwardedFor);
         }
 
         InetSocketAddress remoteAddress = request.getRemoteAddress();
 
         if (remoteAddress != null && remoteAddress.getAddress() != null) {
-            return remoteAddress.getAddress().toString();
+            return sanitize(remoteAddress.getAddress().toString());
         }
 
         return LOCALHOST;
+    }
+
+    private String getLogUri(URI uri) {
+        var path = StringUtils.defaultString(uri.getPath());
+        var query = uri.getQuery();
+        var logUri = StringUtils.isNotEmpty(query) ? path + '?' + query : path;
+        return sanitize(logUri);
+    }
+
+    static String sanitize(String value) {
+        return value != null ? CONTROL_CHARACTERS.matcher(value).replaceAll("_") : null;
     }
 
     private static class CancelledException extends RuntimeException {
