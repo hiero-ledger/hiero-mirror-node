@@ -93,7 +93,7 @@ spec:
           - index: 1
             pods:
               persistentVolume:
-                size: 180Gi
+                size: 204Gi
           - index: 2
             pods:
               persistentVolume:
