@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {Range} from 'pg-range';
+import fs from 'fs';
+import path from 'path';
 
 import config, {getResponseLimit} from '../../config';
 import * as constants from '../../constants';
 import contracts from '../../controllers/contractController';
+import {ContractService} from '../../service';
 import {assertSqlQueryEqual} from '../testutils';
 import * as utils from '../../utils';
 import {Entity} from '../../model';
@@ -1512,6 +1515,163 @@ describe('extractContractLogsMultiUnionQuery - positive', () => {
         contracts.extractContractLogsMultiUnionQuery(spec.input.filter, spec.input.contractId)
       ).resolves.toEqual(spec.expected);
     });
+  });
+});
+
+describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', () => {
+  const defaultContractId = 1;
+
+  test('SQL excludes Transfer topic0 with sentinel topic3', async () => {
+    const query = await contracts.extractContractLogsMultiUnionQuery([], defaultContractId);
+    const [sql, params] = ContractService.getContractLogsQuery(query);
+
+    assertSqlQueryEqual(
+      sql,
+      `with entity as (select evm_address, id from entity)
+      select cl.bloom, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
+             cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,
+             evm_address
+      from contract_log cl
+      left join entity e on id = contract_id
+      where cl.contract_id = $1 and (cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
+      order by cl.consensus_timestamp desc, cl.index desc
+      limit $4`
+    );
+    expect(params[0]).toEqual(defaultContractId);
+    expect(params[1]).toEqual(constants.TRANSFER_EVENT_TOPIC0);
+    expect(params[2]).toEqual(constants.SYNTHETIC_NFT_SERIAL_TOPIC3);
+    expect(params[3]).toEqual(defaultLimit);
+    expect(params).toHaveLength(4);
+  });
+
+  test('SQL excludes Transfer + sentinel when topic filters are present', async () => {
+    const query = await contracts.extractContractLogsMultiUnionQuery(
+      [
+        {key: constants.filterKeys.TOPIC0, operator: eq, value: '0x0011'},
+        {key: constants.filterKeys.TOPIC0, operator: eq, value: '0x000013'},
+        {key: constants.filterKeys.TOPIC2, operator: eq, value: '0x140'},
+        {key: constants.filterKeys.TOPIC3, operator: eq, value: '0000150'},
+        {key: constants.filterKeys.TOPIC3, operator: eq, value: '0000150'},
+      ],
+      defaultContractId
+    );
+    const [sql, params] = ContractService.getContractLogsQuery(query);
+
+    assertSqlQueryEqual(
+      sql,
+      `with entity as (select evm_address, id from entity)
+      select cl.bloom, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
+             cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,evm_address
+      from contract_log cl
+      left join entity e on id = contract_id
+      where cl.contract_id = $1 and cl.topic0 in ($2,$3) and cl.topic2 in ($4) and cl.topic3 in ($5,$6) and (cl.topic0 is distinct from $7 or cl.topic3 is distinct from $8)
+      order by cl.consensus_timestamp desc, cl.index desc
+      limit $9`
+    );
+    expect(params[0]).toEqual(defaultContractId);
+    expect(params[6]).toEqual(constants.TRANSFER_EVENT_TOPIC0);
+    expect(params[7]).toEqual(constants.SYNTHETIC_NFT_SERIAL_TOPIC3);
+    expect(params[8]).toEqual(defaultLimit);
+    expect(params).toHaveLength(9);
+  });
+
+  test('SQL excludes Transfer + sentinel in lower/inner/upper union query', async () => {
+    const query = await contracts.extractContractLogsMultiUnionQuery(
+      [indexGte2Filter, timestampGte1002Filter, timestampLte1005Filter, indexLte5Filter],
+      defaultContractId
+    );
+    const [sql, params] = ContractService.getContractLogsQuery(query);
+
+    assertSqlQueryEqual(
+      sql,
+      `(
+        with entity as (select evm_address, id from entity)
+        select
+          cl.bloom,
+          cl.contract_id,
+          cl.consensus_timestamp,
+          cl.data,
+          cl.index,
+          cl.root_contract_id,
+          cl.topic0,
+          cl.topic1,
+          cl.topic2,
+          cl.topic3,
+          cl.transaction_hash,
+          cl.transaction_index,
+          evm_address
+        from
+          contract_log cl
+          left join entity e on id = contract_id
+        where cl.contract_id = $1
+          and (cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
+          and cl.consensus_timestamp = $5
+          and cl.index >= $6
+        order by
+          cl.consensus_timestamp desc,
+          cl.index desc
+        limit $4
+      ) union (
+        with entity as (select evm_address, id from entity)
+        select
+          cl.bloom,
+          cl.contract_id,
+          cl.consensus_timestamp,
+          cl.data,
+          cl.index,
+          cl.root_contract_id,
+          cl.topic0,
+          cl.topic1,
+          cl.topic2,
+          cl.topic3,
+          cl.transaction_hash,
+          cl.transaction_index,
+          evm_address
+        from
+          contract_log cl
+          left join entity e on id = contract_id
+        where cl.contract_id = $1
+          and (cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
+          and cl.consensus_timestamp > $7
+          and cl.consensus_timestamp < $8
+        order by
+          cl.consensus_timestamp desc,
+          cl.index desc
+        limit $4
+      ) union (
+        with entity as (select evm_address, id from entity)
+        select
+          cl.bloom,
+          cl.contract_id,
+          cl.consensus_timestamp,
+          cl.data,
+          cl.index,
+          cl.root_contract_id,
+          cl.topic0,
+          cl.topic1,
+          cl.topic2,
+          cl.topic3,
+          cl.transaction_hash,
+          cl.transaction_index,
+          evm_address
+        from
+          contract_log cl
+          left join entity e on id = contract_id
+        where cl.contract_id = $1
+          and (cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
+          and cl.consensus_timestamp = $9
+          and cl.index <= $10
+        order by cl.consensus_timestamp desc, cl.index desc
+        limit $4
+      )
+      order by consensus_timestamp desc, index desc
+      limit $4`
+    );
+    expect(params[0]).toEqual(defaultContractId);
+    expect(params[1]).toEqual(constants.TRANSFER_EVENT_TOPIC0);
+    expect(params[2]).toEqual(constants.SYNTHETIC_NFT_SERIAL_TOPIC3);
+    expect(params[3]).toEqual(defaultLimit);
+    expect(params).toHaveLength(10);
   });
 });
 
