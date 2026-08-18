@@ -2,34 +2,24 @@
 
 package org.hiero.mirror.restjava.common;
 
-import static org.hiero.mirror.restjava.common.Constants.ACCOUNT_ID;
-import static org.hiero.mirror.restjava.common.Constants.FILE_ID;
-import static org.hiero.mirror.restjava.common.Constants.HOOK_ID;
-import static org.hiero.mirror.restjava.common.Constants.KEY;
-import static org.hiero.mirror.restjava.common.Constants.LIMIT;
-import static org.hiero.mirror.restjava.common.Constants.NODE_ID;
-import static org.hiero.mirror.restjava.common.Constants.ORDER;
-import static org.hiero.mirror.restjava.common.Constants.OWNER;
-import static org.hiero.mirror.restjava.common.Constants.RECEIVER_ID;
-import static org.hiero.mirror.restjava.common.Constants.REGISTERED_NODE_ID;
-import static org.hiero.mirror.restjava.common.Constants.REGISTERED_NODE_TYPE;
-import static org.hiero.mirror.restjava.common.Constants.SENDER_ID;
-import static org.hiero.mirror.restjava.common.Constants.SERIAL_NUMBER;
-import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
-import static org.hiero.mirror.restjava.common.Constants.TOKEN_ID;
-
 import com.google.common.collect.Iterables;
 import jakarta.inject.Named;
 import jakarta.servlet.http.HttpServletRequest;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.Links;
+import org.hiero.mirror.restjava.parameter.RequestParameter;
+import org.hiero.mirror.restjava.parameter.RestJavaQueryParam;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Pageable;
@@ -38,8 +28,11 @@ import org.springframework.data.domain.Sort.Direction;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Named
@@ -47,24 +40,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 @NullMarked
 final class LinkFactoryImpl implements LinkFactory {
 
-    private static final Set<String> ALLOWED_QUERY_PARAMS = Set.of(
-            ACCOUNT_ID,
-            FILE_ID,
-            HOOK_ID,
-            KEY,
-            LIMIT,
-            NODE_ID,
-            ORDER,
-            OWNER,
-            RECEIVER_ID,
-            REGISTERED_NODE_ID,
-            REGISTERED_NODE_TYPE,
-            SENDER_ID,
-            SERIAL_NUMBER,
-            TIMESTAMP,
-            TOKEN_ID);
-
     private static final Links DEFAULT_LINKS = new Links();
+
+    private final Map<Method, Set<String>> allowedQueryParamsCache = new ConcurrentHashMap<>();
 
     private static RangeOperator getOperator(Direction order, boolean exclusive) {
         return switch (order) {
@@ -185,9 +163,10 @@ final class LinkFactoryImpl implements LinkFactory {
         var builder = UriComponentsBuilder.fromPath(request.getRequestURI());
         var paramsMap = request.getParameterMap();
         var paginationParamsMap = extractor.apply(lastItem);
+        var allowedQueryParams = getAllowedQueryParams(request);
         var queryParams = new LinkedMultiValueMap<String, String>();
 
-        addParamMapToQueryParams(paramsMap, paginationParamsMap, order, queryParams);
+        addParamMapToQueryParams(paramsMap, paginationParamsMap, allowedQueryParams, order, queryParams);
         addExtractedParamsToQueryParams(sortOrders, paginationParamsMap, order, queryParams);
 
         // Check if the pagination would create an empty range (e.g., gt:4 AND lt:5 with no values in between)
@@ -200,8 +179,72 @@ final class LinkFactoryImpl implements LinkFactory {
         return builder.encode().toUriString();
     }
 
-    private static boolean isAllowedQueryParam(String key, Map<String, String> paginationParamsMap) {
-        return ALLOWED_QUERY_PARAMS.contains(key) || paginationParamsMap.containsKey(key);
+    /**
+     * Allowed query names for the matched handler: {@code @RequestParam} and {@code @RestJavaQueryParam} on
+     * {@code @RequestParameter} DTOs. Cached per method so new endpoints are picked up without a global allowlist.
+     */
+    private Set<String> getAllowedQueryParams(HttpServletRequest request) {
+        if (!(request.getAttribute(HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE)
+                instanceof HandlerMethod handlerMethod)) {
+            return Set.of();
+        }
+
+        return allowedQueryParamsCache.computeIfAbsent(
+                handlerMethod.getMethod(), LinkFactoryImpl::extractQueryParamNames);
+    }
+
+    private static Set<String> extractQueryParamNames(Method method) {
+        var names = new HashSet<String>();
+        for (var parameter : method.getParameters()) {
+            var requestParam = parameter.getAnnotation(RequestParam.class);
+            if (requestParam != null) {
+                names.add(resolveQueryParamName(parameter.getName(), requestParam.value(), requestParam.name()));
+                continue;
+            }
+
+            if (parameter.getAnnotation(RequestParameter.class) != null) {
+                names.addAll(extractQueryParamNamesFromDto(parameter.getType()));
+            }
+        }
+
+        return Set.copyOf(names);
+    }
+
+    private static Set<String> extractQueryParamNamesFromDto(Class<?> dtoClass) {
+        var names = new HashSet<String>();
+        for (var type = dtoClass; type != null && type != Object.class; type = type.getSuperclass()) {
+            for (var field : type.getDeclaredFields()) {
+                addQueryParamName(names, field);
+            }
+        }
+
+        return names;
+    }
+
+    private static void addQueryParamName(Set<String> names, Field field) {
+        if (field.isSynthetic()) {
+            return;
+        }
+
+        var queryParam = field.getAnnotation(RestJavaQueryParam.class);
+        if (queryParam != null) {
+            names.add(resolveQueryParamName(field.getName(), queryParam.value(), queryParam.name()));
+        }
+    }
+
+    private static String resolveQueryParamName(String fallback, String value, String name) {
+        if (!value.isEmpty()) {
+            return value;
+        }
+        if (!name.isEmpty()) {
+            return name;
+        }
+        return fallback;
+    }
+
+    private static boolean isAllowedQueryParam(
+            String key, Map<String, String> paginationParamsMap, Set<String> allowedQueryParams) {
+        return allowedQueryParams.contains(key) || paginationParamsMap.containsKey(key);
     }
 
     private static boolean isSafeQueryValue(@Nullable String value) {
@@ -221,11 +264,12 @@ final class LinkFactoryImpl implements LinkFactory {
     private void addParamMapToQueryParams(
             Map<String, String[]> paramsMap,
             Map<String, String> paginationParamsMap,
+            Set<String> allowedQueryParams,
             Direction order,
             LinkedMultiValueMap<String, String> queryParams) {
         for (var entry : paramsMap.entrySet()) {
             var key = entry.getKey();
-            if (!isAllowedQueryParam(key, paginationParamsMap) || !isSafeQueryValue(key)) {
+            if (!isAllowedQueryParam(key, paginationParamsMap, allowedQueryParams) || !isSafeQueryValue(key)) {
                 continue;
             }
 
