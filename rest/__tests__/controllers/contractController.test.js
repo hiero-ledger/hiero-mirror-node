@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {Range} from 'pg-range';
-import fs from 'fs';
-import path from 'path';
 
 import config, {getResponseLimit} from '../../config';
 import * as constants from '../../constants';
