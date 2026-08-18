@@ -74,9 +74,6 @@ const contractCreateType = Number(TransactionType.getProtoId('CONTRACTCREATEINST
 const ethereumTransactionType = Number(TransactionType.getProtoId('ETHEREUMTRANSACTION'));
 const duplicateTransactionResult = TransactionResult.getProtoId('DUPLICATE_TRANSACTION');
 const wrongNonceTransactionResult = TransactionResult.getProtoId('WRONG_NONCE');
-const nonEvmTransactionResultsCondition = `${ContractResult.getFullName(
-  ContractResult.TRANSACTION_RESULT
-)} not in (${wrongNonceTransactionResult}, ${duplicateTransactionResult})`;
 
 /**
  * Extracts the sql where clause, params, order and limit values to be used from the provided contract query
@@ -884,7 +881,9 @@ class ContractController extends BaseController {
       return;
     }
 
-    conditions.push(nonEvmTransactionResultsCondition);
+    conditions.push(
+      `${ContractResult.getFullName(ContractResult.TRANSACTION_RESULT)} <> ${wrongNonceTransactionResult}`
+    );
 
     const rows = await ContractService.getContractResultsByIdAndFilters(conditions, params, order, limit);
     if (rows.length === 0) {
@@ -1103,7 +1102,9 @@ class ContractController extends BaseController {
       return;
     }
 
-    conditions.push(nonEvmTransactionResultsCondition);
+    conditions.push(
+      `${ContractResult.getFullName(ContractResult.TRANSACTION_RESULT)} <> ${wrongNonceTransactionResult}`
+    );
 
     const rows = await ContractService.getContractResultsByIdAndFilters(
       conditions,
