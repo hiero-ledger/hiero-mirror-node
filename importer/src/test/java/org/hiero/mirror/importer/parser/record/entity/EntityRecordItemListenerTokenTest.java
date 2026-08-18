@@ -69,7 +69,6 @@ import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
-import org.hiero.mirror.common.domain.token.AbstractNft;
 import org.hiero.mirror.common.domain.token.AbstractNft.Id;
 import org.hiero.mirror.common.domain.token.CustomFee;
 import org.hiero.mirror.common.domain.token.FallbackFee;
@@ -1532,7 +1531,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .tokenId(tokenId.getId())
                 .build();
         assertThat(tokenAccountRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("freezeStatus", "kycStatus")
+                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("freezeStatusId", "kycStatusId")
                 .containsExactlyInAnyOrder(tokenAccountOldTreasury, tokenAccountNewTreasury);
     }
 
@@ -3785,7 +3784,7 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(SYMBOL, Token::getSymbol)
                 .returns(1L, Token::getTotalSupply);
 
-        assertThat(nftRepository.findById(new AbstractNft.Id(1L, DOMAIN_TOKEN_ID.getId())))
+        assertThat(nftRepository.findById(new Id(1L, DOMAIN_TOKEN_ID.getId())))
                 .get()
                 .returns(mintTimestamp, Nft::getCreatedTimestamp)
                 .returns(DomainUtils.toBytes(newMetadata.getValue()), Nft::getMetadata)

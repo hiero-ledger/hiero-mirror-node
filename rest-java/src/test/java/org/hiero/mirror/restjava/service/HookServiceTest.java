@@ -2,292 +2,102 @@
 
 package org.hiero.mirror.restjava.service;
 
+import static java.lang.Long.MAX_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyList;
-import static org.mockito.Mockito.eq;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+import java.util.TreeSet;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
-import org.hiero.mirror.common.domain.hook.HookStorage;
-import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.dto.HookStorageRequest;
+import org.hiero.mirror.restjava.dto.HookStorageSlot;
 import org.hiero.mirror.restjava.dto.HooksRequest;
 import org.hiero.mirror.restjava.parameter.EntityIdParameter;
 import org.hiero.mirror.restjava.repository.HookRepository;
-import org.hiero.mirror.restjava.repository.HookStorageChangeRepository;
-import org.hiero.mirror.restjava.repository.HookStorageRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 
-@RequiredArgsConstructor
-final class HookServiceTest extends RestJavaIntegrationTest {
+final class HookServiceTest {
 
-    public static final int DEFAULT_LIMIT = 25;
+    private static final long OWNER_NUM = 1001L;
     private static final String KEY_MIN = "0000000000000000000000000000000000000000000000000000000000000000";
     private static final String KEY_MAX = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
     private static final byte[] KEY_MIN_BYTES = HexFormat.of().parseHex(KEY_MIN);
     private static final byte[] KEY_MAX_BYTES = HexFormat.of().parseHex(KEY_MAX);
-    private static final long OWNER_ID = 1001L;
 
-    private HookRepository hookRepository;
-    private HookStorageRepository hookStorageRepository;
-    private HookStorageChangeRepository hookStorageChangeRepository;
-    private EntityService entityService;
-    private HookService hookService;
+    private final EntityService entityService = mock(EntityService.class);
+    private final HookRepository hookRepository = mock(HookRepository.class);
+    private final HookServiceImpl hookService = new HookServiceImpl(entityService, hookRepository);
 
-    @BeforeEach
-    void setup() {
-        hookRepository = mock(HookRepository.class);
-        hookStorageRepository = mock(HookStorageRepository.class);
-        hookStorageChangeRepository = mock(HookStorageChangeRepository.class);
-        entityService = mock(EntityService.class);
-        hookService =
-                new HookServiceImpl(hookRepository, hookStorageRepository, hookStorageChangeRepository, entityService);
-    }
+    private final EntityId ownerId = EntityId.of(OWNER_NUM);
 
     @Test
-    void getHooksEqFiltersCallsFindByOwnerIdAndHookIdIn() {
-        // given
-        final var ownerId = EntityId.of(OWNER_ID);
-        final var hook = new Hook();
-
-        when(entityService.lookup(any())).thenReturn(ownerId);
-        when(hookRepository.findByOwnerIdAndHookIdIn(eq(ownerId.getId()), anyList(), any()))
-                .thenReturn(List.of(hook));
-
-        final var request = HooksRequest.builder()
-                .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
-                .hookIds(List.of(1L, 2L))
-                .limit(DEFAULT_LIMIT)
-                .order(Sort.Direction.DESC)
+    void getHooksDelegatesToRepository() {
+        var hook = new Hook();
+        var request = HooksRequest.builder()
+                .hookIds(new TreeSet<>(List.of(1L, 2L)))
+                .lowerBound(0L)
+                .upperBound(MAX_VALUE)
+                .limit(25)
+                .order(Direction.DESC)
+                .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_NUM)))
                 .build();
 
-        // when
-        final var result = hookService.getHooks(request);
-
-        // then
-        assertThat(result).containsExactly(hook);
-        verify(hookRepository).findByOwnerIdAndHookIdIn(eq(ownerId.getId()), eq(List.of(1L, 2L)), any());
-    }
-
-    @Test
-    void getHooksRangeFiltersCallsFindByOwnerIdAndHookIdBetween() {
-        // given
-        final var ownerId = EntityId.of(OWNER_ID);
-        final var hook = new Hook();
-
         when(entityService.lookup(any())).thenReturn(ownerId);
-        when(hookRepository.findByOwnerIdAndHookIdBetween(eq(ownerId.getId()), eq(10L), eq(20L), any()))
-                .thenReturn(List.of(hook));
+        when(hookRepository.findHooks(eq(request), eq(OWNER_NUM))).thenReturn(List.of(hook));
 
-        final var request = HooksRequest.builder()
-                .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
-                .lowerBound(10L)
-                .upperBound(20L)
-                .limit(DEFAULT_LIMIT)
-                .order(Sort.Direction.ASC)
-                .build();
-
-        // when
-        final var result = hookService.getHooks(request);
-
-        // then
-        assertThat(result).containsExactly(hook);
-        verify(hookRepository).findByOwnerIdAndHookIdBetween(eq(ownerId.getId()), eq(10L), eq(20L), any());
+        assertThat(hookService.getHooks(request)).containsExactly(hook);
+        verify(hookRepository).findHooks(eq(request), eq(OWNER_NUM));
     }
 
     @Test
-    void getHooksEqAndRangeFiltersCallsFindByOwnerIdAndHookIdInFilteredIds() {
-        // given
-        final var ownerId = EntityId.of(OWNER_ID);
-        final var hook = new Hook();
-
-        when(entityService.lookup(any())).thenReturn(ownerId);
-        when(hookRepository.findByOwnerIdAndHookIdIn(eq(ownerId.getId()), eq(List.of(15L)), any()))
-                .thenReturn(List.of(hook));
-
-        final var request = HooksRequest.builder()
-                .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
-                .hookIds(List.of(5L, 15L, 25L))
-                .lowerBound(10L)
-                .upperBound(20L)
-                .limit(DEFAULT_LIMIT)
-                .order(Sort.Direction.ASC)
-                .build();
-
-        // when
-        final var result = hookService.getHooks(request);
-
-        // then
-        assertThat(result).containsExactly(hook);
-        verify(hookRepository).findByOwnerIdAndHookIdIn(eq(ownerId.getId()), eq(List.of(15L)), any());
-    }
-
-    @Test
-    void getHooksEqAndRangeFiltersNoIdsInRangeReturnsEmpty() {
-        // given
-        final var ownerId = EntityId.of(OWNER_ID);
-
-        when(entityService.lookup(any())).thenReturn(ownerId);
-
-        final var request = HooksRequest.builder()
-                .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
-                .hookIds(List.of(1L, 2L))
-                .lowerBound(10L)
-                .upperBound(20L)
-                .limit(DEFAULT_LIMIT)
-                .build();
-
-        // when
-        final var result = hookService.getHooks(request);
-
-        // then
-        assertThat(result).isEmpty();
-        verifyNoInteractions(hookRepository);
-    }
-
-    @Test
-    void getHookStorageEmptyKeysCallsKeyBetween() {
-        // given
-        final var ownerId = String.valueOf(OWNER_ID);
-        final var hookStorage = new HookStorage();
-
-        when(entityService.lookup(any())).thenReturn(EntityId.of(OWNER_ID));
-        when(hookStorageRepository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
-                        eq(OWNER_ID), eq(1L), any(byte[].class), any(byte[].class), any()))
-                .thenReturn(List.of(hookStorage));
-
-        final var request = HookStorageRequest.builder()
-                .ownerId(EntityIdParameter.valueOf(ownerId))
+    void getHookStorageWhenHookMissingThrows() {
+        var request = HookStorageRequest.builder()
+                .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_NUM)))
                 .hookId(1L)
                 .keys(List.of())
                 .keyLowerBound(KEY_MIN_BYTES)
                 .keyUpperBound(KEY_MAX_BYTES)
-                .limit(DEFAULT_LIMIT)
-                .order(Sort.Direction.ASC)
+                .limit(25)
+                .order(Direction.ASC)
+                .timestamp(Bound.EMPTY)
                 .build();
 
-        // when
-        final var result = hookService.getHookStorage(request).storage();
+        when(entityService.lookup(any())).thenReturn(ownerId);
+        when(hookRepository.existsById(new Hook.Id(1L, OWNER_NUM))).thenReturn(false);
 
-        // then
-        assertThat(result).containsExactly(hookStorage);
-        verify(hookStorageRepository)
-                .findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
-                        eq(OWNER_ID),
-                        eq(1L),
-                        eq(request.getKeyLowerBound()),
-                        eq(request.getKeyUpperBound()),
-                        any(PageRequest.class));
+        assertThatThrownBy(() -> hookService.getHookStorage(request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Hook not found");
     }
 
     @Test
-    void getHookStorageNonEmptyKeysCallsKeyIn() {
-        // given
-        final var hookStorage = new HookStorage();
-
-        when(entityService.lookup(any())).thenReturn(EntityId.of(OWNER_ID));
-        when(hookStorageRepository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
-                        eq(OWNER_ID), eq(1L), anyList(), any()))
-                .thenReturn(List.of(hookStorage));
-
-        final var request = HookStorageRequest.builder()
-                .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
+    void getHookStorageReturnsRepositoryRows() {
+        var slot = new HookStorageSlot(1L, KEY_MIN_BYTES, new byte[] {1, 2, 3});
+        var request = HookStorageRequest.builder()
+                .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_NUM)))
                 .hookId(1L)
-                .keys(List.of(KEY_MIN_BYTES, KEY_MAX_BYTES))
+                .keys(List.of())
                 .keyLowerBound(KEY_MIN_BYTES)
                 .keyUpperBound(KEY_MAX_BYTES)
-                .limit(DEFAULT_LIMIT)
-                .order(Sort.Direction.ASC)
+                .limit(25)
+                .order(Direction.ASC)
+                .timestamp(Bound.EMPTY)
                 .build();
-
-        // when
-        final var result = hookService.getHookStorage(request).storage();
-
-        // then
-        assertThat(result).containsExactly(hookStorage);
-        verify(hookStorageRepository)
-                .findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
-                        eq(OWNER_ID),
-                        eq(1L),
-                        argThat(actual -> {
-                            if (actual.size() != 2) {
-                                return false;
-                            }
-                            return Arrays.equals(actual.get(0), KEY_MIN_BYTES)
-                                    && Arrays.equals(actual.get(1), KEY_MAX_BYTES);
-                        }),
-                        any(PageRequest.class));
-    }
-
-    @Test
-    void getHookStorageKeysOutOfRangeDoesNotCallRepositoryReturnsEmptyList() {
-        // given
-        final var ownerId = EntityId.of(OWNER_ID);
 
         when(entityService.lookup(any())).thenReturn(ownerId);
+        when(hookRepository.existsById(new Hook.Id(1L, OWNER_NUM))).thenReturn(true);
+        when(hookRepository.findHookStorage(eq(request), eq(OWNER_NUM))).thenReturn(List.of(slot));
 
-        final var outOfRangeKey1 = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE";
-        final var outOfRangeKey2 = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
-
-        final var request = HookStorageRequest.builder()
-                .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
-                .hookId(1L)
-                .keys(List.of(
-                        HexFormat.of().parseHex(outOfRangeKey1), HexFormat.of().parseHex(outOfRangeKey2)))
-                .keyLowerBound(KEY_MIN_BYTES)
-                .keyUpperBound(
-                        HexFormat.of().parseHex("00000000000000000000000000000000000000000000000000000000000000FF"))
-                .limit(DEFAULT_LIMIT)
-                .order(Sort.Direction.ASC)
-                .build();
-
-        // when
-        final var result = hookService.getHookStorage(request).storage();
-
-        // then
-        assertThat(result).isEmpty();
-        verify(hookStorageRepository, never())
-                .findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(anyLong(), anyLong(), anyList(), any());
-        verify(hookStorageRepository, never())
-                .findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(anyLong(), anyLong(), any(), any(), any());
-    }
-
-    @Test
-    void getHookStorageChangeKeysOutOfRangeReturnsEmpty() {
-        // given
-        final var ownerId = EntityId.of(OWNER_ID);
-        when(entityService.lookup(any())).thenReturn(ownerId);
-
-        final var request = HookStorageRequest.builder()
-                .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
-                .hookId(1L)
-                .keys(List.of(KEY_MAX_BYTES)) // out of key range
-                .keyLowerBound(KEY_MIN_BYTES)
-                .keyUpperBound(KEY_MIN_BYTES) // exclusive
-                .limit(DEFAULT_LIMIT)
-                .order(Sort.Direction.ASC)
-                .build();
-
-        // when
-        final var result = hookService.getHookStorage(request).storage();
-
-        // then
-        assertThat(result).isEmpty();
-        verifyNoInteractions(hookStorageChangeRepository);
+        var result = hookService.getHookStorage(request);
+        assertThat(result.ownerId()).isEqualTo(ownerId);
+        assertThat(result.storage()).containsExactly(slot);
     }
 }

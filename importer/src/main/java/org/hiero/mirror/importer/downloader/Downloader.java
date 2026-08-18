@@ -322,7 +322,7 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
 
         for (var signature : signatures) {
             // Ignore signatures that didn't validate or weren't in the majority
-            if (signature.getStatus() != StreamFileSignature.SignatureStatus.CONSENSUS_REACHED) {
+            if (signature.getStatus() != SignatureStatus.CONSENSUS_REACHED) {
                 continue;
             }
 

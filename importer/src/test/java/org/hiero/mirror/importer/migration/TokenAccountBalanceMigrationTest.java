@@ -7,6 +7,7 @@ import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 
 import com.google.common.collect.Range;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
@@ -265,7 +266,12 @@ class TokenAccountBalanceMigrationTest extends ImporterIntegrationTest {
         disassociatedTokenAccount5.setBalance(30L);
         assertThat(tokenAccountRepository.findAll())
                 .usingRecursiveFieldByFieldElementComparatorIgnoringFields(
-                        "associated", "automaticAssociation", "createdTimestamp", "timestampRange")
+                        "associated",
+                        "automaticAssociation",
+                        "createdTimestamp",
+                        "freezeStatusId",
+                        "kycStatusId",
+                        "timestampRange")
                 .containsExactlyInAnyOrder(
                         tokenAccount,
                         tokenAccount2,
@@ -276,6 +282,8 @@ class TokenAccountBalanceMigrationTest extends ImporterIntegrationTest {
                         .returns(true, TokenAccount::getAssociated)
                         .returns(null, TokenAccount::getAutomaticAssociation)
                         .returns(0L, TokenAccount::getCreatedTimestamp)
+                        .returns(null, TokenAccount::getFreezeStatus)
+                        .returns(null, TokenAccount::getKycStatus)
                         .returns(Range.atLeast(0L), TokenAccount::getTimestampRange));
         assertThat(tokenAccountHistoryRepository.findAll()).isEmpty();
     }
@@ -288,11 +296,8 @@ class TokenAccountBalanceMigrationTest extends ImporterIntegrationTest {
         // when
         tokenAccountBalanceMigration.onEnd(accountBalanceFile2);
 
-        // then
-        tokenAccount.setBalance(0L);
-        tokenAccount2.setBalance(0L);
-        tokenAccount3.setBalance(0L);
-        deletedEntityTokenAccount4.setBalance(0L);
+        // then the migration didn't run, so the token accounts keep their persisted balance and balance timestamp
+        resetToPersistedState();
         assertThat(tokenAccountRepository.findAll())
                 .containsExactlyInAnyOrder(
                         tokenAccount,
@@ -312,9 +317,10 @@ class TokenAccountBalanceMigrationTest extends ImporterIntegrationTest {
                         .getDataSource()));
         var txnTemplate = new TransactionTemplate(transactionManager);
         setup();
-        accountBalanceFileRepository.deleteById(accountBalanceFile2.getConsensusTimestamp());
+        accountBalanceFileRepository.deleteById(accountBalanceFile1.getConsensusTimestamp());
 
-        txnTemplate.executeWithoutResult(s -> tokenAccountBalanceMigration.onEnd(accountBalanceFile1));
+        // The first onEnd migrates the balances and its commit marks the migration as executed
+        txnTemplate.executeWithoutResult(s -> tokenAccountBalanceMigration.onEnd(accountBalanceFile2));
 
         long accountBalanceTimestamp3 = timestamp(Duration.ofMinutes(10));
         var accountBalanceFile3 = domainBuilder
@@ -324,11 +330,7 @@ class TokenAccountBalanceMigrationTest extends ImporterIntegrationTest {
         // when
         tokenAccountBalanceMigration.onEnd(accountBalanceFile3);
 
-        // then
-        tokenAccount.setBalance(0L);
-        tokenAccount2.setBalance(0L);
-        tokenAccount3.setBalance(0L);
-        deletedEntityTokenAccount4.setBalance(0L);
+        // then the second onEnd returned early and the balances are unchanged from the first migration
         assertThat(tokenAccountRepository.findAll())
                 .containsExactlyInAnyOrder(
                         tokenAccount,
@@ -366,11 +368,14 @@ class TokenAccountBalanceMigrationTest extends ImporterIntegrationTest {
     @Transactional
     void onEnd() {
         // given
+        // Delete the first account balance file so the second one is the first file after startup. With JPA the test
+        // could delete the second file instead and still read its token balances, since the pending delete was never
+        // flushed before the migration's native queries ran.
         setup();
-        accountBalanceFileRepository.deleteById(accountBalanceFile2.getConsensusTimestamp());
+        accountBalanceFileRepository.deleteById(accountBalanceFile1.getConsensusTimestamp());
 
         // when
-        tokenAccountBalanceMigration.onEnd(accountBalanceFile1);
+        tokenAccountBalanceMigration.onEnd(accountBalanceFile2);
 
         // then
         assertThat(tokenAccountRepository.findAll())
@@ -396,6 +401,17 @@ class TokenAccountBalanceMigrationTest extends ImporterIntegrationTest {
         tokenAccount3.setBalanceTimestamp(secondRecordFile.getConsensusEnd());
         deletedEntityTokenAccount4.setBalanceTimestamp(secondRecordFile.getConsensusEnd());
         disassociatedTokenAccount5.setBalanceTimestamp(secondRecordFile.getConsensusEnd());
+    }
+
+    // Restores the in-memory expected objects to the state persisted in the database, undoing the balance and balance
+    // timestamp adjustments setup() applies for the migrated case. With JPA these objects were managed, so mutating
+    // them silently wrote the adjustments back to the database; with JDBC the database keeps the persisted values.
+    private void resetToPersistedState() {
+        for (var ta : List.of(
+                tokenAccount, tokenAccount2, tokenAccount3, deletedEntityTokenAccount4, disassociatedTokenAccount5)) {
+            ta.setBalance(0L);
+            ta.setBalanceTimestamp(ta.getCreatedTimestamp());
+        }
     }
 
     private void initialSetup() {

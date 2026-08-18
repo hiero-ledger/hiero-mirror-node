@@ -4,11 +4,6 @@ package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
@@ -17,20 +12,19 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.NftTransfer;
-import org.jspecify.annotations.NonNull;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @Builder
 @Data
-@Entity
+@Table
 @NoArgsConstructor
 public class Transaction implements Persistable<Long> {
 
@@ -44,11 +38,8 @@ public class Transaction implements Persistable<Long> {
     @Id
     private Long consensusTimestamp;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId entityId;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private ErrataType errata;
 
     private Boolean highVolume;
@@ -63,30 +54,30 @@ public class Transaction implements Persistable<Long> {
 
     private Long initialBalance;
 
-    @JsonSerialize(using = ObjectToStringSerializer.class)
-    @JdbcTypeCode(SqlTypes.JSON)
-    private List<ItemizedTransfer> itemizedTransfer;
+    @JsonIgnore
+    @Column("itemized_transfer")
+    private ItemizedTransferListHolder itemizedTransferColumn;
 
+    @JsonIgnore
+    @Column("max_custom_fees")
     @ToString.Exclude
-    private byte[][] maxCustomFees;
+    private MaxCustomFeesHolder maxCustomFeesColumn;
 
     private Long maxFee;
 
     @ToString.Exclude
     private byte[] memo;
 
-    @JsonSerialize(using = ObjectToStringSerializer.class)
-    @JdbcTypeCode(SqlTypes.JSON)
-    private List<NftTransfer> nftTransfer;
+    @JsonIgnore
+    @Column("nft_transfer")
+    private NftTransferListHolder nftTransferColumn;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId nodeAccountId;
 
     private Integer nonce;
 
     private Long parentConsensusTimestamp;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
     private Integer result;
@@ -108,20 +99,66 @@ public class Transaction implements Persistable<Long> {
 
     private Long validStartNs;
 
-    public void addItemizedTransfer(@NonNull ItemizedTransfer itemizedTransfer) {
-        if (this.itemizedTransfer == null) {
-            this.itemizedTransfer = new ArrayList<>();
-        }
-
-        this.itemizedTransfer.add(itemizedTransfer);
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<ItemizedTransfer> getItemizedTransfer() {
+        return itemizedTransferColumn == null ? null : itemizedTransferColumn.items();
     }
 
-    public void addNftTransfer(@NonNull NftTransfer nftTransfer) {
-        if (this.nftTransfer == null) {
-            this.nftTransfer = new ArrayList<>();
-        }
+    public void setItemizedTransfer(List<ItemizedTransfer> value) {
+        this.itemizedTransferColumn = ItemizedTransferListHolder.of(value);
+    }
 
-        this.nftTransfer.add(nftTransfer);
+    public byte[][] getMaxCustomFees() {
+        return maxCustomFeesColumn == null ? null : maxCustomFeesColumn.items();
+    }
+
+    public void setMaxCustomFees(byte[][] value) {
+        this.maxCustomFeesColumn = MaxCustomFeesHolder.of(value);
+    }
+
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<NftTransfer> getNftTransfer() {
+        return nftTransferColumn == null ? null : nftTransferColumn.items();
+    }
+
+    public void setNftTransfer(List<NftTransfer> value) {
+        this.nftTransferColumn = NftTransferListHolder.of(value);
+    }
+
+    public void addItemizedTransfer(ItemizedTransfer itemizedTransfer) {
+        if (itemizedTransfer == null) {
+            return;
+        }
+        var transfers = getItemizedTransfer() == null
+                ? new ArrayList<ItemizedTransfer>()
+                : new ArrayList<>(getItemizedTransfer());
+        transfers.add(itemizedTransfer);
+        setItemizedTransfer(transfers);
+    }
+
+    public void addNftTransfer(NftTransfer nftTransfer) {
+        if (nftTransfer == null) {
+            return;
+        }
+        var transfers = getNftTransfer() == null ? new ArrayList<NftTransfer>() : new ArrayList<>(getNftTransfer());
+        transfers.add(nftTransfer);
+        setNftTransfer(transfers);
+    }
+
+    public void addInnerTransaction(Transaction innerTransaction) {
+        if (type == null || !type.equals(TransactionType.ATOMIC_BATCH.getProtoId())) {
+            throw new IllegalStateException("Inner transactions can only be added to atomic batch transaction");
+        }
+        if (innerTransaction == null) {
+            return;
+        }
+        if (innerTransactions == null) {
+            innerTransactions = new ArrayList<>();
+        } else if (!(innerTransactions instanceof ArrayList)) {
+            innerTransactions = new ArrayList<>(innerTransactions);
+        }
+        innerTransactions.add(innerTransaction.getPayerAccountId().getId());
+        innerTransactions.add(innerTransaction.getValidStartNs());
     }
 
     @JsonIgnore
@@ -133,20 +170,7 @@ public class Transaction implements Persistable<Long> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
-    }
-
-    public void addInnerTransaction(Transaction transaction) {
-        if (this.type != TransactionType.ATOMIC_BATCH.getProtoId()) {
-            throw new IllegalStateException("Inner transactions can only be added to atomic batch transaction");
-        }
-
-        if (innerTransactions == null) {
-            innerTransactions = new ArrayList<>();
-        }
-
-        innerTransactions.add(transaction.getPayerAccountId().getId());
-        innerTransactions.add(transaction.getValidStartNs());
+        return true; // Since we never update and use a natural ID, avoid Spring Data JDBC querying before insert
     }
 
     public TransactionHash toTransactionHash() {
@@ -155,5 +179,22 @@ public class Transaction implements Persistable<Long> {
                 .hash(transactionHash)
                 .payerAccountId(payerAccountId.getId())
                 .build();
+    }
+
+    public static class TransactionBuilder {
+        public TransactionBuilder itemizedTransfer(List<ItemizedTransfer> value) {
+            this.itemizedTransferColumn = ItemizedTransferListHolder.of(value);
+            return this;
+        }
+
+        public TransactionBuilder maxCustomFees(byte[][] value) {
+            this.maxCustomFeesColumn = MaxCustomFeesHolder.of(value);
+            return this;
+        }
+
+        public TransactionBuilder nftTransfer(List<NftTransfer> value) {
+            this.nftTransferColumn = NftTransferListHolder.of(value);
+            return this;
+        }
     }
 }

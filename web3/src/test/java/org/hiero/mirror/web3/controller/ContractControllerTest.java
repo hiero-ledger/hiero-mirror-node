@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.controller;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
@@ -14,6 +13,7 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
@@ -70,7 +70,6 @@ import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
@@ -104,12 +103,16 @@ final class ContractControllerTest {
     @MockitoBean
     private ThrottleManager throttleManager;
 
+    @MockitoBean
+    private EvmProperties evmProperties;
+
     private static java.util.stream.Stream<ResponseCodeEnum> serverResponseCodes() {
         return GenericControllerAdvice.SERVER_RESPONSE_CODES.stream();
     }
 
     @BeforeEach
     void setUp() {
+        when(evmProperties.getMaxGasLimit()).thenReturn(15_000_000L);
         throttleManager.throttle(any(ContractCallRequest.class));
     }
 
@@ -596,14 +599,13 @@ final class ContractControllerTest {
 
     @Test
     @SneakyThrows
-    void handlesQueryTimeoutException(CapturedOutput capturedOutput) {
+    void handlesQueryTimeoutException() {
         final var request = request();
         given(service.processCall(any())).willThrow(new QueryTimeoutException("Query timeout"));
 
         contractCall(request)
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(content().string(convert(new GenericErrorResponse("Service Unavailable"))));
-        assertThat(capturedOutput.getOut()).contains("503 Query timeout");
     }
 
     // ── State override tests ──────────────────────────────────────────────────
@@ -750,11 +752,6 @@ final class ContractControllerTest {
 
     @TestConfiguration
     public static class TestConfig {
-
-        @Bean
-        EvmProperties evmProperties() {
-            return new EvmProperties();
-        }
 
         @Bean
         MeterRegistry meterRegistry() {

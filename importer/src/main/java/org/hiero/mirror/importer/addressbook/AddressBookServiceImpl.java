@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -226,7 +227,7 @@ public class AddressBookServiceImpl implements AddressBookService {
                 Collection<AddressBookEntry> addressBookEntryCollection =
                         retrieveNodeAddressesFromAddressBook(nodeAddressBook, startConsensusTimestamp);
 
-                addressBookBuilder.entries(new ArrayList<>(addressBookEntryCollection));
+                addressBookBuilder.entries(new HashSet<>(addressBookEntryCollection));
             }
         } catch (Exception e) {
             log.warn("Unable to parse address book: {}", e.getMessage());
@@ -407,9 +408,10 @@ public class AddressBookServiceImpl implements AddressBookService {
             AddressBookEntry addressBookEntry = addressBookEntries.computeIfAbsent(
                     nodeIds.getLeft(), k -> getAddressBookEntry(nodeAddressProto, consensusTimestamp, nodeIds));
 
-            Set<AddressBookServiceEndpoint> updatedList = new HashSet<>(addressBookEntry.getServiceEndpoints());
-            updatedList.addAll(getAddressBookServiceEndpoints(nodeAddressProto, consensusTimestamp));
-            addressBookEntry.setServiceEndpoints(updatedList);
+            // Accumulate through a set to collapse duplicate endpoints across node address entries
+            var updatedEndpoints = new LinkedHashSet<>(addressBookEntry.getServiceEndpoints());
+            updatedEndpoints.addAll(getAddressBookServiceEndpoints(nodeAddressProto, consensusTimestamp));
+            addressBookEntry.setServiceEndpoints(updatedEndpoints);
         }
 
         return addressBookEntries.values();
@@ -466,10 +468,10 @@ public class AddressBookServiceImpl implements AddressBookService {
         return builder.build();
     }
 
-    private Set<AddressBookServiceEndpoint> getAddressBookServiceEndpoints(
+    private List<AddressBookServiceEndpoint> getAddressBookServiceEndpoints(
             NodeAddress nodeAddressProto, long consensusTimestamp) throws UnknownHostException {
         var nodeId = nodeAddressProto.getNodeId();
-        Set<AddressBookServiceEndpoint> serviceEndpoints = new HashSet<>();
+        List<AddressBookServiceEndpoint> serviceEndpoints = new ArrayList<>();
 
         // create an AddressBookServiceEndpoint for deprecated port and IP if populated
         AddressBookServiceEndpoint deprecatedServiceEndpoint =
@@ -537,8 +539,8 @@ public class AddressBookServiceImpl implements AddressBookService {
                     // set EndConsensusTimestamp of addressBook as first transaction - 1ns in record file if not set
                     if (previousAddressBook.getStartConsensusTimestamp() != currentTimestamp
                             && previousAddressBook.getEndConsensusTimestamp() == null) {
-                        previousAddressBook.setEndConsensusTimestamp(fileData.getConsensusTimestamp());
-                        addressBookRepository.save(previousAddressBook);
+                        addressBookRepository.updateEndConsensusTimestamp(
+                                previousAddressBook.getStartConsensusTimestamp(), fileData.getConsensusTimestamp());
                         log.info(
                                 "Setting endConsensusTimestamp of previous AddressBook ({}) to {}",
                                 previousAddressBook.getStartConsensusTimestamp(),

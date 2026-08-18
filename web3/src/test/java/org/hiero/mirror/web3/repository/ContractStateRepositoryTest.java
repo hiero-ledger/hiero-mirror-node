@@ -21,7 +21,9 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
     @Test
     void findStorageSuccessfulCall() {
         ContractState contractState = domainBuilder.contractState().persist();
-        assertThat(contractStateRepository.findStorage(contractState.getContractId(), contractState.getSlot()))
+        assertThat(contractStateRepository
+                        .findStorage(contractState.getContractId(), contractState.getSlot())
+                        .map(ContractSlotValue::getValue))
                 .get()
                 .isEqualTo(contractState.getValue());
     }
@@ -36,10 +38,12 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
                         cs -> cs.contractId(olderContractState.getContractId()).slot(olderContractState.getSlot()))
                 .persist();
 
-        assertThat(contractStateRepository.findStorageByBlockTimestamp(
-                        contractStateChange.getContractId(),
-                        contractStateChange.getSlot(),
-                        contractStateChange.getConsensusTimestamp()))
+        assertThat(contractStateRepository
+                        .findStorageByBlockTimestamp(
+                                contractStateChange.getContractId(),
+                                contractStateChange.getSlot(),
+                                contractStateChange.getConsensusTimestamp())
+                        .map(ContractSlotValue::getValue))
                 .get()
                 .isEqualTo(contractStateChange.getValueWritten());
     }
@@ -55,10 +59,12 @@ class ContractStateRepositoryTest extends Web3IntegrationTest {
                         .valueWritten(null))
                 .persist();
 
-        assertThat(contractStateRepository.findStorageByBlockTimestamp(
-                        contractStateChange.getContractId(),
-                        contractStateChange.getSlot(),
-                        contractStateChange.getConsensusTimestamp()))
+        assertThat(contractStateRepository
+                        .findStorageByBlockTimestamp(
+                                contractStateChange.getContractId(),
+                                contractStateChange.getSlot(),
+                                contractStateChange.getConsensusTimestamp())
+                        .map(ContractSlotValue::getValue))
                 .get()
                 .isEqualTo(contractStateChange.getValueRead());
     }

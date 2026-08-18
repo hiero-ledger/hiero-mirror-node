@@ -3,8 +3,8 @@
 package org.hiero.mirror.importer.repository;
 
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Modifying;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface CryptoTransferRepository
@@ -12,6 +12,6 @@ public interface CryptoTransferRepository
 
     @Modifying
     @Override
-    @Query("delete from CryptoTransfer where consensusTimestamp <= ?1")
+    @Query("delete from crypto_transfer where consensus_timestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

@@ -2301,7 +2301,8 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         // then
         assertThat(entityRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparatorOnFields("id", "stakePeriodStart", "timestampRange", "type")
+                .usingRecursiveFieldByFieldElementComparatorOnFields(
+                        "id", "stakePeriodStart", "timestampRange", "entityType")
                 .containsExactlyInAnyOrderElementsOf(expectedEntities);
         assertThat(stakingRewardTransferRepository.findAll())
                 .containsExactlyInAnyOrder(transfer1, transfer2, transfer3);

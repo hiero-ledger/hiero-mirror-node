@@ -8,7 +8,6 @@ import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
 import static org.hiero.mirror.importer.TestUtils.toContractId;
 
 import com.hedera.services.stream.proto.ContractBytecode;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -19,6 +18,7 @@ import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityHistory;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.ContractRepository;
 import org.hiero.mirror.importer.repository.EntityHistoryRepository;
@@ -140,7 +140,7 @@ class SidecarContractMigrationTest extends ImporterIntegrationTest {
                     ps.setLong(2, entity.getNum());
                     ps.setLong(3, entity.getRealm());
                     ps.setLong(4, entity.getShard());
-                    ps.setString(5, PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()));
+                    ps.setString(5, RangeUtils.rangeToString(entity.getTimestampRange()));
                     ps.setString(6, entity.getType().toString());
                 });
 
@@ -154,7 +154,7 @@ class SidecarContractMigrationTest extends ImporterIntegrationTest {
                     ps.setLong(2, entity.getNum());
                     ps.setLong(3, entity.getRealm());
                     ps.setLong(4, entity.getShard());
-                    ps.setString(5, PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()));
+                    ps.setString(5, RangeUtils.rangeToString(entity.getTimestampRange()));
                     ps.setString(6, entity.getType().toString());
                 });
     }

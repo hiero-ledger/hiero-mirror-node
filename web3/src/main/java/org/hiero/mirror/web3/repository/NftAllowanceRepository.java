@@ -9,12 +9,13 @@ import java.util.List;
 import org.hiero.mirror.common.domain.entity.AbstractNftAllowance.Id;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface NftAllowanceRepository extends CrudRepository<NftAllowance, Id> {
 
     @Cacheable(cacheNames = CACHE_NAME_NFT_ALLOWANCE, cacheManager = CACHE_MANAGER_TOKEN, unless = "#result == null")
+    @Query("select * from nft_allowance where owner = :owner and approved_for_all is true")
     List<NftAllowance> findByOwnerAndApprovedForAllIsTrue(long owner);
 
     /**
@@ -54,6 +55,6 @@ public interface NftAllowanceRepository extends CrudRepository<NftAllowance, Id>
                     select *
                     from nft_allowances
                     order by timestamp_range desc
-                    """, nativeQuery = true)
+                    """)
     List<NftAllowance> findByOwnerAndTimestampAndApprovedForAllIsTrue(long owner, long blockTimestamp);
 }

@@ -4,7 +4,8 @@ package org.hiero.mirror.restjava.repository;
 
 import java.util.Optional;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
-import org.springframework.data.jpa.repository.Query;
+// import org.springframework.data.jdbc.repository.query.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface NetworkStakeRepository extends CrudRepository<NetworkStake, Long> {
@@ -15,6 +16,6 @@ public interface NetworkStakeRepository extends CrudRepository<NetworkStake, Lon
         where consensus_timestamp = (
             select max(consensus_timestamp) from network_stake
         )
-        """, nativeQuery = true)
+        """)
     Optional<NetworkStake> findLatest();
 }

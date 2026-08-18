@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.parser.batch;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
-import jakarta.persistence.Entity;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -17,6 +16,7 @@ import org.hiero.mirror.importer.repository.upsert.UpsertQueryGenerator;
 import org.hiero.mirror.importer.repository.upsert.UpsertQueryGeneratorFactory;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Named
 @Primary
@@ -59,9 +59,9 @@ public class CompositeBatchPersister implements BatchPersister {
     }
 
     private BatchPersister create(Class<?> domainClass) {
-        Entity entity = AnnotationUtils.findAnnotation(domainClass, Entity.class);
+        Table table = AnnotationUtils.findAnnotation(domainClass, Table.class);
 
-        if (entity == null) {
+        if (table == null) {
             throw new UnsupportedOperationException("Object does not support batch insertion: " + domainClass);
         }
 
@@ -76,14 +76,14 @@ public class CompositeBatchPersister implements BatchPersister {
         }
     }
 
-    // Finds which parent class has the Entity annotation to get an accurate table name
+    // Finds which parent class has the Table annotation to get an accurate table name
     private Class<?> getEntityClass(Class<?> domainClass) {
         if (domainClass == null || domainClass == Object.class) {
-            throw new IllegalStateException("Unable to find Entity annotation");
+            throw new IllegalStateException("Unable to find Table annotation");
         }
 
-        var entity = AnnotationUtils.getAnnotation(domainClass, Entity.class);
-        if (entity != null) {
+        var table = AnnotationUtils.getAnnotation(domainClass, Table.class);
+        if (table != null) {
             return domainClass;
         }
 

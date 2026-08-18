@@ -15,8 +15,13 @@ import org.junit.platform.launcher.core.LauncherFactory;
 import org.junit.platform.launcher.listeners.SummaryGeneratingListener;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+// Since the JPA-to-Spring Data JDBC
+// migration, common pulls spring-boot-starter-jdbc (and the postgres driver) onto this module's classpath, which would
+// otherwise activate DataSourceAutoConfiguration and fail context load with "Failed to determine a suitable driver
+// class" (no spring.datasource.url configured). Exclude it by name (the class is not on this source set's compile
+// classpath); the dependent JDBC auto-configs back off without a DataSource.
 @CustomLog
-@SpringBootApplication
+@SpringBootApplication(excludeName = "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration")
 public class TestApplication {
 
     @SuppressWarnings("java:S106")

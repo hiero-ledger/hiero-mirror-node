@@ -26,6 +26,8 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.importer.exception.ParserException;
@@ -190,6 +192,19 @@ public class Utility {
             return text;
         }
         return CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, text);
+    }
+
+    public static Entity toEntity(EntityId entityId) {
+        if (entityId == null) {
+            return null;
+        }
+
+        return Entity.builder()
+                .id(entityId.getId())
+                .shard(entityId.getShard())
+                .realm(entityId.getRealm())
+                .num(entityId.getNum())
+                .build();
     }
 
     /**

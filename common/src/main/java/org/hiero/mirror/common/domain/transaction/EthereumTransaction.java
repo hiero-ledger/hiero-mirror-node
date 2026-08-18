@@ -4,10 +4,6 @@ package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -15,32 +11,31 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @Builder
 @Data
-@Entity
+@Table
 @NoArgsConstructor
 public class EthereumTransaction implements Persistable<Long> {
 
-    @JsonSerialize(using = ObjectToStringSerializer.class)
-    @JdbcTypeCode(SqlTypes.JSON)
-    private List<AccessList> accessList;
+    @JsonIgnore
+    @Column("access_list")
+    private AccessListHolder accessListColumn;
 
-    @JsonSerialize(using = ObjectToStringSerializer.class)
-    @JdbcTypeCode(SqlTypes.JSON)
-    private List<Authorization> authorizationList;
+    @JsonIgnore
+    @Column("authorization_list")
+    private AuthorizationListHolder authorizationListColumn;
 
     @ToString.Exclude
     private byte[] callData;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId callDataId;
 
     @ToString.Exclude
@@ -56,36 +51,35 @@ public class EthereumTransaction implements Persistable<Long> {
     private Long gasLimit;
 
     // persisted in tinybar
+    @ToString.Exclude
     private byte[] gasPrice;
 
     @ToString.Exclude
     private byte[] hash;
 
     // persisted in tinybar
+    @ToString.Exclude
     private byte[] maxFeePerGas;
 
     // persisted in tinybar
     private Long maxGasAllowance;
 
     // persisted in tinybar
+    @ToString.Exclude
     private byte[] maxPriorityFeePerGas;
 
     private Long nonce;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
     private Integer recoveryId;
 
-    @Column(name = "signature_r")
     @ToString.Exclude
     private byte[] signatureR;
 
-    @Column(name = "signature_s")
     @ToString.Exclude
     private byte[] signatureS;
 
-    @Column(name = "signature_v")
     @ToString.Exclude
     private byte[] signatureV;
 
@@ -97,6 +91,24 @@ public class EthereumTransaction implements Persistable<Long> {
     @ToString.Exclude
     private byte[] value;
 
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<AccessList> getAccessList() {
+        return accessListColumn == null ? null : accessListColumn.items();
+    }
+
+    public void setAccessList(List<AccessList> value) {
+        this.accessListColumn = AccessListHolder.of(value);
+    }
+
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<Authorization> getAuthorizationList() {
+        return authorizationListColumn == null ? null : authorizationListColumn.items();
+    }
+
+    public void setAuthorizationList(List<Authorization> value) {
+        this.authorizationListColumn = AuthorizationListHolder.of(value);
+    }
+
     @JsonIgnore
     @Override
     public Long getId() {
@@ -106,7 +118,7 @@ public class EthereumTransaction implements Persistable<Long> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true; // Since we never update and use a natural ID, avoid Spring Data JDBC querying before insert
     }
 
     public TransactionHash toTransactionHash() {
@@ -115,5 +127,17 @@ public class EthereumTransaction implements Persistable<Long> {
                 .hash(hash)
                 .payerAccountId(payerAccountId.getId())
                 .build();
+    }
+
+    public static class EthereumTransactionBuilder {
+        public EthereumTransactionBuilder accessList(List<AccessList> value) {
+            this.accessListColumn = AccessListHolder.of(value);
+            return this;
+        }
+
+        public EthereumTransactionBuilder authorizationList(List<Authorization> value) {
+            this.authorizationListColumn = AuthorizationListHolder.of(value);
+            return this;
+        }
     }
 }
