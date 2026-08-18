@@ -7,6 +7,7 @@ import java.sql.Timestamp;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
+import lombok.AccessLevel;
 import lombok.Getter;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.CommonProperties;
@@ -52,12 +53,12 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
     private static final String SELECT_MAX_CONSENSUS_END = "select max(consensus_end) from record_file";
 
     private static final String SELECT_PROGRESS_UPPER_BOUND =
-            "select (select upper_bound from contract_log_synthetic_flag_progress_temp limit 1)";
+            "select upper_bound from contract_log_synthetic_flag_progress_temp limit 1";
 
     // contract_log.synthetic was added in V1.121.0/V2.26.0.
     private static final String SELECT_MIGRATION_INSTALLED_ON = """
             select installed_on from flyway_schema_history
-            where version = :version
+            where version in ('1.121.0', '2.26.0')
             order by installed_rank desc limit 1
             """;
 
@@ -65,8 +66,11 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
             "select min(index) as min_index, max(index) as max_index from record_file";
 
     // No index on load_start; index is sequential with load order and is indexed.
-    private static final String SELECT_RECORD_FILE_AT_INDEX =
-            "select consensus_start, load_start from record_file where index = :index";
+    private static final String SELECT_RECORD_FILE_AT_OR_AFTER_INDEX = """
+            select consensus_start, load_start, index from record_file
+            where index >= :index and index <= :maxIndex
+            order by index limit 1
+            """;
 
     private static final String CHECKPOINT_SQL = """
             with clear_table as (delete from contract_log_synthetic_flag_progress_temp)
@@ -84,33 +88,48 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
                     order by consensus_end desc limit 1) as max_consensus_timestamp
             """;
 
-    private static final String SELECT_RECORD_FILE_BOUNDS_FOR_TIMESTAMPS = """
-            select
-                (select consensus_start from record_file
-                    where :minTimestamp between consensus_start and consensus_end) as min_consensus_timestamp,
-                (select consensus_end from record_file
-                    where :maxTimestamp between consensus_start and consensus_end) as max_consensus_timestamp
-            """;
-
     private static final String BACKFILL_SYNTHETIC_SQL = """
             with backfilled as (
                 update contract_log
                 set synthetic = true
                 where synthetic is not true
-                  and consensus_timestamp >= :consensusStart
-                  and consensus_timestamp <= :lastConsensusEnd
+                  and consensus_timestamp between :consensusStart and :lastConsensusEnd
                   and consensus_timestamp not in (
                     select consensus_timestamp from contract_result
-                    where consensus_timestamp >= :consensusStart
-                      and consensus_timestamp <= :lastConsensusEnd
+                    where consensus_timestamp between :consensusStart and :lastConsensusEnd
                   )
                 returning consensus_timestamp
+            ),
+            inserted as (
+                insert into contract_log_synthetic_backfill_updated_temp (consensus_timestamp)
+                select distinct consensus_timestamp from backfilled
             )
-            select
-                count(*) as backfilled_count,
-                min(consensus_timestamp) as min_timestamp,
-                max(consensus_timestamp) as max_timestamp
-            from backfilled
+            select count(*) from backfilled
+            """;
+
+    private static final String CREATE_UPDATED_TIMESTAMPS_TEMP_TABLE = """
+            create temporary table contract_log_synthetic_backfill_updated_temp (
+                consensus_timestamp bigint not null
+            ) on commit drop
+            """;
+
+    private static final String CREATE_IMPACTED_RECORD_FILES_TEMP_TABLE = """
+            create temporary table contract_log_synthetic_backfill_impacted_files_temp (
+                consensus_start bigint not null,
+                consensus_end bigint primary key
+            ) on commit drop
+            """;
+
+    private static final String POPULATE_IMPACTED_RECORD_FILES_SQL = """
+            insert into contract_log_synthetic_backfill_impacted_files_temp (consensus_start, consensus_end)
+            select distinct rf.consensus_start, rf.consensus_end
+            from contract_log_synthetic_backfill_updated_temp t
+            join lateral (
+                select consensus_start, consensus_end from record_file
+                where consensus_end >= t.consensus_timestamp
+                  and consensus_end between :consensusStart and :lastConsensusEnd
+                order by consensus_end limit 1
+            ) rf on true
             """;
 
     // Newly-flagged rows were missing from FixEvmTransactionIndexMigration's EVM slot count.
@@ -120,8 +139,9 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
                     cr.consensus_timestamp,
                     (cr.transaction_nonce = 0 or cr.contract_id = :hookContractId) as is_root
                 from contract_result cr
-                where cr.consensus_timestamp >= :consensusStart
-                  and cr.consensus_timestamp <= :lastConsensusEnd
+                join contract_log_synthetic_backfill_impacted_files_temp irf
+                    on cr.consensus_timestamp between irf.consensus_start and irf.consensus_end
+                where cr.consensus_timestamp between :consensusStart and :lastConsensusEnd
                   and cr.transaction_result <> 312
                 union all
                 -- Excludes rows whose parent contract call already has a contract_result at the same timestamp,
@@ -130,26 +150,27 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
                     cl.consensus_timestamp,
                     true as is_root
                 from contract_log cl
-                where cl.synthetic = true
-                  and cl.consensus_timestamp >= :consensusStart
-                  and cl.consensus_timestamp <= :lastConsensusEnd
+                join contract_log_synthetic_backfill_impacted_files_temp irf
+                    on cl.consensus_timestamp between irf.consensus_start and irf.consensus_end
+                where cl.consensus_timestamp between :consensusStart and :lastConsensusEnd
+                  and cl.synthetic = true
                   and cl.consensus_timestamp not in (
-                    select consensus_timestamp from contract_result
-                    where consensus_timestamp >= :consensusStart
-                      and consensus_timestamp <= :lastConsensusEnd
+                    select cr2.consensus_timestamp from contract_result cr2
+                    join contract_log_synthetic_backfill_impacted_files_temp irf2
+                        on cr2.consensus_timestamp between irf2.consensus_start and irf2.consensus_end
+                    where cr2.consensus_timestamp between :consensusStart and :lastConsensusEnd
                   )
             ),
             evm_index as (
                 select
                     ec.consensus_timestamp,
                     sum(case when ec.is_root then 1 else 0 end) over (
-                        partition by rf.consensus_end
+                        partition by irf.consensus_end
                         order by ec.consensus_timestamp
                     ) - 1 as evm_index
                 from evm_candidates ec
-                left join record_file rf
-                    on ec.consensus_timestamp between rf.consensus_start and rf.consensus_end
-                where rf.consensus_end between :consensusStart and :lastConsensusEnd
+                join contract_log_synthetic_backfill_impacted_files_temp irf
+                    on ec.consensus_timestamp between irf.consensus_start and irf.consensus_end
             ),
             updated_contract_result as (
                 update contract_result cr
@@ -177,17 +198,15 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
     private static final RowMapper<RecordFileSlice> ROW_MAPPER = new DataClassRowMapper<>(RecordFileSlice.class);
     private static final RowMapper<UpdateCounts> UPDATE_COUNTS_ROW_MAPPER =
             new DataClassRowMapper<>(UpdateCounts.class);
-    private static final RowMapper<BackfillResult> BACKFILL_RESULT_ROW_MAPPER =
-            new DataClassRowMapper<>(BackfillResult.class);
     private static final RowMapper<RecordFileIndexBounds> INDEX_BOUNDS_ROW_MAPPER =
             new DataClassRowMapper<>(RecordFileIndexBounds.class);
     private static final RowMapper<RecordFileAtIndex> RECORD_FILE_AT_INDEX_ROW_MAPPER =
             new DataClassRowMapper<>(RecordFileAtIndex.class);
 
-    @Getter(lazy = true)
+    @Getter(lazy = true, value = AccessLevel.PROTECTED)
     private final TransactionOperations transactionOperations = transactionOperations();
 
-    @Getter(lazy = true)
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final long hookContractId = EntityId.of(
                     CommonProperties.getInstance().getShard(),
                     CommonProperties.getInstance().getRealm(),
@@ -197,6 +216,7 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
     private final long batchInterval;
     private final EntityProperties entityProperties;
     private final boolean v2;
+
     private long initialUpperBound = -1L;
     private long lowerBoundFloor = 0L;
 
@@ -220,7 +240,10 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
 
     @Override
     public String getDescription() {
-        return "Backfill synthetic flag and EVM transaction index for HAPI-origin contract log rows";
+        // The description ensures the migration runs after its two dependencies:
+        // - ContractLogSyntheticBackfillMigration
+        // - FixEvmTransactionIndexMigration
+        return "Re-backfill synthetic flag and EVM transaction index for HAPI-origin contract log rows";
     }
 
     @Override
@@ -245,7 +268,7 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
 
         getJdbcOperations().execute(CREATE_PROGRESS_TABLE);
 
-        final var savedProgress = getJdbcOperations().queryForObject(SELECT_PROGRESS_UPPER_BOUND, Long.class);
+        final var savedProgress = queryForObjectOrNull(SELECT_PROGRESS_UPPER_BOUND, Long.class);
         initialUpperBound = savedProgress != null ? savedProgress : maxConsensusEnd;
         log.info(
                 "Starting synthetic flag and EVM index backfill with initial timestamp: {}, lower bound floor: {}",
@@ -255,9 +278,7 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
     }
 
     private long calculateLowerBoundFloor() {
-        final var version = v2 ? "2.26.0" : "1.121.0";
-        final var installedOn = queryForObjectOrNull(
-                SELECT_MIGRATION_INSTALLED_ON, new MapSqlParameterSource("version", version), Timestamp.class);
+        final var installedOn = queryForObjectOrNull(SELECT_MIGRATION_INSTALLED_ON, Timestamp.class);
         if (installedOn == null) {
             return 0L;
         }
@@ -269,22 +290,23 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
             return 0L;
         }
 
-        var low = indexBounds.minIndex();
-        var high = indexBounds.maxIndex();
-        var floor = 0L;
+        long low = indexBounds.minIndex();
+        long high = indexBounds.maxIndex();
+        long floor = 0L;
         while (low <= high) {
-            final var mid = low + (high - low) / 2;
+            final long mid = low + (high - low) / 2;
             final var candidate = queryForObjectOrNull(
-                    SELECT_RECORD_FILE_AT_INDEX,
-                    new MapSqlParameterSource("index", mid),
+                    SELECT_RECORD_FILE_AT_OR_AFTER_INDEX,
+                    new MapSqlParameterSource("index", mid).addValue("maxIndex", high),
                     RECORD_FILE_AT_INDEX_ROW_MAPPER);
             if (candidate == null) {
-                low = mid + 1;
+                // nothing in [mid, high], so narrow to [low, mid - 1]
+                high = mid - 1;
             } else if (candidate.loadStart() >= thresholdMillis) {
                 floor = candidate.consensusStart();
-                high = mid - 1;
+                high = candidate.index() - 1;
             } else {
-                low = mid + 1;
+                low = candidate.index() + 1;
             }
         }
         return floor;
@@ -298,8 +320,11 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
 
     @NonNull
     @Override
-    protected Optional<Long> migratePartial(Long consensusEndTimestamp) {
-        final var consensusStartTimestamp = consensusEndTimestamp - batchInterval;
+    protected Optional<Long> migratePartial(@NonNull Long consensusEndTimestamp) {
+        final var jdbcOperations = getJdbcOperations();
+        final var namedParameterJdbcOperations = getNamedParameterJdbcOperations();
+
+        final var consensusStartTimestamp = Math.max(consensusEndTimestamp - batchInterval, lowerBoundFloor);
         final var sliceParams = new MapSqlParameterSource()
                 .addValue("consensusEndUpperBound", consensusEndTimestamp)
                 .addValue("consensusEndLowerBound", consensusStartTimestamp);
@@ -309,7 +334,7 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
             log.info(
                     "No more record files remaining to process. Last consensus end timestamp: {}.",
                     consensusEndTimestamp);
-            getJdbcOperations().execute(DROP_PROGRESS_TABLE);
+            jdbcOperations.execute(DROP_PROGRESS_TABLE);
             return Optional.empty();
         }
 
@@ -318,32 +343,24 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
                 .addValue("lastConsensusEnd", slice.maxConsensusTimestamp());
 
         if (v2) {
-            getJdbcOperations().execute(SET_CITUS_LIMIT);
+            jdbcOperations.execute(SET_CITUS_LIMIT);
         }
-        final var backfillResult = getNamedParameterJdbcOperations()
-                .queryForObject(BACKFILL_SYNTHETIC_SQL, params, BACKFILL_RESULT_ROW_MAPPER);
+        jdbcOperations.execute(CREATE_UPDATED_TIMESTAMPS_TEMP_TABLE);
+        jdbcOperations.execute(CREATE_IMPACTED_RECORD_FILES_TEMP_TABLE);
+        final var backfilledCount = Objects.requireNonNull(
+                namedParameterJdbcOperations.queryForObject(BACKFILL_SYNTHETIC_SQL, params, Long.class));
 
-        var counts = new UpdateCounts(0, 0);
-        if (backfillResult.backfilledCount() > 0) {
-            final var recomputeBoundsParams = new MapSqlParameterSource()
-                    .addValue("minTimestamp", backfillResult.minTimestamp())
-                    .addValue("maxTimestamp", backfillResult.maxTimestamp());
-            final var recomputeSlice = getNamedParameterJdbcOperations()
-                    .queryForObject(SELECT_RECORD_FILE_BOUNDS_FOR_TIMESTAMPS, recomputeBoundsParams, ROW_MAPPER);
-
-            final var recomputeParams = new MapSqlParameterSource()
-                    .addValue("consensusStart", recomputeSlice.minConsensusTimestamp())
-                    .addValue("lastConsensusEnd", recomputeSlice.maxConsensusTimestamp())
-                    .addValue("hookContractId", getHookContractId());
-            counts = getNamedParameterJdbcOperations()
-                    .queryForObject(RECOMPUTE_EVM_TRANSACTION_INDEX_SQL, recomputeParams, UPDATE_COUNTS_ROW_MAPPER);
-        }
-
-        if (backfillResult.backfilledCount() > 0 || counts.updatedResults() > 0 || counts.updatedLogs() > 0) {
+        if (backfilledCount > 0) {
+            namedParameterJdbcOperations.update(POPULATE_IMPACTED_RECORD_FILES_SQL, params);
+            params.addValue("hookContractId", getHookContractId());
+            final var counts = namedParameterJdbcOperations.queryForObject(
+                    RECOMPUTE_EVM_TRANSACTION_INDEX_SQL, params, UPDATE_COUNTS_ROW_MAPPER);
             log.info(
-                    "Backfilled {} contract_log rows and fixed EVM transaction index for {} contract_result and"
-                            + " {} contract_log rows in range [{}, {}]",
-                    backfillResult.backfilledCount(),
+                    """
+                            Backfilled {} contract_log rows and fixed EVM transaction index for {} contract_result and
+                            {} contract_log rows in range [{}, {}]
+                            """,
+                    backfilledCount,
                     counts.updatedResults(),
                     counts.updatedLogs(),
                     slice.minConsensusTimestamp(),
@@ -352,12 +369,12 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
 
         if (consensusStartTimestamp <= lowerBoundFloor) {
             log.info("Reached lower bound floor {}, stopping", lowerBoundFloor);
-            getJdbcOperations().execute(DROP_PROGRESS_TABLE);
+            jdbcOperations.execute(DROP_PROGRESS_TABLE);
             return Optional.empty();
         }
 
-        getNamedParameterJdbcOperations()
-                .update(CHECKPOINT_SQL, new MapSqlParameterSource("upperBound", consensusStartTimestamp));
+        namedParameterJdbcOperations.update(
+                CHECKPOINT_SQL, new MapSqlParameterSource("upperBound", consensusStartTimestamp));
         return Optional.of(consensusStartTimestamp);
     }
 
@@ -372,9 +389,7 @@ final class ContractLogSyntheticFlagBackfillMigration extends AsyncJavaMigration
 
     private record UpdateCounts(long updatedResults, long updatedLogs) {}
 
-    private record BackfillResult(long backfilledCount, Long minTimestamp, Long maxTimestamp) {}
-
     private record RecordFileIndexBounds(Long minIndex, Long maxIndex) {}
 
-    private record RecordFileAtIndex(long consensusStart, long loadStart) {}
+    private record RecordFileAtIndex(long consensusStart, long index, long loadStart) {}
 }

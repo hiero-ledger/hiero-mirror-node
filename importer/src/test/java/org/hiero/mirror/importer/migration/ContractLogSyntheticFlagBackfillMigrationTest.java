@@ -9,7 +9,7 @@ import java.time.Duration;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.apache.tuweni.bytes.Bytes;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
@@ -26,16 +26,12 @@ final class ContractLogSyntheticFlagBackfillMigrationTest
         extends AbstractAsyncJavaMigrationTest<ContractLogSyntheticFlagBackfillMigration> {
 
     private static final long INTERVAL = Duration.ofHours(3).toNanos();
-
-    private static final byte[] TRANSFER_SIGNATURE = Bytes.fromHexString(
-                    "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
-            .toArray();
-    private static final byte[] APPROVE_SIGNATURE = Bytes.fromHexString(
-                    "8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925")
-            .toArray();
-    private static final byte[] APPROVE_FOR_ALL_SIGNATURE = Bytes.fromHexString(
-                    "17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31")
-            .toArray();
+    private static final byte[] TRANSFER_SIGNATURE =
+            Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
+    private static final byte[] APPROVE_SIGNATURE =
+            Hex.decode("8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925");
+    private static final byte[] APPROVE_FOR_ALL_SIGNATURE =
+            Hex.decode("17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31");
 
     @Getter
     private final ContractLogSyntheticFlagBackfillMigration migration;
@@ -55,15 +51,17 @@ final class ContractLogSyntheticFlagBackfillMigrationTest
     @Test
     void backfillsNftTransferLogsWithoutContractResult() {
         // given
-        final var block = persistBlock(0);
-        final var nftLog = persistContractLog(block.getConsensusStart() + 100, TRANSFER_SIGNATURE, false);
+        final var timestamp = persistBlock(0).getConsensusStart() + 100;
+        final var nftLog = persistContractLog(timestamp, TRANSFER_SIGNATURE, false);
+        final var siblingNftLog = persistContractLog(timestamp, TRANSFER_SIGNATURE, false);
 
         // when
         runMigration();
         waitForCompletion();
 
         // then
-        assertSynthetic(nftLog.getConsensusTimestamp(), true);
+        assertSynthetic(timestamp, nftLog.getIndex(), true);
+        assertSynthetic(timestamp, siblingNftLog.getIndex(), true);
     }
 
     @Test
@@ -409,6 +407,15 @@ final class ContractLogSyntheticFlagBackfillMigrationTest
                         "select synthetic from contract_log where consensus_timestamp = ?",
                         Boolean.class,
                         consensusTimestamp))
+                .isEqualTo(expected);
+    }
+
+    private void assertSynthetic(long consensusTimestamp, int index, boolean expected) {
+        assertThat(jdbcOperations.queryForObject(
+                        "select synthetic from contract_log where consensus_timestamp = ? and index = ?",
+                        Boolean.class,
+                        consensusTimestamp,
+                        index))
                 .isEqualTo(expected);
     }
 
