@@ -41,7 +41,7 @@ runs:
     - name: Install Helm
       uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
       with:
-        version: "4.1.4"
+        version: "4.0.5"
 
     - name: Setup Kind
       uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
