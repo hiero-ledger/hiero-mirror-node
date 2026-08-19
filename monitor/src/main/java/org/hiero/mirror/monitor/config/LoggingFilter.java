@@ -55,10 +55,9 @@ class LoggingFilter implements WebFilter {
         long elapsed = System.currentTimeMillis() - startTime;
         ServerHttpRequest request = exchange.getRequest();
         URI uri = request.getURI();
-        var message = cause != null
-                ? sanitize(cause.getMessage())
-                : exchange.getResponse().getStatusCode();
-        var params = new Object[] {getClient(request), request.getMethod(), getLogUri(uri), elapsed, message};
+        var message =
+                cause != null ? cause.getMessage() : exchange.getResponse().getStatusCode();
+        var params = new Object[] {getClient(request), request.getMethod(), sanitize(uri.toString()), elapsed, message};
 
         if (Strings.CS.startsWith(uri.getPath(), ACTUATOR_PATH)) {
             log.debug(LOG_FORMAT, params);
@@ -83,13 +82,6 @@ class LoggingFilter implements WebFilter {
         }
 
         return LOCALHOST;
-    }
-
-    private String getLogUri(URI uri) {
-        var path = StringUtils.defaultString(uri.getPath());
-        var query = uri.getQuery();
-        var logUri = StringUtils.isNotEmpty(query) ? path + '?' + query : path;
-        return sanitize(logUri);
     }
 
     static String sanitize(String value) {
