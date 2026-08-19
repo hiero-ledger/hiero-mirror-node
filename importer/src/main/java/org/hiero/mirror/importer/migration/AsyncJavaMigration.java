@@ -157,14 +157,6 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
         runMigrateAsync();
     }
 
-    protected final <O> @Nullable O queryForObjectOrNull(String sql, Class<O> requiredType) {
-        try {
-            return getJdbcOperations().queryForObject(sql, requiredType);
-        } catch (EmptyResultDataAccessException ex) {
-            return null;
-        }
-    }
-
     protected final <O> @Nullable O queryForObjectOrNull(
             String sql, SqlParameterSource paramSource, Class<O> requiredType) {
         try {
