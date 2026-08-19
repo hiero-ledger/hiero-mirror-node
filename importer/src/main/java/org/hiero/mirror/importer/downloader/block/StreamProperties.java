@@ -16,6 +16,16 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public final class StreamProperties {
 
+    @DurationMin(minutes = 5)
+    @NotNull
+    private Duration keepAliveTime = Duration.ofMinutes(10);
+
+    @DurationMin(seconds = 10)
+    @NotNull
+    private Duration keepAliveTimeout = Duration.ofSeconds(10);
+
+    private boolean keepAliveWithoutCalls = true;
+
     @Min(1000)
     private int maxBlockItems = 800_000;
 

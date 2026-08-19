@@ -54,7 +54,7 @@ import org.jspecify.annotations.Nullable;
 public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     public static final Comparator<BlockNode> LATENCY_COMPARATOR =
-            Comparator.comparing(BlockNode::getLatency).thenComparing(b -> b.statusEndpoint);
+            Comparator.comparing(BlockNode::getLatency).thenComparing(b -> b.nameBySubscribeStream);
 
     static final String ERROR_METRIC_NAME = "hiero.mirror.importer.stream.error";
 
@@ -70,11 +70,13 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private final Latency latency = new Latency();
 
     @Getter
+    private final String nameBySubscribeStream;
+
+    @Getter
     private final BlockNodeProperties properties;
 
     private final AtomicReference<Instant> readmitTime = new AtomicReference<>(Instant.now());
     private final ManagedChannel statusChannel;
-    private final BlockNodeProperties.ServiceEndpoint statusEndpoint;
     private final StreamProperties streamProperties;
     private final ManagedChannel subscribeStreamChannel;
 
@@ -93,7 +95,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
         final int maxInboundMessageSize =
                 (int) streamProperties.getMaxStreamResponseSize().toBytes();
-        statusEndpoint = getEndpoint(BlockNodeApi.STATUS, properties.getEndpoints());
+        final var statusEndpoint = getEndpoint(BlockNodeApi.STATUS, properties.getEndpoints());
         final var subscribeStreamEndpoint = getEndpoint(BlockNodeApi.SUBSCRIBE_STREAM, properties.getEndpoints());
         statusChannel = buildChannel(channelBuilderProvider, maxInboundMessageSize, statusEndpoint);
 
@@ -105,6 +107,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         }
 
         name = String.format("BlockNode(%s)", statusEndpoint);
+        nameBySubscribeStream = String.format("BlockNode(%s)", subscribeStreamEndpoint);
         errorsMetric = Counter.builder(ERROR_METRIC_NAME)
                 .description("The number of errors that occurred while streaming from a particular block node.")
                 .tag("type", StreamType.BLOCK.toString())
@@ -195,16 +198,17 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                         if (status == SubscribeStreamResponse.Code.SUCCESS) {
                             // The server may end the stream gracefully for various reasons, and this shouldn't be
                             // treated as an error.
-                            log.info("{} ended the subscription with {}", name, status);
+                            log.info("{} ended the subscription with {}", nameBySubscribeStream, status);
                             running = false;
                             break;
                         }
 
-                        throw new BlockStreamException("Received status " + response.getStatus() + " from " + name);
+                        throw new BlockStreamException(
+                                "Received status " + response.getStatus() + " from " + nameBySubscribeStream);
                     }
                     default ->
-                        throw new BlockStreamException(
-                                "Unknown response case " + response.getResponseCase() + " from " + name);
+                        throw new BlockStreamException("Unknown response case " + response.getResponseCase() + " from "
+                                + nameBySubscribeStream);
                 }
             }
 
@@ -219,7 +223,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         } finally {
             if (grpcCall != null) {
                 grpcCall.cancel("unsubscribe", null);
-                grpcBufferDisposer.accept(name, grpcCall);
+                grpcBufferDisposer.accept(nameBySubscribeStream, grpcCall);
             }
         }
     }
@@ -393,10 +397,11 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
             final var filename = BlockFile.getFilename(blockNumber, false);
             final var blockStream = new BlockStream(block, blockCompleteTime, null, filename, loadStart, blockSize);
-            log.info("Streamed block {} from {}", blockNumber, name);
+            log.info("Streamed block {} from {}", blockNumber, nameBySubscribeStream);
 
             // when either condition becomes true, inform the caller to stop sending items for assembling
-            return blockStreamConsumer.apply(blockStream, name) || blockHeader.getNumber() == endBlockNumber;
+            return blockStreamConsumer.apply(blockStream, nameBySubscribeStream)
+                    || blockHeader.getNumber() == endBlockNumber;
         }
 
         long timeout() {

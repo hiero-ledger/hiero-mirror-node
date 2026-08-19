@@ -87,6 +87,9 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
         for (var candidate : candidates) {
             final var candidateAverage = candidate.getLatency().getAverage();
             if (average - candidateAverage >= threshold) {
+                log.info(
+                        "Will stop streaming from {} and switch to a lower-latency node",
+                        node.getNameBySubscribeStream());
                 return true;
             }
         }
