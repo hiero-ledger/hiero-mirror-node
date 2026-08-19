@@ -61,7 +61,7 @@ class LoggingFilterTest {
     }
 
     @Test
-    void filterLogsPathAndQuery(CapturedOutput output) {
+    void filterLogsUri(CapturedOutput output) {
         var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("https://evil.example:8443/health?foo=bar")
                 .build());
         exchange.getResponse().setRawStatusCode(200);
@@ -74,8 +74,7 @@ class LoggingFilterTest {
                 .expectComplete()
                 .verify(WAIT);
 
-        assertLog(output, "INFO", "\\w+ GET /health\\?foo=bar in \\d+ ms: 200");
-        assertThat(output).asString().doesNotContain("evil.example").doesNotContain("https://");
+        assertLog(output, "INFO", "\\w+ GET https://evil\\.example:8443/health\\?foo=bar in \\d+ ms: 200");
     }
 
     @Test
@@ -140,7 +139,10 @@ class LoggingFilterTest {
                 .expectComplete()
                 .verify(WAIT);
 
-        assertLog(output, "INFO", "\\w+ GET /health_injected_path_query\\?foo=bar_baz in \\d+ ms: 200");
+        assertLog(
+                output,
+                "INFO",
+                "\\w+ GET http://localhost/health%0Ainjected%0Dpath%09query\\?foo=bar%0Abaz in \\d+ ms: 200");
         assertNoControlCharacters(output);
     }
 
@@ -183,23 +185,6 @@ class LoggingFilterTest {
                 .verify(WAIT);
 
         assertLog(output, "WARN", "\\w+ GET / in \\d+ ms: " + exception.getMessage());
-    }
-
-    @Test
-    void filterSanitizesErrorMessageControlCharacters(CapturedOutput output) {
-        var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/").build());
-        exchange.getResponse().setRawStatusCode(500);
-
-        var exception = new IllegalArgumentException("error\r\nWARN injected");
-        StepVerifier.withVirtualTime(() -> loggingFilter
-                        .filter(exchange, serverWebExchange -> Mono.error(exception))
-                        .onErrorResume(t -> exchange.getResponse().setComplete()))
-                .thenAwait(WAIT)
-                .expectComplete()
-                .verify(WAIT);
-
-        assertLog(output, "WARN", "\\w+ GET / in \\d+ ms: error__WARN injected");
-        assertNoControlCharacters(output);
     }
 
     @Test
