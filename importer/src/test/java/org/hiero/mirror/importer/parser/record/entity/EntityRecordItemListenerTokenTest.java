@@ -1982,7 +1982,8 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
                 .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic1))
                 .returns(toTrimmedBytes(EntityId.of(PAYER2)), from(ContractLog::getTopic2))
-                .returns(toTrimmedBytes(amount), from(ContractLog::getData));
+                .returns(toTrimmedBytes(amount), from(ContractLog::getData))
+                .returns(true, from(ContractLog::isSynthetic));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(mintTimestamp))
@@ -2115,7 +2116,8 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
                 .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic1))
                 .returns(toTrimmedBytes(PAYER_ACCOUNT_ID), from(ContractLog::getTopic2))
-                .returns(toTrimmedBytes(SERIAL_NUMBER_1), from(ContractLog::getTopic3));
+                .returns(toTrimmedBytes(SERIAL_NUMBER_1), from(ContractLog::getTopic3))
+                .returns(true, from(ContractLog::isSynthetic));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(mintTimestamp))
