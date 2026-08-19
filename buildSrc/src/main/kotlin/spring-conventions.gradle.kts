@@ -36,11 +36,11 @@ val platform = imagePlatform.ifBlank { null }
 tasks.bootBuildImage {
     // Use digests for deterministic builds.
     val builderImageDigest =
-        "sha256:f96e4afa31f8ed4626d3eecc133ced78ff38b9429c18b010a66374920e72ff5e" // 0.0.161
+        "sha256:6b3fa425bdbe81a766f2349265cf13aec4a070a0c6a77947b996df3ce7fa6cbd" // 0.0.172
     val nativeImageDigest =
-        "sha256:f4b1cf317d9917a42486a40d26b0864cd5235dc23b406663df166a04fdab501a" // 14.8.0
+        "sha256:f2e20d6de81f161b36573f786715a908ffc43c12d69b7a35f566e1573de3c75e" // 14.9.0
     val runImageDigest =
-        "sha256:0cf96ce719096433ff2bfe53953f784f9619ee6a541f7b75bbfa6bebad07b04a" // 0.0.105
+        "sha256:5a405dda46956555107baec6df6a2d469c88a7e67573d9dced8bc52bd27c13c5" // 0.0.116
 
     val env = System.getenv()
     val repo = env.getOrDefault("GITHUB_REPOSITORY", "hiero-ledger/hiero-mirror-node")

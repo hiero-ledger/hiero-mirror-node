@@ -6,7 +6,7 @@
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">=24.18.1 <25"
+    "node": ">=24.19.0 <25"
   },
   "scripts": {
     "generate-proto-js": "node scripts/generate-proto-js.mjs",

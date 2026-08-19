@@ -1,6 +1,6 @@
 module mirrornode-bootstrap
 
-go 1.26.5
+go 1.26.7
 
 require (
 	github.com/jackc/pgx/v5 v5.10.0
