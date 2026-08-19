@@ -7,7 +7,6 @@ import io.grpc.ManagedChannelBuilder;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.grpc.MetricCollectingClientInterceptor;
 import jakarta.inject.Named;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 
 @Named
@@ -16,21 +15,16 @@ final class ManagedChannelBuilderProviderImpl implements ManagedChannelBuilderPr
 
     private static final String TAG_SERVER = "server";
 
-    private final BlockProperties blockProperties;
     private final MeterRegistry meterRegistry;
     private final ZstdCodec zstdCodec;
 
     @Override
     public ManagedChannelBuilder<?> get(final String host, final int port, final boolean useTls) {
-        final var streamProperties = blockProperties.getStream();
         final var interceptor = new MetricCollectingClientInterceptor(
                 meterRegistry, counter -> counter.tag(TAG_SERVER, host), timer -> timer.tag(TAG_SERVER, host));
         final var builder = ManagedChannelBuilder.forAddress(host, port)
                 .intercept(interceptor)
-                .decompressorRegistry(DecompressorRegistry.getDefaultInstance().with(zstdCodec, true))
-                .keepAliveTime(streamProperties.getKeepAliveTime().toSeconds(), TimeUnit.SECONDS)
-                .keepAliveTimeout(streamProperties.getKeepAliveTimeout().toSeconds(), TimeUnit.SECONDS)
-                .keepAliveWithoutCalls(streamProperties.isKeepAliveWithoutCalls());
+                .decompressorRegistry(DecompressorRegistry.getDefaultInstance().with(zstdCodec, true));
 
         if (useTls) {
             builder.useTransportSecurity();

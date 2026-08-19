@@ -8,7 +8,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.importer.downloader.block.BlockNode.ERROR_METRIC_NAME;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleServiceEndpoint;
-import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
@@ -58,24 +57,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.ThrowingConsumer;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.util.unit.DataSize;
 
-@ExtendWith({GrpcCleanupExtension.class, MockitoExtension.class, OutputCaptureExtension.class})
+@ExtendWith({GrpcCleanupExtension.class, OutputCaptureExtension.class})
 final class BlockNodeTest extends BlockNodeTestBase {
 
     private static final BiFunction<BlockStream, String, Boolean> IGNORE = (_, _) -> false;
     private static final BiConsumer<String, BlockingClientCall<?, ?>> NOOP_GRPC_BUFFER_DISPOSER = (_, _) -> {};
     private static final String SERVER = "test1";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
-
-    @Mock(strictness = Mock.Strictness.LENIENT)
-    private BlockProperties blockProperties;
 
     private BlockNodeProperties blockNodeProperties;
     private BlockNodeSimulator blockNodeSimulator;
@@ -92,7 +86,6 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 meterRegistry,
                 blockNodeProperties,
                 streamProperties);
-        doReturn(streamProperties).when(blockProperties).getStream();
     }
 
     @AfterEach
@@ -682,7 +675,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     private BlockNode httpBlockNode(final BlockNodeSimulator blockNodeSimulator) {
-        final var provider = new ManagedChannelBuilderProviderImpl(blockProperties, meterRegistry, new ZstdCodec());
+        final var provider = new ManagedChannelBuilderProviderImpl(meterRegistry, new ZstdCodec());
         return new BlockNode(
                 provider,
                 NOOP_GRPC_BUFFER_DISPOSER,

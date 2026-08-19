@@ -20,9 +20,9 @@ public final class StreamProperties {
     @NotNull
     private Duration keepAliveTime = Duration.ofMinutes(10);
 
-    @DurationMin(seconds = 10)
+    @DurationMin(seconds = 5)
     @NotNull
-    private Duration keepAliveTimeout = Duration.ofSeconds(10);
+    private Duration keepAliveTimeout = Duration.ofSeconds(5);
 
     private boolean keepAliveWithoutCalls = true;
 

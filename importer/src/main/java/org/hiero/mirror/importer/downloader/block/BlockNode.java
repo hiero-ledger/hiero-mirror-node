@@ -93,26 +93,23 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         this.properties = properties;
         this.streamProperties = streamProperties;
 
-        final int maxInboundMessageSize =
-                (int) streamProperties.getMaxStreamResponseSize().toBytes();
         final var statusEndpoint = getEndpoint(BlockNodeApi.STATUS, properties.getEndpoints());
         final var subscribeStreamEndpoint = getEndpoint(BlockNodeApi.SUBSCRIBE_STREAM, properties.getEndpoints());
-        statusChannel = buildChannel(channelBuilderProvider, maxInboundMessageSize, statusEndpoint);
+        statusChannel = buildChannel(channelBuilderProvider, statusEndpoint, streamProperties);
 
         if (subscribeStreamEndpoint == statusEndpoint) {
             subscribeStreamChannel = statusChannel;
         } else {
-            subscribeStreamChannel =
-                    buildChannel(channelBuilderProvider, maxInboundMessageSize, subscribeStreamEndpoint);
+            subscribeStreamChannel = buildChannel(channelBuilderProvider, subscribeStreamEndpoint, streamProperties);
         }
 
-        name = String.format("BlockNode(%s)", statusEndpoint);
-        subscribeStreamName = String.format("BlockNode(%s)", subscribeStreamEndpoint);
         errorsMetric = Counter.builder(ERROR_METRIC_NAME)
                 .description("The number of errors that occurred while streaming from a particular block node.")
                 .tag("type", StreamType.BLOCK.toString())
                 .tag("block_node", statusEndpoint.toString())
                 .register(meterRegistry);
+        name = String.format("BlockNode(%s)", statusEndpoint);
+        subscribeStreamName = String.format("BlockNode(%s)", subscribeStreamEndpoint);
     }
 
     @Override
@@ -248,10 +245,15 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     private static ManagedChannel buildChannel(
             final ManagedChannelBuilderProvider channelBuilderProvider,
-            final int maxInboundMessageSize,
-            final BlockNodeProperties.ServiceEndpoint serviceEndpoint) {
+            final BlockNodeProperties.ServiceEndpoint serviceEndpoint,
+            final StreamProperties streamProperties) {
+        final int maxInboundMessageSize =
+                (int) streamProperties.getMaxStreamResponseSize().toBytes();
         return channelBuilderProvider
                 .get(serviceEndpoint.getHost(), serviceEndpoint.getPort(), serviceEndpoint.isRequiresTls())
+                .keepAliveTime(streamProperties.getKeepAliveTime().toMillis(), TimeUnit.MILLISECONDS)
+                .keepAliveTimeout(streamProperties.getKeepAliveTimeout().toMillis(), TimeUnit.MILLISECONDS)
+                .keepAliveWithoutCalls(streamProperties.isKeepAliveWithoutCalls())
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .build();
     }
