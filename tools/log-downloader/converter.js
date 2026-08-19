@@ -46,7 +46,7 @@ class GoReplayConverter {
 
   #convertLine(line) {
     const request = this.#parser.parse(line);
-    if (!request) {
+    if (!request || !isSafeRequest(request)) {
       return null;
     }
 
@@ -91,6 +91,19 @@ const getElapsed = (lastSeconds) => getEpochSeconds() - lastSeconds;
 const getEpochSeconds = () => Date.now() / 1000;
 
 const getUUID = () => Buffer.from(Array.from({length: 12}, randomByte)).toString('hex');
+
+const HEADER_PATTERN = /^(Content-Length|Content-Type): [^\r\n]+$/;
+const MAX_BODY_LENGTH = 1_048_576;
+
+const isSafeRequest = ({body = '', headers = [], url, verb} = {}) =>
+  typeof verb === 'string' &&
+  typeof url === 'string' &&
+  !/[\r\n]/.test(verb) &&
+  !/[\r\n]/.test(url) &&
+  Array.isArray(headers) &&
+  headers.every((header) => HEADER_PATTERN.test(header)) &&
+  typeof body === 'string' &&
+  body.length <= MAX_BODY_LENGTH;
 
 const randomByte = () => Math.floor(Math.random() * 256);
 

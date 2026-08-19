@@ -4,6 +4,7 @@ import {httpStatusCodes, requestStartTime, StatusCode} from '../constants';
 import {HttpError} from 'http-errors';
 import {DbError, InvalidArgumentError, NotFoundError} from '../errors';
 import RestError from '../errors/restError';
+import {sanitize} from '../monitoring/logFormat';
 
 const defaultStatusCode = httpStatusCodes.INTERNAL_ERROR;
 
@@ -31,12 +32,17 @@ const handleError = async (err, req, res, next) => {
   if (shouldReturnMessage(statusCode)) {
     errorMessage = err.message;
     logger.warn(
-      `${req.ip} ${req.method} ${req.originalUrl} in ${elapsed} ms: ${statusCode} ${err.constructor.name} ${errorMessage}`
+      sanitize(
+        `${req.ip} ${req.method} ${req.originalUrl} in ${elapsed} ms: ${statusCode} ${err.constructor.name} ${errorMessage}`
+      )
     );
   } else {
     errorMessage = statusCode.message;
     const detailedMessage = shouldPrintStacktrace(err) ? err : err.message;
-    logger.error(`${req.ip} ${req.method} ${req.originalUrl} in ${elapsed} ms: ${statusCode}`, detailedMessage);
+    logger.error(
+      sanitize(`${req.ip} ${req.method} ${req.originalUrl} in ${elapsed} ms: ${statusCode}`),
+      detailedMessage
+    );
   }
 
   res.status(statusCode.code).json(errorMessageFormat(errorMessage));
