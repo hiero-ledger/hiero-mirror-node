@@ -23,6 +23,8 @@ import org.jspecify.annotations.Nullable;
 
 abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
 
+    private static final long MAX_CANDIDATE_LATENCY_AGE_MULTIPLIER = 3;
+
     protected final LatencyService latencyService;
     protected final SchedulerProperties schedulerProperties;
 
@@ -30,6 +32,7 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
     protected final AtomicReference<@Nullable BlockNode> current = new AtomicReference<>();
     protected final AtomicLong lastScheduledTime = new AtomicLong(0);
 
+    private final long maxCandidateLatencyAgeMillis;
     private volatile long lastPostProcessingLatency;
 
     AbstractLatencyAwareScheduler(
@@ -42,6 +45,8 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
         super(blockNodeDiscoveryService, channelBuilderProvider, meterRegistry, streamProperties);
         this.latencyService = latencyService;
         this.schedulerProperties = schedulerProperties;
+        this.maxCandidateLatencyAgeMillis =
+                latencyService.getFrequency().toMillis() * MAX_CANDIDATE_LATENCY_AGE_MULTIPLIER;
     }
 
     @Override
@@ -85,7 +90,13 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
         final long threshold =
                 schedulerProperties.getRescheduleLatencyThreshold().toMillis();
         for (var candidate : candidates) {
-            final var candidateAverage = candidate.getLatency().getAverage();
+            final var candidateLatency = candidate.getLatency();
+            if (!candidateLatency.isFresh(maxCandidateLatencyAgeMillis)) {
+                // don't reschedule to a candidate based on a measurement that may no longer reflect its condition
+                continue;
+            }
+
+            final var candidateAverage = candidateLatency.getAverage();
             if (average - candidateAverage >= threshold) {
                 log.info(
                         "Will stop streaming from {} and switch to a lower-latency node",
