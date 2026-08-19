@@ -194,6 +194,7 @@ jobs:
           curl -sL "https://raw.githubusercontent.com/hiero-ledger/hiero-block-node/${BLOCK_NODE_VERSION}/tools-and-tests/scripts/node-operations/genesis-network-to-bn-rsa-roster.sh" \
             -o genesis-network-to-bn-rsa-roster.sh
           chmod +x genesis-network-to-bn-rsa-roster.sh
+          command -v xxd >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends xxd)
           ./genesis-network-to-bn-rsa-roster.sh -i "${GENESIS_NETWORK_JSON}" -o "$(pwd)/rsa-bootstrap-roster.json"
           kubectl cp rsa-bootstrap-roster.json \
             "${SOLO_NAMESPACE}"/block-node-1-0:/opt/hiero/block-node/application-state/rsa-bootstrap-roster.json \
