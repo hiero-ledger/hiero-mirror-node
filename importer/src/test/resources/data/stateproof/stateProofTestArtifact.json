@@ -1,8 +1,8 @@
 [
   {
     "block": 0,
-    "blockHash": "fPVG8M+HGGrH+OcYj/Huzt21v8MGlTP/uGRGOffAnmfZiWY39pVejl8mz+G/Br/W",
-    "expectedRootHash": "BPQoPITnc3+YX70N8cVeRMlY+QekkYOHiVKxV2H9IO5eqFDTA+X6wkKmCsw1Lk4W",
+    "blockHash": "uSoOcoQxNudtZLRHmr5xRGFJ6ulFlCpVkJGy66zOy79Eblzud7HXmWraO10BGNBe",
+    "expectedRootHash": "6gXxZsMRh+2XEFovdXrdnKPW1uX0p8JtlreK3MvMLJX1+WmnzBaW/WtfSazGuzWg",
     "merklePaths": [
       {
         "nextPathIndex": 2,
@@ -19,7 +19,9 @@
           {
             "hash": "oKwy15WJ3erRqyA8hGUOlH4nX0y3ZD3YmWkS9f88YkyQq+JZG3lS9rRGXLH3AZnD"
           },
-          {},
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          },
           {
             "isLeft": true,
             "hash": "wsQ3BgDUVIXphy0ylqTaBB0LdPqRi64h2Rb/ljf0X8asLbCruRA9JYAL3PvJGMbO"
@@ -33,7 +35,9 @@
           {
             "hash": "004DuVFfMVbFQCIYAwaGK7rx9cwBPjKUSQKqffVObUD+k/iGABUCmy9Zylv327HL"
           },
-          {},
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          },
           {
             "isLeft": true,
             "hash": "iKFyMv9MvyiIJn6wsU9hpYEIXaQQ2BMePaO0szKAsMgMNsoyQ3JtI/h/zTV1lBuG"
@@ -47,7 +51,9 @@
           {
             "hash": "rRQ1foC3TSQy/8XzwuazDAgHEPWiJ6cVSHHJuJ8SrGGJtyOHSLoPvWndkCOMggih"
           },
-          {},
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          },
           {
             "isLeft": true,
             "hash": "Yy1Mbhlhl8WpOySbX+lNHCdlQ5OW0NUqodtKxOfBaLJO/rkL/SP0YcoNKZaI3Cym"
@@ -61,7 +67,9 @@
           {
             "hash": "0ucoGyOgFpzUzk6Y81qhhg3M2Cq2jq76djXY4JLD66a86/6rIcaeFWQ8hXATbqu8"
           },
-          {},
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          },
           {
             "isLeft": true,
             "hash": "znJinguZ3lXCj+Unho/twmWbt/yXBpuMR0B0kLek1zETadNtumi6ZDieG9OovVIY"
@@ -75,10 +83,12 @@
           {
             "hash": "6YOxpdswmQwQoVLCZj8cHLWapR/HA+CFwZ/YbPwzK3JhKfCtReOjAqJCuAHmmAUX"
           },
-          {}
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          }
         ],
         "nextPathIndex": 2,
-        "hash": "fPVG8M+HGGrH+OcYj/Huzt21v8MGlTP/uGRGOffAnmfZiWY39pVejl8mz+G/Br/W"
+        "hash": "uSoOcoQxNudtZLRHmr5xRGFJ6ulFlCpVkJGy66zOy79Eblzud7HXmWraO10BGNBe"
       },
       {
         "nextPathIndex": 4294967295
@@ -87,8 +97,8 @@
   },
   {
     "block": 1,
-    "blockHash": "ahOe8gN58oNlZ9ujl4qQPznwhcLb8lm3vpfBAawc9BWVgxhG9M/E9TEcg4IC8Q13",
-    "expectedRootHash": "BPQoPITnc3+YX70N8cVeRMlY+QekkYOHiVKxV2H9IO5eqFDTA+X6wkKmCsw1Lk4W",
+    "blockHash": "bf8uIiwZm7Q7HuyWNUyu0Vm7BKaU3EtfQMpn3cWMr3DndK3EIVcXVbI9vdRe4unV",
+    "expectedRootHash": "6gXxZsMRh+2XEFovdXrdnKPW1uX0p8JtlreK3MvMLJX1+WmnzBaW/WtfSazGuzWg",
     "merklePaths": [
       {
         "nextPathIndex": 2,
@@ -105,7 +115,9 @@
           {
             "hash": "004DuVFfMVbFQCIYAwaGK7rx9cwBPjKUSQKqffVObUD+k/iGABUCmy9Zylv327HL"
           },
-          {},
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          },
           {
             "isLeft": true,
             "hash": "iKFyMv9MvyiIJn6wsU9hpYEIXaQQ2BMePaO0szKAsMgMNsoyQ3JtI/h/zTV1lBuG"
@@ -119,7 +131,9 @@
           {
             "hash": "rRQ1foC3TSQy/8XzwuazDAgHEPWiJ6cVSHHJuJ8SrGGJtyOHSLoPvWndkCOMggih"
           },
-          {},
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          },
           {
             "isLeft": true,
             "hash": "Yy1Mbhlhl8WpOySbX+lNHCdlQ5OW0NUqodtKxOfBaLJO/rkL/SP0YcoNKZaI3Cym"
@@ -133,7 +147,9 @@
           {
             "hash": "0ucoGyOgFpzUzk6Y81qhhg3M2Cq2jq76djXY4JLD66a86/6rIcaeFWQ8hXATbqu8"
           },
-          {},
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          },
           {
             "isLeft": true,
             "hash": "znJinguZ3lXCj+Unho/twmWbt/yXBpuMR0B0kLek1zETadNtumi6ZDieG9OovVIY"
@@ -147,10 +163,12 @@
           {
             "hash": "6YOxpdswmQwQoVLCZj8cHLWapR/HA+CFwZ/YbPwzK3JhKfCtReOjAqJCuAHmmAUX"
           },
-          {}
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          }
         ],
         "nextPathIndex": 2,
-        "hash": "ahOe8gN58oNlZ9ujl4qQPznwhcLb8lm3vpfBAawc9BWVgxhG9M/E9TEcg4IC8Q13"
+        "hash": "bf8uIiwZm7Q7HuyWNUyu0Vm7BKaU3EtfQMpn3cWMr3DndK3EIVcXVbI9vdRe4unV"
       },
       {
         "nextPathIndex": 4294967295
@@ -159,8 +177,8 @@
   },
   {
     "block": 2,
-    "blockHash": "RRcfehwqOGFE5uitIhIaNoACq8s5exCg++1GtqgP33YVxh2DhPy87G9LpN4Guapz",
-    "expectedRootHash": "BPQoPITnc3+YX70N8cVeRMlY+QekkYOHiVKxV2H9IO5eqFDTA+X6wkKmCsw1Lk4W",
+    "blockHash": "4ZovgLbr2KOVk3zTgjVWclMgIDTRR5wVMA16s2SVlcBTYM46z9g4IO7jBngztTPl",
+    "expectedRootHash": "6gXxZsMRh+2XEFovdXrdnKPW1uX0p8JtlreK3MvMLJX1+WmnzBaW/WtfSazGuzWg",
     "merklePaths": [
       {
         "nextPathIndex": 2,
@@ -177,7 +195,9 @@
           {
             "hash": "rRQ1foC3TSQy/8XzwuazDAgHEPWiJ6cVSHHJuJ8SrGGJtyOHSLoPvWndkCOMggih"
           },
-          {},
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          },
           {
             "isLeft": true,
             "hash": "Yy1Mbhlhl8WpOySbX+lNHCdlQ5OW0NUqodtKxOfBaLJO/rkL/SP0YcoNKZaI3Cym"
@@ -191,7 +211,9 @@
           {
             "hash": "0ucoGyOgFpzUzk6Y81qhhg3M2Cq2jq76djXY4JLD66a86/6rIcaeFWQ8hXATbqu8"
           },
-          {},
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          },
           {
             "isLeft": true,
             "hash": "znJinguZ3lXCj+Unho/twmWbt/yXBpuMR0B0kLek1zETadNtumi6ZDieG9OovVIY"
@@ -205,10 +227,12 @@
           {
             "hash": "6YOxpdswmQwQoVLCZj8cHLWapR/HA+CFwZ/YbPwzK3JhKfCtReOjAqJCuAHmmAUX"
           },
-          {}
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          }
         ],
         "nextPathIndex": 2,
-        "hash": "RRcfehwqOGFE5uitIhIaNoACq8s5exCg++1GtqgP33YVxh2DhPy87G9LpN4Guapz"
+        "hash": "4ZovgLbr2KOVk3zTgjVWclMgIDTRR5wVMA16s2SVlcBTYM46z9g4IO7jBngztTPl"
       },
       {
         "nextPathIndex": 4294967295
@@ -217,8 +241,8 @@
   },
   {
     "block": 3,
-    "blockHash": "FwgU9fmkMUewLy4NinJTWlnx1ZhfynuD0u+Vwsjc+HbF8Ym1rh4msyRQUz++Ea2N",
-    "expectedRootHash": "BPQoPITnc3+YX70N8cVeRMlY+QekkYOHiVKxV2H9IO5eqFDTA+X6wkKmCsw1Lk4W",
+    "blockHash": "rV4yBTsadYQcKbiLNurMTskWz0WglVts057Xu3RBWgclDsjZMWLifvoqx1uJPNHi",
+    "expectedRootHash": "6gXxZsMRh+2XEFovdXrdnKPW1uX0p8JtlreK3MvMLJX1+WmnzBaW/WtfSazGuzWg",
     "merklePaths": [
       {
         "nextPathIndex": 2,
@@ -235,7 +259,9 @@
           {
             "hash": "0ucoGyOgFpzUzk6Y81qhhg3M2Cq2jq76djXY4JLD66a86/6rIcaeFWQ8hXATbqu8"
           },
-          {},
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          },
           {
             "isLeft": true,
             "hash": "znJinguZ3lXCj+Unho/twmWbt/yXBpuMR0B0kLek1zETadNtumi6ZDieG9OovVIY"
@@ -249,10 +275,12 @@
           {
             "hash": "6YOxpdswmQwQoVLCZj8cHLWapR/HA+CFwZ/YbPwzK3JhKfCtReOjAqJCuAHmmAUX"
           },
-          {}
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          }
         ],
         "nextPathIndex": 2,
-        "hash": "FwgU9fmkMUewLy4NinJTWlnx1ZhfynuD0u+Vwsjc+HbF8Ym1rh4msyRQUz++Ea2N"
+        "hash": "rV4yBTsadYQcKbiLNurMTskWz0WglVts057Xu3RBWgclDsjZMWLifvoqx1uJPNHi"
       },
       {
         "nextPathIndex": 4294967295
@@ -261,8 +289,8 @@
   },
   {
     "block": 4,
-    "blockHash": "v0llIoDI9Srpl2Zoqag9xornzUmlaFguYKMB/IxbDlVCzMMVzkygo2QyxGXd0Nuf",
-    "expectedRootHash": "BPQoPITnc3+YX70N8cVeRMlY+QekkYOHiVKxV2H9IO5eqFDTA+X6wkKmCsw1Lk4W",
+    "blockHash": "8Hz6NrOOi+iyv6fResvEZ8CQwzX1KVAlDZvpvrQBCqH79aY/8ElKowzPa9xYAdp2",
+    "expectedRootHash": "6gXxZsMRh+2XEFovdXrdnKPW1uX0p8JtlreK3MvMLJX1+WmnzBaW/WtfSazGuzWg",
     "merklePaths": [
       {
         "nextPathIndex": 2,
@@ -279,10 +307,12 @@
           {
             "hash": "6YOxpdswmQwQoVLCZj8cHLWapR/HA+CFwZ/YbPwzK3JhKfCtReOjAqJCuAHmmAUX"
           },
-          {}
+          {
+            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+          }
         ],
         "nextPathIndex": 2,
-        "hash": "v0llIoDI9Srpl2Zoqag9xornzUmlaFguYKMB/IxbDlVCzMMVzkygo2QyxGXd0Nuf"
+        "hash": "8Hz6NrOOi+iyv6fResvEZ8CQwzX1KVAlDZvpvrQBCqH79aY/8ElKowzPa9xYAdp2"
       },
       {
         "nextPathIndex": 4294967295

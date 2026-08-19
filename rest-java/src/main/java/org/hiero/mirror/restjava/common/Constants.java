@@ -22,6 +22,7 @@ public class Constants {
     public static final String LIMIT = "limit";
     public static final String NODE_ID = "node.id";
     public static final String ORDER = "order";
+    public static final String OWNER = "owner";
     public static final String RECEIVER_ID = "receiver.id";
     public static final String REGISTERED_NODE_ID = "registerednode.id";
     public static final String REGISTERED_NODE_TYPE = "type";
