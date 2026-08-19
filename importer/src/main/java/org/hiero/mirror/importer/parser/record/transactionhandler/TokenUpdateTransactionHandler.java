@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_49_0;
 
+import com.hederahashgraph.api.proto.java.AccountID;
 import jakarta.inject.Named;
 import lombok.CustomLog;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -20,7 +21,7 @@ import org.hiero.mirror.importer.util.Utility;
 
 @CustomLog
 @Named
-class TokenUpdateTransactionHandler extends AbstractEntityCrudTransactionHandler {
+final class TokenUpdateTransactionHandler extends AbstractEntityCrudTransactionHandler {
 
     private final EntityProperties entityProperties;
 
@@ -37,7 +38,7 @@ class TokenUpdateTransactionHandler extends AbstractEntityCrudTransactionHandler
 
     @Override
     protected void doUpdateEntity(Entity entity, RecordItem recordItem) {
-        var transactionBody = recordItem.getTransactionBody().getTokenUpdate();
+        final var transactionBody = recordItem.getTransactionBody().getTokenUpdate();
 
         if (transactionBody.hasAdminKey()) {
             entity.setKey(transactionBody.getAdminKey().toByteArray());
@@ -78,8 +79,8 @@ class TokenUpdateTransactionHandler extends AbstractEntityCrudTransactionHandler
             return;
         }
 
-        var transactionBody = recordItem.getTransactionBody().getTokenUpdate();
-        var token = new Token();
+        final var transactionBody = recordItem.getTransactionBody().getTokenUpdate();
+        final var token = new Token();
         token.setTimestampLower(recordItem.getConsensusTimestamp());
         token.setTokenId(entity.getId());
 
@@ -124,7 +125,8 @@ class TokenUpdateTransactionHandler extends AbstractEntityCrudTransactionHandler
             token.setSymbol(transactionBody.getSymbol());
         }
 
-        if (transactionBody.hasTreasury()) {
+        // A synthetic token update can have a 0.0.0 treasury account populated by consensus nodes
+        if (transactionBody.hasTreasury() && !AccountID.getDefaultInstance().equals(transactionBody.getTreasury())) {
             var treasury = EntityId.of(transactionBody.getTreasury());
             token.setTreasuryAccountId(treasury);
             recordItem.addEntityId(treasury);

@@ -5,7 +5,15 @@ import range from 'lodash/range';
 
 import BaseService from './baseService';
 import {getResponseLimit} from '../config';
-import {filterKeys, HEX_PREFIX, MAX_LONG, MIN_LONG, orderFilterValues} from '../constants';
+import {
+  filterKeys,
+  HEX_PREFIX,
+  MAX_LONG,
+  MIN_LONG,
+  orderFilterValues,
+  SYNTHETIC_NFT_SERIAL_TOPIC3,
+  TRANSFER_EVENT_TOPIC0,
+} from '../constants';
 import EntityId from '../entityId';
 import {OrderSpec} from '../sql';
 import {
@@ -441,11 +449,29 @@ class ContractService extends BaseService {
   }
 
   /**
+   * Exclude synthetic NFT treasury-change Transfer logs (topic0 = Transfer AND topic3 = 0xffffffffffffffff).
+   * NULL topic0 or topic3 is kept via IS DISTINCT FROM.
+   *
+   * @param {*[]} params
+   * @param {string[]} conditions
+   */
+  appendSyntheticNftTransferExclusion(params, conditions) {
+    params.push(TRANSFER_EVENT_TOPIC0, SYNTHETIC_NFT_SERIAL_TOPIC3);
+    conditions.push(
+      `(${ContractLog.getFullName(ContractLog.TOPIC0)} is distinct from $${
+        params.length - 1
+      } or ${ContractLog.getFullName(ContractLog.TOPIC3)} is distinct from $${params.length})`
+    );
+  }
+
+  /**
    * Build sql query for retrieving contract logs
    * @param query
    * @returns {[string, *[]]}
    */
   getContractLogsQuery({lower, inner, upper, params, conditions, order, limit}) {
+    this.appendSyntheticNftTransferExclusion(params, conditions);
+
     params.push(limit);
     const orderClause = super.getOrderByQuery(
       OrderSpec.from(ContractLog.getFullName(ContractLog.CONSENSUS_TIMESTAMP), order),
@@ -530,6 +556,9 @@ class ContractService extends BaseService {
     if (involvedContractIds.length) {
       conditions.push(`${ContractLog.CONTRACT_ID} in (${involvedContractIds.join(',')})`);
     }
+
+    this.appendSyntheticNftTransferExclusion(params, conditions);
+
     const whereClause = `where ${conditions.join(' and ')}`;
     const orderClause = `order by ${ContractLog.CONSENSUS_TIMESTAMP}, ${ContractLog.INDEX}`;
 

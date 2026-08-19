@@ -18,9 +18,11 @@ import com.hedera.hapi.block.stream.protoc.MerklePath;
 import com.hedera.hapi.block.stream.protoc.SiblingNode;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
@@ -30,8 +32,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 final class BlockStateProofHasherTest {
+
+    private static final int MIN_SIBLING_COUNT = 4;
 
     private static final List<StateProofTestArtifact> TEST_ARTIFACTS = loadTestArtifacts();
 
@@ -77,6 +82,55 @@ final class BlockStateProofHasherTest {
     }
 
     @Test
+    void getHashThrowWhenFirstMerklePathHasNoTimestampLeaf() {
+        // given
+        final byte[] rootHash = TestUtils.generateRandomByteArray(48);
+        final var merklePaths = List.of(
+                MerklePath.newBuilder().setNextPathIndex(2).build(),
+                MerklePath.newBuilder()
+                        .setHash(fromBytes(rootHash))
+                        .setNextPathIndex(2)
+                        .addAllSiblings(siblings(MIN_SIBLING_COUNT))
+                        .build(),
+                MerklePath.newBuilder().setNextPathIndex(-1).build());
+
+        // when, then
+        assertThatThrownBy(() -> hasher.getRootHash(0, rootHash, merklePaths))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage("The first merkle path in block 0's StateProof is not the timestamp leaf");
+    }
+
+    @ParameterizedTest(name = "sibling hash of {0} bytes")
+    @ValueSource(ints = {0, 1, 47, 49})
+    void getHashThrowWhenSiblingHashLengthIncorrect(final int length) {
+        // given
+        final byte[] rootHash = TestUtils.generateRandomByteArray(48);
+        final var siblings = new ArrayList<>(siblings(MIN_SIBLING_COUNT));
+        siblings.set(
+                siblings.size() - 1,
+                SiblingNode.newBuilder().setHash(fromBytes(new byte[length])).build());
+        final var merklePaths = List.of(
+                MerklePath.newBuilder()
+                        .setNextPathIndex(2)
+                        .setTimestampLeaf(Timestamp.newBuilder()
+                                .setSeconds(Instant.now().getEpochSecond())
+                                .build()
+                                .toByteString())
+                        .build(),
+                MerklePath.newBuilder()
+                        .setHash(fromBytes(rootHash))
+                        .setNextPathIndex(2)
+                        .addAllSiblings(siblings)
+                        .build(),
+                MerklePath.newBuilder().setNextPathIndex(-1).build());
+
+        // when, then
+        assertThatThrownBy(() -> hasher.getRootHash(0, rootHash, merklePaths))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage("Sibling hash length %d != 48".formatted(length));
+    }
+
+    @Test
     void getHashThrownWhenHashMismatch() {
         // given
         final var testArtifact = TEST_ARTIFACTS.getFirst();
@@ -103,6 +157,14 @@ final class BlockStateProofHasherTest {
 
     private static Stream<Arguments> provideStateProofTestArtifact() {
         return TEST_ARTIFACTS.stream().map(t -> Arguments.of(t.block(), t));
+    }
+
+    private static List<SiblingNode> siblings(final int count) {
+        return IntStream.range(0, count)
+                .mapToObj(i -> SiblingNode.newBuilder()
+                        .setHash(fromBytes(TestUtils.generateRandomByteArray(48)))
+                        .build())
+                .toList();
     }
 
     public static final class Base64ByteArrayDeserializer extends JsonDeserializer<byte[]> {

@@ -1166,6 +1166,27 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
     }
 
     @Test
+    void tokenUpdateWithEmptyTreasury() {
+        final var tokenCreate = recordItemBuilder.tokenCreate().build();
+        final var tokenId = tokenCreate.getTransactionRecord().getReceipt().getTokenID();
+        final var tokenUpdate = recordItemBuilder
+                .tokenUpdate()
+                .transactionBody(b -> b.setToken(tokenId).setTreasury(AccountID.getDefaultInstance()))
+                .build();
+
+        parseRecordItemsAndCommit(List.of(tokenCreate, tokenUpdate));
+
+        assertThat(tokenRepository.findAll())
+                .hasSize(1)
+                .first()
+                .extracting(Token::getTreasuryAccountId)
+                .isNotNull()
+                .isNotEqualTo(EntityId.EMPTY)
+                .isEqualTo(EntityId.of(
+                        tokenCreate.getTransactionBody().getTokenCreation().getTreasury()));
+    }
+
+    @Test
     void tokenPause() {
         createAndAssociateToken(
                 TOKEN_ID,
@@ -1961,7 +1982,8 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
                 .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic1))
                 .returns(toTrimmedBytes(EntityId.of(PAYER2)), from(ContractLog::getTopic2))
-                .returns(toTrimmedBytes(amount), from(ContractLog::getData));
+                .returns(toTrimmedBytes(amount), from(ContractLog::getData))
+                .returns(true, from(ContractLog::isSynthetic));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(mintTimestamp))
@@ -2094,7 +2116,8 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .returns(TRANSFER_SIGNATURE, from(ContractLog::getTopic0))
                 .returns(ArrayUtils.EMPTY_BYTE_ARRAY, from(ContractLog::getTopic1))
                 .returns(toTrimmedBytes(PAYER_ACCOUNT_ID), from(ContractLog::getTopic2))
-                .returns(toTrimmedBytes(SERIAL_NUMBER_1), from(ContractLog::getTopic3));
+                .returns(toTrimmedBytes(SERIAL_NUMBER_1), from(ContractLog::getTopic3))
+                .returns(true, from(ContractLog::isSynthetic));
 
         assertThat(contractResultRepository.findAll())
                 .filteredOn(c -> c.getConsensusTimestamp().equals(mintTimestamp))

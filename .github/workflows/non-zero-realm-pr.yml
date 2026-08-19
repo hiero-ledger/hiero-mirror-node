@@ -68,15 +68,33 @@ jobs:
           # Group the changed tests by Gradle project so each project runs its own
           # filtered test task (a --tests filter that matches nothing fails the build).
           declare -A project_tests
+          matched=0                                      # always-set counter; ${#project_tests[@]} trips set -u when empty
           while IFS= read -r file; do
             [ -z "${file}" ] && continue
-            module_path="${file%%/src/test/*}"           # e.g. importer, rest-java, rest/monitoring
-            project=":${module_path//\//:}"              # -> :importer, :rest-java, :rest:monitoring
             class_path="${file#*/src/test/java/}"
             class="${class_path%.java}"
             class="${class//\//.}"                       # fully qualified class name
+            simple="${class##*.}"                        # simple (top-level) class name
+
+            # Skip abstract test bases (e.g. AbstractContractCallServiceOpcodeTracerTest,
+            # Web3IntegrationTest): they hold no runnable tests, so a --tests filter naming
+            # them matches nothing and fails the build. Their subclasses run when changed.
+            if grep -qE "abstract[[:space:]]+class[[:space:]]+${simple}\b" "${file}"; then
+              echo "Skipping abstract test base ${class}"
+              continue
+            fi
+
+            module_path="${file%%/src/test/*}"           # e.g. importer, rest-java, rest/monitoring
+            project=":${module_path//\//:}"              # -> :importer, :rest-java, :rest:monitoring
             project_tests["${project}"]+=" --tests \"${class}\""
+            matched=$((matched + 1))
           done <<< "${changed}"
+
+          if [ "${matched}" -eq 0 ]; then
+            echo "Only abstract test bases changed; skipping non-zero realm run."
+            echo "run=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
 
           : > /tmp/gradle-args
           for project in "${!project_tests[@]}"; do
