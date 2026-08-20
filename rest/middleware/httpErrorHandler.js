@@ -5,9 +5,14 @@ import {HttpError} from 'http-errors';
 import {DbError, InvalidArgumentError, NotFoundError} from '../errors';
 import RestError from '../errors/restError';
 
+const CONTROL_CHARACTERS = /[\p{Cc}]/gu;
 const defaultStatusCode = httpStatusCodes.INTERNAL_ERROR;
-
 const simpleErrors = /statement timeout/;
+
+const sanitize = (value) => (value == null ? value : String(value).replace(CONTROL_CHARACTERS, '_'));
+
+const formatRequestLog = (req, httpCode, passed, total) =>
+  sanitize(`${req.ip} ${req.method} ${req.originalUrl} returned ${httpCode}: ${passed}/${total} tests passed`);
 
 // Error middleware which formats thrown errors and maps them to appropriate http status codes
 // next param is required to ensure express maps to this middleware and can also be used to pass onto future middleware
@@ -27,9 +32,6 @@ const handleError = async (err, req, res, next) => {
   let errorMessage;
   const startTime = res.locals[requestStartTime];
   const elapsed = startTime ? Date.now() - startTime : 0;
-
-  const CONTROL_CHARACTERS = /[\p{Cc}]/gu;
-  const sanitize = (value) => (value == null ? value : String(value).replace(CONTROL_CHARACTERS, '_'));
 
   if (shouldReturnMessage(statusCode)) {
     errorMessage = err.message;
@@ -98,4 +100,4 @@ const errorMessageFormat = (errorMessages) => {
   };
 };
 
-export {handleError, handleRejection, handleUncaughtException};
+export {handleError, handleRejection, handleUncaughtException, formatRequestLog, sanitize};
