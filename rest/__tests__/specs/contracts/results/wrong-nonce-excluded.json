@@ -49,6 +49,7 @@
         "payer_account_id": 5000,
         "sender_id": null,
         "transaction_hash": "0x985602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "transaction_index": null,
         "transaction_nonce": 0,
         "transaction_result": "312"
       }
