@@ -25,7 +25,7 @@ jobs:
     if: github.event.client_payload.severity == 'info'
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
         with:
           egress-policy: audit
 
@@ -48,8 +48,11 @@ jobs:
 
       - name: Get chart version
         id: release
+        env:
+          REVISION: ${{ github.event.client_payload.metadata.revision }}
         run: |
-          VERSION=$(echo ${{ github.event.client_payload.metadata.revision }} | cut -d '+' -f1)
+          grep -Eq -- "^[0-9]+\.[0-9]+\.[0-9]+(\+[0-9]+)?$" <<<"${REVISION}"
+          VERSION=$(echo ${REVISION} | cut -d '+' -f1)
           echo VERSION=${VERSION} >> $GITHUB_OUTPUT
 
       - name: Set chart version in HelmRelease
@@ -58,7 +61,9 @@ jobs:
           CLUSTER: ${{ github.event.client_payload.metadata.cluster }}
           NAMESPACES: ${{ github.event.client_payload.metadata.namespaces }}
         run: |
+          grep -Eq -- "^[a-z-]+$" <<<"${CLUSTER}"
           for namespace in $(echo "${NAMESPACES}" | tr "," "\n"); do
+            grep -Eq -- "^[a-z-]+$" <<<"${namespace}"
             yq eval '.spec.chart.spec.version=env(CHART_VERSION)' -i "./clusters/${CLUSTER}/${namespace}/helmrelease.yaml"
           done
 

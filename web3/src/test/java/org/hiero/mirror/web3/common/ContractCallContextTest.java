@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ContextExtension;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.junit.jupiter.api.Test;
@@ -62,7 +63,8 @@ class ContractCallContextTest {
                         false,
                         false,
                         false),
-                0));
+                0,
+                new OpcodesProperties()));
 
         assertThat(context.getTimestamp()).isEqualTo(Optional.of(timestamp));
     }

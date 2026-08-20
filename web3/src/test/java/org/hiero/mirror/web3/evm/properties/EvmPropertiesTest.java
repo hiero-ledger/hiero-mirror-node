@@ -118,6 +118,10 @@ class EvmPropertiesTest {
     void correctPropertiesEvaluation() {
         staticMock.when(ContractCallContext::get).thenReturn(contractCallContext);
         assertThat(properties.getMaxGasRefundPercentage()).isEqualTo(MAX_REFUND_PERCENT);
+        assertThat(properties.getMaxGasLimit()).isEqualTo(15_000_000L);
+        assertThat(properties.getMaxGasAllowance())
+                .isEqualTo(100_000_000_000_000L)
+                .isNotEqualTo(Long.MAX_VALUE);
     }
 
     @ParameterizedTest

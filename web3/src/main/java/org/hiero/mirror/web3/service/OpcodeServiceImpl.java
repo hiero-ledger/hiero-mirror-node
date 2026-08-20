@@ -11,10 +11,12 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Optional;
-import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
@@ -31,6 +33,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
@@ -47,9 +50,13 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
 @Service
-@CustomLog
 @RequiredArgsConstructor
 public class OpcodeServiceImpl implements OpcodeService {
+
+    static final String EXECUTED_OPCODES_METRIC = "hiero.mirror.web3.opcodes.executed";
+    static final String MEMORY_WORDS_METRIC = "hiero.mirror.web3.opcodes.memory";
+    static final String STACK_METRIC = "hiero.mirror.web3.opcodes.stack";
+    static final String STORAGE_METRIC = "hiero.mirror.web3.opcodes.storage";
 
     public static final long MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS = 35 * 60 * NANOS_PER_SECOND;
     private static final Address EMPTY_ADDRESS = Address.ZERO;
@@ -62,17 +69,43 @@ public class OpcodeServiceImpl implements OpcodeService {
     private final TransactionRepository transactionRepository;
     private final ContractResultRepository contractResultRepository;
     private final CommonEntityAccessor commonEntityAccessor;
+    private final OpcodesProperties opcodesProperties;
+    private final MeterRegistry meterRegistry;
+    private Counter opcodesCounter;
+    private Counter memoryWordsCounter;
+    private Counter stackCounter;
+    private Counter storageCounter;
+
+    @PostConstruct
+    void init() {
+        opcodesCounter = Counter.builder(EXECUTED_OPCODES_METRIC)
+                .description("The cumulative number of opcodes executed across opcode trace requests")
+                .register(meterRegistry);
+        memoryWordsCounter = Counter.builder(MEMORY_WORDS_METRIC)
+                .description("The cumulative number of 32-byte memory words captured across opcode trace requests")
+                .register(meterRegistry);
+        stackCounter = Counter.builder(STACK_METRIC)
+                .description("The cumulative number of stack items captured across opcode trace requests")
+                .register(meterRegistry);
+        storageCounter = Counter.builder(STORAGE_METRIC)
+                .description("The cumulative number of storage entries captured across opcode trace requests")
+                .register(meterRegistry);
+    }
 
     @Override
     public OpcodesResponse processOpcodeCall(@NonNull OpcodeRequest opcodeRequest) {
         return ContractCallContext.run(ctx -> {
             ctx.setApi(OPCODES);
             final var params = buildCallServiceParameters(opcodeRequest.getTransactionIdOrHashParameter());
-            final var opcodeContext = new OpcodeContext(opcodeRequest, (int) params.getGas() / 3);
+            final var opcodeContext = new OpcodeContext(opcodeRequest, (int) params.getGas() / 3, opcodesProperties);
 
             ctx.setOpcodeContext(opcodeContext);
 
             final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
+            opcodesCounter.increment(opcodeContext.getExecutedOpcodes());
+            memoryWordsCounter.increment(opcodeContext.getCapturedMemoryWords());
+            stackCounter.increment(opcodeContext.getCapturedStack());
+            storageCounter.increment(opcodeContext.getCapturedStorage());
             return buildOpcodesResponse(result, params.getConsensusTimestamp());
         });
     }

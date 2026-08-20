@@ -8,9 +8,9 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.hiero.mirror.common.domain.StreamFile;
@@ -32,7 +32,7 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
     protected final StreamFileRepository<T, Long> streamFileRepository;
 
     private final AtomicReference<T> last;
-    private final Map<StreamType, ParserMetric> parserMetrics = new HashMap<>();
+    private final Map<StreamType, ParserMetric> parserMetrics = new ConcurrentHashMap<>();
 
     protected AbstractStreamFileParser(
             MeterRegistry meterRegistry,
@@ -78,8 +78,11 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
                     streamFile.getName(),
                     stopwatch);
 
-            final var consensusInstant = Instant.ofEpochSecond(0L, streamFile.getConsensusEnd());
-            parserMetric.parseLatencyMetric().record(Duration.between(consensusInstant, Instant.now()));
+            final var latency =
+                    Duration.between(Instant.ofEpochSecond(0L, streamFile.getConsensusEnd()), Instant.now());
+            if (latency.isPositive()) {
+                parserMetric.parseLatencyMetric().record(latency);
+            }
             parserMetric
                     .totalDurationMetric()
                     .record(streamFile.getLoadEnd() - streamFile.getLoadStart(), TimeUnit.MILLISECONDS);
@@ -142,8 +145,10 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
                     first,
                     previous.getName());
 
-            final var consensusInstant = Instant.ofEpochSecond(0L, previous.getConsensusEnd());
-            parserMetric.parseLatencyMetric().record(Duration.between(consensusInstant, Instant.now()));
+            final var latency = Duration.between(Instant.ofEpochSecond(0L, previous.getConsensusEnd()), Instant.now());
+            if (latency.isPositive()) {
+                parserMetric.parseLatencyMetric().record(latency);
+            }
             parserMetric
                     .totalDurationMetric()
                     .record(streamFile.getLoadEnd() - streamFile.getLoadStart(), TimeUnit.MILLISECONDS);

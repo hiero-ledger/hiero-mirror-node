@@ -21,8 +21,9 @@ import java.time.Duration;
 import java.util.List;
 import lombok.SneakyThrows;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
+import org.hiero.block.api.protoc.BlockRange;
+import org.hiero.block.api.protoc.ServerStatusDetailResponse;
 import org.hiero.block.api.protoc.ServerStatusRequest;
-import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
 import org.hiero.mirror.importer.downloader.block.BlockNodeDiscoveryService;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
@@ -72,17 +73,16 @@ abstract class AbstractSchedulerTest {
         doReturn(List.of(nodeA)).when(blockNodeDiscoveryService).getBlockNodes();
         scheduler = createScheduler();
         final var removed = scheduler.getNode(0).blockNode();
-        assertThat(removed.getBlockRange().isEmpty()).isFalse();
+        assertThat(removed.getBlockOrEarliest(0)).contains(0L);
 
         // when nodeA is no longer discovered (replaced by nodeB)
         final var nodeB = runBlockNodeService(0, resources, withAllBlocks());
         doReturn(List.of(nodeB)).when(blockNodeDiscoveryService).getBlockNodes();
         scheduler.getNode(0);
 
-        // then the removed node's channel is shut down so its status request now fails and yields an empty range
+        // then the removed node's channel is shut down so its status request now fails and yields no block
         await().atMost(Duration.ofSeconds(2))
-                .untilAsserted(
-                        () -> assertThat(removed.getBlockRange().isEmpty()).isTrue());
+                .untilAsserted(() -> assertThat(removed.getBlockOrEarliest(0)).isEmpty());
     }
 
     @Test
@@ -98,6 +98,22 @@ abstract class AbstractSchedulerTest {
         assertThatThrownBy(() -> scheduler.getNode(1))
                 .isInstanceOf(NoBlockNodeAvailableException.class)
                 .hasMessageContaining("No block node can provide block 1");
+    }
+
+    @Test
+    void nodeWithGap(Resources resources) {
+        // given a node which has blocks [0, 5] and [10, 20] but nothing in between
+        var blockNodeProperties = runBlockNodeService(0, resources, withRanges(10, 20, 0, 5));
+        doReturn(List.of(blockNodeProperties)).when(blockNodeDiscoveryService).getBlockNodes();
+        scheduler = createScheduler();
+
+        // when, then
+        assertScheduledBlockNode(scheduler.getNode(3), 3, blockNodeProperties);
+        assertScheduledBlockNode(scheduler.getNode(12), 12, blockNodeProperties);
+        assertScheduledBlockNode(scheduler.getNode(Scheduler.EARLIEST_AVAILABLE_BLOCK_NUMBER), 0, blockNodeProperties);
+        assertThatThrownBy(() -> scheduler.getNode(7))
+                .isInstanceOf(NoBlockNodeAvailableException.class)
+                .hasMessageContaining("No block node can provide block 7");
     }
 
     @Test
@@ -140,11 +156,11 @@ abstract class AbstractSchedulerTest {
 
     @SneakyThrows
     protected BlockNodeProperties runBlockNodeService(
-            int priority, Resources resources, ServerStatusResponse response) {
+            int priority, Resources resources, ServerStatusDetailResponse response) {
         var service = new BlockNodeServiceGrpc.BlockNodeServiceImplBase() {
             @Override
-            public void serverStatus(
-                    ServerStatusRequest request, StreamObserver<ServerStatusResponse> responseObserver) {
+            public void serverStatusDetail(
+                    ServerStatusRequest request, StreamObserver<ServerStatusDetailResponse> responseObserver) {
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
             }
@@ -167,14 +183,34 @@ abstract class AbstractSchedulerTest {
         }
     }
 
-    protected static ServerStatusResponse withAllBlocks() {
+    protected BlockNode getLatencyCandidate() {
+        return ((AbstractLatencyAwareScheduler) scheduler).candidates.getFirst();
+    }
+
+    protected static ServerStatusDetailResponse withAllBlocks() {
         return withBlocks(0, Long.MAX_VALUE);
     }
 
-    protected static ServerStatusResponse withBlocks(long first, long last) {
-        return ServerStatusResponse.newBuilder()
-                .setFirstAvailableBlock(first)
-                .setLastAvailableBlock(last)
-                .build();
+    protected static ServerStatusDetailResponse withBlocks(long first, long last) {
+        return withRanges(first, last);
+    }
+
+    /**
+     * Builds a server status detail response from pairs of inclusive range bounds.
+     *
+     * @param bounds Flattened range bounds, e.g. {@code withRanges(0, 5, 10, 20)} for blocks [0, 5] and [10, 20]
+     */
+    protected static ServerStatusDetailResponse withRanges(long... bounds) {
+        if (bounds.length % 2 != 0) {
+            throw new IllegalArgumentException("bounds must have an even number of elements");
+        }
+
+        var builder = ServerStatusDetailResponse.newBuilder();
+        for (int i = 0; i < bounds.length; i += 2) {
+            builder.addAvailableRanges(
+                    BlockRange.newBuilder().setRangeStart(bounds[i]).setRangeEnd(bounds[i + 1]));
+        }
+
+        return builder.build();
     }
 }

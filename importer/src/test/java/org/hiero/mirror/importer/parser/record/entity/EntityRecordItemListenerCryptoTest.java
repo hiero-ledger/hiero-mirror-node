@@ -56,6 +56,7 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.IterableAssert;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.AbstractCryptoAllowance.Id;
 import org.hiero.mirror.common.domain.entity.AbstractEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -74,6 +75,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.importer.repository.HookRepository;
 import org.hiero.mirror.importer.repository.NftAllowanceRepository;
@@ -103,6 +105,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     private static final ByteString EVM_ADDRESS_KEY = DomainUtils.fromBytes(UtilityTest.EVM_ADDRESS);
 
     private final @Qualifier(CACHE_ALIAS) CacheManager cacheManager;
+    private final ContractLogRepository contractLogRepository;
     private final CryptoAllowanceRepository cryptoAllowanceRepository;
     private final HookRepository hookRepository;
     private final NftAllowanceRepository nftAllowanceRepository;
@@ -190,6 +193,22 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
         assertAllowances(recordItem, expectedNfts);
         assertThat(entityTransactionRepository.findAll())
                 .containsExactlyInAnyOrderElementsOf(expectedEntityTransactions);
+    }
+
+    @Test
+    void cryptoApproveAllowanceCreatesSyntheticContractLogs() {
+        // given: default builder produces token, indexed nft, and approve-for-all nft allowances, covering all
+        // three Approve*ContractLog variants.
+        var recordItem = recordItemBuilder.cryptoApproveAllowance().build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(contractLogRepository.findAll())
+                .filteredOn(contractLog -> contractLog.getConsensusTimestamp() == recordItem.getConsensusTimestamp())
+                .isNotEmpty()
+                .allMatch(ContractLog::isSynthetic);
     }
 
     @Test
@@ -1511,6 +1530,116 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         }
                     }
                 });
+    }
+
+    @Test
+    void cryptoTransferWithAliasHasCorrectIsApprovalValue() {
+        // given
+        entityProperties.getPersist().setTrackAllowance(true);
+        entityProperties.getPersist().setCryptoTransferAmounts(true);
+
+        var payerAccount = EntityId.of(PAYER);
+        Entity owner = domainBuilder.entity().persist();
+        var ownerAlias = DomainUtils.fromBytes(owner.getAlias());
+        var allowanceAmountGranted = 1000L;
+
+        // Persist the now pre-existing crypto allowance to be debited by the approved transfer below
+        domainBuilder
+                .cryptoAllowance()
+                .customize(ca -> ca.amountGranted(allowanceAmountGranted)
+                        .amount(allowanceAmountGranted)
+                        .owner(owner.getId())
+                        .spender(payerAccount.getId()))
+                .persist();
+
+        long transferAmount = -300L;
+        Transaction transaction = buildTransaction(r -> r.getCryptoTransferBuilder()
+                .getTransfersBuilder()
+                .addAccountAmounts(
+                        accountAliasAmount(ownerAlias, transferAmount).setIsApproval(true))
+                .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -transferAmount)));
+        TransactionBody transactionBody = getTransactionBody(transaction);
+        TransactionRecord txnRecord = buildTransactionRecordWithNoTransactions(
+                builder -> builder.getTransferListBuilder()
+                        .addAccountAmounts(accountAmount(owner.toEntityId(), transferAmount))
+                        .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -transferAmount)),
+                transactionBody,
+                ResponseCodeEnum.SUCCESS.getNumber());
+
+        var recordItem = RecordItem.builder()
+                .transactionRecord(txnRecord)
+                .transaction(transaction)
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertAll(
+                () -> assertEquals(1, transactionRepository.count()),
+                () -> assertThat(cryptoTransferRepository.findAll())
+                        .filteredOn(cryptoTransfer -> cryptoTransfer.getEntityId() == owner.getId())
+                        .singleElement()
+                        .extracting(CryptoTransfer::getIsApproval)
+                        .isEqualTo(true),
+                () -> {
+                    var cryptoAllowanceId = new Id();
+                    cryptoAllowanceId.setOwner(owner.getId());
+                    cryptoAllowanceId.setSpender(payerAccount.getId());
+                    assertThat(cryptoAllowanceRepository.findById(cryptoAllowanceId))
+                            .get()
+                            .extracting(org.hiero.mirror.common.domain.entity.CryptoAllowance::getAmount)
+                            .isEqualTo(allowanceAmountGranted + transferAmount);
+                });
+    }
+
+    @Test
+    void cryptoTransferSameAmountDifferentApprovalDisambiguatedByIdentity() {
+        // given: two alias-addressed debits share the same amount, but only one is approved
+        entityProperties.getPersist().setCryptoTransferAmounts(true);
+
+        Entity owner = domainBuilder.entity().persist();
+        var ownerAlias = DomainUtils.fromBytes(owner.getAlias());
+        Entity spender = domainBuilder.entity().persist();
+        var spenderAlias = DomainUtils.fromBytes(spender.getAlias());
+        long transferAmount = -100L;
+
+        Transaction transaction = buildTransaction(r -> r.getCryptoTransferBuilder()
+                .getTransfersBuilder()
+                .addAccountAmounts(
+                        accountAliasAmount(ownerAlias, transferAmount).setIsApproval(true))
+                .addAccountAmounts(
+                        accountAliasAmount(spenderAlias, transferAmount).setIsApproval(false))
+                .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -2 * transferAmount)));
+        TransactionBody transactionBody = getTransactionBody(transaction);
+        TransactionRecord txnRecord = buildTransactionRecordWithNoTransactions(
+                builder -> builder.getTransferListBuilder()
+                        .addAccountAmounts(accountAmount(owner.toEntityId(), transferAmount))
+                        .addAccountAmounts(accountAmount(spender.toEntityId(), transferAmount))
+                        .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -2 * transferAmount)),
+                transactionBody,
+                ResponseCodeEnum.SUCCESS.getNumber());
+
+        var recordItem = RecordItem.builder()
+                .transactionRecord(txnRecord)
+                .transaction(transaction)
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertAll(
+                () -> assertThat(cryptoTransferRepository.findAll())
+                        .filteredOn(cryptoTransfer -> cryptoTransfer.getEntityId() == owner.getId())
+                        .singleElement()
+                        .extracting(CryptoTransfer::getIsApproval)
+                        .isEqualTo(true),
+                () -> assertThat(cryptoTransferRepository.findAll())
+                        .filteredOn(cryptoTransfer -> cryptoTransfer.getEntityId() == spender.getId())
+                        .singleElement()
+                        .extracting(CryptoTransfer::getIsApproval)
+                        .isEqualTo(false));
     }
 
     @Test

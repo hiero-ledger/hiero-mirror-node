@@ -131,6 +131,13 @@ const tokenTypeFilter = {
 
 const zeroRandomPageCostQueryHint = 'set local random_page_cost = 0';
 
+// keccak256 of Transfer(address,address,uint256) — used as topic0 for ERC Transfer events
+const TRANSFER_EVENT_TOPIC0 = Buffer.from('ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', 'hex');
+
+// Synthetic NFT transfer logs use -1 as a sentinel serial number for treasury changes
+// This gets stored as 0xffffffffffffffff (8 bytes) in the topic3 field
+const SYNTHETIC_NFT_SERIAL_TOPIC3 = Buffer.from('ffffffffffffffff', 'hex');
+
 export class StatusCode {
   constructor(code, message) {
     this.code = code;
@@ -186,6 +193,8 @@ export {
   WEIBARS_TO_TINYBARS,
   ZERO_EVM_ADDRESS,
   ZERO_UINT256,
+  TRANSFER_EVENT_TOPIC0,
+  SYNTHETIC_NFT_SERIAL_TOPIC3,
   apiPrefix,
   characterEncoding,
   contentTypeHeader,

@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import jakarta.inject.Named;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -57,6 +58,10 @@ public final class LatencyService implements AutoCloseable {
         tasks.clear();
     }
 
+    Duration getFrequency() {
+        return latencyServiceProperties.getFrequency();
+    }
+
     /**
      * Set the block nodes to asynchronously measure latency for
      *
@@ -109,6 +114,7 @@ public final class LatencyService implements AutoCloseable {
 
         private long lastMeasuredBlockNumber = -1;
         private int skipped = 0;
+        private int streamFailures = 0;
 
         @Override
         public void run() {
@@ -124,7 +130,7 @@ public final class LatencyService implements AutoCloseable {
                     return;
                 }
 
-                if (!node.getBlockRange().contains(nextBlockNumber)) {
+                if (node.getBlockOrEarliest(nextBlockNumber).isEmpty()) {
                     if (++skipped >= 3) {
                         // Mark the latency stale in case at least 3 times in a row the node doesn't have the block
                         node.getLatency().markStale();
@@ -133,11 +139,21 @@ public final class LatencyService implements AutoCloseable {
                     return;
                 }
 
-                log.info("Measuring {}'s latency by streaming block {}", node, nextBlockNumber);
-                final var timeout = latencyServiceProperties.getTimeout();
-                node.streamBlocks(nextBlockNumber, nextBlockNumber, this::measureLatency, timeout);
-                lastMeasuredBlockNumber = nextBlockNumber;
-                skipped = 0;
+                try {
+                    log.debug("Measuring {}'s latency by streaming block {}", node, nextBlockNumber);
+                    final var timeout = latencyServiceProperties.getTimeout();
+                    node.streamBlocks(nextBlockNumber, nextBlockNumber, this::measureLatency, timeout);
+                    lastMeasuredBlockNumber = nextBlockNumber;
+                    skipped = 0;
+                    streamFailures = 0;
+                } catch (final Exception ex) {
+                    // The node reported it has the block but failed to actually stream it - a stronger signal of
+                    // being stuck than a missing block, so mark stale sooner than the skipped-block path above
+                    log.debug("Failed to stream block {} from {} while measuring latency", nextBlockNumber, node, ex);
+                    if (++streamFailures >= 2) {
+                        node.getLatency().markStale();
+                    }
+                }
             } catch (final Exception ex) {
                 // ignore
             } finally {

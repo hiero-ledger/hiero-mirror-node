@@ -10,15 +10,17 @@ import jakarta.inject.Named;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 
 @Named
 final class BlockStateProofHasherImpl implements BlockStateProofHasher {
 
     // The merkle path 1 carries the current block's root hash and the sibling nodes leading up to the signed block's
-    // depth1 right child node. The signed block's timestamp leaf lives in the first merkle path (index 0).
+    // mountain top root. The signed block's timestamp leaf lives in the first merkle path (index 0).
     private static final int BLOCK_CONTENTS_PATH_INDEX = 1;
-    // Each block contributes 3 real sibling nodes plus a null-hash sentinel for the single-child internal node wrap.
+    private static final int HASH_LENGTH = DigestAlgorithm.SHA_384.getSize();
+    // Each block contributes 4 real sibling nodes (one per depth level in the fixed 16-leaf mountain top).
     // The signed block contributes only those (its timestamp is in the first merkle path), so the minimum sibling
     // count is 4, corresponding to the current block being directly proven by the immediately following signed block.
     private static final int MIN_SIBLING_COUNT = 4;
@@ -29,6 +31,12 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
         if (merklePaths.size() != 3) {
             throw new InvalidStreamFileException(
                     "Number of merkle paths in block %d's StateProof is not 3".formatted(blockNumber));
+        }
+
+        final var timestampLeafPath = merklePaths.getFirst();
+        if (!timestampLeafPath.hasTimestampLeaf()) {
+            throw new InvalidStreamFileException(
+                    "The first merkle path in block %d's StateProof is not the timestamp leaf".formatted(blockNumber));
         }
 
         // The merkle path 1 starts from the current block's own root hash, which must match the hash independently
@@ -47,25 +55,26 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
         }
 
         // Walk the sibling nodes up the tree. Starting from the current block's root hash, each subsequent block
-        // contributes its right sibling nodes, a null-hash sentinel encoding the single-child internal node wrap,
+        // contributes its 4 sibling nodes (one per depth level in the fixed 16-leaf mountain top),
         // and (for intermediate blocks only) its timestamp as a left sibling to reach that block's root - which in
-        // turn is the left-most leaf of the next block. The last block is the signed block, whose timestamp is
+        // turn is branch [0] of the next block. The last block is the signed block, whose timestamp is
         // instead applied below via the first merkle path.
         final var digest = createSha384Digest();
         for (final var sibling : siblings) {
+            if (sibling.getHash().size() != HASH_LENGTH) {
+                throw new InvalidStreamFileException("Sibling hash length %d != %d"
+                        .formatted(sibling.getHash().size(), HASH_LENGTH));
+            }
+
             final byte[] siblingHash = toBytes(sibling.getHash());
-            if (siblingHash.length == 0) {
-                // Null-hash sentinel: apply the single-child internal node wrap.
-                hash = HashUtils.hashInternalNode(digest, hash);
-            } else if (sibling.getIsLeft()) {
+            if (sibling.getIsLeft()) {
                 hash = HashUtils.hashInternalNode(digest, siblingHash, hash);
             } else {
                 hash = HashUtils.hashInternalNode(digest, hash, siblingHash);
             }
         }
 
-        final byte[] depth1Left =
-                HashUtils.hashLeaf(digest, toBytes(merklePaths.getFirst().getTimestampLeaf()));
+        final byte[] depth1Left = HashUtils.hashLeaf(digest, toBytes(timestampLeafPath.getTimestampLeaf()));
         return HashUtils.hashInternalNode(digest, depth1Left, hash);
     }
 }

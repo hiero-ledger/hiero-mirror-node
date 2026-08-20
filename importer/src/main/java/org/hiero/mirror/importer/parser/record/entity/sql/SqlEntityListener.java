@@ -551,7 +551,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             dest.setNum(src.getNum());
         }
 
-        if (dest.getObtainerId() == null) {
+        if (EntityId.isEmpty(dest.getObtainerId())) {
             dest.setObtainerId(src.getObtainerId());
         }
 
@@ -559,7 +559,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             dest.setPermanentRemoval(src.getPermanentRemoval());
         }
 
-        if (dest.getProxyAccountId() == null) {
+        if (EntityId.isEmpty(dest.getProxyAccountId())) {
             dest.setProxyAccountId(src.getProxyAccountId());
         }
 
@@ -651,7 +651,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         }
 
         // Never merge delegatingSpender and spender since any change to the same nft afterward should clear them
-        if (dest.getAccountId() == null) {
+        if (EntityId.isEmpty(dest.getAccountId())) {
             dest.setAccountId(src.getAccountId());
         }
 
@@ -704,7 +704,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         if (current.getType() == null) {
             current.setType(previous.getType());
         }
-        if (current.getContractId() == null) {
+        if (EntityId.isEmpty(current.getContractId())) {
             current.setContractId(previous.getContractId());
         }
         if (current.getAdminKey() == null) {
@@ -725,7 +725,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         previous.setTimestampUpper(current.getTimestampLower());
         current.setCreatedTimestamp(previous.getCreatedTimestamp());
 
-        if (current.getAccountId() == null) {
+        if (EntityId.isEmpty(current.getAccountId())) {
             current.setAccountId(previous.getAccountId());
         }
 
@@ -851,7 +851,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             current.setSymbol(previous.getSymbol());
         }
 
-        if (current.getTreasuryAccountId() == null) {
+        if (EntityId.isEmpty(current.getTreasuryAccountId())) {
             current.setTreasuryAccountId(previous.getTreasuryAccountId());
         }
 
