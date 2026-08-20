@@ -79,6 +79,7 @@ public class TransactionExecutionService {
                 configuration.getConfigData(EntitiesConfig.class).maxLifetime();
         final var executor = transactionExecutorFactory.get();
 
+        final var gas = boundedGas(estimatedGas);
         final TransactionBody transactionBody;
         final EvmTransactionResult result;
         if (params instanceof ContractDebugParameters debugParams
@@ -86,9 +87,9 @@ public class TransactionExecutionService {
                 && debugParams.getEthereumData().length > 0) {
             transactionBody = buildEthereumTransactionBody(debugParams);
         } else if (isContractCreate) {
-            transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
+            transactionBody = buildContractCreateTransactionBody(params, gas, maxLifetime);
         } else {
-            transactionBody = buildContractCallTransactionBody(params, estimatedGas);
+            transactionBody = buildContractCallTransactionBody(params, gas);
         }
 
         final var singleTransactionRecords = executor.execute(transactionBody, Instant.now(), getOperationTracers());
@@ -205,7 +206,7 @@ public class TransactionExecutionService {
         final var txnBody = defaultTransactionBodyBuilder(params)
                 .ethereumTransaction(EthereumTransactionBody.newBuilder()
                         .ethereumData(Bytes.wrap(params.getEthereumData()))
-                        .maxGasAllowance(Long.MAX_VALUE)
+                        .maxGasAllowance(evmProperties.getMaxGasAllowance())
                         .build())
                 .transactionFee(TX_FEE)
                 .build();
@@ -326,5 +327,11 @@ public class TransactionExecutionService {
         }
 
         return childTransactionErrors != null ? childTransactionErrors : List.of();
+    }
+
+    // The estimated gas can't really surpass the max gas limit, but for the sake of some scanning tools, we add this
+    // check.
+    private long boundedGas(final long estimatedGas) {
+        return Math.min(estimatedGas, evmProperties.getMaxGasLimit());
     }
 }

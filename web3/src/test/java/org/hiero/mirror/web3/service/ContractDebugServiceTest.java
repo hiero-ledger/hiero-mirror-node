@@ -27,6 +27,7 @@ import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
@@ -62,7 +63,9 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .thenReturn(revertedActions);
 
         final var opcodeContext = new OpcodeContext(
-                new OpcodeRequest(new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), false, false, false), 0);
+                new OpcodeRequest(new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), false, false, false),
+                0,
+                new OpcodesProperties());
 
         final var params = ContractDebugParameters.builder()
                 .block(BlockType.LATEST)

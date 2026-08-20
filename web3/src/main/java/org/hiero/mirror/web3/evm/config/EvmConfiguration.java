@@ -33,7 +33,6 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_RECORD_FILE_EARLIEST = "recordFileEarliest";
     public static final String CACHE_MANAGER_RECORD_FILE_INDEX = "recordFileIndex";
     public static final String CACHE_MANAGER_RECORD_FILE_TIMESTAMP = "recordFileTimestamp";
-    public static final String CACHE_MANAGER_SLOTS_PER_CONTRACT = "slotsPerContract";
     public static final String CACHE_MANAGER_SYSTEM_FILE = "systemFile";
     public static final String CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE = "exchangeRate";
     public static final String CACHE_MANAGER_SYSTEM_ACCOUNT = "systemAccount";
@@ -101,13 +100,6 @@ public class EvmConfiguration {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME, CACHE_NAME_EVM_ADDRESS, CACHE_NAME_ALIAS));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getEntity());
-        return caffeineCacheManager;
-    }
-
-    @Bean(CACHE_MANAGER_SLOTS_PER_CONTRACT)
-    CaffeineCacheManager cacheManagerSlotsPerContract() {
-        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheSpecification(cacheProperties.getSlotsPerContract());
         return caffeineCacheManager;
     }
 

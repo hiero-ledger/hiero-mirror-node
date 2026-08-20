@@ -45,6 +45,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
@@ -138,7 +139,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -202,7 +203,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -242,7 +243,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -285,7 +286,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(
@@ -323,7 +324,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -362,7 +363,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -394,7 +395,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -441,7 +442,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -487,7 +488,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -519,7 +520,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, stack, memory, true);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -547,7 +548,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, stack, memory, true);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -574,7 +575,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, true, true);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -623,7 +624,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, stack, memory, storage);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -663,7 +664,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -705,7 +706,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then

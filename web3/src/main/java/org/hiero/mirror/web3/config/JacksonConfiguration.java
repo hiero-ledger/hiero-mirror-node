@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.web3.config;
 
+import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.DATA_MAX_LENGTH;
+
 import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.core.StreamWriteConstraints;
 import com.fasterxml.jackson.databind.MappingJsonFactory;
@@ -20,6 +22,9 @@ class JacksonConfiguration {
     Jackson2ObjectMapperBuilderCustomizer jacksonCustomizer(EvmProperties properties) {
         final var jumboConfig = properties.getVersionedConfiguration().getConfigData(JumboTransactionsConfig.class);
         final int maxSize = jumboConfig.ethereumMaxCallDataSize() * 2 + 1024;
+        if (maxSize > DATA_MAX_LENGTH) {
+            throw new IllegalArgumentException("Data size must be less than or equal to " + DATA_MAX_LENGTH);
+        }
         return builder -> {
             var streamReadConstraints = StreamReadConstraints.builder()
                     .maxDocumentLength(maxSize)

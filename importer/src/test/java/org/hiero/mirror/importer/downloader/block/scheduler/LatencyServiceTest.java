@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -106,5 +107,28 @@ final class LatencyServiceTest {
         verify(blockNode, atLeast(3)).getBlockOrEarliest(anyLong());
         verify(blockNode, never()).streamBlocks(anyLong(), anyLong(), any(), any());
         verify(cutoverService, atLeast(3)).getNextBlockNumber();
+    }
+
+    @Test
+    void scheduleStreamBlocksFailureMarksStale() {
+        // given the node claims to have the block but actually fails to stream it, repeatedly
+        final var blockNode = mock(BlockNode.class);
+        doAnswer(invocation -> Optional.of(invocation.<Long>getArgument(0)))
+                .when(blockNode)
+                .getBlockOrEarliest(anyLong());
+        doThrow(new RuntimeException("stream failed")).when(blockNode).streamBlocks(anyLong(), anyLong(), any(), any());
+        final var latency = mock(Latency.class);
+        doReturn(latency).when(blockNode).getLatency();
+        doReturn(1L).when(cutoverService).getNextBlockNumber();
+
+        // when, then: a real streaming failure is a stronger signal, marked stale sooner
+        latencyService.setNodes(List.of(blockNode));
+        await().atMost(Duration.ofSeconds(2))
+                .pollInterval(Duration.ofMillis(10))
+                .untilAsserted(() -> {
+                    latencyService.schedule();
+                    verify(latency, atLeast(1)).markStale();
+                });
+        verify(blockNode, atLeast(2)).streamBlocks(anyLong(), anyLong(), any(), any());
     }
 }

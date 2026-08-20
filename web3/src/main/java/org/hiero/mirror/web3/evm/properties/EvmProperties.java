@@ -67,6 +67,11 @@ public class EvmProperties {
     @Min(1)
     private int maxFileAttempts = 12;
 
+    // Maximum tinybars the simulated Ethereum transaction payer will cover for gas.
+    @Min(1)
+    @Max(100_000_000_000_000L)
+    private long maxGasAllowance = 100_000_000_000_000L;
+
     @NotNull
     @Min(21_000L)
     private long maxGasLimit = 15_000_000L;

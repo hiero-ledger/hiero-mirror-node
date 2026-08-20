@@ -109,6 +109,9 @@ public abstract class AbstractOpcodeTracer {
                 return Collections.emptyMap();
             }
 
+            // Storage capture reflects the cumulative transaction storage, which grows with every touched slot. The
+            // per-request cumulative cap in OpcodeContext bounds the total captured across all opcodes, so a
+            // storage-heavy transaction is truncated at the trace level rather than trimming each snapshot here.
             final var result = new TreeMap<String, String>();
             for (final var storageAccesses : updates) {
                 for (final var access : storageAccesses.accesses()) {

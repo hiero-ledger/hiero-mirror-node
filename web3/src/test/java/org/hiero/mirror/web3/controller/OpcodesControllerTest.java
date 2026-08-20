@@ -156,14 +156,22 @@ class OpcodesControllerTest {
 
     static Stream<Arguments> transactionsWithDifferentTracerOptions() {
         final List<OpcodeContext> tracerOptions = List.of(
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, true), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, true), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, true), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, false), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, true), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, false), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, false), 0),
-                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, false), 0));
+                new OpcodeContext(
+                        new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, true), 0, new OpcodesProperties()),
+                new OpcodeContext(
+                        new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, true), 0, new OpcodesProperties()),
+                new OpcodeContext(
+                        new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, true), 0, new OpcodesProperties()),
+                new OpcodeContext(
+                        new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, false), 0, new OpcodesProperties()),
+                new OpcodeContext(
+                        new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, true), 0, new OpcodesProperties()),
+                new OpcodeContext(
+                        new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, false), 0, new OpcodesProperties()),
+                new OpcodeContext(
+                        new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, false), 0, new OpcodesProperties()),
+                new OpcodeContext(
+                        new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, false), 0, new OpcodesProperties()));
         return Arrays.stream(TransactionProviderEnum.values())
                 .flatMap(providerEnum -> tracerOptions.stream().map(options -> Arguments.of(providerEnum, options)));
     }
@@ -222,7 +230,9 @@ class OpcodesControllerTest {
     }
 
     private MockHttpServletRequestBuilder opcodesRequest(final TransactionIdOrHashParameter parameter) {
-        return opcodesRequest(parameter, new OpcodeContext(new OpcodeRequest(parameter, true, false, false), 0));
+        return opcodesRequest(
+                parameter,
+                new OpcodeContext(new OpcodeRequest(parameter, true, false, false), 0, new OpcodesProperties()));
     }
 
     private MockHttpServletRequestBuilder opcodesRequest(
@@ -757,7 +767,9 @@ class OpcodesControllerTest {
                 final EthereumTransactionRepository ethereumTransactionRepository,
                 final TransactionRepository transactionRepository,
                 final ContractResultRepository contractResultRepository,
-                final CommonEntityAccessor commonEntityAccessor) {
+                final CommonEntityAccessor commonEntityAccessor,
+                final OpcodesProperties opcodesProperties,
+                final MeterRegistry meterRegistry) {
             return new OpcodeServiceImpl(
                     recordFileService,
                     contractDebugService,
@@ -765,7 +777,9 @@ class OpcodesControllerTest {
                     ethereumTransactionRepository,
                     transactionRepository,
                     contractResultRepository,
-                    commonEntityAccessor);
+                    commonEntityAccessor,
+                    opcodesProperties,
+                    meterRegistry);
         }
 
         @Bean

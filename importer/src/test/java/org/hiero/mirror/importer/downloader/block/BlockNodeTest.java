@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.TreeSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
@@ -491,6 +492,27 @@ final class BlockNodeTest extends BlockNodeTestBase {
         var expected = String.format(
                 "BlockNode(%s)", blockNodeProperties.getEndpoints().first());
         assertThat(node.toString()).isEqualTo(expected);
+        assertThat(node.getSubscribeStreamName()).isEqualTo(expected);
+    }
+
+    @Test
+    void subscribeStreamName() {
+        // given
+        final var statusEndpoint = singleServiceEndpoint(BlockNodeApi.STATUS, "host", 40840);
+        final var subscribeStreamEndpoint = singleServiceEndpoint(BlockNodeApi.SUBSCRIBE_STREAM, "host", 40841);
+        final var properties = new BlockNodeProperties();
+        properties.setEndpoints(new TreeSet<>(List.of(statusEndpoint, subscribeStreamEndpoint)));
+        final var blockNode = new BlockNode(
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                NOOP_GRPC_BUFFER_DISPOSER,
+                meterRegistry,
+                properties,
+                streamProperties);
+
+        // when, then
+        assertThat(blockNode.toString()).isEqualTo("BlockNode(host:40840)");
+        assertThat(blockNode.getSubscribeStreamName()).isEqualTo("BlockNode(host:40841)");
+        blockNode.close();
     }
 
     @ParameterizedTest

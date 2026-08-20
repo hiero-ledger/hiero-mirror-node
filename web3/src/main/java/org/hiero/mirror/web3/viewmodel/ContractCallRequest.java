@@ -25,13 +25,14 @@ import org.hiero.mirror.web3.validation.Hex;
 public class ContractCallRequest {
 
     public static final int ADDRESS_LENGTH = 40;
+    public static final long DATA_MAX_LENGTH = 300_000L;
 
     @JsonSerialize(using = BlockTypeSerializer.class)
     @JsonSetter(nulls = Nulls.SKIP)
     @NotNull
     private BlockType block = BlockType.LATEST;
 
-    @Hex
+    @Hex(maxLength = DATA_MAX_LENGTH)
     private String data;
 
     private boolean estimate;

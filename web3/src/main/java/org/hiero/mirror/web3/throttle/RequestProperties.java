@@ -31,6 +31,7 @@ final class RequestProperties implements Predicate<ContractCallRequest> {
     @NotNull
     private List<RequestFilter> filters = List.of();
 
+    // Ignored for REJECT.
     @PositiveOrZero
     private long limit = Long.MAX_VALUE;
 
@@ -43,7 +44,18 @@ final class RequestProperties implements Predicate<ContractCallRequest> {
 
     @Override
     public boolean test(ContractCallRequest contractCallRequest) {
-        if (rate == 0 || counter.getAndIncrement() >= limit) {
+        if (rate == 0) {
+            return false;
+        }
+
+        var matched = filters.isEmpty();
+        for (var filter : filters) {
+            if (filter.test(contractCallRequest)) {
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
             return false;
         }
 
@@ -51,13 +63,7 @@ final class RequestProperties implements Predicate<ContractCallRequest> {
             return false;
         }
 
-        for (var filter : filters) {
-            if (filter.test(contractCallRequest)) {
-                return true;
-            }
-        }
-
-        return filters.isEmpty();
+        return action == ActionType.REJECT || counter.getAndIncrement() < limit;
     }
 
     private Bucket createBucket() {

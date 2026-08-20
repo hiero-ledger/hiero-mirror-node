@@ -183,6 +183,10 @@ abstract class AbstractSchedulerTest {
         }
     }
 
+    protected BlockNode getLatencyCandidate() {
+        return ((AbstractLatencyAwareScheduler) scheduler).candidates.getFirst();
+    }
+
     protected static ServerStatusDetailResponse withAllBlocks() {
         return withBlocks(0, Long.MAX_VALUE);
     }

@@ -27,7 +27,7 @@ public final class CutoverProperties {
     private CutoverFirstStageProperties firstStage = new CutoverFirstStageProperties();
 
     @NotNull
-    private Version hapiVersion = new Version(0, 76, 0);
+    private Version hapiVersion = new Version(0, 78, 0);
 
     @DurationMin(seconds = 8)
     @NotNull
