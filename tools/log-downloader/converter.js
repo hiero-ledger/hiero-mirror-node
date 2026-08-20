@@ -92,16 +92,23 @@ const getEpochSeconds = () => Date.now() / 1000;
 
 const getUUID = () => Buffer.from(Array.from({length: 12}, randomByte)).toString('hex');
 
-const HEADER_PATTERN = /^(Content-Length|Content-Type): [^\r\n]+$/;
+const CONTROL_CHARACTERS = /[\p{Cc}]/u;
+const HEADER_PATTERN = new RegExp(
+  `^(Content-Length|Content-Type): ${CONTROL_CHARACTERS.source.replace('[', '[^')}+$`,
+  'u'
+);
 const MAX_BODY_LENGTH = 1_048_576;
+const MAX_HEADER_LENGTH = 102_400;
 
 const isSafeRequest = ({body = '', headers = [], url, verb} = {}) =>
   typeof verb === 'string' &&
   typeof url === 'string' &&
-  !/[\r\n]/.test(verb) &&
-  !/[\r\n]/.test(url) &&
+  !CONTROL_CHARACTERS.test(verb) &&
+  !CONTROL_CHARACTERS.test(url) &&
   Array.isArray(headers) &&
-  headers.every((header) => HEADER_PATTERN.test(header)) &&
+  headers.every(
+    (header) => typeof header === 'string' && header.length <= MAX_HEADER_LENGTH && HEADER_PATTERN.test(header)
+  ) &&
   typeof body === 'string' &&
   body.length <= MAX_BODY_LENGTH;
 

@@ -4,7 +4,6 @@ import {httpStatusCodes, requestStartTime, StatusCode} from '../constants';
 import {HttpError} from 'http-errors';
 import {DbError, InvalidArgumentError, NotFoundError} from '../errors';
 import RestError from '../errors/restError';
-import {sanitize} from '../monitoring/logFormat';
 
 const defaultStatusCode = httpStatusCodes.INTERNAL_ERROR;
 
@@ -28,6 +27,9 @@ const handleError = async (err, req, res, next) => {
   let errorMessage;
   const startTime = res.locals[requestStartTime];
   const elapsed = startTime ? Date.now() - startTime : 0;
+
+  const CONTROL_CHARACTERS = /[\p{Cc}]/gu;
+  const sanitize = (value) => (value == null ? value : String(value).replace(CONTROL_CHARACTERS, '_'));
 
   if (shouldReturnMessage(statusCode)) {
     errorMessage = err.message;
