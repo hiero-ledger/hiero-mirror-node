@@ -95,6 +95,12 @@ public class TestUtils {
         return result;
     }
 
+    public static byte[] fill(final byte value, final int length) {
+        final var array = new byte[length];
+        Arrays.fill(array, value);
+        return array;
+    }
+
     public static File getResource(String path) {
         ClassLoader[] classLoaders = {
             Thread.currentThread().getContextClassLoader(),

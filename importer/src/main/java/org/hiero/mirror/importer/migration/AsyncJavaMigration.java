@@ -32,6 +32,8 @@ import reactor.core.scheduler.Schedulers;
 @NullMarked
 abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Callback {
 
+    private static final int DEFAULT_ORDER = 100;
+
     private static final String ASYNC_JAVA_MIGRATION_HISTORY_FIXED = """
             select exists(select * from flyway_schema_history where version in ('1.109.0', '2.14.0'))
             """;
@@ -100,9 +102,24 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
         return true;
     }
 
+    /**
+     * Flyway sorts callbacks alphabetically by callback name, so encode getOrder() as a zero-padded prefix to
+     * control the relative execution order of async migrations.
+     */
     @Override
     public String getCallbackName() {
-        return getDescription();
+        return "%03d_%s".formatted(getOrder(), getDescription());
+    }
+
+    /**
+     * Determines this migration's execution order relative to other async migrations. A lower value runs first. The
+     * async migrations all execute serially on a single scheduler thread, so this order also determines the order in
+     * which their work runs. Override to run before or after another async migration.
+     *
+     * @return the execution order, lower runs first
+     */
+    protected int getOrder() {
+        return DEFAULT_ORDER;
     }
 
     @Override
