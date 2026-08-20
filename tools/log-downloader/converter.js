@@ -92,11 +92,9 @@ const getEpochSeconds = () => Date.now() / 1000;
 
 const getUUID = () => Buffer.from(Array.from({length: 12}, randomByte)).toString('hex');
 
-const CONTROL_CHARACTERS = /[\p{Cc}]/gu;
-const HEADER_PATTERN = new RegExp(
-  `^(Content-Length|Content-Type): ${CONTROL_CHARACTERS.source.replace('[', '[^')}+$`,
-  'u'
-);
+const CONTROL_CHAR_CLASS = '\\p{Cc}';
+const CONTROL_CHARACTERS = new RegExp(`[${CONTROL_CHAR_CLASS}]`, 'gu');
+const HEADER_PATTERN = new RegExp(`^(Content-Length|Content-Type): [^${CONTROL_CHAR_CLASS}]+$`, 'u');
 const MAX_BODY_LENGTH = 1_048_576;
 const MAX_HEADER_LENGTH = 102_400;
 
