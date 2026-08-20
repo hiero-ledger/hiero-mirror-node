@@ -179,7 +179,8 @@ class MirrorBlockHashOperationTest {
         boolean withinWindow = soughtBlock <= currentBlockNumber && offset > -256L;
         if (withinWindow) {
             verify(messageFrame)
-                    .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64)));
+                    .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64))
+                            .getBytes());
         } else {
             verify(messageFrame).pushStackItem(UInt256.ZERO);
         }

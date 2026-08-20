@@ -48,7 +48,7 @@ class ContractStorageReadableKVStateTest {
     private static final ContractID CONTRACT_ID =
             new ContractID(1L, 0L, new OneOf<>(ContractOneOfType.CONTRACT_NUM, 1L));
     private static final String CONTRACT_ID_WITH_NUM_ADDRESS =
-            toAddress(CONTRACT_ID.contractNum()).toUnprefixedHexString();
+            toAddress(CONTRACT_ID.contractNum()).getBytes().toUnprefixedHexString();
     private static final String MISSING_CONTRACT_ADDRESS = "0x00000000000000000000000000000000000000aa";
     private static final ContractID MISSING_CONTRACT_ID = new ContractID(
             1L, 0L, new OneOf<>(ContractOneOfType.EVM_ADDRESS, Bytes.fromHex(MISSING_CONTRACT_ADDRESS.substring(2))));
@@ -168,7 +168,7 @@ class ContractStorageReadableKVStateTest {
     void whenAliasFoundInDBReturnsOverride() {
         // The override is keyed by the contract's non-long-zero EVM alias even though the lookup uses contractNum.
         contractCallContext.setStateOverrides(Map.of(
-                Bytes.wrap(EVM_ALIAS_ADDRESS.toArrayUnsafe()),
+                Bytes.wrap(EVM_ALIAS_ADDRESS.getBytes().toArrayUnsafe()),
                 stateOverrideWithState(SLOT_KEY_HEX, OVERRIDE_VALUE_HEX)));
         when(commonEntityAccessor.evmAddressFromId(ENTITY_ID, Optional.empty())).thenReturn(EVM_ALIAS_ADDRESS);
 
