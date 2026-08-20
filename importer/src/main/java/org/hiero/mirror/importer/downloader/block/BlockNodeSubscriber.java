@@ -44,7 +44,7 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
         }
 
         final var node = scheduled.blockNode();
-        log.info("Start streaming block {} from {}", scheduled.nextBlockNumber(), node);
+        log.info("Start streaming block {} from {}", scheduled.nextBlockNumber(), node.getSubscribeStreamName());
         node.streamBlocks(
                 scheduled.nextBlockNumber(),
                 endBlockNumber,

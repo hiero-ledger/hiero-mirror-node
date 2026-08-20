@@ -22,13 +22,14 @@ extra.apply {
     set("grpc-java.version", "1.83.1") // Temporary until next Spring Boot
     set("httpclient5.version", "5.6.2") // Temporary until next Spring Boot
     set("httpcore5.version", "5.4.3") // Temporary until next Spring Boot
-    set("jackson-bom.version", "3.1.5") // Temporary until next Spring Boot
-    set("jackson-2-bom.version", "2.22.1") // Temporary until next Spring Boot
+    set("jackson-bom.version", "3.2.2") // Temporary until next Spring Boot
+    set("jackson-2-bom.version", "2.22.2") // Temporary until next Spring Boot
     set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
+    set("log4j2.version", "2.25.5") // Temporary until next Spring Boot
     set("logback.version", "1.5.36") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
-    set("netty.version", "4.2.16.Final") // Temporary until next Spring Boot
-    set("nodeJsVersion", "24.18.1")
+    set("netty.version", "4.2.17.Final") // Temporary until next Spring Boot
+    set("nodeJsVersion", "24.19.0")
     set("postgresql.version", "42.7.13") // Temporary until next Spring Boot
     set("tomcat.version", "11.0.23") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
