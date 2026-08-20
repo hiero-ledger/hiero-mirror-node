@@ -67,15 +67,9 @@ spec:
           - index: 0
             pods:
               persistentVolume:
-                size: 203Gi
-          - index: 1
-            pods:
-              persistentVolume:
-                size: 90Gi
-          - index: 2
-            pods:
-              persistentVolume:
-                size: 90Gi
+                size: 203Gi # revert and manually recreate the pvc / cluster on next previewnet reset
+        persistentVolume:
+          size: 90Gi
     test:
       enabled: true
     web3:
