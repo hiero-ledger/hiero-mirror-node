@@ -77,19 +77,20 @@ public class TransactionExecutionService {
                 configuration.getConfigData(EntitiesConfig.class).maxLifetime();
         final var executor = transactionExecutorFactory.get();
 
+        final var consensusTime = getConsensusTimeFromContext();
         final TransactionBody transactionBody;
         final EvmTransactionResult result;
         if (params instanceof ContractDebugParameters debugParams
                 && debugParams.getEthereumData() != null
                 && debugParams.getEthereumData().length > 0) {
-            transactionBody = buildEthereumTransactionBody(debugParams);
+            transactionBody = buildEthereumTransactionBody(debugParams, consensusTime);
         } else if (isContractCreate) {
-            transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
+            transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime, consensusTime);
         } else {
-            transactionBody = buildContractCallTransactionBody(params, estimatedGas);
+            transactionBody = buildContractCallTransactionBody(params, estimatedGas, consensusTime);
         }
 
-        final var singleTransactionRecords = executor.execute(transactionBody, Instant.now(), getOperationTracers());
+        final var singleTransactionRecords = executor.execute(transactionBody, consensusTime, getOperationTracers());
         final var parentTransactionStatus = singleTransactionRecords
                 .getFirst()
                 .transactionRecord()
@@ -160,10 +161,11 @@ public class TransactionExecutionService {
         }
     }
 
-    private TransactionBody.Builder defaultTransactionBodyBuilder(final CallServiceParameters params) {
+    private TransactionBody.Builder defaultTransactionBodyBuilder(
+            final CallServiceParameters params, final Instant consensusNow) {
         return TransactionBody.newBuilder()
                 .transactionID(TransactionID.newBuilder()
-                        .transactionValidStart(new Timestamp(Instant.now().getEpochSecond(), 0))
+                        .transactionValidStart(new Timestamp(consensusNow.getEpochSecond(), consensusNow.getNano()))
                         .accountID(getSenderAccountID(params))
                         .build())
                 .nodeAccountID(EntityIdUtils.toAccountId(systemEntity.treasuryAccount()))
@@ -171,8 +173,11 @@ public class TransactionExecutionService {
     }
 
     private TransactionBody buildContractCreateTransactionBody(
-            final CallServiceParameters params, final long estimatedGas, final long maxLifetime) {
-        return defaultTransactionBodyBuilder(params)
+            final CallServiceParameters params,
+            final long estimatedGas,
+            final long maxLifetime,
+            final Instant consensusNow) {
+        return defaultTransactionBodyBuilder(params, consensusNow)
                 .contractCreateInstance(ContractCreateTransactionBody.newBuilder()
                         .initcode(Bytes.wrap(params.getCallData()))
                         .gas(estimatedGas)
@@ -183,8 +188,8 @@ public class TransactionExecutionService {
     }
 
     private TransactionBody buildContractCallTransactionBody(
-            final CallServiceParameters params, final long estimatedGas) {
-        return defaultTransactionBodyBuilder(params)
+            final CallServiceParameters params, final long estimatedGas, final Instant consensusNow) {
+        return defaultTransactionBodyBuilder(params, consensusNow)
                 .contractCall(ContractCallTransactionBody.newBuilder()
                         .contractID(ContractID.newBuilder()
                                 .shardNum(commonProperties.getShard())
@@ -199,8 +204,19 @@ public class TransactionExecutionService {
                 .build();
     }
 
-    private TransactionBody buildEthereumTransactionBody(final ContractDebugParameters params) {
-        final var txnBody = defaultTransactionBodyBuilder(params)
+    private Instant getConsensusTimeFromContext() {
+        if (!ContractCallContext.isInitialized()) {
+            return Instant.now();
+        }
+        return ContractCallContext.get()
+                .getTimestamp()
+                .map(nanos -> Instant.ofEpochSecond(0L, nanos))
+                .orElseGet(Instant::now);
+    }
+
+    private TransactionBody buildEthereumTransactionBody(
+            final ContractDebugParameters params, final Instant consensusNow) {
+        final var txnBody = defaultTransactionBodyBuilder(params, consensusNow)
                 .ethereumTransaction(EthereumTransactionBody.newBuilder()
                         .ethereumData(Bytes.wrap(params.getEthereumData()))
                         .maxGasAllowance(Long.MAX_VALUE)

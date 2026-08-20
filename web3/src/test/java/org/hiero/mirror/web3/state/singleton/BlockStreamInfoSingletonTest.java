@@ -4,14 +4,19 @@ package org.hiero.mirror.web3.state.singleton;
 
 import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_STREAM_INFO_STATE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.web3.state.Utils.convertToTimestamp;
 
 import com.hedera.hapi.node.base.Timestamp;
 import com.hedera.hapi.node.state.blockstream.BlockStreamInfo;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.web3.ContextExtension;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+@ExtendWith(ContextExtension.class)
 class BlockStreamInfoSingletonTest {
 
     private final BlockStreamInfoSingleton blockStreamInfoSingleton = new BlockStreamInfoSingleton();
@@ -42,6 +47,20 @@ class BlockStreamInfoSingletonTest {
         assertThat(blockStreamInfoSingleton.get())
                 .isEqualTo(BlockStreamInfo.newBuilder()
                         .lastHandleTime(Timestamp.newBuilder().seconds(1).build())
+                        .build());
+    }
+
+    @Test
+    void getUsesRecordFileBlockTime() {
+        final var recordFile = domainBuilder.recordFile().get();
+        ContractCallContext.get().setBlockSupplier(() -> recordFile);
+
+        final var blockTime = convertToTimestamp(recordFile.getConsensusStart());
+        assertThat(blockStreamInfoSingleton.get())
+                .isEqualTo(BlockStreamInfo.newBuilder()
+                        .blockNumber(recordFile.getIndex() - 1)
+                        .blockTime(blockTime)
+                        .lastHandleTime(blockTime)
                         .build());
     }
 }
