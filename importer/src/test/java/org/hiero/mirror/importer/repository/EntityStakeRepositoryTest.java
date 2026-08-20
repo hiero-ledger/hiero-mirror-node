@@ -9,6 +9,7 @@ import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
 import static org.hiero.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Range;
 import java.time.Duration;
 import java.util.Collections;
@@ -19,21 +20,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalance.Id;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityStake;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.parser.record.entity.staking.StakingProperties;
 import org.hiero.mirror.importer.util.Utility;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.transaction.support.TransactionOperations;
 
@@ -47,9 +51,16 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
     private final EntityRepository entityRepository;
     private final EntityStakeRepository entityStakeRepository;
+    private final StakingProperties stakingProperties;
     private final TransactionOperations transactionOperations;
 
     private long stakingRewardAccountId;
+
+    @AfterEach
+    void resetProperties() {
+        stakingProperties.setChunkDelay(Duration.ZERO);
+        stakingProperties.setChunkSize(Integer.MAX_VALUE);
+    }
 
     @BeforeEach
     void setup() {
@@ -454,6 +465,143 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void createEntityStateStartWithChunking() {
+        // given: two entities whose IDs are in different chunks
+        final int chunkSize = 400;
+        final long accountId = 100L;
+        stakingProperties.setChunkSize(chunkSize);
+
+        final long epochDay = 1000L;
+        final long nodeStakeTimestamp =
+                DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp).epochDay(epochDay))
+                .persist();
+        final var stakingRewardAccount = domainBuilder
+                .entity(stakingRewardAccountId, nodeStakeTimestamp - 10)
+                .persist();
+        final var account = domainBuilder
+                .entity(accountId, nodeStakeTimestamp - 5)
+                .customize(e -> e.stakedNodeId(1L))
+                .persist();
+        final long balanceTimestamp = nodeStakeTimestamp - 100;
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
+                .persist();
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.balance(500L).id(new Id(balanceTimestamp, account.toEntityId())))
+                .persist();
+
+        final var expectedStakingRewardAccount =
+                stakingRewardAccount.toBuilder().balance(0L).stakedAccountId(0L).build();
+        final var expectedAccount =
+                account.toBuilder().balance(500L).stakedAccountId(0L).build();
+
+        // when
+        entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+
+        // then: entities from both chunks appear with correct values
+        assertEntityStartStart(List.of(expectedAccount, expectedStakingRewardAccount));
+    }
+
+    @Test
+    void createEntityStateStartWithChunkDelay() {
+        // given: two chunks separated by a measurable delay
+        final var chunkDelay = Duration.ofMillis(50);
+        final int chunkSize = 400;
+        final long accountId = 100L;
+        stakingProperties.setChunkSize(chunkSize);
+        stakingProperties.setChunkDelay(chunkDelay);
+
+        final long epochDay = 1000L;
+        final long nodeStakeTimestamp =
+                DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp).epochDay(epochDay))
+                .persist();
+        final var stakingRewardAccount = domainBuilder
+                .entity(stakingRewardAccountId, nodeStakeTimestamp - 10)
+                .persist();
+        final var account = domainBuilder
+                .entity(accountId, nodeStakeTimestamp - 5)
+                .customize(e -> e.stakedNodeId(1L))
+                .persist();
+        final long balanceTimestamp = nodeStakeTimestamp - 100;
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
+                .persist();
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.balance(500L).id(new Id(balanceTimestamp, account.toEntityId())))
+                .persist();
+
+        final var expectedStakingRewardAccount =
+                stakingRewardAccount.toBuilder().balance(0L).stakedAccountId(0L).build();
+        final var expectedAccount =
+                account.toBuilder().balance(500L).stakedAccountId(0L).build();
+
+        // when
+        final var stopwatch = Stopwatch.createStarted();
+        entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+        final var elapsed = stopwatch.elapsed();
+
+        // then: inter-chunk delay was applied (at least one delay between the two chunks)
+        assertThat(elapsed).isGreaterThanOrEqualTo(chunkDelay);
+        // then: correct result regardless of chunking
+        assertEntityStartStart(List.of(expectedAccount, expectedStakingRewardAccount));
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 100
+            1023, 100
+            """)
+    void createEntityStateStartWithNonZeroShardAndRealm(long shard, long realm) {
+        commonProperties.setShard(shard);
+        commonProperties.setRealm(realm);
+        stakingRewardAccountId =
+                new SystemEntity(commonProperties).stakingRewardAccount().getId();
+
+        final long epochDay = 1000L;
+        final long nodeStakeTimestamp =
+                DomainUtils.convertToNanosMax(TestUtils.asStartOfEpochDay(epochDay + 1)) + 1000L;
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp).epochDay(epochDay))
+                .persist();
+        final var stakingRewardAccount = domainBuilder
+                .entity(stakingRewardAccountId, nodeStakeTimestamp - 10)
+                .persist();
+        final var account = domainBuilder
+                .entity(EntityId.of(shard, realm, domainBuilder.number()), nodeStakeTimestamp - 5)
+                .customize(e -> e.stakedNodeId(1L))
+                .persist();
+        final long balanceTimestamp = nodeStakeTimestamp - 100;
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
+                .persist();
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.balance(500L).id(new Id(balanceTimestamp, account.toEntityId())))
+                .persist();
+
+        final var expectedStakingRewardAccount =
+                stakingRewardAccount.toBuilder().balance(0L).stakedAccountId(0L).build();
+        final var expectedAccount =
+                account.toBuilder().balance(500L).stakedAccountId(0L).build();
+
+        entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+
+        assertEntityStartStart(List.of(expectedAccount, expectedStakingRewardAccount));
+    }
+
+    @Test
     void getEndStakePeriod() {
         assertThat(entityStakeRepository.getEndStakePeriod(stakingRewardAccountId))
                 .isEmpty();
@@ -851,9 +999,14 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
+    @CsvSource(textBlock = """
+            true, true
+            true, false
+            false, true
+            false, false
+            """)
     void updateEntityStakePendingRewardExceedsMaxNumberOfStakingPeriods(
-            final boolean multipleNodeStakeUpdatesOnForfeitedPeriod) {
+            final boolean multipleNodeStakeUpdatesOnForfeitedPeriod, final boolean underflow) {
         // given
         long epochDay = Utility.getEpochDay(domainBuilder.timestamp());
         long forfeitedStakingPeriod = epochDay - 365;
@@ -865,6 +1018,9 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 TestUtils.asStartOfEpochDay(forfeitedStakingPeriod + 1).plusNanos(180));
         long entityLowerTimestamp = DomainUtils.convertToNanosMax(
                 TestUtils.asStartOfEpochDay(forfeitedStakingPeriod).minusNanos(100));
+        long pendingReward = 200_000_000L;
+        long stakeTotalStart = 9_000_000_000L;
+        long latestRewardRate = 200L;
 
         var stakingRewardAccount = domainBuilder
                 .entity(stakingRewardAccountId, entityLowerTimestamp)
@@ -875,13 +1031,17 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .entity(stakingRewardAccountId + domainBuilder.id(), entityLowerTimestamp + 1)
                 .customize(e -> e.stakedNodeId(forfeitedStakingPeriod - 1))
                 .persist();
-        // The end result is the pending reward will decrease by 100 * stake total start
+        // To make it underflow (pending reward becomes negative after forfeiting), the reward rate needs to be large
+        // enough
+        long forfeitedRewardRate =
+                underflow ? (pendingReward / (stakeTotalStart / TINYBARS_IN_ONE_HBAR) + latestRewardRate * 2) : 300L;
+        long rewardRateDiff = forfeitedRewardRate - latestRewardRate;
         domainBuilder
                 .nodeStake()
                 .customize(ns -> ns.consensusTimestamp(forfeitedNodeStakeTimestamp)
                         .epochDay(forfeitedStakingPeriod)
                         .nodeId(0L)
-                        .rewardRate(300))
+                        .rewardRate(forfeitedRewardRate))
                 .persist();
         if (multipleNodeStakeUpdatesOnForfeitedPeriod) {
             domainBuilder
@@ -889,7 +1049,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                     .customize(ns -> ns.consensusTimestamp(forfeitedNodeStakeTimestamp + 1)
                             .epochDay(forfeitedStakingPeriod)
                             .nodeId(0L)
-                            .rewardRate(300))
+                            .rewardRate(forfeitedRewardRate))
                     .persist();
         }
 
@@ -904,9 +1064,9 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .entityStake()
                 .customize(es -> es.endStakePeriod(epochDay - 1)
                         .id(account.getId())
-                        .pendingReward(200_000_000L)
+                        .pendingReward(pendingReward)
                         .stakedNodeIdStart(0L)
-                        .stakeTotalStart(9_000_000_000L)
+                        .stakeTotalStart(stakeTotalStart)
                         .timestampRange(Range.atLeast(previousNodeStakeTimestamp)))
                 .persist();
         var stakingRewardAccountStake = domainBuilder
@@ -915,6 +1075,23 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                         .id(stakingRewardAccountId)
                         .timestampRange(Range.atLeast(previousNodeStakeTimestamp)))
                 .persist();
+        // entity_stake_history record representing the account's stake state during the forfeited period
+        final long preForfeitedHistoryLower = forfeitedNodeStakeTimestamp - 1000L;
+        domainBuilder
+                .entityStakeHistory()
+                .customize(esh -> esh.id(account.getId())
+                        .endStakePeriod(forfeitedStakingPeriod - 1)
+                        .stakedNodeIdStart(0L)
+                        .stakeTotalStart(accountStake.getStakeTotalStart())
+                        .timestampRange(Range.closedOpen(preForfeitedHistoryLower, forfeitedNodeStakeTimestamp)))
+                .persist();
+        final var preForfeitedHistoryEntry = EntityStake.builder()
+                .id(account.getId())
+                .endStakePeriod(forfeitedStakingPeriod - 1)
+                .stakedNodeIdStart(0L)
+                .stakeTotalStart(accountStake.getStakeTotalStart())
+                .timestampRange(Range.closedOpen(preForfeitedHistoryLower, forfeitedNodeStakeTimestamp))
+                .build();
         long balanceTimestamp = nodeStakeTimestamp - 2000;
         long previousBalanceTimestamp = balanceTimestamp - 2000;
         domainBuilder
@@ -936,8 +1113,11 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .customize(ab -> ab.id(new Id(previousBalanceTimestamp, stakingRewardAccount.toEntityId())))
                 .persist();
         var expectedAccountStake = fromEntity(account, nodeStake, 0, accountStake.getStakeTotalStart());
-        expectedAccountStake.setPendingReward(
-                accountStake.getPendingReward() - 100 * accountStake.getStakeTotalStart() / TINYBARS_IN_ONE_HBAR);
+        long expectedPendingReward = underflow
+                ? 0L
+                : accountStake.getPendingReward()
+                        - rewardRateDiff * (accountStake.getStakeTotalStart() / TINYBARS_IN_ONE_HBAR);
+        expectedAccountStake.setPendingReward(expectedPendingReward);
         var expectedStakingRewardAccountStake = fromEntity(stakingRewardAccount, nodeStake, 0, 0);
         // history rows
         accountStake.setTimestampUpper(nodeStakeTimestamp);
@@ -952,7 +1132,128 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         // then
         assertThat(entityStakeRepository.findAll())
                 .containsExactlyInAnyOrder(expectedAccountStake, expectedStakingRewardAccountStake);
-        assertThat(findHistory(EntityStake.class)).containsExactlyInAnyOrder(accountStake, stakingRewardAccountStake);
+        assertThat(findHistory(EntityStake.class))
+                .containsExactlyInAnyOrder(accountStake, stakingRewardAccountStake, preForfeitedHistoryEntry);
+    }
+
+    @Test
+    void updateEntityStakePendingRewardExceedsMaxNumberOfStakingPeriodsWithChangedStakeTotal() {
+        // given - an account that has been staking for over 365 days but whose stake total increased since
+        // the forfeited period. The forfeited reward deduction must use the historical stake total, not the current
+        // one.
+        final long epochDay = Utility.getEpochDay(domainBuilder.timestamp());
+        final long forfeitedStakingPeriod = epochDay - 365;
+        final long nodeStakeTimestamp = DomainUtils.convertToNanosMax(
+                TestUtils.asStartOfEpochDay(epochDay + 1).plusNanos(300));
+        final long previousNodeStakeTimestamp = DomainUtils.convertToNanosMax(
+                TestUtils.asStartOfEpochDay(epochDay).plusNanos(200));
+        final long forfeitedNodeStakeTimestamp = DomainUtils.convertToNanosMax(
+                TestUtils.asStartOfEpochDay(forfeitedStakingPeriod + 1).plusNanos(180));
+        final long entityLowerTimestamp = DomainUtils.convertToNanosMax(
+                TestUtils.asStartOfEpochDay(forfeitedStakingPeriod).minusNanos(100));
+
+        final var stakingRewardAccount = domainBuilder
+                .entity(stakingRewardAccountId, entityLowerTimestamp)
+                .persist();
+        final var account = domainBuilder
+                .entity(stakingRewardAccountId + domainBuilder.id(), entityLowerTimestamp + 1)
+                .customize(e -> e.stakedNodeId(forfeitedStakingPeriod - 1))
+                .persist();
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.consensusTimestamp(forfeitedNodeStakeTimestamp)
+                        .epochDay(forfeitedStakingPeriod)
+                        .nodeId(0L)
+                        .rewardRate(300))
+                .persist();
+        final var nodeStake = domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp)
+                        .epochDay(epochDay)
+                        .nodeId(0L)
+                        .rewardRate(200))
+                .persist();
+
+        // stake total at the forfeited period (365 days ago) was 45 HBAR; it has since doubled to 90 HBAR
+        final long historicalStakeTotalStart = 4_500_000_000L;
+        final long currentStakeTotalStart = 9_000_000_000L;
+
+        final var accountStake = domainBuilder
+                .entityStake()
+                .customize(es -> es.endStakePeriod(epochDay - 1)
+                        .id(account.getId())
+                        .pendingReward(200_000_000L)
+                        .stakedNodeIdStart(0L)
+                        .stakeTotalStart(currentStakeTotalStart)
+                        .timestampRange(Range.atLeast(previousNodeStakeTimestamp)))
+                .persist();
+        final var stakingRewardAccountStake = domainBuilder
+                .entityStake()
+                .customize(es -> es.endStakePeriod(epochDay - 1)
+                        .id(stakingRewardAccountId)
+                        .timestampRange(Range.atLeast(previousNodeStakeTimestamp)))
+                .persist();
+        // entity_stake_history record representing the account's stake state during the forfeited period
+        final long preForfeitedHistoryLower = forfeitedNodeStakeTimestamp - 1000L;
+        domainBuilder
+                .entityStakeHistory()
+                .customize(esh -> esh.id(account.getId())
+                        .endStakePeriod(forfeitedStakingPeriod - 1)
+                        .stakedNodeIdStart(0L)
+                        .stakeTotalStart(historicalStakeTotalStart)
+                        .timestampRange(Range.closedOpen(preForfeitedHistoryLower, forfeitedNodeStakeTimestamp)))
+                .persist();
+        final var preForfeitedHistoryEntry = EntityStake.builder()
+                .id(account.getId())
+                .endStakePeriod(forfeitedStakingPeriod - 1)
+                .stakedNodeIdStart(0L)
+                .stakeTotalStart(historicalStakeTotalStart)
+                .timestampRange(Range.closedOpen(preForfeitedHistoryLower, forfeitedNodeStakeTimestamp))
+                .build();
+        final long balanceTimestamp = nodeStakeTimestamp - 2000;
+        final long previousBalanceTimestamp = balanceTimestamp - 2000;
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new Id(balanceTimestamp, systemEntity.treasuryAccount())))
+                .persist();
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new Id(previousBalanceTimestamp, systemEntity.treasuryAccount())))
+                .persist();
+
+        domainBuilder
+                .accountBalance()
+                .customize(ab ->
+                        ab.balance(currentStakeTotalStart).id(new Id(previousBalanceTimestamp, account.toEntityId())))
+                .persist();
+        domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new Id(previousBalanceTimestamp, stakingRewardAccount.toEntityId())))
+                .persist();
+
+        // expected: pending_reward + current_rate * (currentStake / HBAR) - forfeited_rate * (historicalStake / HBAR)
+        // = 200_000_000 + 200 * 90 - 300 * 45 = 200_004_500
+        // (without the fix the incorrect result would be: 200_000_000 + 200 * 90 - 300 * 90 = 199_991_000)
+        final var expectedAccountStake = fromEntity(account, nodeStake, 0, currentStakeTotalStart);
+        expectedAccountStake.setPendingReward(accountStake.getPendingReward()
+                + nodeStake.getRewardRate() * currentStakeTotalStart / TINYBARS_IN_ONE_HBAR
+                - 300L * historicalStakeTotalStart / TINYBARS_IN_ONE_HBAR);
+        final var expectedStakingRewardAccountStake = fromEntity(stakingRewardAccount, nodeStake, 0, 0);
+
+        accountStake.setTimestampUpper(nodeStakeTimestamp);
+        stakingRewardAccountStake.setTimestampUpper(nodeStakeTimestamp);
+
+        // when
+        transactionOperations.executeWithoutResult(s -> {
+            entityStakeRepository.createEntityStateStart(stakingRewardAccountId);
+            entityStakeRepository.updateEntityStake(stakingRewardAccountId);
+        });
+
+        // then
+        assertThat(entityStakeRepository.findAll())
+                .containsExactlyInAnyOrder(expectedAccountStake, expectedStakingRewardAccountStake);
+        assertThat(findHistory(EntityStake.class))
+                .containsExactlyInAnyOrder(accountStake, stakingRewardAccountStake, preForfeitedHistoryEntry);
     }
 
     @Test

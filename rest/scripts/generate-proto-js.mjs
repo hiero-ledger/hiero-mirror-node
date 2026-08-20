@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Downloads HAPI protos into rest/proto/services/ from hiero-consensus-node at a git tag derived from:
+ * Downloads HAPI protos into rest/proto/ from hiero-consensus-node at a git tag derived from:
  * - root build.gradle.kts `consensusNodeVersion` when that file is accessible, or
  * - rest/proto/version.txt when not in build context (e.g. Docker build).
  *
@@ -27,13 +27,22 @@ const PROTO_SERVICES_FILES = [
   'timestamp.proto',
 ];
 
+const PROTO_FEES_FILES = ['fee_schedule.proto'];
+
 const CONSENSUS_NODE_REPO = 'hiero-ledger/hiero-consensus-node';
-const UPSTREAM_SERVICES_PREFIX = 'hapi/hedera-protobuf-java-api/src/main/proto/services';
+const UPSTREAM_PROTO_PREFIX = 'hapi/hedera-protobuf-java-api/src/main/proto';
+const UPSTREAM_SERVICES_PREFIX = `${UPSTREAM_PROTO_PREFIX}/services`;
+const UPSTREAM_FEES_PREFIX = `${UPSTREAM_PROTO_PREFIX}/fees`;
+
+// When the pinned consensus node git tag is not yet published upstream (HTTP 404), the download
+// falls back to this ref.
+const FALLBACK_REF = 'main';
 
 const restDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(restDir, '..');
 const protoVersionFile = path.join(restDir, 'proto', 'version.txt');
 const protoGeneratedFile = path.join(restDir, 'gen', 'services', 'basic_types_pb.js');
+const feesGeneratedFile = path.join(restDir, 'gen', 'fees', 'fee_schedule_pb.js');
 
 function normalizeConsensusTag(versionOrTag) {
   if (versionOrTag == null || versionOrTag === '') {
@@ -84,7 +93,7 @@ function resolveExpectedConsensusTag() {
 }
 
 function isProtoCodegenPresent() {
-  return fs.existsSync(protoGeneratedFile);
+  return fs.existsSync(protoGeneratedFile) && fs.existsSync(feesGeneratedFile);
 }
 
 function normalizeProtoText(s) {
@@ -99,25 +108,37 @@ async function fetchText(url) {
   return res.text();
 }
 
-function consensusServicesRawUrl(tag, filename) {
-  return `https://raw.githubusercontent.com/${CONSENSUS_NODE_REPO}/${tag}/${UPSTREAM_SERVICES_PREFIX}/${filename}`;
+function consensusRawUrl(tag, prefix, filename) {
+  return `https://raw.githubusercontent.com/${CONSENSUS_NODE_REPO}/${tag}/${prefix}/${filename}`;
 }
 
-async function downloadProtosFromConsensus(consensusTag) {
-  const servicesDir = path.join(restDir, 'proto', 'services');
-  fs.mkdirSync(servicesDir, {recursive: true});
-  console.log(
-    `Downloading services/*.proto from ${CONSENSUS_NODE_REPO} for tag ${consensusTag}`,
-  );
-
-  for (const file of PROTO_SERVICES_FILES) {
-    const url = consensusServicesRawUrl(consensusTag, file);
-    const text = normalizeProtoText(await fetchText(url));
-    fs.writeFileSync(path.join(servicesDir, file), text, 'utf8');
-    console.log(`Downloaded proto/services/${file}`);
+async function downloadProtoGroup(ref, relativeDir, upstreamPrefix, files) {
+  const contents = new Map();
+  for (const file of files) {
+    contents.set(file, normalizeProtoText(await fetchText(consensusRawUrl(ref, upstreamPrefix, file))));
   }
 
-  fs.writeFileSync(protoVersionFile, `${consensusTag}`, 'utf8');
+  const targetDir = path.join(restDir, 'proto', relativeDir);
+  fs.mkdirSync(targetDir, {recursive: true});
+  for (const [file, text] of contents) {
+    fs.writeFileSync(path.join(targetDir, file), text, 'utf8');
+  }
+}
+
+// Tries to download all proto files for a ref. Returns true on success, false if any file is
+// unavailable (so the caller can try the next ref).
+async function tryDownloadProtos(ref) {
+  try {
+    await downloadProtoGroup(ref, 'services', UPSTREAM_SERVICES_PREFIX, PROTO_SERVICES_FILES);
+    await downloadProtoGroup(ref, 'fees', UPSTREAM_FEES_PREFIX, PROTO_FEES_FILES);
+  } catch (err) {
+    console.warn(`Could not download protos for ref ${ref}: ${err.message}`);
+    return false;
+  }
+
+  fs.writeFileSync(protoVersionFile, `${ref}`, 'utf8');
+  console.log(`Downloaded services/*.proto and fees/*.proto from ${CONSENSUS_NODE_REPO} for ref ${ref}`);
+  return true;
 }
 
 function runBufGenerate() {
@@ -145,5 +166,13 @@ if (storedNormalized === expectedTag && isProtoCodegenPresent()) {
   process.exit(0);
 }
 
-await downloadProtosFromConsensus(expectedTag);
-process.exit(runBufGenerate());
+// Try the pinned tag, then fall back to main. This step is best-effort: if neither is available
+// (e.g. the tag isn't published upstream yet), skip without failing the test run.
+if ((await tryDownloadProtos(expectedTag)) || (await tryDownloadProtos(FALLBACK_REF))) {
+  process.exit(runBufGenerate());
+}
+
+console.warn(
+  `Could not download protos for ${expectedTag} or ${FALLBACK_REF}; skipping proto generation.`,
+);
+process.exit(0);

@@ -35,6 +35,7 @@ import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
+import org.hiero.mirror.importer.reader.block.ConsensusTimestampTracker;
 import org.hiero.mirror.importer.util.Utility;
 
 @RequiredArgsConstructor
@@ -56,7 +57,8 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
                     new ArrayList<>(),
                     new RecordFile(),
                     recordFileItem,
-                    new HashMap<>());
+                    new HashMap<>(),
+                    new ConsensusTimestampTracker());
 
             dos.writeInt(version);
             onHeader(context);
@@ -65,14 +67,10 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
 
             // Set other common fields. Note metadata hash calculation is skipped because there is only signature for
             // file hash in SignedRecordFileProof
-            final long creationTimestamp = DomainUtils.timestampInNanosMax(recordFileItem.getCreationTime());
             final var items = context.items();
             final var recordFile = context.recordFile();
             final byte[] bytes = bos.toByteArray();
             recordFile.setBytes(bytes);
-            recordFile.setConsensusEnd(!items.isEmpty() ? items.getLast().getConsensusTimestamp() : creationTimestamp);
-            recordFile.setConsensusStart(
-                    !items.isEmpty() ? items.getFirst().getConsensusTimestamp() : creationTimestamp);
             recordFile.setCount((long) items.size());
             recordFile.setDigestAlgorithm(DigestAlgorithm.SHA_384);
             recordFile.setFileHash(Hex.encodeHexString(context.fileDigest().digest()));
@@ -144,6 +142,23 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
         if (recordStreamFile.hasEndObjectRunningHash()) {
             context.recordFile().setHash(Hex.encodeHexString(getHashBytes(recordStreamFile.getEndObjectRunningHash())));
         }
+
+        final var items = context.items();
+        if (!items.isEmpty()) {
+            final var bounds = context.consensusTimestampTracker()
+                    .validateItemOrder(
+                            context.recordFile().getName(),
+                            items.getFirst().getConsensusTimestamp(),
+                            items.getLast().getConsensusTimestamp());
+
+            context.recordFile().setConsensusStart(bounds.start());
+            context.recordFile().setConsensusEnd(bounds.end());
+        } else {
+            final long creationTimestamp =
+                    DomainUtils.timestampInNanosMax(context.recordFileItem().getCreationTime());
+            context.recordFile().setConsensusEnd(creationTimestamp);
+            context.recordFile().setConsensusStart(creationTimestamp);
+        }
     }
 
     protected void onHeader(final Context context) throws IOException {
@@ -178,6 +193,7 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
         recordItem.setSidecarRecords(
                 context.sidecarRecords().getOrDefault(recordItem.getConsensusTimestamp(), Collections.emptyList()));
         items.add(recordItem);
+        context.consensusTimestampTracker().track(recordItem.getConsensusTimestamp());
     }
 
     private boolean isSidecarFileAccepted(final SidecarMetadata metadata) {
@@ -287,5 +303,6 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
             List<RecordItem> items,
             RecordFile recordFile,
             RecordFileItem recordFileItem,
-            Map<Long, List<TransactionSidecarRecord>> sidecarRecords) {}
+            Map<Long, List<TransactionSidecarRecord>> sidecarRecords,
+            ConsensusTimestampTracker consensusTimestampTracker) {}
 }

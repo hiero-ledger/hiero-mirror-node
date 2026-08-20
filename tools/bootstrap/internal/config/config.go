@@ -6,9 +6,14 @@ package config
 import (
 	"fmt"
 	"github.com/spf13/viper"
+	"net"
+	"net/url"
 	"os"
 	"strings"
 )
+
+// DefaultSSLMode is used when PGSSLMode is unset.
+const DefaultSSLMode = "verify-full"
 
 // Config holds all configuration values for the bootstrap process.
 type Config struct {
@@ -18,6 +23,9 @@ type Config struct {
 	PGUser     string `mapstructure:"PGUSER"`
 	PGPassword string `mapstructure:"PGPASSWORD"`
 	PGDatabase string `mapstructure:"PGDATABASE"`
+	// PGSSLMode is a libpq sslmode (verify-full, require, disable, ...).
+	PGSSLMode     string `mapstructure:"PGSSLMODE"`
+	PGSSLRootCert string `mapstructure:"PGSSLROOTCERT"`
 
 	// GCP settings
 	IsGCPCloudSQL       bool `mapstructure:"IS_GCP_CLOUD_SQL"`
@@ -51,6 +59,7 @@ func DefaultConfig() *Config {
 		PGPort:              "5432",
 		PGUser:              "postgres",
 		PGDatabase:          "mirror_node",
+		PGSSLMode:           DefaultSSLMode,
 		IsGCPCloudSQL:       false,
 		CreateMirrorAPIUser: true,
 		DecompressorThreads: 4,
@@ -69,6 +78,7 @@ func LoadFromEnvFile(path string) (*Config, error) {
 	v.SetDefault("PGPORT", "5432")
 	v.SetDefault("PGUSER", "postgres")
 	v.SetDefault("PGDATABASE", "mirror_node")
+	v.SetDefault("PGSSLMODE", DefaultSSLMode)
 	v.SetDefault("IS_GCP_CLOUD_SQL", false)
 	v.SetDefault("CREATE_MIRROR_API_USER", true)
 	v.SetDefault("DECOMPRESSOR_THREADS", 4)
@@ -141,6 +151,8 @@ func manualPopulate(v *viper.Viper, cfg *Config) {
 	cfg.PGUser = v.GetString("PGUSER")
 	cfg.PGPassword = v.GetString("PGPASSWORD")
 	cfg.PGDatabase = v.GetString("PGDATABASE")
+	cfg.PGSSLMode = v.GetString("PGSSLMODE")
+	cfg.PGSSLRootCert = v.GetString("PGSSLROOTCERT")
 	cfg.IsGCPCloudSQL = v.GetBool("IS_GCP_CLOUD_SQL")
 	cfg.CreateMirrorAPIUser = v.GetBool("CREATE_MIRROR_API_USER")
 	cfg.GraphQLPassword = v.GetString("GRAPHQL_PASSWORD")
@@ -202,14 +214,34 @@ func (c *Config) LoadFromEnv() {
 	}
 }
 
-// ConnectionString returns the PostgreSQL connection string.
-func (c *Config) ConnectionString() string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		c.PGHost, c.PGPort, c.PGUser, c.PGPassword, c.PGDatabase)
+// sslMode falls back to DefaultSSLMode if PGSSLMode isn't set.
+func (c *Config) sslMode() string {
+	if c.PGSSLMode == "" {
+		return DefaultSSLMode
+	}
+	return c.PGSSLMode
 }
 
 // PgxConnectionString returns the connection string in pgx format.
 func (c *Config) PgxConnectionString() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		c.PGUser, c.PGPassword, c.PGHost, c.PGPort, c.PGDatabase)
+	return BuildConnURL(c.PGUser, c.PGPassword, c.PGHost, c.PGPort, c.PGDatabase, c.sslMode(), c.PGSSLRootCert)
+}
+
+// BuildConnURL creates a postgres:// URL, escaping every provided value
+// so special chars like @ : / ? in a password or path can't break the URL structure.
+func BuildConnURL(user, password, host, port, database, sslMode, sslRootCert string) string {
+	query := url.Values{}
+	query.Set("sslmode", sslMode)
+	if sslRootCert != "" {
+		query.Set("sslrootcert", sslRootCert)
+	}
+
+	u := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(user, password),
+		Host:     net.JoinHostPort(host, port),
+		Path:     "/" + database,
+		RawQuery: query.Encode(),
+	}
+	return u.String()
 }

@@ -23,7 +23,7 @@ const isValidListResponse = (response, listName) => {
 
 class RestTestScenarioBuilder extends TestScenarioBuilder {
   constructor() {
-    super();
+    super('REST');
     this.fallbackRequest((testParameters) => {
       const url = `${testParameters['BASE_URL_PREFIX']}/transactions`;
       return http.get(url);

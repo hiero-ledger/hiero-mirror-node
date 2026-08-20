@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.importer.util.Utility.HALT_ON_ERROR_DEFAULT;
 import static org.hiero.mirror.importer.util.Utility.HALT_ON_ERROR_PROPERTY;
-import static org.hiero.mirror.importer.util.Utility.RECOVERABLE_ERROR;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -159,7 +158,7 @@ public class UtilityTest {
         System.setProperty(HALT_ON_ERROR_PROPERTY, "false");
         Utility.handleRecoverableError(format, args);
         var allOutput = capturedOutput.getAll();
-        assertThat(allOutput).contains(RECOVERABLE_ERROR + formatted);
+        assertThat(allOutput).contains(DomainUtils.RECOVERABLE_ERROR + formatted);
         if (causeProvided != null) {
             assertThat(allOutput).contains(causeLogOutput);
         }

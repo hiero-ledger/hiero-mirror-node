@@ -167,18 +167,30 @@ function runBackupsForAllNamespaces() {
 }
 
 function getBackupPaths() {
-  kubectl get sgshardedclusters --all-namespaces -o json \
-    | jq '[
-        .items[]
-        | {
-            (.metadata.namespace): {
-              (.metadata.name): (
-                .spec.configurations.backups[0].paths // []
-              )
-            }
+  # StackGres actually keeps backup paths on each member's .status.backupPaths, not the
+  # sharded cluster's spec - fall back to spec.paths to keep previous default unchanged
+  local sharded members
+  sharded="$(kubectl get sgshardedclusters --all-namespaces -o json)"
+  members="$(kubectl get sgclusters --all-namespaces -o json)"
+  jq -n --argjson sharded "${sharded}" --argjson members "${members}" '[
+      $sharded.items[]
+      | .metadata.namespace as $ns
+      | .metadata.name as $name
+      | ([
+          $members.items[]
+          | select(.metadata.namespace == $ns
+              and ((.metadata.ownerReferences // []) | any(.name == $name)))
+          | (.status.backupPaths // [])[]
+        ] | unique) as $statusPaths
+      | {
+          ($ns): {
+            ($name): (if ($statusPaths | length) > 0
+              then $statusPaths
+              else (.spec.configurations.backups[0].paths // []) end)
           }
-      ]
-      | add'
+        }
+    ]
+    | add'
 }
 
 function getLatestBackup() {
@@ -309,6 +321,10 @@ function patchBackupPaths() {
 }
 
 function scaleupResources() {
+  if [[ "${REQUIRE_CLEAN_TARGET}" == "false" ]]; then
+    return 0;
+  fi
+
   waitForClusterOperations "${DEFAULT_POOL_NAME}"
 
   gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
@@ -547,9 +563,14 @@ function runK6Test() {
   log "Awaiting k6 results"
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
   if kubectl get helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
-    if [[ "${RESTORE}" == "true" ]]; then
-      waitForHelmReleaseReady "${TEST_KUBE_TARGET_NAMESPACE}"
+    if [[ "${RESTORE}" != "true" && "${RUN_ACCEPTANCE_TEST}" != "true" ]]; then
+      # Resume and reconcile helmrelease, otherwise pods may still run the old images
+      flux resume helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}"
+      flux reconcile helmrelease "${HELM_RELEASE_NAME}" -n "${TEST_KUBE_TARGET_NAMESPACE}" \
+        --timeout "${FLUX_RECONCILE_HR_TIMEOUT}"
     fi
+
+    waitForHelmReleaseReady "${TEST_KUBE_TARGET_NAMESPACE}"
 
     log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${TEST_KUBE_TARGET_NAMESPACE}"
     flux suspend helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}"
@@ -640,26 +661,16 @@ function waitForK6PodExecution() {
     scaleHpaMin "${targetNamespace}" "${hpaName}" "${maxReplicas}"
   fi
 
-  until kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}" --timeout=10m > /dev/null 2>&1; do
+  until [[ $(testkube get executions --limit 4 -o json | jq --arg id "${job}" '[.results[] | select (.id == $id and .status != "running")] | any') == "true" ]]; do
     log "Waiting for job ${job} to complete for test ${testName}"
-    sleep 1
-  done
-
-  until kubectl get job -n "${TEST_KUBE_NAMESPACE}" "${job}-scraper" >/dev/null 2>&1; do
-    log "Waiting for scraper"
-    sleep 1
-  done
-
-  until kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}-scraper" --timeout=10m > /dev/null 2>&1; do
-    log "Waiting for scraper job to complete"
-    sleep 1
+    sleep 10
   done
 
   scaleHpaMin "${targetNamespace}" "${hpaName}"
 
   if [[ "${COLLECT_K6_REPORT}" == "true" ]]; then
     log "downloading artifacts for job ${job}"
-    local deadline=$((SECONDS + 60))
+    local deadline=$((SECONDS + 120))
     rm -f artifacts/report.md 2>/dev/null || true
     while true; do
       testkube download artifacts "${job}"  >/dev/null 2>&1
@@ -672,7 +683,7 @@ function waitForK6PodExecution() {
       fi
 
       if (( SECONDS >= deadline )); then
-        log "Timed out waiting for artifacts after 60s"
+        log "Timed out waiting for artifacts after 120s"
         break
       fi
 

@@ -111,7 +111,8 @@ final class BlockFileSource extends AbstractBlockSource {
                     System.currentTimeMillis(),
                     bytes,
                     blockFileData.getFilename(),
-                    blockFileData.getStreamFilename().getTimestamp());
+                    blockFileData.getStreamFilename().getTimestamp(),
+                    bytes.length);
         }
     }
 }

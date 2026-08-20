@@ -10,7 +10,7 @@ RUN wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linu
     chmod +x /usr/local/bin/yq
 
 # Install Helm
-RUN wget -q https://github.com/helm/helm/releases/download/v${HELM_VERSION}/helm-${HELM_VERSION}-linux-amd64.tar.gz -O - | \
+RUN wget -q https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz -O - | \
     tar -C /usr/local/bin --strip-components=1 -zxv linux-amd64/helm
 
 # Pull in charts

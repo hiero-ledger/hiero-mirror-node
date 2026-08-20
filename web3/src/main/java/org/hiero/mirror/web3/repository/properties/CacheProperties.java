@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.web3.repository.properties;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -34,6 +36,13 @@ public class CacheProperties {
 
     @NotBlank
     private String fee = "expireAfterWrite=60m,maximumSize=20,recordStats";
+
+    @Min(1)
+    @Max(10000)
+    private int maxSlotKeysPerBatch = 100;
+
+    @NotBlank
+    private String sharedWritableState = "expireAfterAccess=5m,maximumSize=100000,recordStats";
 
     @NotBlank
     private String slotsPerContract = "expireAfterAccess=5m,maximumSize=1500";

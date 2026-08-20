@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.TestUtils.findAllMatches;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.ImporterProperties;
@@ -53,6 +55,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
@@ -135,11 +138,14 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         commonDownloaderProperties.getImporterProperties().setStartBlockNumber(null);
     }
 
-    protected static Collection<String> dedupNodeLogs(final Collection<String> nodeLogs) {
+    protected static Collection<String> findAndDedupNodeLogs(final CapturedOutput output) {
+        final var nodeLogs = findAllMatches(output.getAll(), "Start streaming block \\d+ from BlockNode\\(.+:-1\\)");
         final var result = new ArrayList<String>();
         for (final var nodeLog : nodeLogs) {
-            if (result.isEmpty() || !nodeLog.equals(result.getLast())) {
-                result.add(nodeLog);
+            final var trimmed = "from" + StringUtils.substringAfter(nodeLog, "from");
+            if (result.isEmpty() || !trimmed.equals(result.getLast())) {
+                // Reduce consecutive duplicate logs to just one
+                result.add(trimmed);
             }
         }
         return result;
@@ -167,7 +173,7 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         startAll();
         final var nodes = reversedNodes ? getBlockNodeProperties().reversed() : getBlockNodeProperties();
         blockProperties.setNodes(nodes);
-        var channelBuilderProvider = nodes.getFirst().getPort() == -1
+        var channelBuilderProvider = nodes.getFirst().getEndpoints().first().getPort() == -1
                 ? InProcessManagedChannelBuilderProvider.INSTANCE
                 : managedChannelBuilderProvider;
 

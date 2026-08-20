@@ -15,7 +15,6 @@ import com.hedera.hashgraph.sdk.TopicMessageSubmitTransaction;
 import com.hedera.hashgraph.sdk.TopicUpdateTransaction;
 import com.hedera.hashgraph.sdk.TransactionId;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
-import com.hedera.hashgraph.sdk.TransactionRecord;
 import jakarta.inject.Named;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -76,7 +75,12 @@ public class TopicClient extends AbstractNetworkClient {
         var keyList = KeyList.of(adminAccount.getPrivateKey());
         var response = executeTransactionAndRetrieveReceipt(consensusTopicCreateTransaction, keyList);
         var topicId = response.getReceipt().topicId;
-        log.info("Created new topic {} with memo '{}' via {}", topicId, memo, response.getTransactionId());
+        log.info(
+                "Created new topic {} with memo '{}' via {} in {}",
+                topicId,
+                memo,
+                response.getTransactionId(),
+                response.getStopwatch());
         topicIds.add(topicId);
         return response;
     }
@@ -105,7 +109,12 @@ public class TopicClient extends AbstractNetworkClient {
         var keyList = KeyList.of(adminAccount.getPrivateKey());
         var response = executeTransactionAndRetrieveReceipt(consensusTopicCreateTransaction, keyList);
         var topicId = response.getReceipt().topicId;
-        log.info("Created new topic {} with memo '{}' via {}", topicId, memo, response.getTransactionId());
+        log.info(
+                "Created new topic {} with memo '{}' via {} in {}",
+                topicId,
+                memo,
+                response.getTransactionId(),
+                response.getStopwatch());
         topicIds.add(topicId);
         return response;
     }
@@ -124,7 +133,12 @@ public class TopicClient extends AbstractNetworkClient {
 
         var keyList = KeyList.of(feeSchedulekey);
         var response = executeTransactionAndRetrieveReceipt(consensusTopicUpdateTransaction, keyList);
-        log.info("Updated topic {} with memo '{}' via {}", topicId, memo, response.getTransactionId());
+        log.info(
+                "Updated topic {} with memo '{}' via {} in {}",
+                topicId,
+                memo,
+                response.getTransactionId(),
+                response.getStopwatch());
         return response;
     }
 
@@ -133,7 +147,7 @@ public class TopicClient extends AbstractNetworkClient {
                 new TopicDeleteTransaction().setTopicId(topicId).setTransactionMemo(getMemo("Delete Topic"));
 
         var response = executeTransactionAndRetrieveReceipt(consensusTopicDeleteTransaction);
-        log.info("Deleted topic {} via {}", topicId, response.getTransactionId());
+        log.info("Deleted topic {} via {} in {}", topicId, response.getTransactionId(), response.getStopwatch());
         topicIds.remove(topicId);
         return response;
     }
@@ -148,9 +162,16 @@ public class TopicClient extends AbstractNetworkClient {
             consensusMessageSubmitTransaction.addCustomFeeLimit(feeLimit);
         }
 
-        return payer == null
+        final var response = payer == null
                 ? executeTransactionAndRetrieveReceipt(consensusMessageSubmitTransaction, submitKeys)
                 : executeTransactionAndRetrieveReceipt(consensusMessageSubmitTransaction, submitKeys, payer);
+        log.info(
+                "Published message '{}' to topic {} with fee limit via {} in {}",
+                message,
+                topicId,
+                response.getTransactionId(),
+                response.getStopwatch());
+        return response;
     }
 
     public List<TransactionReceipt> publishMessagesToTopic(
@@ -178,34 +199,33 @@ public class TopicClient extends AbstractNetworkClient {
                 .setMessage(message)
                 .setTransactionMemo(getMemo("Publish topic message"));
 
-        TransactionId transactionId = executeTransaction(consensusMessageSubmitTransaction, submitKeys);
+        final var response = executeTransactionAndRetrieveReceipt(consensusMessageSubmitTransaction, submitKeys);
 
-        TransactionRecord transactionRecord = getTransactionRecord(transactionId);
         // get only the 1st sequence number
         if (recordPublishInstants.size() == 0) {
+            final var transactionRecord = getTransactionRecord(response.getTransactionId());
             recordPublishInstants.put(0L, transactionRecord.consensusTimestamp);
         }
 
-        if (log.isTraceEnabled()) {
-            log.trace(
-                    "Published message : '{}' to topicId : {} with consensusTimestamp: {}",
-                    new String(message, StandardCharsets.UTF_8),
-                    topicId,
-                    transactionRecord.consensusTimestamp);
-        }
+        log.info(
+                "Published message '{}' to topic {} via {} in {}",
+                new String(message, StandardCharsets.UTF_8),
+                topicId,
+                response.getTransactionId(),
+                response.getStopwatch());
 
-        return transactionId;
+        return response.getTransactionId();
     }
 
     public TransactionReceipt publishMessageToTopicAndVerify(TopicId topicId, byte[] message, KeyList submitKeys) {
         TransactionId transactionId = publishMessageToTopic(topicId, message, submitKeys);
         TransactionReceipt transactionReceipt = null;
         try {
-            transactionReceipt = getTransactionReceipt(transactionId);
+            final var transactionRecord = getTransactionRecord(transactionId);
+            transactionReceipt = transactionRecord.receipt;
 
             // note time stamp
-            recordPublishInstants.put(
-                    transactionReceipt.topicSequenceNumber, getTransactionRecord(transactionId).consensusTimestamp);
+            recordPublishInstants.put(transactionReceipt.topicSequenceNumber, transactionRecord.consensusTimestamp);
         } catch (Exception e) {
             log.error("Error retrieving transaction receipt", e);
         }

@@ -6,8 +6,6 @@ import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.Resources;
 import java.util.List;
-import org.hiero.mirror.importer.downloader.block.InProcessManagedChannelBuilderProvider;
-import org.hiero.mirror.importer.downloader.block.StreamProperties;
 import org.junit.jupiter.api.Test;
 
 final class PriorityAndLatencySchedulerTest extends AbstractSchedulerTest {
@@ -27,6 +25,9 @@ final class PriorityAndLatencySchedulerTest extends AbstractSchedulerTest {
         var scheduled = scheduler.getNode(0);
         assertScheduledBlockNode(scheduled, 0L, blockNodeProperties.getFirst());
 
+        // seed server-01's latency
+        getLatencyCandidate().getLatency().record(300);
+
         // when server-00's latency becomes higher then server-01
         setLatency(scheduled, 500);
         scheduled = scheduler.getNode(1);
@@ -35,6 +36,9 @@ final class PriorityAndLatencySchedulerTest extends AbstractSchedulerTest {
         // when requesting a block priority-0 nodes don't have
         scheduled = scheduler.getNode(2);
         assertScheduledBlockNode(scheduled, 2L, blockNodeProperties.get(2));
+
+        // seed server-03's latency
+        getLatencyCandidate().getLatency().record(300);
 
         // when server-02's latency becomes higher than server-03
         setLatency(scheduled, 600);
@@ -68,10 +72,10 @@ final class PriorityAndLatencySchedulerTest extends AbstractSchedulerTest {
         schedulerProperties.setType(SchedulerType.PRIORITY_THEN_LATENCY);
         return new PriorityAndLatencyScheduler(
                 blockNodeDiscoveryService,
-                InProcessManagedChannelBuilderProvider.INSTANCE,
+                channelBuilderProvider,
                 latencyService,
                 meterRegistry,
                 schedulerProperties,
-                new StreamProperties());
+                streamProperties);
     }
 }

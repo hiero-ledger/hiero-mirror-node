@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.downloader.provider;
 
 import static java.util.Objects.requireNonNullElse;
 import static org.hiero.mirror.common.domain.StreamType.SIGNATURE_SUFFIX;
-import static org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType.NODE_ID;
 
 import com.google.common.base.Stopwatch;
 import java.io.File;
@@ -17,12 +16,10 @@ import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.DirectoryFileFilter;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
-import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
 import org.hiero.mirror.importer.exception.FileOperationException;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.jspecify.annotations.NullMarked;
@@ -38,10 +35,8 @@ public final class LocalStreamFileProvider extends AbstractStreamFileProvider {
     private final LocalStreamFileProperties localProperties;
 
     public LocalStreamFileProvider(
-            final CommonProperties commonProperties,
-            final CommonDownloaderProperties downloaderProperties,
-            final LocalStreamFileProperties localProperties) {
-        super(commonProperties, downloaderProperties);
+            final CommonDownloaderProperties downloaderProperties, final LocalStreamFileProperties localProperties) {
+        super(downloaderProperties);
         this.localProperties = localProperties;
     }
 
@@ -61,8 +56,7 @@ public final class LocalStreamFileProvider extends AbstractStreamFileProvider {
         var stopwatch = Stopwatch.createStarted();
         var count = new AtomicLong(0L);
 
-        return listFiles(downloaderProperties.getPathType(), node, lastFilename)
-                .switchIfEmpty(listFiles(NODE_ID, node, lastFilename))
+        return listFiles(node, lastFilename)
                 .timeout(downloaderProperties.getTimeout())
                 .sort()
                 .take(batchSize)
@@ -83,34 +77,12 @@ public final class LocalStreamFileProvider extends AbstractStreamFileProvider {
                 .onErrorMap(FileOperationException.class, TransientProviderException::new);
     }
 
-    private Flux<File> listFiles(PathType pathType, ConsensusNode node, StreamFilename streamFilename) {
-        var pathTypeProp = downloaderProperties.getPathType();
+    private Flux<File> listFiles(ConsensusNode node, StreamFilename streamFilename) {
         var streamType = streamFilename.getStreamType();
-
-        // Once a node ID based file has been processed, optimize performance by disabling auto path lookup.
-        if (pathTypeProp == PathType.AUTO && streamFilename.isNodeId()) {
-            downloaderProperties.setPathType(NODE_ID);
-        } // Skip when we fall back to listing by node ID, but we're not on auto.
-        else if (pathTypeProp != pathType && pathTypeProp != PathType.AUTO) {
-            return Flux.empty();
-        }
 
         return getBasePaths(streamFilename)
                 .map(basePath -> {
-                    var prefix =
-                            switch (pathType) {
-                                case ACCOUNT_ID, AUTO ->
-                                    Path.of(streamType.getPath(), streamType.getNodePrefix() + node.getNodeAccountId());
-                                case NODE_ID ->
-                                    Path.of(
-                                            downloaderProperties
-                                                    .getImporterProperties()
-                                                    .getNetwork(),
-                                            String.valueOf(commonProperties.getShard()),
-                                            String.valueOf(node.getNodeId()),
-                                            streamType.getNodeIdBasedSuffix());
-                            };
-
+                    var prefix = Path.of(streamType.getPath(), streamType.getNodePrefix() + node.getNodeAccountId());
                     return basePath.resolve(prefix).toFile();
                 })
                 .doOnNext(f -> log.debug("Listing files for node {} in {}", node, f))

@@ -33,7 +33,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-medium
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
         with:
           egress-policy: audit
 
@@ -55,7 +55,7 @@ jobs:
           echo VERSION=${VERSION} >> $GITHUB_ENV
 
       - name: Checkout Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: deploy
           token: ${{ secrets.HEDERA_BOT_TOKEN }}
@@ -64,7 +64,7 @@ jobs:
         env:
           BINARY: yq_linux_amd64
           TARGET: /home/runner/.local/bin
-          VERSION: v4.46.1
+          VERSION: v4.53.3
         run: |
           mkdir -p "${TARGET}"
           cd "${TARGET}"

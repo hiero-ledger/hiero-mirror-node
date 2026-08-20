@@ -5,9 +5,11 @@ package org.hiero.mirror.importer.downloader.block.cutover;
 import static java.util.function.Predicate.not;
 import static org.hiero.mirror.common.domain.StreamType.BLOCK;
 import static org.hiero.mirror.common.domain.StreamType.RECORD;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOCK_NUMBER;
 
 import com.google.common.base.Stopwatch;
 import jakarta.inject.Named;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
@@ -46,9 +48,9 @@ public final class CutoverServiceImpl implements CutoverService {
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final Optional<RecordFile> firstRecordFile = findFirst();
 
-    private boolean blockStreamAdvanced;
+    private int blockBackoffMultiplier = 1;
+    private @Nullable Instant blockReadmitTime;
     private StreamType currentType = RECORD;
-    private @Nullable StreamType lastRunType;
     private @Nullable Long startWrappedRecordBlockConsensusTimestamp;
 
     @Override
@@ -57,19 +59,25 @@ public final class CutoverServiceImpl implements CutoverService {
             return;
         }
 
-        lastRunType = streamType;
         final long lastBlockNumber =
                 getLastRecordFile().map(RecordFile::getIndex).orElse(-1L);
 
         try {
             task.run();
         } finally {
-            if (streamType == BLOCK) {
-                // Track if blocks have been advanced when last run is blockstream, used to fast fallback to
-                // recordstream in first-stage
+            if (streamType == BLOCK && shouldTryFirstStage()) {
+                // Put BLOCK mode into backoff when block doesn't advance. Note the backoff increases exponentially and
+                // is capped by maxBackoffMultiplier.
                 final long currentBlockNumber =
                         getLastRecordFile().map(RecordFile::getIndex).orElse(-1L);
-                blockStreamAdvanced = currentBlockNumber > lastBlockNumber;
+                final boolean blockAdvanced = currentBlockNumber > lastBlockNumber;
+
+                if (blockAdvanced) {
+                    blockBackoffMultiplier = 1;
+                    blockReadmitTime = null;
+                } else {
+                    backoffBlock();
+                }
             }
         }
     }
@@ -161,6 +169,16 @@ public final class CutoverServiceImpl implements CutoverService {
                 .orElse(true);
     }
 
+    private void backoffBlock() {
+        final var firstStage = cutoverProperties.getFirstStage();
+        blockBackoffMultiplier = Math.min(blockBackoffMultiplier * 2, firstStage.getMaxBackoffMultiplier());
+        blockReadmitTime = Instant.now().plus(firstStage.getBaseBackoff().multipliedBy(blockBackoffMultiplier));
+    }
+
+    private boolean isBlockBackedOff() {
+        return blockReadmitTime != null && Instant.now().isBefore(blockReadmitTime);
+    }
+
     private boolean isCutoverComplete() {
         final boolean isLastBlockStream = isBlockStream(getLastRecordFile());
         if (isLastBlockStream) {
@@ -211,18 +229,14 @@ public final class CutoverServiceImpl implements CutoverService {
     }
 
     private StreamType getNextFirstStageActiveStreamType() {
-        if (currentType == RECORD && lastRunType != null && lastRunType != RECORD) {
-            // In case of fallback, ensure recordstream is tried exactly once
+        if (isBlockBackedOff()) {
             return RECORD;
         }
 
         final long lastConsensusEnd =
                 getLastRecordFile().map(RecordFile::getConsensusEnd).orElse(-1L);
         final StreamType nextType;
-        if (lastRunType == BLOCK && !blockStreamAdvanced) {
-            // Fast fallback to recordstream if the last run was blockstream and it didn't advance
-            nextType = RECORD;
-        } else if (startWrappedRecordBlockConsensusTimestamp == null || lastConsensusEnd == -1L) {
+        if (startWrappedRecordBlockConsensusTimestamp == null || lastConsensusEnd == -1L) {
             // Force BLOCK to stream WRBs
             nextType = BLOCK;
         } else {
@@ -232,9 +246,13 @@ public final class CutoverServiceImpl implements CutoverService {
             if (elapsed.compareTo(firstStage.getLatencyCheckThreshold()) < 0) {
                 // Haven't been streaming WRBs long enough to evaluate latency
                 nextType = BLOCK;
+            } else if (elapsed.toNanos() > firstStage.getMaxLatency().toNanos() + processed) {
+                // Fallback to recordstream when streaming WRBs exceeds the allowed max latency, and put BLOCK into
+                // backoff so recordstream stays active for the backoff period
+                nextType = RECORD;
+                backoffBlock();
             } else {
-                // Fallback to recordstream when streaming WRBs exceeds the allowed max latency
-                nextType = elapsed.toNanos() > firstStage.getMaxLatency().toNanos() + processed ? RECORD : BLOCK;
+                nextType = BLOCK;
             }
         }
 

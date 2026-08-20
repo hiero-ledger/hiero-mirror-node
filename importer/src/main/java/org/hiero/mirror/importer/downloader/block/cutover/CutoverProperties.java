@@ -3,6 +3,8 @@
 package org.hiero.mirror.importer.downloader.block.cutover;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Data;
@@ -25,7 +27,7 @@ public final class CutoverProperties {
     private CutoverFirstStageProperties firstStage = new CutoverFirstStageProperties();
 
     @NotNull
-    private Version hapiVersion = new Version(0, 76, 0);
+    private Version hapiVersion = new Version(0, 78, 0);
 
     @DurationMin(seconds = 8)
     @NotNull
@@ -35,6 +37,10 @@ public final class CutoverProperties {
     @Validated
     public static class CutoverFirstStageProperties {
 
+        @DurationMin(seconds = 2)
+        @NotNull
+        private Duration baseBackoff = Duration.ofSeconds(2);
+
         private boolean enabled;
 
         @NotNull
@@ -43,6 +49,10 @@ public final class CutoverProperties {
         @DurationMin(seconds = 10)
         @NotNull
         private Duration latencyCheckThreshold = Duration.ofSeconds(10);
+
+        @Max(128)
+        @Min(2)
+        private int maxBackoffMultiplier = 64;
 
         @DurationMin(seconds = 2)
         @NotNull

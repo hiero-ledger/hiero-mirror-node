@@ -22,6 +22,7 @@ import com.hederahashgraph.api.proto.java.TokenType;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.RecordItemBuilder.TransferType;
@@ -95,6 +96,7 @@ final class SyntheticContractLogServiceImplTest {
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
         assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
+        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
     }
 
     @Test
@@ -107,6 +109,34 @@ final class SyntheticContractLogServiceImplTest {
                 new TransferIndexedContractLog(recordItem, entityTokenId, senderEntityId, receiverEntityId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
         assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
+        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should mark an allowance approval synthetic contract log as synthetic")
+    void createValidApproveAllowance() {
+        syntheticContractLogService.create(
+                new ApproveAllowanceContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should mark an indexed allowance approval synthetic contract log as synthetic")
+    void createValidApproveAllowanceIndexed() {
+        syntheticContractLogService.create(
+                new ApproveAllowanceIndexedContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should mark an approve-for-all allowance synthetic contract log as synthetic")
+    void createValidApproveForAllAllowance() {
+        syntheticContractLogService.create(
+                new ApproveForAllAllowanceContractLog(recordItem, entityTokenId, senderId, receiverId, true));
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
     }
 
     @Test
@@ -1049,6 +1079,45 @@ final class SyntheticContractLogServiceImplTest {
 
         verify(entityListener).onContractLog(contractLogCaptor.capture());
         assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(ethereumHash);
+    }
+
+    @Test
+    @DisplayName("HAPI-origin synthetic logs from the same transaction share the same EVM transaction index")
+    void hapiOriginSyntheticLogsShareEvmTransactionIndex() {
+        final var counter = new AtomicInteger(0);
+        recordItem.setEvmTransactionIndexCounter(counter);
+
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener, times(2)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getAllValues())
+                .extracting(ContractLog::getTransactionIndex)
+                .containsOnly(0);
+        assertThat(counter.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("HAPI-origin items with a shared counter claim consecutive EVM transaction indices")
+    void hapiOriginItemsWithSharedCounterClaimConsecutiveIndices() {
+        final var counter = new AtomicInteger(0);
+        final var secondRecordItem =
+                recordItemBuilder.tokenMint(TokenType.FUNGIBLE_COMMON).build();
+        recordItem.setEvmTransactionIndexCounter(counter);
+        secondRecordItem.setEvmTransactionIndexCounter(counter);
+
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        syntheticContractLogService.create(
+                new TransferContractLog(secondRecordItem, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener, times(2)).onContractLog(contractLogCaptor.capture());
+        final var indices = contractLogCaptor.getAllValues().stream()
+                .map(ContractLog::getTransactionIndex)
+                .toList();
+        assertThat(indices).containsExactly(0, 1);
     }
 
     private static AccountAmount tokenTransferWithZeroPaddedEvmAlias(byte[] evmAddress, long amount) {

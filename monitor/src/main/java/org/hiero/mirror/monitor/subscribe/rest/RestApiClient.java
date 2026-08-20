@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @CustomLog
 @Named
@@ -51,7 +52,8 @@ public class RestApiClient {
                 .retrieve()
                 .bodyToMono(responseClass)
                 .onErrorResume(Mono::error) // Needed for some reason to avoid onErrorDropped
-                .name("rest");
+                .name("rest")
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     public Flux<NetworkNode> getNodes() {

@@ -71,6 +71,7 @@ class TopicMessageRepositoryTest extends GrpcIntegrationTest {
         TopicMessage topicMessage3 = domainBuilder.topicMessage().block();
 
         TopicMessageFilter filter = TopicMessageFilter.builder()
+                .limit(100)
                 .startTime(topicMessage2.getConsensusTimestamp())
                 .topicId(topicMessage1.getTopicId())
                 .build();
@@ -85,6 +86,7 @@ class TopicMessageRepositoryTest extends GrpcIntegrationTest {
         TopicMessage topicMessage3 = domainBuilder.topicMessage().block();
 
         TopicMessageFilter filter = TopicMessageFilter.builder()
+                .limit(100)
                 .startTime(topicMessage1.getConsensusTimestamp())
                 .endTime(topicMessage3.getConsensusTimestamp())
                 .topicId(topicMessage1.getTopicId())

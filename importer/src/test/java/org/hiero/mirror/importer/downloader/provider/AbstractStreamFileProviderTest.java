@@ -53,7 +53,6 @@ abstract class AbstractStreamFileProviderTest {
 
     protected BlockProperties blockProperties;
     protected String blockStreamTargetRootPath;
-    protected CommonProperties commonProperties = CommonProperties.getInstance();
     protected ImporterProperties importerProperties;
     protected CommonDownloaderProperties properties;
     protected StreamFileProvider streamFileProvider;
@@ -65,6 +64,7 @@ abstract class AbstractStreamFileProviderTest {
         importerProperties.setDataPath(dataPath);
         blockProperties = new BlockProperties(importerProperties);
         properties = new CommonDownloaderProperties(importerProperties);
+        properties.setTimeout(Duration.ofSeconds(30L));
     }
 
     protected FileCopier createDefaultFileCopier() {
@@ -449,8 +449,7 @@ abstract class AbstractStreamFileProviderTest {
 
     @SneakyThrows
     protected StreamFileData streamFileData(ConsensusNode node, String filename) {
-        // regex to match file path with either ACCOUNT_ID or NODE_ID path style
-        String regex = String.format("^.*(%s|/\\d+/%d)/(.*/)?%s$", node.getNodeAccountId(), node.getNodeId(), filename);
+        String regex = String.format("^.*%s/(.*/)?%s$", node.getNodeAccountId(), filename);
         var pattern = Pattern.compile(regex);
         PathMatcher pathMatcher = path -> pattern.matcher(path.toString()).matches();
         var visitor = AccumulatorPathVisitor.withLongCounters(
@@ -461,9 +460,8 @@ abstract class AbstractStreamFileProviderTest {
                 .map(Path::toString)
                 // also ignore sidecar folder because StreamFilename adds it for sidecar files
                 .filter(p -> !Objects.equals(p, SIDECAR_FOLDER) && !Objects.equals(p, filename))
-                // ignore path segments until hit recordstreams or the network name
-                .dropWhile(
-                        p -> !Objects.equals(p, "recordstreams") && !Objects.equals(p, importerProperties.getNetwork()))
+                // ignore path segments until hit recordstreams
+                .dropWhile(p -> !Objects.equals(p, "recordstreams"))
                 .collect(Collectors.joining(providerPathSeparator()));
         var streamFilename = StreamFilename.from(basePath, filename, providerPathSeparator());
         var bytes = FileUtils.readFileToByteArray(filePath.toFile());

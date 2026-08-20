@@ -4,17 +4,13 @@ package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import org.apache.commons.lang3.StringUtils;
 import org.assertj.core.data.Offset;
+import org.hiero.mirror.importer.util.LongListConverter;
 import org.jspecify.annotations.NullUnmarked;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.converter.ArgumentConversionException;
 import org.junit.jupiter.params.converter.ConvertWith;
-import org.junit.jupiter.params.converter.SimpleArgumentConverter;
 import org.junit.jupiter.params.provider.CsvSource;
 
 @NullUnmarked
@@ -24,7 +20,6 @@ final class LatencyTest {
 
     @ParameterizedTest
     @CsvSource(textBlock = """
-            '', 0
             '1,2', 1.3
             '1,2,3', 1.8
             '1,2,3,4', 2.5
@@ -43,6 +38,19 @@ final class LatencyTest {
     }
 
     @Test
+    void fresh() {
+        // given
+        final var latency = new Latency();
+
+        // when
+        latency.record(10);
+
+        // then
+        assertThat(latency.isFresh(Long.MAX_VALUE)).isTrue();
+        assertThat(latency.isFresh(-1)).isFalse();
+    }
+
+    @Test
     void stale() {
         // given
         final var latency = new Latency();
@@ -58,6 +66,7 @@ final class LatencyTest {
 
         // then
         assertThat(latency.getAverage()).isCloseTo(Double.MAX_VALUE, OFFSET);
+        assertThat(latency.isFresh(Long.MAX_VALUE)).isFalse();
 
         // when
         latency.record(20);
@@ -66,21 +75,13 @@ final class LatencyTest {
         assertThat(latency.getAverage()).isCloseTo(13, OFFSET);
     }
 
-    private static class LongListConverter extends SimpleArgumentConverter {
+    @Test
+    void uninitialized() {
+        // given
+        final var latency = new Latency();
 
-        @Override
-        protected Object convert(Object source, Class<?> targetType) throws ArgumentConversionException {
-            if (source == null) {
-                return Collections.emptyList();
-            }
-
-            if (source instanceof String input) {
-                return Arrays.stream(StringUtils.split(input, ','))
-                        .map(Long::valueOf)
-                        .toList();
-            }
-
-            return Collections.emptyList();
-        }
+        // when, then
+        assertThat(latency.getAverage()).isCloseTo(Double.MAX_VALUE, OFFSET);
+        assertThat(latency.isFresh(Long.MAX_VALUE)).isFalse();
     }
 }

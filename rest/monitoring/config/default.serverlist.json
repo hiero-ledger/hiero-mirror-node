@@ -44,7 +44,7 @@
     "contractId": "",
     "enabled": true,
     "intervalMultiplier": 1,
-    "limit": 2,
+    "limit": 15,
     "logs": true
   },
   "network": {

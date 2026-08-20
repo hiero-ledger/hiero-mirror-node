@@ -1507,9 +1507,13 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         entityProperties.getPersist().setTransactionHashTypes(Set.of(includedTransactionType));
         var consensusSubmitMessage = domainBuilder
                 .transaction()
-                .customize(t -> t.type(TransactionType.CONSENSUSSUBMITMESSAGE.getProtoId()))
+                .customize(t -> t.type(TransactionType.CONSENSUSSUBMITMESSAGE.getProtoId())
+                        .parentConsensusTimestamp(null))
                 .get();
-        var cryptoTransfer = domainBuilder.transaction().get();
+        var cryptoTransfer = domainBuilder
+                .transaction()
+                .customize(t -> t.parentConsensusTimestamp(null))
+                .get();
         var expectedTransactionHashes = Stream.of(consensusSubmitMessage, cryptoTransfer)
                 .filter(t -> t.getType() == includedTransactionType.getProtoId())
                 .map(Transaction::toTransactionHash)
@@ -1523,6 +1527,31 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // then
         assertThat(transactionRepository.findAll()).containsExactlyInAnyOrder(consensusSubmitMessage, cryptoTransfer);
         assertThat(transactionHashRepository.findAll()).containsExactlyInAnyOrderElementsOf(expectedTransactionHashes);
+    }
+
+    @Test
+    void onTransactionConsensusSubmitMessageWithSyntheticLogPersistsHash() {
+        var withLog = domainBuilder
+                .transaction()
+                .customize(t -> t.type(TransactionType.CONSENSUSSUBMITMESSAGE.getProtoId())
+                        .parentConsensusTimestamp(null))
+                .get();
+        var contractLog = domainBuilder
+                .contractLog()
+                .customize(c -> c.consensusTimestamp(withLog.getConsensusTimestamp()))
+                .get();
+        var withoutLog = domainBuilder
+                .transaction()
+                .customize(t -> t.type(TransactionType.CONSENSUSSUBMITMESSAGE.getProtoId())
+                        .parentConsensusTimestamp(null))
+                .get();
+
+        sqlEntityListener.onContractLog(contractLog);
+        sqlEntityListener.onTransaction(withLog);
+        sqlEntityListener.onTransaction(withoutLog);
+        completeFileAndCommit();
+
+        assertThat(transactionHashRepository.findAll()).containsExactly(withLog.toTransactionHash());
     }
 
     @Test
@@ -2466,6 +2495,27 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // then
         assertThat(tokenRepository.findAll()).containsExactlyInAnyOrder(token1, token2);
         assertThat(findHistory(Token.class)).isEmpty();
+    }
+
+    @Test
+    void onTokenEmptyTreasury() {
+        // given
+        final var tokenCreate = domainBuilder.token().get();
+        final var tokenUpdate = tokenCreate.toBuilder()
+                .timestampRange(Range.atLeast(tokenCreate.getTimestampLower() + 1))
+                .treasuryAccountId(EntityId.EMPTY)
+                .build();
+        final var tokenMerged = tokenUpdate.toBuilder()
+                .treasuryAccountId(tokenCreate.getTreasuryAccountId())
+                .build();
+
+        // when
+        sqlEntityListener.onToken(tokenCreate);
+        sqlEntityListener.onToken(tokenUpdate);
+        completeFileAndCommit();
+
+        // then
+        assertThat(tokenRepository.findAll()).containsExactly(tokenMerged);
     }
 
     @Test

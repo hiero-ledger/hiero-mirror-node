@@ -61,13 +61,6 @@ public class CommonDownloaderProperties {
     @Min(2L)
     private long maxSize = 50L * 1024L * 1024L; // 50 MiB
 
-    @DurationMin(seconds = 1)
-    @NotNull
-    private Duration pathRefreshInterval = Duration.ofSeconds(10L);
-
-    @NotNull
-    private PathType pathType = PathType.ACCOUNT_ID;
-
     private String pathPrefix = "";
 
     private String region = "us-east-1";
@@ -75,12 +68,11 @@ public class CommonDownloaderProperties {
     private String secretKey;
 
     @NotNull
-    @Valid
-    private List<StreamSourceProperties> sources = new ArrayList<>();
+    private List<@Valid StreamSourceProperties> sources = new ArrayList<>();
 
     @DurationMin(seconds = 1)
     @NotNull
-    private Duration timeout = Duration.ofSeconds(30L);
+    private Duration timeout = Duration.ofSeconds(5L);
 
     @PostConstruct
     public void init() {
@@ -134,12 +126,6 @@ public class CommonDownloaderProperties {
         return allowAnonymousAccess != null
                 ? allowAnonymousAccess
                 : HederaNetwork.isAllowAnonymousAccess(importerProperties.getNetwork());
-    }
-
-    public enum PathType {
-        ACCOUNT_ID,
-        AUTO,
-        NODE_ID
     }
 
     @Getter

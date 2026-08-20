@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ContextExtension;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,33 @@ class ContractCallContextTest {
                 .build());
 
         assertThat(context.getTimestamp()).isEmpty();
+    }
+
+    @Test
+    void testGetTimestampOpcodeReplay() {
+        var context = ContractCallContext.get();
+        var timestamp = 123L;
+        context.setTimestamp(Optional.of(timestamp));
+        context.setOpcodeContext(null);
+        context.setCallServiceParameters(ContractExecutionParameters.builder()
+                .block(BlockType.LATEST)
+                .callData(new byte[0])
+                .gasPrice(0L)
+                .build());
+
+        assertThat(context.getTimestamp()).isEmpty();
+
+        context.setOpcodeContext(new org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext(
+                new org.hiero.mirror.web3.service.model.OpcodeRequest(
+                        new org.hiero.mirror.web3.common.TransactionIdParameter(
+                                org.hiero.mirror.common.domain.entity.EntityId.EMPTY, java.time.Instant.EPOCH),
+                        false,
+                        false,
+                        false),
+                0,
+                new OpcodesProperties()));
+
+        assertThat(context.getTimestamp()).isEqualTo(Optional.of(timestamp));
     }
 
     @Test

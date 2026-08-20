@@ -40,6 +40,9 @@ public class SystemEntity {
     private final EntityId hapiPermissionFile = toEntityId(122L);
 
     @Getter(lazy = true)
+    private final EntityId hederaTokenServiceContract = toEntityId(359L);
+
+    @Getter(lazy = true)
     private final EntityId networkPropertyFile = toEntityId(121L);
 
     @Getter(lazy = true)

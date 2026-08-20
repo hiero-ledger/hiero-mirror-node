@@ -51,6 +51,9 @@ public class EvmProperties {
             ImmutableSortedMap.of(0L, EVM_VERSION);
 
     @Positive
+    private long blockHashWindow = 256L;
+
+    @Positive
     private long entityNumBuffer = 1000L;
 
     @Positive
@@ -64,6 +67,11 @@ public class EvmProperties {
 
     @Min(1)
     private int maxFileAttempts = 12;
+
+    // Maximum tinybars the simulated Ethereum transaction payer will cover for gas.
+    @Min(1)
+    @Max(100_000_000_000_000L)
+    private long maxGasAllowance = 100_000_000_000_000L;
 
     @NotNull
     @Min(21_000L)
@@ -87,6 +95,8 @@ public class EvmProperties {
     // Contains the user defined properties to pass to the consensus node library
     @NotNull
     private Map<String, String> properties = new HashMap<>();
+
+    private boolean sharedWritableState = false;
 
     // Contains the default properties merged with the user defined properties to pass to the consensus node library
     @EqualsAndHashCode.Exclude
@@ -153,6 +163,7 @@ public class EvmProperties {
 
     private Map<String, String> buildTransactionProperties() {
         var props = new HashMap<String, String>();
+        props.put("blockStream.writerMode", "FILE");
         props.put("contracts.chainId", network.getChainId().toBigInteger().toString());
         props.put("contracts.evm.version", "v" + evmVersion.major() + "." + evmVersion.minor());
         props.put("contracts.maxRefundPercentOfGasLimit", String.valueOf(maxGasRefundPercentage));

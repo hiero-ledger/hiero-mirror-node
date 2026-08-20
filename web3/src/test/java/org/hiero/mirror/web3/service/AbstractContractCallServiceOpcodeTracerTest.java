@@ -10,8 +10,8 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERRO
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.longValueOf;
-import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.OPTIONS;
 import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.gasComparator;
+import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.options;
 import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.toHumanReadableMessage;
 import static org.mockito.Mockito.doAnswer;
 
@@ -121,7 +121,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     @SneakyThrows
     protected void verifyThrowingOpcodeTracerCall(
             final ContractDebugParameters params, final ContractFunctionProviderRecord function) {
-        final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, OPTIONS));
+        final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, options()));
         assertThat(actual.transactionProcessingResult().isSuccessful()).isFalse();
         assertThat(actual.transactionProcessingResult()
                         .functionResult()
@@ -137,7 +137,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     }
 
     protected void verifySuccessfulOpcodeTracerCall(final ContractDebugParameters params) {
-        final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, OPTIONS));
+        final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, options()));
         final var expected = new OpcodesProcessingResult(
                 resultCaptor,
                 params.getReceiver(),
@@ -192,20 +192,21 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
 
     private OpcodesResponse expectedOpcodesResponse(
             final EvmTransactionResult result, final List<Opcode> opcodes, final Address recipient) {
+        final var timestamp = Optional.of(paramsCaptor.getValue().getConsensusTimestamp());
         return new OpcodesResponse()
                 .address(
                         recipient.equals(Address.ZERO)
                                 ? Address.ZERO.toHexString()
                                 : commonEntityAccessor
-                                        .get(recipient, Optional.empty())
+                                        .get(recipient, timestamp)
                                         .map(this::entityAddress)
                                         .map(Address::toHexString)
-                                        .orElse(null))
+                                        .orElse(Address.ZERO.toHexString()))
                 .contractId(
                         recipient.equals(Address.ZERO)
                                 ? null
                                 : commonEntityAccessor
-                                        .get(recipient, Optional.empty())
+                                        .get(recipient, timestamp)
                                         .map(Entity::toEntityId)
                                         .map(EntityId::toString)
                                         .orElse(null))

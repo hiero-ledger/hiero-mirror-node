@@ -24,7 +24,7 @@ const getUrl = (server, path, query = undefined) => {
     endpoint = server.replace('https', 'http');
   }
 
-  let url = `${endpoint}${apiPrefix}${path}`;
+  let url = `${endpoint}${path.startsWith(apiPrefix) ? '' : apiPrefix}${path}`;
   if (query) {
     const qs = querystring.stringify(query);
     if (qs !== '') {

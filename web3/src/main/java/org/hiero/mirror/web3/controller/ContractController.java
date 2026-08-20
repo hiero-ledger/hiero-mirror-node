@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
@@ -19,10 +20,12 @@ import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hyperledger.besu.datatypes.Address;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @CustomLog
 @RequestMapping("/api/v1/contracts")
@@ -32,19 +35,24 @@ class ContractController {
 
     private final ContractExecutionService contractExecutionService;
     private final EvmProperties evmProperties;
+    private final Web3Properties web3Properties;
     private final ThrottleManager throttleManager;
 
     @PostMapping(value = "/call")
     ContractCallResponse call(@RequestBody @Valid ContractCallRequest request, HttpServletResponse response) {
-        try {
-            throttleManager.throttle(request);
-            validateContractMaxGasLimit(request);
+        validateContractMaxGasLimit(request);
+        final var params = constructServiceParameters(request);
 
-            final var params = constructServiceParameters(request);
+        if (!params.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
+        }
+
+        throttleManager.throttle(request);
+        try {
             final var result = contractExecutionService.processCall(params);
             return new ContractCallResponse(result);
-        } catch (InvalidParametersException e) {
-            // The validation failed, but no processing occurred so restore the consumed tokens.
+        } catch (IllegalArgumentException | InvalidParametersException e) {
+            // Processing did not complete, so restore the consumed tokens.
             throttleManager.restore(request.getGas());
             throw e;
         }
@@ -85,6 +93,7 @@ class ContractController {
                 .isStatic(isStaticCall)
                 .receiver(receiver)
                 .sender(fromAddress)
+                .stateOverrides(request.getStateOverrides())
                 .value(request.getValue())
                 .build();
     }

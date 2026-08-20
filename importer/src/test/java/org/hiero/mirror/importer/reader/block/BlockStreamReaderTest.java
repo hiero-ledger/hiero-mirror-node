@@ -4,8 +4,14 @@ package org.hiero.mirror.importer.reader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOCK_NUMBER;
 import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.EXPECTED_RECORD_FILES;
 import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.readWrappedRecordBlocks;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.input.protoc.EventHeader;
@@ -25,12 +31,14 @@ import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.assertj.core.util.Lists;
@@ -47,97 +55,121 @@ import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 import org.hiero.mirror.importer.reader.block.record.CompositeRecordFileItemReader;
+import org.jspecify.annotations.NullUnmarked;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@Slf4j
+@ExtendWith(MockitoExtension.class)
+@NullUnmarked
 public final class BlockStreamReaderTest {
 
     public static final List<BlockFile> TEST_BLOCK_FILES = List.of(
             BlockFile.builder()
-                    .consensusStart(1770842061390565879L)
-                    .consensusEnd(1770842061390565879L)
-                    .count(1L)
+                    .consensusStart(1786397166192063895L)
+                    .consensusEnd(1786397175204714106L)
+                    .count(759L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "8b98440b3fa8b13d9d7f82e92ceb246c9707cf6c11ba38997385e7ea1097f06d752736753fe40b9ff06096211a11066a")
-                    .index(7L)
-                    .name(BlockFile.getFilename(7, true))
+                            "3c421aac698b04fccdd46acad435125ea53af91fe404e787c8ccf4c23a11aa69190468ea1dd797af11d75335f4840749")
+                    .index(0L)
+                    .name(BlockFile.getFilename(0, true))
                     .previousHash(
-                            "e11e44567f5ca4ae23b75467b75d83c8880d0888f5c4154f08b8f221bf269b2e4f3f1686e8dcb9694beaaf287313b0fb")
+                            "bec021b4f368e3069134e012c2b4307083d3a9bdd206e24e5f0d86e13d6636655933ec2b413465966817a9c208a11717")
                     .rawHash(
                             Hex.decode(
-                                    "8b98440b3fa8b13d9d7f82e92ceb246c9707cf6c11ba38997385e7ea1097f06d752736753fe40b9ff06096211a11066a"))
+                                    "3c421aac698b04fccdd46acad435125ea53af91fe404e787c8ccf4c23a11aa69190468ea1dd797af11d75335f4840749"))
                     .rawPreviousHash(
                             Hex.decode(
-                                    "e11e44567f5ca4ae23b75467b75d83c8880d0888f5c4154f08b8f221bf269b2e4f3f1686e8dcb9694beaaf287313b0fb"))
-                    .roundStart(179L)
-                    .roundEnd(213L)
+                                    "bec021b4f368e3069134e012c2b4307083d3a9bdd206e24e5f0d86e13d6636655933ec2b413465966817a9c208a11717"))
+                    .roundStart(2L)
+                    .roundEnd(140L)
                     .version(BlockStreamReader.VERSION)
                     .build(),
             BlockFile.builder()
-                    .consensusStart(1770842063775529380L)
-                    .consensusEnd(1770842063775529380L)
-                    .count(1L)
+                    .consensusStart(1786397175389467104L)
+                    .consensusEnd(1786397177290324104L)
+                    .count(75L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "78ef36dc7c7cb57cfb212966b768a0fbc9b0f5045574c6b3bfa0cccdcef9401b7edda1cf05ada60dedd7e0b435e0d81d")
-                    .index(8L)
-                    .name(BlockFile.getFilename(8, true))
+                            "832ec52cfbb467c8d1373afefe682b27132c31ebaf4846fbb6e437c582ce09ea2a59c1d7aadc26827e969efc79a45c89")
+                    .index(1L)
+                    .name(BlockFile.getFilename(1, true))
                     .previousHash(
-                            "8b98440b3fa8b13d9d7f82e92ceb246c9707cf6c11ba38997385e7ea1097f06d752736753fe40b9ff06096211a11066a")
+                            "3c421aac698b04fccdd46acad435125ea53af91fe404e787c8ccf4c23a11aa69190468ea1dd797af11d75335f4840749")
                     .rawHash(
                             Hex.decode(
-                                    "78ef36dc7c7cb57cfb212966b768a0fbc9b0f5045574c6b3bfa0cccdcef9401b7edda1cf05ada60dedd7e0b435e0d81d"))
+                                    "832ec52cfbb467c8d1373afefe682b27132c31ebaf4846fbb6e437c582ce09ea2a59c1d7aadc26827e969efc79a45c89"))
                     .rawPreviousHash(
                             Hex.decode(
-                                    "8b98440b3fa8b13d9d7f82e92ceb246c9707cf6c11ba38997385e7ea1097f06d752736753fe40b9ff06096211a11066a"))
-                    .roundStart(214L)
-                    .roundEnd(248L)
+                                    "3c421aac698b04fccdd46acad435125ea53af91fe404e787c8ccf4c23a11aa69190468ea1dd797af11d75335f4840749"))
+                    .roundStart(141L)
+                    .roundEnd(172L)
                     .version(BlockStreamReader.VERSION)
                     .build(),
             BlockFile.builder()
-                    .consensusStart(1770842078844243554L)
-                    .consensusEnd(1770842078844243554L)
-                    .count(0L)
+                    .consensusStart(1786398539530723104L)
+                    .consensusEnd(1786398541005567104L)
+                    .count(25L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "c61a2439f0754008932fe10155ce2c61b32457d6ec30e632a71eafeeef44b1df64b1cfd966c6325c0c5766431f5441f9")
-                    .index(16L)
-                    .name(BlockFile.getFilename(16, true))
+                            "1c417b370965dd85e274b568694d0a5b3325b39f619a840df0161339864a30e389ba3aec4c7763236d2f4c505d031921")
+                    .index(5L)
+                    .name(BlockFile.getFilename(5, true))
                     .previousHash(
-                            "449c52f8efe0e284aac3a0961efb2403a7337a0fc519c1b5231a07ce6d3eae9e9b9d8809782202a5fd40048ddd533098")
+                            "e313796875ef100613684c0ee4ef1a80a13b73aa9c97f5f9592f9b9a25c798b33e36e397fa0e1456b17cee2155b8d7ac")
                     .rawHash(
                             Hex.decode(
-                                    "c61a2439f0754008932fe10155ce2c61b32457d6ec30e632a71eafeeef44b1df64b1cfd966c6325c0c5766431f5441f9"))
+                                    "1c417b370965dd85e274b568694d0a5b3325b39f619a840df0161339864a30e389ba3aec4c7763236d2f4c505d031921"))
                     .rawPreviousHash(
                             Hex.decode(
-                                    "449c52f8efe0e284aac3a0961efb2403a7337a0fc519c1b5231a07ce6d3eae9e9b9d8809782202a5fd40048ddd533098"))
-                    .roundStart(493L)
-                    .roundEnd(527L)
+                                    "e313796875ef100613684c0ee4ef1a80a13b73aa9c97f5f9592f9b9a25c798b33e36e397fa0e1456b17cee2155b8d7ac"))
+                    .roundStart(282L)
+                    .roundEnd(315L)
                     .version(BlockStreamReader.VERSION)
                     .build());
 
     private static final RecursiveComparisonConfiguration RECORD_FILE_COMPARISON_CONFIG =
             RecursiveComparisonConfiguration.builder()
                     .withIgnoredFields(
-                            "bytes", "loadStart", "items", "previousWrappedRecordBlockHash", "wrappedRecordBlockHash")
+                            "bytes",
+                            "loadStart",
+                            "initialState",
+                            "items",
+                            "previousWrappedRecordBlockHash",
+                            "receiptsRoot",
+                            "wrappedRecordBlockHash")
                     .build();
 
-    private final BlockStreamReader reader =
-            new BlockStreamReaderImpl(new CompositeRecordFileItemReader(new SidecarProperties()));
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
 
-    @ParameterizedTest(name = "{0}")
+    @Mock
+    private InitialStateReader initialStateReader;
+
+    private BlockStreamReader reader;
+
+    @BeforeEach
+    void setup() {
+        reader = new BlockStreamReaderImpl(
+                initialStateReader, new CompositeRecordFileItemReader(new SidecarProperties()));
+    }
+
+    @ParameterizedTest(name = "{1}")
     @MethodSource("readTestArgumentsProvider")
     void read(BlockStream blockStream, BlockFile expected) {
         var actual = reader.read(blockStream);
         assertThat(actual)
                 .usingRecursiveComparison()
-                .ignoringFields("blockHeader", "blockProof", "items")
+                .ignoringFields("blockHeader", "blockProof", "items", "lastLedgerIdPublicationTransaction")
                 .isEqualTo(expected);
         var expectedPreviousItems = new ArrayList<>(actual.getItems());
         if (!expectedPreviousItems.isEmpty()) {
@@ -157,6 +189,14 @@ public final class BlockStreamReaderTest {
     @MethodSource("readWrappedRecordBlocksArgumentsProvider")
     void readWrappedRecordBlock(final Block block, final long blockNumber, final RecordFile expectedRecordFile) {
         // given
+        final RecordFile.InitialState expectedInitialState;
+        if (blockNumber == GENESIS_BLOCK_NUMBER) {
+            expectedInitialState = new RecordFile.InitialState();
+            doReturn(expectedInitialState).when(initialStateReader).read(any());
+        } else {
+            expectedInitialState = null;
+        }
+
         final var blockStream = createBlockStream(block, null, BlockFile.getFilename(blockNumber, true));
         final byte[] bytes = Objects.requireNonNull(blockStream.bytes());
         final long loadStart = blockStream.loadStart();
@@ -173,11 +213,13 @@ public final class BlockStreamReaderTest {
                 .satisfies(b -> assertThat(b.getHash()).isNotNull(), b -> assertThat(b.getPreviousHash())
                         .isNotNull())
                 .extracting(BlockFile::getRecordFile)
+                .returns(expectedInitialState, RecordFile::getInitialState)
                 .returns(loadStart, RecordFile::getLoadStart)
                 .returns(blockFile.getRawPreviousHash(), RecordFile::getPreviousWrappedRecordBlockHash)
                 .returns(blockFile.getRawHash(), RecordFile::getWrappedRecordBlockHash)
                 .usingRecursiveComparison(RECORD_FILE_COMPARISON_CONFIG)
                 .isEqualTo(expectedRecordFile);
+        verify(initialStateReader, times(blockNumber == 0 ? 1 : 0)).read(any());
     }
 
     @Test
@@ -302,6 +344,7 @@ public final class BlockStreamReaderTest {
         List<BlockTransaction> expected =
                 Lists.newArrayList(null, null, null, items.get(5), null, items.get(6), null, null);
         assertThat(batchInnerLinks).containsExactlyElementsOf(expected);
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -414,6 +457,7 @@ public final class BlockStreamReaderTest {
 
         // Verify nextInBatch is not used for hook executions
         assertThat(items).extracting(BlockTransaction::getNextInBatch).containsOnlyNulls();
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -455,6 +499,7 @@ public final class BlockStreamReaderTest {
         // then
         assertThat(actual.getLastLedgerIdPublicationTransaction())
                 .returns(DomainUtils.timestampInNanosMax(secondTimestamp), BlockTransaction::getConsensusTimestamp);
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -511,6 +556,7 @@ public final class BlockStreamReaderTest {
                         items -> assertThat(items.getLast())
                                 .returns(lastTransactionTimestamp, BlockTransaction::getConsensusTimestamp)
                                 .returns(null, BlockTransaction::getParentConsensusTimestamp));
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -546,6 +592,7 @@ public final class BlockStreamReaderTest {
                 .containsExactly(
                         DomainUtils.timestampInNanosMax(firstTimestamp),
                         DomainUtils.timestampInNanosMax(secondTimestamp));
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -570,6 +617,52 @@ public final class BlockStreamReaderTest {
                 .returns(0L, BlockFile::getCount)
                 .returns(List.of(), BlockFile::getItems)
                 .returns(BlockStreamReader.VERSION, BlockFile::getVersion);
+        verifyNoInteractions(initialStateReader);
+    }
+
+    @Test
+    void outOfOrderConsensusTimestampsUseMinMax() {
+        // given - three transactions with out-of-order timestamps: middle < first < last
+        // first transaction gets a later timestamp
+        var firstTimestamp =
+                Timestamp.newBuilder().setSeconds(1000).setNanos(500).build();
+        // second transaction gets an earlier timestamp (out of order)
+        var secondTimestamp =
+                Timestamp.newBuilder().setSeconds(1000).setNanos(100).build();
+        // third transaction gets the latest timestamp
+        var thirdTimestamp =
+                Timestamp.newBuilder().setSeconds(1000).setNanos(900).build();
+
+        var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(roundHeader())
+                .addItems(eventHeader())
+                .addItems(signedTransaction())
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(firstTimestamp)
+                        .build()))
+                .addItems(signedTransaction())
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(secondTimestamp)
+                        .build()))
+                .addItems(signedTransaction())
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(thirdTimestamp)
+                        .build()))
+                .addItems(blockFooter())
+                .addItems(blockProof())
+                .build();
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
+
+        // when
+        var blockFile = reader.read(blockStream);
+
+        // then - consensusStart is the minimum (second tx), consensusEnd is the maximum (third tx)
+        assertThat(blockFile)
+                .returns(DomainUtils.timestampInNanosMax(secondTimestamp), BlockFile::getConsensusStart)
+                .returns(DomainUtils.timestampInNanosMax(thirdTimestamp), BlockFile::getConsensusEnd)
+                .returns(3L, BlockFile::getCount);
+        verifyNoInteractions(initialStateReader);
     }
 
     @ParameterizedTest
@@ -634,6 +727,7 @@ public final class BlockStreamReaderTest {
                 .hasSize(1)
                 .first()
                 .returns(transactionTimestamp, StateChanges::getConsensusTimestamp);
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -658,6 +752,7 @@ public final class BlockStreamReaderTest {
         assertThat(blockFile)
                 .extracting(BlockFile::getItems, InstanceOfAssertFactories.collection(BlockTransaction.class))
                 .isEmpty();
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -670,6 +765,7 @@ public final class BlockStreamReaderTest {
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block footer");
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -679,6 +775,7 @@ public final class BlockStreamReaderTest {
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block header");
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -691,6 +788,7 @@ public final class BlockStreamReaderTest {
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block proof");
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -711,6 +809,7 @@ public final class BlockStreamReaderTest {
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Failed to deserialize Transaction");
+        verifyNoInteractions(initialStateReader);
     }
 
     @Test
@@ -734,6 +833,7 @@ public final class BlockStreamReaderTest {
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Failed to deserialize Transaction");
+        verifyNoInteractions(initialStateReader);
     }
 
     private BlockItem batchTransaction() {
@@ -759,7 +859,10 @@ public final class BlockStreamReaderTest {
 
     private BlockItem blockFooter() {
         return BlockItem.newBuilder()
-                .setBlockFooter(BlockFooter.getDefaultInstance())
+                .setBlockFooter(BlockFooter.newBuilder()
+                        .setPreviousBlockRootHash(recordItemBuilder.bytes(48))
+                        .setRootHashOfAllBlockHashesTree(recordItemBuilder.bytes(48))
+                        .setStartOfBlockStateRootHash(recordItemBuilder.bytes(48)))
                 .build();
     }
 
@@ -822,7 +925,8 @@ public final class BlockStreamReaderTest {
         }
 
         long blockCompleteTime = System.currentTimeMillis();
-        return new BlockStream(block.getItemsList(), blockCompleteTime, bytes, filename, blockCompleteTime - 1000);
+        return new BlockStream(
+                block.getItemsList(), blockCompleteTime, bytes, filename, blockCompleteTime - 1000, bytes.length);
     }
 
     @SneakyThrows
@@ -843,7 +947,7 @@ public final class BlockStreamReaderTest {
             blockFile.setBytes(bytes);
             blockFile.setLoadStart(blockStream.loadStart());
             blockFile.setSize(bytes.length);
-            return Arguments.of(blockStream, blockFile);
+            return Arguments.of(blockStream, Named.of(blockFile.getName(), blockFile));
         });
     }
 

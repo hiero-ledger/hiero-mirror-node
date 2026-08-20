@@ -6,6 +6,8 @@ set -euo pipefail
 
 source ./utils/utils.sh
 
+requireCommand gcloud
+
 normalizeGceSnapshotName() {
   local s="$1" max=63
 
@@ -647,6 +649,12 @@ function replaceDisks() {
     log "Waiting for disks to be created"
     wait
 
+    # minio-sg-snapshot etc. have no pvcName - skip them or the jq below wouldn't work
+    CITUS_DISK_SNAPSHOTS="$(jq '[.[] | select(any(.description[]?; has("pvcName")))]' <<<"${SNAPSHOTS_TO_RESTORE}")"
+    CITUS_COORDINATOR_NODE_COUNT="$(jq '[.[] | select(any(.description[]?; .pvcName | test("coord")))] | length' <<<"${CITUS_DISK_SNAPSHOTS}")"
+    CITUS_WORKER_NODE_COUNT="$(jq '[.[] | select((any(.description[]?; .pvcName | test("coord"))) | not)] | length' <<<"${CITUS_DISK_SNAPSHOTS}")"
+    export CITUS_COORDINATOR_NODE_COUNT CITUS_WORKER_NODE_COUNT
+    log "Citus totals from snapshots: coordinator=${CITUS_COORDINATOR_NODE_COUNT}, worker=${CITUS_WORKER_NODE_COUNT}"
     resizeCitusNodePools 1
   else
     log "REPLACE_DISKS is set to false. Skipping disk replacement"
@@ -740,8 +748,7 @@ function patchCitusClusters() {
     shardedClusterName=$(echo "${pvcsInNamespace}" | jq -r '.[0].citusCluster.shardedClusterName')
 
     configureShardedClusterResource "${pvcsInNamespace}" "${shardedClusterName}" "${namespace}"
-    unpauseCitus "${namespace}" "true"
-    updateStackgresCreds "${shardedClusterName}" "${namespace}"
+    unpauseCitus "${namespace}" "true" "true"
     routeTraffic "${namespace}"
   done
 }

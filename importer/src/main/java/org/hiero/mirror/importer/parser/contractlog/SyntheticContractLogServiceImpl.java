@@ -44,14 +44,14 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
 
         long consensusTimestamp;
         int logIndex;
-        int transactionIndex;
+        Integer transactionIndex;
         EntityId contractId;
         EntityId rootContractId;
         byte[] transactionHash;
         if (contractRelatedParentRecordItem != null) {
             consensusTimestamp = contractRelatedParentRecordItem.getConsensusTimestamp();
             logIndex = contractRelatedParentRecordItem.getAndIncrementLogIndex();
-            transactionIndex = contractRelatedParentRecordItem.getTransactionIndex();
+            transactionIndex = contractRelatedParentRecordItem.getEvmTransactionIndex();
             transactionHash = contractRelatedParentRecordItem.getTransactionHash();
 
             final var parentTransactionRecord = contractRelatedParentRecordItem.getTransactionRecord();
@@ -67,7 +67,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         } else {
             consensusTimestamp = recordItem.getConsensusTimestamp();
             logIndex = recordItem.getAndIncrementLogIndex();
-            transactionIndex = recordItem.getTransactionIndex();
+            transactionIndex = recordItem.claimEvmTransactionIndex();
             transactionHash = recordItem.getTransactionHash();
             contractId = log.getEntityId();
             rootContractId = log.getEntityId();
@@ -88,7 +88,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         contractLog.setTopic3(log.getTopic3());
         contractLog.setTransactionIndex(transactionIndex);
         contractLog.setTransactionHash(transactionHash);
-        contractLog.setSynthetic(log instanceof TransferContractLog);
+        contractLog.setSynthetic(true);
 
         // The current recordItem should always be set, so that we know which RecordItem/ContractResult bloom to update.
         // This field is set to be only used to calculate bloom aggregation for the RecordItem/ContractResult.

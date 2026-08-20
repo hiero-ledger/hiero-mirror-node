@@ -2,7 +2,7 @@
 
 import extend from 'extend';
 import fs from 'fs';
-import yaml from 'js-yaml';
+import {load as yamlLoad} from 'js-yaml';
 import parseDuration from 'parse-duration';
 import path from 'path';
 import {fileURLToPath} from 'url';
@@ -16,6 +16,7 @@ global.logger = new Logger();
 const config = {};
 const defaultConfigName = 'application';
 const hederaPrefix = 'hedera';
+const hexadecimal = /^(0x)[0-9a-f]+$/i;
 const hieroPrefix = 'hiero';
 let loaded = false;
 
@@ -37,7 +38,7 @@ function load(configPath, configName) {
 
 function loadYaml(configFile) {
   try {
-    const doc = yaml.load(fs.readFileSync(configFile, 'utf8'));
+    const doc = yamlLoad(fs.readFileSync(configFile, 'utf8'));
     logger.info(`Loaded configuration source: ${configFile}`);
     extend(true, config, doc);
 
@@ -97,9 +98,12 @@ function setConfigValue(propertyPath, value) {
           found = true;
           break;
         } else {
-          current[k] = convertType(value);
+          const convertedValue = convertType(value);
+          current[k] = convertedValue;
           const cleanedValue =
-            property.includes('password') || property.includes('key') || property.includes('uri') ? '******' : value;
+            property.includes('password') || property.includes('key') || property.includes('uri')
+              ? '******'
+              : convertedValue;
           logger.info(`Override config with environment variable ${propertyPath}=${cleanedValue}`);
           return;
         }
@@ -113,7 +117,7 @@ function setConfigValue(propertyPath, value) {
 }
 
 function convertType(value) {
-  if (value !== null && value !== '' && !isNaN(value)) {
+  if (value !== null && value !== '' && !isNaN(value) && !hexadecimal.test(value)) {
     return +value;
   } else if (value === 'true' || value === 'false') {
     return value === 'true';

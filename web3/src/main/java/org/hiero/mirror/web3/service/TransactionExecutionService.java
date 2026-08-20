@@ -58,7 +58,7 @@ import org.hyperledger.besu.datatypes.Address;
 public class TransactionExecutionService {
 
     private static final Duration TRANSACTION_DURATION = new Duration(15);
-    private static final long CONTRACT_CREATE_TX_FEES = 1_000_000_000L;
+    private static final long TX_FEE = 100_000_000_000L;
     private static final String SENDER_NOT_FOUND = "Sender account not found.";
 
     private final AccountReadableKVState accountReadableKVState;
@@ -77,6 +77,7 @@ public class TransactionExecutionService {
                 configuration.getConfigData(EntitiesConfig.class).maxLifetime();
         final var executor = transactionExecutorFactory.get();
 
+        final var gas = boundedGas(estimatedGas);
         final TransactionBody transactionBody;
         final EvmTransactionResult result;
         if (params instanceof ContractDebugParameters debugParams
@@ -84,9 +85,9 @@ public class TransactionExecutionService {
                 && debugParams.getEthereumData().length > 0) {
             transactionBody = buildEthereumTransactionBody(debugParams);
         } else if (isContractCreate) {
-            transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
+            transactionBody = buildContractCreateTransactionBody(params, gas, maxLifetime);
         } else {
-            transactionBody = buildContractCallTransactionBody(params, estimatedGas);
+            transactionBody = buildContractCallTransactionBody(params, gas);
         }
 
         final var singleTransactionRecords = executor.execute(transactionBody, Instant.now(), getOperationTracers());
@@ -178,7 +179,7 @@ public class TransactionExecutionService {
                         .gas(estimatedGas)
                         .autoRenewPeriod(new Duration(maxLifetime))
                         .build())
-                .transactionFee(CONTRACT_CREATE_TX_FEES)
+                .transactionFee(TX_FEE)
                 .build();
     }
 
@@ -196,6 +197,7 @@ public class TransactionExecutionService {
                         .amount(params.getValue()) // tinybars sent to contract
                         .gas(estimatedGas)
                         .build())
+                .transactionFee(TX_FEE)
                 .build();
     }
 
@@ -203,9 +205,9 @@ public class TransactionExecutionService {
         final var txnBody = defaultTransactionBodyBuilder(params)
                 .ethereumTransaction(EthereumTransactionBody.newBuilder()
                         .ethereumData(Bytes.wrap(params.getEthereumData()))
-                        .maxGasAllowance(Long.MAX_VALUE)
+                        .maxGasAllowance(evmProperties.getMaxGasAllowance())
                         .build())
-                .transactionFee(CONTRACT_CREATE_TX_FEES)
+                .transactionFee(TX_FEE)
                 .build();
 
         patchSenderNonce(params);
@@ -319,5 +321,11 @@ public class TransactionExecutionService {
         }
 
         return childTransactionErrors != null ? childTransactionErrors : List.of();
+    }
+
+    // The estimated gas can't really surpass the max gas limit, but for the sake of some scanning tools, we add this
+    // check.
+    private long boundedGas(final long estimatedGas) {
+        return Math.min(estimatedGas, evmProperties.getMaxGasLimit());
     }
 }

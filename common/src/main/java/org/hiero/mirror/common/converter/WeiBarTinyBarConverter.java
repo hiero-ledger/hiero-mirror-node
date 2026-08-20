@@ -15,13 +15,13 @@ public class WeiBarTinyBarConverter {
     public static final Long WEIBARS_TO_TINYBARS = 10_000_000_000L;
     public static final BigInteger WEIBARS_TO_TINYBARS_BIGINT = BigInteger.valueOf(WEIBARS_TO_TINYBARS);
 
-    public byte[] convert(byte[] weibar, boolean signed) {
+    public BigInteger convert(byte[] weibar, boolean signed) {
         if (ArrayUtils.isEmpty(weibar)) {
-            return weibar;
+            return null;
         }
 
         var bigInteger = signed ? new BigInteger(weibar) : new BigInteger(1, weibar);
-        return bigInteger.divide(WEIBARS_TO_TINYBARS_BIGINT).toByteArray();
+        return bigInteger.divide(WEIBARS_TO_TINYBARS_BIGINT);
     }
 
     public Long convert(Long weibar) {

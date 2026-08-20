@@ -54,14 +54,23 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
         }
 
         final var options = context.getOpcodeContext();
+
+        // Once the recorded-opcode cap is reached, subsequent opcodes are dropped, so skip the (potentially expensive)
+        // memory/stack/storage capture and opcode allocation and just account for the dropped opcode. The EVM still has
+        // to execute the remaining operations (this is a re-execution), but we avoid all per-opcode tracing work.
+        if (options.isAtCapacity()) {
+            // Cap reached: count the dropped opcode (and append the truncation marker once) without building it.
+            options.addOpcodes(null);
+            return;
+        }
+
         final var memory = captureMemory(frame, options);
         final var stack = captureStack(frame, options);
         final var storage = captureStorage(frame, options, context);
 
         final var revertReasonBytes = frame.getRevertReason().orElse(null);
         final var reason = revertReasonBytes != null ? revertReasonBytes.toHexString() : null;
-        context.getOpcodeContext()
-                .addOpcodes(createOpcode(frame, operationResult.getGasCost(), reason, stack, memory, storage));
+        options.addOpcodes(createOpcode(frame, operationResult.getGasCost(), reason, stack, memory, storage));
     }
 
     @Override
@@ -117,7 +126,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
 
         final var frameRevertReason = frame.getRevertReason().orElse(null);
         final var revertReason = isCallToSystemContracts(frame, systemContracts)
-                ? getRevertReasonFromContractActions(context)
+                ? getRevertReasonFromContractActions(context, frame.getDepth())
                 : (frameRevertReason != null ? frameRevertReason.toHexString() : null);
 
         context.getOpcodeContext()

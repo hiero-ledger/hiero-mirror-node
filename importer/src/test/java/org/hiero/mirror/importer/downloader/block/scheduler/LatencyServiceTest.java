@@ -6,15 +6,17 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.google.common.collect.Range;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
@@ -46,7 +48,10 @@ final class LatencyServiceTest {
     void schedule() {
         // given
         final var blockNode = mock(BlockNode.class);
-        doReturn(Range.closed(0L, Long.MAX_VALUE)).when(blockNode).getBlockRange();
+        // the node has every block
+        doAnswer(invocation -> Optional.of(invocation.<Long>getArgument(0)))
+                .when(blockNode)
+                .getBlockOrEarliest(anyLong());
         doReturn(0L).when(cutoverService).getNextBlockNumber();
 
         // when
@@ -58,7 +63,7 @@ final class LatencyServiceTest {
                 .pollInterval(Duration.ofMillis(10))
                 .untilAsserted(() -> verify(blockNode).streamBlocks(anyLong(), anyLong(), any(), any()));
         verify(cutoverService).getNextBlockNumber();
-        verify(blockNode).getBlockRange();
+        verify(blockNode).getBlockOrEarliest(anyLong());
 
         // when schedule again
         latencyService.schedule();
@@ -67,7 +72,7 @@ final class LatencyServiceTest {
         await().atMost(Duration.ofSeconds(2))
                 .pollInterval(Duration.ofMillis(10))
                 .untilAsserted(() -> verify(cutoverService, times(2)).getNextBlockNumber());
-        verify(blockNode).getBlockRange();
+        verify(blockNode).getBlockOrEarliest(anyLong());
         verify(blockNode).streamBlocks(anyLong(), anyLong(), any(), any());
 
         // when next block advances
@@ -78,7 +83,7 @@ final class LatencyServiceTest {
         await().atMost(Duration.ofSeconds(2))
                 .pollInterval(Duration.ofMillis(10))
                 .untilAsserted(() -> verify(cutoverService, times(3)).getNextBlockNumber());
-        verify(blockNode, times(2)).getBlockRange();
+        verify(blockNode, times(2)).getBlockOrEarliest(anyLong());
         verify(blockNode, times(2)).streamBlocks(anyLong(), anyLong(), any(), any());
     }
 
@@ -86,7 +91,7 @@ final class LatencyServiceTest {
     void scheduleBlockNodeSkipped() {
         // given
         final var blockNode = mock(BlockNode.class);
-        doReturn(Range.closedOpen(0L, 1L)).when(blockNode).getBlockRange();
+        doReturn(Optional.empty()).when(blockNode).getBlockOrEarliest(anyLong());
         final var latency = mock(Latency.class);
         doReturn(latency).when(blockNode).getLatency();
         doReturn(1L).when(cutoverService).getNextBlockNumber();
@@ -99,8 +104,31 @@ final class LatencyServiceTest {
                     latencyService.schedule();
                     verify(latency, atLeast(1)).markStale();
                 });
-        verify(blockNode, atLeast(3)).getBlockRange();
+        verify(blockNode, atLeast(3)).getBlockOrEarliest(anyLong());
         verify(blockNode, never()).streamBlocks(anyLong(), anyLong(), any(), any());
         verify(cutoverService, atLeast(3)).getNextBlockNumber();
+    }
+
+    @Test
+    void scheduleStreamBlocksFailureMarksStale() {
+        // given the node claims to have the block but actually fails to stream it, repeatedly
+        final var blockNode = mock(BlockNode.class);
+        doAnswer(invocation -> Optional.of(invocation.<Long>getArgument(0)))
+                .when(blockNode)
+                .getBlockOrEarliest(anyLong());
+        doThrow(new RuntimeException("stream failed")).when(blockNode).streamBlocks(anyLong(), anyLong(), any(), any());
+        final var latency = mock(Latency.class);
+        doReturn(latency).when(blockNode).getLatency();
+        doReturn(1L).when(cutoverService).getNextBlockNumber();
+
+        // when, then: a real streaming failure is a stronger signal, marked stale sooner
+        latencyService.setNodes(List.of(blockNode));
+        await().atMost(Duration.ofSeconds(2))
+                .pollInterval(Duration.ofMillis(10))
+                .untilAsserted(() -> {
+                    latencyService.schedule();
+                    verify(latency, atLeast(1)).markStale();
+                });
+        verify(blockNode, atLeast(2)).streamBlocks(anyLong(), anyLong(), any(), any());
     }
 }

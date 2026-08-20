@@ -3,6 +3,10 @@
 hiero:
   mirror:
     web3:
+      api:
+        opcodes:
+          request:
+            timeout: 10s
       db:
         host: 127.0.0.1
         name: mirror_node
@@ -43,7 +47,7 @@ server:
   forward-headers-strategy: framework # Enable spring ForwardedHeaderFilter
   http2:
     enabled: true
-  max-http-request-header-size: 2KB
+  max-http-request-header-size: 3KB
   port: 8545
   shutdown: graceful
   tomcat:

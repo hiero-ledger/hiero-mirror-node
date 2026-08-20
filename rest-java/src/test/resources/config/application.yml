@@ -3,6 +3,7 @@
 hiero:
   mirror:
     restJava:
+      network: MAINNET
       query:
         maxFileAttempts: 2
 spring:

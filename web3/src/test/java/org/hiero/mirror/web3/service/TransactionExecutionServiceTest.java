@@ -37,6 +37,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
@@ -44,6 +45,7 @@ import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
+import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
@@ -61,6 +63,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -92,6 +95,8 @@ class TransactionExecutionServiceTest {
 
     private TransactionExecutionService transactionExecutionService;
 
+    private EvmProperties evmProperties;
+
     private static Stream<Arguments> provideCallData() {
         return Stream.of(Arguments.of(HEX_PREFIX), Arguments.of(NestedCalls.BINARY));
     }
@@ -100,11 +105,12 @@ class TransactionExecutionServiceTest {
     void setUp() {
         var commonProperties = new CommonProperties();
         var systemEntity = new SystemEntity(commonProperties);
+        evmProperties = new EvmProperties();
         transactionExecutionService = new TransactionExecutionService(
                 accountReadableKVState,
                 aliasesReadableKVState,
                 commonProperties,
-                new EvmProperties(),
+                evmProperties,
                 opcodeActionTracer,
                 mirrorOperationActionTracer,
                 systemEntity,
@@ -120,7 +126,8 @@ class TransactionExecutionServiceTest {
                 .setOpcodeContext(new OpcodeContext(
                         new OpcodeRequest(
                                 new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), true, false, false),
-                        0));
+                        0,
+                        new OpcodesProperties()));
 
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
@@ -324,7 +331,8 @@ class TransactionExecutionServiceTest {
                 .setOpcodeContext(new OpcodeContext(
                         new OpcodeRequest(
                                 new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), true, false, false),
-                        0));
+                        0,
+                        new OpcodesProperties()));
 
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
@@ -358,6 +366,90 @@ class TransactionExecutionServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.gasUsed()).isEqualTo(DEFAULT_GAS);
         assertThat(result.functionResult().errorMessage()).isNull();
+    }
+
+    @Nested
+    class MaxGasAllowanceLimits {
+
+        @Test
+        void roundsDownContractCallGasToMaxGasLimit() {
+            var bodyCaptor = ArgumentCaptor.forClass(TransactionBody.class);
+            when(transactionExecutor.execute(
+                            bodyCaptor.capture(), any(Instant.class), any(ActionSidecarContentTracer[].class)))
+                    .thenReturn(List.of(successfulCallRecord()));
+
+            var params = buildServiceParams(false, HEX_PREFIX, Address.ZERO);
+            transactionExecutionService.execute(params, evmProperties.getMaxGasLimit() + 1);
+
+            assertThat(bodyCaptor.getValue().contractCall().gas()).isEqualTo(evmProperties.getMaxGasLimit());
+        }
+
+        @Test
+        void roundsDownContractCreateGasToMaxGasLimit() {
+            var bodyCaptor = ArgumentCaptor.forClass(TransactionBody.class);
+            when(transactionExecutor.execute(
+                            bodyCaptor.capture(), any(Instant.class), any(ActionSidecarContentTracer[].class)))
+                    .thenReturn(List.of(successfulCreateRecord()));
+
+            var params = buildServiceParams(true, HEX_PREFIX, Address.ZERO);
+            transactionExecutionService.execute(params, evmProperties.getMaxGasLimit() + 1);
+
+            assertThat(bodyCaptor.getValue().contractCreateInstance().gas()).isEqualTo(evmProperties.getMaxGasLimit());
+        }
+
+        @Test
+        void usesConfiguredMaxGasAllowanceForEthereumTransaction() {
+            var bodyCaptor = ArgumentCaptor.forClass(TransactionBody.class);
+            when(transactionExecutor.execute(
+                            bodyCaptor.capture(), any(Instant.class), any(ActionSidecarContentTracer[].class)))
+                    .thenReturn(List.of(successfulCallRecord()));
+
+            var params = ContractDebugParameters.builder()
+                    .block(BlockType.LATEST)
+                    .callData(hexToBytes(HEX_PREFIX))
+                    .consensusTimestamp(1L)
+                    .ethereumData(new byte[] {0x01})
+                    .gas(DEFAULT_GAS)
+                    .receiver(Address.fromHexString("0x1234"))
+                    .sender(Address.ZERO)
+                    .value(0)
+                    .build();
+
+            transactionExecutionService.execute(params, Long.MAX_VALUE);
+
+            var allowance = bodyCaptor.getValue().ethereumTransaction().maxGasAllowance();
+            assertThat(allowance).isEqualTo(evmProperties.getMaxGasAllowance()).isNotEqualTo(Long.MAX_VALUE);
+        }
+
+        private SingleTransactionRecord successfulCallRecord() {
+            var functionResult =
+                    ContractFunctionResult.newBuilder().gasUsed(DEFAULT_GAS).build();
+            var receipt = TransactionReceipt.newBuilder().status(SUCCESS).build();
+            var record = TransactionRecord.newBuilder()
+                    .receipt(receipt)
+                    .contractCallResult(functionResult)
+                    .build();
+            return new SingleTransactionRecord(
+                    Transaction.newBuilder().build(),
+                    record,
+                    List.of(),
+                    new SingleTransactionRecord.TransactionOutputs(null));
+        }
+
+        private SingleTransactionRecord successfulCreateRecord() {
+            var functionResult =
+                    ContractFunctionResult.newBuilder().gasUsed(DEFAULT_GAS).build();
+            var receipt = TransactionReceipt.newBuilder().status(SUCCESS).build();
+            var record = TransactionRecord.newBuilder()
+                    .receipt(receipt)
+                    .contractCreateResult(functionResult)
+                    .build();
+            return new SingleTransactionRecord(
+                    Transaction.newBuilder().build(),
+                    record,
+                    List.of(),
+                    new SingleTransactionRecord.TransactionOutputs(null));
+        }
     }
 
     private CallServiceParameters buildServiceParams(

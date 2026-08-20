@@ -27,13 +27,12 @@ public class PerformanceProperties {
     private ParserPerformanceProperties parser = new ParserPerformanceProperties();
 
     @NotNull
-    @Valid
-    private Map<String, List<PerformanceScenarioProperties>> scenarios = Map.of();
+    private Map<String, List<@Valid PerformanceScenarioProperties>> scenarios = Map.of();
 
     public enum SubType {
         STANDARD,
         TOKEN_TRANSFER,
-        CONTRACT_CALL;
+        CONTRACT_CALL
     }
 
     @Data
@@ -77,8 +76,7 @@ public class PerformanceProperties {
         private boolean enabled = true;
 
         @NotNull
-        @Valid
-        private List<PerformanceTransactionProperties> transactions = List.of();
+        private List<@Valid PerformanceTransactionProperties> transactions = List.of();
 
         public String getDescription() {
             if (description != null) {

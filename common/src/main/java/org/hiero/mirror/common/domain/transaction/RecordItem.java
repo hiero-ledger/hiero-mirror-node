@@ -69,6 +69,7 @@ public class RecordItem implements StreamItem {
     @ToString.Include
     private final long consensusTimestamp;
 
+    private final Long accountEthereumNonce;
     private final boolean blockstream;
     private final Long congestionPricingMultiplier;
     private final RecordItem hookParent;
@@ -87,6 +88,15 @@ public class RecordItem implements StreamItem {
     @EqualsAndHashCode.Exclude
     @NonFinal
     private AtomicInteger logIndex;
+
+    @Setter
+    @EqualsAndHashCode.Exclude
+    @NonFinal
+    private AtomicInteger evmTransactionIndexCounter;
+
+    @NonFinal
+    @Setter
+    private Integer evmTransactionIndex;
 
     @NonFinal
     @Setter
@@ -137,6 +147,7 @@ public class RecordItem implements StreamItem {
     }
 
     public void addContractTransaction(EntityId entityId) {
+        // Explicitly allow empty entity IDs for failed transactions
         if (contractTransactionPredicate == null || !contractTransactionPredicate.test(entityId)) {
             return;
         }
@@ -165,6 +176,10 @@ public class RecordItem implements StreamItem {
     }
 
     private void doAddEntityId(final EntityId entityId, final Predicate<EntityId> predicate) {
+        if (EntityId.isEmpty(entityId)) {
+            return;
+        }
+
         if (!predicate.test(entityId)) {
             return;
         }
@@ -194,6 +209,17 @@ public class RecordItem implements StreamItem {
             logIndex = new AtomicInteger(0);
         }
         return logIndex.getAndIncrement();
+    }
+
+    public int claimEvmTransactionIndex() {
+        if (evmTransactionIndex != null) {
+            return evmTransactionIndex;
+        }
+        if (evmTransactionIndexCounter == null) {
+            evmTransactionIndexCounter = new AtomicInteger(0);
+        }
+        evmTransactionIndex = evmTransactionIndexCounter.getAndIncrement();
+        return evmTransactionIndex;
     }
 
     public int getTransactionStatus() {
@@ -278,7 +304,7 @@ public class RecordItem implements StreamItem {
         return null;
     }
 
-    private boolean hasContractResult() {
+    public boolean hasContractResult() {
         return transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult();
     }
 

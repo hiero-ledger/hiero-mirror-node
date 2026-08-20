@@ -3,14 +3,18 @@
 package org.hiero.mirror.web3.viewmodel;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import java.util.List;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
-import org.hiero.mirror.web3.convert.BlockTypeDeserializer;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.validation.Hex;
@@ -20,12 +24,14 @@ import org.hiero.mirror.web3.validation.Hex;
 public class ContractCallRequest {
 
     public static final int ADDRESS_LENGTH = 40;
+    public static final long DATA_MAX_LENGTH = 300_000L;
 
     @JsonSerialize(using = BlockTypeSerializer.class)
-    @JsonDeserialize(using = BlockTypeDeserializer.class)
+    @JsonSetter(nulls = Nulls.SKIP)
+    @NotNull
     private BlockType block = BlockType.LATEST;
 
-    @Hex
+    @Hex(maxLength = DATA_MAX_LENGTH)
     private String data;
 
     private boolean estimate;
@@ -41,6 +47,10 @@ public class ContractCallRequest {
 
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH, allowEmpty = true)
     private String to;
+
+    @JsonProperty("state_overrides")
+    @NotNull
+    private List<@Valid StateOverride> stateOverrides = List.of();
 
     @PositiveOrZero
     private long value;

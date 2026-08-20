@@ -7,7 +7,7 @@ import range from 'lodash/range';
 
 import BaseController from './baseController';
 import Bound from './bound';
-import {getResponseLimit} from '../config';
+import config, {getResponseLimit} from '../config';
 import {
   filterKeys,
   httpStatusCodes,
@@ -25,6 +25,7 @@ import {
   ContractState,
   ContractStateChange,
   Entity,
+  FileData,
   TransactionResult,
   TransactionType,
 } from '../model';
@@ -73,6 +74,10 @@ const contractCreateType = Number(TransactionType.getProtoId('CONTRACTCREATEINST
 const ethereumTransactionType = Number(TransactionType.getProtoId('ETHEREUMTRANSACTION'));
 const duplicateTransactionResult = TransactionResult.getProtoId('DUPLICATE_TRANSACTION');
 const wrongNonceTransactionResult = TransactionResult.getProtoId('WRONG_NONCE');
+const nonEvmTransactionResultsCondition = `${ContractResult.getFullName(
+  ContractResult.TRANSACTION_RESULT
+)} not in (${wrongNonceTransactionResult}, ${duplicateTransactionResult})`;
+const nonNullTransactionIndexCondition = `${ContractResult.getFullName(ContractResult.TRANSACTION_INDEX)} is not null`;
 
 /**
  * Extracts the sql where clause, params, order and limit values to be used from the provided contract query
@@ -532,8 +537,12 @@ class ContractController extends BaseController {
       conditions.push(`${ContractResult.getFullName(ContractResult.TRANSACTION_NONCE)} = 0`);
     }
 
+    const includeSynthetic =
+      config.query.syntheticContractResults && contractId === undefined && contractResultFromInValues.length === 0;
+
     return {
       conditions,
+      includeSynthetic,
       params,
       order,
       limit,
@@ -876,6 +885,9 @@ class ContractController extends BaseController {
       return;
     }
 
+    conditions.push(nonEvmTransactionResultsCondition);
+    conditions.push(nonNullTransactionIndexCondition);
+
     const rows = await ContractService.getContractResultsByIdAndFilters(conditions, params, order, limit);
     if (rows.length === 0) {
       return;
@@ -1045,7 +1057,12 @@ class ContractController extends BaseController {
       logger.debug(`getContractResultsByTimestamp returning partial content`);
     }
 
-    this.setContractResultsResponse(
+    let gasPrice = null;
+    if (ethTransaction == null) {
+      gasPrice = await FileDataService.getGasPrice(timestamp);
+    }
+
+    await this.setContractResultsResponse(
       res,
       contractResults[0],
       recordFile,
@@ -1053,7 +1070,8 @@ class ContractController extends BaseController {
       contractLogs,
       contractStateChanges,
       fileData,
-      convertToHbar
+      convertToHbar,
+      gasPrice
     );
   };
 
@@ -1080,12 +1098,23 @@ class ContractController extends BaseController {
       },
     };
     res.locals[responseDataLabel] = response;
-    const {conditions, params, order, limit, skip, next} = await this.extractContractResultsByIdQuery(filters);
+    const {conditions, includeSynthetic, params, order, limit, skip, next} = await this.extractContractResultsByIdQuery(
+      filters
+    );
     if (skip) {
       return;
     }
 
-    const rows = await ContractService.getContractResultsByIdAndFilters(conditions, params, order, limit);
+    conditions.push(nonEvmTransactionResultsCondition);
+    conditions.push(nonNullTransactionIndexCondition);
+
+    const rows = await ContractService.getContractResultsByIdAndFilters(
+      conditions,
+      params,
+      order,
+      limit,
+      includeSynthetic
+    );
     if (rows.length === 0) {
       return;
     }
@@ -1101,18 +1130,29 @@ class ContractController extends BaseController {
       RecordFileService.getRecordFileBlockDetailsFromTimestampArray(timestamps),
     ]);
 
-    response.results = rows.map(
-      (row) =>
-        new ContractResultDetailsViewModel(
-          row,
-          recordFileMap.get(row.consensusTimestamp),
-          ethereumTransactionMap.get(row.consensusTimestamp),
-          null,
-          null,
-          null,
-          convertToHbar
-        )
-    );
+    const nonEthTimestamps = [];
+    rows.forEach((row) => {
+      if (ethereumTransactionMap.get(row.consensusTimestamp) == null) {
+        nonEthTimestamps.push(row.consensusTimestamp);
+      }
+    });
+    const gasPriceMap = await FileDataService.getGasPrices(nonEthTimestamps);
+
+    response.results = rows.map((row) => {
+      const ethTransaction = ethereumTransactionMap.get(row.consensusTimestamp);
+      const gasPrice = ethTransaction == null ? gasPriceMap.get(row.consensusTimestamp) ?? null : null;
+
+      return new ContractResultDetailsViewModel(
+        row,
+        recordFileMap.get(row.consensusTimestamp),
+        ethTransaction,
+        null,
+        null,
+        null,
+        convertToHbar,
+        gasPrice
+      );
+    });
 
     const isEnd = response.results.length !== limit;
     const lastRow = last(response.results);
@@ -1200,7 +1240,12 @@ class ContractController extends BaseController {
       fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
     }
 
-    this.setContractResultsResponse(
+    let gasPrice = null;
+    if (ethTransaction == null) {
+      gasPrice = await FileDataService.getGasPrice(contractResult.consensusTimestamp);
+    }
+
+    await this.setContractResultsResponse(
       res,
       contractResult,
       recordFile,
@@ -1208,7 +1253,8 @@ class ContractController extends BaseController {
       contractLogs,
       contractStateChanges,
       fileData,
-      convertToHbar
+      convertToHbar,
+      gasPrice
     );
 
     if (isNil(contractResult.callResult)) {
@@ -1314,7 +1360,8 @@ class ContractController extends BaseController {
     contractLogs,
     contractStateChanges,
     fileData,
-    convertToHbar = true
+    convertToHbar,
+    gasPrice
   ) => {
     res.locals[responseDataLabel] = new ContractResultDetailsViewModel(
       contractResult,
@@ -1323,7 +1370,8 @@ class ContractController extends BaseController {
       contractLogs,
       contractStateChanges,
       fileData,
-      convertToHbar
+      convertToHbar,
+      gasPrice
     );
   };
 }

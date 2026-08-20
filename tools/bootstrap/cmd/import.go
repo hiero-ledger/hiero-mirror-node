@@ -94,14 +94,14 @@ func runImport(ctx context.Context, dataDir, manifestFile string, maxJobs int) e
 			}
 		}
 	}
-	if err := os.WriteFile(pidFile, []byte(fmt.Sprintf("%d\n", os.Getpid())), 0644); err != nil {
+	if err := os.WriteFile(pidFile, []byte(fmt.Sprintf("%d\n", os.Getpid())), 0600); err != nil {
 		return fmt.Errorf("failed to write PID file: %w", err)
 	}
 	defer os.Remove(pidFile)
 
 	// Setup file logging (bootstrap.log) in bootstrap-logs/ directory
 	logFilePath := filepath.Join(logsDir, "bootstrap.log")
-	logFile, err = os.OpenFile(logFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	logFile, err = os.OpenFile(logFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %w", err)
 	}
@@ -476,7 +476,7 @@ func runImport(ctx context.Context, dataDir, manifestFile string, maxJobs int) e
 			discrepancyCount++
 			// Lazy file creation on first discrepancy, then append
 			if discrepancyFile == nil {
-				discrepancyFile, _ = os.OpenFile(discrepancyPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+				discrepancyFile, _ = os.OpenFile(discrepancyPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 			}
 			if discrepancyFile != nil {
 				fmt.Fprintf(discrepancyFile, "%s: expected=%d, imported=%d\n",

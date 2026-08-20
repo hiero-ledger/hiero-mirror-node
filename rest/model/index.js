@@ -18,6 +18,7 @@ import Entity from './entity';
 import EntityTransaction from './entityTransaction.js';
 import EthereumTransaction from './ethereumTransaction';
 import ExchangeRate from './exchangeRate';
+import FeeSchedule from './feeSchedule';
 import FileData from './fileData';
 import FixedFee from './fixedFee';
 import Nft from './nft';
@@ -63,6 +64,7 @@ export {
   EntityTransaction,
   EthereumTransaction,
   ExchangeRate,
+  FeeSchedule,
   FileData,
   FixedFee,
   Nft,
