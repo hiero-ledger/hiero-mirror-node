@@ -68,3 +68,9 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
+
+protobuf {
+    plugins {
+        id("grpc")
+    }
+}
