@@ -30,6 +30,7 @@ import com.hedera.node.app.workflows.standalone.TransactionExecutor;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -163,6 +164,44 @@ class TransactionExecutionServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.gasUsed()).isEqualTo(DEFAULT_GAS);
         assertThat(result.functionResult().errorMessage()).isNull();
+    }
+
+    @Test
+    void executeUsesHistoricalGetConsensusTimeFromContext() {
+        final var consensusNanos = 1_786_518_658_483_854_104L;
+        final var params = ContractExecutionParameters.builder()
+                .block(BlockType.of("39156482"))
+                .callData(new byte[0])
+                .callType(CallType.ETH_CALL)
+                .gas(DEFAULT_GAS)
+                .gasPrice(0L)
+                .isEstimate(false)
+                .isStatic(true)
+                .receiver(Address.fromHexString("0x1234"))
+                .sender(Address.ZERO)
+                .value(0)
+                .build();
+        ContractCallContext.get().setCallServiceParameters(params);
+        ContractCallContext.get().setTimestamp(Optional.of(consensusNanos));
+
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+        when(transactionReceipt.status()).thenReturn(SUCCESS);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
+        when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+
+        final var consensusTime = ArgumentCaptor.forClass(Instant.class);
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), consensusTime.capture(), any(ActionSidecarContentTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord));
+
+        transactionExecutionService.execute(params, DEFAULT_GAS);
+
+        assertThat(consensusTime.getValue()).isEqualTo(Instant.ofEpochSecond(0L, consensusNanos));
     }
 
     @ParameterizedTest
