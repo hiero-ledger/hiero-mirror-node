@@ -145,7 +145,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 15
     env:
-      K8S_VERSION: v1.35.6
+      K8S_VERSION: v1.35.7
       MPDEV: "/home/runner/mpdev"
     steps:
       - name: Harden Runner

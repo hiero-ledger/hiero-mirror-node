@@ -539,17 +539,6 @@ function getHpaMaxReplicas() {
 }
 
 function copyLiveEnvironment() {
-  ensureContext K8S_SOURCE_CLUSTER_CONTEXT
-  changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
-
-  local node_count
-  node_count=$(kubectl get nodes -o json | jq '.items | length')
-
-  if [[ "${REQUIRE_CLEAN_TARGET}" == "true" && "${node_count}" -ne 0 ]]; then
-    log "There are GKE nodes in the target cluster, please teardown the environment before any restore attempt."
-    exit 1
-  fi
-
   snapshotSource
   restoreTarget
   deleteSnapshots
@@ -617,6 +606,22 @@ function teardownResources() {
   cleanupCommonChartResources
   scaleDownNodePools
   removeCitusDisks
+}
+
+function tryRequireCleanTarget() {
+  if [[ "${REQUIRE_CLEAN_TARGET}" != "true" ]]; then
+    return 0
+  fi
+
+  ensureContext K8S_SOURCE_CLUSTER_CONTEXT
+  changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
+
+  local node_count
+  node_count=$(kubectl get nodes -o json | jq '.items | length')
+  if [[ "${node_count}" -ne 0 ]]; then
+    log "There are GKE nodes in the target cluster, please teardown the environment before any restore attempt."
+    exit 1
+  fi
 }
 
 function waitForK6PodExecution() {
@@ -729,6 +734,8 @@ function createEnvironment() {
   if [[ "${RESTORE}" != "true" ]]; then
     return 0
   fi
+
+  tryRequireCleanTarget
 
   if [[ "${USE_STATIC_SNAPSHOT}" == "true" ]]; then
     export WAIT_FOR_STREAM_SYNC="false"

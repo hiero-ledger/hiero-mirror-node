@@ -47,8 +47,9 @@ runs:
       uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
       with:
         cluster_name: test
-        kubectl_version: v1.34.0
-        version: v0.31.0
+        kubectl_version: v1.35.5
+        node_image: "kindest/node:v1.35.5@sha256:ce977ae6d65918d0b58a5f8b5e940429c2ce42fa3a5619ec2bbc60b949c0ac95"
+        version: v0.32.0
 
     - name: Install JDK
       uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
