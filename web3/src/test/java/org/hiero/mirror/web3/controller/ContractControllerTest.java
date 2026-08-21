@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.controller;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.web3.utils.Constants.DEBUG_CALL_URI;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,6 +35,9 @@ import java.util.Map;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
+import org.hiero.mirror.rest.model.ActionResponse;
+import org.hiero.mirror.rest.model.TracerResponse;
+import org.hiero.mirror.rest.model.TracerResponseActions;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
@@ -42,7 +46,9 @@ import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
+import org.hiero.mirror.web3.service.ContractDebugService;
 import org.hiero.mirror.web3.service.ContractExecutionService;
+import org.hiero.mirror.web3.service.model.TraceRequest;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -50,6 +56,7 @@ import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hiero.mirror.web3.viewmodel.StorageEntry;
+import org.hiero.mirror.web3.viewmodel.TracerConfig;
 import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls;
 import org.hiero.mirror.web3.web3j.generated.ERCTestContractHistorical;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
@@ -88,6 +95,9 @@ final class ContractControllerTest {
     private static final String CALL_URI = "/api/v1/contracts/call";
     private static final long THROTTLE_GAS_LIMIT = 10_000_000L;
     private static final String INIT_CODE = "0x6080604052348015600f57600080fd5b5060a38061001c6000396000f3";
+    private static final TracerResponse TRACE_RESPONSE = new TracerResponse()
+            .actions(new TracerResponseActions()
+                    .calls(List.of(new ActionResponse().from("0x01").to("0x02"))));
 
     @Resource
     private MockMvc mockMvc;
@@ -98,8 +108,14 @@ final class ContractControllerTest {
     @Resource
     private Web3Properties web3Properties;
 
+    @Resource
+    private TracerProperties tracerProperties;
+
     @MockitoBean
     private ContractExecutionService service;
+
+    @MockitoBean
+    private ContractDebugService contractDebugService;
 
     @MockitoBean
     private ThrottleManager throttleManager;
@@ -137,6 +153,14 @@ final class ContractControllerTest {
         headers.forEach(requestBuilder::header);
 
         return mockMvc.perform(requestBuilder);
+    }
+
+    @SneakyThrows
+    private ResultActions contractDebugCall(ContractCallRequest request) {
+        return mockMvc.perform(post(DEBUG_CALL_URI)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(convert(request)));
     }
 
     @ParameterizedTest
@@ -195,6 +219,70 @@ final class ContractControllerTest {
         var request = request();
         doThrow(new ThrottleException("")).when(throttleManager).throttle(request);
         contractCall(request).andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void debugTraceCallSuccess() throws Exception {
+        tracerProperties.setEnabled(true);
+        final var request = request();
+        request.setValue(0);
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSE);
+
+        contractDebugCall(request)
+                .andExpect(status().isOk())
+                .andExpect(content().string(convert(TRACE_RESPONSE)));
+
+        verify(throttleManager).throttleTraceRequest();
+        verify(contractDebugService).processTraceCall(argThat(traceRequest -> !traceRequest.isOnlyTopCall()));
+        tracerProperties.setEnabled(false);
+    }
+
+    @Test
+    void debugTraceCallWithOnlyTopCall() throws Exception {
+        tracerProperties.setEnabled(true);
+        final var request = request();
+        request.setValue(0);
+        request.setTracerConfig(TracerConfig.builder().onlyTopCall(true).build());
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSE);
+
+        contractDebugCall(request).andExpect(status().isOk());
+
+        verify(throttleManager).throttleTraceRequest();
+        verify(contractDebugService).processTraceCall(argThat(TraceRequest::isOnlyTopCall));
+        tracerProperties.setEnabled(false);
+    }
+
+    @Test
+    void debugTraceCallExceedingRateLimit() throws Exception {
+        tracerProperties.setEnabled(true);
+        final var request = request();
+        doThrow(new ThrottleException("")).when(throttleManager).throttleTraceRequest();
+
+        contractDebugCall(request).andExpect(status().isTooManyRequests());
+        verify(contractDebugService, never()).processTraceCall(any());
+        tracerProperties.setEnabled(false);
+    }
+
+    @Test
+    void debugTraceCallRestoresThrottleOnInvalidParameters() throws Exception {
+        tracerProperties.setEnabled(true);
+        final var request = request();
+        request.setValue(0);
+        given(contractDebugService.processTraceCall(any())).willThrow(new InvalidParametersException("invalid"));
+
+        contractDebugCall(request).andExpect(status().isBadRequest());
+        verify(throttleManager).restore(request.getGas());
+        tracerProperties.setEnabled(false);
+    }
+
+    @Test
+    void debugTraceCallNotFoundWhenDisabled() throws Exception {
+        final var request = request();
+        request.setValue(0);
+
+        contractDebugCall(request).andExpect(status().isNotFound());
+        verify(contractDebugService, never()).processTraceCall(any());
+        verify(throttleManager, never()).throttleTraceRequest();
     }
 
     @ValueSource(
@@ -764,6 +852,11 @@ final class ContractControllerTest {
         @Bean
         Web3Properties web3Properties() {
             return new Web3Properties();
+        }
+
+        @Bean
+        TracerProperties tracerProperties() {
+            return new TracerProperties();
         }
 
         @Bean

@@ -15,6 +15,7 @@ import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
+import org.hiero.mirror.web3.viewmodel.TracerConfig;
 
 /**
  * Properties for tracing opcodes
@@ -54,7 +55,7 @@ public final class OpcodeContext {
      * Populated once via {@link #setActions(List)} to avoid repeated filtering and sorting.
      */
     @Setter(AccessLevel.NONE)
-    private Map<Integer, List<ContractAction>> actionsByDepth = new HashMap<>();
+    private final Map<Integer, List<ContractAction>> actionsByDepth = new HashMap<>();
 
     private List<Opcode> opcodes;
 
@@ -63,26 +64,13 @@ public final class OpcodeContext {
      * Used to correlate EVM re-execution system calls with preloaded reverted sidecar actions.
      */
     @Setter(AccessLevel.NONE)
-    private Map<Integer, Integer> precompileCallCountByDepth = new HashMap<>();
+    private final Map<Integer, Integer> precompileCallCountByDepth = new HashMap<>();
 
     private long gasRemaining;
 
     private RootProxyWorldUpdater rootProxyWorldUpdater;
 
-    /**
-     * Include stack information
-     */
-    private final boolean stack;
-
-    /**
-     * Include memory information
-     */
-    private final boolean memory;
-
-    /**
-     * Include storage information
-     */
-    private final boolean storage;
+    private TracerConfig tracerConfig;
 
     private final OpcodesProperties properties;
 
@@ -120,9 +108,12 @@ public final class OpcodeContext {
 
     public OpcodeContext(
             final OpcodeRequest opcodeRequest, final int initialOpcodesCapacity, final OpcodesProperties properties) {
-        this.stack = opcodeRequest.isStack();
-        this.memory = opcodeRequest.isMemory();
-        this.storage = opcodeRequest.isStorage();
+        this.tracerConfig = TracerConfig.builder()
+                .stack(opcodeRequest.isStack())
+                .memory(opcodeRequest.isMemory())
+                .storage(opcodeRequest.isStorage())
+                .tracerType(TracerType.OPCODE)
+                .build();
         this.properties = properties;
         this.opcodes = new ArrayList<>(Math.min(Math.max(initialOpcodesCapacity, 0), MAX_INITIAL_OPCODES_CAPACITY));
     }
