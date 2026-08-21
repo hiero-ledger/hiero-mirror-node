@@ -42,6 +42,7 @@ include:
 | `hiero.mirror.test.acceptance.childAccountBalance`                      | 0.1                                          | The amount of dollars to fund a child account.                                                                    |
 | `hiero.mirror.test.acceptance.createOperatorAccount`                    | true                                         | Whether to create a separate operator account to run the acceptance tests.                                        |
 | `hiero.mirror.test.acceptance.emitBackgroundMessages`                   | false                                        | Whether background topic messages should be emitted.                                                              |
+| `hiero.mirror.test.acceptance.feature.codeDelegationsEnabled`           | false                                        | Whether HIP-1340 EOA code delegations are enabled.                                                                |
 | `hiero.mirror.test.acceptance.feature.contractCallLocalEstimate`        | false                                        | Whether to execute additional ContractCallLocal queries to network node for additional gas estimate validation    |
 | `hiero.mirror.test.acceptance.feature.hooks`                            | false                                        | Whether hooks is enabled.                                                                                         |
 | `hiero.mirror.test.acceptance.feature.hapiMinorVersionWithoutGasRefund` | 69                                           | The HAPI minor version at which no gas refund is enabled.                                                         |
@@ -143,6 +144,7 @@ Test Suite Tags
 Feature based Tags
 
 - `@accounts` - Crypto account focused tests.
+- `@codeDelegations` - HIP-1340 EOA code delegation tests. Requires `hiero.mirror.test.acceptance.feature.codeDelegationsEnabled=true`.
 - `@topic` - Simple HCS focused tests.
 - `@topicmessagesfilter` - HCS focused tests wth varied subscription filters.
 - `@token` - HTS focused tests.
