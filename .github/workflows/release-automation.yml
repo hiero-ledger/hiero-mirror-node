@@ -63,7 +63,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
           ref: main
           token: ${{ secrets.HEDERA_BOT_TOKEN }}
 
@@ -98,6 +97,7 @@ jobs:
             echo "CREATE_PR=true" >> $GITHUB_ENV
             echo "PR_TITLE=Bump versions for v$NEXT_VERSION_SNAPSHOT" >> $GITHUB_ENV
           else
+            git fetch origin ${RELEASE_BRANCH}:${RELEASE_BRANCH}
             git checkout ${RELEASE_BRANCH}
           fi
 
