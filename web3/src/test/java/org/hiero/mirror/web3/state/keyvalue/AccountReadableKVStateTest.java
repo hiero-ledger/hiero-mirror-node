@@ -74,7 +74,7 @@ class AccountReadableKVStateTest {
     private static final long TOKEN_NUM = 1253L;
     private static final AccountID ACCOUNT_ID =
             new AccountID(SHARD, REALM, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, NUM));
-    private static final String LONG_ZERO_ADDRESS = toAddress(NUM).toUnprefixedHexString();
+    private static final String LONG_ZERO_ADDRESS = toAddress(NUM).getBytes().toUnprefixedHexString();
     private static final Bytes LONG_ZERO_ADDRESS_BYTES = Bytes.fromHex(LONG_ZERO_ADDRESS);
     private static final AccountID ACCOUNT_ID_TOKEN =
             new AccountID(SHARD, REALM, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, TOKEN_NUM));
@@ -680,7 +680,8 @@ class AccountReadableKVStateTest {
     @Test
     void whenAccountMissingAndStateOverridePresentCreatesSyntheticAccount() {
         final var missingAccount = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 4001L));
-        final var missingAccountAddress = toAddress(missingAccount.accountNum()).toUnprefixedHexString();
+        final var missingAccountAddress =
+                toAddress(missingAccount.accountNum()).getBytes().toUnprefixedHexString();
         final var missingAccountBytes = Bytes.fromHex(missingAccountAddress);
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(missingAccount, Optional.empty())).thenReturn(Optional.empty());

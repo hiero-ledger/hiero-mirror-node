@@ -18,7 +18,7 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.40.0")
-    set("consensusNodeVersion", "0.76.1")
+    set("consensusNodeVersion", "0.77.0-rc.7")
     set("grpc-java.version", "1.83.1") // Temporary until next Spring Boot
     set("httpclient5.version", "5.6.2") // Temporary until next Spring Boot
     set("httpcore5.version", "5.4.3") // Temporary until next Spring Boot
@@ -82,9 +82,10 @@ dependencies {
         api("org.gaul:s3proxy:4.0.0")
         api("org.graalvm.nativeimage:svm:25.0.4")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
-        api("org.hyperledger.besu:secp256k1:0.8.2")
+        api("org.hyperledger.besu.internal:besu-crypto-algorithms:$besuVersion")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
         api("org.hyperledger.besu:evm:$besuVersion")
+        api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")

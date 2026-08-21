@@ -91,6 +91,8 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
                 .autoRenewSeconds(Objects.requireNonNullElse(entity.getAutoRenewPeriod(), DEFAULT_AUTO_RENEW_PERIOD))
                 .contractKvPairsNumber(getStorageKVPairs(entity))
                 .cryptoAllowances(getCryptoAllowances(entity.getId(), timestamp))
+                .delegationAddress(
+                        entity.getDelegationAddress() != null ? Bytes.wrap(entity.getDelegationAddress()) : Bytes.EMPTY)
                 .deleted(Objects.requireNonNullElse(entity.getDeleted(), false))
                 .ethereumNonce(Objects.requireNonNullElse(entity.getEthereumNonce(), 0L))
                 .expirationSecond(TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS))
