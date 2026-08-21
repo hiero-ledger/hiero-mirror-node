@@ -34,18 +34,17 @@ final class BlockStreamInfoSingleton implements SingletonState<BlockStreamInfo> 
 
     @Override
     public BlockStreamInfo get() {
-        if (!ContractCallContext.isInitialized()) {
-            return FALLBACK;
-        }
         final var recordFile = ContractCallContext.get().getRecordFile();
         if (recordFile == null) {
             return FALLBACK;
         }
         final var blockTime = Utils.convertToTimestamp(recordFile.getConsensusStart());
+        final var blockEndTime = Utils.convertToTimestamp(recordFile.getConsensusEnd());
         return BlockStreamInfo.newBuilder()
-                .blockNumber(recordFile.getIndex() - 1)
+                .blockNumber(recordFile.getIndex())
                 .blockTime(blockTime)
-                .lastHandleTime(blockTime)
+                .lastHandleTime(blockEndTime)
+                .blockEndTime(blockEndTime)
                 .build();
     }
 }
