@@ -176,6 +176,27 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findHistoricalEntityByEvmAddressBeforeCurrentRevision() {
+        final var entityHistory = domainBuilder
+                .entityHistory()
+                .customize(e -> e.ethereumNonce(1L).timestampRange(Range.closedOpen(100L, 200L)))
+                .persist();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(entityHistory.getId())
+                        .createdTimestamp(100L)
+                        .ethereumNonce(2L)
+                        .evmAddress(entityHistory.getEvmAddress())
+                        .timestampRange(Range.atLeast(200L)))
+                .persist();
+
+        assertThat(entityRepository.findActiveByEvmAddressAndTimestamp(entityHistory.getEvmAddress(), 150L))
+                .get()
+                .usingRecursiveComparison()
+                .isEqualTo(entityHistory);
+    }
+
+    @Test
     void findByIdAndTimestampRangeLessThanBlockTimestampAndDeletedIsFalseCall() {
         final var entity = persistEntity();
 
@@ -464,6 +485,27 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findHistoricalEntityByAliasBeforeCurrentRevision() {
+        final var entityHistory = domainBuilder
+                .entityHistory()
+                .customize(e -> e.ethereumNonce(1L).timestampRange(Range.closedOpen(100L, 200L)))
+                .persist();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(entityHistory.getId())
+                        .alias(entityHistory.getAlias())
+                        .createdTimestamp(100L)
+                        .ethereumNonce(2L)
+                        .timestampRange(Range.atLeast(200L)))
+                .persist();
+
+        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(entityHistory.getAlias(), 150L))
+                .get()
+                .usingRecursiveComparison()
+                .isEqualTo(entityHistory);
+    }
+
+    @Test
     void findMaxIdEmptyDb() {
         assertThat(entityRepository.findMaxId()).isNull();
     }
@@ -473,6 +515,25 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         final long lastId = 1111;
         domainBuilder.entity().customize(e -> e.id(lastId)).persist();
         assertThat(entityRepository.findMaxId()).isEqualTo(lastId);
+    }
+
+    @Test
+    void findMaxIdAtTimestamp() {
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(1111L).createdTimestamp(100L))
+                .persist();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(2222L).createdTimestamp(200L))
+                .persist();
+
+        assertThat(entityRepository.findMaxIdAtTimestamp(150L)).isEqualTo(1111L);
+    }
+
+    @Test
+    void findMaxIdAtTimestampEmptyDb() {
+        assertThat(entityRepository.findMaxIdAtTimestamp(150L)).isNull();
     }
 
     @Test

@@ -58,7 +58,7 @@ class BlockStreamInfoSingletonTest {
         final var blockTime = convertToTimestamp(recordFile.getConsensusStart());
         assertThat(blockStreamInfoSingleton.get())
                 .isEqualTo(BlockStreamInfo.newBuilder()
-                        .blockNumber(recordFile.getIndex() - 1)
+                        .blockNumber(recordFile.getIndex())
                         .blockTime(blockTime)
                         .lastHandleTime(blockTime)
                         .build());

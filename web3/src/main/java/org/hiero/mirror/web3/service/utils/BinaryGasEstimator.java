@@ -19,6 +19,7 @@ public class BinaryGasEstimator {
 
     public long search(
             final ObjIntConsumer<Long> metricUpdater, final LongFunction<EvmTransactionResult> call, long lo, long hi) {
+        long initialGasUsed = lo;
         long prevGasLimit = lo;
         int iterationsMade = 0;
         long totalGasUsed = 0;
@@ -58,7 +59,7 @@ public class BinaryGasEstimator {
         }
 
         metricUpdater.accept(totalGasUsed, iterationsMade);
-        return hi;
+        return Math.max(hi, (long) Math.ceil(initialGasUsed * 1.05));
     }
 
     // This method is needed because within the modularized services if the contract call fails an exception is thrown

@@ -43,7 +43,10 @@ final class EntityIdSingleton implements SingletonState<EntityNumber> {
                 .getConfigData(HederaConfig.class)
                 .firstUserEntity();
 
-        final Long maxId = entityRepository.findMaxId();
+        final var timestamp = context.getTimestamp();
+        final Long maxId = timestamp.isPresent()
+                ? entityRepository.findMaxIdAtTimestamp(timestamp.get())
+                : entityRepository.findMaxId();
 
         if (maxId == null) {
             return new EntityNumber(EntityId.of(firstUserEntity).getNum());

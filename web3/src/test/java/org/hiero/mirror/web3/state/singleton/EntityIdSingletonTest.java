@@ -6,9 +6,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.FIRST_USER_ENTITY_ID;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
 import org.hiero.mirror.web3.ContextExtension;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.EntityRepository;
+import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +28,9 @@ class EntityIdSingletonTest {
 
     @Mock
     private EntityRepository entityRepository;
+
+    @Mock
+    private CallServiceParameters callServiceParameters;
 
     @BeforeEach
     void setup() {
@@ -68,5 +75,18 @@ class EntityIdSingletonTest {
         long maxId = 2000;
         when(entityRepository.findMaxId()).thenReturn(maxId);
         assertThat(entityIdSingleton.get().number()).isEqualTo(maxId + DEFAULT_ENTITY_NUM_BUFFER + 1);
+    }
+
+    @Test
+    void shouldUseHistoricalMaxId() {
+        final long timestamp = 1234L;
+        final long historicalMaxId = 2000L;
+        final var context = ContractCallContext.get();
+        context.setCallServiceParameters(callServiceParameters);
+        context.setTimestamp(Optional.of(timestamp));
+        when(callServiceParameters.getBlock()).thenReturn(BlockType.EARLIEST);
+        when(entityRepository.findMaxIdAtTimestamp(timestamp)).thenReturn(historicalMaxId);
+
+        assertThat(entityIdSingleton.get().number()).isEqualTo(historicalMaxId + DEFAULT_ENTITY_NUM_BUFFER + 1);
     }
 }

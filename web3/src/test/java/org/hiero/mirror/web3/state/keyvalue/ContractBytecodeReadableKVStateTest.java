@@ -40,6 +40,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ContractBytecodeReadableKVStateTest {
 
+    private static final long TIMESTAMP = 1_234_567L;
     private static final ContractID CONTRACT_ID_WITH_NUM =
             new ContractID(1L, 0L, new OneOf<>(ContractOneOfType.CONTRACT_NUM, 1L));
     private static final String CONTRACT_ID_WITH_NUM_ADDRESS =
@@ -131,6 +132,28 @@ class ContractBytecodeReadableKVStateTest {
                 .thenReturn(Optional.of(BYTES.toByteArray()));
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_EVM_ADDRESS))
                 .satisfies(bytecode -> assertThat(bytecode).isEqualTo(BYTECODE));
+    }
+
+    @Test
+    void whenHistoricalContractEvmAddressIsSetUsesTimestamp() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.of(TIMESTAMP));
+        when(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(EVM_ADDRESS.toArray(), Optional.of(TIMESTAMP)))
+                .thenReturn(Optional.of(ENTITY));
+        when(contractRepository.findRuntimeBytecode(ENTITY.toEntityId().getId()))
+                .thenReturn(Optional.of(BYTES.toByteArray()));
+
+        assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_EVM_ADDRESS))
+                .isEqualTo(BYTECODE);
+    }
+
+    @Test
+    void whenHistoricalContractDoesNotExistReturnNull() {
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.of(TIMESTAMP));
+        when(commonEntityAccessor.get(ENTITY_ID_WITH_NUM, Optional.of(TIMESTAMP)))
+                .thenReturn(Optional.empty());
+
+        assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM)).isNull();
+        verify(contractRepository, never()).findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId());
     }
 
     @Test
