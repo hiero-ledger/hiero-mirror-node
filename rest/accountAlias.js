@@ -6,9 +6,10 @@ import {InvalidArgumentError} from './errors';
 import isNil from 'lodash/isNil';
 
 // limit the alias to the base32 alphabet excluding padding, other checks will be done in base32.decode. We need
-// the check here because base32.decode allows lower case letters, padding, and auto corrects some typos.
-const accountAliasRegex = /^(\d{1,5}\.){0,2}[A-Z2-7]+$/;
-const noShardRealmAccountAliasRegex = /^[A-Z2-7]+$/;
+// the check here because base32.decode allows lower case letters, padding, and auto corrects some typos. The alias
+// segment is capped at 64 chars,leaving margin while rejecting arbitrarily long input before base32.decode.
+const accountAliasRegex = /^(\d{1,5}\.){0,2}[A-Z2-7]{1,64}$/;
+const noShardRealmAccountAliasRegex = /^[A-Z2-7]{1,64}$/;
 const {common} = getMirrorConfig();
 
 class AccountAlias {
