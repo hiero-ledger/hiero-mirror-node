@@ -7,6 +7,7 @@ import express from 'express';
 import config from './config';
 import common from './common';
 import logger from './logger';
+import {formatRequestLog} from './logFormat';
 import {runEverything} from './monitor';
 
 const app = express();
@@ -60,9 +61,7 @@ app.get(`${apiPrefix}/status`, (req, res) => {
   const passed = status.results.map((r) => r.results.numPassedTests).reduce((r, i) => r + i, 0) || 0;
   const total =
     status.results.map(({results}) => results.numFailedTests + results.numPassedTests).reduce((r, i) => r + i, 0) || 0;
-  logger.info(
-    `${req.ip} ${req.method} ${req.originalUrl} returned ${status.httpCode}: ${passed}/${total} tests passed`
-  );
+  logger.info(formatRequestLog(req, status.httpCode, passed, total));
   res.status(status.httpCode).json(status.results);
 });
 
@@ -71,9 +70,7 @@ app.get(`${apiPrefix}/status/:name`, (req, res) => {
   const {results} = status;
   const passed = results.numPassedTests;
   const total = results.numFailedTests + results.numPassedTests;
-  logger.info(
-    `${req.ip} ${req.method} ${req.originalUrl} returned ${status.httpCode}: ${passed}/${total} tests passed`
-  );
+  logger.info(formatRequestLog(req, status.httpCode, passed, total));
   res.status(status.httpCode).json(status);
 });
 
