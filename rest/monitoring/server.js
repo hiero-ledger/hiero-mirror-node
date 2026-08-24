@@ -40,7 +40,7 @@ common.initResults();
 app.get('/health/liveness', (req, res) => res.status(200).send(healthUp));
 app.get('/health/readiness', (req, res) => {
   const status = common.getStatus();
-  const total = status.results.map((r) => (r.results.testResults ? 1 : 0)).reduce((r, i) => r + i);
+  const total = status.results.map((r) => (r.results.testResults ? 1 : 0)).reduce((r, i) => r + i, 0);
 
   if (total > 0) {
     res.status(200).send(healthUp);
@@ -52,7 +52,8 @@ app.get('/health/readiness', (req, res) => {
 const allTestResultTypes = Object.values(common.TEST_RESULT_TYPES);
 
 const parseResultQueryParam = (req) => {
-  const value = (req.query.result ?? common.TEST_RESULT_TYPES.FAILED).toLowerCase();
+  const raw = req.query.result;
+  const value = typeof raw === 'string' ? raw.toLowerCase() : common.TEST_RESULT_TYPES.FAILED;
   return allTestResultTypes.includes(value) ? value : common.TEST_RESULT_TYPES.FAILED;
 };
 
