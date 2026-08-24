@@ -97,8 +97,8 @@ jobs:
             echo "CREATE_PR=true" >> $GITHUB_ENV
             echo "PR_TITLE=Bump versions for v$NEXT_VERSION_SNAPSHOT" >> $GITHUB_ENV
           else
-            git fetch origin ${RELEASE_BRANCH}:${RELEASE_BRANCH}
-            git checkout ${RELEASE_BRANCH}
+            git fetch origin ${RELEASE_BRANCH}
+            git checkout --track origin/${RELEASE_BRANCH}
           fi
 
       - name: Gradle Release
