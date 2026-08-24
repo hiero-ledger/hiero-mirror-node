@@ -27,14 +27,15 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 50
     env:
-      BLOCK_NODE_VERSION: v0.38.1
-      CONSENSUS_NODE_VERSION: v0.76.1
+      BLOCK_NODE_VERSION: v0.41.0-rc1
+      BLOCK_STREAM_STREAM_MODE: BOTH
+      CONSENSUS_NODE_VERSION: v0.77.0-rc.9
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      SOLO_VERSION: v0.77.0
+      SOLO_VERSION: v0.87.1
     if: github.event_name == 'push' || github.event_name == 'schedule' || github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       pull-requests: read
