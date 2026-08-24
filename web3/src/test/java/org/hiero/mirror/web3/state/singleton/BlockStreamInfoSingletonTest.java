@@ -56,11 +56,13 @@ class BlockStreamInfoSingletonTest {
         ContractCallContext.get().setBlockSupplier(() -> recordFile);
 
         final var blockTime = convertToTimestamp(recordFile.getConsensusStart());
+        final var blockEndTime = convertToTimestamp(recordFile.getConsensusEnd());
         assertThat(blockStreamInfoSingleton.get())
                 .isEqualTo(BlockStreamInfo.newBuilder()
                         .blockNumber(recordFile.getIndex())
                         .blockTime(blockTime)
-                        .lastHandleTime(blockTime)
+                        .lastHandleTime(blockEndTime)
+                        .blockEndTime(blockEndTime)
                         .build());
     }
 }
