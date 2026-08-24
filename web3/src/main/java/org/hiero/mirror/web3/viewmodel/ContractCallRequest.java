@@ -12,6 +12,7 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
@@ -50,6 +51,7 @@ public class ContractCallRequest {
 
     @JsonProperty("state_overrides")
     @NotNull
+    @Size(max = 10)
     private List<@Valid StateOverride> stateOverrides = List.of();
 
     @PositiveOrZero
