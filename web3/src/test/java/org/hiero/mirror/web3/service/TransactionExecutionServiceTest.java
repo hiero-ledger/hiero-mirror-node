@@ -11,7 +11,9 @@ import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_KEY;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.AccountID;
@@ -38,6 +40,8 @@ import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
@@ -51,6 +55,7 @@ import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.hiero.mirror.web3.viewmodel.BlockType;
+import org.hiero.mirror.web3.viewmodel.TracerConfig;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
@@ -85,6 +90,9 @@ class TransactionExecutionServiceTest {
     private OpcodeActionTracer opcodeActionTracer;
 
     @Mock
+    private ActionTracer actionTracer;
+
+    @Mock
     private MirrorOperationActionTracer mirrorOperationActionTracer;
 
     @Mock
@@ -112,6 +120,7 @@ class TransactionExecutionServiceTest {
                 commonProperties,
                 evmProperties,
                 opcodeActionTracer,
+                actionTracer,
                 mirrorOperationActionTracer,
                 systemEntity,
                 transactionExecutorFactory);
@@ -163,6 +172,83 @@ class TransactionExecutionServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.gasUsed()).isEqualTo(DEFAULT_GAS);
         assertThat(result.functionResult().errorMessage()).isNull();
+        verify(transactionExecutor)
+                .execute(any(TransactionBody.class), any(Instant.class), eq(new ActionSidecarContentTracer[] {
+                    opcodeActionTracer
+                }));
+    }
+
+    @Test
+    void testExecuteUsesActionTracerWhenActionContextPresent() {
+        // Given
+        ContractCallContext.get()
+                .setActionContext(ActionContext.builder()
+                        .tracerConfig(TracerConfig.builder().build())
+                        .build());
+
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+
+        when(transactionReceipt.status()).thenReturn(SUCCESS);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+        when(contractFunctionResult.gasUsed()).thenReturn(DEFAULT_GAS);
+        when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
+
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord));
+        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
+
+        var callServiceParameters = buildServiceParams(false, HEX_PREFIX, Address.ZERO);
+
+        // When
+        var result = transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.gasUsed()).isEqualTo(DEFAULT_GAS);
+        verify(transactionExecutor)
+                .execute(any(TransactionBody.class), any(Instant.class), eq(new ActionSidecarContentTracer[] {
+                    actionTracer
+                }));
+    }
+
+    @Test
+    void testExecuteUsesMirrorOperationTracerByDefault() {
+        // Given
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+
+        when(transactionReceipt.status()).thenReturn(SUCCESS);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+        when(contractFunctionResult.gasUsed()).thenReturn(DEFAULT_GAS);
+        when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
+
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord));
+        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
+
+        var callServiceParameters = buildServiceParams(false, HEX_PREFIX, Address.ZERO);
+
+        // When
+        var result = transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.gasUsed()).isEqualTo(DEFAULT_GAS);
+        verify(transactionExecutor)
+                .execute(any(TransactionBody.class), any(Instant.class), eq(new ActionSidecarContentTracer[] {
+                    mirrorOperationActionTracer
+                }));
     }
 
     @ParameterizedTest

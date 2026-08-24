@@ -4,5 +4,6 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 public enum TracerType {
     OPCODE,
-    OPERATION
+    OPERATION,
+    ACTION
 }
