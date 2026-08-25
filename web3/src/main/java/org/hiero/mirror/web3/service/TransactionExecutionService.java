@@ -48,6 +48,7 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
+import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.hyperledger.besu.datatypes.Address;
@@ -206,12 +207,10 @@ public class TransactionExecutionService {
     }
 
     private Instant getConsensusTimeFromContext() {
-        if (!ContractCallContext.isInitialized()) {
-            return Instant.now();
-        }
-        return ContractCallContext.get()
-                .getTimestamp()
-                .map(nanos -> Instant.ofEpochSecond(0L, nanos))
+        final var context = ContractCallContext.get();
+        return context.getConsensusTimestamp()
+                .or(context::getTimestamp)
+                .map(Utils::convertToInstant)
                 .orElseGet(Instant::now);
     }
 

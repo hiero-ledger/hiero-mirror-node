@@ -45,8 +45,9 @@ class ContractCallContextTest {
     @Test
     void testGetTimestampOpcodeReplay() {
         var context = ContractCallContext.get();
-        var timestamp = 123L;
-        context.setTimestamp(Optional.of(timestamp));
+        var previousBlockTimestamp = 122L;
+        var consensusTimestamp = 123L;
+        context.setConsensusTimestamp(Optional.of(consensusTimestamp));
         context.setOpcodeContext(null);
         context.setCallServiceParameters(ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
@@ -56,7 +57,7 @@ class ContractCallContextTest {
 
         assertThat(context.getTimestamp()).isEmpty();
 
-        context.setOpcodeContext(new org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext(
+        var opcodeContext = new org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext(
                 new org.hiero.mirror.web3.service.model.OpcodeRequest(
                         new org.hiero.mirror.web3.common.TransactionIdParameter(
                                 org.hiero.mirror.common.domain.entity.EntityId.EMPTY, java.time.Instant.EPOCH),
@@ -64,9 +65,12 @@ class ContractCallContextTest {
                         false,
                         false),
                 0,
-                new OpcodesProperties()));
+                new OpcodesProperties());
+        opcodeContext.setPreviousBlockTimestamp(Optional.of(previousBlockTimestamp));
+        context.setOpcodeContext(opcodeContext);
 
-        assertThat(context.getTimestamp()).isEqualTo(Optional.of(timestamp));
+        assertThat(context.getTimestamp()).isEqualTo(Optional.of(previousBlockTimestamp));
+        assertThat(context.getConsensusTimestamp()).isEqualTo(Optional.of(consensusTimestamp));
     }
 
     @Test

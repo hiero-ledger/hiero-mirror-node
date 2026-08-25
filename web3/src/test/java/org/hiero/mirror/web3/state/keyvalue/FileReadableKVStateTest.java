@@ -6,6 +6,8 @@ import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.FileID;
@@ -15,6 +17,7 @@ import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.FileDataRepository;
@@ -172,12 +175,31 @@ class FileReadableKVStateTest {
     @Test
     void readFromDataSourceSystemFile() {
         when(contractCallContext.getTimestamp()).thenReturn(TIMESTAMP);
+        when(contractCallContext.getConsensusTimestamp()).thenReturn(Optional.empty());
         when(systemFileLoader.isSystemFile(FILE_ID)).thenReturn(true);
         when(systemFileLoader.load(FILE_ID, TIMESTAMP.get())).thenReturn(FILE);
 
         File result = fileReadableKVState.readFromDataSource(FILE_ID);
 
         assertThat(result).isEqualTo(FILE);
+    }
+
+    @Test
+    void readFromDataSourceSystemFileUsesConsensusTimestampOnHourBoundary() {
+        final long nanosPerHour = 3600L * DomainUtils.NANOS_PER_SECOND;
+        final long consensusTimestamp = nanosPerHour;
+        final long previousBlockTimestamp = consensusTimestamp - 1;
+
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.of(previousBlockTimestamp));
+        when(contractCallContext.getConsensusTimestamp()).thenReturn(Optional.of(consensusTimestamp));
+        when(systemFileLoader.isSystemFile(FILE_ID)).thenReturn(true);
+        when(systemFileLoader.load(FILE_ID, consensusTimestamp)).thenReturn(FILE);
+
+        File result = fileReadableKVState.readFromDataSource(FILE_ID);
+
+        assertThat(result).isEqualTo(FILE);
+        verify(systemFileLoader).load(FILE_ID, consensusTimestamp);
+        verify(systemFileLoader, never()).load(FILE_ID, previousBlockTimestamp);
     }
 
     @Test

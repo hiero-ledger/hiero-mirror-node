@@ -54,7 +54,9 @@ final class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
         final long effectiveTimestamp = timestamp.orElseGet(Utils::getCurrentTimestamp);
 
         if (systemFileLoader.isSystemFile(key)) {
-            return systemFileLoader.load(key, effectiveTimestamp);
+            final long systemFileTimestamp =
+                    ContractCallContext.get().getConsensusTimestamp().orElse(effectiveTimestamp);
+            return systemFileLoader.load(key, systemFileTimestamp);
         }
 
         return fileDataRepository

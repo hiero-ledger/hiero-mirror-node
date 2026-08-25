@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.common;
 
+import com.hedera.hapi.node.state.blockstream.BlockStreamInfo;
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.HashMap;
@@ -57,6 +58,13 @@ public class ContractCallContext {
     @Setter
     private Optional<Long> timestamp = Optional.empty();
 
+    /**
+     * The real consensus timestamp of the transaction being replayed. Used for executor consensus time and hourly
+     * system-file (exchange-rate / fee-schedule) lookups so an hour-boundary txn is not rounded into the previous hour.
+     */
+    @Setter
+    private Optional<Long> consensusTimestamp = Optional.empty();
+
     @Setter
     private boolean isBalanceCall;
 
@@ -65,6 +73,12 @@ public class ContractCallContext {
 
     @Setter
     private Supplier<RecordFile> blockSupplier = () -> null;
+
+    /**
+     * Per-request BlockStreamInfo derived from the bound record file. Built once and reused for the rest of the call.
+     */
+    @Setter
+    private BlockStreamInfo blockStreamInfo;
 
     /**
      * Per-address state overrides for the current call.
@@ -121,11 +135,12 @@ public class ContractCallContext {
 
     /**
      * Returns the set timestamp or the consensus end timestamp from the set record file only if we are in a historical
-     * context. For opcode replay, returns the explicitly set timestamp.
+     * context. For opcode replay, returns {@link OpcodeContext#getPreviousBlockTimestamp()} so entity state is read
+     * as-of before the replayed transaction.
      */
     public Optional<Long> getTimestamp() {
         if (opcodeContext != null) {
-            return timestamp;
+            return opcodeContext.getPreviousBlockTimestamp();
         }
         if (useHistorical()) {
             return getTimestampOrDefaultFromRecordFile();

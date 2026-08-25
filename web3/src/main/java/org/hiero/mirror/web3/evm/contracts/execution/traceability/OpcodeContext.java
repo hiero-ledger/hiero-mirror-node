@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Setter;
@@ -85,6 +86,12 @@ public final class OpcodeContext {
     private final boolean storage;
 
     private final OpcodesProperties properties;
+
+    /**
+     * Pre-transaction state timestamp for opcode replay ({@code consensusTimestamp - 1}). Used so entity/token/storage
+     * reads exclude the replayed transaction's own writes.
+     */
+    private Optional<Long> previousBlockTimestamp = Optional.empty();
 
     /**
      * Running total of memory words captured so far across all recorded opcodes.

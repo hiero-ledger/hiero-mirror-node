@@ -9,6 +9,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.collection;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_KEY;
+import static org.hiero.mirror.web3.state.Utils.convertToInstant;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -16,6 +17,7 @@ import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
+import com.hedera.hapi.node.base.Timestamp;
 import com.hedera.hapi.node.base.Transaction;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
@@ -35,6 +37,7 @@ import java.util.stream.Stream;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
@@ -201,7 +204,93 @@ class TransactionExecutionServiceTest {
 
         transactionExecutionService.execute(params, DEFAULT_GAS);
 
-        assertThat(consensusTime.getValue()).isEqualTo(Instant.ofEpochSecond(0L, consensusNanos));
+        assertThat(consensusTime.getValue()).isEqualTo(convertToInstant(consensusNanos));
+    }
+
+    @Test
+    void executeUsesHistoricalConsensusEndFromRecordFile() {
+        final var consensusEndNanos = 1_786_518_658_483_854_104L;
+        final var recordFile = RecordFile.builder()
+                .consensusEnd(consensusEndNanos)
+                .index(39156482L)
+                .build();
+
+        final var params = ContractExecutionParameters.builder()
+                .block(BlockType.of("39156482"))
+                .callData(new byte[0])
+                .callType(CallType.ETH_CALL)
+                .gas(DEFAULT_GAS)
+                .gasPrice(0L)
+                .isEstimate(false)
+                .isStatic(true)
+                .receiver(Address.fromHexString("0x1234"))
+                .sender(Address.ZERO)
+                .value(0)
+                .build();
+        ContractCallContext.get().setCallServiceParameters(params);
+        ContractCallContext.get().setBlockSupplier(() -> recordFile);
+        // Explicitly NOT setting timestamp - should fall back to recordFile.getConsensusEnd()
+
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+        when(transactionReceipt.status()).thenReturn(SUCCESS);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
+        when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+
+        final var consensusTime = ArgumentCaptor.forClass(Instant.class);
+        final var body = ArgumentCaptor.forClass(TransactionBody.class);
+        when(transactionExecutor.execute(
+                        body.capture(), consensusTime.capture(), any(ActionSidecarContentTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord));
+
+        transactionExecutionService.execute(params, DEFAULT_GAS);
+
+        final var expected = convertToInstant(consensusEndNanos);
+        assertThat(consensusTime.getValue()).isEqualTo(expected);
+        assertThat(body.getValue().transactionID().transactionValidStart())
+                .isEqualTo(new Timestamp(expected.getEpochSecond(), expected.getNano()));
+    }
+
+    @Test
+    void executePrefersConsensusTimestampOverPreviousBlockTimestampOnHourBoundary() {
+        final var consensusNanos = 3600L * 1_000_000_000L;
+        final var params = ContractExecutionParameters.builder()
+                .block(BlockType.of("39156482"))
+                .callData(new byte[0])
+                .callType(CallType.ETH_CALL)
+                .gas(DEFAULT_GAS)
+                .gasPrice(0L)
+                .isEstimate(false)
+                .isStatic(true)
+                .receiver(Address.fromHexString("0x1234"))
+                .sender(Address.ZERO)
+                .value(0)
+                .build();
+        ContractCallContext.get().setCallServiceParameters(params);
+        ContractCallContext.get().setConsensusTimestamp(Optional.of(consensusNanos));
+
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+        when(transactionReceipt.status()).thenReturn(SUCCESS);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
+        when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+
+        final var consensusTime = ArgumentCaptor.forClass(Instant.class);
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), consensusTime.capture(), any(ActionSidecarContentTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord));
+
+        transactionExecutionService.execute(params, DEFAULT_GAS);
+
+        assertThat(consensusTime.getValue()).isEqualTo(convertToInstant(consensusNanos));
     }
 
     @ParameterizedTest

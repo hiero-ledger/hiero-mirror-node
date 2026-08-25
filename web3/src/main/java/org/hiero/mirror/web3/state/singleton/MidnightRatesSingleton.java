@@ -38,7 +38,9 @@ final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
     @SneakyThrows
     @Override
     public ExchangeRateSet get() {
-        long timestamp = ContractCallContext.get().getTimestamp().orElse(Utils.getCurrentTimestamp());
+        final var context = ContractCallContext.get();
+        long timestamp =
+                context.getConsensusTimestamp().or(context::getTimestamp).orElse(Utils.getCurrentTimestamp());
         final var file = systemFileLoader.load(exchangeRateFileId, timestamp);
         return ExchangeRateSet.PROTOBUF.parse(file.contents());
     }

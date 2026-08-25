@@ -65,4 +65,35 @@ class BlockStreamInfoSingletonTest {
                         .blockEndTime(blockEndTime)
                         .build());
     }
+
+    @Test
+    void getCachesBlockStreamInfoOnContext() {
+        final var recordFile = domainBuilder.recordFile().get();
+        ContractCallContext.get().setBlockSupplier(() -> recordFile);
+
+        final var first = blockStreamInfoSingleton.get();
+        final var second = blockStreamInfoSingleton.get();
+
+        assertThat(first).isSameAs(second).isSameAs(ContractCallContext.get().getBlockStreamInfo());
+    }
+
+    @Test
+    void getDoesNotCacheFallback() {
+        assertThat(blockStreamInfoSingleton.get()).isSameAs(blockStreamInfoSingleton.get());
+        assertThat(ContractCallContext.get().getBlockStreamInfo()).isNull();
+
+        final var recordFile = domainBuilder.recordFile().get();
+        ContractCallContext.get().setBlockSupplier(() -> recordFile);
+
+        assertThat(blockStreamInfoSingleton.get())
+                .isNotEqualTo(BlockStreamInfo.newBuilder()
+                        .lastHandleTime(Timestamp.newBuilder().seconds(1).build())
+                        .build())
+                .isEqualTo(BlockStreamInfo.newBuilder()
+                        .blockNumber(recordFile.getIndex())
+                        .blockTime(convertToTimestamp(recordFile.getConsensusStart()))
+                        .lastHandleTime(convertToTimestamp(recordFile.getConsensusEnd()))
+                        .blockEndTime(convertToTimestamp(recordFile.getConsensusEnd()))
+                        .build());
+    }
 }
