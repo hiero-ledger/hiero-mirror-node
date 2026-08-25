@@ -30,7 +30,7 @@ runs:
           echo "SOLO_NAMESPACE=mirror"
           echo "SOLO_CLUSTER_SETUP_NAMESPACE=solo"
           echo "SOLO_DEPLOYMENT=solo-deployment"
-          echo "SOLO_VERSION=v0.84.1"
+          echo "SOLO_VERSION=v0.87.1"
         } >> "$GITHUB_ENV"
 
     - name: Setup Node
@@ -215,7 +215,7 @@ runs:
           cat $(which solo | xargs dirname)/../lib/node_modules/@hiero-ledger/solo/resources/templates/application.properties \
             > application.properties
           cat <<EOF >> application.properties
-        blockStream.writerMode=FILE_AND_GRPC
+        blockStream.writerMode=GRPC
         blockStream.streamWrappedRecordBlocks=false
 
         tss.hintsEnabled=true
