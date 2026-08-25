@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import java.net.URI;
 import java.time.Duration;
 import lombok.Data;
+import lombok.ToString.Exclude;
 import org.hibernate.validator.constraints.time.DurationMin;
 
 @Data
@@ -47,9 +48,11 @@ public class StreamSourceProperties {
     @Data
     public static class SourceCredentials {
 
+        @Exclude
         @NotBlank
         private String accessKey;
 
+        @Exclude
         @NotBlank
         private String secretKey;
     }
