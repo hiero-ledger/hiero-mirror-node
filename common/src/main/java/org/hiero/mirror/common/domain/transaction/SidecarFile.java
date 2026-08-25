@@ -58,7 +58,7 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     @Builder.Default
     @JsonIgnore
     @ToString.Exclude
-    @Transient // Critical: This field uses Protobuf types that break AOT if not transient
+    @Transient
     private List<TransactionSidecarRecord> records = Collections.emptyList();
 
     private Integer size;

@@ -21,8 +21,8 @@ public class RangeUtils {
     public static Range<Long> rangeLong(String rangeStr) {
         if (rangeStr == null || rangeStr.isEmpty()) return null;
         var str = rangeStr.trim();
-        boolean lowerInclusive = str.startsWith("[");
-        boolean upperInclusive = str.endsWith("]");
+        final var lowerBoundType = str.startsWith("[") ? BoundType.CLOSED : BoundType.OPEN;
+        final var upperBoundType = str.endsWith("]") ? BoundType.CLOSED : BoundType.OPEN;
         var inner = str.substring(1, str.length() - 1);
         var commaIdx = inner.indexOf(',');
         var lowerStr = inner.substring(0, commaIdx).trim();
@@ -31,23 +31,11 @@ public class RangeUtils {
         if (lowerStr.isEmpty() && upperStr.isEmpty()) {
             return Range.all();
         } else if (lowerStr.isEmpty()) {
-            long upper = Long.parseLong(upperStr);
-            return upperInclusive ? Range.atMost(upper) : Range.lessThan(upper);
+            return Range.upTo(Long.parseLong(upperStr), upperBoundType);
         } else if (upperStr.isEmpty()) {
-            long lower = Long.parseLong(lowerStr);
-            return lowerInclusive ? Range.atLeast(lower) : Range.greaterThan(lower);
+            return Range.downTo(Long.parseLong(lowerStr), lowerBoundType);
         } else {
-            long lower = Long.parseLong(lowerStr);
-            long upper = Long.parseLong(upperStr);
-            if (lowerInclusive && !upperInclusive) {
-                return Range.closedOpen(lower, upper);
-            } else if (lowerInclusive) {
-                return Range.closed(lower, upper);
-            } else if (!upperInclusive) {
-                return Range.open(lower, upper);
-            } else {
-                return Range.openClosed(lower, upper);
-            }
+            return Range.range(Long.parseLong(lowerStr), lowerBoundType, Long.parseLong(upperStr), upperBoundType);
         }
     }
 }

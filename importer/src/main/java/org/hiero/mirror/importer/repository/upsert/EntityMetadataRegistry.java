@@ -75,7 +75,6 @@ public final class EntityMetadataRegistry {
             return;
         }
 
-        // Superclass fields first so subclass can override ordering deterministically
         collectColumns(schema, domainClass.getSuperclass(), idFromParent, out);
 
         for (Field field : domainClass.getDeclaredFields()) {
