@@ -82,6 +82,13 @@ describe('AccountAlias', () => {
       {alias: '99999.99999.AABBCC22', noShardRealm: true, expected: false},
       {alias: 'AABBCC22', noShardRealm: true, expected: true},
       {alias: 'AABBCC22', noShardRealm: false, expected: true},
+      // Length bound: a realistic 52-char (32-byte key) alias and the 64-char max are valid, longer is rejected
+      {alias: 'A'.repeat(52), noShardRealm: false, expected: true},
+      {alias: 'A'.repeat(64), noShardRealm: false, expected: true},
+      {alias: 'A'.repeat(64), noShardRealm: true, expected: true},
+      {alias: 'A'.repeat(65), noShardRealm: false, expected: false},
+      {alias: 'A'.repeat(65), noShardRealm: true, expected: false},
+      {alias: `99999.99999.${'A'.repeat(65)}`, noShardRealm: false, expected: false},
     ]);
 
     shardRealmInputs.forEach((input) => {

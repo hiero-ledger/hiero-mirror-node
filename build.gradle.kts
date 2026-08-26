@@ -17,7 +17,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.40.0")
+    set("blockNodeVersion", "0.40.1")
     set("consensusNodeVersion", "0.76.1")
     set("jackson-bom.version", "3.2.2") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.2") // Temporary until next Spring Boot
@@ -39,11 +39,11 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.1")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-13")
+        api("com.github.luben:zstd-jni:1.5.7-15")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.guava:guava:33.6.0-jre")
+        api("com.google.guava:guava:33.7.1-jre")
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
@@ -56,10 +56,10 @@ dependencies {
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
-        api("io.cucumber:cucumber-bom:7.34.6")
+        api("io.cucumber:cucumber-bom:7.34.7")
         api("io.fabric8:kubernetes-client-bom:7.8.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
-        api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.4")
+        api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.5")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("net.java.dev.jna:jna:5.19.0")
         api("org.apache.commons:commons-collections4:4.6.0")
@@ -71,7 +71,7 @@ dependencies {
         api("org.bouncycastle:bcpkix-jdk18on:1.85") // Temporary until next hedera-app
         api("org.bouncycastle:bcprov-jdk18on:1.85")
         api("org.gaul:s3proxy:4.0.0")
-        api("org.graalvm.nativeimage:svm:25.0.4")
+        api("org.graalvm.nativeimage:svm:25.0.4.1")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
@@ -80,7 +80,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.51.1")
+        api("software.amazon.awssdk:bom:2.54.0")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
