@@ -158,8 +158,8 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
      */
     private static boolean isPectraEthereumTransactionSupported(
             RecordItem recordItem, EthereumTransaction ethereumTransaction) {
-        return Objects.equals(ethereumTransaction.getType(), EIP_7702_TYPE_BYTE)
-                && recordItem.getHapiVersion().isLessThan(HAPI_VERSION_0_77_0);
+        return !Objects.equals(ethereumTransaction.getType(), EIP_7702_TYPE_BYTE)
+                || !recordItem.getHapiVersion().isLessThan(HAPI_VERSION_0_77_0);
     }
 
     private void updateAccountNonce(RecordItem recordItem, EthereumTransaction ethereumTransaction) {
