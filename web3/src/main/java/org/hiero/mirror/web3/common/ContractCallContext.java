@@ -58,13 +58,6 @@ public class ContractCallContext {
     @Setter
     private Optional<Long> timestamp = Optional.empty();
 
-    /**
-     * The real consensus timestamp of the transaction being replayed. Used for executor consensus time and hourly
-     * system-file (exchange-rate / fee-schedule) lookups so an hour-boundary txn is not rounded into the previous hour.
-     */
-    @Setter
-    private Optional<Long> consensusTimestamp = Optional.empty();
-
     @Setter
     private boolean isBalanceCall;
 
@@ -135,17 +128,32 @@ public class ContractCallContext {
 
     /**
      * Returns the set timestamp or the consensus end timestamp from the set record file only if we are in a historical
-     * context. For opcode replay, returns {@link OpcodeContext#getPreviousBlockTimestamp()} so entity state is read
-     * as-of before the replayed transaction.
+     * context. For opcode replay, returns the pre-transaction {@link #timestamp} so entity state is read as-of before
+     * the replayed transaction.
      */
     public Optional<Long> getTimestamp() {
         if (opcodeContext != null) {
-            return opcodeContext.getPreviousBlockTimestamp();
+            return timestamp;
         }
         if (useHistorical()) {
             return getTimestampOrDefaultFromRecordFile();
         }
         return Optional.empty();
+    }
+
+    /**
+     * Timestamp used for executor consensus time and system-file (exchange-rate / fee-schedule) loads. Prefers the
+     * opcode-replay transaction consensus time when present so an hour-boundary txn is not rounded into the previous
+     * hour; otherwise {@link #getTimestamp()}.
+     */
+    public Optional<Long> getTimestampForSystemFiles() {
+        if (opcodeContext != null) {
+            final var opcodeTimestamp = opcodeContext.getConsensusTimestamp();
+            if (opcodeTimestamp.isPresent()) {
+                return opcodeTimestamp;
+            }
+        }
+        return getTimestamp();
     }
 
     private Optional<Long> getTimestampOrDefaultFromRecordFile() {

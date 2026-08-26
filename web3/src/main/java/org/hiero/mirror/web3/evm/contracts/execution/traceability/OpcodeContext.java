@@ -87,11 +87,7 @@ public final class OpcodeContext {
 
     private final OpcodesProperties properties;
 
-    /**
-     * Pre-transaction state timestamp for opcode replay ({@code consensusTimestamp - 1}). Used so entity/token/storage
-     * reads exclude the replayed transaction's own writes.
-     */
-    private Optional<Long> previousBlockTimestamp = Optional.empty();
+    private Optional<Long> consensusTimestamp = Optional.empty();
 
     /**
      * Running total of memory words captured so far across all recorded opcodes.

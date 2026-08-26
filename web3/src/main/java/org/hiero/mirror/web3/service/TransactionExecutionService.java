@@ -35,6 +35,7 @@ import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.SequencedCollection;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -59,6 +60,9 @@ import org.hyperledger.besu.datatypes.Address;
 public class TransactionExecutionService {
 
     private static final Duration TRANSACTION_DURATION = new Duration(15);
+    private static final long MAX_TRANSACTION_VALID_START_OFFSET_NANOS =
+            TRANSACTION_DURATION.seconds() * 1_000_000_000L - 1;
+    private static final AtomicLong TRANSACTION_ID_SEQUENCE = new AtomicLong();
     private static final long TX_FEE = 100_000_000_000L;
     private static final String SENDER_NOT_FOUND = "Sender account not found.";
 
@@ -165,13 +169,25 @@ public class TransactionExecutionService {
 
     private TransactionBody.Builder defaultTransactionBodyBuilder(
             final CallServiceParameters params, final Instant consensusNow) {
+        final var transactionValidStart = uniqueTransactionValidStart(consensusNow);
         return TransactionBody.newBuilder()
                 .transactionID(TransactionID.newBuilder()
-                        .transactionValidStart(new Timestamp(consensusNow.getEpochSecond(), consensusNow.getNano()))
+                        .transactionValidStart(
+                                new Timestamp(transactionValidStart.getEpochSecond(), transactionValidStart.getNano()))
                         .accountID(getSenderAccountID(params))
                         .build())
                 .nodeAccountID(EntityIdUtils.toAccountId(systemEntity.treasuryAccount()))
                 .transactionValidDuration(TRANSACTION_DURATION);
+    }
+
+    /**
+     * Subtracts a process-wide sequence from {@code consensusNow} so concurrent historical calls with the same
+     * default payer do not share a TransactionID, while remaining inside the 15s validity window.
+     */
+    private Instant uniqueTransactionValidStart(final Instant consensusNow) {
+        final var offsetNanos =
+                Math.floorMod(TRANSACTION_ID_SEQUENCE.getAndIncrement(), MAX_TRANSACTION_VALID_START_OFFSET_NANOS) + 1;
+        return consensusNow.minusNanos(offsetNanos);
     }
 
     private TransactionBody buildContractCreateTransactionBody(
@@ -207,9 +223,8 @@ public class TransactionExecutionService {
     }
 
     private Instant getConsensusTimeFromContext() {
-        final var context = ContractCallContext.get();
-        return context.getConsensusTimestamp()
-                .or(context::getTimestamp)
+        return ContractCallContext.get()
+                .getTimestamp()
                 .map(Utils::convertToInstant)
                 .orElseGet(Instant::now);
     }

@@ -48,8 +48,8 @@ public class ContractDebugService extends ContractCallService {
     public OpcodesProcessingResult processOpcodeCall(
             final @Valid ContractDebugParameters params, final OpcodeContext opcodeContext) {
         ContractCallContext ctx = ContractCallContext.get();
-        opcodeContext.setPreviousBlockTimestamp(Optional.of(params.getConsensusTimestamp() - 1));
-        ctx.setConsensusTimestamp(Optional.of(params.getConsensusTimestamp()));
+        opcodeContext.setConsensusTimestamp(Optional.of(params.getConsensusTimestamp()));
+        ctx.setTimestamp(Optional.of(params.getConsensusTimestamp() - 1));
         ctx.setOpcodeContext(opcodeContext);
         ctx.getOpcodeContext()
                 .setActions(contractActionRepository.findFailedSystemActionsByConsensusTimestamp(
