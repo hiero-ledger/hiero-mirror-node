@@ -19,6 +19,8 @@ public class FeatureProperties {
 
     private boolean contractCallLocalEstimate = true;
 
+    private boolean codeDelegationsEnabled = true;
+
     private boolean hooks = false;
 
     @Min(1)

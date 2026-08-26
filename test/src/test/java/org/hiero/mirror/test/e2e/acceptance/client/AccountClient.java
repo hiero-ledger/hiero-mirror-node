@@ -19,7 +19,6 @@ import com.hedera.hashgraph.sdk.PrivateKey;
 import com.hedera.hashgraph.sdk.PublicKey;
 import com.hedera.hashgraph.sdk.Status;
 import com.hedera.hashgraph.sdk.TokenId;
-import com.hedera.hashgraph.sdk.Transaction;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
 import com.hedera.hashgraph.sdk.TransferTransaction;
 import com.hedera.hashgraph.sdk.proto.Key;
@@ -44,6 +43,7 @@ import org.springframework.core.retry.RetryTemplate;
 @Named
 public class AccountClient extends AbstractNetworkClient {
 
+    public static final byte[] ZERO_DELEGATION_ADDRESS = new byte[20];
     private static final BigDecimal CRYPTO_TRANSFER_TRANSACTION_FEE = BigDecimal.valueOf(0.0001); // in USD
 
     private final Map<AccountNameEnum, ExpandedAccountId> accountMap = new ConcurrentHashMap<>();
@@ -269,7 +269,16 @@ public class AccountClient extends AbstractNetworkClient {
     public ExpandedAccountId createNewAccount(long initialBalance) {
         // By default, use ALICE's key type if not specified->ED25519
         Key.KeyCase keyType = AccountNameEnum.ALICE.keyType;
-        return createCryptoAccount(Hbar.fromTinybars(initialBalance), false, null, keyType);
+        return createCryptoAccount(Hbar.fromTinybars(initialBalance), false, null, keyType, null);
+    }
+
+    public ExpandedAccountId createNewAccountWithDelegation(long initialBalance, byte[] delegationAddress) {
+        return createCryptoAccount(
+                Hbar.fromTinybars(initialBalance), false, null, Key.KeyCase.ECDSA_SECP256K1, delegationAddress);
+    }
+
+    public ExpandedAccountId createNewEcdsaAccount(final BigDecimal initialBalance) {
+        return createCryptoAccount(sdkClient.convert(initialBalance), false, null, Key.KeyCase.ECDSA_SECP256K1, null);
     }
 
     public ExpandedAccountId createNewAccount(final BigDecimal initialBalance, final AccountNameEnum accountNameEnum) {
@@ -279,11 +288,21 @@ public class AccountClient extends AbstractNetworkClient {
                 sdkClient.convert(initialBalance),
                 accountNameEnum.receiverSigRequired,
                 accountNameEnum.name(),
-                keyType);
+                keyType,
+                null);
+    }
+
+    public NetworkTransactionResponse setAccountDelegationAddress(
+            ExpandedAccountId accountId, byte[] delegationAddress) {
+        return updateAccount(accountId, transaction -> transaction.setDelegationAddress(delegationAddress));
     }
 
     private ExpandedAccountId createCryptoAccount(
-            Hbar initialBalance, boolean receiverSigRequired, String memo, Key.KeyCase keyType) {
+            Hbar initialBalance,
+            boolean receiverSigRequired,
+            String memo,
+            Key.KeyCase keyType,
+            byte[] delegationAddress) {
         // Depending on keyType, generate an Ed25519 or ECDSA private, public key pair
         PrivateKey privateKey;
         PublicKey publicKey;
@@ -306,12 +325,15 @@ public class AccountClient extends AbstractNetworkClient {
         AccountId newAccountId;
         NetworkTransactionResponse response;
         final boolean isED25519 = keyType == KeyCase.ED25519;
-        Transaction<?> transaction = getAccountCreateTransaction(
+        AccountCreateTransaction transaction = getAccountCreateTransaction(
                 initialBalance,
                 accountKey,
                 receiverSigRequired,
                 memo == null ? "" : memo,
                 isED25519 ? null : privateKey.getPublicKey().toEvmAddress());
+        if (delegationAddress != null) {
+            transaction.setDelegationAddress(delegationAddress);
+        }
         var keys = receiverSigRequired || keyType == KeyCase.ECDSA_SECP256K1 ? KeyList.of(privateKey) : null;
         response = executeTransactionAndRetrieveReceipt(transaction, keys);
         TransactionReceipt receipt = response.getReceipt();
