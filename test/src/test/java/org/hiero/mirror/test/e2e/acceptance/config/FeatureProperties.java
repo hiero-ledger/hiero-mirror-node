@@ -17,9 +17,9 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class FeatureProperties {
 
-    private boolean contractCallLocalEstimate = true;
+    private boolean codeDelegationsEnabled = false;
 
-    private boolean codeDelegationsEnabled = true;
+    private boolean contractCallLocalEstimate = true;
 
     private boolean hooks = false;
 
