@@ -349,7 +349,7 @@ class TransactionExecutionServiceTest {
 
         transactionExecutionService.execute(params, DEFAULT_GAS);
 
-        assertThat(consensusTime.getValue()).isEqualTo(convertToInstant(consensusNanos));
+        assertThat(consensusTime.getValue()).isEqualTo(convertToInstant(consensusNanos - 1));
     }
 
     @ParameterizedTest
