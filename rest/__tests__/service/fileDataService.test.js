@@ -36,25 +36,25 @@ const simpleFeeScheduleEntityId = EntityId.systemEntity.simpleFeeScheduleFile;
 const exchangeRateFiles = [
   {
     consensus_timestamp: 1,
-    entity_id: exchangeRateEntityId.getEncodedId().toString(),
+    entity_id: exchangeRateEntityId.toString(),
     file_data: Buffer.from('0a1008b0ea0110cac1181a0608a0a1d09306121008b0ea0110e18e191a0608b0bdd09306', 'hex'),
     transaction_type: 17,
   },
   {
     consensus_timestamp: 2,
-    entity_id: exchangeRateEntityId.getEncodedId().toString(),
+    entity_id: exchangeRateEntityId.toString(),
     file_data: Buffer.from('0a1008b0ea0110f5f3191a06089085d09306121008b0ea0110cac1181a0608a0a1d09306', 'hex'),
     transaction_type: 16,
   },
   {
     consensus_timestamp: 3,
-    entity_id: exchangeRateEntityId.getEncodedId().toString(),
+    entity_id: exchangeRateEntityId.toString(),
     file_data: Buffer.from('0a1008b0ea0110e9c81a1a060880e9cf9306121008b0ea0110f5f3191a06089085d09306', 'hex'),
     transaction_type: 19,
   },
   {
     consensus_timestamp: 4,
-    entity_id: exchangeRateEntityId.getEncodedId().toString(),
+    entity_id: exchangeRateEntityId.toString(),
     file_data: Buffer.from('0a1008b0ea0110f9bb1b1a0608f0cccf9306121008b0ea0110e9c81a1a060880e9cf9306', 'hex'),
     transaction_type: 19,
   },
@@ -273,13 +273,13 @@ describe('FileDataService.getGasPrice tests', () => {
   const feeScheduleFiles = [
     {
       consensus_timestamp: preSwitchoverTs.toString(),
-      entity_id: feeScheduleEntityId.getEncodedId().toString(),
+      entity_id: feeScheduleEntityId.toString(),
       file_data: makeFeeScheduleFileData(previousLegacyGas, 2000000000),
       transaction_type: 17,
     },
     {
       consensus_timestamp: atSwitchoverTs.toString(),
-      entity_id: simpleFeeScheduleEntityId.getEncodedId().toString(),
+      entity_id: simpleFeeScheduleEntityId.toString(),
       file_data: makeSimpleFeeScheduleFileData(latestGasTinycents),
       transaction_type: 19,
     },
@@ -373,13 +373,13 @@ describe('FileDataService.getGasPrice tests', () => {
     const spacedFeeScheduleFiles = [
       {
         consensus_timestamp: preTs.toString(),
-        entity_id: feeScheduleEntityId.getEncodedId().toString(),
+        entity_id: feeScheduleEntityId.toString(),
         file_data: makeFeeScheduleFileData(previousLegacyGas, 2000000000),
         transaction_type: 17,
       },
       {
         consensus_timestamp: postTs.toString(),
-        entity_id: simpleFeeScheduleEntityId.getEncodedId().toString(),
+        entity_id: simpleFeeScheduleEntityId.toString(),
         file_data: makeSimpleFeeScheduleFileData(latestGasTinycents),
         transaction_type: 19,
       },
@@ -406,13 +406,13 @@ describe('FileDataService.getGasPrice tests', () => {
       const mainnetFiles = [
         {
           consensus_timestamp: mainnetPre.toString(),
-          entity_id: feeScheduleEntityId.getEncodedId().toString(),
+          entity_id: feeScheduleEntityId.toString(),
           file_data: makeFeeScheduleFileData(previousLegacyGas, 2000000000),
           transaction_type: 17,
         },
         {
           consensus_timestamp: mainnetPost.toString(),
-          entity_id: simpleFeeScheduleEntityId.getEncodedId().toString(),
+          entity_id: simpleFeeScheduleEntityId.toString(),
           file_data: makeSimpleFeeScheduleFileData(latestGasTinycents),
           transaction_type: 19,
         },

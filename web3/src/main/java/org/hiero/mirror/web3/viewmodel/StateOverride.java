@@ -25,6 +25,7 @@ import org.springframework.validation.annotation.Validated;
 public class StateOverride {
 
     private static final int DECIMAL_MAX_LENGTH = 16;
+    public static final int CODE_MAX_LENGTH = 24576 * 2;
 
     /** EVM address (40 hex characters, optional {@code 0x} prefix) of the account to override. */
     @NotNull
@@ -36,7 +37,7 @@ public class StateOverride {
     private String balance;
 
     /** Hex-encoded runtime bytecode override. */
-    @Hex
+    @Hex(maxLength = CODE_MAX_LENGTH)
     private String code;
 
     /** Hex-encoded Ethereum nonce override. */
