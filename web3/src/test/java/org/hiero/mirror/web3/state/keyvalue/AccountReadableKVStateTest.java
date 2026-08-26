@@ -222,6 +222,28 @@ class AccountReadableKVStateTest {
     }
 
     @Test
+    void doesNotApplyDelegationAddressBeforePectra() {
+        final var delegation = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        entity.setDelegationAddress(delegation);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        when(evmProperties.isPectraEvm()).thenReturn(false);
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account).returns(Bytes.EMPTY, Account::delegationAddress));
+    }
+
+    @Test
+    void appliesDelegationAddressOnPectra() {
+        final var delegation = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        entity.setDelegationAddress(delegation);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        when(evmProperties.isPectraEvm()).thenReturn(true);
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account).returns(Bytes.wrap(delegation), Account::delegationAddress));
+    }
+
+    @Test
     void missingAccountKeyMatchesDefaultValues() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));

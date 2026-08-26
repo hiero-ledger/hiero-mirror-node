@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_77_0;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -320,6 +321,7 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         var recordItem = recordItemBuilder
                 .cryptoCreate()
                 .transactionBody(tb -> tb.setDelegationAddress(DomainUtils.fromBytes(delegationAddress)))
+                .recordItem(r -> r.hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         var transaction = transaction(recordItem);
         var accountId =
@@ -339,7 +341,7 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         var recordItem = recordItemBuilder
                 .cryptoCreate()
                 .transactionBody(tb -> tb.setDelegationAddress(DomainUtils.fromBytes(delegationAddress)))
-                .recordItem(r -> r.blockstream(true).accountEthereumNonce(4L))
+                .recordItem(r -> r.blockstream(true).accountEthereumNonce(4L).hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         var transaction = transaction(recordItem);
         var accountId =
@@ -361,7 +363,7 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         var recordItem = recordItemBuilder
                 .cryptoCreate()
                 .transactionBody(tb -> tb.setDelegationAddress(DomainUtils.fromBytes(delegationAddress)))
-                .recordItem(r -> r.blockstream(true).accountEthereumNonce(4L))
+                .recordItem(r -> r.blockstream(true).accountEthereumNonce(4L).hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         var transaction = transaction(recordItem);
         var accountId =
@@ -381,6 +383,24 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         var recordItem = recordItemBuilder
                 .cryptoCreate()
                 .transactionBody(tb -> tb.setDelegationAddress(ByteString.EMPTY))
+                .build();
+        var transaction = transaction(recordItem);
+        var accountId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
+
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        assertEntity(accountId, recordItem.getConsensusTimestamp()).returns(null, Entity::getDelegationAddress);
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void updateDelegationAddressSkippedBeforePectra() {
+        var delegationAddress = UtilityTest.EVM_ADDRESS;
+        var recordItem = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(tb -> tb.setDelegationAddress(DomainUtils.fromBytes(delegationAddress)))
                 .build();
         var transaction = transaction(recordItem);
         var accountId =

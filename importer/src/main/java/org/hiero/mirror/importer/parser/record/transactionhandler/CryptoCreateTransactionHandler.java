@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_27_0;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_77_0;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 
 import com.google.protobuf.ByteString;
@@ -95,7 +96,8 @@ class CryptoCreateTransactionHandler extends AbstractEntityCrudTransactionHandle
         entity.setMaxAutomaticTokenAssociations(transactionBody.getMaxAutomaticTokenAssociations());
         entity.setMemo(transactionBody.getMemo());
         entity.setReceiverSigRequired(transactionBody.getReceiverSigRequired());
-        if (!transactionBody.getDelegationAddress().isEmpty()) {
+        if (!transactionBody.getDelegationAddress().isEmpty()
+                && recordItem.getHapiVersion().isGreaterThanOrEqualTo(HAPI_VERSION_0_77_0)) {
             entity.setDelegationAddress(DomainUtils.toBytes(transactionBody.getDelegationAddress()));
             if (recordItem.getAccountEthereumNonce() != null
                     && entityProperties.getPersist().isTrackNonce()) {

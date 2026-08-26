@@ -5,6 +5,8 @@ package org.hiero.mirror.web3.service;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_67;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_70;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
@@ -53,6 +55,25 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
 
         // Then - multiplySimpleNumbers returns 2 * 2 = 4
         assertThat(result).isEqualTo("0x0000000000000000000000000000000000000000000000000000000000000004");
+    }
+
+    @Test
+    void callToAccountWithCodeDelegationIgnoredBeforePectra() {
+        evmProperties.setEvmVersion(EVM_VERSION_0_67);
+        final var contract = testWeb3jService.deploy(EthCall::deploy);
+        final var contractAddress = Address.fromHexString(contract.getContractAddress());
+        final var account = accountEntityPersistWithCodeDelegation(
+                contractAddress.getBytes().toArrayUnsafe());
+        final var accountAddress = toAddress(account.toEntityId());
+        final var functionCall = contract.call_multiplySimpleNumbers();
+        final var callData = Bytes.fromHexString(functionCall.encodeFunctionCall());
+        final var serviceParameters =
+                getContractExecutionParameters(callData, accountAddress, Address.ZERO, 0L, ETH_CALL);
+
+        final var result = contractExecutionService.processCall(serviceParameters);
+
+        assertThat(result).isNotEqualTo("0x0000000000000000000000000000000000000000000000000000000000000004");
+        evmProperties.setEvmVersion(EVM_VERSION_0_70);
     }
 
     @Test
