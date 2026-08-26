@@ -50,9 +50,7 @@ final class BlockStateProofHasherTest {
 
     @Test
     void getHashWhenHashPathPrecedesTimestampLeaf() {
-        // given - the hash path and the timestamp leaf path are swapped relative to the usual order. The first
-        // child to arrive at the join point is the left one, so the result follows the path order rather than a
-        // fixed role per index.
+        // given
         final byte[] currentRootHash = TestUtils.generateRandomByteArray(48);
         final var timestampLeaf = timestampLeaf();
         final var merklePaths = List.of(
@@ -145,16 +143,120 @@ final class BlockStateProofHasherTest {
     }
 
     @Test
-    void getHashThrowWhenLessThanMinPaths() {
-        assertThatThrownBy(() -> hasher.getRootHash(0, TestUtils.generateRandomByteArray(48), Collections.emptyList()))
-                .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessage("Number of merkle paths in block 0's StateProof is less than 3");
+    void getHashWhenRootPathIsFirst() {
+        // given
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(48);
+        final var timestampLeaf = timestampLeaf();
+        final var merklePaths = List.of(
+                rootPath(),
+                MerklePath.newBuilder()
+                        .setTimestampLeaf(timestampLeaf)
+                        .setNextPathIndex(0)
+                        .build(),
+                MerklePath.newBuilder()
+                        .setHash(fromBytes(currentRootHash))
+                        .setNextPathIndex(0)
+                        .build());
+
+        final var digest = createSha384Digest();
+        final byte[] timestampHash = HashUtils.hashLeaf(digest, timestampLeaf.toByteArray());
+        final byte[] expected = HashUtils.hashInternalNode(digest, timestampHash, currentRootHash);
+
+        // when, then
+        assertThat(hasher.getRootHash(0, currentRootHash, merklePaths)).isEqualTo(expected);
     }
 
-    @ParameterizedTest(name = "last path {0}")
-    @MethodSource("provideInvalidLastPath")
-    void getHashThrowWhenLastPathIsNotRootPath(final String name, final MerklePath lastPath) {
-        // given
+    @Test
+    void getHashIsIndependentOfPathOrder() {
+        // given - the same tree laid out in depth first order and in a scrambled order. The branch holding the
+        // lowest indexed content path is the left operand, so both must produce the same root hash.
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(48);
+        final var blockItemLeaf = fromBytes(TestUtils.generateRandomByteArray(8));
+        final var timestampLeaf = timestampLeaf();
+        final var depthFirst = List.of(
+                MerklePath.newBuilder()
+                        .setTimestampLeaf(timestampLeaf)
+                        .setNextPathIndex(2)
+                        .build(),
+                MerklePath.newBuilder()
+                        .setHash(fromBytes(currentRootHash))
+                        .setNextPathIndex(2)
+                        .build(),
+                MerklePath.newBuilder().setNextPathIndex(4).build(),
+                MerklePath.newBuilder()
+                        .setBlockItemLeaf(blockItemLeaf)
+                        .setNextPathIndex(4)
+                        .build(),
+                rootPath());
+        final var scrambled = List.of(
+                rootPath(),
+                MerklePath.newBuilder()
+                        .setTimestampLeaf(timestampLeaf)
+                        .setNextPathIndex(4)
+                        .build(),
+                MerklePath.newBuilder()
+                        .setHash(fromBytes(currentRootHash))
+                        .setNextPathIndex(4)
+                        .build(),
+                MerklePath.newBuilder()
+                        .setBlockItemLeaf(blockItemLeaf)
+                        .setNextPathIndex(0)
+                        .build(),
+                MerklePath.newBuilder().setNextPathIndex(0).build());
+
+        // when
+        final byte[] actual = hasher.getRootHash(0, currentRootHash, scrambled);
+
+        // then
+        assertThat(actual).isEqualTo(hasher.getRootHash(0, currentRootHash, depthFirst));
+    }
+
+    @Test
+    void getHashThrowWhenContentPathIsTheRootPath() {
+        // given - a content path claiming the root leaves the join point at index 2 short of a second branch, so
+        // the root hash can never come from anything but a join point
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(48);
+        final var merklePaths = List.of(
+                MerklePath.newBuilder()
+                        .setHash(fromBytes(currentRootHash))
+                        .setNextPathIndex(-1)
+                        .build(),
+                MerklePath.newBuilder()
+                        .setTimestampLeaf(timestampLeaf())
+                        .setNextPathIndex(2)
+                        .build(),
+                rootPath());
+
+        // when, then
+        assertThatThrownBy(() -> hasher.getRootHash(0, currentRootHash, merklePaths))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage("Block 0's StateProof has a join point merkle path with only one child");
+    }
+
+    @Test
+    void getHashThrowWhenMoreThanOneRootPath() {
+        // given - both content paths climb straight to the root
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(48);
+        final var merklePaths = List.of(
+                MerklePath.newBuilder()
+                        .setTimestampLeaf(timestampLeaf())
+                        .setNextPathIndex(-1)
+                        .build(),
+                MerklePath.newBuilder()
+                        .setHash(fromBytes(currentRootHash))
+                        .setNextPathIndex(-1)
+                        .build(),
+                rootPath());
+
+        // when, then
+        assertThatThrownBy(() -> hasher.getRootHash(0, currentRootHash, merklePaths))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage("Block 0's StateProof has more than one root merkle path");
+    }
+
+    @Test
+    void getHashThrowWhenJoinPointPointsToItself() {
+        // given - the join point at index 2 is its own parent
         final byte[] currentRootHash = TestUtils.generateRandomByteArray(48);
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
@@ -165,16 +267,81 @@ final class BlockStateProofHasherTest {
                         .setHash(fromBytes(currentRootHash))
                         .setNextPathIndex(2)
                         .build(),
-                lastPath);
+                MerklePath.newBuilder().setNextPathIndex(2).build());
 
         // when, then
         assertThatThrownBy(() -> hasher.getRootHash(0, currentRootHash, merklePaths))
                 .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessage("Block 0's StateProof does not end with the root merkle path");
+                .hasMessage("Block 0's StateProof joins merkle path 2 more than once");
     }
 
     @Test
-    void getHashThrowWhenContentPathIsJoinPoint() {
+    void getHashWithStateItemLeaf() {
+        // given
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(48);
+        final var stateItemLeaf = fromBytes(TestUtils.generateRandomByteArray(16));
+        final var merklePaths = List.of(
+                MerklePath.newBuilder()
+                        .setStateItemLeaf(stateItemLeaf)
+                        .setNextPathIndex(2)
+                        .build(),
+                MerklePath.newBuilder()
+                        .setHash(fromBytes(currentRootHash))
+                        .setNextPathIndex(2)
+                        .build(),
+                rootPath());
+
+        final var digest = createSha384Digest();
+        final byte[] stateItemHash = HashUtils.hashLeaf(digest, stateItemLeaf.toByteArray());
+        final byte[] expected = HashUtils.hashInternalNode(digest, stateItemHash, currentRootHash);
+
+        // when, then
+        assertThat(hasher.getRootHash(0, currentRootHash, merklePaths)).isEqualTo(expected);
+    }
+
+    @Test
+    void getHashWhenParkedBranchIsTheRightOperand() {
+        // given - the branch parked at the root join point holds a higher content index than the branch arriving
+        // later, so the arriving one becomes the left operand. The operands follow the lowest content index below
+        // each branch, not the order in which the branches reach the join point.
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(48);
+        final var blockItemLeaf = fromBytes(TestUtils.generateRandomByteArray(8));
+        final var timestampLeaf = timestampLeaf();
+        final var merklePaths = List.of(
+                MerklePath.newBuilder()
+                        .setTimestampLeaf(timestampLeaf)
+                        .setNextPathIndex(3)
+                        .build(),
+                MerklePath.newBuilder()
+                        .setBlockItemLeaf(blockItemLeaf)
+                        .setNextPathIndex(4)
+                        .build(),
+                MerklePath.newBuilder()
+                        .setHash(fromBytes(currentRootHash))
+                        .setNextPathIndex(3)
+                        .build(),
+                MerklePath.newBuilder().setNextPathIndex(4).build(),
+                rootPath());
+
+        final var digest = createSha384Digest();
+        final byte[] timestampHash = HashUtils.hashLeaf(digest, timestampLeaf.toByteArray());
+        final byte[] blockItemHash = HashUtils.hashLeaf(digest, blockItemLeaf.toByteArray());
+        final byte[] joinHash = HashUtils.hashInternalNode(digest, timestampHash, currentRootHash);
+        final byte[] expected = HashUtils.hashInternalNode(digest, joinHash, blockItemHash);
+
+        // when, then
+        assertThat(hasher.getRootHash(0, currentRootHash, merklePaths)).isEqualTo(expected);
+    }
+
+    @Test
+    void getHashThrowWhenLessThanMinPaths() {
+        assertThatThrownBy(() -> hasher.getRootHash(0, TestUtils.generateRandomByteArray(48), Collections.emptyList()))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage("Number of merkle paths in block 0's StateProof is less than 3");
+    }
+
+    @Test
+    void getHashThrowWhenPathPointsToContentPath() {
         // given - the timestamp leaf path points at the hash path, which already has its own content
         final byte[] currentRootHash = TestUtils.generateRandomByteArray(48);
         final var merklePaths = List.of(
@@ -191,12 +358,12 @@ final class BlockStateProofHasherTest {
         // when, then
         assertThatThrownBy(() -> hasher.getRootHash(0, currentRootHash, merklePaths))
                 .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessage("Block 0's StateProof has content in merkle path 1 which is a join point");
+                .hasMessage("Block 0's StateProof has merkle path 0 pointing to merkle path 1 which has content");
     }
 
     @Test
-    void getHashThrowWhenJoinPointHasOneChild() {
-        // given - only the timestamp leaf path contributes to the join point at index 2, which needs two children
+    void getHashThrowWhenNoBranchReachesRoot() {
+        // given - both branches park at a join point, so nothing ever climbs to the root
         final byte[] currentRootHash = TestUtils.generateRandomByteArray(48);
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
@@ -213,7 +380,7 @@ final class BlockStateProofHasherTest {
         // when, then
         assertThatThrownBy(() -> hasher.getRootHash(0, currentRootHash, merklePaths))
                 .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessage("Block 0's StateProof has only one child in merkle path 2");
+                .hasMessage("Block 0's StateProof has no root merkle path");
     }
 
     @Test
@@ -235,12 +402,12 @@ final class BlockStateProofHasherTest {
         // when, then
         assertThatThrownBy(() -> hasher.getRootHash(0, currentRootHash, merklePaths))
                 .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessage("Block 0's StateProof has no children in join point merkle path 1");
+                .hasMessage("Block 0's StateProof has a join point merkle path with no children");
     }
 
     @ParameterizedTest(name = "next path index of {0}")
-    @ValueSource(ints = {-2, 0, 1, 3})
-    void getHashThrowWhenNextPathIndexOutOfOrder(final int nextPathIndex) {
+    @ValueSource(ints = {-2, 3, 99})
+    void getHashThrowWhenNextPathIndexOutOfRange(final int nextPathIndex) {
         // given - a path may only contribute to a later path within the list
         final byte[] currentRootHash = TestUtils.generateRandomByteArray(48);
         final var merklePaths = List.of(
@@ -257,12 +424,12 @@ final class BlockStateProofHasherTest {
         // when, then
         assertThatThrownBy(() -> hasher.getRootHash(0, currentRootHash, merklePaths))
                 .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessage("Block 0's StateProof has out of order next path index %d in merkle path 1"
+                .hasMessage("Block 0's StateProof has out of range next path index %d in merkle path 1"
                         .formatted(nextPathIndex));
     }
 
     @Test
-    void getHashThrowWhenTooManyChildren() {
+    void getHashThrowWhenJoinedMoreThanOnce() {
         // given - three paths all contribute to the root path, which can only join two children
         final byte[] currentRootHash = TestUtils.generateRandomByteArray(48);
         final var merklePaths = List.of(
@@ -283,21 +450,7 @@ final class BlockStateProofHasherTest {
         // when, then
         assertThatThrownBy(() -> hasher.getRootHash(0, currentRootHash, merklePaths))
                 .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessage("Block 0's StateProof has more than 2 children for merkle path 3");
-    }
-
-    @Test
-    void getHashThrowWhenRootPathNotLast() {
-        // given - the fixture's root path is followed by a trailing, unreachable path
-        final var testArtifact = TEST_ARTIFACTS.getFirst();
-        final var merklePaths = new ArrayList<>(testArtifact.merklePaths());
-        merklePaths.add(rootPath());
-
-        // when, then
-        assertThatThrownBy(() -> hasher.getRootHash(testArtifact.block(), testArtifact.blockHash(), merklePaths))
-                .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessage("Block %d's StateProof has the root merkle path at index 2 instead of the last index 3"
-                        .formatted(testArtifact.block()));
+                .hasMessage("Block 0's StateProof joins merkle path 3 more than once");
     }
 
     @ParameterizedTest(name = "sibling hash of {0} bytes")
@@ -348,19 +501,6 @@ final class BlockStateProofHasherTest {
         module.addDeserializer(MerklePath.class, new MerklePathDeserializer());
         mapper.registerModule(module);
         return mapper.readValue(file, new TypeReference<>() {});
-    }
-
-    private static Stream<Arguments> provideInvalidLastPath() {
-        return Stream.of(
-                Arguments.of(
-                        "with content",
-                        MerklePath.newBuilder()
-                                .setTimestampLeaf(timestampLeaf())
-                                .setNextPathIndex(-1)
-                                .build()),
-                Arguments.of(
-                        "with a non root next path index",
-                        MerklePath.newBuilder().setNextPathIndex(2).build()));
     }
 
     private static Stream<Arguments> provideStateProofTestArtifact() {

@@ -13,7 +13,6 @@ import java.util.Arrays;
 import java.util.List;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
-import org.jspecify.annotations.Nullable;
 
 @Named
 final class BlockStateProofHasherImpl implements BlockStateProofHasher {
@@ -33,62 +32,75 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
                     .formatted(blockNumber, MIN_PATH_COUNT));
         }
 
-        // The last path must be the root
-        final var lastPath = merklePaths.getLast();
-        if (hasContent(lastPath) || lastPath.getNextPathIndex() != ROOT_PATH_INDEX) {
-            throw new InvalidStreamFileException(
-                    "Block %d's StateProof does not end with the root merkle path".formatted(blockNumber));
-        }
-
-        final var children = new Children[pathCount];
+        final var branches = new Branch[pathCount];
         final var digest = createSha384Digest();
+        final var joined = new boolean[pathCount];
         boolean foundRootHash = false;
+        int joinedCount = 0;
+        int joinPointCount = 0;
+        int parkedCount = 0;
+        byte[] rootHash = null;
 
-        final int rootIndex = pathCount - 1;
-        for (int index = 0; index < rootIndex; index++) {
+        for (int index = 0; index < pathCount; index++) {
             final var path = merklePaths.get(index);
-            final var pathChildren = children[index];
-            final byte[] startingHash;
+            if (!hasContent(path)) {
+                // A join point is hashed when the second of the two branches below it to arrives
+                joinPointCount++;
+                continue;
+            }
 
-            if (hasContent(path)) {
-                if (pathChildren != null) {
+            final byte[] contentHash = getContentHash(digest, path);
+            if (!foundRootHash && path.getContentCase() == ContentCase.HASH) {
+                foundRootHash = Arrays.equals(contentHash, currentRootHash);
+            }
+
+            var branch = new Branch(index, foldSiblings(digest, path, contentHash));
+            int pathIndex = index;
+            int nextPathIndex = path.getNextPathIndex();
+            boolean parked = false;
+
+            while (!parked && nextPathIndex != ROOT_PATH_INDEX) {
+                if (nextPathIndex < 0 || nextPathIndex >= pathCount) {
                     throw new InvalidStreamFileException(
-                            "Block %d's StateProof has content in merkle path %d which is a join point"
-                                    .formatted(blockNumber, index));
+                            "Block %d's StateProof has out of range next path index %d in merkle path %d"
+                                    .formatted(blockNumber, nextPathIndex, pathIndex));
                 }
 
-                startingHash = getContentHash(digest, path);
-                if (!foundRootHash && path.getContentCase() == ContentCase.HASH) {
-                    foundRootHash = Arrays.equals(startingHash, currentRootHash);
+                final var joinPath = merklePaths.get(nextPathIndex);
+                if (hasContent(joinPath)) {
+                    throw new InvalidStreamFileException(
+                            "Block %d's StateProof has merkle path %d pointing to merkle path %d which has content"
+                                    .formatted(blockNumber, pathIndex, nextPathIndex));
                 }
-            } else {
-                startingHash = joinChildren(blockNumber, digest, pathChildren, index);
+
+                // Guards against both a third branch and a cycle among the join points
+                if (joined[nextPathIndex]) {
+                    throw new InvalidStreamFileException("Block %d's StateProof joins merkle path %d more than once"
+                            .formatted(blockNumber, nextPathIndex));
+                }
+
+                final var sibling = branches[nextPathIndex];
+                if (sibling == null) {
+                    branches[nextPathIndex] = branch;
+                    parkedCount++;
+                    parked = true;
+                } else {
+                    branch = join(digest, joinPath, sibling, branch);
+                    joined[nextPathIndex] = true;
+                    joinedCount++;
+                    parkedCount--;
+                    pathIndex = nextPathIndex;
+                    nextPathIndex = joinPath.getNextPathIndex();
+                }
             }
 
-            // A join point can carry the siblings of the nodes above it, up to the next join point or the root
-            final byte[] pathHash = foldSiblings(digest, path, startingHash);
-            final int nextPathIndex = path.getNextPathIndex();
-            if (nextPathIndex == ROOT_PATH_INDEX) {
-                throw new InvalidStreamFileException(
-                        "Block %d's StateProof has the root merkle path at index %d instead of the last index %d"
-                                .formatted(blockNumber, index, rootIndex));
-            }
+            if (!parked) {
+                if (rootHash != null) {
+                    throw new InvalidStreamFileException(
+                            "Block %d's StateProof has more than one root merkle path".formatted(blockNumber));
+                }
 
-            // Depth first order guarantees a path only ever contributes to a later path
-            if (nextPathIndex <= index || nextPathIndex >= pathCount) {
-                throw new InvalidStreamFileException(
-                        "Block %d's StateProof has out of order next path index %d in merkle path %d"
-                                .formatted(blockNumber, nextPathIndex, index));
-            }
-
-            final var parentChildren = children[nextPathIndex];
-            if (parentChildren == null) {
-                children[nextPathIndex] = new Children(pathHash, null);
-            } else if (parentChildren.right() == null) {
-                children[nextPathIndex] = new Children(parentChildren.left(), pathHash);
-            } else {
-                throw new InvalidStreamFileException("Block %d's StateProof has more than 2 children for merkle path %d"
-                        .formatted(blockNumber, nextPathIndex));
+                rootHash = branch.hash();
             }
         }
 
@@ -97,9 +109,22 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
                     "Block %d's StateProof has no merkle path matching the block's root hash".formatted(blockNumber));
         }
 
-        // The root path joins the two paths below it into the root hash the TSS signature is over
-        final byte[] rootHash = joinChildren(blockNumber, digest, children[rootIndex], rootIndex);
-        return foldSiblings(digest, lastPath, rootHash);
+        if (rootHash == null) {
+            throw new InvalidStreamFileException(
+                    "Block %d's StateProof has no root merkle path".formatted(blockNumber));
+        }
+
+        // A join point left unjoined still holds the branch parked at it, if it got a child at all
+        if (joinedCount != joinPointCount) {
+            throw new InvalidStreamFileException(
+                    parkedCount > 0
+                            ? "Block %d's StateProof has a join point merkle path with only one child"
+                                    .formatted(blockNumber)
+                            : "Block %d's StateProof has a join point merkle path with no children"
+                                    .formatted(blockNumber));
+        }
+
+        return rootHash;
     }
 
     private static byte[] foldSiblings(final MessageDigest digest, final MerklePath path, final byte[] startingHash) {
@@ -133,26 +158,18 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
         return path.getContentCase() != ContentCase.CONTENT_NOT_SET;
     }
 
-    private static byte[] joinChildren(
-            final long blockNumber,
-            final MessageDigest digest,
-            final @Nullable Children pathChildren,
-            final int index) {
-        if (pathChildren == null) {
-            throw new InvalidStreamFileException(
-                    "Block %d's StateProof has no children in join point merkle path %d".formatted(blockNumber, index));
-        }
-
-        if (pathChildren.right() == null) {
-            throw new InvalidStreamFileException(
-                    "Block %d's StateProof has only one child in merkle path %d".formatted(blockNumber, index));
-        }
-
-        return HashUtils.hashInternalNode(digest, pathChildren.left(), pathChildren.right());
+    // Hashes a join point from the two branches below it, then folds the siblings the join point itself carries.
+    private static Branch join(
+            final MessageDigest digest, final MerklePath joinPath, final Branch first, final Branch second) {
+        final var left = first.minContentIndex() < second.minContentIndex() ? first : second;
+        final var right = left == first ? second : first;
+        final byte[] hash = HashUtils.hashInternalNode(digest, left.hash(), right.hash());
+        return new Branch(left.minContentIndex(), foldSiblings(digest, joinPath, hash));
     }
 
     /**
-     * The left and right leaves of a join point merkle path
+     * A partial result climbing towards the root, tagged with the lowest index of the content merkle paths beneath
+     * it so that two branches meeting at a join point know which of them is the left
      */
-    private record Children(byte[] left, byte @Nullable [] right) {}
+    private record Branch(int minContentIndex, byte[] hash) {}
 }
