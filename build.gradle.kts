@@ -47,7 +47,7 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.15.1")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.15.0")
         // Needs to use variable for compare workflow
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
@@ -68,7 +68,7 @@ dependencies {
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
-        api("org.bouncycastle:bcpkix-jdk18on:1.85.2") // Temporary until next hedera-app
+        api("org.bouncycastle:bcpkix-jdk18on:1.85") // Temporary until next hedera-app
         api("org.bouncycastle:bcprov-jdk18on:1.85.2")
         api("org.gaul:s3proxy:4.0.0")
         api("org.graalvm.nativeimage:svm:25.0.4.1")

@@ -12,16 +12,6 @@ updates:
     schedule:
       interval: "weekly"
 
-  - directory: "/.github/actions"
-    groups:
-      dependencies:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 10
-    package-ecosystem: "github-actions"
-    schedule:
-      interval: "weekly"
-
   - directory: "/"
     groups:
       dependencies:
