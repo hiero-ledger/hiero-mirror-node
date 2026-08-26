@@ -68,8 +68,8 @@ jobs:
       - name: Install JDK
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
-          distribution: temurin
-          java-version: 25
+          java-version-file: .sdkmanrc
+          verify-signature: true
 
       - name: Install Solo CLI via npm
         run: npm install -g @hiero-ledger/solo@${SOLO_VERSION}

@@ -17,7 +17,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.40.0")
+    set("blockNodeVersion", "0.40.1")
     set("consensusNodeVersion", "0.77.0-rc.9")
     set("jackson-bom.version", "3.2.2") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.2") // Temporary until next Spring Boot
@@ -52,7 +52,7 @@ dependencies {
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.76.0")
+        api("com.hedera.hashgraph:sdk:2.77.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
@@ -61,7 +61,7 @@ dependencies {
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.5")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
-        api("net.java.dev.jna:jna:5.19.0")
+        api("net.java.dev.jna:jna:5.19.1")
         api("org.apache.commons:commons-collections4:4.6.0")
         api("org.apache.commons:commons-compress:1.28.0")
         api("org.apache.commons:commons-math3:3.6.1")
@@ -69,19 +69,19 @@ dependencies {
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.bouncycastle:bcpkix-jdk18on:1.85") // Temporary until next hedera-app
-        api("org.bouncycastle:bcprov-jdk18on:1.85")
+        api("org.bouncycastle:bcprov-jdk18on:1.85.2")
         api("org.gaul:s3proxy:4.0.0")
         api("org.graalvm.nativeimage:svm:25.0.4.1")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
-        api("org.hyperledger.besu.internal:besu-crypto-algorithms:$besuVersion")
+        api("org.hyperledger.besu.internal:besu-crypto-algorithms:${besuVersion}")
+        api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
         api("org.hyperledger.besu:evm:$besuVersion")
-        api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.54.0")
+        api("software.amazon.awssdk:bom:2.54.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
