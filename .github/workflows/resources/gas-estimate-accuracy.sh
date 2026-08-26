@@ -47,6 +47,18 @@ within_tolerance() {
   }'
 }
 
+# Check if a consensus_timestamp (format: seconds.nanoseconds) is at a round hour or up to 2 seconds after.
+is_near_round_hour() {
+  local timestamp="$1"
+  local seconds="${timestamp%%.*}"
+  if [[ -z "${seconds}" || ! "${seconds}" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+  local seconds_in_hour=$((seconds % 3600))
+  # Return true (0) if at round hour (0) or up to 2 seconds after (1, 2)
+  ((seconds_in_hour <= 2))
+}
+
 # Contract create: missing to, or the result's contract_id was itself created by the tx.
 is_contract_create() {
   jq -e '
@@ -219,9 +231,10 @@ check_result() {
       return 0
     fi
 
-    local block_number
+    local block_number consensus_timestamp
     block_number="$(jq -r '.block_number // empty' <<<"${result_json}")"
-    if ((attempt == 1)) && [[ -n "${block_number}" ]]; then
+    consensus_timestamp="$(jq -r '.consensus_timestamp // empty' <<<"${result_json}")"
+    if ((attempt == 1)) && [[ -n "${block_number}" ]] && is_near_round_hour "${consensus_timestamp}"; then
       log "Out of tolerance for hash=${hash} at block ${block_number}-1; retrying with block=${block_number}"
       request="$(jq -c --arg b "${block_number}" '.block = $b' <<<"${request}")"
       continue
