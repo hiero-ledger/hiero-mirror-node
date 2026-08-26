@@ -59,7 +59,7 @@ public class CompositeBatchPersister implements BatchPersister {
     }
 
     private BatchPersister create(Class<?> domainClass) {
-        Table table = AnnotationUtils.findAnnotation(domainClass, Table.class);
+        final var table = AnnotationUtils.findAnnotation(domainClass, Table.class);
 
         if (table == null) {
             throw new UnsupportedOperationException("Object does not support batch insertion: " + domainClass);

@@ -12,7 +12,6 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
-import org.hiero.mirror.importer.util.Utility;
 
 @RequiredArgsConstructor
 abstract class AbstractEntityCrudTransactionHandler extends AbstractTransactionHandler {
@@ -34,7 +33,7 @@ abstract class AbstractEntityCrudTransactionHandler extends AbstractTransactionH
         }
 
         long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var entity = Utility.toEntity(entityId);
+        var entity = entityId.toEntity();
 
         if (entityOperation == EntityOperation.CREATE) {
             entity.setCreatedTimestamp(consensusTimestamp);
