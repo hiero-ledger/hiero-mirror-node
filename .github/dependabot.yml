@@ -13,6 +13,10 @@ updates:
       interval: "weekly"
 
   - directory: "/"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "gradle"
     schedule:
@@ -25,6 +29,16 @@ updates:
           - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "helm"
+    schedule:
+      interval: "weekly"
+
+  - directory: "/pinger"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    package-ecosystem: "gomod"
     schedule:
       interval: "weekly"
 
@@ -41,6 +55,16 @@ updates:
     schedule:
       interval: "weekly"
 
+  - directory: "/rest"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    package-ecosystem: "docker"
+    schedule:
+      interval: "weekly"
+
   - directory: "/rest/monitoring"
     groups:
       dependencies:
@@ -52,6 +76,16 @@ updates:
       interval: "weekly"
 
   - directory: "/rosetta"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    package-ecosystem: "gomod"
+    schedule:
+      interval: "weekly"
+
+  - directory: "/tools/bootstrap"
     groups:
       dependencies:
         patterns:
@@ -78,35 +112,5 @@ updates:
           - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
-    schedule:
-      interval: "weekly"
-
-  - directory: "/tools/bootstrap"
-    groups:
-      dependencies:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 10
-    package-ecosystem: "gomod"
-    schedule:
-      interval: "weekly"
-
-  - directory: "/pinger"
-    groups:
-      dependencies:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 10
-    package-ecosystem: "gomod"
-    schedule:
-      interval: "weekly"
-
-  - directory: "/rest"
-    groups:
-      dependencies:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 10
-    package-ecosystem: "docker"
     schedule:
       interval: "weekly"
