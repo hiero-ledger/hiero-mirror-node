@@ -19,7 +19,9 @@ import java.time.Instant;
 import org.apache.tuweni.bytes.Bytes;
 import org.hamcrest.core.StringContains;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.ApiProperties;
+import org.hiero.mirror.web3.ApiProperties.ResponseProperties;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
@@ -72,12 +74,12 @@ class PrestateControllerTest extends Web3IntegrationTest {
     void setUp() {
         prestateProperties.setEnabled(true);
 
-        final var request = new ApiProperties.RequestProperties();
-        request.getHeaders().put("Access-Control-Allow-Origin", "*");
-        request.getHeaders().put("Cache-Control", "public, max-age=600");
+        final var response = new ResponseProperties();
+        response.getHeaders().put("Access-Control-Allow-Origin", "*");
+        response.getHeaders().put("Cache-Control", "public, max-age=600");
         final var api = new ApiProperties();
-        api.setRequest(request);
-        web3Properties.getApi().put(Web3Properties.ApiEndpointName.PRESTATE, api);
+        api.setResponse(response);
+        web3Properties.getApi().put(ApiEndpointName.PRESTATE, api);
     }
 
     TransactionIdOrHashParameter persistTransaction(final TransactionProviderEnum provider) {

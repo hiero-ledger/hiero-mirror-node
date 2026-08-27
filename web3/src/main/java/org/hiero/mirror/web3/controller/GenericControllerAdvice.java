@@ -17,6 +17,7 @@ import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST;
+import static org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,6 +27,7 @@ import java.util.Set;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
@@ -54,7 +56,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.context.request.WebRequest;
-import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -90,10 +91,11 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
     @ModelAttribute
     private void responseHeaders(HttpServletRequest request, HttpServletResponse response) {
-        var requestMapping = String.valueOf(request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE));
-        var endpoint = Web3Properties.ApiEndpointName.fromPath(requestMapping);
-        if (endpoint != null) {
-            properties.getResponseHeaders(endpoint).forEach(response::setHeader);
+        if (request.getAttribute(BEST_MATCHING_PATTERN_ATTRIBUTE) instanceof String requestMapping) {
+            var endpoint = ApiEndpointName.fromPath(requestMapping);
+            if (endpoint != null) {
+                properties.getApi(endpoint).getResponse().getHeaders().forEach(response::setHeader);
+            }
         }
     }
 

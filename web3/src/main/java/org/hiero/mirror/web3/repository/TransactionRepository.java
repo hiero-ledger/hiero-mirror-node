@@ -25,10 +25,12 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
               and consensus_timestamp <= :consensusTimestampEnd
               and nonce = 0
               and type in (7, 8, 50)
-            order by consensus_timestamp desc
+            order by
+              (result = 22) desc,
+              consensus_timestamp desc
             limit 1
             """, nativeQuery = true)
-    Optional<Transaction> findByPayerAccountIdAndValidStartNs(
+    Optional<Transaction> findByTransactionId(
             @Param("payerAccountId") long payerAccountId,
             @Param("validStartNs") long validStartNs,
             @Param("consensusTimestampStart") long consensusTimestampStart,

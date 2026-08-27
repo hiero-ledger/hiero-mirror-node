@@ -5,18 +5,19 @@ hiero:
     web3:
       api:
         call:
-          request:
+          response:
+            timeout: 4s
             headers:
               "Access-Control-Allow-Origin": "*"
-              "Cache-Control": "public, max-age=1"
         opcodes:
-          request:
+          response:
             timeout: 10s
             headers:
               "Access-Control-Allow-Origin": "*"
               "Cache-Control": "public, max-age=600"
         prestate:
-          request:
+          response:
+            timeout: 10s
             headers:
               "Access-Control-Allow-Origin": "*"
               "Cache-Control": "public, max-age=600"

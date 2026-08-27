@@ -58,12 +58,12 @@ gateway:
         - path:
             type: PathPrefix
             value: /api/v1/contracts/call
-#        - path:
-#            type: RegularExpression
-#            value: '/api/v1/contracts/results/((0x)?[A-Fa-f0-9]{64}|\d+\.\d+\.\d+-\d+-\d+)/opcodes'
-  #      - path:
-  #          type: RegularExpression
-  #          value: '/api/v1/contracts/results/((0x)?[A-Fa-f0-9]{64}|\d+\.\d+\.\d+-\d+-\d+)/prestate'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/contracts/results/((0x)?[A-Fa-f0-9]{64}|\d+\.\d+\.\d+-\d+-\d+)/opcodes'
+        - path:
+            type: RegularExpression
+            value: '/api/v1/contracts/results/((0x)?[A-Fa-f0-9]{64}|\d+\.\d+\.\d+-\d+-\d+)/prestate'
   target:
     group: ""
     kind: Service

@@ -2,39 +2,41 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import com.hedera.pbj.runtime.io.buffer.Bytes;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
+import static org.hiero.mirror.web3.utils.ByteUtils.wrapToWordSize;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.rest.model.AccountTrace;
+import org.hiero.mirror.rest.model.PrestateAccountTrace;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
 
 /**
  * Properties for tracing prestate
  */
+@RequiredArgsConstructor
 @Getter
-public class PrestateContext {
+public final class PrestateContext {
 
-    private final Set<Long> accounts = new LinkedHashSet<>();
+    private final Set<Long> accounts = new HashSet<>();
 
     private final long consensusTimestamp;
 
-    private final Map<String, AccountTrace> preAccountTraces = new LinkedHashMap<>();
-    private final Map<Long, byte[]> preBytecodeByContract = new HashMap<>();
-    private final Map<String, AccountTrace> postAccountTraces = new LinkedHashMap<>();
-    private final Map<Long, byte[]> postBytecodeByContract = new HashMap<>();
+    private final Map<String, PrestateAccountTrace> preAccountTraces = new TreeMap<>();
+    private final Map<String, PrestateAccountTrace> postAccountTraces = new TreeMap<>();
     private final PrestateRequest prestateRequest;
-    private final Map<Long, Map<String, String>> preStorageByContract = new HashMap<>();
-    private final Map<Long, Map<String, String>> postStorageByContract = new HashMap<>();
+    private final Map<Long, Map<String, String>> preStorageByContract = new TreeMap<>();
+    private final Map<Long, Map<String, String>> postStorageByContract = new TreeMap<>();
 
-    public PrestateContext(final PrestateRequest prestateRequest, final long consensusTimestamp) {
-        this.prestateRequest = prestateRequest;
-        this.consensusTimestamp = consensusTimestamp;
-    }
+    @Setter
+    private List<ContractAction> actions = new ArrayList<>();
 
     public void addAccount(final EntityId accountId) {
         if (accountId != null) {
@@ -53,8 +55,8 @@ public class PrestateContext {
             return;
         }
         preStorageByContract
-                .computeIfAbsent(contractId, id -> new LinkedHashMap<>())
-                .put(Bytes.wrap(slot).toHex(), Bytes.wrap(value).toHex());
+                .computeIfAbsent(contractId, id -> new TreeMap<>())
+                .put(wrapToWordSize(slot), wrapToWordSize(value));
     }
 
     public void addPostStorageSlot(final long contractId, final byte[] slot, final byte[] value) {
@@ -62,19 +64,7 @@ public class PrestateContext {
             return;
         }
         postStorageByContract
-                .computeIfAbsent(contractId, id -> new LinkedHashMap<>())
-                .put(Bytes.wrap(slot).toHex(), Bytes.wrap(value).toHex());
-    }
-
-    public void addPreBytecode(final long contractId, final byte[] bytecode) {
-        if (bytecode != null) {
-            preBytecodeByContract.put(contractId, bytecode);
-        }
-    }
-
-    public void addPostBytecode(final long contractId, final byte[] bytecode) {
-        if (bytecode != null) {
-            postBytecodeByContract.put(contractId, bytecode);
-        }
+                .computeIfAbsent(contractId, id -> new TreeMap<>())
+                .put(wrapToWordSize(slot), wrapToWordSize(value));
     }
 }

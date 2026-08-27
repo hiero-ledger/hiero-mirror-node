@@ -24,7 +24,7 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
-    void findByPayerAccountIdAndValidStartNsReturnsParentContractTransaction() {
+    void findByTransactionIdReturnsParentContractTransaction() {
         // Given
         final var senderEntityId = domainBuilder.entityId();
         final var parentConsensusTimestamp = domainBuilder.timestamp();
@@ -66,7 +66,7 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
                 .persist();
 
         // When
-        final var result = transactionRepository.findByPayerAccountIdAndValidStartNs(
+        final var result = transactionRepository.findByTransactionId(
                 senderEntityId.getId(), validStartNs, validStartNs, parentConsensusTimestamp + 10);
 
         // Then
@@ -74,7 +74,7 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
-    void findByPayerAccountIdAndValidStartNsEmptyWhenOnlyNonContractTransactions() {
+    void findByTransactionIdEmptyWhenOnlyNonContractTransactions() {
         // Given
         final var senderEntityId = domainBuilder.entityId();
         final var consensusTimestamp = domainBuilder.timestamp();
@@ -91,7 +91,7 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
                 .persist();
 
         // When / Then
-        assertThat(transactionRepository.findByPayerAccountIdAndValidStartNs(
+        assertThat(transactionRepository.findByTransactionId(
                         senderEntityId.getId(), validStartNs, validStartNs, consensusTimestamp + 10))
                 .isEmpty();
     }

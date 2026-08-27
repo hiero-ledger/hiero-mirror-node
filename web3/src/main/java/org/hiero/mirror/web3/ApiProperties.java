@@ -17,11 +17,11 @@ public class ApiProperties {
 
     @NotNull
     @Valid
-    private RequestProperties request = new RequestProperties();
+    private ResponseProperties response = new ResponseProperties();
 
     @Data
     @Validated
-    public static class RequestProperties {
+    public static class ResponseProperties {
 
         /**
          * Response headers to add for this API endpoint. Header names are case-insensitive.
@@ -29,6 +29,7 @@ public class ApiProperties {
         @NotNull
         private Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
+        @NotNull
         @DurationMin(seconds = 1L)
         private Duration timeout;
     }

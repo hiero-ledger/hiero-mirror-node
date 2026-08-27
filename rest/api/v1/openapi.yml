@@ -1926,13 +1926,13 @@ components:
           description: The accounts/contracts which state is touched during transaction execution
           type: array
           items:
-            $ref: "#/components/schemas/AccountTrace"
+            $ref: "#/components/schemas/PrestateAccountTrace"
         post:
           description: The accounts/contracts which state is touched during transaction execution with their applied changes
           type: array
           items:
-            $ref: "#/components/schemas/AccountTrace"
-    AccountTrace:
+            $ref: "#/components/schemas/PrestateAccountTrace"
+    PrestateAccountTrace:
       type: object
       properties:
         address:

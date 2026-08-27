@@ -173,7 +173,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     )
                     order by timestamp_range desc
                     """, nativeQuery = true)
-    Optional<List<Entity>> findActiveByIdsAndTimestamp(Collection<Long> ids, long blockTimestamp);
+    List<Entity> findActiveByIdsAndTimestamp(Collection<Long> ids, long blockTimestamp);
 
     @Query(value = """
                     select id
