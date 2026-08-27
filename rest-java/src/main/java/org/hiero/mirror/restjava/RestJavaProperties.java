@@ -15,12 +15,16 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.util.unit.DataSize;
 import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
 @ConfigurationProperties("hiero.mirror.rest-java")
 public class RestJavaProperties {
+
+    @NotNull
+    private DataSize maxRequestBodySize = DataSize.ofKilobytes(256);
 
     @NotNull
     private HederaNetwork network = HederaNetwork.TESTNET;

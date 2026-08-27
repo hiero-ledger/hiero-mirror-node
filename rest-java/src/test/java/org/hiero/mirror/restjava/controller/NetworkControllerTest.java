@@ -749,6 +749,24 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         @Test
+        void payloadTooLarge() {
+            // given a body exceeding the configured maximum request size (default 256KiB)
+            final var transaction = new byte[512 * 1024];
+
+            // when / then — rejected before the body is buffered/parsed
+            assertThatThrownBy(() -> restClient
+                            .post()
+                            .uri("")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class))
+                    .isInstanceOfSatisfying(
+                            HttpClientErrorException.class,
+                            e -> assertThat(e.getStatusCode().value()).isEqualTo(413));
+        }
+
+        @Test
         void invalidMode() {
             // given
             final var transaction = transaction();
