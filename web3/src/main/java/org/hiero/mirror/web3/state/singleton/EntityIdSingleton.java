@@ -44,9 +44,7 @@ final class EntityIdSingleton implements SingletonState<EntityNumber> {
                 .firstUserEntity();
 
         final var timestamp = context.getTimestamp();
-        final Long maxId = timestamp.isPresent()
-                ? entityRepository.findMaxIdAtTimestamp(timestamp.get())
-                : entityRepository.findMaxId();
+        final Long maxId = entityRepository.findMaxId();
 
         if (maxId == null) {
             return new EntityNumber(EntityId.of(firstUserEntity).getNum());

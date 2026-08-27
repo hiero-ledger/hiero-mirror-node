@@ -518,25 +518,6 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
-    void findMaxIdAtTimestamp() {
-        domainBuilder
-                .entity()
-                .customize(e -> e.id(1111L).createdTimestamp(100L))
-                .persist();
-        domainBuilder
-                .entity()
-                .customize(e -> e.id(2222L).createdTimestamp(200L))
-                .persist();
-
-        assertThat(entityRepository.findMaxIdAtTimestamp(150L)).isEqualTo(1111L);
-    }
-
-    @Test
-    void findMaxIdAtTimestampEmptyDb() {
-        assertThat(entityRepository.findMaxIdAtTimestamp(150L)).isNull();
-    }
-
-    @Test
     void findByIdAndDeletedIsFalseWhenSystemAccountIsCachedInBothCaches() {
         final var systemEntity =
                 domainBuilder.entity().customize(e -> e.id(777L)).persist();

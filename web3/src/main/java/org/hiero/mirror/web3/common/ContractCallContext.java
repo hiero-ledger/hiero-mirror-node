@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.common;
 
-import com.hedera.hapi.node.state.blockstream.BlockStreamInfo;
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.HashMap;
@@ -66,12 +65,6 @@ public class ContractCallContext {
 
     @Setter
     private Supplier<RecordFile> blockSupplier = () -> null;
-
-    /**
-     * Per-request BlockStreamInfo derived from the bound record file. Built once and reused for the rest of the call.
-     */
-    @Setter
-    private BlockStreamInfo blockStreamInfo;
 
     /**
      * Per-address state overrides for the current call.
@@ -147,13 +140,7 @@ public class ContractCallContext {
      * hour; otherwise {@link #getTimestamp()}.
      */
     public Optional<Long> getTimestampForSystemFiles() {
-        if (opcodeContext != null) {
-            final var opcodeTimestamp = opcodeContext.getConsensusTimestamp();
-            if (opcodeTimestamp.isPresent()) {
-                return opcodeTimestamp;
-            }
-        }
-        return getTimestamp();
+        return getTimestamp().map(t -> t + 1);
     }
 
     private Optional<Long> getTimestampOrDefaultFromRecordFile() {

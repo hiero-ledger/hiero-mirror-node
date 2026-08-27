@@ -169,25 +169,13 @@ public class TransactionExecutionService {
 
     private TransactionBody.Builder defaultTransactionBodyBuilder(
             final CallServiceParameters params, final Instant consensusNow) {
-        final var transactionValidStart = uniqueTransactionValidStart(consensusNow);
         return TransactionBody.newBuilder()
                 .transactionID(TransactionID.newBuilder()
-                        .transactionValidStart(
-                                new Timestamp(transactionValidStart.getEpochSecond(), transactionValidStart.getNano()))
+                        .transactionValidStart(new Timestamp(consensusNow.getEpochSecond(), consensusNow.getNano()))
                         .accountID(getSenderAccountID(params))
                         .build())
                 .nodeAccountID(EntityIdUtils.toAccountId(systemEntity.treasuryAccount()))
                 .transactionValidDuration(TRANSACTION_DURATION);
-    }
-
-    /**
-     * Subtracts a process-wide sequence from {@code consensusNow} so concurrent historical calls with the same
-     * default payer do not share a TransactionID, while remaining inside the 15s validity window.
-     */
-    private Instant uniqueTransactionValidStart(final Instant consensusNow) {
-        final var offsetNanos =
-                Math.floorMod(TRANSACTION_ID_SEQUENCE.getAndIncrement(), MAX_TRANSACTION_VALID_START_OFFSET_NANOS) + 1;
-        return consensusNow.minusNanos(offsetNanos);
     }
 
     private TransactionBody buildContractCreateTransactionBody(

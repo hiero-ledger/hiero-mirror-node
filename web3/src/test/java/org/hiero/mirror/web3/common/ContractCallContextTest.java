@@ -66,7 +66,6 @@ class ContractCallContextTest {
                 new OpcodeRequest(new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), false, false, false),
                 0,
                 new OpcodesProperties());
-        opcodeContext.setConsensusTimestamp(Optional.of(consensusTimestamp));
         context.setOpcodeContext(opcodeContext);
 
         assertThat(context.getTimestamp()).isEqualTo(Optional.of(previousBlockTimestamp));
@@ -85,7 +84,7 @@ class ContractCallContextTest {
                 .build());
 
         assertThat(context.getTimestamp()).isEqualTo(Optional.of(timestamp));
-        assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(timestamp));
+        assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(timestamp + 1));
     }
 
     @Test
@@ -100,6 +99,6 @@ class ContractCallContextTest {
         context.setBlockSupplier(() ->
                 RecordFile.builder().consensusEnd(consensusEnd).index(39156482L).build());
 
-        assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(consensusEnd));
+        assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(consensusEnd + 1));
     }
 }

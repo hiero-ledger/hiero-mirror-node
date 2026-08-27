@@ -163,18 +163,4 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     limit 1
                     """, nativeQuery = true)
     Long findMaxId();
-
-    @Query(value = """
-                    select max(id)
-                    from (
-                        select id
-                        from entity
-                        where created_timestamp <= ?1
-                        union all
-                        select id
-                        from entity_history
-                        where created_timestamp <= ?1
-                    ) as entities
-                    """, nativeQuery = true)
-    Long findMaxIdAtTimestamp(long blockTimestamp);
 }

@@ -251,61 +251,6 @@ class TransactionExecutionServiceTest {
 
         final var expected = convertToInstant(consensusEndNanos);
         assertThat(consensusTime.getValue()).isEqualTo(expected);
-        assertTransactionValidStartWithinWindow(body.getValue().transactionID().transactionValidStart(), expected);
-    }
-
-    @Test
-    void executeAssignsUniqueTransactionValidStartForSameConsensusTime() {
-        final var consensusEndNanos = 1_786_518_658_483_854_104L;
-        final var recordFile = RecordFile.builder()
-                .consensusEnd(consensusEndNanos)
-                .index(39156482L)
-                .build();
-
-        final var params = ContractExecutionParameters.builder()
-                .block(BlockType.of("39156482"))
-                .callData(new byte[0])
-                .callType(CallType.ETH_CALL)
-                .gas(DEFAULT_GAS)
-                .gasPrice(0L)
-                .isEstimate(false)
-                .isStatic(true)
-                .receiver(Address.fromHexString("0x1234"))
-                .sender(Address.ZERO)
-                .value(0)
-                .build();
-        ContractCallContext.get().setCallServiceParameters(params);
-        ContractCallContext.get().setBlockSupplier(() -> recordFile);
-
-        var singleTransactionRecord = mock(SingleTransactionRecord.class);
-        var transactionRecord = mock(TransactionRecord.class);
-        var transactionReceipt = mock(TransactionReceipt.class);
-        var contractFunctionResult = mock(ContractFunctionResult.class);
-        when(transactionReceipt.status()).thenReturn(SUCCESS);
-        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
-        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
-        when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
-        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
-
-        final var consensusTime = ArgumentCaptor.forClass(Instant.class);
-        final var body = ArgumentCaptor.forClass(TransactionBody.class);
-        when(transactionExecutor.execute(
-                        body.capture(), consensusTime.capture(), any(ActionSidecarContentTracer[].class)))
-                .thenReturn(List.of(singleTransactionRecord));
-
-        transactionExecutionService.execute(params, DEFAULT_GAS);
-        transactionExecutionService.execute(params, DEFAULT_GAS);
-
-        final var expectedConsensus = convertToInstant(consensusEndNanos);
-        assertThat(consensusTime.getAllValues().getFirst()).isEqualTo(expectedConsensus);
-        assertThat(consensusTime.getAllValues().get(1)).isEqualTo(expectedConsensus);
-
-        final var firstValidStart =
-                body.getAllValues().getFirst().transactionID().transactionValidStart();
-        final var secondValidStart = body.getAllValues().get(1).transactionID().transactionValidStart();
-        assertThat(firstValidStart).isNotEqualTo(secondValidStart);
-        assertTransactionValidStartWithinWindow(firstValidStart, expectedConsensus);
-        assertTransactionValidStartWithinWindow(secondValidStart, expectedConsensus);
     }
 
     @Test
@@ -329,7 +274,6 @@ class TransactionExecutionServiceTest {
                 new OpcodeRequest(new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), false, false, false),
                 0,
                 new OpcodesProperties());
-        opcodeContext.setConsensusTimestamp(Optional.of(consensusNanos));
         ContractCallContext.get().setOpcodeContext(opcodeContext);
 
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
@@ -641,13 +585,6 @@ class TransactionExecutionServiceTest {
 
     private static Instant toInstant(final Timestamp timestamp) {
         return Instant.ofEpochSecond(timestamp.seconds(), timestamp.nanos());
-    }
-
-    private static void assertTransactionValidStartWithinWindow(
-            final Timestamp transactionValidStart, final Instant consensusTime) {
-        final var validStart = toInstant(transactionValidStart);
-        assertThat(validStart).isBefore(consensusTime);
-        assertThat(validStart).isAfter(consensusTime.minusSeconds(15));
     }
 
     private CallServiceParameters buildServiceParams(

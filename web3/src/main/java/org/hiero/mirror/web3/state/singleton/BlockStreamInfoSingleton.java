@@ -35,10 +35,6 @@ final class BlockStreamInfoSingleton implements SingletonState<BlockStreamInfo> 
     @Override
     public BlockStreamInfo get() {
         final var context = ContractCallContext.get();
-        final var cached = context.getBlockStreamInfo();
-        if (cached != null) {
-            return cached;
-        }
         final var recordFile = context.getRecordFile();
         if (recordFile == null) {
             // Do not cache the fallback: the record file may be bound later on the same context (warmup, tests).
@@ -46,13 +42,11 @@ final class BlockStreamInfoSingleton implements SingletonState<BlockStreamInfo> 
         }
         final var blockTime = Utils.convertToTimestamp(recordFile.getConsensusStart());
         final var blockEndTime = Utils.convertToTimestamp(recordFile.getConsensusEnd());
-        final var blockStreamInfo = BlockStreamInfo.newBuilder()
+        return BlockStreamInfo.newBuilder()
                 .blockNumber(recordFile.getIndex())
                 .blockTime(blockTime)
                 .lastHandleTime(blockEndTime)
                 .blockEndTime(blockEndTime)
                 .build();
-        context.setBlockStreamInfo(blockStreamInfo);
-        return blockStreamInfo;
     }
 }
