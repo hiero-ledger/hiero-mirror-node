@@ -18,7 +18,7 @@ import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 final class BlockStateProofHasherImpl implements BlockStateProofHasher {
 
     private static final int HASH_LENGTH = DigestAlgorithm.SHA_384.getSize();
-    // A StateProof needs at least the timestamp leaf path, the current block's root hash path, and the root path
+    // A StateProof needs at least the timestamp leaf path, the path to the leaf to be proven, and the root path
     private static final int MIN_PATH_COUNT = 3;
     // The sentinel value of MerklePath.next_path_index (UINT32_MAX) marking the root path
     private static final int ROOT_PATH_INDEX = -1;
@@ -54,6 +54,7 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
                 foundRootHash = Arrays.equals(contentHash, currentRootHash);
             }
 
+            // Take this leaf path and merge its siblings up to the top of the branch
             var branch = new Branch(index, foldSiblings(digest, path, contentHash));
             int pathIndex = index;
             int nextPathIndex = path.getNextPathIndex();
