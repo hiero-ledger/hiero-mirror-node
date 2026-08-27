@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
@@ -12,6 +13,7 @@ import lombok.SneakyThrows;
 import org.hiero.mirror.restjava.RestJavaProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -23,7 +25,7 @@ final class RequestBodySizeFilterTest {
 
     private final MockFilterChain chain = new MockFilterChain();
     private final MockHttpServletResponse response = new MockHttpServletResponse();
-    private final RequestBodySizeFilter filter = new RequestBodySizeFilter(properties());
+    private final RequestBodySizeFilter filter = new RequestBodySizeFilter(properties(), new ObjectMapper());
 
     // Reads the request body to completion, exercising the streamed size cap the way the message converter would.
     private static final FilterChain READING_CHAIN = (request, response) ->
@@ -40,6 +42,12 @@ final class RequestBodySizeFilterTest {
         // Rejected up front before the body is buffered; the chain is never invoked.
         assertThat(response.getStatus()).isEqualTo(HttpStatus.CONTENT_TOO_LARGE.value());
         assertThat(chain.getRequest()).isNull();
+        // The body matches the GenericControllerAdvice error format rather than the container default page.
+        assertThat(response.getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+        assertThat(response.getContentAsString())
+                .contains("\"_status\"")
+                .contains(HttpStatus.CONTENT_TOO_LARGE.getReasonPhrase())
+                .doesNotContain("\"data\"");
     }
 
     @Test

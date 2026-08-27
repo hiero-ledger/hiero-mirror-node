@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.restjava.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Named;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;
@@ -13,10 +14,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.CustomLog;
 import org.hiero.mirror.restjava.RestJavaProperties;
+import org.hiero.mirror.restjava.controller.ErrorResponseFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -28,9 +31,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 class RequestBodySizeFilter extends OncePerRequestFilter {
 
     private final long maxRequestBodySize;
+    private final ObjectMapper objectMapper;
 
-    RequestBodySizeFilter(RestJavaProperties properties) {
+    RequestBodySizeFilter(RestJavaProperties properties, ObjectMapper objectMapper) {
         this.maxRequestBodySize = properties.getMaxRequestBodySize().toBytes();
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -48,9 +53,8 @@ class RequestBodySizeFilter extends OncePerRequestFilter {
                     HttpStatus.CONTENT_TOO_LARGE.value(),
                     contentLength,
                     maxRequestBodySize);
-            if (!response.isCommitted()) {
-                response.sendError(HttpStatus.CONTENT_TOO_LARGE.value());
-            }
+            writeError(
+                    response, "Request body %d exceeds maximum %d bytes".formatted(contentLength, maxRequestBodySize));
             return;
         }
 
@@ -63,6 +67,22 @@ class RequestBodySizeFilter extends OncePerRequestFilter {
 
     private static boolean hasBody(HttpServletRequest request, long contentLength) {
         return HttpMethod.POST.matches(request.getMethod()) && contentLength != 0;
+    }
+
+    /**
+     * Writes a {@code 413 Content Too Large} response in the same JSON format as {@code GenericControllerAdvice}. The
+     * advice cannot be reused directly because it only handles exceptions raised within the DispatcherServlet, whereas
+     * this filter runs outside of it, so the shared {@link ErrorResponseFactory} is used to keep the format consistent.
+     */
+    private void writeError(HttpServletResponse response, String detail) throws IOException {
+        if (response.isCommitted()) {
+            return;
+        }
+
+        final var error = ErrorResponseFactory.create(HttpStatus.CONTENT_TOO_LARGE.getReasonPhrase(), detail);
+        response.setStatus(HttpStatus.CONTENT_TOO_LARGE.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectMapper.writeValue(response.getOutputStream(), error);
     }
 
     /**
