@@ -37,7 +37,6 @@ final class BlockStreamInfoSingleton implements SingletonState<BlockStreamInfo> 
         final var context = ContractCallContext.get();
         final var recordFile = context.getRecordFile();
         if (recordFile == null) {
-            // Do not cache the fallback: the record file may be bound later on the same context (warmup, tests).
             return FALLBACK;
         }
         final var blockTime = Utils.convertToTimestamp(recordFile.getConsensusStart());

@@ -35,7 +35,6 @@ import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.SequencedCollection;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -60,9 +59,6 @@ import org.hyperledger.besu.datatypes.Address;
 public class TransactionExecutionService {
 
     private static final Duration TRANSACTION_DURATION = new Duration(15);
-    private static final long MAX_TRANSACTION_VALID_START_OFFSET_NANOS =
-            TRANSACTION_DURATION.seconds() * 1_000_000_000L - 1;
-    private static final AtomicLong TRANSACTION_ID_SEQUENCE = new AtomicLong();
     private static final long TX_FEE = 100_000_000_000L;
     private static final String SENDER_NOT_FOUND = "Sender account not found.";
 

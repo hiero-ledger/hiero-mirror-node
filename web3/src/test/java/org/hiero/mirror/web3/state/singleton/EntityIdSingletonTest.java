@@ -9,7 +9,6 @@ import static org.mockito.Mockito.when;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.EntityRepository;
-import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,9 +24,6 @@ class EntityIdSingletonTest {
 
     @Mock
     private EntityRepository entityRepository;
-
-    @Mock
-    private CallServiceParameters callServiceParameters;
 
     @BeforeEach
     void setup() {
