@@ -22,6 +22,27 @@ updates:
     schedule:
       interval: "weekly"
 
+  - directories:
+      - "/graphql"
+      - "/grpc"
+      - "/importer"
+      - "/monitor"
+      - "/pinger"
+      - "/rest-java"
+      - "/rest/monitoring"
+      - "/rosetta"
+      - "/rosetta/container"
+      - "/test"
+      - "/web3"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    package-ecosystem: "docker"
+    schedule:
+      interval: "weekly"
+
   - directory: "/charts"
     groups:
       dependencies:
