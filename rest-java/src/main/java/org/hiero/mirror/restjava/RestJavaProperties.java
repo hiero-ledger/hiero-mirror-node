@@ -4,6 +4,7 @@ package org.hiero.mirror.restjava;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,6 +26,11 @@ public class RestJavaProperties {
 
     @NotNull
     private DataSize maxRequestBodySize = DataSize.ofKilobytes(256);
+
+    @AssertTrue(message = "maxRequestBodySize must be positive")
+    private boolean isMaxRequestBodySizePositive() {
+        return maxRequestBodySize != null && maxRequestBodySize.toBytes() > 0;
+    }
 
     @NotNull
     private HederaNetwork network = HederaNetwork.TESTNET;

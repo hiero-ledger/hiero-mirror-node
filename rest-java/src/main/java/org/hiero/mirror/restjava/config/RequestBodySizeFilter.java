@@ -72,6 +72,7 @@ class RequestBodySizeFilter extends OncePerRequestFilter {
     private static final class LimitedRequest extends HttpServletRequestWrapper {
 
         private final long maxBytes;
+        private LimitedInputStream inputStream;
 
         private LimitedRequest(HttpServletRequest request, long maxBytes) {
             super(request);
@@ -80,7 +81,10 @@ class RequestBodySizeFilter extends OncePerRequestFilter {
 
         @Override
         public ServletInputStream getInputStream() throws IOException {
-            return new LimitedInputStream(super.getInputStream(), maxBytes);
+            if (inputStream == null) {
+                inputStream = new LimitedInputStream(super.getInputStream(), maxBytes);
+            }
+            return inputStream;
         }
     }
 
@@ -106,7 +110,9 @@ class RequestBodySizeFilter extends OncePerRequestFilter {
 
         @Override
         public int read(byte[] buffer, int off, int len) throws IOException {
-            int read = delegate.read(buffer, off, len);
+            long remaining = maxBytes - count;
+            int allowed = (int) Math.min(len, remaining + 1);
+            int read = delegate.read(buffer, off, allowed);
             if (read > 0) {
                 increment(read);
             }
