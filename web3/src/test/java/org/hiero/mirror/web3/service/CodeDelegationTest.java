@@ -7,7 +7,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_67;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_77;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_70;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
@@ -82,7 +82,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         final var result = contractExecutionService.processCall(serviceParameters);
 
         assertThat(result).isNotEqualTo("0x0000000000000000000000000000000000000000000000000000000000000004");
-        evmProperties.setEvmVersion(EVM_VERSION_0_77);
+        evmProperties.setEvmVersion(EVM_VERSION_0_70);
     }
 
     @Test
