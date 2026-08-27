@@ -83,6 +83,7 @@ class CryptoUpdateTransactionHandler extends AbstractEntityCrudTransactionHandle
 
         // If the delegation address is the zero-address, it means that we have the delegation address
         // cleared, and we need to persist it as the zero-address in the DB.
+        // Remove the version check once Pectra is released on consensus node.
         if (!transactionBody.getDelegationAddress().isEmpty()
                 && recordItem.getHapiVersion().isGreaterThanOrEqualTo(HAPI_VERSION_0_77_0)) {
             entity.setDelegationAddress(DomainUtils.toBytes(transactionBody.getDelegationAddress()));

@@ -113,6 +113,7 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
         var ethereumDataBytes = DomainUtils.toBytes(body.getEthereumData());
         try {
             var ethereumTransaction = ethereumTransactionParser.decode(ethereumDataBytes);
+            // Remove the version check once Pectra is released on consensus node.
             if (!isPectraEthereumTransactionSupported(recordItem, ethereumTransaction)) {
                 return;
             }

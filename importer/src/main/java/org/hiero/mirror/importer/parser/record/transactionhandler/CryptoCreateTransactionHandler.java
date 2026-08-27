@@ -96,6 +96,7 @@ class CryptoCreateTransactionHandler extends AbstractEntityCrudTransactionHandle
         entity.setMaxAutomaticTokenAssociations(transactionBody.getMaxAutomaticTokenAssociations());
         entity.setMemo(transactionBody.getMemo());
         entity.setReceiverSigRequired(transactionBody.getReceiverSigRequired());
+        // Remove the version check once Pectra is released on consensus node.
         if (!transactionBody.getDelegationAddress().isEmpty()
                 && recordItem.getHapiVersion().isGreaterThanOrEqualTo(HAPI_VERSION_0_77_0)) {
             entity.setDelegationAddress(DomainUtils.toBytes(transactionBody.getDelegationAddress()));
