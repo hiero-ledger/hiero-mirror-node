@@ -13,6 +13,8 @@ hiero:
           enabled: false
         DUMMYMIGRATION:
           checksum: 5
+        fixEvmTransactionIndexMigration:
+          enabled: false
       network: TESTNET
       parser:
         exclude:
