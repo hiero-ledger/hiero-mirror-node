@@ -55,31 +55,42 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
             values (:upperBound)
             """;
 
-    private static final String UPDATE_EVM_TRANSACTION_INDEX_SQL = """
+    private static final String RECOMPUTE_EVM_TRANSACTION_INDEX_SQL = """
             with evm_candidates as (
                 select
                     cr.consensus_timestamp,
-                    (cr.transaction_nonce = 0 or cr.contract_id = :hookContractId) as is_root
+                    (cr.transaction_nonce = 0 or cr.contract_id = :hookContractId) as is_root,
+                    (
+                        (cr.transaction_nonce <> 0 and cr.contract_id <> :hookContractId)
+                        or cr.gas_used > 0
+                    ) as qualifies
                 from contract_result cr
                 where cr.consensus_timestamp >= :consensusStart
                   and cr.consensus_timestamp <= :lastConsensusEnd
-                  and cr.transaction_result <> 312
                 union all
                 select distinct
                     cl.consensus_timestamp,
-                    true as is_root
+                    true as is_root,
+                    true as qualifies
                 from contract_log cl
                 where cl.synthetic = true
                   and cl.consensus_timestamp >= :consensusStart
                   and cl.consensus_timestamp <= :lastConsensusEnd
+                  and cl.consensus_timestamp not in (
+                    select consensus_timestamp from contract_result
+                    where consensus_timestamp >= :consensusStart
+                      and consensus_timestamp <= :lastConsensusEnd
+                  )
             ),
             evm_index as (
                 select
                     ec.consensus_timestamp,
-                    sum(case when ec.is_root then 1 else 0 end) over (
-                        partition by rf.consensus_end
-                        order by ec.consensus_timestamp
-                    ) - 1 as evm_index
+                    case when ec.qualifies then
+                        sum(case when ec.is_root and ec.qualifies then 1 else 0 end) over (
+                            partition by rf.consensus_end
+                            order by ec.consensus_timestamp
+                        ) - 1
+                    end as evm_index
                 from evm_candidates ec
                 join record_file rf
                     on ec.consensus_timestamp between rf.consensus_start and rf.consensus_end
@@ -91,7 +102,8 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 from evm_index ei
                 where cr.consensus_timestamp = ei.consensus_timestamp
                   and cr.consensus_timestamp between :consensusStart and :lastConsensusEnd
-                returning cr.consensus_timestamp
+                  and cr.transaction_index is distinct from ei.evm_index
+                returning ei.evm_index
             ),
             updated_contract_log as (
                 update contract_log cl
@@ -99,11 +111,14 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 from evm_index ei
                 where cl.consensus_timestamp = ei.consensus_timestamp
                   and cl.consensus_timestamp between :consensusStart and :lastConsensusEnd
-                returning cl.consensus_timestamp
+                  and cl.transaction_index is distinct from ei.evm_index
+                returning ei.evm_index
             )
             select
-                (select count(*) from updated_contract_result) as updated_results,
-                (select count(*) from updated_contract_log) as updated_logs
+                (select count(*) from updated_contract_result where evm_index is not null) as updated_results,
+                (select count(*) from updated_contract_result where evm_index is null) as nulled_results,
+                (select count(*) from updated_contract_log where evm_index is not null) as updated_logs,
+                (select count(*) from updated_contract_log where evm_index is null) as nulled_logs
             """;
 
     private static final String SELECT_RECORD_FILES_RANGE = """
@@ -161,11 +176,6 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
     }
 
     @Override
-    protected Long getInitial() {
-        return initialUpperBound;
-    }
-
-    @Override
     protected boolean performSynchronousSteps() {
         final var persistProperties = entityProperties.getPersist();
         if (!persistProperties.isContracts() || !persistProperties.isContractResults()) {
@@ -184,6 +194,12 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
         initialUpperBound = savedProgress != null ? savedProgress : maxConsensusEnd;
         log.info("Starting EVM transaction index fix with initial timestamp: {}", initialUpperBound);
         return true;
+    }
+
+    @NonNull
+    @Override
+    protected Long getInitial() {
+        return initialUpperBound;
     }
 
     @NonNull
@@ -209,12 +225,19 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 .addValue("hookContractId", getHookContractId());
 
         final var counts = getNamedParameterJdbcOperations()
-                .queryForObject(UPDATE_EVM_TRANSACTION_INDEX_SQL, params, UPDATE_COUNTS_ROW_MAPPER);
-        if (counts.updatedResults() > 0 || counts.updatedLogs() > 0) {
+                .queryForObject(RECOMPUTE_EVM_TRANSACTION_INDEX_SQL, params, UPDATE_COUNTS_ROW_MAPPER);
+
+        if (counts.updatedResults() > 0
+                || counts.nulledResults() > 0
+                || counts.updatedLogs() > 0
+                || counts.nulledLogs() > 0) {
             log.info(
-                    "Fixed EVM transaction index for {} contract_result and {} contract_log rows in range [{}, {}]",
+                    "Fixed EVM transaction index for {} contract_result and {} contract_log rows, nulled {}"
+                            + " contract_result and {} contract_log rows in range [{}, {}]",
                     counts.updatedResults(),
                     counts.updatedLogs(),
+                    counts.nulledResults(),
+                    counts.nulledLogs(),
                     slice.minConsensusTimestamp(),
                     slice.maxConsensusTimestamp());
         }
@@ -233,5 +256,5 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
     private record RecordFileSlice(Long minConsensusTimestamp, Long maxConsensusTimestamp) {}
 
-    private record UpdateCounts(long updatedResults, long updatedLogs) {}
+    private record UpdateCounts(long updatedResults, long nulledResults, long updatedLogs, long nulledLogs) {}
 }

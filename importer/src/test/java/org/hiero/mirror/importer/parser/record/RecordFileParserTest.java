@@ -298,7 +298,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
     }
 
     @Test
-    void wrongNonceEthereumTransactionDoesNotConsumeEvmIndex() {
+    void positiveGasUsedConsumesEvmIndexRegardlessOfStatus() {
         // given
         when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
 
@@ -322,7 +322,61 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
 
         // then
         assertAll(
+                () -> assertThat(wrongNonceItem.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(contractCallItem.getEvmTransactionIndex()).isEqualTo(1));
+    }
+
+    @Test
+    void zeroGasUsedDoesNotConsumeEvmIndex() {
+        // given
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        final long timestamp = ++count;
+        final var contractFunctionResult = contractFunctionResult(0L, new byte[] {1});
+        final var wrongNonceItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .record(builder -> builder.setContractCallResult(contractFunctionResult)
+                        .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp))
+                        .setReceipt(TransactionReceipt.newBuilder()
+                                .setStatus(ResponseCodeEnum.WRONG_NONCE)
+                                .build()))
+                .build();
+        final var contractCallItem = contractCall(contractFunctionResult(2000L, new byte[] {2}), timestamp + 1, 0);
+
+        final var items = List.of(wrongNonceItem, contractCallItem);
+        final var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
                 () -> assertThat(wrongNonceItem.getEvmTransactionIndex()).isNull(),
+                () -> assertThat(contractCallItem.getEvmTransactionIndex()).isZero());
+    }
+
+    @Test
+    void noContractFunctionResultDoesNotConsumeEvmIndex() {
+        // given
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        final long timestamp = ++count;
+        final var noResultItem = recordItemBuilder
+                .contractCall()
+                .record(builder -> builder.clearContractCallResult()
+                        .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp)))
+                .build();
+        final var contractCallItem = contractCall(contractFunctionResult(2000L, new byte[] {2}), timestamp + 1, 0);
+
+        final var items = List.of(noResultItem, contractCallItem);
+        final var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
+                () -> assertThat(noResultItem.getEvmTransactionIndex()).isNull(),
                 () -> assertThat(contractCallItem.getEvmTransactionIndex()).isZero());
     }
 

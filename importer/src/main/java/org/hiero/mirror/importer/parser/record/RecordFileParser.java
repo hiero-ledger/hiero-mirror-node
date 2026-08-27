@@ -6,7 +6,6 @@ import static org.hiero.mirror.importer.reader.record.ProtoRecordFileReader.VERS
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
-import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -238,17 +237,23 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             return;
         }
 
-        // WRONG_NONCE transactions never entered EVM execution; no index slot should be assigned
-        if (recordItem.getTransactionStatus() == ResponseCodeEnum.WRONG_NONCE_VALUE) {
-            return;
-        }
-
         final var contractRelatedParent = recordItem.getContractRelatedParent();
         if (contractRelatedParent != null && contractRelatedParent.getEvmTransactionIndex() != null) {
             recordItem.setEvmTransactionIndex(contractRelatedParent.getEvmTransactionIndex());
-        } else if (recordItem.hasContractResult()) {
+        } else if (hasPositiveGasUsed(recordItem)) {
             recordItem.claimEvmTransactionIndex();
         }
+    }
+
+    private boolean hasPositiveGasUsed(RecordItem recordItem) {
+        var transactionRecord = recordItem.getTransactionRecord();
+        if (transactionRecord.hasContractCallResult()) {
+            return transactionRecord.getContractCallResult().getGasUsed() > 0;
+        }
+        if (transactionRecord.hasContractCreateResult()) {
+            return transactionRecord.getContractCreateResult().getGasUsed() > 0;
+        }
+        return false;
     }
 
     private final class RecordItemAggregator implements Consumer<RecordItem> {

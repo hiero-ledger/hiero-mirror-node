@@ -163,7 +163,6 @@ final class FixEvmTransactionIndexMigrationTest
         final var innerEthereumTimestamp = block.getConsensusStart() + 300;
 
         persistTransaction(batchTimestamp, TransactionType.ATOMIC_BATCH, 0, false, null);
-        // Each inner transaction is independently signed and keeps nonce 0, so each is treated as a root.
         persistTransaction(innerCallTimestamp, TransactionType.CONTRACTCALL, 0, false, batchTimestamp);
         persistTransaction(innerEthereumTimestamp, TransactionType.ETHEREUMTRANSACTION, 0, false, batchTimestamp);
 
@@ -419,31 +418,145 @@ final class FixEvmTransactionIndexMigrationTest
     }
 
     @Test
-    void wrongNonceTransactionDoesNotConsumeEvmIndex() {
+    void zeroGasUsedDoesNotConsumeEvmIndex() {
         // given
         final var block = persistBlock(0);
         final var wrongNonceTimestamp = block.getConsensusStart() + 100;
         final var contractCallTimestamp = block.getConsensusStart() + 200;
 
-        persistTransaction(wrongNonceTimestamp, TransactionType.ETHEREUMTRANSACTION, 0, false, null);
-        persistTransaction(contractCallTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
-
-        final var wrongNonceResult = domainBuilder
-                .contractResult()
-                .customize(cr -> cr.consensusTimestamp(wrongNonceTimestamp)
-                        .transactionIndex(99)
-                        .transactionNonce(0)
-                        .transactionResult(ResponseCodeEnum.WRONG_NONCE_VALUE))
-                .persist();
-        final var contractCallResult = persistContractResult(contractCallTimestamp, 99);
+        final var wrongNonceResult =
+                persistContractResult(wrongNonceTimestamp, 0, 99, ResponseCodeEnum.WRONG_NONCE_VALUE, 0L);
+        final var contractCallResult = persistContractResult(contractCallTimestamp, 0, 99);
 
         // when
         runMigration();
         waitForCompletion();
 
         // then
+        assertContractResultIndex(wrongNonceResult.getConsensusTimestamp(), null);
         assertContractResultIndex(contractCallResult.getConsensusTimestamp(), 0);
-        assertContractResultIndex(wrongNonceResult.getConsensusTimestamp(), 99);
+    }
+
+    @Test
+    void zeroGasUsedContractLogIndexIsNulledOut() {
+        // given
+        final var block = persistBlock(0);
+        final var zeroGasTimestamp = block.getConsensusStart() + 100;
+        final var contractCallTimestamp = block.getConsensusStart() + 200;
+
+        final var zeroGasResult =
+                persistContractResult(zeroGasTimestamp, 0, 5, ResponseCodeEnum.INVALID_SIGNATURE_VALUE, 0L);
+        final var zeroGasLog = persistContractLog(zeroGasTimestamp, 5);
+        final var contractCallResult = persistContractResult(contractCallTimestamp, 0, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(zeroGasResult.getConsensusTimestamp(), null);
+        assertContractLogIndex(zeroGasLog.getConsensusTimestamp(), null);
+        assertContractResultIndex(contractCallResult.getConsensusTimestamp(), 0);
+    }
+
+    @Test
+    void zeroGasUsedExcludesRegardlessOfStatus() {
+        // given
+        final var block = persistBlock(0);
+        final var contractRevertTimestamp = block.getConsensusStart() + 100;
+        final var contractCallTimestamp = block.getConsensusStart() + 200;
+
+        final var contractRevertResult = persistContractResult(
+                contractRevertTimestamp, 0, 99, ResponseCodeEnum.CONTRACT_REVERT_EXECUTED_VALUE, 0L);
+        final var contractCallResult = persistContractResult(contractCallTimestamp, 0, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(contractRevertResult.getConsensusTimestamp(), null);
+        assertContractResultIndex(contractCallResult.getConsensusTimestamp(), 0);
+    }
+
+    @Test
+    void positiveGasUsedConsumesEvmIndexRegardlessOfStatus() {
+        // given
+        final var block = persistBlock(0);
+        final var invalidAccountIdTimestamp = block.getConsensusStart() + 100;
+        final var contractCallTimestamp = block.getConsensusStart() + 200;
+
+        final var invalidAccountIdResult =
+                persistContractResult(invalidAccountIdTimestamp, 0, 99, ResponseCodeEnum.INVALID_ACCOUNT_ID_VALUE);
+        final var contractCallResult = persistContractResult(contractCallTimestamp, 0, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(invalidAccountIdResult.getConsensusTimestamp(), 0);
+        assertContractResultIndex(contractCallResult.getConsensusTimestamp(), 1);
+    }
+
+    @Test
+    void zeroGasUsedChildStillInheritsParentIndex() {
+        // given
+        final var block = persistBlock(0);
+        final var rootTimestamp = block.getConsensusStart() + 100;
+        final var childTimestamp = block.getConsensusStart() + 200;
+
+        final var rootResult = persistContractResult(rootTimestamp, 0, 99);
+        final var childResult = persistContractResult(childTimestamp, 1, 99, ResponseCodeEnum.SUCCESS_VALUE, 0L);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(rootResult.getConsensusTimestamp(), 0);
+        assertContractResultIndex(childResult.getConsensusTimestamp(), 0);
+    }
+
+    @Test
+    void doesNotDoubleCountEvmIndexWhenSyntheticLogSharesTimestampWithContractResult() {
+        // given
+        final var block = persistBlock(0);
+        final var sharedTimestamp = block.getConsensusStart() + 100;
+        final var laterTimestamp = block.getConsensusStart() + 200;
+
+        final var sharedContractResult = persistContractResult(sharedTimestamp, 0, 99);
+        persistSyntheticContractLog(sharedTimestamp, 99);
+        final var laterContractResult = persistContractResult(laterTimestamp, 0, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(sharedContractResult.getConsensusTimestamp(), 0);
+        assertContractResultIndex(laterContractResult.getConsensusTimestamp(), 1);
+    }
+
+    private ContractResult persistContractResult(long consensusTimestamp, int nonce, Integer existingIndex) {
+        return persistContractResult(consensusTimestamp, nonce, existingIndex, ResponseCodeEnum.SUCCESS_VALUE);
+    }
+
+    private ContractResult persistContractResult(
+            long consensusTimestamp, int nonce, Integer existingIndex, int transactionResult) {
+        return persistContractResult(consensusTimestamp, nonce, existingIndex, transactionResult, 100L);
+    }
+
+    private ContractResult persistContractResult(
+            long consensusTimestamp, int nonce, Integer existingIndex, int transactionResult, long gasUsed) {
+        return domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
+                        .transactionIndex(existingIndex)
+                        .transactionNonce(nonce)
+                        .gasUsed(gasUsed)
+                        .transactionResult(transactionResult))
+                .persist();
     }
 
     private RecordFile persistBlock(long index) {
@@ -522,7 +635,7 @@ final class FixEvmTransactionIndexMigrationTest
                 .persist();
     }
 
-    private void assertContractResultIndex(long consensusTimestamp, int expected) {
+    private void assertContractResultIndex(long consensusTimestamp, Integer expected) {
         assertThat(jdbcOperations.queryForObject(
                         "select transaction_index from contract_result where consensus_timestamp = ?",
                         Integer.class,
@@ -530,7 +643,7 @@ final class FixEvmTransactionIndexMigrationTest
                 .isEqualTo(expected);
     }
 
-    private void assertContractLogIndex(long consensusTimestamp, int expected) {
+    private void assertContractLogIndex(long consensusTimestamp, Integer expected) {
         assertThat(jdbcOperations.queryForObject(
                         "select transaction_index from contract_log where consensus_timestamp = ?",
                         Integer.class,
