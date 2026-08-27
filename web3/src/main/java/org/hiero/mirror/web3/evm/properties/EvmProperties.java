@@ -13,7 +13,7 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_65;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_66;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_67;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_77;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_70;
 
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.SemanticVersion;
@@ -125,10 +125,10 @@ public class EvmProperties {
      */
     public boolean isPectraEvm() {
         var version = getSemanticEvmVersion();
-        if (version.major() != EVM_VERSION_0_77.major()) {
-            return version.major() > EVM_VERSION_0_77.major();
+        if (version.major() != EVM_VERSION_0_70.major()) {
+            return version.major() > EVM_VERSION_0_70.major();
         }
-        return version.minor() >= EVM_VERSION_0_77.minor();
+        return version.minor() >= EVM_VERSION_0_70.minor();
     }
 
     /**

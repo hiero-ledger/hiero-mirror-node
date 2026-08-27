@@ -59,8 +59,8 @@ public class EvmConfiguration {
     public static final SemanticVersion EVM_VERSION_0_65 = new SemanticVersion(0, 65, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_66 = new SemanticVersion(0, 66, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_67 = new SemanticVersion(0, 67, 0, "", "");
-    public static final SemanticVersion EVM_VERSION_0_77 = new SemanticVersion(0, 77, 0, "", "");
-    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_77;
+    public static final SemanticVersion EVM_VERSION_0_70 = new SemanticVersion(0, 70, 0, "", "");
+    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_70;
     private final CacheProperties cacheProperties;
     private final EvmProperties evmProperties;
 
