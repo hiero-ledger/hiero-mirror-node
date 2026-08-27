@@ -573,7 +573,7 @@ public record Account(
         if (numberLambdaStorageSlots != thatObj.numberLambdaStorageSlots) {
             return false;
         }
-        return delegationAddress == thatObj.delegationAddress;
+        return delegationAddress.equals(thatObj.delegationAddress);
     }
 
     @Override
