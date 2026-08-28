@@ -12,7 +12,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import lombok.CustomLog;
 import org.hiero.mirror.restjava.RestJavaProperties;
 import org.hiero.mirror.restjava.controller.ErrorResponseFactory;
 import org.springframework.core.Ordered;
@@ -25,10 +24,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /**
  * Rejects requests whose body exceeds the configured maximum size before it is fully buffered into memory
  */
-@CustomLog
 @Named
-@Order(Ordered.HIGHEST_PRECEDENCE)
-class RequestBodySizeFilter extends OncePerRequestFilter {
+@Order(Ordered.LOWEST_PRECEDENCE)
+final class RequestBodySizeFilter extends OncePerRequestFilter {
 
     private final long maxRequestBodySize;
     private final ObjectMapper objectMapper;
@@ -41,32 +39,23 @@ class RequestBodySizeFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        final long start = System.currentTimeMillis();
         final long contentLength = request.getContentLengthLong();
         if (contentLength > maxRequestBodySize) {
-            log.info(
-                    "{} {} {} in {} ms: {} Request body {} exceeds maximum {} bytes",
-                    request.getRemoteAddr(),
-                    request.getMethod(),
-                    request.getRequestURI(),
-                    System.currentTimeMillis() - start,
-                    HttpStatus.CONTENT_TOO_LARGE.value(),
-                    contentLength,
-                    maxRequestBodySize);
             writeError(
                     response, "Request body %d exceeds maximum %d bytes".formatted(contentLength, maxRequestBodySize));
             return;
         }
 
-        if (hasBody(request, contentLength)) {
+        if (contentLength != 0) {
             filterChain.doFilter(new LimitedRequest(request, maxRequestBodySize), response);
         } else {
             filterChain.doFilter(request, response);
         }
     }
 
-    private static boolean hasBody(HttpServletRequest request, long contentLength) {
-        return HttpMethod.POST.matches(request.getMethod()) && contentLength != 0;
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return !HttpMethod.POST.matches(request.getMethod());
     }
 
     /**

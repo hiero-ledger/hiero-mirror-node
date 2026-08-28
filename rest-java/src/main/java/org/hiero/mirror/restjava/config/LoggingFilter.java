@@ -10,11 +10,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import org.apache.commons.lang3.Strings;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @CustomLog
 @Named
+@Order(Ordered.LOWEST_PRECEDENCE - 1)
 class LoggingFilter extends OncePerRequestFilter {
 
     @SuppressWarnings("java:S1075")

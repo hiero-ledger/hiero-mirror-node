@@ -19,11 +19,14 @@ import java.io.IOException;
 import lombok.CustomLog;
 import org.apache.catalina.connector.ResponseFacade;
 import org.apache.commons.lang3.math.NumberUtils;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.WebUtils;
 
 @CustomLog
 @Named
+@Order(Ordered.LOWEST_PRECEDENCE - 1)
 class MetricsFilter extends OncePerRequestFilter {
 
     static final String REQUEST_BYTES = "hiero.mirror.restjava.request.bytes";

@@ -25,7 +25,7 @@ import org.springframework.validation.annotation.Validated;
 public class RestJavaProperties {
 
     @NotNull
-    private DataSize maxRequestBodySize = DataSize.ofKilobytes(256);
+    private DataSize maxRequestBodySize = DataSize.ofKilobytes(7);
 
     @AssertTrue(message = "maxRequestBodySize must be positive")
     private boolean isMaxRequestBodySizePositive() {
