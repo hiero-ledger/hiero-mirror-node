@@ -150,7 +150,8 @@ class ContractBytecodeReadableKVStateTest {
     @Test
     void whenHistoricalContractEvmAddressIsSetUsesTimestamp() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.of(TIMESTAMP));
-        when(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(EVM_ADDRESS.toArray(), Optional.of(TIMESTAMP)))
+        when(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(
+                        EVM_ADDRESS.getBytes().toArrayUnsafe(), Optional.of(TIMESTAMP)))
                 .thenReturn(Optional.of(ENTITY));
         when(contractRepository.findRuntimeBytecode(ENTITY.toEntityId().getId()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
