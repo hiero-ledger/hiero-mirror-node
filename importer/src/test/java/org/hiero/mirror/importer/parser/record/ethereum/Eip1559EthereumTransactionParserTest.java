@@ -10,6 +10,7 @@ import static org.hiero.mirror.importer.parser.record.ethereum.Eip2930EthereumTr
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.LONDON_RAW_TX_WITH_ACCESS_LIST;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.withEmptyStringAccessList;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
@@ -38,6 +39,12 @@ class Eip1559EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     @Test
     void decodeEmptyAccessList() {
         final var ethereumTransaction = ethereumTransactionParser.decode(LONDON_RAW_TX);
+        validateEthereumTransaction(ethereumTransaction, List.of());
+    }
+
+    @Test
+    void decodeEmptyStringAccessList() {
+        final var ethereumTransaction = ethereumTransactionParser.decode(withEmptyStringAccessList(LONDON_RAW_TX));
         validateEthereumTransaction(ethereumTransaction, List.of());
     }
 

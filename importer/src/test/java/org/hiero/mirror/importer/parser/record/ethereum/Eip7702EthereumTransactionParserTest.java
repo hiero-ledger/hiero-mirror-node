@@ -72,6 +72,13 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     }
 
     @Test
+    void decodeEmptyStringAccessList() {
+        final var ethereumTransaction =
+                ethereumTransactionParser.decode(encodeEip7702Transaction(new byte[0], DEFAULT_AUTHORIZATION_LIST));
+        validateEthereumTransaction(ethereumTransaction, List.of(), true);
+    }
+
+    @Test
     void decodeWrongType() {
         var ethereumTransactionBytes = RLPEncoder.sequence(Integers.toBytes(2), new Object[] {});
 
@@ -324,7 +331,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         }
     }
 
-    private static byte[] encodeEip7702Transaction(List<?> accessList, List<?> authorizationList) {
+    private static byte[] encodeEip7702Transaction(Object accessList, List<?> authorizationList) {
         return RLPEncoder.sequence(
                 Integers.toBytes(4),
                 List.of(

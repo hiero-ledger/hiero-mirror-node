@@ -76,7 +76,7 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
 
     protected static List<AccessList> parseAccessList(RLPItem rlpAccessList, String transactionTypeName) {
         if (!rlpAccessList.isList()) {
-            throw new InvalidEthereumBytesException(transactionTypeName, "Access list is not a list");
+            return List.of();
         }
 
         final var accessListEntries = rlpAccessList.asRLPList().elements();

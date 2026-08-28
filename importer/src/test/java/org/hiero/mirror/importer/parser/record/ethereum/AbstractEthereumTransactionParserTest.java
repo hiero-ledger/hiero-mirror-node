@@ -103,13 +103,21 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
 
     @ParameterizedTest
     @MethodSource("accessListTransactionTypes")
+    void parseAccessListEmptyString(String transactionType) {
+        final var accessListItem = RLPDecoder.RLP_STRICT.wrapItem(new byte[] {(byte) 0x80});
+
+        assertThat(AbstractEthereumTransactionParser.parseAccessList(accessListItem, transactionType))
+                .isEmpty();
+    }
+
+    @ParameterizedTest
+    @MethodSource("accessListTransactionTypes")
     void parseAccessListNotList(String transactionType) {
         final var accessListItem =
                 RLPDecoder.RLP_STRICT.wrapItem(RLPEncoder.string(HexFormat.of().parseHex(ACCESS_LIST_ADDRESS_RAW)));
 
-        assertThatThrownBy(() -> AbstractEthereumTransactionParser.parseAccessList(accessListItem, transactionType))
-                .isInstanceOf(InvalidEthereumBytesException.class)
-                .hasMessage(decodeError(transactionType, "Access list is not a list"));
+        assertThat(AbstractEthereumTransactionParser.parseAccessList(accessListItem, transactionType))
+                .isEmpty();
     }
 
     @ParameterizedTest
