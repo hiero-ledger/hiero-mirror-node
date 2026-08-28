@@ -3,12 +3,9 @@
 package org.hiero.mirror.restjava.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
-import java.io.IOException;
 import lombok.SneakyThrows;
 import org.hiero.mirror.restjava.RestJavaProperties;
 import org.junit.jupiter.api.Test;
@@ -26,10 +23,6 @@ final class RequestBodySizeFilterTest {
     private final MockFilterChain chain = new MockFilterChain();
     private final MockHttpServletResponse response = new MockHttpServletResponse();
     private final RequestBodySizeFilter filter = new RequestBodySizeFilter(properties(), new ObjectMapper());
-
-    // Reads the request body to completion, exercising the streamed size cap the way the message converter would.
-    private static final FilterChain READING_CHAIN = (request, response) ->
-            ((HttpServletRequest) request).getInputStream().readAllBytes();
 
     @Test
     @SneakyThrows
@@ -52,20 +45,25 @@ final class RequestBodySizeFilterTest {
 
     @Test
     @SneakyThrows
-    void capsStreamedBodyWithoutContentLength() {
-        // Undeclared length (chunked): the cap only takes effect as the oversized body is read.
+    void rejectsMissingContentLength() {
+        // Undeclared length (chunked): rejected outright since the size cannot be enforced up front.
         var request = new MockHttpServletRequest("POST", "/api/v1/network/fees") {
             @Override
             public long getContentLengthLong() {
                 return -1;
             }
         };
-        request.setContent(new byte[(int) MAX_BYTES + 1]);
+        request.setContent(new byte[(int) MAX_BYTES]);
 
-        // The overrun surfaces as an IOException while reading; Spring maps that to a 400 for the request.
-        assertThatThrownBy(() -> filter.doFilter(request, response, READING_CHAIN))
-                .isInstanceOf(IOException.class)
-                .hasMessageContaining("exceeds the maximum allowed size");
+        filter.doFilter(request, response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.LENGTH_REQUIRED.value());
+        assertThat(chain.getRequest()).isNull();
+        assertThat(response.getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+        assertThat(response.getContentAsString())
+                .contains("\"_status\"")
+                .contains(HttpStatus.LENGTH_REQUIRED.getReasonPhrase())
+                .doesNotContain("\"data\"");
     }
 
     @Test
@@ -77,20 +75,20 @@ final class RequestBodySizeFilterTest {
 
         filter.doFilter(request, response, chain);
 
-        // The wrapped request is passed through and its full body remains readable.
-        assertThat(chain.getRequest()).isNotNull();
+        // The request is passed through unwrapped and its full body remains readable.
+        assertThat(chain.getRequest()).isSameAs(request);
         assertThat(((HttpServletRequest) chain.getRequest()).getInputStream().readAllBytes())
                 .hasSize(body.length);
     }
 
     @Test
     @SneakyThrows
-    void skipsWrappingForBodylessRequest() {
+    void skipsNonPostRequest() {
         var request = new MockHttpServletRequest("GET", "/api/v1/network/fees");
 
         filter.doFilter(request, response, chain);
 
-        // No body to cap, so the original request is forwarded unwrapped.
+        // Only POST requests are filtered; the original request is forwarded untouched.
         assertThat(chain.getRequest()).isSameAs(request);
     }
 

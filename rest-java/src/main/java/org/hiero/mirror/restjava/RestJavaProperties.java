@@ -16,7 +16,9 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.convert.DataSizeUnit;
 import org.springframework.util.unit.DataSize;
+import org.springframework.util.unit.DataUnit;
 import org.springframework.validation.annotation.Validated;
 
 @Data
@@ -24,12 +26,13 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties("hiero.mirror.rest-java")
 public class RestJavaProperties {
 
+    @DataSizeUnit(DataUnit.KILOBYTES)
     @NotNull
     private DataSize maxRequestBodySize = DataSize.ofKilobytes(7);
 
     @AssertTrue(message = "maxRequestBodySize must be positive")
     private boolean isMaxRequestBodySizePositive() {
-        return maxRequestBodySize != null && maxRequestBodySize.toBytes() > 0;
+        return !maxRequestBodySize.isNegative();
     }
 
     @NotNull
