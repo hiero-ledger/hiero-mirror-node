@@ -2,20 +2,12 @@
 
 package org.hiero.mirror.web3.repository;
 
-import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface AccountBalanceRepository extends CrudRepository<AccountBalance, AccountBalance.Id> {
-
-    interface AccountBalanceProjection {
-        Long getAccountId();
-
-        Long getBalance();
-    }
 
     /**
      * Retrieves the account balance of a specific account at the last consensus timestamp
@@ -93,41 +85,4 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
                     """, nativeQuery = true)
     Optional<Long> findHistoricalAccountBalanceUpToTimestamp(
             long accountId, long blockTimestamp, long treasuryAccountId);
-
-    /**
-     * Batch version of {@link #findHistoricalAccountBalanceUpToTimestamp(long, long, long)}.
-     * Finds historical account balances for multiple accounts at once.
-     *
-     * @param accountIds       the IDs of the accounts.
-     * @param blockTimestamp   the block timestamp used to filter the results.
-     * @param treasuryAccountId the treasury account ID used to determine balance snapshot timestamp.
-     * @return a list of projections containing accountId and balance for each account.
-     */
-    @Query(value = """
-            select
-                ab.account_id as accountId,
-                ab.balance + coalesce((
-                    select sum(ct.amount)
-                    from crypto_transfer ct
-                    where ct.entity_id = ab.account_id and
-                        ct.consensus_timestamp > ab.consensus_timestamp and
-                        ct.consensus_timestamp <= ?2 and
-                        (ct.errata is null or ct.errata <> 'DELETE')
-                ), 0) as balance
-            from account_balance ab
-            where ab.account_id in ?1 and
-                ab.consensus_timestamp = (
-                    select max(ab2.consensus_timestamp)
-                    from account_balance ab2
-                    where ab2.account_id = ab.account_id and
-                        ab2.consensus_timestamp <= (
-                            select max(bt.consensus_timestamp)
-                            from account_balance bt
-                            where bt.account_id = ?3 and
-                                bt.consensus_timestamp <= ?2
-                        )
-                )
-            """, nativeQuery = true)
-    List<AccountBalanceProjection> findHistoricalAccountBalancesUpToTimestamp(
-            Collection<Long> accountIds, long blockTimestamp, long treasuryAccountId);
 }

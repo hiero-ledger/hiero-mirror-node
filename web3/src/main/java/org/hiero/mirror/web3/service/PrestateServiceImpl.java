@@ -14,6 +14,7 @@ import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +68,8 @@ public final class PrestateServiceImpl implements PrestateService {
     private static final int OP_STATICCALL = 4;
     private static final int STATE_CHANGE_PAGE_SIZE = 5000;
     private static final int STATE_CHANGE_MAX_PAGES = 10;
+    private static final Comparator<PrestateAccountTrace> ACCOUNT_TRACE_COMPARATOR =
+            Comparator.comparing(PrestateAccountTrace::getAddress);
 
     @FunctionalInterface
     private interface StateChangePageQuery {
@@ -78,56 +81,20 @@ public final class PrestateServiceImpl implements PrestateService {
         final var consensusTimestamp = resolveConsensusTimestamp(prestateRequest.transactionIdOrHashParameter());
         final var prestateContext = new PrestateContext(consensusTimestamp, prestateRequest);
         markTouchedAccounts(prestateContext);
-        loadAccountTraces(prestateContext);
-
-        final var response = new PrestateResponse();
-        if (prestateContext.getPrestateRequest().diffMode()) {
-            applyDiffFilter(prestateContext.getPreAccountTraces(), prestateContext.getPostAccountTraces());
-            response.setPre(
-                    new ArrayList<>(prestateContext.getPreAccountTraces().values()));
-            response.setPost(
-                    new ArrayList<>(prestateContext.getPostAccountTraces().values()));
-        } else {
-            response.setPre(
-                    new ArrayList<>(prestateContext.getPreAccountTraces().values()));
-        }
-
-        return response;
+        return loadAccountTraces(prestateContext);
     }
 
-    private void applyDiffFilter(
-            final Map<String, PrestateAccountTrace> preAccountTraceMap,
-            final Map<String, PrestateAccountTrace> postAccountTraceMap) {
-        final var iterator = preAccountTraceMap.entrySet().iterator();
-        while (iterator.hasNext()) {
-            final var entry = iterator.next();
-            final var key = entry.getKey();
-            if (Objects.equals(entry.getValue(), postAccountTraceMap.get(key))) {
-                iterator.remove();
-                postAccountTraceMap.remove(key);
-            }
-        }
-
-        // Add empty entries for newly created accounts (present in post but not in pre)
-        for (final var postEntry : postAccountTraceMap.entrySet()) {
-            final var address = postEntry.getKey();
-            preAccountTraceMap.computeIfAbsent(address, key -> {
-                final var emptyTrace = new PrestateAccountTrace();
-                emptyTrace.setAddress(key);
-                return emptyTrace;
-            });
-        }
-    }
-
-    private void loadAccountTraces(final PrestateContext prestateContext) {
+    private PrestateResponse loadAccountTraces(final PrestateContext prestateContext) {
         final var accounts = prestateContext.getAccounts();
-        if (accounts.isEmpty()) {
-            return;
-        }
-
         final var consensusTimestamp = prestateContext.getConsensusTimestamp();
         final var timestampBeforeTransaction = consensusTimestamp - 1;
         final var diffMode = prestateContext.getPrestateRequest().diffMode();
+        final var preAccountTraces = new ArrayList<PrestateAccountTrace>(accounts.size());
+        final List<PrestateAccountTrace> postAccountTraces = diffMode ? new ArrayList<>(accounts.size()) : List.of();
+
+        if (accounts.isEmpty()) {
+            return buildResponse(preAccountTraces, postAccountTraces, diffMode);
+        }
 
         final var preEntityById =
                 toEntityById(entityRepository.findActiveByIdsAndTimestamp(accounts, timestampBeforeTransaction));
@@ -162,9 +129,8 @@ public final class PrestateServiceImpl implements PrestateService {
                 if (preEntity == null) {
                     continue;
                 }
-                final var preAccountTrace =
-                        buildAccountTrace(preEntity, preBalance, preBytecodes, preStorageByContract);
-                prestateContext.getPreAccountTraces().put(preAccountTrace.getAddress(), preAccountTrace);
+                preAccountTraces.add(buildAccountTrace(
+                        preEntity, preBalance, preBytecodes, takeStorage(preStorageByContract, accountId)));
             } else {
                 final var transfer = balanceTransfers.getOrDefault(accountId, 0L);
                 final var postBalance = preBalance + transfer;
@@ -172,9 +138,12 @@ public final class PrestateServiceImpl implements PrestateService {
 
                 // Handle newly created accounts (exist in post but not in pre)
                 if (preEntity == null && postEntity != null) {
-                    final var postAccountTrace =
-                            buildAccountTrace(postEntity, postBalance, postBytecodes, postStorageByContract);
-                    prestateContext.getPostAccountTraces().put(postAccountTrace.getAddress(), postAccountTrace);
+                    final var postAccountTrace = buildAccountTrace(
+                            postEntity, postBalance, postBytecodes, takeStorage(postStorageByContract, accountId));
+                    final var emptyPreAccountTrace = new PrestateAccountTrace();
+                    emptyPreAccountTrace.setAddress(postAccountTrace.getAddress());
+                    preAccountTraces.add(emptyPreAccountTrace);
+                    postAccountTraces.add(postAccountTrace);
                     continue;
                 }
 
@@ -189,16 +158,42 @@ public final class PrestateServiceImpl implements PrestateService {
                                 && !Arrays.equals(preBytecodes.get(accountId), postBytecodes.get(accountId));
 
                 if (hasBalanceChange || hasStorageChange || hasBytecodeChange) {
-                    final var preAccountTrace =
-                            buildAccountTrace(preEntity, preBalance, preBytecodes, preStorageByContract);
-                    prestateContext.getPreAccountTraces().put(preAccountTrace.getAddress(), preAccountTrace);
-
-                    final var postAccountTrace =
-                            buildAccountTrace(preEntity, postBalance, postBytecodes, postStorageByContract);
-                    prestateContext.getPostAccountTraces().put(postAccountTrace.getAddress(), postAccountTrace);
+                    final var preAccountTrace = buildAccountTrace(
+                            preEntity, preBalance, preBytecodes, takeStorage(preStorageByContract, accountId));
+                    final var postAccountTrace = buildAccountTrace(
+                            preEntity, postBalance, postBytecodes, takeStorage(postStorageByContract, accountId));
+                    if (!Objects.equals(preAccountTrace, postAccountTrace)) {
+                        preAccountTraces.add(preAccountTrace);
+                        postAccountTraces.add(postAccountTrace);
+                    }
                 }
             }
         }
+
+        return buildResponse(preAccountTraces, postAccountTraces, diffMode);
+    }
+
+    private PrestateResponse buildResponse(
+            final List<PrestateAccountTrace> preAccountTraces,
+            final List<PrestateAccountTrace> postAccountTraces,
+            final boolean diffMode) {
+        preAccountTraces.sort(ACCOUNT_TRACE_COMPARATOR);
+        final var response = new PrestateResponse();
+        response.setPre(preAccountTraces);
+        if (diffMode) {
+            postAccountTraces.sort(ACCOUNT_TRACE_COMPARATOR);
+            response.setPost(postAccountTraces);
+        }
+        return response;
+    }
+
+    private Map<String, String> takeStorage(
+            final Map<Long, Map<String, String>> storageByContract, final long accountId) {
+        if (storageByContract.isEmpty()) {
+            return Map.of();
+        }
+        final var storage = storageByContract.remove(accountId);
+        return storage != null ? storage : Map.of();
     }
 
     private Map<Long, Entity> toEntityById(final List<Entity> entities) {
@@ -217,7 +212,7 @@ public final class PrestateServiceImpl implements PrestateService {
             final Entity entity,
             final Long balance,
             final Map<Long, byte[]> bytecodes,
-            final Map<Long, Map<String, String>> storageByContract) {
+            final Map<String, String> storage) {
         final var entityId = entity.getId();
         final var accountTrace = new PrestateAccountTrace();
         accountTrace.setAddress(resolveAddress(entity));
@@ -231,8 +226,7 @@ public final class PrestateServiceImpl implements PrestateService {
             if (bytecode != null) {
                 accountTrace.setCode(wrapToWordSize(bytecode));
             }
-            final var contractStorage = storageByContract.getOrDefault(entityId, Map.of());
-            accountTrace.setStorage(contractStorage);
+            accountTrace.setStorage(storage);
         }
 
         return accountTrace;
@@ -259,11 +253,13 @@ public final class PrestateServiceImpl implements PrestateService {
             return Map.of();
         }
 
-        final var results = accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(
-                accountIds, blockTimestamp, systemEntity.treasuryAccount().getId());
         final var balances = new HashMap<Long, Long>(accountIds.size());
-        for (final var result : results) {
-            balances.put(result.getAccountId(), result.getBalance());
+        final long treasuryAccountId = systemEntity.treasuryAccount().getId();
+        for (final long accountId : accountIds) {
+            final long balance = accountBalanceRepository
+                    .findHistoricalAccountBalanceUpToTimestamp(accountId, blockTimestamp, treasuryAccountId)
+                    .orElse(0L);
+            balances.put(accountId, balance);
         }
         return balances;
     }

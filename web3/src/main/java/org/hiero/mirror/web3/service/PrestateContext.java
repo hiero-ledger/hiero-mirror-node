@@ -15,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.rest.model.PrestateAccountTrace;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
 
 /**
@@ -29,8 +28,6 @@ public final class PrestateContext {
 
     private final long consensusTimestamp;
 
-    private final Map<String, PrestateAccountTrace> preAccountTraces = new TreeMap<>();
-    private final Map<String, PrestateAccountTrace> postAccountTraces = new TreeMap<>();
     private final PrestateRequest prestateRequest;
     private final Map<Long, Map<String, String>> preStorageByContract = new TreeMap<>();
     private final Map<Long, Map<String, String>> postStorageByContract = new TreeMap<>();
