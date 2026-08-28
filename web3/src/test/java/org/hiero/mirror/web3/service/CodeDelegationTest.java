@@ -388,6 +388,27 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         assertThat(result).isEqualTo("0x0000000000000000000000000000000000000000000000000000000000000004");
     }
 
+    @Test
+    void callToAccountWithCodeOverrideOfDelegationDesignatorDoesNotCreateDelegation() {
+        // Given - an EOA with no HIP-1340 delegation. Injecting 0xef0100 || target as a code
+        // override must not set Account.delegationAddress or run the target via the proxy.
+        final var contract = testWeb3jService.deploy(EthCall::deploy);
+        final var account = accountEntityPersistWithCodeDelegation(null);
+        final var accountAddress = toAddress(account.toEntityId());
+        final var functionCall = contract.call_multiplySimpleNumbers();
+        final var callData = Bytes.fromHexString(functionCall.encodeFunctionCall());
+        final var codeOverride = new StateOverride();
+        codeOverride.setAddress(accountAddress.toHexString());
+        codeOverride.setCode(
+                HEX_PREFIX + "ef0100" + contract.getContractAddress().substring(HEX_PREFIX.length()));
+        final var serviceParameters = getContractExecutionParameters(callData, accountAddress, List.of(codeOverride));
+
+        // Then - the designator is executed as bytecode; 0xef is a banned opcode
+        assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+                .isInstanceOf(MirrorEvmTransactionException.class)
+                .hasMessageContaining(CONTRACT_EXECUTION_EXCEPTION.name());
+    }
+
     private Entity accountEntityPersistWithCodeDelegation(final byte[] delegationAddress) {
         return domainBuilder
                 .entity()
