@@ -31,6 +31,6 @@ public class ApiProperties {
 
         @NotNull
         @DurationMin(seconds = 1L)
-        private Duration timeout;
+        private Duration timeout = Duration.ofSeconds(4L);
     }
 }

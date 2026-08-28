@@ -95,18 +95,6 @@ class PrestateControllerTest extends Web3IntegrationTest {
         return new TransactionIdParameter(transaction.getPayerAccountId(), instant(transaction.getValidStartNs()));
     }
 
-    TransactionIdOrHashParameter persistTransactionWithoutContractResult(final TransactionProviderEnum provider) {
-        provider.init(domainBuilder);
-
-        final var transaction = provider.getTransaction().persist();
-        provider.getContractTransactionHash().persist();
-
-        if (provider.hasEthTransaction()) {
-            return new TransactionHashParameter(Bytes.of(provider.getHash()));
-        }
-        return new TransactionIdParameter(transaction.getPayerAccountId(), instant(transaction.getValidStartNs()));
-    }
-
     // --- Positive tests ---
 
     @ParameterizedTest
@@ -197,14 +185,6 @@ class PrestateControllerTest extends Web3IntegrationTest {
         mockMvc.perform(prestateRequest(transactionIdOrHash))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(new StringContains(expectedMessage)));
-    }
-
-    @ParameterizedTest
-    @EnumSource(TransactionProviderEnum.class)
-    void callThrowsExceptionAndExpectDetailMessage(final TransactionProviderEnum providerEnum) throws Exception {
-        final var transactionIdOrHash = persistTransactionWithoutContractResult(providerEnum);
-
-        mockMvc.perform(prestateRequest(transactionIdOrHash)).andExpect(status().isNotFound());
     }
 
     @Test

@@ -148,20 +148,6 @@ final class PrestateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
-    void callWithContractResultNotFound() {
-        final var hash = domainBuilder.bytes(32);
-        final var consensusTimestamp = domainBuilder.timestamp();
-        domainBuilder
-                .contractTransactionHash()
-                .customize(h -> h.hash(hash).consensusTimestamp(consensusTimestamp))
-                .persist();
-
-        assertThatThrownBy(() -> prestateService.processPrestateCall(createRequest(hash, false, false, false)))
-                .isInstanceOf(EntityNotFoundException.class)
-                .hasMessageContaining("Contract result not found");
-    }
-
-    @Test
     void callWithDiffEnabledIncludesOnlyChangedEntriesInPreAndPost() {
         final var payerId = domainBuilder.entityId();
         final var contractId = domainBuilder.entityId();
@@ -177,7 +163,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         persistAccountBalance(changedAccount, createdTimestamp, 100L);
         persistAccountBalance(unchangedAccount, createdTimestamp, 200L);
 
-        persistTransactionArtifacts(hash, consensusTimestamp, payerId, contractId);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
@@ -264,7 +250,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         // Newly created account - created during the transaction (timestamp = consensusTimestamp)
         persistBareEntity(newlyCreatedAccount, EntityType.ACCOUNT, 0L, consensusTimestamp);
 
-        persistTransactionArtifacts(hash, consensusTimestamp, payerId, contractId);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
         // Action with existing account that receives a transfer
         domainBuilder
                 .contractAction()
@@ -324,7 +310,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         final var hash = domainBuilder.bytes(32);
 
         persistBareEntity(mirrorAccount, EntityType.ACCOUNT, 1L, createdTimestamp);
-        persistTransactionArtifacts(hash, consensusTimestamp, payerId, contractId);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
@@ -423,7 +409,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         final var hash = domainBuilder.bytes(32);
 
         persistBareEntity(accountId, EntityType.ACCOUNT, nonceChange ? 2L : 5L, createdTimestamp);
-        persistTransactionArtifacts(hash, consensusTimestamp, payerId, contractId);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
@@ -451,7 +437,17 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                     .customize(c -> c.id(contractId.getId()).runtimeBytecode(runtimeBytecode))
                     .persist();
         }
-        persistTransactionArtifacts(hash, consensusTimestamp, payerId, contractId);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(payerId)
+                        .callerType(EntityType.ACCOUNT)
+                        .payerAccountId(payerId)
+                        .recipientAccount(null)
+                        .recipientContract(contractId)
+                        .value(0L))
+                .persist();
 
         return new Fixture(hash, createdTimestamp, consensusTimestamp, payerId, contractId, null);
     }
@@ -470,7 +466,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                     .customize(c -> c.id(contractId.getId()).runtimeBytecode(runtimeBytecode))
                     .persist();
         }
-        persistTransactionArtifacts(hash, consensusTimestamp, payerId, contractId);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
@@ -485,7 +481,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         return new Fixture(hash, createdTimestamp, consensusTimestamp, payerId, contractId, null);
     }
 
-    private void persistTransactionArtifacts(
+    private void persistContractTransactionHash(
             final byte[] hash, final long consensusTimestamp, final EntityId payerId, final EntityId contractId) {
         domainBuilder
                 .contractTransactionHash()
@@ -493,12 +489,6 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                         .consensusTimestamp(consensusTimestamp)
                         .payerAccountId(payerId.getId())
                         .entityId(contractId.getId()))
-                .persist();
-        domainBuilder
-                .contractResult()
-                .customize(r -> r.consensusTimestamp(consensusTimestamp)
-                        .senderId(payerId)
-                        .contractId(contractId.getId()))
                 .persist();
     }
 
@@ -539,7 +529,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         final var hash = domainBuilder.bytes(32);
 
         persistTreasuryBalance(createdTimestamp);
-        persistTransactionArtifacts(hash, consensusTimestamp, payerId, contractId);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
 
         for (int i = 0; i < accountCount; i++) {
             final int index = i;

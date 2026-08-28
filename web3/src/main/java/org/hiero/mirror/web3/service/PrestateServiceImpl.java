@@ -13,7 +13,6 @@ import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.utils.ByteUtils.wrapToWordSize;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
-import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,7 +26,7 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.contract.ContractAction;
-import org.hiero.mirror.common.domain.contract.ContractResult;
+import org.hiero.mirror.common.domain.contract.ContractStateChange;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.rest.model.PrestateAccountTrace;
 import org.hiero.mirror.rest.model.PrestateResponse;
@@ -40,7 +39,6 @@ import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
 import org.hiero.mirror.web3.repository.ContractRepository;
-import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractStateChangeRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EntityRepository;
@@ -59,7 +57,6 @@ public final class PrestateServiceImpl implements PrestateService {
     private final AccountBalanceRepository accountBalanceRepository;
     private final ContractActionRepository contractActionRepository;
     private final ContractRepository contractRepository;
-    private final ContractResultRepository contractResultRepository;
     private final ContractStateChangeRepository contractStateChangeRepository;
     private final ContractTransactionHashRepository contractTransactionHashRepository;
     private final EntityRepository entityRepository;
@@ -67,21 +64,23 @@ public final class PrestateServiceImpl implements PrestateService {
     private final SystemEntity systemEntity;
     private final Web3Properties web3Properties;
 
-    private static final String ZERO_BALANCE = "0x0";
-
     private static final int RESULT_REVERT = 12;
     private static final int RESULT_ERROR = 13;
     private static final int OP_DELEGATECALL = 3;
     private static final int OP_STATICCALL = 4;
+    private static final int STATE_CHANGE_PAGE_SIZE = 5000;
+    private static final int STATE_CHANGE_MAX_PAGES = 10;
+
+    @FunctionalInterface
+    private interface StateChangePageQuery {
+        List<ContractStateChange> find(int limit, int offset);
+    }
 
     @Override
     public PrestateResponse processPrestateCall(final PrestateRequest prestateRequest) {
         final var consensusTimestamp = resolveConsensusTimestamp(prestateRequest.transactionIdOrHashParameter());
-        final var contractResult = contractResultRepository
-                .findById(consensusTimestamp)
-                .orElseThrow(() -> new EntityNotFoundException("Contract result not found: " + consensusTimestamp));
         final var prestateContext = new PrestateContext(consensusTimestamp, prestateRequest);
-        markTouchedAccounts(prestateContext, contractResult);
+        markTouchedAccounts(prestateContext);
         loadAccountTraces(prestateContext);
 
         final var response = new PrestateResponse();
@@ -115,11 +114,11 @@ public final class PrestateServiceImpl implements PrestateService {
         // Add empty entries for newly created accounts (present in post but not in pre)
         for (final var postEntry : postAccountTraceMap.entrySet()) {
             final var address = postEntry.getKey();
-            if (!preAccountTraceMap.containsKey(address)) {
+            preAccountTraceMap.computeIfAbsent(address, key -> {
                 final var emptyTrace = new PrestateAccountTrace();
-                emptyTrace.setAddress(address);
-                preAccountTraceMap.put(address, emptyTrace);
-            }
+                emptyTrace.setAddress(key);
+                return emptyTrace;
+            });
         }
     }
 
@@ -225,7 +224,7 @@ public final class PrestateServiceImpl implements PrestateService {
         final var entityId = entity.getId();
         final var accountTrace = new PrestateAccountTrace();
         accountTrace.setAddress(resolveAddress(entity));
-        accountTrace.setBalance(balance != null ? HEX_PREFIX + Long.toHexString(balance) : null);
+        accountTrace.setBalance(HEX_PREFIX + Long.toHexString(balance));
 
         final var nonce = entity.getEthereumNonce();
         accountTrace.setNonce(nonce != null ? nonce : 0L);
@@ -314,20 +313,10 @@ public final class PrestateServiceImpl implements PrestateService {
         return Optional.empty();
     }
 
-    private void markTouchedAccounts(final PrestateContext prestateContext, final ContractResult contractResult) {
+    private void markTouchedAccounts(final PrestateContext prestateContext) {
         final var consensusTimestamp = prestateContext.getConsensusTimestamp();
         populateTouchedEntitiesFromActions(prestateContext, consensusTimestamp);
         populateTouchedEntitiesFromStateChanges(prestateContext, consensusTimestamp);
-        addAccountIfCapacity(prestateContext, contractResult.getContractId());
-        addAccountIfCapacity(prestateContext, contractResult.getSenderId().getId());
-    }
-
-    private void addAccountIfCapacity(final PrestateContext prestateContext, final Long accountId) {
-        final var accounts = prestateContext.getAccounts();
-        if (accountId != null
-                && (accounts.contains(accountId) || accounts.size() < web3Properties.getMaxTouchedAccounts())) {
-            prestateContext.addAccount(accountId);
-        }
     }
 
     private void populateTouchedEntitiesFromActions(
@@ -339,12 +328,9 @@ public final class PrestateServiceImpl implements PrestateService {
             prestateContext.addAccount(action.getCaller());
             prestateContext.addAccount(action.getRecipientAccount());
             prestateContext.addAccount(action.getRecipientContract());
-            addEntityFromRecipientAddress(prestateContext, action.getRecipientAddress());
+            addEntityFromRecipientAddress(prestateContext, action.getRecipientAddress(), consensusTimestamp);
         }
     }
-
-    private static final int STATE_CHANGE_PAGE_SIZE = 5000;
-    private static final int STATE_CHANGE_MAX_PAGES = 10;
 
     private void populateTouchedEntitiesFromStateChanges(
             final PrestateContext prestateContext, final long consensusTimestamp) {
@@ -357,74 +343,45 @@ public final class PrestateServiceImpl implements PrestateService {
         final var diffMode = prestateContext.getPrestateRequest().diffMode();
         final var includeStorage = prestateContext.getPrestateRequest().storage();
 
-        if (diffMode) {
-            populateModifiedStateChanges(prestateContext, consensusTimestamp, accountLimit, includeStorage);
-        } else {
-            populateAllStateChanges(prestateContext, consensusTimestamp, accountLimit, includeStorage);
-        }
+        final StateChangePageQuery query = diffMode
+                ? (limit, offset) -> contractStateChangeRepository.findModifiedByConsensusTimestamp(
+                        consensusTimestamp, accountLimit, limit, offset)
+                : (limit, offset) -> contractStateChangeRepository.findByConsensusTimestamp(
+                        consensusTimestamp, accountLimit, limit, offset);
+        populateStateChanges(prestateContext, query, includeStorage);
     }
 
-    private void populateModifiedStateChanges(
+    private void populateStateChanges(
             final PrestateContext prestateContext,
-            final long consensusTimestamp,
-            final int accountLimit,
+            final StateChangePageQuery stateChangePageQuery,
             final boolean includeStorage) {
         for (int page = 0; page < STATE_CHANGE_MAX_PAGES; page++) {
             final int offset = page * STATE_CHANGE_PAGE_SIZE;
-            final var stateChanges = contractStateChangeRepository.findModifiedByConsensusTimestamp(
-                    consensusTimestamp, accountLimit, STATE_CHANGE_PAGE_SIZE, offset);
+            final var stateChanges = stateChangePageQuery.find(STATE_CHANGE_PAGE_SIZE, offset);
 
             for (final var stateChange : stateChanges) {
                 final var contractId = stateChange.getContractId();
                 prestateContext.addAccount(contractId);
-
                 if (includeStorage) {
                     prestateContext.addPreStorageSlot(contractId, stateChange.getSlot(), stateChange.getValueRead());
                     prestateContext.addPostStorageSlot(
                             contractId, stateChange.getSlot(), stateChange.getValueWritten());
                 }
             }
-
-            if (stateChanges.size() < STATE_CHANGE_PAGE_SIZE) {
-                break;
-            }
         }
     }
 
-    private void populateAllStateChanges(
-            final PrestateContext prestateContext,
-            final long consensusTimestamp,
-            final int accountLimit,
-            final boolean includeStorage) {
-        for (int page = 0; page < STATE_CHANGE_MAX_PAGES; page++) {
-            final int offset = page * STATE_CHANGE_PAGE_SIZE;
-            final var stateChanges = contractStateChangeRepository.findByConsensusTimestamp(
-                    consensusTimestamp, accountLimit, STATE_CHANGE_PAGE_SIZE, offset);
-
-            for (final var stateChange : stateChanges) {
-                final var contractId = stateChange.getContractId();
-                prestateContext.addAccount(contractId);
-
-                if (includeStorage) {
-                    prestateContext.addPreStorageSlot(contractId, stateChange.getSlot(), stateChange.getValueRead());
-                }
-            }
-
-            if (stateChanges.size() < STATE_CHANGE_PAGE_SIZE) {
-                break;
-            }
-        }
-    }
-
-    private void addEntityFromRecipientAddress(final PrestateContext prestateContext, final byte[] recipientAddress) {
+    private void addEntityFromRecipientAddress(
+            final PrestateContext prestateContext, final byte[] recipientAddress, final long consensusTimestamp) {
         if (recipientAddress == null || recipientAddress.length != EVM_ADDRESS_LENGTH) {
             return;
         }
 
         final var entityOptional = isLongZeroAddress(recipientAddress)
                 ? Optional.ofNullable(fromEvmAddress(recipientAddress))
-                        .flatMap(entityId -> entityRepository.findByIdAndDeletedIsFalse(entityId.getId()))
-                : entityRepository.findByEvmAddressOrAliasAndDeletedIsFalse(recipientAddress);
+                        .flatMap(entityId ->
+                                entityRepository.findActiveByIdAndTimestamp(entityId.getId(), consensusTimestamp))
+                : entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(recipientAddress, consensusTimestamp);
 
         entityOptional.ifPresent(entity -> prestateContext.addAccount(entity.getId()));
     }
@@ -432,11 +389,11 @@ public final class PrestateServiceImpl implements PrestateService {
     private String resolveAddress(final Entity entity) {
         final var evmAddress = entity.getEvmAddress();
         if (evmAddress != null && evmAddress.length == EVM_ADDRESS_LENGTH) {
-            return Bytes.wrap(evmAddress).toHex();
+            return HEX_PREFIX + bytesToHex(evmAddress);
         }
         final var alias = entity.getAlias();
         if (alias != null && alias.length == EVM_ADDRESS_LENGTH) {
-            return bytesToHex(alias);
+            return HEX_PREFIX + bytesToHex(alias);
         }
         return HEX_PREFIX + bytesToHex(toEvmAddress(entity.getId()));
     }

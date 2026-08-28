@@ -19,9 +19,9 @@ class Web3PropertiesTest {
     void getApiReturnsDefaultWhenNotConfigured() {
         var properties = new Web3Properties();
 
-        assertThat(properties.getApi(CALL).getResponse().getTimeout()).isNull();
-        assertThat(properties.getApi(OPCODES).getResponse().getTimeout()).isNull();
-        assertThat(properties.getApi(PRESTATE).getResponse().getTimeout()).isNull();
+        assertThat(properties.getApi(CALL).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(4L));
+        assertThat(properties.getApi(OPCODES).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(4L));
+        assertThat(properties.getApi(PRESTATE).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(4L));
     }
 
     @Test
@@ -41,7 +41,7 @@ class Web3PropertiesTest {
 
         assertThat(properties.getApi(CALL).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(6L));
         assertThat(properties.getApi(OPCODES).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(20L));
-        assertThat(properties.getApi(PRESTATE).getResponse().getTimeout()).isNull();
+        assertThat(properties.getApi(PRESTATE).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(4L));
     }
 
     @Test

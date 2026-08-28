@@ -35,9 +35,8 @@ class HibernateConfiguration implements HibernatePropertiesCustomizer {
             }
 
             final var context = ContractCallContext.get();
-            final var apiTimeout =
+            final var timeout =
                     web3Properties.getApi(context.getApi()).getResponse().getTimeout();
-            final var timeout = apiTimeout != null ? apiTimeout : web3Properties.getRequestTimeout();
             final long timeoutMs = timeout.toMillis();
             final long elapsed = System.currentTimeMillis() - context.getStartTime();
 
