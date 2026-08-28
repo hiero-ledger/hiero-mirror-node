@@ -138,7 +138,7 @@ class ContractBytecodeReadableKVStateTest {
     @Test
     void whenContractEvmAddressIsSetReturnRuntimeBytecode() {
         when(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(
-                        EVM_ADDRESS.getBytes().toArray(), Optional.empty()))
+                        EVM_ADDRESS.getBytes().toArrayUnsafe(), Optional.empty()))
                 .thenReturn(Optional.of(ENTITY));
         when(contractRepository.findRuntimeBytecode(ENTITY.toEntityId().getId()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
