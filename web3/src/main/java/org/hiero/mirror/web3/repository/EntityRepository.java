@@ -71,6 +71,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                 from entity e
                 where e.deleted is not true
                 and e.id = (select id from entity_cte)
+                and lower(e.timestamp_range) <= ?2
             )
             union all
             (
@@ -107,6 +108,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                 from entity e
                 where e.deleted is not true
                 and e.id = (select id from entity_cte)
+                and lower(e.timestamp_range) <= ?2
             )
             union all
             (

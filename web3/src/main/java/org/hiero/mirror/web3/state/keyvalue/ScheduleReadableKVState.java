@@ -64,8 +64,9 @@ final class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, 
             return null;
         }
 
-        return scheduleRepository
-                .findById(scheduleId.getId())
+        return timestamp
+                .map(t -> scheduleRepository.findByIdAndTimestamp(scheduleId.getId(), t))
+                .orElseGet(() -> scheduleRepository.findById(scheduleId.getId()))
                 .map(schedule -> {
                     try {
                         return mapToSchedule(schedule, key, entity, timestamp);

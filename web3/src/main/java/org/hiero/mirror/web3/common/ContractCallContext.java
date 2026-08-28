@@ -124,7 +124,8 @@ public class ContractCallContext {
 
     /**
      * Returns the set timestamp or the consensus end timestamp from the set record file only if we are in a historical
-     * context. For opcode replay, returns the explicitly set timestamp.
+     * context. For opcode replay, returns the pre-transaction {@link #timestamp} so entity state is read as-of before
+     * the replayed transaction.
      */
     public Optional<Long> getTimestamp() {
         if (opcodeContext != null) {
@@ -134,6 +135,15 @@ public class ContractCallContext {
             return getTimestampOrDefaultFromRecordFile();
         }
         return Optional.empty();
+    }
+
+    /**
+     * Timestamp used for executor consensus time and system-file (exchange-rate / fee-schedule) loads. Prefers the
+     * opcode-replay transaction consensus time when present so an hour-boundary txn is not rounded into the previous
+     * hour; otherwise {@link #getTimestamp()}.
+     */
+    public Optional<Long> getTimestampForSystemFiles() {
+        return getTimestamp().map(t -> t + 1);
     }
 
     private Optional<Long> getTimestampOrDefaultFromRecordFile() {
