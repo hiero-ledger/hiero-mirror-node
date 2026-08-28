@@ -50,13 +50,23 @@ public class Utils {
     }
 
     /**
+     * Converts a timestamp in nanoseconds (since epoch) to a Java Instant.
+     *
+     * @param nanos The timestamp in nanoseconds since epoch.
+     * @return The Java Instant.
+     */
+    public static Instant convertToInstant(final long nanos) {
+        return Instant.ofEpochSecond(0, nanos);
+    }
+
+    /**
      * Converts a timestamp in nanoseconds to a PBJ Timestamp object.
      *
      * @param timestamp The timestamp in nanoseconds.
      * @return The PBJ Timestamp object.
      */
     public static Timestamp convertToTimestamp(final long timestamp) {
-        var instant = Instant.ofEpochSecond(0, timestamp);
+        var instant = convertToInstant(timestamp);
         return new Timestamp(instant.getEpochSecond(), instant.getNano());
     }
 

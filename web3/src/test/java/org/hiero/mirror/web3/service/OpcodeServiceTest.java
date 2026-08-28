@@ -227,7 +227,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var tokenAddress = toAddress(tokenEntityId.getId());
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var tokenExpiry = new NestedCalls.Expiry(
-                BigInteger.valueOf(Instant.now().getEpochSecond() + 8_000_000L),
+                BigInteger.valueOf(tokenExpiryEpochSecond()),
                 toAddress(tokenWithAutoRenewPair.getRight().toEntityId()).toHexString(),
                 BigInteger.valueOf(8_000_000));
 
@@ -1230,6 +1230,15 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         return entity;
     }
 
+    /**
+     * Opcode replay executes at the persisted transaction timestamp ({@code DomainBuilder} clock), not wall-clock
+     * {@code Instant.now()}. Token expiry must stay within {@code entities.maxLifetime} (8_000_001s) of that
+     * consensus time.
+     */
+    private long tokenExpiryEpochSecond() {
+        return Instant.ofEpochSecond(0L, domainBuilder.timestamp()).getEpochSecond() + 8_000_000L;
+    }
+
     private NestedCalls.HederaToken populateHederaToken(
             final String contractAddress,
             final TokenTypeEnum tokenType,
@@ -1264,7 +1273,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 false,
                 keys,
                 new NestedCalls.Expiry(
-                        BigInteger.valueOf(Instant.now().getEpochSecond() + 8_000_000L),
+                        BigInteger.valueOf(tokenExpiryEpochSecond()),
                         getAddressFromEntity(autoRenewAccount),
                         BigInteger.valueOf(8_000_000)));
     }
@@ -1323,7 +1332,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 freezeDefault,
                 tokenKeys,
                 new NestedCalls.Expiry(
-                        BigInteger.valueOf(Instant.now().getEpochSecond() + 8_000_000L),
+                        BigInteger.valueOf(tokenExpiryEpochSecond()),
                         getAliasFromEntity(autoRenewAccount),
                         BigInteger.valueOf(8_000_000)));
     }
