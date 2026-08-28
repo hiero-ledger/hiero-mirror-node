@@ -15,6 +15,7 @@ import java.time.Instant;
 import lombok.experimental.UtilityClass;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hyperledger.besu.datatypes.Address;
 import org.jspecify.annotations.NonNull;
 
 @UtilityClass
@@ -33,6 +34,8 @@ public class Utils {
                             .build())
                     .build())
             .build();
+
+    public static final byte[] ZERO_ADDRESS = Address.ZERO.getBytes().toArrayUnsafe();
 
     public static Key parseKey(final byte[] keyBytes) {
         try {

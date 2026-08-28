@@ -5,28 +5,37 @@ package org.hiero.mirror.web3.service;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_67;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_70;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
+import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.esaulpaugh.headlong.abi.Function;
 import com.google.protobuf.ByteString;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
+import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
+import org.hiero.mirror.web3.viewmodel.BlockType;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.hiero.mirror.web3.web3j.generated.BLSPrecompileCall;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
 import org.hiero.mirror.web3.web3j.generated.EvmCodes;
+import org.hiero.mirror.web3.web3j.generated.StorageContract;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.web3j.abi.TypeDecoder;
 
 @RequiredArgsConstructor
@@ -332,6 +341,53 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 .hasMessageContaining(CONTRACT_EXECUTION_EXCEPTION.name());
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void callToDelegatedAccountWithStorageOverrideExecutesDelegatedCode(final boolean useStateDiff) {
+        // Given - an EOA whose HIP-1340 delegation points at StorageContract, with only slot0 overridden
+        final var contract = testWeb3jService.deploy(StorageContract::deploy);
+        final var contractAddress = Address.fromHexString(contract.getContractAddress());
+        final var account = accountEntityPersistWithCodeDelegation(
+                contractAddress.getBytes().toArrayUnsafe());
+        final var accountAddress = toAddress(account.toEntityId());
+        final var functionCall = contract.call_slot0();
+        final var callData = Bytes.fromHexString(functionCall.encodeFunctionCall());
+        final var slotValue = "11".repeat(32);
+        final var serviceParameters = getContractExecutionParameters(
+                callData,
+                accountAddress,
+                List.of(storageOverride(accountAddress.toHexString(), slotValue, useStateDiff)));
+
+        // When
+        final var result = contractExecutionService.processCall(serviceParameters);
+
+        // Then - delegated StorageContract code runs in the EOA context and observes the overridden slot
+        assertThat(result).isEqualTo(HEX_PREFIX + slotValue);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void callToDelegatedAccountWithStorageOverrideStillExecutesPureDelegatedCode(final boolean useStateDiff) {
+        // Given - storage override on a delegated EOA must not skip the EIP-7702 proxy
+        final var contract = testWeb3jService.deploy(EthCall::deploy);
+        final var contractAddress = Address.fromHexString(contract.getContractAddress());
+        final var account = accountEntityPersistWithCodeDelegation(
+                contractAddress.getBytes().toArrayUnsafe());
+        final var accountAddress = toAddress(account.toEntityId());
+        final var functionCall = contract.call_multiplySimpleNumbers();
+        final var callData = Bytes.fromHexString(functionCall.encodeFunctionCall());
+        final var serviceParameters = getContractExecutionParameters(
+                callData,
+                accountAddress,
+                List.of(storageOverride(accountAddress.toHexString(), "22".repeat(32), useStateDiff)));
+
+        // When
+        final var result = contractExecutionService.processCall(serviceParameters);
+
+        // Then - multiplySimpleNumbers still returns 4, proving delegated code executed
+        assertThat(result).isEqualTo("0x0000000000000000000000000000000000000000000000000000000000000004");
+    }
+
     private Entity accountEntityPersistWithCodeDelegation(final byte[] delegationAddress) {
         return domainBuilder
                 .entity()
@@ -341,6 +397,37 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                         .balance(DEFAULT_ACCOUNT_BALANCE)
                         .delegationAddress(delegationAddress))
                 .persist();
+    }
+
+    private ContractExecutionParameters getContractExecutionParameters(
+            final Bytes callData, final Address receiver, final List<StateOverride> stateOverrides) {
+        return ContractExecutionParameters.builder()
+                .block(BlockType.LATEST)
+                .callData(hexToBytes(String.valueOf(callData)))
+                .callType(ETH_CALL)
+                .gas(TRANSACTION_GAS_LIMIT)
+                .gasPrice(0L)
+                .isEstimate(false)
+                .isStatic(false)
+                .receiver(receiver)
+                .sender(Address.ZERO)
+                .stateOverrides(stateOverrides)
+                .value(0L)
+                .build();
+    }
+
+    private StateOverride storageOverride(final String address, final String slotValue, final boolean useStateDiff) {
+        final var storageEntry = new StorageEntry();
+        storageEntry.setKey("0x" + "00".repeat(32));
+        storageEntry.setValue(HEX_PREFIX + slotValue);
+        final var stateOverride = new StateOverride();
+        stateOverride.setAddress(address);
+        if (useStateDiff) {
+            stateOverride.setStateDiff(List.of(storageEntry));
+        } else {
+            stateOverride.setState(List.of(storageEntry));
+        }
+        return stateOverride;
     }
 
     // BLS precompiles are available in EVM 0.70.0. Inputs and expected outputs for EVM 0.70.0 are from

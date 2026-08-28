@@ -125,9 +125,6 @@ public class EvmProperties {
      */
     public boolean isPectraEvm() {
         var version = getSemanticEvmVersion();
-        if (version.major() != EVM_VERSION_0_70.major()) {
-            return version.major() > EVM_VERSION_0_70.major();
-        }
         return version.minor() >= EVM_VERSION_0_70.minor();
     }
 
