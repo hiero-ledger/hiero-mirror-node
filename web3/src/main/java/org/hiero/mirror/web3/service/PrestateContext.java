@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.web3.evm.contracts.execution.traceability;
+package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.web3.utils.ByteUtils.wrapToWordSize;
 

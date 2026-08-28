@@ -7,8 +7,6 @@ import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
-import static org.hiero.mirror.common.util.DomainUtils.fromEvmAddress;
-import static org.hiero.mirror.common.util.DomainUtils.isLongZeroAddress;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.utils.ByteUtils.wrapToWordSize;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
@@ -34,7 +32,6 @@ import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.PrestateContext;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
@@ -328,12 +325,17 @@ public final class PrestateServiceImpl implements PrestateService {
             prestateContext.addAccount(action.getCaller());
             prestateContext.addAccount(action.getRecipientAccount());
             prestateContext.addAccount(action.getRecipientContract());
-            addEntityFromRecipientAddress(prestateContext, action.getRecipientAddress(), consensusTimestamp);
         }
     }
 
     private void populateTouchedEntitiesFromStateChanges(
             final PrestateContext prestateContext, final long consensusTimestamp) {
+        final var includeStorage = prestateContext.getPrestateRequest().storage();
+
+        if (!includeStorage) {
+            return;
+        }
+
         final var accountLimit = web3Properties.getMaxTouchedAccounts()
                 - prestateContext.getAccounts().size();
         if (accountLimit <= 0) {
@@ -341,49 +343,27 @@ public final class PrestateServiceImpl implements PrestateService {
         }
 
         final var diffMode = prestateContext.getPrestateRequest().diffMode();
-        final var includeStorage = prestateContext.getPrestateRequest().storage();
 
         final StateChangePageQuery query = diffMode
                 ? (limit, offset) -> contractStateChangeRepository.findModifiedByConsensusTimestamp(
                         consensusTimestamp, accountLimit, limit, offset)
                 : (limit, offset) -> contractStateChangeRepository.findByConsensusTimestamp(
                         consensusTimestamp, accountLimit, limit, offset);
-        populateStateChanges(prestateContext, query, includeStorage);
+        populateStateChanges(prestateContext, query);
     }
 
     private void populateStateChanges(
-            final PrestateContext prestateContext,
-            final StateChangePageQuery stateChangePageQuery,
-            final boolean includeStorage) {
+            final PrestateContext prestateContext, final StateChangePageQuery stateChangePageQuery) {
         for (int page = 0; page < STATE_CHANGE_MAX_PAGES; page++) {
             final int offset = page * STATE_CHANGE_PAGE_SIZE;
             final var stateChanges = stateChangePageQuery.find(STATE_CHANGE_PAGE_SIZE, offset);
 
             for (final var stateChange : stateChanges) {
                 final var contractId = stateChange.getContractId();
-                prestateContext.addAccount(contractId);
-                if (includeStorage) {
-                    prestateContext.addPreStorageSlot(contractId, stateChange.getSlot(), stateChange.getValueRead());
-                    prestateContext.addPostStorageSlot(
-                            contractId, stateChange.getSlot(), stateChange.getValueWritten());
-                }
+                prestateContext.addPreStorageSlot(contractId, stateChange.getSlot(), stateChange.getValueRead());
+                prestateContext.addPostStorageSlot(contractId, stateChange.getSlot(), stateChange.getValueWritten());
             }
         }
-    }
-
-    private void addEntityFromRecipientAddress(
-            final PrestateContext prestateContext, final byte[] recipientAddress, final long consensusTimestamp) {
-        if (recipientAddress == null || recipientAddress.length != EVM_ADDRESS_LENGTH) {
-            return;
-        }
-
-        final var entityOptional = isLongZeroAddress(recipientAddress)
-                ? Optional.ofNullable(fromEvmAddress(recipientAddress))
-                        .flatMap(entityId ->
-                                entityRepository.findActiveByIdAndTimestamp(entityId.getId(), consensusTimestamp))
-                : entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(recipientAddress, consensusTimestamp);
-
-        entityOptional.ifPresent(entity -> prestateContext.addAccount(entity.getId()));
     }
 
     private String resolveAddress(final Entity entity) {

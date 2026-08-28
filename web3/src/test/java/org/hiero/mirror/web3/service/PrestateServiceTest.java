@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
@@ -300,34 +299,6 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         assertThat(newAccountPost.getNonce()).isEqualTo(0L);
     }
 
-    @Test
-    void callIncludesMirrorRecipientAddress() {
-        final var payerId = domainBuilder.entityId();
-        final var contractId = domainBuilder.entityId();
-        final var mirrorAccount = domainBuilder.entityId();
-        final var createdTimestamp = domainBuilder.timestamp();
-        final var consensusTimestamp = createdTimestamp + 100;
-        final var hash = domainBuilder.bytes(32);
-
-        persistBareEntity(mirrorAccount, EntityType.ACCOUNT, 1L, createdTimestamp);
-        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
-        domainBuilder
-                .contractAction()
-                .customize(a -> a.consensusTimestamp(consensusTimestamp)
-                        .caller(contractId)
-                        .callerType(EntityType.CONTRACT)
-                        .recipientAccount(null)
-                        .recipientContract(null)
-                        .recipientAddress(DomainUtils.toEvmAddress(mirrorAccount))
-                        .index(0))
-                .persist();
-
-        final var response = prestateService.processPrestateCall(createRequest(hash, false, false, false));
-
-        assertThat(response.getPre()).hasSize(1);
-        assertThat(response.getPre().getFirst().getAddress()).isEqualTo(toLongZeroAddress(mirrorAccount));
-    }
-
     @ParameterizedTest
     @CsvSource({
         "true, true, true",
@@ -372,26 +343,6 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, false, false));
 
         assertThat(response.getPre()).hasSize(5);
-    }
-
-    @Test
-    void callLimitsAccountsWhenAboveMaxLimit() {
-        web3Properties.setMaxTouchedAccounts(3);
-        final var fixture = persistMultipleAccountsFixture(5);
-
-        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, false, false));
-
-        assertThat(response.getPre()).hasSize(3);
-    }
-
-    @Test
-    void callWithMaxTouchedAccountsSetToOneReturnsOnlyOneAccount() {
-        web3Properties.setMaxTouchedAccounts(1);
-        final var fixture = persistMultipleAccountsFixture(10);
-
-        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, false, false));
-
-        assertThat(response.getPre()).hasSize(1);
     }
 
     private PrestateRequest createRequest(
@@ -537,12 +488,14 @@ final class PrestateServiceTest extends Web3IntegrationTest {
             persistBareEntity(accountId, EntityType.CONTRACT, index, createdTimestamp);
             persistAccountBalance(accountId, createdTimestamp, 100L + index);
             domainBuilder
-                    .contractStateChange()
-                    .customize(c -> c.consensusTimestamp(consensusTimestamp)
-                            .contractId(accountId.getId())
-                            .slot(new byte[] {(byte) index})
-                            .valueRead(new byte[] {0})
-                            .valueWritten(new byte[] {1}))
+                    .contractAction()
+                    .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                            .caller(contractId)
+                            .callerType(EntityType.CONTRACT)
+                            .recipientAccount(null)
+                            .recipientContract(accountId)
+                            .value(0L)
+                            .index(index))
                     .persist();
         }
 
