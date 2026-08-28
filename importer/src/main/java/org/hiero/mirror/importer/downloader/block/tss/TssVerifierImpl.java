@@ -25,6 +25,7 @@ final class TssVerifierImpl implements TssVerifier {
 
     private static final Ledger EMPTY = new Ledger();
 
+    private final Object lock = new Object();
     private final AtomicReference<Optional<Ledger>> ledger = new AtomicReference<>(Optional.empty());
     private final LedgerRepository ledgerRepository;
 
@@ -33,20 +34,27 @@ final class TssVerifierImpl implements TssVerifier {
 
     @Override
     public void setLedger(final Ledger ledger, final boolean fromConfig) {
-        if (fromConfig) {
-            ledgerConfig = ledger;
-        } else {
-            ledgerOnChain = ledger;
-        }
+        synchronized (lock) {
+            if (fromConfig) {
+                ledgerConfig = ledger;
+            } else {
+                ledgerOnChain = ledger;
+            }
 
-        // Clear the atomic reference to reload the ledger
-        this.ledger.set(Optional.empty());
+            this.ledger.set(Optional.empty());
+        }
     }
 
     @Override
     public void verify(final long blockNumber, final byte[] message, final byte[] signature) {
-        final var ledgerId = getLedger().getLedgerId();
-        if (!TSS.verifyTSS(ledgerId, signature, message)) {
+        final byte[] ledgerId;
+        final boolean verified;
+        synchronized (lock) {
+            ledgerId = getLedger().getLedgerId();
+            verified = TSS.verifyTSS(ledgerId, signature, message);
+        }
+
+        if (!verified) {
             if (log.isDebugEnabled()) {
                 log.debug(
                         "Failed to verify TSS signature for block {}: ledgerId={}, message={}, signature={}",
@@ -71,7 +79,7 @@ final class TssVerifierImpl implements TssVerifier {
                                 return l;
                             })
                             .or(() -> Optional.of(EMPTY));
-                    ledger.compareAndSet(Optional.empty(), resolved);
+                    ledger.set(resolved);
                     return resolved;
                 })
                 .filter(l -> l != EMPTY)
