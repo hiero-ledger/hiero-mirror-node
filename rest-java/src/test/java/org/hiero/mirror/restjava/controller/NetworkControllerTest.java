@@ -755,10 +755,12 @@ final class NetworkControllerTest extends ControllerTest {
 
         @Test
         void payloadTooLarge() {
-            // given a body exceeding the configured maximum request size (default 256KiB)
-            final var transaction = new byte[512 * 1024];
+            // given a body exceeding the configured maximum request size (7 KiB)
+            final var transaction = new byte[8 * 1024];
 
-            // when / then — rejected before the body is buffered/parsed
+            // when / then — rejected before the body is buffered/parsed. Only the status is asserted here: the embedded
+            // container replaces the error body with a generic page, so the thrown reason is covered by
+            // RequestBodySizeInterceptorTest instead.
             assertThatThrownBy(() -> restClient
                             .post()
                             .uri("")
