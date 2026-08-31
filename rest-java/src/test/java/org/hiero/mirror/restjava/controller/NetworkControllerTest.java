@@ -756,12 +756,10 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void payloadTooLarge() {
             // given a body one byte over the configured maximum request size
-            final var transaction =
-                    new byte[(int) properties.getMaxRequestBodySize().toBytes() + 1];
+            final var maxBytes = properties.getMaxRequestBodySize().toBytes();
+            final var transaction = new byte[(int) maxBytes + 1];
 
-            // when / then — rejected before the body is buffered/parsed. Only the status is asserted: the embedded
-            // container replaces the error body with a generic page, so the thrown reason is covered by
-            // RequestBodySizeInterceptorTest instead.
+            // when / then — the interceptor rejects it before the body is buffered/parsed
             assertThatThrownBy(() -> restClient
                             .post()
                             .uri("")
@@ -769,8 +767,12 @@ final class NetworkControllerTest extends ControllerTest {
                             .contentType(MediaType.APPLICATION_PROTOBUF)
                             .retrieve()
                             .body(FeeEstimateResponse.class))
-                    .isInstanceOfSatisfying(HttpClientErrorException.class, e -> assertThat(e.getStatusCode())
-                            .isEqualTo(HttpStatus.CONTENT_TOO_LARGE));
+                    .isInstanceOfSatisfying(HttpClientErrorException.class, e -> {
+                        assertThat(e.getStatusCode()).isEqualTo(HttpStatus.CONTENT_TOO_LARGE);
+                        assertThat(e.getResponseBodyAsString())
+                                .contains("\"_status\"")
+                                .contains("Request body %d exceeds maximum %d bytes".formatted(maxBytes + 1, maxBytes));
+                    });
         }
 
         @Test
