@@ -24,8 +24,6 @@ import org.jspecify.annotations.Nullable;
 final class TssVerifierImpl implements TssVerifier {
 
     private static final Ledger EMPTY = new Ledger();
-
-    private final Object lock = new Object();
     private final AtomicReference<Optional<Ledger>> ledger = new AtomicReference<>(Optional.empty());
     private final LedgerRepository ledgerRepository;
 
@@ -33,28 +31,20 @@ final class TssVerifierImpl implements TssVerifier {
     private volatile @Nullable Ledger ledgerOnChain;
 
     @Override
-    public void setLedger(final Ledger ledger, final boolean fromConfig) {
-        synchronized (lock) {
-            if (fromConfig) {
-                ledgerConfig = ledger;
-            } else {
-                ledgerOnChain = ledger;
-            }
-
-            this.ledger.set(Optional.empty());
+    public synchronized void setLedger(final Ledger ledger, final boolean fromConfig) {
+        if (fromConfig) {
+            ledgerConfig = ledger;
+        } else {
+            ledgerOnChain = ledger;
         }
+
+        this.ledger.set(Optional.empty());
     }
 
     @Override
-    public void verify(final long blockNumber, final byte[] message, final byte[] signature) {
-        final byte[] ledgerId;
-        final boolean verified;
-        synchronized (lock) {
-            ledgerId = getLedger().getLedgerId();
-            verified = TSS.verifyTSS(ledgerId, signature, message);
-        }
-
-        if (!verified) {
+    public synchronized void verify(final long blockNumber, final byte[] message, final byte[] signature) {
+        final var ledgerId = getLedger().getLedgerId();
+        if (!TSS.verifyTSS(ledgerId, signature, message)) {
             if (log.isDebugEnabled()) {
                 log.debug(
                         "Failed to verify TSS signature for block {}: ledgerId={}, message={}, signature={}",
