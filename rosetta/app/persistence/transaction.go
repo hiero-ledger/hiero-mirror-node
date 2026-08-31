@@ -20,6 +20,8 @@ import (
 
 const (
 	batchSize                                                 = 2000
+	maxAggregateSize                                          = 1 << 20
+	maxTransactions                                           = 100_000
 	transactionResultFeeScheduleFilePartUploaded        int32 = 104
 	transactionResultSuccess                            int32 = 22
 	transactionResultSuccessButMissingExpectedOperation int32 = 220
@@ -100,13 +102,20 @@ func (t hbarTransfer) getAmount() types.Amount {
 type transactionRepository struct {
 	once                  sync.Once
 	dbClient              interfaces.DbClient
+	maxAggregateSize      int
+	maxTransactions       int
 	stakingRewardEntityId domain.EntityId
 	types                 map[int]string
 }
 
 // NewTransactionRepository creates an instance of a TransactionRepository struct
 func NewTransactionRepository(dbClient interfaces.DbClient, stakingRewardEntityId domain.EntityId) interfaces.TransactionRepository {
-	return &transactionRepository{dbClient: dbClient, stakingRewardEntityId: stakingRewardEntityId}
+	return &transactionRepository{
+		dbClient:              dbClient,
+		maxAggregateSize:      maxAggregateSize,
+		maxTransactions:       maxTransactions,
+		stakingRewardEntityId: stakingRewardEntityId,
+	}
 }
 
 func (tr *transactionRepository) FindBetween(ctx context.Context, start, end int64) (
@@ -135,6 +144,14 @@ func (tr *transactionRepository) FindBetween(ctx context.Context, start, end int
 		if err != nil {
 			log.Errorf(databaseErrorFormat, hErrors.ErrDatabaseError.Message, err)
 			return nil, hErrors.ErrDatabaseError
+		}
+
+		if err := tr.validateAggregateSizes(transactionsBatch); err != nil {
+			return nil, err
+		}
+
+		if len(transactions)+len(transactionsBatch) > tr.maxTransactions {
+			return nil, hErrors.ErrTransactionLimitExceeded
 		}
 
 		transactions = append(transactions, transactionsBatch...)
@@ -195,6 +212,10 @@ func (tr *transactionRepository) FindByHashInBlock(
 		return nil, hErrors.ErrDatabaseError
 	}
 
+	if rErr := tr.validateAggregateSizes(transactions); rErr != nil {
+		return nil, rErr
+	}
+
 	if len(transactions) == 0 {
 		return nil, hErrors.ErrTransactionNotFound
 	}
@@ -205,6 +226,17 @@ func (tr *transactionRepository) FindByHashInBlock(
 	}
 
 	return transaction, nil
+}
+
+func (tr *transactionRepository) validateAggregateSizes(transactions []*transaction) *rTypes.Error {
+	for _, transaction := range transactions {
+		if len(transaction.CryptoTransfers) > tr.maxAggregateSize ||
+			len(transaction.StakingRewardPayouts) > tr.maxAggregateSize {
+			return hErrors.ErrTransferLimitExceeded
+		}
+	}
+
+	return nil
 }
 
 func (tr *transactionRepository) constructTransaction(sameHashTransactions []*transaction) (

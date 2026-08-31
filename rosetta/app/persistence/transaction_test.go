@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/persistence/domain"
@@ -374,6 +375,36 @@ func (suite *transactionRepositorySuite) SetupSuite() {
 func (suite *transactionRepositorySuite) TestNewTransactionRepository() {
 	t := NewTransactionRepository(dbClient, suite.stakingRewardEntityId)
 	assert.NotNil(suite.T(), t)
+	repository := t.(*transactionRepository)
+	assert.Equal(suite.T(), maxTransactions, repository.maxTransactions)
+	assert.Equal(suite.T(), maxAggregateSize, repository.maxAggregateSize)
+}
+
+func (suite *transactionRepositorySuite) TestValidateAggregateSizes() {
+	repository := &transactionRepository{maxAggregateSize: 2}
+	tests := []struct {
+		name         string
+		transactions []*transaction
+		expected     *rTypes.Error
+	}{
+		{name: "at limit", transactions: []*transaction{{CryptoTransfers: "[]", StakingRewardPayouts: "[]"}}},
+		{
+			name:         "crypto transfers over limit",
+			transactions: []*transaction{{CryptoTransfers: "[1]"}},
+			expected:     errors.ErrTransferLimitExceeded,
+		},
+		{
+			name:         "staking rewards over limit",
+			transactions: []*transaction{{StakingRewardPayouts: "[1]"}},
+			expected:     errors.ErrTransferLimitExceeded,
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			assert.Equal(suite.T(), tt.expected, repository.validateAggregateSizes(tt.transactions))
+		})
+	}
 }
 
 func (suite *transactionRepositorySuite) TestFindBetween() {
@@ -387,6 +418,62 @@ func (suite *transactionRepositorySuite) TestFindBetween() {
 	// then
 	assert.Nil(suite.T(), err)
 	assertTransactions(suite.T(), expected, actual)
+}
+
+func (suite *transactionRepositorySuite) TestFindBetweenTransactionLimitExceeded() {
+	// given
+	suite.setupDb()
+	repository := NewTransactionRepository(dbClient, suite.stakingRewardEntityId).(*transactionRepository)
+	repository.maxTransactions = 1
+
+	// when
+	actual, err := repository.FindBetween(defaultContext, consensusStart, consensusEnd)
+
+	// then
+	assert.Nil(suite.T(), actual)
+	assert.Equal(suite.T(), errors.ErrTransactionLimitExceeded, err)
+}
+
+func (suite *transactionRepositorySuite) TestFindBetweenCryptoTransferLimitExceeded() {
+	// given
+	suite.setupDb()
+	repository := NewTransactionRepository(dbClient, suite.stakingRewardEntityId).(*transactionRepository)
+	repository.maxAggregateSize = 1
+
+	// when
+	actual, err := repository.FindBetween(defaultContext, consensusStart, consensusEnd)
+
+	// then
+	assert.Nil(suite.T(), actual)
+	assert.Equal(suite.T(), errors.ErrTransferLimitExceeded, err)
+}
+
+func (suite *transactionRepositorySuite) TestFindBetweenStakingRewardTransferLimitExceeded() {
+	// given
+	transaction := tdomain.NewTransactionBuilder(
+		dbClient,
+		suite.treasuryEntityId.EncodedId,
+		consensusStart,
+	).Persist()
+	tdomain.NewStakingRewardTransferBuilder(dbClient).
+		AccountId(suite.firstEntityId.EncodedId).
+		Amount(100).
+		ConsensusTimestamp(transaction.ConsensusTimestamp).
+		PayerAccountId(suite.treasuryEntityId.EncodedId).
+		Persist()
+	repository := NewTransactionRepository(dbClient, suite.stakingRewardEntityId).(*transactionRepository)
+	repository.maxAggregateSize = 1
+
+	// when
+	actual, err := repository.FindBetween(
+		defaultContext,
+		transaction.ConsensusTimestamp,
+		transaction.ConsensusTimestamp,
+	)
+
+	// then
+	assert.Nil(suite.T(), actual)
+	assert.Equal(suite.T(), errors.ErrTransferLimitExceeded, err)
 }
 
 func (suite *transactionRepositorySuite) TestFindBetweenTokenCreatedAtOrBeforeGenesisTimestamp() {
