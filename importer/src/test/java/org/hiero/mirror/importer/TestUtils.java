@@ -57,8 +57,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @UtilityClass
 public class TestUtils {
 
-    public static final int S3_PROXY_PORT = 8001;
-
     private static final byte[] HEX_PREFIX_BYTES = new byte[] {'0', 'x'};
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -178,8 +176,9 @@ public class TestUtils {
         final var blobStore = new FilesystemNio2BlobStore(path.toAbsolutePath().toString());
         final var s3Proxy = S3Proxy.builder()
                 .blobStore(blobStore)
-                .endpoint(URI.create("http://localhost:" + S3_PROXY_PORT))
+                .endpoint(URI.create("http://localhost:0")) // Use a random port
                 .ignoreUnknownHeaders(true)
+                .metricsEnabled(false)
                 .build();
         s3Proxy.start();
 

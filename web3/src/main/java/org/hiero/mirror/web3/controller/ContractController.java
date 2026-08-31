@@ -7,7 +7,6 @@ import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +38,7 @@ class ContractController {
     private final ThrottleManager throttleManager;
 
     @PostMapping(value = "/call")
-    ContractCallResponse call(@RequestBody @Valid ContractCallRequest request, HttpServletResponse response) {
+    ContractCallResponse call(@RequestBody @Valid ContractCallRequest request) {
         validateContractMaxGasLimit(request);
         final var params = constructServiceParameters(request);
 
