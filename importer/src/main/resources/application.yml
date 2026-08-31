@@ -25,8 +25,6 @@ hiero:
           checksum: 4
         errataMigration:
           checksum: 6
-        fixEvmTransactionIndexMigration:
-          checksum: 2
         fixFungibleTokenTotalSupplyMigration:
           checksum: 2
         historicalAccountInfoMigration:

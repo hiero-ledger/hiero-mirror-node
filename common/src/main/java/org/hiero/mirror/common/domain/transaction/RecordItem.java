@@ -308,7 +308,7 @@ public class RecordItem implements StreamItem {
         return transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult();
     }
 
-    private ContractFunctionResult getContractResult() {
+    public ContractFunctionResult getContractResult() {
         if (transactionRecord.hasContractCallResult()) {
             return transactionRecord.getContractCallResult();
         } else if (transactionRecord.hasContractCreateResult()) {

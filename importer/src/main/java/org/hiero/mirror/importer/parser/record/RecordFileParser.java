@@ -231,9 +231,11 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
     private void setEvmTransactionIndex(RecordItem recordItem) {
         final var type = recordItem.getTransactionType();
-        if (type != TransactionType.CONTRACTCALL.getProtoId()
-                && type != TransactionType.CONTRACTCREATEINSTANCE.getProtoId()
-                && type != TransactionType.ETHEREUMTRANSACTION.getProtoId()) {
+        final var isEvmTransactionType = type == TransactionType.CONTRACTCALL.getProtoId()
+                || type == TransactionType.CONTRACTCREATEINSTANCE.getProtoId()
+                || type == TransactionType.ETHEREUMTRANSACTION.getProtoId();
+        // Precompile calls (e.g. HTS operations) can embed a ContractFunctionResult on a non-EVM transaction type
+        if (!isEvmTransactionType && !recordItem.hasContractResult()) {
             return;
         }
 
@@ -246,14 +248,8 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
     }
 
     private boolean hasPositiveGasUsed(RecordItem recordItem) {
-        var transactionRecord = recordItem.getTransactionRecord();
-        if (transactionRecord.hasContractCallResult()) {
-            return transactionRecord.getContractCallResult().getGasUsed() > 0;
-        }
-        if (transactionRecord.hasContractCreateResult()) {
-            return transactionRecord.getContractCreateResult().getGasUsed() > 0;
-        }
-        return false;
+        final var contractResult = recordItem.getContractResult();
+        return contractResult != null && contractResult.getGasUsed() > 0;
     }
 
     private final class RecordItemAggregator implements Consumer<RecordItem> {

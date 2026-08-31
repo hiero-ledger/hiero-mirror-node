@@ -26,13 +26,13 @@ import org.junit.jupiter.api.Test;
 @DisableRepeatableSqlMigration
 @RequiredArgsConstructor
 @Tag("migration")
-final class FixEvmTransactionIndexMigrationTest
-        extends AbstractAsyncJavaMigrationTest<FixEvmTransactionIndexMigration> {
+final class RecomputeEvmTransactionIndexMigrationTest
+        extends AbstractAsyncJavaMigrationTest<RecomputeEvmTransactionIndexMigration> {
 
     private static final long INTERVAL = Duration.ofHours(3).toNanos();
 
     @Getter
-    private final FixEvmTransactionIndexMigration migration;
+    private final RecomputeEvmTransactionIndexMigration migration;
 
     private final ContractLogRepository contractLogRepository;
     private final ContractResultRepository contractResultRepository;
@@ -40,12 +40,51 @@ final class FixEvmTransactionIndexMigrationTest
 
     @Test
     void emptyDatabase() {
+        // when
         runMigration();
         waitForCompletion();
 
+        // then
         assertThat(recordFileRepository.findAll()).isEmpty();
         assertThat(contractResultRepository.findAll()).isEmpty();
         assertThat(contractLogRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void dropsOldProgressTables() {
+        // given
+        persistBlock(0);
+        ownerJdbcTemplate.execute(
+                "create table if not exists fix_evm_transaction_index_progress_temp(upper_bound bigint not null)");
+        ownerJdbcTemplate.execute(
+                "create table if not exists contract_log_synthetic_flag_progress_temp(upper_bound bigint not null)");
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertThat(tableExists("fix_evm_transaction_index_progress_temp")).isFalse();
+        assertThat(tableExists("contract_log_synthetic_flag_progress_temp")).isFalse();
+    }
+
+    @Test
+    void nullIndexGetsUpdatedToRealIndex() {
+        // given
+        final var block = persistBlock(0);
+        final var timestamp = block.getConsensusStart() + 100;
+        persistTransaction(timestamp, TransactionType.CONTRACTCALL, 0, false, null);
+
+        final var contractResult = persistContractResult(timestamp, 0, null);
+        final var contractLog = persistContractLog(timestamp, null);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(contractResult.getConsensusTimestamp(), 0);
+        assertContractLogIndex(contractLog.getConsensusTimestamp(), 0);
     }
 
     @Test
@@ -125,6 +164,73 @@ final class FixEvmTransactionIndexMigrationTest
     }
 
     @Test
+    void twoRootsEachWithChildrenGetDistinctSharedIndices() {
+        // given
+        final var block = persistBlock(0);
+        final var firstRootTimestamp = block.getConsensusStart() + 100;
+        final var firstChildTimestamp = block.getConsensusStart() + 200;
+        final var secondRootTimestamp = block.getConsensusStart() + 300;
+        final var secondChildTimestamp = block.getConsensusStart() + 400;
+        final var secondChild2Timestamp = block.getConsensusStart() + 500;
+
+        persistTransaction(firstRootTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+        persistTransaction(firstChildTimestamp, TransactionType.CONTRACTCREATEINSTANCE, 1, false, firstRootTimestamp);
+        persistTransaction(secondRootTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+        persistTransaction(secondChildTimestamp, TransactionType.CONTRACTCREATEINSTANCE, 1, false, secondRootTimestamp);
+        persistTransaction(
+                secondChild2Timestamp, TransactionType.CONTRACTCREATEINSTANCE, 2, false, secondRootTimestamp);
+
+        final var firstRootResult = persistContractResult(firstRootTimestamp, 99);
+        final var firstChildResult = persistContractResult(firstChildTimestamp, 99);
+        final var secondRootResult = persistContractResult(secondRootTimestamp, 99);
+        final var secondChildResult = persistContractResult(secondChildTimestamp, 99);
+        final var secondChild2Result = persistContractResult(secondChild2Timestamp, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(firstRootResult.getConsensusTimestamp(), 0);
+        assertContractResultIndex(firstChildResult.getConsensusTimestamp(), 0);
+        assertContractResultIndex(secondRootResult.getConsensusTimestamp(), 1);
+        assertContractResultIndex(secondChildResult.getConsensusTimestamp(), 1);
+        assertContractResultIndex(secondChild2Result.getConsensusTimestamp(), 1);
+    }
+
+    @Test
+    void precompileDispatchedChildrenOfDifferentTypesInheritRootIndex() {
+        // given
+        // root CONTRACTCALL nonce 0 dispatches precompile-triggered
+        // TOKENASSOCIATE/TOKENMINT/CRYPTOTRANSFER children at nonce 1-3, each with its own contract_result
+        final var block = persistBlock(0);
+        final var rootTimestamp = block.getConsensusStart() + 100;
+        final var tokenAssociateTimestamp = block.getConsensusStart() + 200;
+        final var tokenMintTimestamp = block.getConsensusStart() + 300;
+        final var cryptoTransferTimestamp = block.getConsensusStart() + 400;
+
+        persistTransaction(rootTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+        persistTransaction(tokenAssociateTimestamp, TransactionType.TOKENASSOCIATE, 1, false, rootTimestamp);
+        persistTransaction(tokenMintTimestamp, TransactionType.TOKENMINT, 2, false, rootTimestamp);
+        persistTransaction(cryptoTransferTimestamp, TransactionType.CRYPTOTRANSFER, 3, false, rootTimestamp);
+
+        final var rootResult = persistContractResult(rootTimestamp, 99);
+        final var tokenAssociateResult = persistContractResult(tokenAssociateTimestamp, 99);
+        final var tokenMintResult = persistContractResult(tokenMintTimestamp, 99);
+        final var cryptoTransferResult = persistContractResult(cryptoTransferTimestamp, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(rootResult.getConsensusTimestamp(), 0);
+        assertContractResultIndex(tokenAssociateResult.getConsensusTimestamp(), 0);
+        assertContractResultIndex(tokenMintResult.getConsensusTimestamp(), 0);
+        assertContractResultIndex(cryptoTransferResult.getConsensusTimestamp(), 0);
+    }
+
+    @Test
     void deeplyNestedEvmTransactionsInheritRootIndexAtAnyDepth() {
         // given
         final var block = persistBlock(0);
@@ -163,7 +269,6 @@ final class FixEvmTransactionIndexMigrationTest
         final var innerEthereumTimestamp = block.getConsensusStart() + 300;
 
         persistTransaction(batchTimestamp, TransactionType.ATOMIC_BATCH, 0, false, null);
-        // Each inner transaction is independently signed and keeps nonce 0, so each is treated as a root.
         persistTransaction(innerCallTimestamp, TransactionType.CONTRACTCALL, 0, false, batchTimestamp);
         persistTransaction(innerEthereumTimestamp, TransactionType.ETHEREUMTRANSACTION, 0, false, batchTimestamp);
 
@@ -383,7 +488,7 @@ final class FixEvmTransactionIndexMigrationTest
                 .customize(r -> r.index(1L).consensusStart(timestamp1).consensusEnd(timestamp1))
                 .persist();
         final long timestamp0 = block1.getConsensusEnd() - INTERVAL + 1;
-        final var block0 = domainBuilder
+        domainBuilder
                 .recordFile()
                 .customize(r -> r.index(0L).consensusStart(timestamp0).consensusEnd(timestamp0))
                 .persist();
@@ -403,7 +508,6 @@ final class FixEvmTransactionIndexMigrationTest
         persistTransaction(tokenTransferTimestamp, TransactionType.CRYPTOTRANSFER, 0, false, null);
         persistTransaction(contractCallTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
 
-        // synthetic log has a stale buggy global index from old parser code
         final var syntheticLog = persistSyntheticContractLog(tokenTransferTimestamp, 999);
         final var contractCallResult = persistContractResult(contractCallTimestamp, 99);
         final var contractCallLog = persistContractLog(contractCallTimestamp, 99);
@@ -419,31 +523,155 @@ final class FixEvmTransactionIndexMigrationTest
     }
 
     @Test
-    void wrongNonceTransactionDoesNotConsumeEvmIndex() {
+    void zeroGasUsedDoesNotConsumeEvmIndex() {
         // given
         final var block = persistBlock(0);
         final var wrongNonceTimestamp = block.getConsensusStart() + 100;
         final var contractCallTimestamp = block.getConsensusStart() + 200;
 
-        persistTransaction(wrongNonceTimestamp, TransactionType.ETHEREUMTRANSACTION, 0, false, null);
-        persistTransaction(contractCallTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
-
-        final var wrongNonceResult = domainBuilder
-                .contractResult()
-                .customize(cr -> cr.consensusTimestamp(wrongNonceTimestamp)
-                        .transactionIndex(99)
-                        .transactionNonce(0)
-                        .transactionResult(ResponseCodeEnum.WRONG_NONCE_VALUE))
-                .persist();
-        final var contractCallResult = persistContractResult(contractCallTimestamp, 99);
+        final var wrongNonceResult =
+                persistContractResult(wrongNonceTimestamp, 0, 99, ResponseCodeEnum.WRONG_NONCE_VALUE, 0L);
+        final var contractCallResult = persistContractResult(contractCallTimestamp, 0, 99);
 
         // when
         runMigration();
         waitForCompletion();
 
         // then
+        assertContractResultIndex(wrongNonceResult.getConsensusTimestamp(), null);
         assertContractResultIndex(contractCallResult.getConsensusTimestamp(), 0);
-        assertContractResultIndex(wrongNonceResult.getConsensusTimestamp(), 99);
+    }
+
+    @Test
+    void nullGasUsedFailedContractCreateIsNulledOut() {
+        // given
+        // Failed contract create (e.g. INSUFFICIENT_PAYER_BALANCE) can have a null gasUsed, not just zero
+        final var block = persistBlock(0);
+        final var failedCreateTimestamp = block.getConsensusStart() + 100;
+        final var contractCallTimestamp = block.getConsensusStart() + 200;
+
+        final var failedCreateResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(failedCreateTimestamp)
+                        .transactionIndex(99)
+                        .transactionNonce(0)
+                        .gasUsed(null)
+                        .transactionResult(ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE))
+                .persist();
+        final var contractCallResult = persistContractResult(contractCallTimestamp, 0, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(failedCreateResult.getConsensusTimestamp(), null);
+        assertContractResultIndex(contractCallResult.getConsensusTimestamp(), 0);
+    }
+
+    @Test
+    void zeroGasUsedContractLogIndexIsNulledOut() {
+        // given
+        // Simulates a stale wrong index
+        final var block = persistBlock(0);
+        final var zeroGasTimestamp = block.getConsensusStart() + 100;
+        final var contractCallTimestamp = block.getConsensusStart() + 200;
+
+        final var zeroGasResult =
+                persistContractResult(zeroGasTimestamp, 0, 5, ResponseCodeEnum.INVALID_SIGNATURE_VALUE, 0L);
+        final var zeroGasLog = persistContractLog(zeroGasTimestamp, 5);
+        final var contractCallResult = persistContractResult(contractCallTimestamp, 0, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(zeroGasResult.getConsensusTimestamp(), null);
+        assertContractLogIndex(zeroGasLog.getConsensusTimestamp(), null);
+        assertContractResultIndex(contractCallResult.getConsensusTimestamp(), 0);
+    }
+
+    @Test
+    void zeroGasUsedExcludesRegardlessOfStatus() {
+        // given
+        // Not on the old status-based exclude list
+        final var block = persistBlock(0);
+        final var contractRevertTimestamp = block.getConsensusStart() + 100;
+        final var contractCallTimestamp = block.getConsensusStart() + 200;
+
+        final var contractRevertResult = persistContractResult(
+                contractRevertTimestamp, 0, 99, ResponseCodeEnum.CONTRACT_REVERT_EXECUTED_VALUE, 0L);
+        final var contractCallResult = persistContractResult(contractCallTimestamp, 0, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(contractRevertResult.getConsensusTimestamp(), null);
+        assertContractResultIndex(contractCallResult.getConsensusTimestamp(), 0);
+    }
+
+    @Test
+    void positiveGasUsedConsumesEvmIndexRegardlessOfStatus() {
+        // given
+        // INVALID_ACCOUNT_ID has multiple origins
+        final var block = persistBlock(0);
+        final var invalidAccountIdTimestamp = block.getConsensusStart() + 100;
+        final var contractCallTimestamp = block.getConsensusStart() + 200;
+
+        final var invalidAccountIdResult =
+                persistContractResult(invalidAccountIdTimestamp, 0, 99, ResponseCodeEnum.INVALID_ACCOUNT_ID_VALUE);
+        final var contractCallResult = persistContractResult(contractCallTimestamp, 0, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(invalidAccountIdResult.getConsensusTimestamp(), 0);
+        assertContractResultIndex(contractCallResult.getConsensusTimestamp(), 1);
+    }
+
+    @Test
+    void zeroGasUsedChildStillInheritsParentIndex() {
+        // given
+        // Real precompile children can have gasUsed=0
+        final var block = persistBlock(0);
+        final var rootTimestamp = block.getConsensusStart() + 100;
+        final var childTimestamp = block.getConsensusStart() + 200;
+
+        final var rootResult = persistContractResult(rootTimestamp, 0, 99);
+        final var childResult = persistContractResult(childTimestamp, 1, 99, ResponseCodeEnum.SUCCESS_VALUE, 0L);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(rootResult.getConsensusTimestamp(), 0);
+        assertContractResultIndex(childResult.getConsensusTimestamp(), 0);
+    }
+
+    @Test
+    void doesNotDoubleCountEvmIndexWhenSyntheticLogSharesTimestampWithContractResult() {
+        // given
+        final var block = persistBlock(0);
+        final var sharedTimestamp = block.getConsensusStart() + 100;
+        final var laterTimestamp = block.getConsensusStart() + 200;
+
+        final var sharedContractResult = persistContractResult(sharedTimestamp, 0, 99);
+        persistSyntheticContractLog(sharedTimestamp, 99);
+        final var laterContractResult = persistContractResult(laterTimestamp, 0, 99);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(sharedContractResult.getConsensusTimestamp(), 0);
+        assertContractResultIndex(laterContractResult.getConsensusTimestamp(), 1);
     }
 
     private RecordFile persistBlock(long index) {
@@ -485,7 +713,7 @@ final class FixEvmTransactionIndexMigrationTest
                 .persist();
     }
 
-    private ContractResult persistContractResult(long consensusTimestamp, int wrongIndex) {
+    private ContractResult persistContractResult(long consensusTimestamp, Integer wrongIndex) {
         final var nonce = jdbcOperations.queryForObject(
                 "select nonce from transaction where consensus_timestamp = ?", Integer.class, consensusTimestamp);
         return domainBuilder
@@ -493,6 +721,27 @@ final class FixEvmTransactionIndexMigrationTest
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
                         .transactionIndex(wrongIndex)
                         .transactionNonce(nonce != null ? nonce : 0))
+                .persist();
+    }
+
+    private ContractResult persistContractResult(long consensusTimestamp, int nonce, Integer existingIndex) {
+        return persistContractResult(consensusTimestamp, nonce, existingIndex, ResponseCodeEnum.SUCCESS_VALUE);
+    }
+
+    private ContractResult persistContractResult(
+            long consensusTimestamp, int nonce, Integer existingIndex, int transactionResult) {
+        return persistContractResult(consensusTimestamp, nonce, existingIndex, transactionResult, 100L);
+    }
+
+    private ContractResult persistContractResult(
+            long consensusTimestamp, int nonce, Integer existingIndex, int transactionResult, long gasUsed) {
+        return domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
+                        .transactionIndex(existingIndex)
+                        .transactionNonce(nonce)
+                        .gasUsed(gasUsed)
+                        .transactionResult(transactionResult))
                 .persist();
     }
 
@@ -506,7 +755,7 @@ final class FixEvmTransactionIndexMigrationTest
                 .persist();
     }
 
-    private ContractLog persistContractLog(long consensusTimestamp, int wrongIndex) {
+    private ContractLog persistContractLog(long consensusTimestamp, Integer wrongIndex) {
         return domainBuilder
                 .contractLog()
                 .customize(cl -> cl.consensusTimestamp(consensusTimestamp).transactionIndex(wrongIndex))
@@ -522,7 +771,7 @@ final class FixEvmTransactionIndexMigrationTest
                 .persist();
     }
 
-    private void assertContractResultIndex(long consensusTimestamp, int expected) {
+    private void assertContractResultIndex(long consensusTimestamp, Integer expected) {
         assertThat(jdbcOperations.queryForObject(
                         "select transaction_index from contract_result where consensus_timestamp = ?",
                         Integer.class,
@@ -530,7 +779,7 @@ final class FixEvmTransactionIndexMigrationTest
                 .isEqualTo(expected);
     }
 
-    private void assertContractLogIndex(long consensusTimestamp, int expected) {
+    private void assertContractLogIndex(long consensusTimestamp, Integer expected) {
         assertThat(jdbcOperations.queryForObject(
                         "select transaction_index from contract_log where consensus_timestamp = ?",
                         Integer.class,
