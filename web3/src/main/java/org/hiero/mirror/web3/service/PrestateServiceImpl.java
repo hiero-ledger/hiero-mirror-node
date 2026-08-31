@@ -27,6 +27,7 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractStateChange;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.PrestateAccountTrace;
 import org.hiero.mirror.rest.model.PrestateResponse;
 import org.hiero.mirror.web3.Web3Properties;
@@ -371,7 +372,7 @@ public final class PrestateServiceImpl implements PrestateService {
         if (alias != null && alias.length == EVM_ADDRESS_LENGTH) {
             return HEX_PREFIX + bytesToHex(alias);
         }
-        return HEX_PREFIX + bytesToHex(toEvmAddress(entity.getId()));
+        return HEX_PREFIX + bytesToHex(toEvmAddress(EntityId.of(entity.getId())));
     }
 
     private long resolveConsensusTimestamp(final TransactionIdOrHashParameter transactionIdOrHash) {
