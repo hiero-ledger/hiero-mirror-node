@@ -29,11 +29,14 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedG
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.longValueOf;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.services.utils.EntityIdUtils;
@@ -935,6 +938,31 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
         // Then
         verify(throttleManager, times(2)).restore(expectedUsedGasByThrottle);
+    }
+
+    @Test
+    void executionErrorDoesNotLeakInternalMessage() {
+        // Given the underlying executor fails with an internal error carrying implementation detail
+        final var internalDetail = "internal invariant violated: state 0xdeadbeef";
+        final var mockExecutor = mock(TransactionExecutionService.class);
+        when(mockExecutor.execute(any(), anyLong())).thenThrow(new IllegalArgumentException(internalDetail));
+        final var service = new ContractExecutionService(
+                meterRegistry,
+                binaryGasEstimator,
+                recordFileService,
+                throttleProperties,
+                throttleManager,
+                evmProperties,
+                mockExecutor);
+        final var serviceParameters = getContractExecutionParameters(
+                HEX_PREFIX, Address.fromHexString("0000000000000000000000000000000000000167"));
+
+        // Then the raw internal message is not surfaced; a generic response code is returned instead (CWE-209)
+        assertThatThrownBy(() -> service.processCall(serviceParameters))
+                .isInstanceOfSatisfying(MirrorEvmTransactionException.class, e -> {
+                    assertThat(e.getMessage()).isEqualTo(CONTRACT_EXECUTION_EXCEPTION.name());
+                    assertThat(e.getFullMessage()).doesNotContain("0xdeadbeef", "invariant");
+                });
     }
 
     @ParameterizedTest
