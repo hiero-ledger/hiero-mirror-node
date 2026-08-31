@@ -17,8 +17,8 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.40.1")
-    set("consensusNodeVersion", "0.76.2")
+    set("blockNodeVersion", "0.41.0")
+    set("consensusNodeVersion", "0.76.3")
     set("jackson-bom.version", "3.2.2") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.2") // Temporary until next Spring Boot
     set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
@@ -47,7 +47,7 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.15.0")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.15.2")
         // Needs to use variable for compare workflow
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
@@ -70,7 +70,7 @@ dependencies {
         api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.bouncycastle:bcpkix-jdk18on:1.85") // Temporary until next hedera-app
         api("org.bouncycastle:bcprov-jdk18on:1.85.2")
-        api("org.gaul:s3proxy:4.0.0")
+        api("org.gaul:s3proxy:4.1.0")
         api("org.graalvm.nativeimage:svm:25.0.4.1")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
@@ -80,7 +80,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.54.2")
+        api("software.amazon.awssdk:bom:2.54.6")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
