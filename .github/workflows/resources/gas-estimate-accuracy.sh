@@ -47,6 +47,18 @@ within_tolerance() {
   }'
 }
 
+# Check if a consensus_timestamp (format: seconds.nanoseconds) is at a round hour or up to 2 seconds after.
+is_near_round_hour() {
+  local timestamp="$1"
+  local seconds="${timestamp%%.*}"
+  if [[ -z "${seconds}" || ! "${seconds}" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+  local seconds_in_hour=$((seconds % 3600))
+  # Return true (0) if at round hour (0) or up to 2 seconds after (1, 2)
+  ((seconds_in_hour <= 2))
+}
+
 # Contract create: missing to, or the result's contract_id was itself created by the tx.
 is_contract_create() {
   jq -e '
@@ -173,49 +185,70 @@ check_result() {
     return 0
   fi
 
-  local body http_code response
-  response="$(mktemp)"
-  http_code="$(curl -sS -o "${response}" -w '%{http_code}' \
-    -X POST "${BASE_URL}/api/v1/contracts/call" \
-    -H 'Accept: application/json' \
-    -H 'Content-Type: application/json' \
-    --data "${request}" || true)"
-  body="$(cat "${response}")"
-  rm -f "${response}"
+  local attempt estimated
+  for attempt in 1 2; do
+    local body http_code response
+    response="$(mktemp)"
+    http_code="$(curl -sS -o "${response}" -w '%{http_code}' \
+      -X POST "${BASE_URL}/api/v1/contracts/call" \
+      -H 'Accept: application/json' \
+      -H 'Content-Type: application/json' \
+      --data "${request}" || true)"
+    body="$(cat "${response}")"
+    rm -f "${response}"
 
-  if [[ "${http_code}" != "200" ]]; then
-    # Historical txs often revert on estimate replay (due to state change).
-    # Count those separately; only out-of-tolerance estimates fail the job.
-    if [[ "${http_code}" == "400" ]] && grep -q 'CONTRACT_REVERT_EXECUTED' <<<"${body}"; then
-      estimate_reverts=$((estimate_reverts + 1))
-    else
-      api_errors=$((api_errors + 1))
+    if [[ "${http_code}" != "200" ]]; then
+      if ((attempt == 2)); then
+        break
+      fi
+      # Historical txs often revert on estimate replay (due to state change).
+      # Count those separately; only out-of-tolerance estimates fail the job.
+      if [[ "${http_code}" == "400" ]] && grep -q 'CONTRACT_REVERT_EXECUTED' <<<"${body}"; then
+        estimate_reverts=$((estimate_reverts + 1))
+      else
+        api_errors=$((api_errors + 1))
+      fi
+      return 0
     fi
-    return 0
-  fi
 
-  local result_hex
-  result_hex="$(jq -r '.result // empty' <<<"${body}")"
-  if [[ -z "${result_hex}" || "${result_hex}" == "null" ]]; then
-    api_errors=$((api_errors + 1))
-    return 0
-  fi
+    local result_hex
+    result_hex="$(jq -r '.result // empty' <<<"${body}")"
+    if [[ -z "${result_hex}" || "${result_hex}" == "null" ]]; then
+      if ((attempt == 2)); then
+        break
+      fi
+      api_errors=$((api_errors + 1))
+      return 0
+    fi
 
-  local estimated
-  estimated="$(hex_to_dec "${result_hex}")"
-  checked=$((checked + 1))
+    estimated="$(hex_to_dec "${result_hex}")"
+    if ((attempt == 1)); then
+      checked=$((checked + 1))
+    fi
 
-  if within_tolerance "${estimated}" "${consumed}"; then
-    passed=$((passed + 1))
-  else
-    failed=$((failed + 1))
-    local pct
-    pct="$(awk -v e="${estimated}" -v c="${consumed}" 'BEGIN {
-      printf "%.2f", ((e - c) * 100.0 / c)
-    }')"
-    log "Out of tolerance for hash=${hash}: estimated=${estimated} gas_used=${consumed} overhead=${pct}% (expected ${MIN_TOLERANCE_PERCENT}-${TOLERANCE_PERCENT}%)"
-    log "request=${request}"
-  fi
+    if within_tolerance "${estimated}" "${consumed}"; then
+      passed=$((passed + 1))
+      return 0
+    fi
+
+    local block_number consensus_timestamp
+    block_number="$(jq -r '.block_number // empty' <<<"${result_json}")"
+    consensus_timestamp="$(jq -r '.consensus_timestamp // empty' <<<"${result_json}")"
+    if ((attempt == 1)) && [[ -n "${block_number}" ]] && is_near_round_hour "${consensus_timestamp}"; then
+      log "Out of tolerance for hash=${hash} at block ${block_number}-1; retrying with block=${block_number}"
+      request="$(jq -c --arg b "${block_number}" '.block = $b' <<<"${request}")"
+      continue
+    fi
+    break
+  done
+
+  failed=$((failed + 1))
+  local pct
+  pct="$(awk -v e="${estimated}" -v c="${consumed}" 'BEGIN {
+    printf "%.2f", ((e - c) * 100.0 / c)
+  }')"
+  log "Out of tolerance for hash=${hash}: estimated=${estimated} gas_used=${consumed} overhead=${pct}% (expected ${MIN_TOLERANCE_PERCENT}-${TOLERANCE_PERCENT}%)"
+  log "request=${request}"
 }
 
 page_url_from_next() {
