@@ -14,6 +14,7 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.Duration;
@@ -38,6 +39,7 @@ import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.unit.DataSize;
 
 public final class BlockNodeSimulator implements AutoCloseable {
 
@@ -52,6 +54,11 @@ public final class BlockNodeSimulator implements AutoCloseable {
             return new ZstdOutputStream(os);
         }
     };
+
+    // A protobuf message made of repeated skippable varint fields (field number 1000, wire type 0, value 0). An
+    // all-zero payload wouldn't do since the parser rejects the zero tag after the first few bytes, before the
+    // decompressed size limit is reached.
+    private static final byte[] ZSTD_BOMB_PATTERN = {(byte) 0xc0, 0x3e, 0x00};
 
     private List<BlockGenerator.BlockRecord> blocks = Collections.emptyList();
     private int chunksPerBlock = 1;
@@ -72,6 +79,7 @@ public final class BlockNodeSimulator implements AutoCloseable {
     private Server server;
     private boolean started;
     private boolean zstdCompression;
+    private byte[] zstdBomb;
 
     @Override
     @SneakyThrows
@@ -115,7 +123,7 @@ public final class BlockNodeSimulator implements AutoCloseable {
 
         if (zstdCompression) {
             final var compressorRegistry = CompressorRegistry.newEmptyInstance();
-            compressorRegistry.register(ZSTD_COMPRESSOR);
+            compressorRegistry.register(zstdBomb == null ? ZSTD_COMPRESSOR : zstdBombCompressor(zstdBomb));
             serverBuilder.compressorRegistry(compressorRegistry);
         }
 
@@ -200,9 +208,69 @@ public final class BlockNodeSimulator implements AutoCloseable {
         return this;
     }
 
+    public BlockNodeSimulator withZstdBomb(final DataSize decompressedSize) {
+        zstdBomb = zstdBomb(decompressedSize.toBytes());
+        zstdCompression = true;
+        return this;
+    }
+
     public BlockNodeSimulator withZstdCompression(final boolean compressed) {
         this.zstdCompression = compressed;
         return this;
+    }
+
+    @SneakyThrows
+    private static byte[] zstdBomb(final long decompressedSize) {
+        final byte[] chunk = new byte[3 * 1024 * 1024];
+        for (int i = 0; i < chunk.length; i += ZSTD_BOMB_PATTERN.length) {
+            System.arraycopy(ZSTD_BOMB_PATTERN, 0, chunk, i, ZSTD_BOMB_PATTERN.length);
+        }
+
+        // zstd frames concatenate, so compress the chunk once and repeat the frame as many times as needed instead of
+        // compressing the whole payload
+        final var frame = new ByteArrayOutputStream();
+        try (final var zstd = new ZstdOutputStream(frame)) {
+            zstd.write(chunk);
+        }
+
+        final byte[] frameBytes = frame.toByteArray();
+        final int frames = (int) Math.ceilDiv(decompressedSize, chunk.length);
+        final var bomb = new ByteArrayOutputStream(frameBytes.length * frames);
+        for (int i = 0; i < frames; i++) {
+            bomb.write(frameBytes);
+        }
+
+        return bomb.toByteArray();
+    }
+
+    private static Compressor zstdBombCompressor(final byte[] bomb) {
+        return new Compressor() {
+            @Override
+            public String getMessageEncoding() {
+                return "zstd";
+            }
+
+            @Override
+            public OutputStream compress(final OutputStream os) {
+                return new OutputStream() {
+                    @Override
+                    public void write(final int b) {
+                        // discard the real message
+                    }
+
+                    @Override
+                    public void write(final byte[] b, final int off, final int len) {
+                        // discard the real message
+                    }
+
+                    @Override
+                    public void close() throws IOException {
+                        os.write(bomb);
+                        os.flush();
+                    }
+                };
+            }
+        };
     }
 
     private static void validateArg(boolean condition, String message) {
