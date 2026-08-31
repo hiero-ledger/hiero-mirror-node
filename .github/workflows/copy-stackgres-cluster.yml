@@ -150,15 +150,13 @@ env:
   LC_ALL: C.UTF-8
 
 permissions:
+  id-token: write
   contents: read
 
 jobs:
   run-copy:
     name: Copy Citus from source to target
     runs-on: hiero-mirror-node-linux-medium
-    permissions:
-      contents: read
-      id-token: write
     timeout-minutes: 900 # 15 hours
     env:
       COLLECT_K6_REPORT: ${{ inputs.collect_k6_report }}
