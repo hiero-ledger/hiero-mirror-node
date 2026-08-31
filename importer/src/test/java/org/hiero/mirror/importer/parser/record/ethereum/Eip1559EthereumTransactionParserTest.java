@@ -10,6 +10,8 @@ import static org.hiero.mirror.importer.parser.record.ethereum.Eip2930EthereumTr
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.LONDON_RAW_TX_WITH_ACCESS_LIST;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.LONDON_RAW_TX_WITH_ACCESS_LIST_CALL_DATA_OFFLOADED;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.withEmptyStringAccessList;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
@@ -46,6 +48,29 @@ class Eip1559EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     void decodeEmptyStringAccessList() {
         final var ethereumTransaction = ethereumTransactionParser.decode(withEmptyStringAccessList(LONDON_RAW_TX));
         validateEthereumTransaction(ethereumTransaction, List.of());
+    }
+
+    @Test
+    void encodePreservesHashWithAccessList() {
+        assertEncodeProducesOriginalHash(LONDON_RAW_TX_WITH_ACCESS_LIST);
+    }
+
+    @Test
+    void encodePreservesHashWithEmptyAccessList() {
+        assertEncodeProducesOriginalHash(LONDON_RAW_TX);
+    }
+
+    @Test
+    void emptyListAndEmptyStringAccessListProduceSameHash() {
+        assertEmptyAccessListFormatsProduceSameHash(LONDON_RAW_TX, withEmptyStringAccessList(LONDON_RAW_TX));
+    }
+
+    @Test
+    void getHashWithOffloadedCallDataAndAccessList() {
+        assertGetHashWithOffloadedCallData(
+                LONDON_RAW_TX_WITH_ACCESS_LIST,
+                LONDON_RAW_TX_WITH_ACCESS_LIST_CALL_DATA_OFFLOADED,
+                RAW_TX_TYPE_1_CALL_DATA);
     }
 
     @Test

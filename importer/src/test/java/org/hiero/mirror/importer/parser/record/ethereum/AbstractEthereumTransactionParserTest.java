@@ -12,12 +12,15 @@ import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransacti
 import com.esaulpaugh.headlong.rlp.RLPDecoder;
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.rlp.RLPItem;
+import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
 import org.junit.jupiter.api.Test;
@@ -153,6 +156,37 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
         assertThatThrownBy(() -> AbstractEthereumTransactionParser.parseAccessList(accessListItem, transactionType))
                 .isInstanceOf(InvalidEthereumBytesException.class)
                 .hasMessage(decodeError(transactionType, "Access list entry size was 3 but expected 2"));
+    }
+
+    protected void assertEncodeProducesOriginalHash(byte[] transactionBytes) {
+        final var parser = (AbstractEthereumTransactionParser) ethereumTransactionParser;
+        final var encoded = parser.encode(parser.decode(transactionBytes));
+        assertThat(encoded).isEqualTo(transactionBytes);
+        assertThat(new Keccak.Digest256().digest(encoded)).isEqualTo(new Keccak.Digest256().digest(transactionBytes));
+    }
+
+    protected void assertEmptyAccessListFormatsProduceSameHash(byte[] emptyListTx, byte[] emptyStringTx) {
+        final var parser = (AbstractEthereumTransactionParser) ethereumTransactionParser;
+        final var hashFromEmptyList = new Keccak.Digest256().digest(parser.encode(parser.decode(emptyListTx)));
+        final var hashFromEmptyString = new Keccak.Digest256().digest(parser.encode(parser.decode(emptyStringTx)));
+
+        assertThat(hashFromEmptyString).isEqualTo(hashFromEmptyList);
+        assertThat(hashFromEmptyList).isEqualTo(new Keccak.Digest256().digest(emptyListTx));
+    }
+
+    protected void assertGetHashWithOffloadedCallData(byte[] original, byte[] offloaded, String callDataHex) {
+        final var expected = new Keccak.Digest256().digest(original);
+        final var fileData = domainBuilder
+                .fileData()
+                .customize(f -> f.fileData(callDataHex.getBytes(StandardCharsets.UTF_8)))
+                .persist();
+        final var actual = ethereumTransactionParser.getHash(
+                DomainUtils.EMPTY_BYTE_ARRAY,
+                fileData.getEntityId(),
+                fileData.getConsensusTimestamp() + 1,
+                offloaded,
+                true);
+        assertThat(actual).isEqualTo(expected);
     }
 
     private static Stream<Arguments> accessListTransactionTypes() {
