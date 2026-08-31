@@ -209,8 +209,10 @@ jobs:
       - name: Run acceptance tests
         timeout-minutes: 15
         run: |
+          set -o pipefail
+          mkdir -p logs/acceptance-tests
           helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
-            --timeout 10m | tee output_log.txt
+            --timeout 10m 2>&1 | tee logs/acceptance-tests/output.log
 
       - name: Switch to Ingest Recordstream Files
         timeout-minutes: 10
@@ -260,7 +262,7 @@ jobs:
           export WRB_TEST_ENABLED=true
           ./gradlew :importer:test --tests '*WrbVerificationTest' --info
 
-      - name: Show Pod Logs on Failure
+      - name: Collect Pod Logs on Failure
         continue-on-error: true
         if: ${{ failure() }}
         run: |
@@ -268,13 +270,24 @@ jobs:
           echo "Workflow failed. Collecting logs for debugging..."
           echo "--------------------------------------------------"
 
-          echo "--- Describing all pods in namespace ${SOLO_NAMESPACE} ---"
-          kubectl describe pods -n "${SOLO_NAMESPACE}" || echo "Could not describe pods"
+          mkdir -p logs/pods
 
-          echo "--- Fetching logs for all pods in namespace ${SOLO_NAMESPACE} ---"
+          kubectl describe pods -n "${SOLO_NAMESPACE}" > logs/pods/describe-pods.txt \
+            || echo "Could not describe pods"
+
           for pod in $(kubectl get pods -n "${SOLO_NAMESPACE}" -o name); do
             if [ -n "$pod" ]; then
-              echo "--- Logs for pod: $pod ---"
-              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=10000 || echo "Could not get logs for pod $pod"
+              pod_name="${pod#pod/}"
+              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true > "logs/pods/${pod_name}.log" \
+                || echo "Could not get logs for pod $pod"
             fi
           done
+
+      - name: Upload Logs on Failure
+        continue-on-error: true
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-${{ inputs.stream-type }}
+          path: logs
+          retention-days: 7
