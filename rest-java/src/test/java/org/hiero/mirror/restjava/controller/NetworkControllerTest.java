@@ -755,10 +755,11 @@ final class NetworkControllerTest extends ControllerTest {
 
         @Test
         void payloadTooLarge() {
-            // given a body exceeding the configured maximum request size (7 KiB)
-            final var transaction = new byte[8 * 1024];
+            // given a body one byte over the configured maximum request size
+            final var transaction =
+                    new byte[(int) properties.getMaxRequestBodySize().toBytes() + 1];
 
-            // when / then — rejected before the body is buffered/parsed. Only the status is asserted here: the embedded
+            // when / then — rejected before the body is buffered/parsed. Only the status is asserted: the embedded
             // container replaces the error body with a generic page, so the thrown reason is covered by
             // RequestBodySizeInterceptorTest instead.
             assertThatThrownBy(() -> restClient
@@ -998,7 +999,9 @@ final class NetworkControllerTest extends ControllerTest {
 
         private byte[] deeplyNestedTransactionBytes() {
             // Wrap a Key in nested KeyLists to a depth well beyond ProtobufParser.MAX_DEPTH. Each level adds only a few
-            // bytes, so the payload stays small while its nesting would recurse the parser past the stack limit.
+            // bytes, so the payload stays small while its nesting would recurse the parser past the stack limit. The
+            // transaction is assembled by hand rather than via recordItemBuilder: its build() re-parses the transaction
+            // with protobuf-java, whose own recursion limit would reject this payload before it could be sent.
             var key = Key.newBuilder().build();
             for (int i = 0; i <= ProtobufParser.MAX_DEPTH; i++) {
                 key = Key.newBuilder()

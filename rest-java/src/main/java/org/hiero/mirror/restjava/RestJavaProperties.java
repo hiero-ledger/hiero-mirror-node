@@ -28,7 +28,7 @@ public class RestJavaProperties {
 
     @DataSizeUnit(DataUnit.KILOBYTES)
     @NotNull
-    private DataSize maxRequestBodySize = DataSize.ofKilobytes(7);
+    private DataSize maxRequestBodySize = DataSize.ofKilobytes(130);
 
     @AssertTrue(message = "maxRequestBodySize must be positive")
     private boolean isMaxRequestBodySizePositive() {
