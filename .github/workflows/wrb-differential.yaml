@@ -76,7 +76,7 @@ jobs:
         run: |
           npm install -g @hiero-ledger/solo@${SOLO_VERSION}
           # workaround solo issue #5892, remove when bumping up to solo > v0.88.0
-          sed -i '314,316d'  $(npm root -g)/@hiero-ledger/solo/dist/src/commands/mirror-node.js
+          sed -i '314,316d' $(npm root -g)/@hiero-ledger/solo/dist/src/commands/mirror-node.js
 
       - name: Determine base and tag
         timeout-minutes: 15
@@ -207,7 +207,7 @@ jobs:
             -f mirror.yaml --mirror-node-chart-dir ./charts --pinger --enable-ingress
           APP_VERSION=$(helm ls -n "${SOLO_NAMESPACE}" -o json \
             | jq -r '.[] | select (.chart | test("hedera-mirror-.*")) | .app_version')
-          IMPORTER_IMAGE_TAG=$(kubectl get "${SOLO_NAMESPACE}" deployment "${HELM_RELEASE_NAME}-importer" -o yaml | \
+          IMPORTER_IMAGE_TAG=$(kubectl get -n "${SOLO_NAMESPACE}" deployment "${HELM_RELEASE_NAME}-importer" -o yaml | \
             yq .spec.template.spec.containers[0].image | cut -d':' -f2)
           echo "Installed hedera-mirror chart version $APP_VERSION, importer image tag ${IMPORTER_IMAGE_TAG}"
 
