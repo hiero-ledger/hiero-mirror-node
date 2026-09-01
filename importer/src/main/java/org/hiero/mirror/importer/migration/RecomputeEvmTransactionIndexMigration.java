@@ -37,6 +37,7 @@ final class RecomputeEvmTransactionIndexMigration extends AsyncJavaMigration<Lon
     private static final String DROP_OLD_PROGRESS_TABLES = """
             drop table if exists fix_evm_transaction_index_progress_temp;
             drop table if exists contract_log_synthetic_flag_progress_temp;
+            drop table if exists contract_log_synthetic_progress_temp;
             """;
 
     private static final String CREATE_PROGRESS_TABLE = """
@@ -58,6 +59,19 @@ final class RecomputeEvmTransactionIndexMigration extends AsyncJavaMigration<Lon
             with clear_table as (delete from recompute_evm_transaction_index_progress_temp)
             insert into recompute_evm_transaction_index_progress_temp(upper_bound)
             values (:upperBound)
+            """;
+
+    private static final String BACKFILL_SYNTHETIC_FLAG_SQL = """
+            update contract_log
+            set synthetic = true
+            where synthetic is not true
+              and consensus_timestamp >= :consensusStart
+              and consensus_timestamp <= :lastConsensusEnd
+              and consensus_timestamp not in (
+                select consensus_timestamp from contract_result
+                where consensus_timestamp >= :consensusStart
+                  and consensus_timestamp <= :lastConsensusEnd
+              )
             """;
 
     private static final String RECOMPUTE_EVM_TRANSACTION_INDEX_SQL = """
@@ -173,7 +187,7 @@ final class RecomputeEvmTransactionIndexMigration extends AsyncJavaMigration<Lon
 
     @Override
     public String getDescription() {
-        return "Recompute EVM transaction index using gasUsed instead of a status exclude-list";
+        return "Recompute EVM transaction index using gasUsed and backfill contract_log synthetic flag";
     }
 
     @Override
@@ -230,6 +244,16 @@ final class RecomputeEvmTransactionIndexMigration extends AsyncJavaMigration<Lon
                 .addValue("consensusStart", slice.minConsensusTimestamp())
                 .addValue("lastConsensusEnd", slice.maxConsensusTimestamp())
                 .addValue("hookContractId", getHookContractId());
+
+        final var backfilledSyntheticLogs =
+                getNamedParameterJdbcOperations().update(BACKFILL_SYNTHETIC_FLAG_SQL, params);
+        if (backfilledSyntheticLogs > 0) {
+            log.info(
+                    "Backfilled synthetic flag for {} contract_log rows in range [{}, {}]",
+                    backfilledSyntheticLogs,
+                    slice.minConsensusTimestamp(),
+                    slice.maxConsensusTimestamp());
+        }
 
         final var counts = getNamedParameterJdbcOperations()
                 .queryForObject(RECOMPUTE_EVM_TRANSACTION_INDEX_SQL, params, UPDATE_COUNTS_ROW_MAPPER);

@@ -58,6 +58,8 @@ final class RecomputeEvmTransactionIndexMigrationTest
                 "create table if not exists fix_evm_transaction_index_progress_temp(upper_bound bigint not null)");
         ownerJdbcTemplate.execute(
                 "create table if not exists contract_log_synthetic_flag_progress_temp(upper_bound bigint not null)");
+        ownerJdbcTemplate.execute(
+                "create table if not exists contract_log_synthetic_progress_temp(upper_bound bigint not null)");
 
         // when
         runMigration();
@@ -66,6 +68,88 @@ final class RecomputeEvmTransactionIndexMigrationTest
         // then
         assertThat(tableExists("fix_evm_transaction_index_progress_temp")).isFalse();
         assertThat(tableExists("contract_log_synthetic_flag_progress_temp")).isFalse();
+        assertThat(tableExists("contract_log_synthetic_progress_temp")).isFalse();
+    }
+
+    @Test
+    void syntheticFlagBackfilledForLogsWithoutMatchingContractResult() {
+        // given
+        final var block = persistBlock(0);
+        final var timestamp = block.getConsensusStart() + 100;
+        final var contractLog = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.consensusTimestamp(timestamp).synthetic(false))
+                .persist();
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertThat(findSyntheticFlag(contractLog.getConsensusTimestamp())).isTrue();
+    }
+
+    @Test
+    void syntheticFlagPreservedWhenContractResultExistsAtSameTimestamp() {
+        // given
+        final var block = persistBlock(0);
+        final var timestamp = block.getConsensusStart() + 100;
+        final var contractLog = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.consensusTimestamp(timestamp).synthetic(false))
+                .persist();
+        domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(timestamp))
+                .persist();
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertThat(findSyntheticFlag(contractLog.getConsensusTimestamp())).isFalse();
+    }
+
+    @Test
+    void syntheticFlagBackfilledWhenContractResultAtDifferentTimestamp() {
+        // given
+        final var block = persistBlock(0);
+        final var logTimestamp = block.getConsensusStart() + 100;
+        final var resultTimestamp = block.getConsensusStart() + 200;
+        final var contractLog = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.consensusTimestamp(logTimestamp).synthetic(false))
+                .persist();
+        domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(resultTimestamp))
+                .persist();
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertThat(findSyntheticFlag(contractLog.getConsensusTimestamp())).isTrue();
+    }
+
+    @Test
+    void alreadyTrueSyntheticFlagStaysUnchanged() {
+        // given
+        final var block = persistBlock(0);
+        final var timestamp = block.getConsensusStart() + 100;
+        final var contractLog = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.consensusTimestamp(timestamp).synthetic(true))
+                .persist();
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertThat(findSyntheticFlag(contractLog.getConsensusTimestamp())).isTrue();
     }
 
     @Test
@@ -777,6 +861,11 @@ final class RecomputeEvmTransactionIndexMigrationTest
                         Integer.class,
                         consensusTimestamp))
                 .isEqualTo(expected);
+    }
+
+    private Boolean findSyntheticFlag(long consensusTimestamp) {
+        return jdbcOperations.queryForObject(
+                "select synthetic from contract_log where consensus_timestamp = ?", Boolean.class, consensusTimestamp);
     }
 
     private void assertContractLogIndex(long consensusTimestamp, Integer expected) {
