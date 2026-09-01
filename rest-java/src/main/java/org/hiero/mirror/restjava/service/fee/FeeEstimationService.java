@@ -29,6 +29,7 @@ import lombok.CustomLog;
 import org.hiero.hapi.fees.FeeResult;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
+import org.hiero.mirror.restjava.common.ProtobufParser;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -138,14 +139,15 @@ public class FeeEstimationService {
             this.transaction = transaction;
             this.feeContext = feeContext;
             if (transaction.signedTransactionBytes().length() > 0) {
-                final var signedTransaction = SignedTransaction.PROTOBUF.parse(transaction.signedTransactionBytes());
-                this.body = TransactionBody.PROTOBUF.parse(signedTransaction.bodyBytes());
+                final var signedTransaction =
+                        ProtobufParser.parse(SignedTransaction.PROTOBUF, transaction.signedTransactionBytes());
+                this.body = ProtobufParser.parse(TransactionBody.PROTOBUF, signedTransaction.bodyBytes());
                 this.numTxnSignatures = signedTransaction
                         .sigMapOrElse(SignatureMap.DEFAULT)
                         .sigPair()
                         .size();
             } else if (transaction.bodyBytes().length() > 0) {
-                this.body = TransactionBody.PROTOBUF.parse(transaction.bodyBytes());
+                this.body = ProtobufParser.parse(TransactionBody.PROTOBUF, transaction.bodyBytes());
                 this.numTxnSignatures =
                         transaction.sigMapOrElse(SignatureMap.DEFAULT).sigPair().size();
             } else {
