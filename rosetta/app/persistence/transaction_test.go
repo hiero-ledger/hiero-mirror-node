@@ -319,6 +319,14 @@ func assertTransactions(t *testing.T, expected, actual []*types.Transaction) {
 	}
 }
 
+func transactionHashes(transactions []*types.Transaction) []string {
+	hashes := make([]string, 0, len(transactions))
+	for _, transaction := range transactions {
+		hashes = append(hashes, transaction.Hash)
+	}
+	return hashes
+}
+
 func TestTransactionRepositorySuite(t *testing.T) {
 	suite.Run(t, new(transactionRepositorySuite))
 }
@@ -413,21 +421,110 @@ func (suite *transactionRepositorySuite) TestFindBetween() {
 	t := NewTransactionRepository(dbClient, suite.stakingRewardEntityId)
 
 	// when
-	actual, err := t.FindBetween(defaultContext, consensusStart, consensusEnd)
+	actual, err := t.FindBetween(defaultContext, consensusStart, consensusEnd, transactionHashes(expected))
 
 	// then
 	assert.Nil(suite.T(), err)
 	assertTransactions(suite.T(), expected, actual)
 }
 
+func (suite *transactionRepositorySuite) TestFindBetweenWithLimit() {
+	// given
+	expected := suite.setupDb()
+	t := NewTransactionRepository(dbClient, suite.stakingRewardEntityId)
+
+	// when
+	actual, err := t.FindBetween(defaultContext, consensusStart, consensusEnd, transactionHashes(expected[:2]))
+
+	// then
+	assert.Nil(suite.T(), err)
+	assertTransactions(suite.T(), expected[:2], actual)
+}
+
+func (suite *transactionRepositorySuite) TestFindBetweenTransactionIdentifiers() {
+	// given
+	expected := suite.setupDb()
+	t := NewTransactionRepository(dbClient, suite.stakingRewardEntityId)
+
+	// when
+	actual, err := t.FindBetweenTransactionIdentifiers(
+		defaultContext,
+		consensusStart,
+		consensusEnd,
+		consensusStart,
+		3,
+	)
+
+	// then
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), []types.TransactionIdentifier{
+		{ConsensusTimestamp: consensusStart + 1, Hash: expected[0].Hash},
+		{ConsensusTimestamp: consensusStart + 2, Hash: expected[0].Hash},
+		{ConsensusTimestamp: consensusStart + 3, Hash: expected[1].Hash},
+	}, actual)
+}
+
+func (suite *transactionRepositorySuite) TestFindBetweenTransactionIdentifiersPaginatesRawRows() {
+	// given
+	expected := suite.setupDb()
+	t := NewTransactionRepository(dbClient, suite.stakingRewardEntityId)
+	firstPage, err := t.FindBetweenTransactionIdentifiers(
+		defaultContext,
+		consensusStart,
+		consensusEnd,
+		consensusStart,
+		1,
+	)
+	assert.Nil(suite.T(), err)
+
+	// when
+	actual, err := t.FindBetweenTransactionIdentifiers(
+		defaultContext,
+		consensusStart,
+		consensusEnd,
+		firstPage[0].ConsensusTimestamp,
+		2,
+	)
+
+	// then
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), []types.TransactionIdentifier{
+		{ConsensusTimestamp: consensusStart + 2, Hash: expected[0].Hash},
+		{ConsensusTimestamp: consensusStart + 3, Hash: expected[1].Hash},
+	}, actual)
+}
+
+func (suite *transactionRepositorySuite) TestFindBetweenTransactionIdentifiersDbConnectionError() {
+	// given
+	t := NewTransactionRepository(invalidDbClient, suite.stakingRewardEntityId)
+
+	// when
+	actual, err := t.FindBetweenTransactionIdentifiers(
+		defaultContext,
+		consensusStart,
+		consensusEnd,
+		consensusStart,
+		2,
+	)
+
+	// then
+	assert.Nil(suite.T(), actual)
+	assert.Equal(suite.T(), errors.ErrDatabaseError, err)
+}
+
 func (suite *transactionRepositorySuite) TestFindBetweenTransactionLimitExceeded() {
 	// given
-	suite.setupDb()
+	expected := suite.setupDb()
 	repository := NewTransactionRepository(dbClient, suite.stakingRewardEntityId).(*transactionRepository)
 	repository.maxTransactions = 1
 
 	// when
-	actual, err := repository.FindBetween(defaultContext, consensusStart, consensusEnd)
+	actual, err := repository.FindBetween(
+		defaultContext,
+		consensusStart,
+		consensusEnd,
+		transactionHashes(expected),
+	)
 
 	// then
 	assert.Nil(suite.T(), actual)
@@ -436,12 +533,17 @@ func (suite *transactionRepositorySuite) TestFindBetweenTransactionLimitExceeded
 
 func (suite *transactionRepositorySuite) TestFindBetweenCryptoTransferLimitExceeded() {
 	// given
-	suite.setupDb()
+	expected := suite.setupDb()
 	repository := NewTransactionRepository(dbClient, suite.stakingRewardEntityId).(*transactionRepository)
 	repository.maxAggregateSize = 1
 
 	// when
-	actual, err := repository.FindBetween(defaultContext, consensusStart, consensusEnd)
+	actual, err := repository.FindBetween(
+		defaultContext,
+		consensusStart,
+		consensusEnd,
+		transactionHashes(expected),
+	)
 
 	// then
 	assert.Nil(suite.T(), actual)
@@ -469,6 +571,7 @@ func (suite *transactionRepositorySuite) TestFindBetweenStakingRewardTransferLim
 		defaultContext,
 		transaction.ConsensusTimestamp,
 		transaction.ConsensusTimestamp,
+		[]string{tools.SafeAddHexPrefix(hex.EncodeToString(transaction.TransactionHash))},
 	)
 
 	// then
@@ -513,7 +616,12 @@ func (suite *transactionRepositorySuite) TestFindBetweenTokenCreatedAtOrBeforeGe
 	t := NewTransactionRepository(dbClient, suite.stakingRewardEntityId)
 
 	// when
-	actual, err := t.FindBetween(defaultContext, transaction.ConsensusTimestamp, transaction.ConsensusTimestamp)
+	actual, err := t.FindBetween(
+		defaultContext,
+		transaction.ConsensusTimestamp,
+		transaction.ConsensusTimestamp,
+		transactionHashes(expected),
+	)
 
 	// then
 	assert.Nil(suite.T(), err)
@@ -525,7 +633,7 @@ func (suite *transactionRepositorySuite) TestFindBetweenThrowsWhenStartAfterEnd(
 	t := NewTransactionRepository(dbClient, suite.stakingRewardEntityId)
 
 	// when
-	actual, err := t.FindBetween(defaultContext, consensusStart, consensusStart-1)
+	actual, err := t.FindBetween(defaultContext, consensusStart, consensusStart-1, []string{"0x01"})
 
 	// then
 	assert.NotNil(suite.T(), err)
@@ -537,7 +645,7 @@ func (suite *transactionRepositorySuite) TestFindBetweenDbConnectionError() {
 	t := NewTransactionRepository(invalidDbClient, suite.stakingRewardEntityId)
 
 	// when
-	actual, err := t.FindBetween(defaultContext, consensusStart, consensusEnd)
+	actual, err := t.FindBetween(defaultContext, consensusStart, consensusEnd, []string{"0x01"})
 
 	// then
 	assert.Equal(suite.T(), errors.ErrDatabaseError, err)
@@ -611,7 +719,7 @@ func (suite *transactionRepositorySuite) TestFindBetweenUnknownTransactionType()
 	t := NewTransactionRepository(dbClient, suite.stakingRewardEntityId)
 
 	// when
-	actual, err := t.FindBetween(defaultContext, consensusTimestamp, consensusTimestamp)
+	actual, err := t.FindBetween(defaultContext, consensusTimestamp, consensusTimestamp, transactionHashes(expected))
 
 	// then
 	assert.Nil(suite.T(), err)

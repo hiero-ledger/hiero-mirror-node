@@ -277,7 +277,7 @@ func (suite *onlineBaseServiceSuite) TestFindBetween() {
 	suite.mockTransactionRepo.On("FindBetween").Return(transactions(), mocks.NilError)
 
 	// when:
-	res, e := suite.baseService.FindBetween(defaultContext, 1, 2)
+	res, e := suite.baseService.FindBetween(defaultContext, 1, 2, []string{"0x01"})
 
 	// then:
 	assert.Nil(suite.T(), e)
@@ -290,12 +290,34 @@ func (suite *onlineBaseServiceSuite) TestFindBetweenThrows() {
 	suite.mockTransactionRepo.On("FindBetween").Return([]*types.Transaction{}, &rTypes.Error{})
 
 	// when:
-	res, e := suite.baseService.FindBetween(defaultContext, 1, 2)
+	res, e := suite.baseService.FindBetween(defaultContext, 1, 2, []string{"0x01"})
 
 	// then:
 	assert.Equal(suite.T(), []*types.Transaction{}, res)
 	assert.NotNil(suite.T(), e)
 	suite.mockBlockRepo.AssertExpectations(suite.T())
+}
+
+func (suite *onlineBaseServiceSuite) TestFindBetweenTransactionIdentifiers() {
+	// given:
+	expected := []types.TransactionIdentifier{
+		{ConsensusTimestamp: 1, Hash: "0x01"},
+		{ConsensusTimestamp: 2, Hash: "0x02"},
+	}
+	suite.mockTransactionRepo.On("FindBetweenTransactionIdentifiers").Return(expected, mocks.NilError)
+
+	// when:
+	actual, err := suite.baseService.FindBetweenTransactionIdentifiers(
+		defaultContext,
+		1,
+		2,
+		3,
+		4,
+	)
+
+	// then:
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), expected, actual)
 }
 
 type offlineBaseServiceSuite struct {
@@ -320,7 +342,19 @@ func (suite *offlineBaseServiceSuite) TestFindByHashInBlock() {
 }
 
 func (suite *offlineBaseServiceSuite) TestFindBetween() {
-	res, err := suite.baseService.FindBetween(defaultContext, 1, 1)
+	res, err := suite.baseService.FindBetween(defaultContext, 1, 1, []string{"0x01"})
+	assert.Nil(suite.T(), res)
+	assert.Equal(suite.T(), errors.ErrInternalServerError, err)
+}
+
+func (suite *offlineBaseServiceSuite) TestFindBetweenTransactionIdentifiers() {
+	res, err := suite.baseService.FindBetweenTransactionIdentifiers(
+		defaultContext,
+		1,
+		1,
+		0,
+		10,
+	)
 	assert.Nil(suite.T(), res)
 	assert.Equal(suite.T(), errors.ErrInternalServerError, err)
 }

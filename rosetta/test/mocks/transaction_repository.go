@@ -26,10 +26,21 @@ func (m *MockTransactionRepository) FindByHashInBlock(
 	return args.Get(0).(*types.Transaction), args.Get(1).(*rTypes.Error)
 }
 
-func (m *MockTransactionRepository) FindBetween(ctx context.Context, start, end int64) (
+func (m *MockTransactionRepository) FindBetween(ctx context.Context, start, end int64, hashes []string) (
 	[]*types.Transaction,
 	*rTypes.Error,
 ) {
 	args := m.Called()
 	return args.Get(0).([]*types.Transaction), args.Get(1).(*rTypes.Error)
+}
+
+func (m *MockTransactionRepository) FindBetweenTransactionIdentifiers(
+	ctx context.Context,
+	start int64,
+	end int64,
+	cursor int64,
+	limit int,
+) ([]types.TransactionIdentifier, *rTypes.Error) {
+	args := m.Called()
+	return args.Get(0).([]types.TransactionIdentifier), args.Get(1).(*rTypes.Error)
 }

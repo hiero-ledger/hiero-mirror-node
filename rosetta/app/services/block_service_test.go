@@ -116,6 +116,17 @@ func makeTransaction(entityId *domain.EntityId, hash string) *types.Transaction 
 	}
 }
 
+func transactionIdentifiers(transactions ...*types.Transaction) []types.TransactionIdentifier {
+	identifiers := make([]types.TransactionIdentifier, 0, len(transactions))
+	for i, transaction := range transactions {
+		identifiers = append(identifiers, types.TransactionIdentifier{
+			ConsensusTimestamp: int64(i + 1),
+			Hash:               transaction.Hash,
+		})
+	}
+	return identifiers
+}
+
 func transactionRequest() *rTypes.BlockTransactionRequest {
 	return &rTypes.BlockTransactionRequest{
 		NetworkIdentifier: &rTypes.NetworkIdentifier{
@@ -187,6 +198,9 @@ func (suite *blockServiceSuite) TestBlock() {
 	}, nil)
 	suite.mockAccountRepo.On("GetAccountAlias").Return(account, mocks.NilError)
 	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
+	suite.mockTransactionRepo.
+		On("FindBetweenTransactionIdentifiers").
+		Return(transactionIdentifiers(exampleTransactions...), mocks.NilError)
 	suite.mockTransactionRepo.On("FindBetween").Return(exampleTransactions, mocks.NilError)
 
 	// when:
@@ -217,7 +231,16 @@ func (suite *blockServiceSuite) TestBlockWithCappedTransactions() {
 	)
 	suite.mockAccountRepo.On("GetAccountAlias").Return(account, mocks.NilError)
 	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
-	suite.mockTransactionRepo.On("FindBetween").Return(exampleTransactions, mocks.NilError)
+	suite.mockTransactionRepo.
+		On("FindBetweenTransactionIdentifiers").
+		Return(
+			append(
+				transactionIdentifiers(exampleTransactions...),
+				types.TransactionIdentifier{ConsensusTimestamp: 6, Hash: "555"},
+			),
+			mocks.NilError,
+		)
+	suite.mockTransactionRepo.On("FindBetween").Return(exampleTransactions[:4], mocks.NilError)
 
 	// when:
 	actual, e := suite.blockService.Block(nil, blockRequest())
@@ -226,6 +249,21 @@ func (suite *blockServiceSuite) TestBlockWithCappedTransactions() {
 	assert.Nil(suite.T(), e)
 	assert.Equal(suite.T(), expected, actual)
 	suite.mockAccountRepo.AssertNumberOfCalls(suite.T(), "GetAccountAlias", 1)
+}
+
+func (suite *blockServiceSuite) TestBlockThrowsWhenFindBetweenTransactionIdentifiersFails() {
+	// given:
+	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
+	suite.mockTransactionRepo.
+		On("FindBetweenTransactionIdentifiers").
+		Return([]types.TransactionIdentifier{}, errors.ErrInternalServerError)
+
+	// when:
+	actual, err := suite.blockService.Block(nil, blockRequest())
+
+	// then:
+	assert.Nil(suite.T(), actual)
+	assert.Equal(suite.T(), errors.ErrInternalServerError, err)
 }
 
 func (suite *blockServiceSuite) TestBlockWithAccountAlias() {
@@ -240,6 +278,9 @@ func (suite *blockServiceSuite) TestBlockWithAccountAlias() {
 	}, nil)
 	suite.mockAccountRepo.On("GetAccountAlias").Return(accountAlias, mocks.NilError)
 	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
+	suite.mockTransactionRepo.
+		On("FindBetweenTransactionIdentifiers").
+		Return(transactionIdentifiers(exampleTransactions...), mocks.NilError)
 	suite.mockTransactionRepo.On("FindBetween").Return(exampleTransactions, mocks.NilError)
 
 	// when:
@@ -259,6 +300,9 @@ func (suite *blockServiceSuite) TestBlockThrowsWhenAccountRepoFail() {
 	}
 	suite.mockAccountRepo.On("GetAccountAlias").Return(types.AccountId{}, errors.ErrInternalServerError)
 	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
+	suite.mockTransactionRepo.
+		On("FindBetweenTransactionIdentifiers").
+		Return(transactionIdentifiers(exampleTransactions...), mocks.NilError)
 	suite.mockTransactionRepo.On("FindBetween").Return(exampleTransactions, mocks.NilError)
 
 	// when:
@@ -288,6 +332,9 @@ func (suite *blockServiceSuite) TestBlockThrowsWhenFindByIdentifierFails() {
 func (suite *blockServiceSuite) TestBlockThrowsWhenFindBetweenFails() {
 	// given:
 	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
+	suite.mockTransactionRepo.
+		On("FindBetweenTransactionIdentifiers").
+		Return([]types.TransactionIdentifier{{ConsensusTimestamp: 1, Hash: "123"}}, mocks.NilError)
 	suite.mockTransactionRepo.On("FindBetween").Return([]*types.Transaction{}, &rTypes.Error{})
 
 	// when:

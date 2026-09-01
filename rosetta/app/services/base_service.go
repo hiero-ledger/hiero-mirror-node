@@ -51,12 +51,31 @@ func (b *BaseService) FindByHashInBlock(
 	return b.transactionRepo.FindByHashInBlock(ctx, identifier, consensusStart, consensusEnd)
 }
 
-func (b *BaseService) FindBetween(ctx context.Context, start int64, end int64) ([]*types.Transaction, *rTypes.Error) {
+func (b *BaseService) FindBetween(
+	ctx context.Context,
+	start int64,
+	end int64,
+	hashes []string,
+) ([]*types.Transaction, *rTypes.Error) {
 	if !b.IsOnline() {
 		return nil, errors.ErrInternalServerError
 	}
 
-	return b.transactionRepo.FindBetween(ctx, start, end)
+	return b.transactionRepo.FindBetween(ctx, start, end, hashes)
+}
+
+func (b *BaseService) FindBetweenTransactionIdentifiers(
+	ctx context.Context,
+	start int64,
+	end int64,
+	cursor int64,
+	limit int,
+) ([]types.TransactionIdentifier, *rTypes.Error) {
+	if !b.IsOnline() {
+		return nil, errors.ErrInternalServerError
+	}
+
+	return b.transactionRepo.FindBetweenTransactionIdentifiers(ctx, start, end, cursor, limit)
 }
 
 func (b *BaseService) FindByIdentifier(ctx context.Context, index int64, hash string) (*types.Block, *rTypes.Error) {

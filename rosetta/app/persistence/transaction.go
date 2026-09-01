@@ -19,7 +19,6 @@ import (
 )
 
 const (
-	batchSize                                                 = 2000
 	maxAggregateSize                                          = 1 << 20
 	maxTransactions                                           = 100_000
 	transactionResultFeeScheduleFilePartUploaded        int32 = 104
@@ -58,7 +57,16 @@ const (
                                           from transaction t
                                           where consensus_timestamp >= @start and consensus_timestamp <= @end`
 	selectTransactionsByHashInTimestampRange  = selectTransactionsInTimestampRange + andTransactionHashFilter
-	selectTransactionsInTimestampRangeOrdered = selectTransactionsInTimestampRange + orderByConsensusTimestamp
+	selectTransactionsInTimestampRangeOrdered = selectTransactionsInTimestampRange + `
+	                                                and t.transaction_hash in @hashes` +
+		orderByConsensusTimestamp + ", transaction_hash limit @rowLimit"
+	selectTransactionIdentifiersInTimestampRange = `select consensus_timestamp, transaction_hash as hash
+	                                                  from transaction
+	                                                  where consensus_timestamp >= @start and
+	                                                    consensus_timestamp <= @end and
+	                                                    consensus_timestamp > @cursor
+	                                                  order by consensus_timestamp
+	                                                  limit @limit`
 )
 
 // transaction maps to the transaction query which returns the required transaction fields, CryptoTransfers json string,
@@ -118,7 +126,7 @@ func NewTransactionRepository(dbClient interfaces.DbClient, stakingRewardEntityI
 	}
 }
 
-func (tr *transactionRepository) FindBetween(ctx context.Context, start, end int64) (
+func (tr *transactionRepository) FindBetween(ctx context.Context, start, end int64, hashes []string) (
 	[]*types.Transaction,
 	*rTypes.Error,
 ) {
@@ -126,57 +134,60 @@ func (tr *transactionRepository) FindBetween(ctx context.Context, start, end int
 		return nil, hErrors.ErrStartMustNotBeAfterEnd
 	}
 
+	if len(hashes) == 0 {
+		return []*types.Transaction{}, nil
+	}
+
+	transactionHashes := make([][]byte, 0, len(hashes))
+	for _, hash := range hashes {
+		transactionHash, err := hex.DecodeString(tools.SafeRemoveHexPrefix(hash))
+		if err != nil {
+			return nil, hErrors.ErrInvalidTransactionIdentifier
+		}
+		transactionHashes = append(transactionHashes, transactionHash)
+	}
+
 	db, cancel := tr.dbClient.GetDbWithContext(ctx)
 	defer cancel()
 
-	transactions := make([]*transaction, 0)
-	for start <= end {
-		transactionsBatch := make([]*transaction, 0)
-		err := db.
-			Raw(
-				selectTransactionsInTimestampRangeOrdered,
-				sql.Named("start", start),
-				sql.Named("end", end),
-			).
-			Limit(batchSize).
-			Find(&transactionsBatch).
-			Error
-		if err != nil {
-			log.Errorf(databaseErrorFormat, hErrors.ErrDatabaseError.Message, err)
-			return nil, hErrors.ErrDatabaseError
-		}
-
-		if err := tr.validateAggregateSizes(transactionsBatch); err != nil {
-			return nil, err
-		}
-
-		if len(transactions)+len(transactionsBatch) > tr.maxTransactions {
-			return nil, hErrors.ErrTransactionLimitExceeded
-		}
-
-		transactions = append(transactions, transactionsBatch...)
-
-		if len(transactionsBatch) < batchSize {
-			break
-		}
-
-		start = transactionsBatch[len(transactionsBatch)-1].ConsensusTimestamp + 1
+	transactions := make([]*transaction, 0, min(len(hashes), tr.maxTransactions+1))
+	err := db.
+		Raw(
+			selectTransactionsInTimestampRangeOrdered,
+			sql.Named("start", start),
+			sql.Named("end", end),
+			sql.Named("hashes", transactionHashes),
+			sql.Named("rowLimit", tr.maxTransactions+1),
+		).
+		Find(&transactions).
+		Error
+	if err != nil {
+		log.Errorf(databaseErrorFormat, hErrors.ErrDatabaseError.Message, err)
+		return nil, hErrors.ErrDatabaseError
 	}
 
-	hashes := make([]string, 0)
+	if err := tr.validateAggregateSizes(transactions); err != nil {
+		return nil, err
+	}
+
+	if len(transactions) > tr.maxTransactions {
+		return nil, hErrors.ErrTransactionLimitExceeded
+	}
+
+	resultHashes := make([]string, 0)
 	sameHashMap := make(map[string][]*transaction)
 	for _, t := range transactions {
 		h := t.getHashString()
 		if _, ok := sameHashMap[h]; !ok {
 			// save the unique hashes in chronological order
-			hashes = append(hashes, h)
+			resultHashes = append(resultHashes, h)
 		}
 
 		sameHashMap[h] = append(sameHashMap[h], t)
 	}
 
 	res := make([]*types.Transaction, 0, len(sameHashMap))
-	for _, hash := range hashes {
+	for _, hash := range resultHashes {
 		sameHashTransactions := sameHashMap[hash]
 		transaction, err := tr.constructTransaction(sameHashTransactions)
 		if err != nil {
@@ -185,6 +196,54 @@ func (tr *transactionRepository) FindBetween(ctx context.Context, start, end int
 		res = append(res, transaction)
 	}
 	return res, nil
+}
+
+func (tr *transactionRepository) FindBetweenTransactionIdentifiers(
+	ctx context.Context,
+	start int64,
+	end int64,
+	cursor int64,
+	limit int,
+) ([]types.TransactionIdentifier, *rTypes.Error) {
+	if start > end {
+		return nil, hErrors.ErrStartMustNotBeAfterEnd
+	}
+
+	if limit <= 0 {
+		return []types.TransactionIdentifier{}, nil
+	}
+
+	db, cancel := tr.dbClient.GetDbWithContext(ctx)
+	defer cancel()
+
+	var identifiers []struct {
+		ConsensusTimestamp int64
+		Hash               []byte
+	}
+	err := db.
+		Raw(
+			selectTransactionIdentifiersInTimestampRange,
+			sql.Named("start", start),
+			sql.Named("end", end),
+			sql.Named("cursor", cursor),
+			sql.Named("limit", min(limit, tr.maxTransactions+1)),
+		).
+		Find(&identifiers).
+		Error
+	if err != nil {
+		log.Errorf(databaseErrorFormat, hErrors.ErrDatabaseError.Message, err)
+		return nil, hErrors.ErrDatabaseError
+	}
+
+	result := make([]types.TransactionIdentifier, 0, len(identifiers))
+	for _, identifier := range identifiers {
+		result = append(result, types.TransactionIdentifier{
+			ConsensusTimestamp: identifier.ConsensusTimestamp,
+			Hash:               tools.SafeAddHexPrefix(hex.EncodeToString(identifier.Hash)),
+		})
+	}
+
+	return result, nil
 }
 
 func (tr *transactionRepository) FindByHashInBlock(

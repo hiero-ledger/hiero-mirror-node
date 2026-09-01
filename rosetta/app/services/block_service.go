@@ -15,6 +15,8 @@ import (
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/tools"
 )
 
+const transactionIdentifierPageSize = 2000
+
 // blockAPIService implements the server.BlockAPIServicer interface.
 type blockAPIService struct {
 	accountRepo interfaces.AccountRepository
@@ -53,17 +55,22 @@ func (s *blockAPIService) Block(
 		return nil, err
 	}
 
-	if block.Transactions, err = s.FindBetween(ctx, block.ConsensusStartNanos, block.ConsensusEndNanos); err != nil {
+	includedHashes, otherTransactions, err := s.findTransactionIdentifiers(
+		ctx,
+		block.ConsensusStartNanos,
+		block.ConsensusEndNanos,
+	)
+	if err != nil {
 		return nil, err
 	}
 
-	var otherTransactions []*rTypes.TransactionIdentifier
-	if len(block.Transactions) > s.maxTransactionsInBlock {
-		otherTransactions = make([]*rTypes.TransactionIdentifier, 0, len(block.Transactions)-s.maxTransactionsInBlock)
-		for _, transaction := range block.Transactions[s.maxTransactionsInBlock:] {
-			otherTransactions = append(otherTransactions, &rTypes.TransactionIdentifier{Hash: transaction.Hash})
-		}
-		block.Transactions = block.Transactions[0:s.maxTransactionsInBlock]
+	if block.Transactions, err = s.FindBetween(
+		ctx,
+		block.ConsensusStartNanos,
+		block.ConsensusEndNanos,
+		includedHashes,
+	); err != nil {
+		return nil, err
 	}
 
 	if err = s.updateOperationAccountAlias(ctx, block.Transactions...); err != nil {
@@ -71,6 +78,52 @@ func (s *blockAPIService) Block(
 	}
 
 	return &rTypes.BlockResponse{Block: block.ToRosetta(), OtherTransactions: otherTransactions}, nil
+}
+
+func (s *blockAPIService) findTransactionIdentifiers(
+	ctx context.Context,
+	consensusStart int64,
+	consensusEnd int64,
+) ([]string, []*rTypes.TransactionIdentifier, *rTypes.Error) {
+	includedHashes := make([]string, 0, s.maxTransactionsInBlock)
+	var otherTransactions []*rTypes.TransactionIdentifier
+	seen := make(map[string]struct{})
+	cursor := consensusStart - 1
+
+	for {
+		identifiers, err := s.FindBetweenTransactionIdentifiers(
+			ctx,
+			consensusStart,
+			consensusEnd,
+			cursor,
+			transactionIdentifierPageSize,
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		for _, identifier := range identifiers {
+			if _, ok := seen[identifier.Hash]; ok {
+				continue
+			}
+
+			seen[identifier.Hash] = struct{}{}
+			if len(includedHashes) < s.maxTransactionsInBlock {
+				includedHashes = append(includedHashes, identifier.Hash)
+			} else {
+				otherTransactions = append(
+					otherTransactions,
+					&rTypes.TransactionIdentifier{Hash: identifier.Hash},
+				)
+			}
+		}
+
+		if len(identifiers) < transactionIdentifierPageSize {
+			return includedHashes, otherTransactions, nil
+		}
+
+		cursor = identifiers[len(identifiers)-1].ConsensusTimestamp
+	}
 }
 
 // BlockTransaction implements the /block/transaction endpoint.
