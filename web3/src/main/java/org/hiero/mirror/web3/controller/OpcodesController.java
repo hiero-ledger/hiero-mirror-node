@@ -8,7 +8,6 @@ import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.service.OpcodeService;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
-import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,7 +28,6 @@ class OpcodesController {
     static final String MISSING_GZIP_HEADER_MESSAGE = "Accept-Encoding: gzip header is required";
 
     private final OpcodeService opcodeService;
-    private final ThrottleManager throttleManager;
     private final OpcodesProperties properties;
 
     /**
@@ -58,7 +56,6 @@ class OpcodesController {
             @RequestHeader(value = HttpHeaders.ACCEPT_ENCODING) String acceptEncoding) {
         if (properties.isEnabled()) {
             validateAcceptEncodingHeader(acceptEncoding);
-            throttleManager.throttleOpcodeRequest();
 
             final var request = new OpcodeRequest(transactionIdOrHash, stack, memory, storage);
             return opcodeService.processOpcodeCall(request);

@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.controller;
 import static org.hiero.mirror.common.util.CommonUtils.instant;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -29,7 +30,7 @@ import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.PrestateService;
-import org.hiero.mirror.web3.throttle.ThrottleManager;
+import org.hiero.mirror.web3.throttle.RequestThrottleInterceptor;
 import org.hiero.mirror.web3.utils.TransactionProviderEnum;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,13 +66,14 @@ class PrestateControllerTest extends Web3IntegrationTest {
     private Web3Properties web3Properties;
 
     @MockitoBean
-    private ThrottleManager throttleManager;
+    private RequestThrottleInterceptor requestThrottleInterceptor;
 
     @MockitoSpyBean
     private PrestateService prestateService;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        when(requestThrottleInterceptor.preHandle(any(), any(), any())).thenReturn(true);
         prestateProperties.setEnabled(true);
 
         final var response = new ResponseProperties();
@@ -205,8 +207,8 @@ class PrestateControllerTest extends Web3IntegrationTest {
         }
 
         doThrow(new ThrottleException("Requests per second rate limit exceeded."))
-                .when(throttleManager)
-                .throttlePrestateRequest();
+                .when(requestThrottleInterceptor)
+                .preHandle(any(), any(), any());
 
         mockMvc.perform(prestateRequest(transactionIdOrHash))
                 .andExpect(status().isTooManyRequests())

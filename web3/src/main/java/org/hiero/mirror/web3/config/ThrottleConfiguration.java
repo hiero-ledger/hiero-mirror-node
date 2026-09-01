@@ -17,8 +17,6 @@ public class ThrottleConfiguration {
 
     public static final String GAS_LIMIT_BUCKET = "gasLimitBucket";
     public static final String RATE_LIMIT_BUCKET = "rateLimitBucket";
-    public static final String OPCODE_RATE_LIMIT_BUCKET = "opcodeRateLimitBucket";
-    public static final String PRESTATE_RATE_LIMIT_BUCKET = "prestateRateLimitBucket";
 
     private final ThrottleProperties throttleProperties;
 
@@ -43,25 +41,5 @@ public class ThrottleConfiguration {
                 .withSynchronizationStrategy(SynchronizationStrategy.SYNCHRONIZED)
                 .addLimit(limit)
                 .build();
-    }
-
-    @Bean(name = OPCODE_RATE_LIMIT_BUCKET)
-    Bucket opcodeRateLimitBucket() {
-        final long rateLimit = throttleProperties.getOpcodeRequestsPerSecond();
-        final var limit = Bandwidth.builder()
-                .capacity(rateLimit)
-                .refillGreedy(rateLimit, Duration.ofSeconds(1))
-                .build();
-        return Bucket.builder().addLimit(limit).build();
-    }
-
-    @Bean(name = PRESTATE_RATE_LIMIT_BUCKET)
-    Bucket prestateRateLimitBucket() {
-        final long rateLimit = throttleProperties.getPrestateRequestsPerSecond();
-        final var limit = Bandwidth.builder()
-                .capacity(rateLimit)
-                .refillGreedy(rateLimit, Duration.ofSeconds(1))
-                .build();
-        return Bucket.builder().addLimit(limit).build();
     }
 }

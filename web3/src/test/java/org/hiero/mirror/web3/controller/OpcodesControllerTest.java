@@ -8,6 +8,7 @@ import static org.hiero.mirror.common.util.CommonUtils.instant;
 import static org.hiero.mirror.web3.controller.OpcodesController.MISSING_GZIP_HEADER_MESSAGE;
 import static org.hiero.mirror.web3.utils.Constants.OPCODES_URI;
 import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -59,7 +60,7 @@ import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
-import org.hiero.mirror.web3.throttle.ThrottleManager;
+import org.hiero.mirror.web3.throttle.RequestThrottleInterceptor;
 import org.hiero.mirror.web3.utils.TransactionProviderEnum;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -107,7 +108,7 @@ class OpcodesControllerTest extends Web3IntegrationTest {
     private ContractDebugService contractDebugService;
 
     @MockitoBean
-    private ThrottleManager throttleManager;
+    private RequestThrottleInterceptor requestThrottleInterceptor;
 
     @Captor
     private ArgumentCaptor<ContractDebugParameters> callServiceParametersCaptor;
@@ -229,7 +230,8 @@ class OpcodesControllerTest extends Web3IntegrationTest {
     }
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        when(requestThrottleInterceptor.preHandle(any(), any(), any())).thenReturn(true);
         when(contractDebugService.processOpcodeCall(
                         callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
                 .thenAnswer(invocation -> {
@@ -516,8 +518,8 @@ class OpcodesControllerTest extends Web3IntegrationTest {
         }
 
         doThrow(new ThrottleException("Requests per second rate limit exceeded."))
-                .when(throttleManager)
-                .throttleOpcodeRequest();
+                .when(requestThrottleInterceptor)
+                .preHandle(any(), any(), any());
         mockMvc.perform(opcodesRequest(transactionIdOrHash))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(responseBody(new GenericErrorResponse(

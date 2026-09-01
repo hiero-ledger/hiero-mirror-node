@@ -10,12 +10,16 @@ hiero:
             headers:
               "Access-Control-Allow-Origin": "*"
         opcodes:
+          request:
+            throttle: 1
           response:
             timeout: 10s
             headers:
               "Access-Control-Allow-Origin": "*"
               "Cache-Control": "public, max-age=600"
         prestate:
+          request:
+            throttle: 10
           response:
             timeout: 10s
             headers:

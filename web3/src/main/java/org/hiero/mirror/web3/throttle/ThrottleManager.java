@@ -8,9 +8,5 @@ public interface ThrottleManager {
 
     void throttle(ContractCallRequest request);
 
-    void throttleOpcodeRequest();
-
-    void throttlePrestateRequest();
-
     void restore(long gas);
 }

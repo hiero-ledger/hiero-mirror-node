@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import java.util.Map;
@@ -17,7 +18,22 @@ public class ApiProperties {
 
     @NotNull
     @Valid
+    private RequestProperties request = new RequestProperties();
+
+    @NotNull
+    @Valid
     private ResponseProperties response = new ResponseProperties();
+
+    @Data
+    @Validated
+    public static class RequestProperties {
+
+        /**
+         * Maximum requests per second for this API endpoint. A value of zero disables endpoint-specific throttling.
+         */
+        @Min(0)
+        private long throttle;
+    }
 
     @Data
     @Validated

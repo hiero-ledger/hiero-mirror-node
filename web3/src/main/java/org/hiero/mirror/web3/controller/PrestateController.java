@@ -8,7 +8,6 @@ import org.hiero.mirror.rest.model.PrestateResponse;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.service.PrestateService;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
-import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,7 +23,6 @@ import org.springframework.web.server.ResponseStatusException;
 final class PrestateController {
 
     private final PrestateService prestateService;
-    private final ThrottleManager throttleManager;
     private final PrestateProperties prestateProperties;
 
     /**
@@ -46,8 +44,6 @@ final class PrestateController {
             @RequestParam(required = false, defaultValue = "false") boolean diff,
             @RequestParam(required = false, defaultValue = "false") boolean code,
             @RequestParam(required = false, defaultValue = "false") boolean storage) {
-        throttleManager.throttlePrestateRequest();
-
         if (prestateProperties.isEnabled()) {
             final var request = new PrestateRequest(transactionIdOrHash, diff, code, storage);
             return prestateService.processPrestateCall(request);
