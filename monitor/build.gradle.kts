@@ -36,7 +36,7 @@ dependencies {
     testImplementation("com.github.meanbeanlib:meanbean")
     testImplementation("io.fabric8:kubernetes-server-mock")
     testImplementation("io.projectreactor:reactor-test")
-    testImplementation("io.vertx:vertx-web:4.5.32") // Temporary until next Fabric8 version
+    testImplementation("io.vertx:vertx-web:5.1.6") // Temporary until next Fabric8 version
     testImplementation("uk.org.webcompere:system-stubs-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
