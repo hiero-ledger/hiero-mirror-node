@@ -54,8 +54,8 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPost()).hasSize(1);
-        assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0x64");
-        assertThat(response.getPost().getFirst().getBalance()).isEqualTo("0x96");
+        assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0xe8d4a51000");
+        assertThat(response.getPost().getFirst().getBalance()).isEqualTo("0x15d3ef79800");
         assertThat(response.getPost().getFirst().getNonce()).isEqualTo(2L);
     }
 
@@ -187,7 +187,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPost()).hasSize(1);
         assertThat(response.getPre().getFirst().getAddress()).isEqualTo(toLongZeroAddress(changedAccount));
-        assertThat(response.getPost().getFirst().getBalance()).isEqualTo("0x96");
+        assertThat(response.getPost().getFirst().getBalance()).isEqualTo("0x15d3ef79800");
     }
 
     @Test
@@ -200,7 +200,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPre().getFirst().getAddress()).isEqualTo(toLongZeroAddress(fixture.contractId()));
-        assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0x32");
+        assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0x746a528800");
         assertThat(response.getPre().getFirst().getNonce()).isEqualTo(3L);
         assertThat(response.getPre().getFirst().getCode()).isNull();
         assertThat(response.getPre().getFirst().getStorage()).isNullOrEmpty();
@@ -295,7 +295,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
         // Post entry for newly created account should have data
         assertThat(newAccountPost).isNotNull();
-        assertThat(newAccountPost.getBalance()).isEqualTo("0x19"); // 25 in hex
+        assertThat(newAccountPost.getBalance()).isEqualTo("0x3a35294400"); // 25 tinybars in weibars
         assertThat(newAccountPost.getNonce()).isEqualTo(0L);
     }
 

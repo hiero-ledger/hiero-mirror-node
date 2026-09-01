@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.service;
 
+import static org.hiero.mirror.common.converter.WeiBarTinyBarConverter.WEIBARS_TO_TINYBARS_BIGINT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
@@ -12,6 +13,7 @@ import static org.hiero.mirror.web3.utils.ByteUtils.wrapToWordSize;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import jakarta.inject.Named;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -217,7 +219,10 @@ public final class PrestateServiceImpl implements PrestateService {
         final var entityId = entity.getId();
         final var accountTrace = new PrestateAccountTrace();
         accountTrace.setAddress(resolveAddress(entity));
-        accountTrace.setBalance(HEX_PREFIX + Long.toHexString(balance));
+        accountTrace.setBalance(HEX_PREFIX
+                + BigInteger.valueOf(balance)
+                        .multiply(WEIBARS_TO_TINYBARS_BIGINT)
+                        .toString(16));
 
         final var nonce = entity.getEthereumNonce();
         accountTrace.setNonce(nonce != null ? nonce : 0L);

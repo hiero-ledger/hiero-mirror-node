@@ -1939,7 +1939,7 @@ components:
           description: the address of the account
           type: string
         balance:
-          description: the balance of the account
+          description: The account balance as a hex-encoded quantity in weibars
           type: string
         code:
           description: the bytecode of the account
