@@ -32,18 +32,6 @@ public final class PostgresAirdropStateJdbcConverters {
     }
 
     @ReadingConverter
-    public static final class PGobjectToTokenAirdropStateEnum implements Converter<PGobject, TokenAirdropStateEnum> {
-
-        @Override
-        public TokenAirdropStateEnum convert(PGobject source) {
-            if (source == null || source.getValue() == null || source.getValue().isEmpty()) {
-                return null;
-            }
-            return TokenAirdropStateEnum.valueOf(source.getValue());
-        }
-    }
-
-    @ReadingConverter
     public static final class StringToTokenAirdropStateEnum implements Converter<String, TokenAirdropStateEnum> {
 
         @Override

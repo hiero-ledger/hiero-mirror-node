@@ -95,15 +95,6 @@ public final class PostgresTokenJdbcConverters {
     }
 
     @ReadingConverter
-    public static final class PGobjectToTokenPauseStatusEnum implements Converter<PGobject, TokenPauseStatusEnum> {
-
-        @Override
-        public TokenPauseStatusEnum convert(PGobject source) {
-            return fromNamedEnum(source, TokenPauseStatusEnum.class);
-        }
-    }
-
-    @ReadingConverter
     public static final class StringToTokenPauseStatusEnum implements Converter<String, TokenPauseStatusEnum> {
 
         @Override
@@ -119,15 +110,6 @@ public final class PostgresTokenJdbcConverters {
         @SneakyThrows
         public JdbcValue convert(TokenSupplyTypeEnum source) {
             return toNamedEnum("token_supply_type", source == null ? null : source.name());
-        }
-    }
-
-    @ReadingConverter
-    public static final class PGobjectToTokenSupplyTypeEnum implements Converter<PGobject, TokenSupplyTypeEnum> {
-
-        @Override
-        public TokenSupplyTypeEnum convert(PGobject source) {
-            return fromNamedEnum(source, TokenSupplyTypeEnum.class);
         }
     }
 
@@ -151,15 +133,6 @@ public final class PostgresTokenJdbcConverters {
     }
 
     @ReadingConverter
-    public static final class PGobjectToTokenTypeEnum implements Converter<PGobject, TokenTypeEnum> {
-
-        @Override
-        public TokenTypeEnum convert(PGobject source) {
-            return fromNamedEnum(source, TokenTypeEnum.class);
-        }
-    }
-
-    @ReadingConverter
     public static final class StringToTokenTypeEnum implements Converter<String, TokenTypeEnum> {
 
         @Override
@@ -177,12 +150,5 @@ public final class PostgresTokenJdbcConverters {
         pg.setType(pgType);
         pg.setValue(value);
         return JdbcValue.of(pg, JDBCType.OTHER);
-    }
-
-    private static <E extends Enum<E>> E fromNamedEnum(PGobject source, Class<E> type) {
-        if (source == null || source.getValue() == null || source.getValue().isEmpty()) {
-            return null;
-        }
-        return Enum.valueOf(type, source.getValue());
     }
 }

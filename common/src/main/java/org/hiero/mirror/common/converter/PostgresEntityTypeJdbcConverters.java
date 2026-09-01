@@ -32,18 +32,6 @@ public final class PostgresEntityTypeJdbcConverters {
     }
 
     @ReadingConverter
-    public static final class PGobjectToEntityType implements Converter<PGobject, EntityType> {
-
-        @Override
-        public EntityType convert(PGobject source) {
-            if (source == null || source.getValue() == null || source.getValue().isEmpty()) {
-                return null;
-            }
-            return EntityType.valueOf(source.getValue());
-        }
-    }
-
-    @ReadingConverter
     public static final class StringToEntityType implements Converter<String, EntityType> {
 
         @Override

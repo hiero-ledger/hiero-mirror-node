@@ -37,18 +37,6 @@ public final class PostgresErrataTypeJdbcConverters {
     }
 
     @ReadingConverter
-    public static final class PGobjectToErrataType implements Converter<PGobject, ErrataType> {
-
-        @Override
-        public ErrataType convert(PGobject source) {
-            if (source == null || source.getValue() == null || source.getValue().isEmpty()) {
-                return null;
-            }
-            return ErrataType.valueOf(source.getValue());
-        }
-    }
-
-    @ReadingConverter
     public static final class StringToErrataType implements Converter<String, ErrataType> {
 
         @Override

@@ -33,18 +33,6 @@ public final class PostgresHookJdbcConverters {
     }
 
     @ReadingConverter
-    public static final class PGobjectToHookExtensionPoint implements Converter<PGobject, HookExtensionPoint> {
-
-        @Override
-        public HookExtensionPoint convert(PGobject source) {
-            if (source == null || source.getValue() == null || source.getValue().isEmpty()) {
-                return null;
-            }
-            return HookExtensionPoint.valueOf(source.getValue());
-        }
-    }
-
-    @ReadingConverter
     public static final class StringToHookExtensionPoint implements Converter<String, HookExtensionPoint> {
 
         @Override
@@ -69,18 +57,6 @@ public final class PostgresHookJdbcConverters {
             pg.setType("hook_type");
             pg.setValue(source.name());
             return JdbcValue.of(pg, JDBCType.OTHER);
-        }
-    }
-
-    @ReadingConverter
-    public static final class PGobjectToHookType implements Converter<PGobject, HookType> {
-
-        @Override
-        public HookType convert(PGobject source) {
-            if (source == null || source.getValue() == null || source.getValue().isEmpty()) {
-                return null;
-            }
-            return HookType.valueOf(source.getValue());
         }
     }
 
