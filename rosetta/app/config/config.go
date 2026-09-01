@@ -105,8 +105,8 @@ func loadNodeMapFromEnv() (NodeMap, error) {
 		return nil, nil
 	}
 
-	nodeInfoMap := make(map[string]interface{})
-	for _, node := range strings.Split(nodeValue, ",") {
+	nodeInfoMap := make(map[string]any)
+	for node := range strings.SplitSeq(nodeValue, ",") {
 		parts := strings.Split(strings.TrimSpace(node), ":")
 		if len(parts) != 3 {
 			return nil, errors.Errorf("Invalid node string %s", node)
@@ -115,7 +115,7 @@ func loadNodeMapFromEnv() (NodeMap, error) {
 		nodeInfoMap[fmt.Sprintf("%s:%s", parts[0], parts[1])] = parts[2]
 	}
 
-	nodeMap, err := nodeMapDecodeHookFunc(reflect.TypeOf(nodeInfoMap), reflect.TypeOf(NodeMap{}), nodeInfoMap)
+	nodeMap, err := nodeMapDecodeHookFunc(reflect.TypeOf(nodeInfoMap), reflect.TypeFor[NodeMap](), nodeInfoMap)
 	return nodeMap.(NodeMap), err
 }
 
@@ -133,12 +133,12 @@ func mergeExternalConfigFile(v *viper.Viper) error {
 	return nil
 }
 
-func nodeMapDecodeHookFunc(from, to reflect.Type, data interface{}) (interface{}, error) {
-	if to != reflect.TypeOf(NodeMap{}) {
+func nodeMapDecodeHookFunc(from, to reflect.Type, data any) (any, error) {
+	if to != reflect.TypeFor[NodeMap]() {
 		return data, nil
 	}
 
-	input, ok := data.(map[string]interface{})
+	input, ok := data.(map[string]any)
 	if !ok {
 		return nil, errors.Errorf("Invalid data type for NodeMap")
 	}
