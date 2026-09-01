@@ -44,6 +44,9 @@ final class ContractBytecodeReadableKVState extends AbstractContractReadableKVSt
         }
 
         final var entityId = toEntityId(contractID);
+        if (EntityId.EMPTY.equals(entityId)) {
+            return null;
+        }
 
         return contractRepository
                 .findRuntimeBytecode(entityId.getId())
@@ -72,20 +75,28 @@ final class ContractBytecodeReadableKVState extends AbstractContractReadableKVSt
     }
 
     private EntityId toEntityId(@NonNull final ContractID contractID) {
+        final var timestamp = ContractCallContext.get().getTimestamp();
         if (contractID.hasContractNum()) {
-            return entityIdFromContractId(contractID);
+            return resolveHistoricalEntity(entityIdFromContractId(contractID), timestamp);
         } else if (contractID.hasEvmAddress()) {
             final var evmAddress = contractID.evmAddress().toByteArray();
             if (isLongZeroAddress(evmAddress)) {
-                return DomainUtils.fromEvmAddress(evmAddress);
+                return resolveHistoricalEntity(DomainUtils.fromEvmAddress(evmAddress), timestamp);
             } else {
                 return commonEntityAccessor
-                        .getEntityByEvmAddressAndTimestamp(evmAddress, Optional.empty())
+                        .getEntityByEvmAddressAndTimestamp(evmAddress, timestamp)
                         .map(Entity::toEntityId)
                         .orElse(EntityId.EMPTY);
             }
         }
         return EntityId.EMPTY;
+    }
+
+    private EntityId resolveHistoricalEntity(final EntityId entityId, final Optional<Long> timestamp) {
+        return timestamp
+                .flatMap(t -> commonEntityAccessor.get(entityId, Optional.of(t)))
+                .map(Entity::toEntityId)
+                .orElseGet(() -> timestamp.isPresent() ? EntityId.EMPTY : entityId);
     }
 
     @Override

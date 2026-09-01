@@ -15,10 +15,9 @@ const toOpenApiPath = (req, res) => {
 
   if (!path) {
     if (!req.route) {
-      path = req.path;
-    } else {
-      path = (req.baseUrl ?? '') + req.route?.path;
+      return apiPrefix + '/unmatched';
     }
+    path = (req.baseUrl ?? '') + req.route?.path;
   }
 
   path = path.replace(/:([^/]+)/g, '{$1}');

@@ -46,6 +46,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
@@ -139,7 +140,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -203,7 +204,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -227,7 +228,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var tokenAddress = toAddress(tokenEntityId.getId());
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var tokenExpiry = new NestedCalls.Expiry(
-                BigInteger.valueOf(Instant.now().getEpochSecond() + 8_000_000L),
+                BigInteger.valueOf(tokenExpiryEpochSecond()),
                 toAddress(tokenWithAutoRenewPair.getRight().toEntityId()).toHexString(),
                 BigInteger.valueOf(8_000_000));
 
@@ -243,7 +244,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -286,7 +287,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(
@@ -324,7 +325,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -363,7 +364,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -395,7 +396,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -442,7 +443,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -488,7 +489,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -520,7 +521,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, stack, memory, true);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -548,7 +549,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, stack, memory, true);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -575,7 +576,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, true, true);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -624,7 +625,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, stack, memory, storage);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -664,7 +665,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -706,7 +707,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // When
         final var opcodeRequest = new OpcodeRequest(transactionIdOrHash, true, false, false);
-        final var opcodeContext = new OpcodeContext(opcodeRequest, 0);
+        final var opcodeContext = new OpcodeContext(opcodeRequest, 0, new OpcodesProperties());
         final var opcodesResponse = opcodeService.processOpcodeCall(opcodeRequest);
 
         // Then
@@ -1226,7 +1227,16 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         return entity;
     }
 
-    private HederaToken populateHederaToken(
+    /**
+     * Opcode replay executes at the persisted transaction timestamp ({@code DomainBuilder} clock), not wall-clock
+     * {@code Instant.now()}. Token expiry must stay within {@code entities.maxLifetime} (8_000_001s) of that
+     * consensus time.
+     */
+    private long tokenExpiryEpochSecond() {
+        return Instant.ofEpochSecond(0L, domainBuilder.timestamp()).getEpochSecond() + 8_000_000L;
+    }
+
+    private NestedCalls.HederaToken populateHederaToken(
             final String contractAddress,
             final TokenTypeEnum tokenType,
             final EntityId treasuryAccountId,
@@ -1241,15 +1251,16 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 .customize(t -> t.tokenId(tokenEntity.getId()).type(tokenType).treasuryAccountId(treasuryAccountId))
                 .persist();
 
-        final var supplyKey = new KeyValue(
+        final var supplyKey = new NestedCalls.KeyValue(
                 Boolean.FALSE,
                 contractAddress,
                 new byte[0],
                 new byte[0],
                 Address.ZERO.toHexString()); // the key needed for token minting or burning
         final var keys = new ArrayList<TokenKey>();
-        keys.add(new TokenKey(KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
-        return new HederaToken(
+        keys.add(new NestedCalls.TokenKey(
+                AbstractContractCallServiceTest.KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
+        return new NestedCalls.HederaToken(
                 token.getName(),
                 token.getSymbol(),
                 getAddressFromEntityId(treasuryAccountId), // id of the account holding the initial token supply
@@ -1259,7 +1270,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 false,
                 keys,
                 new NestedCalls.Expiry(
-                        BigInteger.valueOf(Instant.now().getEpochSecond() + 8_000_000L),
+                        BigInteger.valueOf(tokenExpiryEpochSecond()),
                         getAddressFromEntity(autoRenewAccount),
                         BigInteger.valueOf(8_000_000)));
     }
@@ -1281,7 +1292,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         return populateHederaToken(contractAddress, tokenType, treasuryEntity.toEntityId(), freezeDefault, tokenKeys);
     }
 
-    private HederaToken populateHederaToken(
+    private NestedCalls.HederaToken populateHederaToken(
             final String contractAddress,
             final TokenTypeEnum tokenType,
             final EntityId treasuryAccountId,
@@ -1299,15 +1310,16 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 .customize(t -> t.tokenId(tokenEntity.getId()).type(tokenType).treasuryAccountId(treasuryAccountId))
                 .persist();
 
-        final var supplyKey = new KeyValue(
+        final var supplyKey = new NestedCalls.KeyValue(
                 Boolean.FALSE,
                 contractAddress,
                 new byte[0],
                 new byte[0],
                 Address.ZERO.toHexString()); // the key needed for token minting or burning
-        tokenKeys.add(new TokenKey(KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
+        tokenKeys.add(new NestedCalls.TokenKey(
+                AbstractContractCallServiceTest.KeyType.SUPPLY_KEY.getKeyTypeNumeric(), supplyKey));
 
-        return new HederaToken(
+        return new NestedCalls.HederaToken(
                 token.getName(),
                 token.getSymbol(),
                 getAddressFromEntityId(treasuryAccountId), // id of the account holding the initial token supply
@@ -1317,7 +1329,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 freezeDefault,
                 tokenKeys,
                 new NestedCalls.Expiry(
-                        BigInteger.valueOf(Instant.now().getEpochSecond() + 8_000_000L),
+                        BigInteger.valueOf(tokenExpiryEpochSecond()),
                         getAliasFromEntity(autoRenewAccount),
                         BigInteger.valueOf(8_000_000)));
     }

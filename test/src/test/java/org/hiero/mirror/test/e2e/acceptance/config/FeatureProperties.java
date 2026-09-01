@@ -19,8 +19,6 @@ public class FeatureProperties {
 
     private boolean contractCallLocalEstimate = true;
 
-    private int hapiMinorVersionWithoutGasRefund = 69;
-
     private boolean hooks = false;
 
     @Min(1)

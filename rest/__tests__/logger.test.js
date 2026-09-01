@@ -73,6 +73,23 @@ describe('Logger', () => {
       testLogger.info('hello world');
       expect(getOutput()).toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z INFO 1234 hello world\n/);
     });
+
+    test('collapses CR/LF in message to prevent log forging', () => {
+      testLogger.info('legit\r\n2026-01-01T00:00:00Z INFO forged entry');
+      const output = getOutput();
+      // The only newline is the record terminator; the injected CR/LF is neutralized to a single line
+      expect(output.match(/\n/g)).toHaveLength(1);
+      expect(output).toMatch(/INFO 1234 legit 2026-01-01T00:00:00Z INFO forged entry\n/);
+    });
+
+    test('preserves multi-line err.stack', () => {
+      const err = new Error('boom');
+      err.stack = 'Error: boom\n    at foo\n    at bar';
+      testLogger.error('failure', err);
+      const output = getOutput();
+      expect(output).toMatch(/ERROR 1234 failure\n/);
+      expect(output).toContain('\n    at foo\n    at bar');
+    });
   });
 
   describe('log levels', () => {

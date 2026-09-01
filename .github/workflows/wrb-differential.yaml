@@ -40,7 +40,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
@@ -61,14 +61,15 @@ jobs:
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
         with:
           cluster_name: ${{ env.SOLO_CLUSTER_NAME }}
-          kubectl_version: v1.34.0
-          version: v0.31.0
+          kubectl_version: v1.35.5
+          node_image: "kindest/node:v1.35.5@sha256:ce977ae6d65918d0b58a5f8b5e940429c2ce42fa3a5619ec2bbc60b949c0ac95"
+          version: v0.32.0
 
       - name: Install JDK
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
         with:
-          distribution: temurin
-          java-version: 25
+          java-version-file: .sdkmanrc
+          verify-signature: true
 
       - name: Install Solo CLI via npm
         run: npm install -g @hiero-ledger/solo@${SOLO_VERSION}
@@ -156,14 +157,6 @@ jobs:
         run: |
           set -ex
 
-          cat <<EOF > block-node.yaml
-          blockNode:
-            config:
-              ROSTER_BOOTSTRAP_RSA_MIRROR_NODE_BASE_URL: http://${HELM_RELEASE_NAME}-restjava.${SOLO_NAMESPACE}.svc.cluster.local
-          plugins:
-            names: "facility-messaging,block-access-service,health,server-status,stream-publisher,stream-subscriber,verification,blocks-file-historic,blocks-file-recent,backfill,roster-bootstrap-rsa"
-          EOF
-
           yq '(.. | select(tag == "!!str")) |= envsubst' .github/workflows/resources/mirror-block-node.yaml > mirror.yaml
           yq -i '. *= load(".github/workflows/resources/mirror.yaml")' mirror.yaml
           yq -i 'with(.importer.env; '\
@@ -178,19 +171,31 @@ jobs:
           solo cluster-ref config setup --cluster-ref kind-"${SOLO_CLUSTER_NAME}"
           # block node
           solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
-            --chart-version "${BLOCK_NODE_VERSION}" --release-tag "${CONSENSUS_NODE_VERSION}" -f block-node.yaml
+            --chart-version "${BLOCK_NODE_VERSION}" --release-tag "${CONSENSUS_NODE_VERSION}"
           # consensus node
           solo keys consensus generate --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1
           solo consensus network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_NODE_VERSION}"
           solo consensus node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 --release-tag "${CONSENSUS_NODE_VERSION}"
-          solo consensus node start --deployment "${SOLO_DEPLOYMENT}" -i node1
 
-          # remove block-node pod before deploying mirror node to avoid running into the situation that block node waits
-          # too long for the RSA roster from /network/nodes REST api and ends up skipping some blocks at the beginning
-          echo "Removing block-node pod"
-          kubectl scale sts block-node-1 -n "${SOLO_NAMESPACE}" --replicas 0
-          kubectl wait pod -n "${SOLO_NAMESPACE}" --for=delete -l block-node.hiero.com/type=block-node --timeout=300s
-          echo "Removed block-node pod"
+          # Pre-seed block-node's RSA roster from genesis-network.json instead of scaling it down/up around the mirror deploy
+          GENESIS_NETWORK_JSON=$(find "${SOLO_HOME:-$HOME/.solo}/cache" -iname "genesis-network.json" | head -1)
+          if [ -z "${GENESIS_NETWORK_JSON}" ]; then
+            echo "genesis-network.json not found under ${SOLO_HOME:-$HOME/.solo}/cache"
+            exit 1
+          fi
+          curl -sL "https://raw.githubusercontent.com/hiero-ledger/hiero-block-node/${BLOCK_NODE_VERSION}/tools-and-tests/scripts/node-operations/genesis-network-to-bn-rsa-roster.sh" \
+            -o genesis-network-to-bn-rsa-roster.sh
+          chmod +x genesis-network-to-bn-rsa-roster.sh
+          command -v xxd >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends xxd)
+          ./genesis-network-to-bn-rsa-roster.sh -i "${GENESIS_NETWORK_JSON}" -o "$(pwd)/rsa-bootstrap-roster.json"
+          kubectl cp rsa-bootstrap-roster.json \
+            "${SOLO_NAMESPACE}"/block-node-1-0:/opt/hiero/block-node/application-state/rsa-bootstrap-roster.json \
+            -c block-node-server
+          # bounce the pod so it reloads with the updated roster
+          kubectl delete pod block-node-1-0 -n "${SOLO_NAMESPACE}"
+          kubectl wait pod block-node-1-0 -n "${SOLO_NAMESPACE}" --for=condition=Ready --timeout=120s
+
+          solo consensus node start --deployment "${SOLO_DEPLOYMENT}" -i node1
 
           helm dependency update charts/hedera-mirror
           DISABLE_IMPORTER_SPRING_PROFILES=true solo mirror node add --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
@@ -199,16 +204,6 @@ jobs:
           APP_VERSION=$(helm ls -n "${SOLO_NAMESPACE}" -o json \
             | jq -r '.[] | select (.chart | test("hedera-mirror-.*")) | .app_version')
           echo "Installed hedera-mirror chart version $APP_VERSION"
-
-          echo "Scale up block-node sts"
-          kubectl scale sts block-node-1 -n "${SOLO_NAMESPACE}" --replicas 1
-          kubectl wait sts block-node-1 -n "${SOLO_NAMESPACE}" --for=jsonpath='{.status.readyReplicas}'=1 --timeout=300s
-          # readyReplicas can be set before gRPC on :40840 is accepting connections
-          echo "Waiting for block-node gRPC"
-          kubectl run bn-grpc-wait --rm -i --restart=Never -n "${SOLO_NAMESPACE}" \
-            --image=busybox:1.36.1 --command -- \
-            sh -c 'for i in $(seq 1 90); do nc -z -w 2 block-node-1 40840 && exit 0; sleep 2; done; echo "Timed out waiting for block-node gRPC"; exit 1'
-          echo "Scaled up block-node sts"
 
       - name: Run acceptance tests
         timeout-minutes: 15

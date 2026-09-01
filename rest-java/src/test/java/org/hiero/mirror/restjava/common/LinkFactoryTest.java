@@ -4,9 +4,11 @@ package org.hiero.mirror.restjava.common;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.restjava.common.Constants.ACCOUNT_ID;
+import static org.hiero.mirror.restjava.common.Constants.NODE_ID;
 import static org.hiero.mirror.restjava.common.Constants.TOKEN_ID;
 import static org.hiero.mirror.restjava.common.LinkFactory.LINK_HEADER;
 import static org.mockito.Mockito.when;
+import static org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,6 +18,11 @@ import java.util.Map;
 import java.util.function.Function;
 import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.rest.model.NftAllowance;
+import org.hiero.mirror.restjava.controller.AllowancesController;
+import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
+import org.hiero.mirror.restjava.parameter.EntityIdParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
+import org.hiero.mirror.restjava.parameter.RequestParameter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +43,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.method.HandlerMethod;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -59,6 +67,19 @@ final class LinkFactoryTest {
     private final NftAllowance nftAllowance =
             new NftAllowance().owner("0.0.1000").spender("0.0.2000").tokenId("0.0.6458");
 
+    private static final HandlerMethod ALLOWANCES_HANDLER = handlerMethod(
+            AllowancesController.class,
+            "getNftAllowances",
+            EntityIdParameter.class,
+            EntityIdRangeParameter[].class,
+            int.class,
+            Direction.class,
+            boolean.class,
+            EntityIdRangeParameter[].class);
+
+    private static final HandlerMethod NODES_HANDLER =
+            handlerMethod(TestNodesController.class, "getNodes", NetworkNodeRequest.class);
+
     private static final String URI = "/api";
 
     @BeforeEach
@@ -69,6 +90,7 @@ final class LinkFactoryTest {
         when(attributes.getRequest()).thenReturn(request);
         when(attributes.getResponse()).thenReturn(response);
         when(request.getRequestURI()).thenReturn(URI);
+        when(request.getAttribute(BEST_MATCHING_HANDLER_ATTRIBUTE)).thenReturn(ALLOWANCES_HANDLER);
         when(extractor.apply(nftAllowance))
                 .thenReturn(Map.of(ACCOUNT_ID, nftAllowance.getOwner(), TOKEN_ID, nftAllowance.getTokenId()));
     }
@@ -147,7 +169,7 @@ final class LinkFactoryTest {
         assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
     }
 
-    @DisplayName("Get pagination links unknown parameter")
+    @DisplayName("Omits unknown query parameters from pagination links")
     @Test
     void testUnknownParameter() {
         var params = new LinkedHashMap<String, String[]>();
@@ -158,10 +180,53 @@ final class LinkFactoryTest {
         var sort = Sort.by(Direction.ASC, ACCOUNT_ID, TOKEN_ID);
         var pageable = PageRequest.of(0, 1, sort);
 
-        final var expectedLink = "/api?limit=1&account.id=0.0.1000&unknown=value&unknown=value2&token.id=gt:0.0.6458";
+        final var expectedLink = "/api?limit=1&account.id=0.0.1000&token.id=gt:0.0.6458";
         assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
                 .returns(expectedLink, Links::getNext);
         assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
+    }
+
+    @Test
+    @DisplayName("Rejects control characters in query parameter names and values")
+    void testRejectsControlCharacters() {
+        var params = new LinkedHashMap<String, String[]>();
+        params.put("limit", new String[] {"1"});
+        params.put("order", new String[] {"asc\r\nX-Injected: true"});
+        params.put("evil\r\nInjected", new String[] {"value"});
+        params.put("account.id", new String[] {"0.0.1000"});
+        when(request.getParameterMap()).thenReturn(params);
+        var sort = Sort.by(Direction.ASC, ACCOUNT_ID, TOKEN_ID);
+        var pageable = PageRequest.of(0, 1, sort);
+
+        final var expectedLink = "/api?limit=1&account.id=0.0.1000&token.id=gt:0.0.6458";
+        var links = linkFactory.create(List.of(nftAllowance), pageable, extractor);
+        var linkHeader = response.getHeader(HttpHeaders.LINK);
+
+        assertThat(links).returns(expectedLink, Links::getNext);
+        assertThat(linkHeader).isEqualTo(LINK_HEADER.formatted(expectedLink));
+        assertThat(links.getNext()).doesNotContain("\r", "\n", "Injected");
+        assertThat(linkHeader).doesNotContain("\r", "\n", "Injected");
+    }
+
+    @Test
+    @DisplayName("Percent-encodes reserved characters in reflected query values")
+    void testEncodesReservedCharacters() {
+        var params = new LinkedHashMap<String, String[]>();
+        params.put("limit", new String[] {"1"});
+        params.put("order", new String[] {"asc \">evil"});
+        params.put("account.id", new String[] {"0.0.1000"});
+        when(request.getParameterMap()).thenReturn(params);
+        var sort = Sort.by(Direction.ASC, ACCOUNT_ID, TOKEN_ID);
+        var pageable = PageRequest.of(0, 1, sort);
+
+        final var expectedLink = "/api?limit=1&order=asc%20%22%3Eevil&account.id=0.0.1000&token.id=gt:0.0.6458";
+        var links = linkFactory.create(List.of(nftAllowance), pageable, extractor);
+        var linkHeader = response.getHeader(HttpHeaders.LINK);
+
+        assertThat(links).returns(expectedLink, Links::getNext);
+        assertThat(linkHeader).isEqualTo(LINK_HEADER.formatted(expectedLink));
+        assertThat(links.getNext()).doesNotContain("\">");
+        assertThat(linkHeader).doesNotContain("\">");
     }
 
     @DisplayName("Get pagination links with multiple parameter values")
@@ -217,5 +282,77 @@ final class LinkFactoryTest {
         assertThat(linkFactory.create(List.of(), PageRequest.ofSize(1), extractor))
                 .returns(null, Links::getNext);
         assertThat(attributes.getResponse().getHeader(HttpHeaders.LINK)).isNull();
+    }
+
+    @DisplayName("Omits query parameters not declared on the matched handler")
+    @Test
+    void testParamsFromOtherApis() {
+        var params = new LinkedHashMap<String, String[]>();
+        params.put("limit", new String[] {"1"});
+        params.put("account.id", new String[] {"0.0.1000"});
+        params.put("hook.id", new String[] {"1"});
+        params.put("node.id", new String[] {"3"});
+        params.put("token.id", new String[] {"0.0.1000"});
+        when(request.getParameterMap()).thenReturn(params);
+        var sort = Sort.by(Direction.ASC, ACCOUNT_ID, TOKEN_ID);
+        var pageable = PageRequest.of(0, 1, sort);
+
+        final var expectedLink = "/api?limit=1&account.id=0.0.1000&token.id=0.0.1000";
+        assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
+                .returns(expectedLink, Links::getNext);
+        assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
+    }
+
+    @DisplayName("Allows query parameters declared on a @RequestParameter DTO")
+    @Test
+    void testRequestParameterDtoParams() {
+        when(request.getAttribute(BEST_MATCHING_HANDLER_ATTRIBUTE)).thenReturn(NODES_HANDLER);
+        var params = new LinkedHashMap<String, String[]>();
+        params.put("limit", new String[] {"1"});
+        params.put("order", new String[] {"asc"});
+        params.put("file.id", new String[] {"0.0.101"});
+        params.put("node.id", new String[] {"1"});
+        params.put("token.id", new String[] {"0.0.1000"});
+        when(request.getParameterMap()).thenReturn(params);
+        when(extractor.apply(nftAllowance)).thenReturn(Map.of(NODE_ID, "3"));
+        var sort = Sort.by(Direction.ASC, NODE_ID);
+        var pageable = PageRequest.of(0, 1, sort);
+
+        final var expectedLink = "/api?limit=1&order=asc&file.id=0.0.101&node.id=1";
+        assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
+                .returns(expectedLink, Links::getNext);
+        assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
+    }
+
+    @DisplayName("Without a matched handler, only extractor pagination keys are copied")
+    @Test
+    void testMissingHandlerAllowsOnlyExtractorParams() {
+        when(request.getAttribute(BEST_MATCHING_HANDLER_ATTRIBUTE)).thenReturn(null);
+        var params = new LinkedHashMap<String, String[]>();
+        params.put("limit", new String[] {"1"});
+        params.put("order", new String[] {"asc"});
+        params.put("account.id", new String[] {"0.0.1000"});
+        params.put("owner", new String[] {"false"});
+        when(request.getParameterMap()).thenReturn(params);
+        var sort = Sort.by(Direction.ASC, ACCOUNT_ID, TOKEN_ID);
+        var pageable = PageRequest.of(0, 1, sort);
+
+        final var expectedLink = "/api?account.id=0.0.1000&token.id=gt:0.0.6458";
+        assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
+                .returns(expectedLink, Links::getNext);
+        assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
+    }
+
+    private static HandlerMethod handlerMethod(Class<?> type, String methodName, Class<?>... parameterTypes) {
+        try {
+            return new HandlerMethod(new Object(), type.getDeclaredMethod(methodName, parameterTypes));
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static final class TestNodesController {
+        @SuppressWarnings("unused")
+        void getNodes(@RequestParameter NetworkNodeRequest request) {}
     }
 }

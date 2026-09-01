@@ -56,6 +56,7 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.IterableAssert;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.AbstractCryptoAllowance.Id;
 import org.hiero.mirror.common.domain.entity.AbstractEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -74,6 +75,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.importer.repository.HookRepository;
 import org.hiero.mirror.importer.repository.NftAllowanceRepository;
@@ -103,6 +105,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     private static final ByteString EVM_ADDRESS_KEY = DomainUtils.fromBytes(UtilityTest.EVM_ADDRESS);
 
     private final @Qualifier(CACHE_ALIAS) CacheManager cacheManager;
+    private final ContractLogRepository contractLogRepository;
     private final CryptoAllowanceRepository cryptoAllowanceRepository;
     private final HookRepository hookRepository;
     private final NftAllowanceRepository nftAllowanceRepository;
@@ -190,6 +193,22 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
         assertAllowances(recordItem, expectedNfts);
         assertThat(entityTransactionRepository.findAll())
                 .containsExactlyInAnyOrderElementsOf(expectedEntityTransactions);
+    }
+
+    @Test
+    void cryptoApproveAllowanceCreatesSyntheticContractLogs() {
+        // given: default builder produces token, indexed nft, and approve-for-all nft allowances, covering all
+        // three Approve*ContractLog variants.
+        var recordItem = recordItemBuilder.cryptoApproveAllowance().build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(contractLogRepository.findAll())
+                .filteredOn(contractLog -> contractLog.getConsensusTimestamp() == recordItem.getConsensusTimestamp())
+                .isNotEmpty()
+                .allMatch(ContractLog::isSynthetic);
     }
 
     @Test

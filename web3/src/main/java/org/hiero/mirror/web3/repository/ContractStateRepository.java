@@ -2,14 +2,10 @@
 
 package org.hiero.mirror.web3.repository;
 
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_CONTRACT_STATE;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
-
 import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.web3.state.ContractSlotValue;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -17,7 +13,6 @@ import org.springframework.data.repository.query.Param;
 public interface ContractStateRepository extends CrudRepository<ContractState, Long> {
 
     @Query(value = "select slot, value from contract_state where contract_id = :contractId and slot = :key")
-    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_CONTRACT_STATE)
     Optional<ContractSlotValue> findStorage(final Long contractId, final byte[] key);
 
     @Query(value = """

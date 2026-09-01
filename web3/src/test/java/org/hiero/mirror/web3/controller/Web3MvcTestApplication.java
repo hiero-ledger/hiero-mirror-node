@@ -10,5 +10,5 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * {@link org.hiero.mirror.web3.Web3Application}, which imports JDBC configuration that slice
  * tests do not need.
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "org.hiero.mirror.web3")
 class Web3MvcTestApplication {}

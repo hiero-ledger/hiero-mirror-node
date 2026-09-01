@@ -57,7 +57,7 @@ public interface TokenAccountRepository extends CrudRepository<TokenAccount, Abs
      * @return List of {@link TokenAccountAssociationsCount}
      */
     @Query(value = """
-                    select count(*) as token_count, balance > 0 as is_positive_balance
+                    select count(*) as token_count, balance>0 as is_positive_balance
                     from (
                         (
                             select *
@@ -124,7 +124,28 @@ public interface TokenAccountRepository extends CrudRepository<TokenAccount, Abs
                             order by timestamp_range desc
                             limit 1
                     ) as ta
-                    left join (select * from token where token_id = :tokenId) as t on true;
+                    left join (
+                        select *
+                        from (
+                            (
+                                select *
+                                from token
+                                where token_id = :tokenId
+                                    and lower(timestamp_range) <= :blockTimestamp
+                            )
+                            union all
+                            (
+                                select *
+                                from token_history
+                                where token_id = :tokenId
+                                    and lower(timestamp_range) <= :blockTimestamp
+                                order by lower(timestamp_range) desc
+                                limit 1
+                            )
+                        ) as token_at_timestamp
+                        order by timestamp_range desc
+                        limit 1
+                    ) as t on true;
                     """)
     Optional<TokenAccount> findByIdAndTimestamp(long accountId, long tokenId, long blockTimestamp);
 }

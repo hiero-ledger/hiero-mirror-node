@@ -78,8 +78,11 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
                     streamFile.getName(),
                     stopwatch);
 
-            final var consensusInstant = Instant.ofEpochSecond(0L, streamFile.getConsensusEnd());
-            parserMetric.parseLatencyMetric().record(Duration.between(consensusInstant, Instant.now()));
+            final var latency =
+                    Duration.between(Instant.ofEpochSecond(0L, streamFile.getConsensusEnd()), Instant.now());
+            if (latency.isPositive()) {
+                parserMetric.parseLatencyMetric().record(latency);
+            }
             parserMetric
                     .totalDurationMetric()
                     .record(streamFile.getLoadEnd() - streamFile.getLoadStart(), TimeUnit.MILLISECONDS);
@@ -142,8 +145,10 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
                     first,
                     previous.getName());
 
-            final var consensusInstant = Instant.ofEpochSecond(0L, previous.getConsensusEnd());
-            parserMetric.parseLatencyMetric().record(Duration.between(consensusInstant, Instant.now()));
+            final var latency = Duration.between(Instant.ofEpochSecond(0L, previous.getConsensusEnd()), Instant.now());
+            if (latency.isPositive()) {
+                parserMetric.parseLatencyMetric().record(latency);
+            }
             parserMetric
                     .totalDurationMetric()
                     .record(streamFile.getLoadEnd() - streamFile.getLoadStart(), TimeUnit.MILLISECONDS);
