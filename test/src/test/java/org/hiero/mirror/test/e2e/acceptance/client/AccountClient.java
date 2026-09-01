@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
@@ -138,10 +139,7 @@ public class AccountClient extends AbstractNetworkClient {
 
         ExpandedAccountId accountId = accountMap.computeIfAbsent(accountNameEnum, x -> {
             try {
-                var balance = accountNameEnum.initialBalance != null
-                        ? accountNameEnum.initialBalance
-                        : acceptanceTestProperties.getChildAccountBalance();
-                return createNewAccount(balance, accountNameEnum);
+                return createNewAccount(acceptanceTestProperties.getChildAccountBalance(), accountNameEnum);
             } catch (Exception e) {
                 log.warn("Issue creating additional account: {}", accountNameEnum, e);
                 return null;
@@ -546,9 +544,10 @@ public class AccountClient extends AbstractNetworkClient {
 
     public record CreatedAccount(ExpandedAccountId account, NetworkTransactionResponse response) {}
 
+    @RequiredArgsConstructor
     public enum AccountNameEnum {
         ALICE(false, Key.KeyCase.ED25519),
-        BOB(true, Key.KeyCase.ECDSA_SECP256K1, BigDecimal.ONE),
+        BOB(true, Key.KeyCase.ECDSA_SECP256K1),
         // used in token.feature
         CAROL(false, Key.KeyCase.ED25519),
         DAVE(false, Key.KeyCase.ED25519),
@@ -558,17 +557,6 @@ public class AccountClient extends AbstractNetworkClient {
 
         private final boolean receiverSigRequired;
         private final Key.KeyCase keyType;
-        private final BigDecimal initialBalance;
-
-        AccountNameEnum(boolean receiverSigRequired, Key.KeyCase keyType) {
-            this(receiverSigRequired, keyType, null);
-        }
-
-        AccountNameEnum(boolean receiverSigRequired, Key.KeyCase keyType, BigDecimal initialBalance) {
-            this.receiverSigRequired = receiverSigRequired;
-            this.keyType = keyType;
-            this.initialBalance = initialBalance;
-        }
 
         static Optional<AccountNameEnum> of(String name) {
             try {
