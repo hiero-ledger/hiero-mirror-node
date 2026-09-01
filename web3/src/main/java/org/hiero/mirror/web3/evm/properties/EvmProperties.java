@@ -13,6 +13,7 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_65;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_66;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_67;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_70;
 
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.SemanticVersion;
