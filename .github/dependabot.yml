@@ -22,6 +22,33 @@ updates:
     schedule:
       interval: "weekly"
 
+  - directories:
+      - "/graphql"
+      - "/grpc"
+      - "/importer"
+      - "/monitor"
+      - "/pinger"
+      - "/rest"
+      - "/rest-java"
+      - "/rest/monitoring"
+      - "/rosetta"
+      - "/rosetta/container"
+      - "/test"
+      - "/web3"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 10
+    package-ecosystem: "docker"
+    schedule:
+      interval: "weekly"
+
   - directory: "/charts"
     groups:
       dependencies:
@@ -52,16 +79,6 @@ updates:
         versions: [">=15.0.0"]
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
-    schedule:
-      interval: "weekly"
-
-  - directory: "/rest"
-    groups:
-      dependencies:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 10
-    package-ecosystem: "docker"
     schedule:
       interval: "weekly"
 
