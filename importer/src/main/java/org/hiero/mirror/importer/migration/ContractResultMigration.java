@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.migration;
 
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
+
 import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -84,7 +86,7 @@ public class ContractResultMigration extends AbstractJavaMigration {
                 return false;
             }
 
-            ContractFunctionResult contractFunctionResult = ContractFunctionResult.parseFrom(functionResult);
+            final var contractFunctionResult = parseProtobuf(functionResult, ContractFunctionResult::parseFrom);
             Long[] createdContractIds = new Long[contractFunctionResult.getCreatedContractIDsCount()];
 
             for (int i = 0; i < createdContractIds.length; ++i) {

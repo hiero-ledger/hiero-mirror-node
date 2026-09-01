@@ -3,7 +3,9 @@
 package org.hiero.mirror.importer.reader.record;
 
 import static java.lang.String.format;
+import static org.hiero.mirror.common.util.DomainUtils.MAX_SIZE_FILE;
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 
 import com.hedera.services.stream.proto.HashAlgorithm;
 import com.hedera.services.stream.proto.RecordStreamFile;
@@ -215,7 +217,7 @@ public final class ProtoRecordFileReader implements RecordFileReader {
                         format("Expected file %s with version %d, got %d.", filename, VERSION, version));
             }
 
-            return RecordStreamFile.parseFrom(dataInputStream);
+            return parseProtobuf(dataInputStream, RecordStreamFile::parseFrom, MAX_SIZE_FILE);
         }
     }
 
