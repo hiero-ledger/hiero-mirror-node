@@ -218,7 +218,9 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
         final var address = toAddress(autoRenewEntityId);
         domainBuilder
                 .entity(autoRenewEntityId)
-                .customize(e -> e.evmAddress(null).alias(toEvmAddress(autoRenewEntityId)))
+                .customize(e -> e.evmAddress(null)
+                        .alias(toEvmAddress(autoRenewEntityId))
+                        .delegationAddress(null))
                 .persist();
 
         final var result = contract.call_getCodeHash(address.toString()).send();
@@ -272,7 +274,8 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
 
         // Then
-        assertThatThrownBy(() -> contract.send_destroyContract(systemAccountAddress.toUnprefixedHexString())
+        assertThatThrownBy(() -> contract.send_destroyContract(
+                                systemAccountAddress.getBytes().toUnprefixedHexString())
                         .send())
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .satisfies(ex -> {

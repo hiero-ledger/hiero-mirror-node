@@ -356,6 +356,25 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
         assertThat(entityRepository.count()).isZero();
     }
 
+    @Test
+    void processFailedEthereumTransactionWithoutDecodedTransaction() {
+        var recordItem = recordItemBuilder
+                .ethereumTransaction()
+                .record(r -> r.clearContractCallResult().clearContractCreateResult())
+                .receipt(r -> r.setStatus(ResponseCodeEnum.CONSENSUS_GAS_EXHAUSTED))
+                .sidecarRecords(List::clear)
+                .build();
+
+        process(recordItem);
+
+        assertThat(contractResultRepository.findAll()).isEmpty();
+        assertThat(contractLogRepository.count()).isZero();
+        assertThat(contractActionRepository.count()).isZero();
+        assertThat(contractStateChangeRepository.count()).isZero();
+        assertThat(contractRepository.count()).isZero();
+        assertThat(entityRepository.count()).isZero();
+    }
+
     @ParameterizedTest
     @EnumSource(
             value = ResponseCodeEnum.class,

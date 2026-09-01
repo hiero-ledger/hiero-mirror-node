@@ -18,7 +18,7 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.40.1")
-    set("consensusNodeVersion", "0.76.2")
+    set("consensusNodeVersion", "0.77.0-rc.11")
     set("jackson-bom.version", "3.2.2") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.2") // Temporary until next Spring Boot
     set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
@@ -73,6 +73,7 @@ dependencies {
         api("org.gaul:s3proxy:4.0.0")
         api("org.graalvm.nativeimage:svm:25.0.4.1")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
+        api("org.hyperledger.besu.internal:besu-crypto-algorithms:${besuVersion}")
         api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
         api("org.hyperledger.besu:evm:$besuVersion")

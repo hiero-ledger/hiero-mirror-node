@@ -23,8 +23,6 @@ import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
 import org.hiero.mirror.importer.repository.FileDataRepository;
 import org.hiero.mirror.importer.service.ContractBytecodeService;
 import org.hiero.mirror.importer.util.Utility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RequiredArgsConstructor
 abstract class AbstractEthereumTransactionParser implements EthereumTransactionParser {
@@ -33,7 +31,6 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
 
     private final ContractBytecodeService contractBytecodeService;
     private final FileDataRepository fileDataRepository;
-    private final Logger log = LoggerFactory.getLogger(getClass());
 
     @Override
     public final byte[] getHash(
@@ -50,11 +47,6 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
 
         try {
             var ethereumTransaction = decode(transactionBytes);
-            if (!CollectionUtils.isEmpty(ethereumTransaction.getAccessList())) {
-                log.warn("Re-encoding ethereum transaction at {} with access list is unsupported", consensusTimestamp);
-                return EMPTY_BYTE_ARRAY;
-            }
-
             callData = getCallData(callDataId, consensusTimestamp, useCurrentState);
             if (callData == null) {
                 Utility.handleRecoverableError(
@@ -76,7 +68,7 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
 
     protected static List<AccessList> parseAccessList(RLPItem rlpAccessList, String transactionTypeName) {
         if (!rlpAccessList.isList()) {
-            throw new InvalidEthereumBytesException(transactionTypeName, "Access list is not a list");
+            return List.of();
         }
 
         final var accessListEntries = rlpAccessList.asRLPList().elements();
@@ -114,10 +106,40 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
         return accessList;
     }
 
+    protected static List<List<Object>> encodeAccessList(List<AccessList> accessList) {
+        if (CollectionUtils.isEmpty(accessList)) {
+            return List.of();
+        }
+
+        final var encoded = new ArrayList<List<Object>>(accessList.size());
+        for (final var entry : accessList) {
+            final var entryStorageKeys = entry.getStorageKeys();
+            final List<byte[]> storageKeys;
+            if (CollectionUtils.isEmpty(entryStorageKeys)) {
+                storageKeys = List.of();
+            } else {
+                storageKeys = new ArrayList<>(entryStorageKeys.size());
+                for (final var key : entryStorageKeys) {
+                    storageKeys.add(decodeHex(key));
+                }
+            }
+            encoded.add(List.of(decodeHex(entry.getAddress()), storageKeys));
+        }
+        return encoded;
+    }
+
     protected static byte[] getValue(EthereumTransaction ethereumTransaction) {
         // Value (BigInteger 0) is stored as a 1-byte array [0] in EthereumTransaction, in the RPL encoded raw bytes,
         // it's an empty array, so re-encoding it to get the correct raw bytes for hashing
         return Integers.toBytesUnsigned(new BigInteger(ethereumTransaction.getValue()));
+    }
+
+    private static byte[] decodeHex(String hex) {
+        final int start = hex.startsWith(HEX_PREFIX) ? HEX_PREFIX.length() : 0;
+        if ((hex.length() - start) % 2 != 0) {
+            return HexFormat.of().parseHex("0" + hex.substring(start));
+        }
+        return HexFormat.of().parseHex(hex, start, hex.length());
     }
 
     private static byte[] getHash(byte[] rawBytes) {

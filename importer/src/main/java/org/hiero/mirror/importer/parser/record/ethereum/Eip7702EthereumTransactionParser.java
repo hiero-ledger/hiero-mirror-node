@@ -139,7 +139,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                         ethereumTransaction.getToAddress(),
                         getValue(ethereumTransaction),
                         ethereumTransaction.getCallData(),
-                        List.of(/*accessList*/ ),
+                        encodeAccessList(ethereumTransaction.getAccessList()),
                         authorizationList,
                         Integers.toBytes(ethereumTransaction.getRecoveryId()),
                         ethereumTransaction.getSignatureR(),
