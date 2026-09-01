@@ -41,6 +41,6 @@ func (m *MockTransactionRepository) FindBetweenTransactionIdentifiers(
 	cursor int64,
 	limit int,
 ) ([]types.TransactionIdentifier, *rTypes.Error) {
-	args := m.Called()
+	args := m.Called(ctx, start, end, cursor, limit)
 	return args.Get(0).([]types.TransactionIdentifier), args.Get(1).(*rTypes.Error)
 }

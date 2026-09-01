@@ -304,7 +304,9 @@ func (suite *onlineBaseServiceSuite) TestFindBetweenTransactionIdentifiers() {
 		{ConsensusTimestamp: 1, Hash: "0x01"},
 		{ConsensusTimestamp: 2, Hash: "0x02"},
 	}
-	suite.mockTransactionRepo.On("FindBetweenTransactionIdentifiers").Return(expected, mocks.NilError)
+	suite.mockTransactionRepo.
+		On("FindBetweenTransactionIdentifiers", defaultContext, int64(1), int64(2), int64(3), 4).
+		Return(expected, mocks.NilError)
 
 	// when:
 	actual, err := suite.baseService.FindBetweenTransactionIdentifiers(
@@ -318,6 +320,7 @@ func (suite *onlineBaseServiceSuite) TestFindBetweenTransactionIdentifiers() {
 	// then:
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), expected, actual)
+	suite.mockTransactionRepo.AssertExpectations(suite.T())
 }
 
 type offlineBaseServiceSuite struct {

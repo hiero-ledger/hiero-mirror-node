@@ -385,32 +385,35 @@ func (suite *transactionRepositorySuite) TestNewTransactionRepository() {
 	assert.NotNil(suite.T(), t)
 	repository := t.(*transactionRepository)
 	assert.Equal(suite.T(), maxTransactions, repository.maxTransactions)
-	assert.Equal(suite.T(), maxAggregateSize, repository.maxAggregateSize)
+	assert.Equal(suite.T(), maxTransferCount, repository.maxTransferCount)
 }
 
-func (suite *transactionRepositorySuite) TestValidateAggregateSizes() {
-	repository := &transactionRepository{maxAggregateSize: 2}
+func (suite *transactionRepositorySuite) TestValidateTransferCounts() {
+	aggregate := "[]"
 	tests := []struct {
 		name         string
 		transactions []*transaction
 		expected     *rTypes.Error
 	}{
-		{name: "at limit", transactions: []*transaction{{CryptoTransfers: "[]", StakingRewardPayouts: "[]"}}},
+		{
+			name:         "within limit",
+			transactions: []*transaction{{CryptoTransfers: &aggregate, StakingRewardPayouts: &aggregate}},
+		},
 		{
 			name:         "crypto transfers over limit",
-			transactions: []*transaction{{CryptoTransfers: "[1]"}},
+			transactions: []*transaction{{StakingRewardPayouts: &aggregate}},
 			expected:     errors.ErrTransferLimitExceeded,
 		},
 		{
 			name:         "staking rewards over limit",
-			transactions: []*transaction{{StakingRewardPayouts: "[1]"}},
+			transactions: []*transaction{{CryptoTransfers: &aggregate}},
 			expected:     errors.ErrTransferLimitExceeded,
 		},
 	}
 
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
-			assert.Equal(suite.T(), tt.expected, repository.validateAggregateSizes(tt.transactions))
+			assert.Equal(suite.T(), tt.expected, validateTransferCounts(tt.transactions))
 		})
 	}
 }
@@ -532,10 +535,10 @@ func (suite *transactionRepositorySuite) TestFindBetweenTransactionLimitExceeded
 }
 
 func (suite *transactionRepositorySuite) TestFindBetweenCryptoTransferLimitExceeded() {
-	// given
+	// given: the first transaction in the fixture has 4 crypto transfers
 	expected := suite.setupDb()
 	repository := NewTransactionRepository(dbClient, suite.stakingRewardEntityId).(*transactionRepository)
-	repository.maxAggregateSize = 1
+	repository.maxTransferCount = 3
 
 	// when
 	actual, err := repository.FindBetween(
@@ -550,8 +553,8 @@ func (suite *transactionRepositorySuite) TestFindBetweenCryptoTransferLimitExcee
 	assert.Equal(suite.T(), errors.ErrTransferLimitExceeded, err)
 }
 
-func (suite *transactionRepositorySuite) TestFindBetweenStakingRewardTransferLimitExceeded() {
-	// given
+// setupStakingRewardTransaction persists a transaction with a single staking reward payout and no crypto transfers.
+func (suite *transactionRepositorySuite) setupStakingRewardTransaction() (int64, string) {
 	transaction := tdomain.NewTransactionBuilder(
 		dbClient,
 		suite.treasuryEntityId.EncodedId,
@@ -563,20 +566,36 @@ func (suite *transactionRepositorySuite) TestFindBetweenStakingRewardTransferLim
 		ConsensusTimestamp(transaction.ConsensusTimestamp).
 		PayerAccountId(suite.treasuryEntityId.EncodedId).
 		Persist()
+
+	return transaction.ConsensusTimestamp, tools.SafeAddHexPrefix(hex.EncodeToString(transaction.TransactionHash))
+}
+
+func (suite *transactionRepositorySuite) TestFindBetweenStakingRewardTransferLimitExceeded() {
+	// given
+	consensusTimestamp, hash := suite.setupStakingRewardTransaction()
 	repository := NewTransactionRepository(dbClient, suite.stakingRewardEntityId).(*transactionRepository)
-	repository.maxAggregateSize = 1
+	repository.maxTransferCount = 0
 
 	// when
-	actual, err := repository.FindBetween(
-		defaultContext,
-		transaction.ConsensusTimestamp,
-		transaction.ConsensusTimestamp,
-		[]string{tools.SafeAddHexPrefix(hex.EncodeToString(transaction.TransactionHash))},
-	)
+	actual, err := repository.FindBetween(defaultContext, consensusTimestamp, consensusTimestamp, []string{hash})
 
 	// then
 	assert.Nil(suite.T(), actual)
 	assert.Equal(suite.T(), errors.ErrTransferLimitExceeded, err)
+}
+
+func (suite *transactionRepositorySuite) TestFindBetweenAtStakingRewardTransferLimit() {
+	// given
+	consensusTimestamp, hash := suite.setupStakingRewardTransaction()
+	repository := NewTransactionRepository(dbClient, suite.stakingRewardEntityId).(*transactionRepository)
+	repository.maxTransferCount = 1
+
+	// when
+	actual, err := repository.FindBetween(defaultContext, consensusTimestamp, consensusTimestamp, []string{hash})
+
+	// then
+	assert.Nil(suite.T(), err)
+	assert.Len(suite.T(), actual, 1)
 }
 
 func (suite *transactionRepositorySuite) TestFindBetweenTokenCreatedAtOrBeforeGenesisTimestamp() {

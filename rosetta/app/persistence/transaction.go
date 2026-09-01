@@ -56,10 +56,14 @@ const (
                                             ), '[]') as staking_reward_payouts
                                           from transaction t
                                           where consensus_timestamp >= @start and consensus_timestamp <= @end`
-	selectTransactionsByHashInTimestampRange  = selectTransactionsInTimestampRange + andTransactionHashFilter
-	selectTransactionsInTimestampRangeOrdered = selectTransactionsInTimestampRange + `
-	                                                and t.transaction_hash in @hashes` +
-		orderByConsensusTimestamp + ", transaction_hash limit @rowLimit"
+	selectTransactionsByHashInTimestampRange = selectTransactionsInTimestampRange + andTransactionHashFilter
+	// selectTransactionsByHashesInTimestampRange binds the hashes as a single bytea[] so the plan shape stays constant
+	// regardless of how many transactions the block resolves to. The cast is spelled out because gorm does not
+	// terminate a named parameter on ':', so the '::' form would be read as part of the parameter name.
+ 	selectTransactionsByHashesInTimestampRange = selectTransactionsInTimestampRange + `
+                                             and t.transaction_hash = any(cast(@hashes as bytea[]))
+                                           order by consensus_timestamp, transaction_hash
+                                           limit @rowLimit`
 	selectTransactionIdentifiersInTimestampRange = `select consensus_timestamp, transaction_hash as hash
 	                                                  from transaction
 	                                                  where consensus_timestamp >= @start and

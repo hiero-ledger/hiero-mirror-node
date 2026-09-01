@@ -15,6 +15,7 @@ import (
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/test/mocks"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/test/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -127,6 +128,11 @@ func transactionIdentifiers(transactions ...*types.Transaction) []types.Transact
 	return identifiers
 }
 
+// anyFindIdentifiersArgs matches any FindBetweenTransactionIdentifiers call for tests that do not exercise paging.
+func anyFindIdentifiersArgs() []any {
+	return []any{mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything}
+}
+
 func transactionRequest() *rTypes.BlockTransactionRequest {
 	return &rTypes.BlockTransactionRequest{
 		NetworkIdentifier: &rTypes.NetworkIdentifier{
@@ -172,12 +178,20 @@ func (suite *blockServiceSuite) SetupTest() {
 	suite.mockBlockRepo = &mocks.MockBlockRepository{}
 	suite.mockTransactionRepo = &mocks.MockTransactionRepository{}
 
+	suite.blockService = suite.newBlockService(config.Response{
+		MaxTransactions:               1000,
+		MaxTransactionsInBlock:        4,
+		TransactionIdentifierPageSize: 100,
+	})
+}
+
+func (suite *blockServiceSuite) newBlockService(responseConfig config.Response) server.BlockAPIServicer {
 	baseService := NewOnlineBaseService(suite.mockBlockRepo, suite.mockTransactionRepo)
-	suite.blockService = NewBlockAPIService(
+	return NewBlockAPIService(
 		suite.mockAccountRepo,
 		baseService,
 		config.Cache{MaxSize: 1024},
-		4,
+		responseConfig,
 		suite.ctx,
 	)
 }
@@ -199,7 +213,7 @@ func (suite *blockServiceSuite) TestBlock() {
 	suite.mockAccountRepo.On("GetAccountAlias").Return(account, mocks.NilError)
 	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
 	suite.mockTransactionRepo.
-		On("FindBetweenTransactionIdentifiers").
+		On("FindBetweenTransactionIdentifiers", anyFindIdentifiersArgs()...).
 		Return(transactionIdentifiers(exampleTransactions...), mocks.NilError)
 	suite.mockTransactionRepo.On("FindBetween").Return(exampleTransactions, mocks.NilError)
 
@@ -232,7 +246,7 @@ func (suite *blockServiceSuite) TestBlockWithCappedTransactions() {
 	suite.mockAccountRepo.On("GetAccountAlias").Return(account, mocks.NilError)
 	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
 	suite.mockTransactionRepo.
-		On("FindBetweenTransactionIdentifiers").
+		On("FindBetweenTransactionIdentifiers", anyFindIdentifiersArgs()...).
 		Return(
 			append(
 				transactionIdentifiers(exampleTransactions...),
@@ -251,11 +265,123 @@ func (suite *blockServiceSuite) TestBlockWithCappedTransactions() {
 	suite.mockAccountRepo.AssertNumberOfCalls(suite.T(), "GetAccountAlias", 1)
 }
 
+func (suite *blockServiceSuite) TestBlockPaginatesTransactionIdentifiers() {
+	// given: a block whose identifier rows span four pages of two rows each, with "123" repeated inside the first
+	// page and again across the first/second page boundary
+	blockService := suite.newBlockService(config.Response{
+		MaxTransactions:               1000,
+		MaxTransactionsInBlock:        2,
+		TransactionIdentifierPageSize: 2,
+	})
+	includedTransactions := []*types.Transaction{makeTransaction(nil, "123"), makeTransaction(nil, "246")}
+	expected := expectedBlockResponse(
+		[]*rTypes.Transaction{
+			expectedTransaction(account, nil, "123"),
+			expectedTransaction(account, nil, "246"),
+		},
+		[]*rTypes.TransactionIdentifier{{Hash: "333"}, {Hash: "444"}},
+	)
+	pages := []struct {
+		cursor      int64
+		identifiers []types.TransactionIdentifier
+	}{
+		{cursor: block().ConsensusStartNanos - 1, identifiers: []types.TransactionIdentifier{
+			{ConsensusTimestamp: 10, Hash: "123"},
+			{ConsensusTimestamp: 11, Hash: "123"},
+		}},
+		{cursor: 11, identifiers: []types.TransactionIdentifier{
+			{ConsensusTimestamp: 12, Hash: "123"},
+			{ConsensusTimestamp: 13, Hash: "246"},
+		}},
+		{cursor: 13, identifiers: []types.TransactionIdentifier{
+			{ConsensusTimestamp: 14, Hash: "333"},
+			{ConsensusTimestamp: 15, Hash: "444"},
+		}},
+		{cursor: 15, identifiers: []types.TransactionIdentifier{
+			{ConsensusTimestamp: 16, Hash: "444"},
+		}},
+	}
+	for _, page := range pages {
+		suite.mockTransactionRepo.
+			On(
+				"FindBetweenTransactionIdentifiers",
+				mock.Anything,
+				block().ConsensusStartNanos,
+				block().ConsensusEndNanos,
+				page.cursor,
+				2,
+			).
+			Return(page.identifiers, mocks.NilError).
+			Once()
+	}
+	suite.mockAccountRepo.On("GetAccountAlias").Return(account, mocks.NilError)
+	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
+	suite.mockTransactionRepo.On("FindBetween").Return(includedTransactions, mocks.NilError)
+
+	// when:
+	actual, err := blockService.Block(nil, blockRequest())
+
+	// then: duplicates within and across pages are collapsed and the overflow lands in other_transactions
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), expected, actual)
+	// and: the cursor advanced to the last consensus timestamp of every full page
+	suite.mockTransactionRepo.AssertExpectations(suite.T())
+	suite.mockTransactionRepo.AssertNumberOfCalls(suite.T(), "FindBetweenTransactionIdentifiers", len(pages))
+}
+
+func (suite *blockServiceSuite) TestBlockTerminatesWhenPageSizeIsNotPositive() {
+	// given: a misconfigured page size makes the repository return no rows at all
+	blockService := suite.newBlockService(config.Response{
+		MaxTransactions:               1000,
+		MaxTransactionsInBlock:        2,
+		TransactionIdentifierPageSize: 0,
+	})
+	expected := expectedBlockResponse([]*rTypes.Transaction{}, nil)
+	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
+	suite.mockTransactionRepo.
+		On("FindBetweenTransactionIdentifiers", anyFindIdentifiersArgs()...).
+		Return([]types.TransactionIdentifier{}, mocks.NilError)
+	suite.mockTransactionRepo.On("FindBetween").Return([]*types.Transaction{}, mocks.NilError)
+
+	// when:
+	actual, err := blockService.Block(nil, blockRequest())
+
+	// then: the scan stops instead of looping forever
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), expected, actual)
+	suite.mockTransactionRepo.AssertNumberOfCalls(suite.T(), "FindBetweenTransactionIdentifiers", 1)
+}
+
+func (suite *blockServiceSuite) TestBlockThrowsWhenTransactionLimitExceeded() {
+	// given:
+	blockService := suite.newBlockService(config.Response{
+		MaxTransactions:               2,
+		MaxTransactionsInBlock:        2,
+		TransactionIdentifierPageSize: 100,
+	})
+	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
+	suite.mockTransactionRepo.
+		On("FindBetweenTransactionIdentifiers", anyFindIdentifiersArgs()...).
+		Return([]types.TransactionIdentifier{
+			{ConsensusTimestamp: 10, Hash: "123"},
+			{ConsensusTimestamp: 11, Hash: "246"},
+			{ConsensusTimestamp: 12, Hash: "333"},
+		}, mocks.NilError)
+
+	// when:
+	actual, err := blockService.Block(nil, blockRequest())
+
+	// then:
+	assert.Nil(suite.T(), actual)
+	assert.Equal(suite.T(), errors.ErrTransactionLimitExceeded, err)
+	suite.mockTransactionRepo.AssertNotCalled(suite.T(), "FindBetween")
+}
+
 func (suite *blockServiceSuite) TestBlockThrowsWhenFindBetweenTransactionIdentifiersFails() {
 	// given:
 	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
 	suite.mockTransactionRepo.
-		On("FindBetweenTransactionIdentifiers").
+		On("FindBetweenTransactionIdentifiers", anyFindIdentifiersArgs()...).
 		Return([]types.TransactionIdentifier{}, errors.ErrInternalServerError)
 
 	// when:
@@ -279,7 +405,7 @@ func (suite *blockServiceSuite) TestBlockWithAccountAlias() {
 	suite.mockAccountRepo.On("GetAccountAlias").Return(accountAlias, mocks.NilError)
 	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
 	suite.mockTransactionRepo.
-		On("FindBetweenTransactionIdentifiers").
+		On("FindBetweenTransactionIdentifiers", anyFindIdentifiersArgs()...).
 		Return(transactionIdentifiers(exampleTransactions...), mocks.NilError)
 	suite.mockTransactionRepo.On("FindBetween").Return(exampleTransactions, mocks.NilError)
 
@@ -301,7 +427,7 @@ func (suite *blockServiceSuite) TestBlockThrowsWhenAccountRepoFail() {
 	suite.mockAccountRepo.On("GetAccountAlias").Return(types.AccountId{}, errors.ErrInternalServerError)
 	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
 	suite.mockTransactionRepo.
-		On("FindBetweenTransactionIdentifiers").
+		On("FindBetweenTransactionIdentifiers", anyFindIdentifiersArgs()...).
 		Return(transactionIdentifiers(exampleTransactions...), mocks.NilError)
 	suite.mockTransactionRepo.On("FindBetween").Return(exampleTransactions, mocks.NilError)
 
@@ -333,7 +459,7 @@ func (suite *blockServiceSuite) TestBlockThrowsWhenFindBetweenFails() {
 	// given:
 	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
 	suite.mockTransactionRepo.
-		On("FindBetweenTransactionIdentifiers").
+		On("FindBetweenTransactionIdentifiers", anyFindIdentifiersArgs()...).
 		Return([]types.TransactionIdentifier{{ConsensusTimestamp: 1, Hash: "123"}}, mocks.NilError)
 	suite.mockTransactionRepo.On("FindBetween").Return([]*types.Transaction{}, &rTypes.Error{})
 

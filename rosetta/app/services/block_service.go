@@ -11,18 +11,19 @@ import (
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/config"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/interfaces"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/tools"
 )
-
-const transactionIdentifierPageSize = 2000
 
 // blockAPIService implements the server.BlockAPIServicer interface.
 type blockAPIService struct {
 	accountRepo interfaces.AccountRepository
 	BaseService
-	entityCache            *cache.Cache[int64, types.AccountId]
-	maxTransactionsInBlock int
+	entityCache                   *cache.Cache[int64, types.AccountId]
+	maxTransactions               int
+	maxTransactionsInBlock        int
+	transactionIdentifierPageSize int
 }
 
 // NewBlockAPIService creates a new instance of a blockAPIService.
@@ -30,7 +31,7 @@ func NewBlockAPIService(
 	accountRepo interfaces.AccountRepository,
 	baseService BaseService,
 	entityCacheConfig config.Cache,
-	maxTransactionsInBlock int,
+	responseConfig config.Response,
 	serverContext context.Context,
 ) server.BlockAPIServicer {
 	entityCache := cache.NewContext(
@@ -38,10 +39,12 @@ func NewBlockAPIService(
 		cache.AsLRU[int64, types.AccountId](lru.WithCapacity(entityCacheConfig.MaxSize)),
 	)
 	return &blockAPIService{
-		accountRepo:            accountRepo,
-		BaseService:            baseService,
-		entityCache:            entityCache,
-		maxTransactionsInBlock: maxTransactionsInBlock,
+		accountRepo:                   accountRepo,
+		BaseService:                   baseService,
+		entityCache:                   entityCache,
+		maxTransactions:               responseConfig.MaxTransactions,
+		maxTransactionsInBlock:        responseConfig.MaxTransactionsInBlock,
+		transactionIdentifierPageSize: responseConfig.TransactionIdentifierPageSize,
 	}
 }
 
@@ -96,7 +99,7 @@ func (s *blockAPIService) findTransactionIdentifiers(
 			consensusStart,
 			consensusEnd,
 			cursor,
-			transactionIdentifierPageSize,
+			s.transactionIdentifierPageSize,
 		)
 		if err != nil {
 			return nil, nil, err
@@ -108,6 +111,10 @@ func (s *blockAPIService) findTransactionIdentifiers(
 			}
 
 			seen[identifier.Hash] = struct{}{}
+			if len(seen) > s.maxTransactions {
+				return nil, nil, errors.ErrTransactionLimitExceeded
+			}
+
 			if len(includedHashes) < s.maxTransactionsInBlock {
 				includedHashes = append(includedHashes, identifier.Hash)
 			} else {
@@ -118,7 +125,8 @@ func (s *blockAPIService) findTransactionIdentifiers(
 			}
 		}
 
-		if len(identifiers) < transactionIdentifierPageSize {
+		// an empty page also ends the scan, so a non-positive configured page size cannot spin forever
+		if len(identifiers) == 0 || len(identifiers) < s.transactionIdentifierPageSize {
 			return includedHashes, otherTransactions, nil
 		}
 
