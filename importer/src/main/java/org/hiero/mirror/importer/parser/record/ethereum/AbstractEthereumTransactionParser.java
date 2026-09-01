@@ -120,10 +120,10 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
             } else {
                 storageKeys = new ArrayList<>(entryStorageKeys.size());
                 for (final var key : entryStorageKeys) {
-                    storageKeys.add(decodeHex(key, 64));
+                    storageKeys.add(decodeHex(key));
                 }
             }
-            encoded.add(List.of(decodeHex(entry.getAddress(), 40), storageKeys));
+            encoded.add(List.of(decodeHex(entry.getAddress()), storageKeys));
         }
         return encoded;
     }
@@ -134,13 +134,12 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
         return Integers.toBytesUnsigned(new BigInteger(ethereumTransaction.getValue()));
     }
 
-    private static byte[] decodeHex(String hex, int minLength) {
+    private static byte[] decodeHex(String hex) {
         final int start = hex.startsWith(HEX_PREFIX) ? HEX_PREFIX.length() : 0;
-        final int length = hex.length() - start;
-        if (length >= minLength && length % 2 == 0) {
-            return HexFormat.of().parseHex(hex, start, hex.length());
+        if ((hex.length() - start) % 2 != 0) {
+            return HexFormat.of().parseHex("0" + hex.substring(start));
         }
-        return HexFormat.of().parseHex(StringUtils.leftPad(hex.substring(start), Math.max(minLength, length + 1), '0'));
+        return HexFormat.of().parseHex(hex, start, hex.length());
     }
 
     private static byte[] getHash(byte[] rawBytes) {
