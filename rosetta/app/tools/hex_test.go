@@ -3,6 +3,7 @@
 package tools
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -73,4 +74,18 @@ func TestRemovesPrefixCorrectly(t *testing.T) {
 		// then:
 		assert.Equal(t, expectedData[i].result, result)
 	}
+}
+
+func FuzzSafeHexPrefix(f *testing.F) {
+	for _, seed := range []string{"", "0x", "0x0x", "0x123", "0X123", "123", " ", "0x "} {
+		f.Add(seed)
+	}
+
+	f.Fuzz(func(t *testing.T, value string) {
+		withPrefix := SafeAddHexPrefix(value)
+
+		assert.True(t, strings.HasPrefix(withPrefix, HexPrefix))
+		assert.Equal(t, withPrefix, SafeAddHexPrefix(withPrefix))
+		assert.Equal(t, SafeRemoveHexPrefix(value), SafeRemoveHexPrefix(withPrefix))
+	})
 }

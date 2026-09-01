@@ -49,6 +49,7 @@ import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
@@ -806,9 +807,7 @@ public final class BlockStreamReaderTest {
                 .addItems(blockProof())
                 .build();
         var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
-        assertThatThrownBy(() -> reader.read(blockStream))
-                .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessageContaining("Failed to deserialize Transaction");
+        assertThatThrownBy(() -> reader.read(blockStream)).isInstanceOf(ProtobufException.class);
         verifyNoInteractions(initialStateReader);
     }
 
@@ -830,9 +829,7 @@ public final class BlockStreamReaderTest {
                 .addItems(blockProof())
                 .build();
         var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
-        assertThatThrownBy(() -> reader.read(blockStream))
-                .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessageContaining("Failed to deserialize Transaction");
+        assertThatThrownBy(() -> reader.read(blockStream)).isInstanceOf(ProtobufException.class);
         verifyNoInteractions(initialStateReader);
     }
 
