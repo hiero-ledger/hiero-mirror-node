@@ -4,6 +4,9 @@ package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.test.e2e.acceptance.client.AccountClient.ZERO_DELEGATION_ADDRESS;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ESTIMATE_GAS;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.PURE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.CodeDelegationFeature.ContractMethods.PURE_MULTIPLY;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.web3j.crypto.transaction.type.TransactionType.EIP7702;
@@ -18,6 +21,7 @@ import io.cucumber.java.en.When;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ContractResult;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
@@ -35,7 +39,6 @@ import org.web3j.utils.Numeric;
 public class CodeDelegationFeature extends AbstractFeature {
 
     private static final long INITIAL_ACCOUNT_BALANCE = 10L;
-    private static final String MULTIPLY_SIMPLE_NUMBERS_SELECTOR = "8070450f";
     private static final BigDecimal SIGNER_BALANCE = BigDecimal.valueOf(1.0);
 
     private final AccountClient accountClient;
@@ -58,7 +61,7 @@ public class CodeDelegationFeature extends AbstractFeature {
 
     @Given("I successfully create a contract for code delegation")
     public void createContractForCodeDelegation() {
-        delegatedContract = getContract(ContractResource.CODE_DELEGATION);
+        delegatedContract = getContract(ESTIMATE_GAS);
         expectedDelegationAddress =
                 toDelegationAddress(delegatedContract.contractId().toEvmAddress());
         assertThat(delegatedContract.contractId()).isNotNull();
@@ -86,14 +89,14 @@ public class CodeDelegationFeature extends AbstractFeature {
         authorityNonce = accountInfo.getEthereumNonce() == null ? 0L : accountInfo.getEthereumNonce();
     }
 
-    @When("I execute multiplySimpleNumbers on the authority using an EIP-7702 ethereum transaction")
+    @When("I execute pureMultiply on the authority using an EIP-7702 ethereum transaction")
     public void executeDelegatedAccountViaEip7702() {
         authorization = ethereumClient.createAuthorization(
                 account, delegatedContract.contractId().toEvmAddress(), authorityNonce);
         var result = ethereumClient.executeContract(
                 signerAccount.getPrivateKey(),
                 evmAddress(account),
-                "multiplySimpleNumbers",
+                PURE_MULTIPLY.getSelector(),
                 null,
                 EIP7702,
                 List.of(authorization));
@@ -175,10 +178,10 @@ public class CodeDelegationFeature extends AbstractFeature {
         assertThat(accountInfo.getDelegationAddress()).isEqualTo(HEX_PREFIX);
     }
 
-    @When("I call multiplySimpleNumbers on the delegated account via the mirror node REST API")
+    @When("I call pureMultiply on the delegated account via the mirror node REST API")
     public void callDelegatedAccountViaMirrorNode() {
         var contractCallRequest = ModelBuilder.contractCallRequest()
-                .data(MULTIPLY_SIMPLE_NUMBERS_SELECTOR)
+                .data(encodeData(ESTIMATE_GAS, PURE_MULTIPLY))
                 .from(contractClient.getClientAddress())
                 .to(evmAddress(account));
         contractCallResponse = callContract(contractCallRequest);
@@ -195,12 +198,12 @@ public class CodeDelegationFeature extends AbstractFeature {
         assertThat(contractCallResponse.getResult()).isEqualTo(HEX_PREFIX);
     }
 
-    @When("I execute multiplySimpleNumbers on the delegated account via a contract call transaction")
+    @When("I execute pureMultiply on the delegated account via a contract call transaction")
     public void executeDelegatedAccountViaContractCall() {
         var gas = featureProperties.getMaxContractFunctionGas();
         var accountContractId = ContractId.fromString(account.getAccountId().toString());
         var result = contractClient.executeContract(
-                accountContractId, gas, "multiplySimpleNumbers", (ContractFunctionParameters) null, null);
+                accountContractId, gas, PURE_MULTIPLY.getSelector(), (ContractFunctionParameters) null, null);
         networkTransactionResponse = result.networkTransactionResponse();
         assertThat(networkTransactionResponse.getTransactionId()).isNotNull();
         assertThat(networkTransactionResponse.getReceipt()).isNotNull();
@@ -263,5 +266,18 @@ public class CodeDelegationFeature extends AbstractFeature {
 
     private static String toPaddedHex(BigInteger value) {
         return HEX_PREFIX + Numeric.toHexStringNoPrefixZeroPadded(value, 64);
+    }
+
+    @Getter
+    @RequiredArgsConstructor
+    enum ContractMethods implements SelectorInterface {
+        PURE_MULTIPLY("pureMultiply");
+
+        private final String selector;
+
+        @Override
+        public FunctionType getFunctionType() {
+            return PURE;
+        }
     }
 }

@@ -256,7 +256,6 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
                 "ESTIMATE_GAS",
                 "classpath:solidity/artifacts/contracts/EstimateGasContract.sol/EstimateGasContract.json",
                 1000000),
-        CODE_DELEGATION("CODE_DELEGATION", "classpath:solidity/artifacts/contracts/Parent.sol/Parent.json", 0),
         PARENT_CONTRACT("PARENT", "classpath:solidity/artifacts/contracts/Parent.sol/Parent.json", 10000000);
 
         private final String name;
