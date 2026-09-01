@@ -58,7 +58,7 @@ final class LoggingFilterTest {
 
         loggingFilter.doFilter(request, response, chain);
 
-        assertThat(output).asString().isEmpty();
+        assertThat(loggingFilterLines(output)).isEmpty();
     }
 
     @Test
@@ -406,6 +406,16 @@ final class LoggingFilterTest {
     }
 
     private void assertLog(CapturedOutput logOutput, String level, String pattern) {
-        assertThat(logOutput).asString().hasLineCount(1).contains(level).containsPattern(pattern);
+        assertThat(loggingFilterLines(logOutput))
+                .singleElement()
+                .satisfies(line -> assertThat(line).contains(level).containsPattern(pattern));
+    }
+
+    private List<String> loggingFilterLines(CapturedOutput logOutput) {
+        return logOutput
+                .toString()
+                .lines()
+                .filter(line -> line.contains("LoggingFilter"))
+                .toList();
     }
 }

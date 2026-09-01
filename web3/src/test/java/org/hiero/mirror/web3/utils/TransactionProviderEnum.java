@@ -126,7 +126,7 @@ public enum TransactionProviderEnum {
         } else if (contractAlias != null && contractAlias.length == EVM_ADDRESS_LENGTH) {
             evmAddress = contractAlias;
         } else if (!EntityId.isEmpty(contractId)) {
-            evmAddress = toAddress(contractId).toArray();
+            evmAddress = toAddress(contractId).getBytes().toArray();
         } else {
             evmAddress = new byte[0];
         }
