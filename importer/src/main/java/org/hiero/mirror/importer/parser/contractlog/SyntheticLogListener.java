@@ -46,7 +46,7 @@ import org.springframework.core.annotation.Order;
 @Order(2)
 @CustomLog
 @RequiredArgsConstructor
-final class SyntheticLogListener implements EntityListener, RecordStreamFileListener {
+final class SyntheticLogListener implements EntityListener, RecordStreamFileListener, EvmAddressCache {
     static final int MAX_CACHE_LOAD_ENTRIES = 30000;
 
     @Getter(lazy = true)
@@ -60,6 +60,18 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
     @Override
     public boolean isEnabled() {
         return entityProperties.getPersist().isSyntheticContractLogEvmAddressLookup();
+    }
+
+    @Override
+    public byte[] get(EntityId entityId) {
+        return EntityId.isEmpty(entityId) ? null : getEvmCache().get(entityId.getId());
+    }
+
+    @Override
+    public void put(EntityId entityId, byte[] evmAddress) {
+        if (!EntityId.isEmpty(entityId) && evmAddress != null) {
+            getEvmCache().put(entityId.getId(), evmAddress);
+        }
     }
 
     @Override
