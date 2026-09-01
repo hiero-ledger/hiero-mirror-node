@@ -16,7 +16,7 @@
   "description": "Generates a report showing an account's hbar transfers",
   "devDependencies": {
     "@fetch-mock/jest": "0.2.20",
-    "jest": "30.4.2"
+    "jest": "30.5.0"
   },
   "engines": {
     "node": ">=24.19.0 <25"
