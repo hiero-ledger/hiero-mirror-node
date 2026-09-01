@@ -36,7 +36,6 @@ final class RecomputeEvmTransactionIndexMigration extends AsyncJavaMigration<Lon
 
     private static final String DROP_OLD_PROGRESS_TABLES = """
             drop table if exists fix_evm_transaction_index_progress_temp;
-            drop table if exists contract_log_synthetic_flag_progress_temp;
             drop table if exists contract_log_synthetic_progress_temp;
             """;
 

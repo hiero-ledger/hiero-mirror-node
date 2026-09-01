@@ -57,8 +57,6 @@ final class RecomputeEvmTransactionIndexMigrationTest
         ownerJdbcTemplate.execute(
                 "create table if not exists fix_evm_transaction_index_progress_temp(upper_bound bigint not null)");
         ownerJdbcTemplate.execute(
-                "create table if not exists contract_log_synthetic_flag_progress_temp(upper_bound bigint not null)");
-        ownerJdbcTemplate.execute(
                 "create table if not exists contract_log_synthetic_progress_temp(upper_bound bigint not null)");
 
         // when
@@ -67,7 +65,6 @@ final class RecomputeEvmTransactionIndexMigrationTest
 
         // then
         assertThat(tableExists("fix_evm_transaction_index_progress_temp")).isFalse();
-        assertThat(tableExists("contract_log_synthetic_flag_progress_temp")).isFalse();
         assertThat(tableExists("contract_log_synthetic_progress_temp")).isFalse();
     }
 
