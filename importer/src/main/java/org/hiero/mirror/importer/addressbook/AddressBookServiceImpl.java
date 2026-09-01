@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.addressbook;
 
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_ADDRESS_BOOK;
 import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 
@@ -220,7 +221,7 @@ public class AddressBookServiceImpl implements AddressBookService {
                 .fileId(fileData.getEntityId());
 
         try {
-            var nodeAddressBook = NodeAddressBook.parseFrom(fileData.getFileData());
+            final var nodeAddressBook = parseProtobuf(fileData.getFileData(), NodeAddressBook::parseFrom);
 
             if (nodeAddressBook != null && nodeAddressBook.getNodeAddressCount() > 0) {
                 addressBookBuilder.nodeCount(nodeAddressBook.getNodeAddressCount());

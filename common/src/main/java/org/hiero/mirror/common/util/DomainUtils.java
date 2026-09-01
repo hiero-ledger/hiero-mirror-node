@@ -8,6 +8,7 @@ import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteOutput;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
+import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.Internal;
 import com.google.protobuf.UnsafeByteOperations;
 import com.hedera.services.stream.proto.HashObject;
@@ -18,6 +19,7 @@ import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -37,6 +39,7 @@ import org.hiero.mirror.common.domain.transaction.ContractSlotKey;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.exception.ProtobufException;
 import org.jspecify.annotations.Nullable;
+import org.springframework.util.function.ThrowingFunction;
 
 @CustomLog
 @UtilityClass
@@ -48,6 +51,11 @@ public class DomainUtils {
     public static final long NANOS_PER_SECOND = 1_000_000_000L;
     public static final String RECOVERABLE_ERROR = "Recoverable error. ";
     public static final long TINYBARS_IN_ONE_HBAR = 100_000_000L;
+
+    // These should match the default values in PBJ and CN so MN doesn't reject protobuf that CN accepts.
+    public static final int MAX_DEPTH = 128;
+    public static final int MAX_SIZE_FILE = 32 * 1024 * 1024;
+    public static final int MAX_SIZE_ITEM = 2 * 1024 * 1024;
 
     private static final long MAX_SYSTEM_ENTITY_NUM = 999;
     private static final byte[] MIRROR_PREFIX = new byte[12];
@@ -93,7 +101,7 @@ public class DomainUtils {
                 return null;
             }
 
-            final var key = Key.parseFrom(protobufKey);
+            final var key = parseProtobuf(protobufKey, Key::parseFrom);
             byte[] primitiveKey = getPublicKey(key, 1);
             return bytesToHex(primitiveKey);
         } catch (Exception e) {
@@ -315,6 +323,46 @@ public class DomainUtils {
         }
 
         return new ContractSlotKey(slotKey.slotId(), DomainUtils.fromBytes(normalizedBytes));
+    }
+
+    /**
+     * Parses protobuf-encoded data with hardened limits on nesting depth and total size.
+     *
+     * @param protobufBytes the encoded data; must be a {@code byte[]}, {@link ByteString}, {@link InputStream},
+     *                      or {@code null}
+     * @param parser        the parsing function to apply to the configured stream, usually a method reference such as
+     *                      {@code MyMessage::parseFrom}
+     * @param <T>           the type of the parsed message
+     * @return the parsed protobuf message
+     */
+    public static <T> T parseProtobuf(Object protobufBytes, ThrowingFunction<CodedInputStream, T> parser) {
+        return parseProtobuf(protobufBytes, parser, MAX_SIZE_ITEM);
+    }
+
+    /**
+     * Parses protobuf-encoded data with hardened limits on nesting depth and total size.
+     *
+     * @param protobufBytes the encoded data; must be a {@code byte[]}, {@link ByteString}, {@link InputStream},
+     *                      or {@code null}
+     * @param parser        the parsing function to apply to the configured stream, usually a method reference such as
+     *                      {@code MyMessage::parseFrom}
+     * @param maxSize       the maximum number of bytes to parse before throwing an error
+     * @param <T>           the type of the parsed message
+     * @return the parsed protobuf message
+     */
+    public static <T> T parseProtobuf(Object protobufBytes, ThrowingFunction<CodedInputStream, T> parser, int maxSize) {
+        final var codedInputStream =
+                switch (protobufBytes) {
+                    case null -> ByteString.EMPTY.newCodedInput();
+                    case byte[] bytes -> CodedInputStream.newInstance(bytes);
+                    case ByteString bytes -> bytes.newCodedInput();
+                    case InputStream inputStream -> CodedInputStream.newInstance(inputStream);
+                    default -> throw new IllegalStateException("Unexpected type: " + protobufBytes.getClass());
+                };
+
+        codedInputStream.setRecursionLimit(MAX_DEPTH);
+        codedInputStream.setSizeLimit(maxSize);
+        return parser.apply(codedInputStream, ProtobufException::new);
     }
 
     public static byte[] trim(final byte[] data) {

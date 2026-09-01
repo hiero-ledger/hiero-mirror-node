@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block.tss;
 
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
+
 import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
 import jakarta.inject.Named;
 import java.io.IOException;
@@ -11,6 +13,7 @@ import java.util.Set;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.tss.Ledger;
+import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.ImporterProperties.HederaNetwork;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
@@ -47,8 +50,8 @@ final class NetworkLedgerLoader {
     private Ledger loadFromPath(final Path path) {
         final LedgerIdPublicationTransactionBody body;
         try (var in = Files.newInputStream(path)) {
-            body = LedgerIdPublicationTransactionBody.parseFrom(in);
-        } catch (IOException e) {
+            body = parseProtobuf(in, LedgerIdPublicationTransactionBody::parseFrom);
+        } catch (IOException | ProtobufException e) {
             throw new IllegalStateException("Failed to parse initialLedgerIdPublication file: " + path, e);
         }
         log.info("Loaded initial ledger from {}", path);
@@ -71,8 +74,8 @@ final class NetworkLedgerLoader {
 
         final LedgerIdPublicationTransactionBody body;
         try (var in = resource.getInputStream()) {
-            body = LedgerIdPublicationTransactionBody.parseFrom(in);
-        } catch (IOException e) {
+            body = parseProtobuf(in, LedgerIdPublicationTransactionBody::parseFrom);
+        } catch (IOException | ProtobufException e) {
             throw new IllegalStateException("Failed to parse bundled network ledger: " + location, e);
         }
         log.info("Loaded initial ledger from {}", location);

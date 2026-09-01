@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.migration;
 
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 import static org.hiero.mirror.importer.reader.record.RecordFileReader.MAX_TRANSACTION_LENGTH;
 
 import com.hederahashgraph.api.proto.java.Transaction;
@@ -232,8 +233,8 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
             try (var in = new ValidatedDataInputStream(resource.getInputStream(), name)) {
                 byte[] recordBytes = in.readLengthAndBytes(1, MAX_TRANSACTION_LENGTH, false, "record");
                 byte[] transactionBytes = in.readLengthAndBytes(1, MAX_TRANSACTION_LENGTH, false, "transaction");
-                var transactionRecord = TransactionRecord.parseFrom(recordBytes);
-                var transaction = Transaction.parseFrom(transactionBytes);
+                final var transactionRecord = parseProtobuf(recordBytes, TransactionRecord::parseFrom);
+                final var transaction = parseProtobuf(transactionBytes, Transaction::parseFrom);
                 var recordItem = RecordItem.builder()
                         .transactionRecord(transactionRecord)
                         .transaction(transaction)

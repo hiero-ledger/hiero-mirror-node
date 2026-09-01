@@ -435,6 +435,24 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     @Test
+    void streamResponseExceedsMaxStreamResponseSize() {
+        // given a malicious block node which replies with a zstd bomb of 32 GB once decompressed. gRPC enforces the max
+        // inbound message size against both the compressed and the decompressed bytes, so the response is rejected
+        // mid-decompression, long before 32GB is materialized.
+        final var maxStreamResponseSize = DataSize.ofMegabytes(1);
+        streamProperties.setMaxStreamResponseSize(maxStreamResponseSize);
+        blockNodeSimulator = new BlockNodeSimulator()
+                .withBlocks(new BlockGenerator(0).next(1))
+                .withHttpChannel()
+                .withZstdBomb(DataSize.ofGigabytes(32))
+                .start();
+        node = httpBlockNode(blockNodeSimulator);
+
+        // when, then
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
+    }
+
+    @Test
     void streamTooManyBlockItems(Resources resources) {
         // given
         streamProperties.setMaxBlockItems(2);

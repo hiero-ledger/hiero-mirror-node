@@ -14,12 +14,14 @@ env:
   LC_ALL: C.UTF-8
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   sync:
     name: Sync Pages
     runs-on: hiero-mirror-node-linux-medium
+    permissions:
+      contents: write
 
     steps:
       - name: Harden Runner

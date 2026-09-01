@@ -10,8 +10,7 @@ on:
         required: true
 
 permissions:
-  contents: write
-  issues: write
+  contents: read
 
 defaults:
   run:
@@ -24,6 +23,9 @@ jobs:
   release:
     name: Release
     runs-on: hiero-mirror-node-linux-medium
+    permissions:
+      contents: write
+      issues: write
     outputs:
       create_pr: ${{ env.CREATE_PR }}
       next_version_snapshot: ${{ env.NEXT_VERSION_SNAPSHOT }}
@@ -145,6 +147,8 @@ jobs:
   create_pr:
     name: Create PR
     runs-on: hiero-mirror-node-linux-medium
+    permissions:
+      contents: write
     needs: release
     if: ${{ needs.release.outputs.create_pr == 'true' }}
     env:

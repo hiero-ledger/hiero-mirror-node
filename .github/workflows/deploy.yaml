@@ -8,8 +8,7 @@ on:
       - HelmRelease/mirror.*
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 defaults:
   run:
@@ -22,6 +21,9 @@ jobs:
   deploy:
     name: Deploy
     runs-on: hiero-mirror-node-linux-medium
+    permissions:
+      contents: write
+      pull-requests: write
     if: github.event.client_payload.severity == 'info'
     steps:
       - name: Harden Runner

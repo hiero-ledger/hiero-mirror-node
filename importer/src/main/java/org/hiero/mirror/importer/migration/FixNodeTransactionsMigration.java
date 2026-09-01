@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.migration;
 
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
+
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
 import java.io.IOException;
@@ -127,8 +129,9 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
 
     @SneakyThrows
     private RecordItem toRecordItem(NodeTransaction transaction) {
-        var protoTransaction = com.hederahashgraph.api.proto.java.Transaction.parseFrom(transaction.transactionBytes());
-        var protoRecord = TransactionRecord.parseFrom(transaction.transactionRecordBytes());
+        final var protoTransaction =
+                parseProtobuf(transaction.transactionBytes, com.hederahashgraph.api.proto.java.Transaction::parseFrom);
+        final var protoRecord = parseProtobuf(transaction.transactionRecordBytes(), TransactionRecord::parseFrom);
         return RecordItem.builder()
                 .transaction(protoTransaction)
                 .transactionRecord(protoRecord)
