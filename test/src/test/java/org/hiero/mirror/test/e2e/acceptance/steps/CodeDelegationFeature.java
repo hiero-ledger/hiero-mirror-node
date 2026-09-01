@@ -14,11 +14,9 @@ import static org.web3j.crypto.transaction.type.TransactionType.EIP7702;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
 import io.cucumber.java.Before;
-import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
-import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
 import lombok.Getter;
@@ -38,21 +36,16 @@ import org.web3j.utils.Numeric;
 @RequiredArgsConstructor
 public class CodeDelegationFeature extends AbstractFeature {
 
-    private static final long INITIAL_ACCOUNT_BALANCE = 10L;
-    private static final BigDecimal SIGNER_BALANCE = BigDecimal.valueOf(1.0);
-
     private final AccountClient accountClient;
     private final EthereumClient ethereumClient;
     private final FeatureProperties featureProperties;
     private final MirrorNodeClient mirrorClient;
 
     private ExpandedAccountId account;
-    private long authorityNonce;
     private ContractCallResponseWrapper contractCallResponse;
     private DeployedContract delegatedContract;
     private String expectedDelegationAddress;
     private AuthorizationTuple authorization;
-    private ExpandedAccountId signerAccount;
 
     @Before
     public void before() {
@@ -69,32 +62,27 @@ public class CodeDelegationFeature extends AbstractFeature {
 
     @When("I create an account with code delegation to the contract")
     public void createAccountWithCodeDelegation() {
-        account = accountClient.createNewAccountWithDelegation(
-                INITIAL_ACCOUNT_BALANCE, Numeric.hexStringToByteArray(expectedDelegationAddress));
-        networkTransactionResponse = null;
+        var created =
+                accountClient.createNewAccountWithDelegation(Numeric.hexStringToByteArray(expectedDelegationAddress));
+        account = created.account();
+        networkTransactionResponse = created.response();
         assertThat(account).isNotNull();
         assertThat(account.getAccountId()).isNotNull();
-    }
-
-    @And("I create a signer account and an authority account")
-    public void createSignerAndAuthorityAccounts() {
-        signerAccount = accountClient.createNewEcdsaAccount(SIGNER_BALANCE);
-        account = accountClient.createNewEcdsaAccount(SIGNER_BALANCE);
-        assertThat(signerAccount).isNotNull();
-        assertThat(account).isNotNull();
-
-        expectedDelegationAddress =
-                toDelegationAddress(delegatedContract.contractId().toEvmAddress());
-        var accountInfo = mirrorClient.getAccountDetailsByAccountId(account.getAccountId());
-        authorityNonce = accountInfo.getEthereumNonce() == null ? 0L : accountInfo.getEthereumNonce();
+        assertThat(networkTransactionResponse.getTransactionId()).isNotNull();
+        assertThat(networkTransactionResponse.getReceipt()).isNotNull();
     }
 
     @When("I execute pureMultiply on the authority using an EIP-7702 ethereum transaction")
     public void executeDelegatedAccountViaEip7702() {
+        var accountInfo = mirrorClient.getAccountDetailsByAccountId(account.getAccountId());
+        var authorityNonce = accountInfo.getEthereumNonce() == null ? 0L : accountInfo.getEthereumNonce();
+        // Self-sponsored EIP-7702: the transaction increments the sender nonce before
+        // authorizations are applied, so the authorization must use nonce + 1.
+        var authorizationNonce = authorityNonce + 1;
         authorization = ethereumClient.createAuthorization(
-                account, delegatedContract.contractId().toEvmAddress(), authorityNonce);
+                account, delegatedContract.contractId().toEvmAddress(), authorizationNonce);
         var result = ethereumClient.executeContract(
-                signerAccount.getPrivateKey(),
+                account.getPrivateKey(),
                 evmAddress(account),
                 PURE_MULTIPLY.getSelector(),
                 null,
@@ -134,21 +122,6 @@ public class CodeDelegationFeature extends AbstractFeature {
         assertQuantityHexEquals(restAuthorization.getyParity(), authorization.getYParity());
         assertThat(restAuthorization.getR()).isEqualToIgnoringCase(toPaddedHex(authorization.getR()));
         assertThat(restAuthorization.getS()).isEqualToIgnoringCase(toPaddedHex(authorization.getS()));
-    }
-
-    @And("I create a new account without code delegation")
-    public void createAccountWithoutCodeDelegation() {
-        account = accountClient.createNewAccount(INITIAL_ACCOUNT_BALANCE);
-        assertThat(account).isNotNull();
-        assertThat(account.getAccountId()).isNotNull();
-    }
-
-    @When("I update the account with code delegation to the contract")
-    public void updateAccountWithCodeDelegation() {
-        networkTransactionResponse = accountClient.setAccountDelegationAddress(
-                account, Numeric.hexStringToByteArray(expectedDelegationAddress));
-        assertThat(networkTransactionResponse.getTransactionId()).isNotNull();
-        assertThat(networkTransactionResponse.getReceipt()).isNotNull();
     }
 
     @When("I clear the code delegation on the account")
@@ -255,13 +228,12 @@ public class CodeDelegationFeature extends AbstractFeature {
         return hex.toLowerCase();
     }
 
-    private static String toQuantityHex(BigInteger value) {
-        return HEX_PREFIX + value.toString(16);
+    private static void assertQuantityHexEquals(String actual, BigInteger expected) {
+        assertThat(Numeric.toBigInt(quantityOrZero(actual))).isEqualTo(expected);
     }
 
-    private static void assertQuantityHexEquals(String actual, BigInteger expected) {
-        var normalized = actual == null || actual.equals(HEX_PREFIX) ? HEX_PREFIX + "0" : actual;
-        assertThat(normalized).isEqualToIgnoringCase(toQuantityHex(expected));
+    private static String quantityOrZero(String hex) {
+        return hex == null || hex.equals(HEX_PREFIX) ? HEX_PREFIX + "0" : hex;
     }
 
     private static String toPaddedHex(BigInteger value) {

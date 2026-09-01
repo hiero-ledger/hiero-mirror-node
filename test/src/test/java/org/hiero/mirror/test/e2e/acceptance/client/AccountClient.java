@@ -32,7 +32,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import lombok.CustomLog;
-import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
@@ -139,7 +138,10 @@ public class AccountClient extends AbstractNetworkClient {
 
         ExpandedAccountId accountId = accountMap.computeIfAbsent(accountNameEnum, x -> {
             try {
-                return createNewAccount(acceptanceTestProperties.getChildAccountBalance(), accountNameEnum);
+                var balance = accountNameEnum.initialBalance != null
+                        ? accountNameEnum.initialBalance
+                        : acceptanceTestProperties.getChildAccountBalance();
+                return createNewAccount(balance, accountNameEnum);
             } catch (Exception e) {
                 log.warn("Issue creating additional account: {}", accountNameEnum, e);
                 return null;
@@ -269,27 +271,25 @@ public class AccountClient extends AbstractNetworkClient {
     public ExpandedAccountId createNewAccount(long initialBalance) {
         // By default, use ALICE's key type if not specified->ED25519
         Key.KeyCase keyType = AccountNameEnum.ALICE.keyType;
-        return createCryptoAccount(Hbar.fromTinybars(initialBalance), false, null, keyType, null);
-    }
-
-    public ExpandedAccountId createNewAccountWithDelegation(long initialBalance, byte[] delegationAddress) {
-        return createCryptoAccount(
-                Hbar.fromTinybars(initialBalance), false, null, Key.KeyCase.ECDSA_SECP256K1, delegationAddress);
-    }
-
-    public ExpandedAccountId createNewEcdsaAccount(final BigDecimal initialBalance) {
-        return createCryptoAccount(sdkClient.convert(initialBalance), false, null, Key.KeyCase.ECDSA_SECP256K1, null);
+        return createCryptoAccount(Hbar.fromTinybars(initialBalance), false, null, keyType, null)
+                .account();
     }
 
     public ExpandedAccountId createNewAccount(final BigDecimal initialBalance, final AccountNameEnum accountNameEnum) {
         // Get the keyType from the enum
         Key.KeyCase keyType = accountNameEnum.keyType;
         return createCryptoAccount(
-                sdkClient.convert(initialBalance),
-                accountNameEnum.receiverSigRequired,
-                accountNameEnum.name(),
-                keyType,
-                null);
+                        sdkClient.convert(initialBalance),
+                        accountNameEnum.receiverSigRequired,
+                        accountNameEnum.name(),
+                        keyType,
+                        null)
+                .account();
+    }
+
+    public CreatedAccount createNewAccountWithDelegation(byte[] delegationAddress) {
+        return createCryptoAccount(
+                sdkClient.convert(BigDecimal.ONE), false, null, Key.KeyCase.ECDSA_SECP256K1, delegationAddress);
     }
 
     public NetworkTransactionResponse setAccountDelegationAddress(
@@ -297,7 +297,7 @@ public class AccountClient extends AbstractNetworkClient {
         return updateAccount(accountId, transaction -> transaction.setDelegationAddress(delegationAddress));
     }
 
-    private ExpandedAccountId createCryptoAccount(
+    private CreatedAccount createCryptoAccount(
             Hbar initialBalance,
             boolean receiverSigRequired,
             String memo,
@@ -354,7 +354,7 @@ public class AccountClient extends AbstractNetworkClient {
                 response.getStopwatch());
         var accountId = new ExpandedAccountId(newAccountId, privateKey);
         accountIds.add(accountId);
-        return accountId;
+        return new CreatedAccount(accountId, response);
     }
 
     public NetworkTransactionResponse approveCryptoAllowance(AccountId spender, Hbar hbarAmount) {
@@ -544,10 +544,11 @@ public class AccountClient extends AbstractNetworkClient {
         return response;
     }
 
-    @RequiredArgsConstructor
+    public record CreatedAccount(ExpandedAccountId account, NetworkTransactionResponse response) {}
+
     public enum AccountNameEnum {
         ALICE(false, Key.KeyCase.ED25519),
-        BOB(true, Key.KeyCase.ECDSA_SECP256K1),
+        BOB(true, Key.KeyCase.ECDSA_SECP256K1, BigDecimal.ONE),
         // used in token.feature
         CAROL(false, Key.KeyCase.ED25519),
         DAVE(false, Key.KeyCase.ED25519),
@@ -557,6 +558,17 @@ public class AccountClient extends AbstractNetworkClient {
 
         private final boolean receiverSigRequired;
         private final Key.KeyCase keyType;
+        private final BigDecimal initialBalance;
+
+        AccountNameEnum(boolean receiverSigRequired, Key.KeyCase keyType) {
+            this(receiverSigRequired, keyType, null);
+        }
+
+        AccountNameEnum(boolean receiverSigRequired, Key.KeyCase keyType, BigDecimal initialBalance) {
+            this.receiverSigRequired = receiverSigRequired;
+            this.keyType = keyType;
+            this.initialBalance = initialBalance;
+        }
 
         static Optional<AccountNameEnum> of(String name) {
             try {
