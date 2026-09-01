@@ -11,6 +11,7 @@ import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransacti
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS_RAW;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY_RAW;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.withEmptyStringAccessList;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
@@ -56,12 +57,8 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     static final byte[] EIP7702_RAW_TX = encodeEip7702Transaction(DEFAULT_ACCESS_LIST, DEFAULT_AUTHORIZATION_LIST);
     static final byte[] EIP7702_RAW_TX_EMPTY_ACCESS_LIST =
             encodeEip7702Transaction(List.of(), DEFAULT_AUTHORIZATION_LIST);
-    static final byte[] EIP7702_RAW_TX_EMPTY_STRING_ACCESS_LIST =
-            encodeEip7702Transaction(new byte[0], DEFAULT_AUTHORIZATION_LIST);
     static final byte[] EIP7702_RAW_TX_EMPTY_ACCESS_LIST_CALL_DATA_OFFLOADED =
             encodeEip7702Transaction(List.of(), DEFAULT_AUTHORIZATION_LIST, new byte[0]);
-    static final byte[] EIP7702_RAW_TX_EMPTY_STRING_ACCESS_LIST_CALL_DATA_OFFLOADED =
-            encodeEip7702Transaction(new byte[0], DEFAULT_AUTHORIZATION_LIST, new byte[0]);
 
     public Eip7702EthereumTransactionParserTest(Eip7702EthereumTransactionParser ethereumTransactionParser) {
         super(ethereumTransactionParser);
@@ -82,7 +79,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     @Test
     void decodeEmptyStringAccessList() {
         final var ethereumTransaction =
-                ethereumTransactionParser.decode(encodeEip7702Transaction(new byte[0], DEFAULT_AUTHORIZATION_LIST));
+                ethereumTransactionParser.decode(withEmptyStringAccessList(EIP7702_RAW_TX_EMPTY_ACCESS_LIST));
         validateEthereumTransaction(ethereumTransaction, List.of(), true);
     }
 
@@ -99,7 +96,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     @Test
     void emptyListAndEmptyStringAccessListProduceSameHash() {
         assertEmptyAccessListFormatsProduceSameHash(
-                EIP7702_RAW_TX_EMPTY_ACCESS_LIST, EIP7702_RAW_TX_EMPTY_STRING_ACCESS_LIST);
+                EIP7702_RAW_TX_EMPTY_ACCESS_LIST, withEmptyStringAccessList(EIP7702_RAW_TX_EMPTY_ACCESS_LIST));
     }
 
     @Test

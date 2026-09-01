@@ -63,6 +63,34 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
     }
 
     @ParameterizedTest
+    @MethodSource("accessListAddressesToPad")
+    void encodeAccessListPadsAddress(String address, String expectedHex) {
+        final var encoded =
+                AbstractEthereumTransactionParser.encodeAccessList(List.of(new AccessList(address, List.of())));
+
+        assertThat(encoded).singleElement().satisfies(entry -> {
+            assertThat((byte[]) entry.getFirst()).isEqualTo(HexFormat.of().parseHex(expectedHex));
+            assertThat(entry.get(1)).isEqualTo(List.of());
+        });
+    }
+
+    @Test
+    void encodeAccessListPadsAddressAndPreservesStorageKeys() {
+        final var encoded = AbstractEthereumTransactionParser.encodeAccessList(
+                List.of(new AccessList("0x1", List.of(ACCESS_LIST_STORAGE_KEY, SECOND_ACCESS_LIST_STORAGE_KEY))));
+
+        assertThat(encoded).singleElement().satisfies(entry -> {
+            assertThat((byte[]) entry.getFirst()).isEqualTo(HexFormat.of().parseHex(PADDED_ADDRESS.substring(2)));
+            assertThat((List<?>) entry.get(1))
+                    .satisfiesExactly(
+                            key -> assertThat((byte[]) key)
+                                    .isEqualTo(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY_RAW)),
+                            key -> assertThat((byte[]) key)
+                                    .isEqualTo(HexFormat.of().parseHex(SECOND_ACCESS_LIST_STORAGE_KEY_RAW)));
+        });
+    }
+
+    @ParameterizedTest
     @MethodSource("accessListTransactionTypes")
     void parseEmptyAccessList(String transactionType) {
         final var accessList = parseAccessList(List.of(), transactionType);
@@ -191,6 +219,22 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
 
     private static Stream<Arguments> accessListTransactionTypes() {
         return Stream.of(Arguments.of("EIP1559"), Arguments.of("EIP2930"), Arguments.of("EIP7702"));
+    }
+
+    private static Stream<Arguments> accessListAddressesToPad() {
+        final var one = PADDED_ADDRESS.substring(2);
+        final var abc = "0000000000000000000000000000000000000abc";
+        return Stream.of(
+                Arguments.of("0x1", one),
+                Arguments.of("0x01", one),
+                Arguments.of("1", one),
+                Arguments.of("01", one),
+                Arguments.of(PADDED_ADDRESS, one),
+                Arguments.of(one, one),
+                Arguments.of("0xabc", abc),
+                Arguments.of("abc", abc),
+                Arguments.of(ACCESS_LIST_ADDRESS, ACCESS_LIST_ADDRESS_RAW),
+                Arguments.of(ACCESS_LIST_ADDRESS_RAW, ACCESS_LIST_ADDRESS_RAW));
     }
 
     private static String decodeError(String transactionType, String detail) {

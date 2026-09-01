@@ -8,7 +8,6 @@ import static org.hiero.mirror.common.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.hiero.mirror.importer.parser.record.ethereum.Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX_EMPTY_ACCESS_LIST;
 import static org.hiero.mirror.importer.parser.record.ethereum.Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX_EMPTY_ACCESS_LIST_CALL_DATA_OFFLOADED;
-import static org.hiero.mirror.importer.parser.record.ethereum.Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX_EMPTY_STRING_ACCESS_LIST_CALL_DATA_OFFLOADED;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.EIP_2930_RAW_TX_WITH_ACCESS_LIST;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.EIP_2930_RAW_TX_WITH_ACCESS_LIST_CALL_DATA_OFFLOADED;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.LONDON_RAW_TX_CALL_DATA_OFFLOADED;
@@ -265,7 +264,7 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
                 Arguments.of(
                         EIP7702_RAW_TX_EMPTY_ACCESS_LIST,
                         EIP7702_RAW_TX_EMPTY_ACCESS_LIST_CALL_DATA_OFFLOADED,
-                        EIP7702_RAW_TX_EMPTY_STRING_ACCESS_LIST_CALL_DATA_OFFLOADED,
+                        withEmptyStringAccessList(EIP7702_RAW_TX_EMPTY_ACCESS_LIST_CALL_DATA_OFFLOADED),
                         RAW_TX_TYPE_1_CALL_DATA));
     }
 

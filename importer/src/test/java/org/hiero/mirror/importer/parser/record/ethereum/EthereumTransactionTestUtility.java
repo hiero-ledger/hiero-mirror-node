@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.record.ethereum;
 
 import com.esaulpaugh.headlong.rlp.RLPDecoder;
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
+import com.esaulpaugh.headlong.rlp.RLPItem;
 import com.esaulpaugh.headlong.util.Integers;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -169,20 +170,39 @@ public class EthereumTransactionTestUtility {
     }
 
     /**
-     * Replaces the access list of a typed transaction (the field before y, r, s) with an empty RLP string.
+     * Replaces the access list with an empty RLP string. The access list is the first field after call data: index 7
+     * for EIP-2930, index 8 for EIP-1559 and EIP-7702.
      */
     public static byte[] withEmptyStringAccessList(byte[] transactionBytes) {
         final var decoder = RLPDecoder.RLP_STRICT.sequenceIterator(transactionBytes);
-        final var type = decoder.next().data();
+        final var type = decoder.next();
         final var items = decoder.next().asRLPList().elements();
+        final int accessListIndex = accessListIndex(type.asByte());
         final var rebuilt = new ArrayList<>(items.size());
         for (int i = 0; i < items.size(); i++) {
-            if (i == items.size() - 4) {
-                rebuilt.add(new byte[0]);
-            } else {
-                rebuilt.add(items.get(i).data());
-            }
+            rebuilt.add(i == accessListIndex ? new byte[0] : asEncodable(items.get(i)));
         }
-        return RLPEncoder.sequence(type, rebuilt);
+        return RLPEncoder.sequence(type.data(), rebuilt);
+    }
+
+    private static int accessListIndex(byte type) {
+        return switch (type) {
+            case Eip2930EthereumTransactionParser.EIP2930_TYPE_BYTE -> 7;
+            case Eip1559EthereumTransactionParser.EIP1559_TYPE_BYTE,
+                    Eip7702EthereumTransactionParser.EIP7702_TYPE_BYTE -> 8;
+            default -> throw new IllegalArgumentException("Unsupported ethereum transaction type: " + type);
+        };
+    }
+
+    private static Object asEncodable(RLPItem item) {
+        if (!item.isList()) {
+            return item.data();
+        }
+        final var elements = item.asRLPList().elements();
+        final var encoded = new ArrayList<>(elements.size());
+        for (final var element : elements) {
+            encoded.add(asEncodable(element));
+        }
+        return encoded;
     }
 }

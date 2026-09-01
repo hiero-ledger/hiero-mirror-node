@@ -113,12 +113,17 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
 
         final var encoded = new ArrayList<List<Object>>(accessList.size());
         for (final var entry : accessList) {
-            final var storageKeys = CollectionUtils.isEmpty(entry.getStorageKeys())
-                    ? List.<byte[]>of()
-                    : entry.getStorageKeys().stream()
-                            .map(AbstractEthereumTransactionParser::decodeHex)
-                            .toList();
-            encoded.add(List.of(decodeHex(entry.getAddress()), storageKeys));
+            final var entryStorageKeys = entry.getStorageKeys();
+            final List<byte[]> storageKeys;
+            if (CollectionUtils.isEmpty(entryStorageKeys)) {
+                storageKeys = List.of();
+            } else {
+                storageKeys = new ArrayList<>(entryStorageKeys.size());
+                for (final var key : entryStorageKeys) {
+                    storageKeys.add(decodeHex(key, 64));
+                }
+            }
+            encoded.add(List.of(decodeHex(entry.getAddress(), 40), storageKeys));
         }
         return encoded;
     }
@@ -129,12 +134,13 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
         return Integers.toBytesUnsigned(new BigInteger(ethereumTransaction.getValue()));
     }
 
-    private static byte[] decodeHex(String hex) {
-        var stripped = hex.startsWith(HEX_PREFIX) ? hex.substring(HEX_PREFIX.length()) : hex;
-        if (stripped.length() % 2 != 0) {
-            stripped = "0" + stripped;
+    private static byte[] decodeHex(String hex, int minLength) {
+        final int start = hex.startsWith(HEX_PREFIX) ? HEX_PREFIX.length() : 0;
+        final int length = hex.length() - start;
+        if (length >= minLength && length % 2 == 0) {
+            return HexFormat.of().parseHex(hex, start, hex.length());
         }
-        return HexFormat.of().parseHex(stripped);
+        return HexFormat.of().parseHex(StringUtils.leftPad(hex.substring(start), Math.max(minLength, length + 1), '0'));
     }
 
     private static byte[] getHash(byte[] rawBytes) {
