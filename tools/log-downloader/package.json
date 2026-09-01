@@ -5,7 +5,7 @@
   "main": "index.js",
   "private": true,
   "engines": {
-    "node": ">=24.19.0 <25"
+    "node": ">=24.20.0 <25"
   },
   "scripts": {
     "start": "node index.js"
@@ -18,16 +18,16 @@
     "yargs": "18.1.0"
   },
   "peerDependencies": {
-    "ansi-regex": "6.2.2",
+    "ansi-regex": "6.3.0",
     "ansi-styles": "7.0.0",
     "debug": "4.4.3",
     "strip-ansi": "7.2.0",
-    "wrap-ansi": "10.0.0"
+    "wrap-ansi": "10.0.1"
   },
   "overrides": {
     "@tootallnate/once": "3.0.1",
-    "protobufjs": "8.7.1",
-    "uuid": "14.0.1"
+    "protobufjs": "8.8.0",
+    "uuid": "14.0.2"
   },
   "type": "module"
 }

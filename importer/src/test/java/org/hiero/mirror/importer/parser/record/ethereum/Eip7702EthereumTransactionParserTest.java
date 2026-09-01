@@ -11,6 +11,7 @@ import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransacti
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS_RAW;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY_RAW;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.withEmptyStringAccessList;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
@@ -54,6 +55,10 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
             HexFormat.of().parseHex(SIGNATURE_S_HEX)));
 
     static final byte[] EIP7702_RAW_TX = encodeEip7702Transaction(DEFAULT_ACCESS_LIST, DEFAULT_AUTHORIZATION_LIST);
+    static final byte[] EIP7702_RAW_TX_EMPTY_ACCESS_LIST =
+            encodeEip7702Transaction(List.of(), DEFAULT_AUTHORIZATION_LIST);
+    static final byte[] EIP7702_RAW_TX_EMPTY_ACCESS_LIST_CALL_DATA_OFFLOADED =
+            encodeEip7702Transaction(List.of(), DEFAULT_AUTHORIZATION_LIST, new byte[0]);
 
     public Eip7702EthereumTransactionParserTest(Eip7702EthereumTransactionParser ethereumTransactionParser) {
         super(ethereumTransactionParser);
@@ -69,6 +74,37 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         final var ethereumTransaction =
                 ethereumTransactionParser.decode(encodeEip7702Transaction(List.of(), DEFAULT_AUTHORIZATION_LIST));
         validateEthereumTransaction(ethereumTransaction, List.of(), true);
+    }
+
+    @Test
+    void decodeEmptyStringAccessList() {
+        final var ethereumTransaction =
+                ethereumTransactionParser.decode(withEmptyStringAccessList(EIP7702_RAW_TX_EMPTY_ACCESS_LIST));
+        validateEthereumTransaction(ethereumTransaction, List.of(), true);
+    }
+
+    @Test
+    void encodePreservesHashWithAccessList() {
+        assertEncodeProducesOriginalHash(EIP7702_RAW_TX);
+    }
+
+    @Test
+    void encodePreservesHashWithEmptyAccessList() {
+        assertEncodeProducesOriginalHash(encodeEip7702Transaction(List.of(), DEFAULT_AUTHORIZATION_LIST));
+    }
+
+    @Test
+    void emptyListAndEmptyStringAccessListProduceSameHash() {
+        assertEmptyAccessListFormatsProduceSameHash(
+                EIP7702_RAW_TX_EMPTY_ACCESS_LIST, withEmptyStringAccessList(EIP7702_RAW_TX_EMPTY_ACCESS_LIST));
+    }
+
+    @Test
+    void getHashWithOffloadedCallDataAndAccessList() {
+        assertGetHashWithOffloadedCallData(
+                EIP7702_RAW_TX,
+                encodeEip7702Transaction(DEFAULT_ACCESS_LIST, DEFAULT_AUTHORIZATION_LIST, new byte[0]),
+                CALL_DATA_HEX);
     }
 
     @Test
@@ -324,7 +360,11 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         }
     }
 
-    private static byte[] encodeEip7702Transaction(List<?> accessList, List<?> authorizationList) {
+    private static byte[] encodeEip7702Transaction(Object accessList, List<?> authorizationList) {
+        return encodeEip7702Transaction(accessList, authorizationList, Hex.decode(CALL_DATA_HEX));
+    }
+
+    private static byte[] encodeEip7702Transaction(Object accessList, List<?> authorizationList, byte[] callData) {
         return RLPEncoder.sequence(
                 Integers.toBytes(4),
                 List.of(
@@ -335,7 +375,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
                         Integers.toBytes(GAS_LIMIT),
                         Hex.decode(TO_ADDRESS_HEX),
                         Hex.decode(VALUE_HEX),
-                        Hex.decode(CALL_DATA_HEX),
+                        callData,
                         accessList,
                         authorizationList,
                         Integers.toBytes(1),

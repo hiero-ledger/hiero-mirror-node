@@ -76,9 +76,9 @@ public class MirrorOperationActionTracer implements ActionSidecarContentTracer {
                         ? frame.getCurrentOperation().getName()
                         : StringUtils.EMPTY,
                 frame.getDepth(),
-                frame.getContractAddress().toShortHexString(),
-                frame.getSenderAddress().toShortHexString(),
-                frame.getRecipientAddress().toShortHexString(),
+                frame.getContractAddress().getBytes().toShortHexString(),
+                frame.getSenderAddress().getBytes().toShortHexString(),
+                frame.getRecipientAddress().getBytes().toShortHexString(),
                 frame.getRemainingGas(),
                 frame.getRevertReason()
                         .orElse(org.apache.tuweni.bytes.Bytes.EMPTY)

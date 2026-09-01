@@ -18,12 +18,12 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.40.1")
-    set("consensusNodeVersion", "0.76.2")
+    set("consensusNodeVersion", "0.77.0-rc.11")
     set("jackson-bom.version", "3.2.2") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.2") // Temporary until next Spring Boot
     set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
-    set("nodeJsVersion", "24.19.0")
+    set("nodeJsVersion", "24.20.0")
     set("tuweniVersion", "2.3.1")
 }
 
@@ -52,7 +52,7 @@ dependencies {
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.77.0")
+        api("com.hedera.hashgraph:sdk:2.78.0-beta.1")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
@@ -73,6 +73,7 @@ dependencies {
         api("org.gaul:s3proxy:4.0.0")
         api("org.graalvm.nativeimage:svm:25.0.4.1")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
+        api("org.hyperledger.besu.internal:besu-crypto-algorithms:$besuVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
         api("org.hyperledger.besu:evm:$besuVersion")

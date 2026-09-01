@@ -22,7 +22,7 @@ public final class EntityIdUtils {
     }
 
     public static AccountID accountIdFromEvmAddress(final Address address) {
-        return accountIdFromEvmAddress(address.toArrayUnsafe());
+        return accountIdFromEvmAddress(address.getBytes().toArrayUnsafe());
     }
 
     public static AccountID accountIdFromEvmAddress(final byte[] bytes) {
@@ -38,7 +38,7 @@ public final class EntityIdUtils {
     }
 
     public static ContractID contractIdFromEvmAddress(final Address address) {
-        return contractIdFromEvmAddress(address.toArrayUnsafe());
+        return contractIdFromEvmAddress(address.getBytes().toArrayUnsafe());
     }
 
     public static Address asTypedEvmAddress(final ContractID id) {
@@ -142,7 +142,7 @@ public final class EntityIdUtils {
     }
 
     public static com.hedera.hapi.node.base.ContractID toContractID(final Address address) {
-        var entity = fromEvmAddress(address.toArrayUnsafe());
+        var entity = fromEvmAddress(address.getBytes().toArrayUnsafe());
         return entity == null
                 ? null
                 : com.hedera.hapi.node.base.ContractID.newBuilder()

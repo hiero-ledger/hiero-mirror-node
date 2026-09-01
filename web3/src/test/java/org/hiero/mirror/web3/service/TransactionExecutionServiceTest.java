@@ -676,7 +676,8 @@ class TransactionExecutionServiceTest {
                     .build();
 
             final var aliasKey = ProtoBytes.newBuilder()
-                    .value(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(sender.toArrayUnsafe()))
+                    .value(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
+                            sender.getBytes().toArrayUnsafe()))
                     .build();
 
             when(aliasesReadableKVState.get(aliasKey)).thenReturn(accountID);
@@ -715,7 +716,8 @@ class TransactionExecutionServiceTest {
                     .build();
 
             final var aliasKey = ProtoBytes.newBuilder()
-                    .value(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(sender.toArrayUnsafe()))
+                    .value(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
+                            sender.getBytes().toArrayUnsafe()))
                     .build();
 
             when(aliasesReadableKVState.get(aliasKey)).thenReturn(accountID);

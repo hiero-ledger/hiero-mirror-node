@@ -104,7 +104,7 @@ public class ContractCallContext {
     public boolean validatePayerBalance() {
         if (callServiceParameters == null
                 || callServiceParameters.getSender() == null
-                || callServiceParameters.getSender().isZero()) {
+                || callServiceParameters.getSender().getBytes().isZero()) {
             return false;
         }
 

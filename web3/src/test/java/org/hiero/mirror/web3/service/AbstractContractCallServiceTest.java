@@ -49,6 +49,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
+import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.Nft;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenAccount;
@@ -283,6 +284,15 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected ContractExecutionParameters getContractExecutionParameters(
             final RemoteFunctionCall<?> functionCall, final Contract contract) {
         return getContractExecutionParameters(functionCall, contract, Address.ZERO, 0L);
+    }
+
+    protected ContractExecutionParameters getContractExecutionParameters(
+            final Bytes bytesHex,
+            final Address receiver,
+            final Address payerAddress,
+            final long value,
+            final CallType callType) {
+        return getContractExecutionParameters(String.valueOf(bytesHex), receiver, payerAddress, value, callType);
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
@@ -740,6 +750,24 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return domainBuilder
                 .entity()
                 .customize(e -> e.key(null).maxAutomaticTokenAssociations(10).receiverSigRequired(false))
+                .persist();
+    }
+
+    protected Entity scheduleEntityPersist() {
+        return domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.SCHEDULE))
+                .persist();
+    }
+
+    protected Schedule schedulePersist(
+            final Entity scheduleEntity, final Entity payerAccount, final byte[] transactionBody) {
+        return domainBuilder
+                .schedule()
+                .customize(e -> e.scheduleId(scheduleEntity.toEntityId().getId())
+                        .transactionBody(transactionBody)
+                        .payerAccountId(payerAccount.toEntityId())
+                        .creatorAccountId(payerAccount.toEntityId()))
                 .persist();
     }
 

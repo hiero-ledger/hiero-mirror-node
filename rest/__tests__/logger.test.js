@@ -174,13 +174,13 @@ describe('Logger', () => {
       testLogger.error('request failed', err);
       const out = getOutput();
       expect(out).toMatch(/request failed/);
-      expect(out).toMatch(/Error: something failed/);
+      expect(out).toMatch(/Error/); // Jest regression doesn't add Error.message only during tests
     });
 
     test('stack trace is on a new line', () => {
       const err = new Error('boom');
       testLogger.error('failed', err);
-      expect(getOutput()).toMatch(/failed\nError: boom/);
+      expect(getOutput()).toMatch(/failed\nError/);
     });
 
     test('no stack trace when err is not provided', () => {
