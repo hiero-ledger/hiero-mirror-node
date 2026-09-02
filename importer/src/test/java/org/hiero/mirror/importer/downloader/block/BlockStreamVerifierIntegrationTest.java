@@ -214,6 +214,32 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
                         "No record file signatures for the wrapped record block 2025-06-01T00_00_10.207594022Z.rcd with block number 20346052");
     }
 
+    @Test
+    void verifyWithAmendments() {
+        // given
+        final var blockFile = createBlockFileWithWrb();
+        blockFile.getRecordFile().setAmended(true);
+
+        // when, then
+        assertThatThrownBy(() -> verifier.verify(blockFile))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage(
+                        "Verification of amendments in wrapped record block 2025-06-01T00_00_10.207594022Z.rcd with block number 20346052 is not supported");
+    }
+
+    @Test
+    void verifyWithInitialState() {
+        // given
+        final var blockFile = createBlockFileWithWrb();
+        blockFile.getRecordFile().setInitialState(new RecordFile.InitialState());
+
+        // when, then
+        assertThatThrownBy(() -> verifier.verify(blockFile))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage(
+                        "Verification of initial state in wrapped record block 2025-06-01T00_00_10.207594022Z.rcd with block number 20346052 is not supported");
+    }
+
     private void persistNodeStakes() {
         for (int i = 0; i < 4; i++) {
             final long nodeId = i;

@@ -269,9 +269,21 @@ final class BlockStreamVerifier {
     }
 
     private void verifyWrappedRecordBlockSignature(final BlockFile blockFile) {
+        final var recordFile = blockFile.getRecordFile();
+        if (recordFile.isAmended()) {
+            throw new InvalidStreamFileException(
+                    "Verification of amendments in wrapped record block %s with block number %d is not supported"
+                            .formatted(recordFile.getName(), recordFile.getIndex()));
+        }
+
+        if (recordFile.getInitialState() != null) {
+            throw new InvalidStreamFileException(
+                    "Verification of initial state in wrapped record block %s with block number %d is not supported"
+                            .formatted(recordFile.getName(), recordFile.getIndex()));
+        }
+
         final var recordFileSignatures =
                 blockFile.getBlockProof().getSignedRecordFileProof().getRecordFileSignaturesList();
-        final var recordFile = blockFile.getRecordFile();
         if (recordFileSignatures.isEmpty()) {
             throw new InvalidStreamFileException(
                     "No record file signatures for the wrapped record block %s with block number %d"
