@@ -1294,6 +1294,59 @@ describe('Utils toHexStringNonQuantity and toHexStringQuantity tests', () => {
   });
 });
 
+describe('Utils padAccessList tests', () => {
+  const paddedAddress = '0x0000000000000000000000000000000000000001';
+  const paddedStorageKey = '0x0000000000000000000000000000000000000000000000000000000000000081';
+
+  test('pads short address and storage keys', () => {
+    expect(
+      utils.padAccessList([
+        {
+          address: '0x01',
+          storage_keys: ['0x81'],
+        },
+      ])
+    ).toEqual([
+      {
+        address: paddedAddress,
+        storage_keys: [paddedStorageKey],
+      },
+    ]);
+  });
+
+  test('pads values without 0x prefix', () => {
+    expect(
+      utils.padAccessList([
+        {
+          address: '01',
+          storage_keys: ['81'],
+        },
+      ])
+    ).toEqual([
+      {
+        address: paddedAddress,
+        storage_keys: [paddedStorageKey],
+      },
+    ]);
+  });
+
+  test('leaves already padded values unchanged', () => {
+    const accessList = [
+      {
+        address: paddedAddress,
+        storage_keys: [paddedStorageKey],
+      },
+    ];
+    expect(utils.padAccessList(accessList)).toEqual(accessList);
+  });
+
+  test('returns empty array for null, undefined, or empty list', () => {
+    expect(utils.padAccessList(null)).toEqual([]);
+    expect(utils.padAccessList(undefined)).toEqual([]);
+    expect(utils.padAccessList([])).toEqual([]);
+  });
+});
+
 describe('Utils padAuthorizationList tests', () => {
   const paddedAddress = '0x0000000000000000000000000000000000000001';
   const paddedR = '0x00000000000000000000000000000000000000000000000000000000000000ab';

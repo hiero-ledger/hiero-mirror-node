@@ -320,6 +320,34 @@ describe('ContractResultDetailsViewModel', () => {
       ]);
     });
 
+    test('pads short access list address and storage keys', () => {
+      const ethTransaction = {
+        ...mockEthTransaction,
+        accessList: [
+          {
+            address: '0x01',
+            storage_keys: ['0x81'],
+          },
+        ],
+      };
+
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult,
+        mockRecordFile,
+        ethTransaction,
+        [],
+        [],
+        null
+      );
+
+      expect(viewModel.access_list).toEqual([
+        {
+          address: '0x0000000000000000000000000000000000000001',
+          storage_keys: ['0x0000000000000000000000000000000000000000000000000000000000000081'],
+        },
+      ]);
+    });
+
     test('returns empty array when accessList is null', () => {
       const ethTransaction = new EthereumTransaction(mockEthTransaction);
 

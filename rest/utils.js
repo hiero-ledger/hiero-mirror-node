@@ -1106,11 +1106,33 @@ const toHexStringNonQuantity = (byteArray) => {
   return toHexString(byteArray, true, 2);
 };
 
-const padAuthorizationHex = (hex, padLength) => {
+const padHex = (hex, padLength) => {
   if (hex == null) {
     return hex;
   }
   return constants.HEX_PREFIX + stripHexPrefix(hex).padStart(padLength, '0');
+};
+
+/**
+ * Left-pads access list address to 20 bytes and storage keys to 32 bytes for REST responses.
+ * @param {Array|null|undefined} accessList
+ * @return {Array}
+ */
+const padAccessList = (accessList) => {
+  if (!Array.isArray(accessList) || accessList.length === 0) {
+    return accessList ?? [];
+  }
+
+  return accessList.map((entry) => {
+    const storageKeys = entry.storage_keys ?? entry.storageKeys;
+    return {
+      ...entry,
+      address: padHex(entry.address, constants.EVM_ADDRESS_LENGTH * 2),
+      storage_keys: Array.isArray(storageKeys)
+        ? storageKeys.map((key) => padHex(key, constants.ETH_HASH_LENGTH * 2))
+        : storageKeys,
+    };
+  });
 };
 
 /**
@@ -1125,9 +1147,9 @@ const padAuthorizationList = (authorizationList) => {
 
   return authorizationList.map((authorization) => ({
     ...authorization,
-    address: padAuthorizationHex(authorization.address, constants.EVM_ADDRESS_LENGTH * 2),
-    r: padAuthorizationHex(authorization.r, constants.ETH_HASH_LENGTH * 2),
-    s: padAuthorizationHex(authorization.s, constants.ETH_HASH_LENGTH * 2),
+    address: padHex(authorization.address, constants.EVM_ADDRESS_LENGTH * 2),
+    r: padHex(authorization.r, constants.ETH_HASH_LENGTH * 2),
+    s: padHex(authorization.s, constants.ETH_HASH_LENGTH * 2),
   }));
 };
 
@@ -1884,6 +1906,7 @@ export {
   parseTokenBalances,
   randomString,
   resultSuccess,
+  padAccessList,
   padAuthorizationList,
   toHexString,
   toHexStringNonQuantity,
