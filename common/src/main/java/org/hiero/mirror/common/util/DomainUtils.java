@@ -49,6 +49,7 @@ public class DomainUtils {
     public static final ByteString EMPTY_BYTE_STRING = ByteString.EMPTY;
     public static final int EVM_ADDRESS_LENGTH = 20;
     public static final long NANOS_PER_SECOND = 1_000_000_000L;
+    public static final char NULL_CHARACTER = (char) 0;
     public static final String RECOVERABLE_ERROR = "Recoverable error. ";
     public static final long TINYBARS_IN_ONE_HBAR = 100_000_000L;
 
@@ -60,7 +61,6 @@ public class DomainUtils {
     private static final long MAX_SYSTEM_ENTITY_NUM = 999;
     private static final byte[] MIRROR_PREFIX = new byte[12];
     private static final int NANO_DIGITS = 9;
-    private static final char NULL_CHARACTER = (char) 0;
     private static final char NULL_REPLACEMENT = '�'; // Standard replacement character 0xFFFD
     private static final String TIMESTAMP_ZERO = "0.0";
 
