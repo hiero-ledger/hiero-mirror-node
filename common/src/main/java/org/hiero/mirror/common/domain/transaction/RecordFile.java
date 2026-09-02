@@ -24,8 +24,8 @@ import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.file.FileData;
-import org.identityconnectors.common.CollectionUtil;
 import org.springframework.data.util.Version;
+import org.springframework.util.CollectionUtils;
 
 @Builder(toBuilder = true)
 @Data
@@ -184,9 +184,9 @@ public class RecordFile implements StreamFile<RecordItem> {
         }
 
         public boolean isEmpty() {
-            return CollectionUtil.isEmpty(contracts)
-                    && CollectionUtil.isEmpty(entities)
-                    && CollectionUtil.isEmpty(fileDatum);
+            return CollectionUtils.isEmpty(contracts)
+                    && CollectionUtils.isEmpty(entities)
+                    && CollectionUtils.isEmpty(fileDatum);
         }
     }
 }
