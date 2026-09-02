@@ -15,6 +15,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
+import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -231,7 +232,9 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
     void verifyWithInitialState() {
         // given
         final var blockFile = createBlockFileWithWrb();
-        blockFile.getRecordFile().setInitialState(new RecordFile.InitialState());
+        final var initialState = new RecordFile.InitialState();
+        initialState.contracts().add(new Contract());
+        blockFile.getRecordFile().setInitialState(initialState);
 
         // when, then
         assertThatThrownBy(() -> verifier.verify(blockFile))
