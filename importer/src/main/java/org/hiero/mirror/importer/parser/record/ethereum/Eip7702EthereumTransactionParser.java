@@ -27,6 +27,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
     private static final String TRANSACTION_TYPE_NAME = "EIP7702";
     private static final int EIP7702_TYPE_RLP_ITEM_COUNT = 13;
     private static final int AUTHORIZATION_TUPLE_SIZE = 6;
+    static final int MAX_AUTHORIZATION_LIST_SIZE = 1500;
 
     Eip7702EthereumTransactionParser(
             ContractBytecodeService contractBytecodeService, FileDataRepository fileDataRepository) {
@@ -82,7 +83,15 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
             throw new InvalidEthereumBytesException(TRANSACTION_TYPE_NAME, "Authorization list is not a list");
         }
 
-        var authorizationTuples = authorizationListItem.asRLPList().elements();
+        final var authorizationTuples = authorizationListItem.asRLPList().elements();
+        if (authorizationTuples.size() > MAX_AUTHORIZATION_LIST_SIZE) {
+            throw new InvalidEthereumBytesException(
+                    TRANSACTION_TYPE_NAME,
+                    String.format(
+                            "Authorization list size was %d but expected at most %d",
+                            authorizationTuples.size(), MAX_AUTHORIZATION_LIST_SIZE));
+        }
+
         var authorizations = new ArrayList<Authorization>();
 
         for (var tupleItem : authorizationTuples) {

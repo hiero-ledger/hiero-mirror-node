@@ -1164,6 +1164,21 @@ describe('Utils toHexString tests', () => {
       expected: '0000abcd',
     },
     {
+      name: 'hex string with prefix, pad to 8',
+      args: ['0xabcd', true, 8],
+      expected: '0x0000abcd',
+    },
+    {
+      name: 'hex string with prefix, add prefix is a no-op',
+      args: ['0xabcd', true],
+      expected: '0xabcd',
+    },
+    {
+      name: 'odd-length hex string, pad to 8',
+      args: ['0x1', false, 8],
+      expected: '00000001',
+    },
+    {
       name: 'empty array',
       args: [[], true, 2],
       expected: hexPrefix,
@@ -1291,122 +1306,6 @@ describe('Utils toHexStringNonQuantity and toHexStringQuantity tests', () => {
         expect(utils.toHexStringQuantity(...spec.args)).toEqual(spec.expected);
       });
     });
-  });
-});
-
-describe('Utils padAccessList tests', () => {
-  const paddedAddress = '0x0000000000000000000000000000000000000001';
-  const paddedStorageKey = '0x0000000000000000000000000000000000000000000000000000000000000081';
-
-  test('pads short address and storage keys', () => {
-    expect(
-      utils.padAccessList([
-        {
-          address: '0x01',
-          storage_keys: ['0x81'],
-        },
-      ])
-    ).toEqual([
-      {
-        address: paddedAddress,
-        storage_keys: [paddedStorageKey],
-      },
-    ]);
-  });
-
-  test('pads values without 0x prefix', () => {
-    expect(
-      utils.padAccessList([
-        {
-          address: '01',
-          storage_keys: ['81'],
-        },
-      ])
-    ).toEqual([
-      {
-        address: paddedAddress,
-        storage_keys: [paddedStorageKey],
-      },
-    ]);
-  });
-
-  test('leaves already padded values unchanged', () => {
-    const accessList = [
-      {
-        address: paddedAddress,
-        storage_keys: [paddedStorageKey],
-      },
-    ];
-    expect(utils.padAccessList(accessList)).toEqual(accessList);
-  });
-
-  test('returns empty array for null, undefined, or empty list', () => {
-    expect(utils.padAccessList(null)).toEqual([]);
-    expect(utils.padAccessList(undefined)).toEqual([]);
-    expect(utils.padAccessList([])).toEqual([]);
-  });
-});
-
-describe('Utils padAuthorizationList tests', () => {
-  const paddedAddress = '0x0000000000000000000000000000000000000001';
-  const paddedR = '0x00000000000000000000000000000000000000000000000000000000000000ab';
-  const paddedS = '0x00000000000000000000000000000000000000000000000000000000000000cd';
-
-  test('pads short address, r, and s', () => {
-    expect(
-      utils.padAuthorizationList([
-        {
-          address: '0x01',
-          chain_id: '0x127',
-          nonce: 2,
-          r: '0x00ab',
-          s: '0x00cd',
-          y_parity: '0x0',
-        },
-      ])
-    ).toEqual([
-      {
-        address: paddedAddress,
-        chain_id: '0x127',
-        nonce: 2,
-        r: paddedR,
-        s: paddedS,
-        y_parity: '0x0',
-      },
-    ]);
-  });
-
-  test('pads minimal integer r without 0x prefix', () => {
-    expect(
-      utils.padAuthorizationList([
-        {
-          address: '01',
-          r: 'ab',
-          s: 'cd',
-        },
-      ])
-    ).toEqual([
-      {
-        address: paddedAddress,
-        r: paddedR,
-        s: paddedS,
-      },
-    ]);
-  });
-
-  test('leaves already padded values unchanged', () => {
-    const authorization = {
-      address: paddedAddress,
-      r: paddedR,
-      s: paddedS,
-    };
-    expect(utils.padAuthorizationList([authorization])).toEqual([authorization]);
-  });
-
-  test('returns empty array for null, undefined, or empty list', () => {
-    expect(utils.padAuthorizationList(null)).toEqual([]);
-    expect(utils.padAuthorizationList(undefined)).toEqual([]);
-    expect(utils.padAuthorizationList([])).toEqual([]);
   });
 });
 
@@ -2174,6 +2073,12 @@ describe('Utils formatSlot tests', () => {
     const slot = '0x0000000000000000000000000000000000000000000000000000000000000001';
     const formattedSlot = '0000000000000000000000000000000000000000000000000000000000000001';
     expect(utils.formatSlot(slot, true)).toEqual(Buffer.from(formattedSlot, 'hex'));
+  });
+
+  test('Verify short slot with left pad', () => {
+    const formattedSlot = '0000000000000000000000000000000000000000000000000000000000000001';
+    expect(utils.formatSlot('0x1', true)).toEqual(Buffer.from(formattedSlot, 'hex'));
+    expect(utils.formatSlot('1', true)).toEqual(Buffer.from(formattedSlot, 'hex'));
   });
 });
 

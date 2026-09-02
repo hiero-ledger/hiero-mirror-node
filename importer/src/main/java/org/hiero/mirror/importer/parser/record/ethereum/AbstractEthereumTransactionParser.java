@@ -27,6 +27,7 @@ import org.hiero.mirror.importer.util.Utility;
 abstract class AbstractEthereumTransactionParser implements EthereumTransactionParser {
 
     public static final String HEX_PREFIX = "0x";
+    static final int MAX_ACCESS_LIST_SIZE = 7000;
 
     private final ContractBytecodeService contractBytecodeService;
     private final FileDataRepository fileDataRepository;
@@ -71,6 +72,14 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
         }
 
         final var accessListEntries = rlpAccessList.asRLPList().elements();
+        if (accessListEntries.size() > MAX_ACCESS_LIST_SIZE) {
+            throw new InvalidEthereumBytesException(
+                    transactionTypeName,
+                    String.format(
+                            "Access list size was %d but expected at most %d",
+                            accessListEntries.size(), MAX_ACCESS_LIST_SIZE));
+        }
+
         final var accessList = new ArrayList<AccessList>(accessListEntries.size());
 
         final var hexFormat = HexFormat.of();

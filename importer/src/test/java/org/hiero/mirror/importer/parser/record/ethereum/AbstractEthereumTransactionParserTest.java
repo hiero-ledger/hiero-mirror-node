@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.record.ethereum;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.importer.parser.record.ethereum.AbstractEthereumTransactionParser.MAX_ACCESS_LIST_SIZE;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS_RAW;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY;
@@ -19,6 +20,7 @@ import com.esaulpaugh.headlong.rlp.RLPDecoder;
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.rlp.RLPItem;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Stream;
@@ -176,6 +178,25 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
         assertThatThrownBy(() -> AbstractEthereumTransactionParser.parseAccessList(accessListItem, transactionType))
                 .isInstanceOf(InvalidEthereumBytesException.class)
                 .hasMessage(decodeError(transactionType, "Access list entry size was 3 but expected 2"));
+    }
+
+    @Test
+    void parseAccessListAtMaxSize() {
+        final var entries = Collections.nCopies(MAX_ACCESS_LIST_SIZE, List.of(new byte[] {0x01}, List.of()));
+
+        assertThat(parseAccessList(entries, "EIP1559")).hasSize(MAX_ACCESS_LIST_SIZE);
+    }
+
+    @Test
+    void parseAccessListExceedsMaxSize() {
+        final var entries = Collections.nCopies(MAX_ACCESS_LIST_SIZE + 1, List.of(new byte[] {0x01}, List.of()));
+
+        assertThatThrownBy(() -> parseAccessList(entries, "EIP1559"))
+                .isInstanceOf(InvalidEthereumBytesException.class)
+                .hasMessage(decodeError(
+                        "EIP1559",
+                        "Access list size was %d but expected at most %d"
+                                .formatted(MAX_ACCESS_LIST_SIZE + 1, MAX_ACCESS_LIST_SIZE)));
     }
 
     protected void assertEncodeProducesOriginalHash(byte[] transactionBytes) {

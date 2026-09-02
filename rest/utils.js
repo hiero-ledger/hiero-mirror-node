@@ -201,7 +201,7 @@ const isValidEthHashOrHederaHash = (hash) => {
   return ethHashOrHederaHashPattern.test(hash);
 };
 
-const slotPattern = /^(0x)?[0-9A-Fa-f]{1,64}$/;
+const slotPattern = new RegExp(`^(0x)?[0-9A-Fa-f]{1,${constants.EVM_SLOT_LENGTH * 2}}$`);
 const isValidSlot = (slot) => slotPattern.test(slot);
 
 const isValidValueIgnoreCase = (value, validValues) => validValues.includes(value.toLowerCase());
@@ -1053,7 +1053,7 @@ const toUint256 = (val) => {
   return toHexString(val, true, 64);
 };
 
-const hexStrPattern = /^([0-9a-fA-F]{2})+$/;
+const hexStrPattern = /^(0x)?[0-9a-fA-F]+$/;
 
 /**
  * Converts a value into hex string, the value can be a number, a bigint, a hex string, an array of numbers, a Buffer, or a Uint8Array
@@ -1068,7 +1068,7 @@ const toHexString = (value, addPrefix = false, padLength = undefined) => {
   if (Number.isInteger(value) || typeof value === 'bigint') {
     encoded = value.toString(16);
   } else if (typeof value === 'string' && hexStrPattern.test(value)) {
-    encoded = value;
+    encoded = stripHexPrefix(value);
   } else if (isEmpty(value)) {
     return constants.HEX_PREFIX;
   } else if (Array.isArray(value)) {
@@ -1104,53 +1104,6 @@ const toHexStringQuantity = (byteArray) => {
 
 const toHexStringNonQuantity = (byteArray) => {
   return toHexString(byteArray, true, 2);
-};
-
-const padHex = (hex, padLength) => {
-  if (hex == null) {
-    return hex;
-  }
-  return constants.HEX_PREFIX + stripHexPrefix(hex).padStart(padLength, '0');
-};
-
-/**
- * Left-pads access list address to 20 bytes and storage keys to 32 bytes for REST responses.
- * @param {Array|null|undefined} accessList
- * @return {Array}
- */
-const padAccessList = (accessList) => {
-  if (!Array.isArray(accessList) || accessList.length === 0) {
-    return accessList ?? [];
-  }
-
-  return accessList.map((entry) => {
-    const storageKeys = entry.storage_keys ?? entry.storageKeys;
-    return {
-      ...entry,
-      address: padHex(entry.address, constants.EVM_ADDRESS_LENGTH * 2),
-      storage_keys: Array.isArray(storageKeys)
-        ? storageKeys.map((key) => padHex(key, constants.ETH_HASH_LENGTH * 2))
-        : storageKeys,
-    };
-  });
-};
-
-/**
- * Left-pads authorization list address to 20 bytes and r/s to 32 bytes for REST responses.
- * @param {Array|null|undefined} authorizationList
- * @return {Array}
- */
-const padAuthorizationList = (authorizationList) => {
-  if (!Array.isArray(authorizationList) || authorizationList.length === 0) {
-    return authorizationList ?? [];
-  }
-
-  return authorizationList.map((authorization) => ({
-    ...authorization,
-    address: padHex(authorization.address, constants.EVM_ADDRESS_LENGTH * 2),
-    r: padHex(authorization.r, constants.ETH_HASH_LENGTH * 2),
-    s: padHex(authorization.s, constants.ETH_HASH_LENGTH * 2),
-  }));
 };
 
 // These match protobuf encoded hex strings. The prefixes listed check if it's a primitive key, a key list with one
@@ -1374,7 +1327,7 @@ const zeroPaddingRegex = /^0+/;
  */
 const formatSlot = (slot, leftPad = false) => {
   if (leftPad) {
-    return Buffer.from(stripHexPrefix(slot).padStart(64, 0), 'hex');
+    return Buffer.from(toHexString(slot, false, constants.EVM_SLOT_LENGTH * 2), 'hex');
   }
 
   let formattedSlot = stripHexPrefix(slot).replace(zeroPaddingRegex, '');
@@ -1906,8 +1859,6 @@ export {
   parseTokenBalances,
   randomString,
   resultSuccess,
-  padAccessList,
-  padAuthorizationList,
   toHexString,
   toHexStringNonQuantity,
   toHexStringQuantity,

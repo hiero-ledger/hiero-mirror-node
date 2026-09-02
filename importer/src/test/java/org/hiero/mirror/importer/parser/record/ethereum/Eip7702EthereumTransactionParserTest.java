@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.hiero.mirror.importer.parser.record.ethereum.AbstractEthereumTransactionParser.HEX_PREFIX;
+import static org.hiero.mirror.importer.parser.record.ethereum.Eip7702EthereumTransactionParser.MAX_AUTHORIZATION_LIST_SIZE;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS_RAW;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY;
@@ -15,6 +16,7 @@ import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransacti
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
+import java.util.Collections;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Stream;
@@ -184,6 +186,29 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
                 ethereumTransactionParser.decode(encodeEip7702Transaction(DEFAULT_ACCESS_LIST, List.of()));
 
         validateEthereumTransaction(ethereumTransaction, expectedAccessList(), false);
+    }
+
+    @Test
+    void decodeAuthorizationListAtMaxSize() {
+        final var authorizationList =
+                Collections.nCopies(MAX_AUTHORIZATION_LIST_SIZE, DEFAULT_AUTHORIZATION_LIST.getFirst());
+        final var ethereumTransaction =
+                ethereumTransactionParser.decode(encodeEip7702Transaction(List.of(), authorizationList));
+
+        assertThat(ethereumTransaction.getAuthorizationList()).hasSize(MAX_AUTHORIZATION_LIST_SIZE);
+    }
+
+    @Test
+    void decodeAuthorizationListExceedsMaxSize() {
+        final var authorizationList =
+                Collections.nCopies(MAX_AUTHORIZATION_LIST_SIZE + 1, DEFAULT_AUTHORIZATION_LIST.getFirst());
+        final var transactionBytes = encodeEip7702Transaction(List.of(), authorizationList);
+
+        assertThatThrownBy(() -> ethereumTransactionParser.decode(transactionBytes))
+                .isInstanceOf(InvalidEthereumBytesException.class)
+                .hasMessage(
+                        "Unable to decode EIP7702 ethereum transaction bytes, Authorization list size was %d but expected at most %d"
+                                .formatted(MAX_AUTHORIZATION_LIST_SIZE + 1, MAX_AUTHORIZATION_LIST_SIZE));
     }
 
     @Test
