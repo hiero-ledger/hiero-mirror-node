@@ -71,67 +71,97 @@ public class EthereumTransactionTestUtility {
             HexFormat.of().parseHex(ACCESS_LIST_ADDRESS_RAW),
             List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY_RAW))));
 
-    public static final byte[] EIP_2930_RAW_TX_WITH_ACCESS_LIST = RLPEncoder.sequence(
-            Integers.toBytes(1),
-            List.of(
-                    HexFormat.of().parseHex("012a"),
-                    Integers.toBytes(5644),
-                    HexFormat.of().parseHex("a54f4c3c00"),
-                    Integers.toBytes(3_000_000),
-                    HexFormat.of().parseHex("000000000000000000000000000000000000052d"),
-                    HexFormat.of().parseHex("02540be400"),
-                    HexFormat.of().parseHex("123456"),
-                    SAMPLE_ACCESS_LIST,
-                    Integers.toBytes(1),
-                    HexFormat.of().parseHex("abb9e9c510716df2988cf626734ee50dcd9f41d30d638220712b5fe33fe4c816"),
-                    HexFormat.of().parseHex("249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53")));
+    public static final byte[] EIP_2930_RAW_TX_WITH_ACCESS_LIST =
+            encodeEip2930Transaction(SAMPLE_ACCESS_LIST, HexFormat.of().parseHex(RAW_TX_TYPE_1_CALL_DATA));
 
-    public static final byte[] EIP_2930_RAW_TX_WITH_ACCESS_LIST_CALL_DATA_OFFLOADED = RLPEncoder.sequence(
-            Integers.toBytes(1),
-            List.of(
-                    HexFormat.of().parseHex("012a"),
-                    Integers.toBytes(5644),
-                    HexFormat.of().parseHex("a54f4c3c00"),
-                    Integers.toBytes(3_000_000),
-                    HexFormat.of().parseHex("000000000000000000000000000000000000052d"),
-                    HexFormat.of().parseHex("02540be400"),
-                    new byte[0],
-                    SAMPLE_ACCESS_LIST,
-                    Integers.toBytes(1),
-                    HexFormat.of().parseHex("abb9e9c510716df2988cf626734ee50dcd9f41d30d638220712b5fe33fe4c816"),
-                    HexFormat.of().parseHex("249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53")));
+    public static final byte[] EIP_2930_RAW_TX_WITH_ACCESS_LIST_CALL_DATA_OFFLOADED =
+            encodeEip2930Transaction(SAMPLE_ACCESS_LIST, new byte[0]);
 
-    public static final byte[] LONDON_RAW_TX_WITH_ACCESS_LIST = RLPEncoder.sequence(
-            Integers.toBytes(2),
-            List.of(
-                    HexFormat.of().parseHex("012a"),
-                    Integers.toBytes(2),
-                    HexFormat.of().parseHex("2f"),
-                    HexFormat.of().parseHex("2f"),
-                    Integers.toBytes(98_304),
-                    HexFormat.of().parseHex("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
-                    HexFormat.of().parseHex("0de0b6b3a7640000"),
-                    HexFormat.of().parseHex("123456"),
-                    SAMPLE_ACCESS_LIST,
-                    Integers.toBytes(1),
-                    HexFormat.of().parseHex("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
-                    HexFormat.of().parseHex("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66")));
+    public static final byte[] LONDON_RAW_TX_WITH_ACCESS_LIST =
+            encodeEip1559Transaction(SAMPLE_ACCESS_LIST, HexFormat.of().parseHex(RAW_TX_TYPE_1_CALL_DATA));
 
-    public static final byte[] LONDON_RAW_TX_WITH_ACCESS_LIST_CALL_DATA_OFFLOADED = RLPEncoder.sequence(
-            Integers.toBytes(2),
-            List.of(
-                    HexFormat.of().parseHex("012a"),
-                    Integers.toBytes(2),
-                    HexFormat.of().parseHex("2f"),
-                    HexFormat.of().parseHex("2f"),
-                    Integers.toBytes(98_304),
-                    HexFormat.of().parseHex("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
-                    HexFormat.of().parseHex("0de0b6b3a7640000"),
-                    new byte[0],
-                    SAMPLE_ACCESS_LIST,
-                    Integers.toBytes(1),
-                    HexFormat.of().parseHex("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
-                    HexFormat.of().parseHex("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66")));
+    public static final byte[] LONDON_RAW_TX_WITH_ACCESS_LIST_CALL_DATA_OFFLOADED =
+            encodeEip1559Transaction(SAMPLE_ACCESS_LIST, new byte[0]);
+
+    public static List<List<Object>> accessList(String addressHex, String storageKeyHex) {
+        return List.of(List.of(
+                HexFormat.of().parseHex(addressHex), List.of(HexFormat.of().parseHex(storageKeyHex))));
+    }
+
+    public static byte[] encodeEip1559Transaction(Object accessList, byte[] callData) {
+        return RLPEncoder.sequence(
+                Integers.toBytes(2),
+                List.of(
+                        HexFormat.of().parseHex("012a"),
+                        Integers.toBytes(2),
+                        HexFormat.of().parseHex("2f"),
+                        HexFormat.of().parseHex("2f"),
+                        Integers.toBytes(98_304),
+                        HexFormat.of().parseHex("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
+                        HexFormat.of().parseHex("0de0b6b3a7640000"),
+                        callData,
+                        accessList,
+                        Integers.toBytes(1),
+                        HexFormat.of().parseHex("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
+                        HexFormat.of().parseHex("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66")));
+    }
+
+    public static byte[] encodeEip2930Transaction(Object accessList, byte[] callData) {
+        return RLPEncoder.sequence(
+                Integers.toBytes(1),
+                List.of(
+                        HexFormat.of().parseHex("012a"),
+                        Integers.toBytes(5644),
+                        HexFormat.of().parseHex("a54f4c3c00"),
+                        Integers.toBytes(3_000_000),
+                        HexFormat.of().parseHex("000000000000000000000000000000000000052d"),
+                        HexFormat.of().parseHex("02540be400"),
+                        callData,
+                        accessList,
+                        Integers.toBytes(1),
+                        HexFormat.of().parseHex("abb9e9c510716df2988cf626734ee50dcd9f41d30d638220712b5fe33fe4c816"),
+                        HexFormat.of().parseHex("249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53")));
+    }
+
+    public static byte[] encodeLegacyTransaction(byte[] callData) {
+        return RLPEncoder.list(
+                Integers.toBytes(1),
+                HexFormat.of().parseHex("2f"),
+                Integers.toBytes(98_304),
+                HexFormat.of().parseHex("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
+                Integers.toBytes(0),
+                callData,
+                HexFormat.of().parseHex("0277"),
+                HexFormat.of().parseHex("f9fbff985d374be4a55f296915002eec11ac96f1ce2df183adf992baa9390b2f"),
+                HexFormat.of().parseHex("0c1e867cc960d9c74ec2e6a662b7908ec4c8cc9f3091e886bcefbeb2290fb792"));
+    }
+
+    public static byte[] encodeEip7702Transaction(Object accessList, byte[] callData) {
+        return RLPEncoder.sequence(
+                Integers.toBytes(4),
+                List.of(
+                        HexFormat.of().parseHex("80"),
+                        Integers.toBytes(1),
+                        HexFormat.of().parseHex("2f"),
+                        HexFormat.of().parseHex("2f"),
+                        Integers.toBytes(98_304),
+                        HexFormat.of().parseHex("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
+                        HexFormat.of().parseHex("0de0b6b3a7640000"),
+                        callData,
+                        accessList,
+                        List.of(List.of(
+                                HexFormat.of().parseHex("0123"),
+                                HexFormat.of().parseHex("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
+                                Integers.toBytes(2),
+                                Integers.toBytes(0),
+                                HexFormat.of()
+                                        .parseHex("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
+                                HexFormat.of()
+                                        .parseHex("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66"))),
+                        Integers.toBytes(1),
+                        HexFormat.of().parseHex("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
+                        HexFormat.of().parseHex("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66")));
+    }
 
     public static final byte[] LONDON_RAW_TX_CALL_DATA_OFFLOADED = RLPEncoder.sequence(
             Integers.toBytes(2),

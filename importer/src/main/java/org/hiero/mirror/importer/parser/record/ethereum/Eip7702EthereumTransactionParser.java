@@ -13,7 +13,6 @@ import java.util.HexFormat;
 import java.util.List;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
@@ -28,6 +27,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
     private static final String TRANSACTION_TYPE_NAME = "EIP7702";
     private static final int EIP7702_TYPE_RLP_ITEM_COUNT = 13;
     private static final int AUTHORIZATION_TUPLE_SIZE = 6;
+    static final int MAX_AUTHORIZATION_LIST_SIZE = 1500;
 
     Eip7702EthereumTransactionParser(
             ContractBytecodeService contractBytecodeService, FileDataRepository fileDataRepository) {
@@ -83,7 +83,15 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
             throw new InvalidEthereumBytesException(TRANSACTION_TYPE_NAME, "Authorization list is not a list");
         }
 
-        var authorizationTuples = authorizationListItem.asRLPList().elements();
+        final var authorizationTuples = authorizationListItem.asRLPList().elements();
+        if (authorizationTuples.size() > MAX_AUTHORIZATION_LIST_SIZE) {
+            throw new InvalidEthereumBytesException(
+                    TRANSACTION_TYPE_NAME,
+                    String.format(
+                            "Authorization list size was %d but expected at most %d",
+                            authorizationTuples.size(), MAX_AUTHORIZATION_LIST_SIZE));
+        }
+
         var authorizations = new ArrayList<Authorization>();
 
         for (var tupleItem : authorizationTuples) {
@@ -102,20 +110,16 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
 
             final var hexFormat = HexFormat.of();
             final var chainId = tuple.get(0).data();
-            final var r = tuple.get(4).data();
-            final var s = tuple.get(5).data();
             final var authorization = Authorization.builder()
                     .chainId(
                             ArrayUtils.isEmpty(chainId)
                                     ? HEX_PREFIX + "0"
                                     : HEX_PREFIX + new BigInteger(1, chainId).toString(16))
-                    .address(HEX_PREFIX
-                            + StringUtils.leftPad(
-                                    hexFormat.formatHex(tuple.get(1).data()), 40, '0'))
+                    .address(HEX_PREFIX + hexFormat.formatHex(tuple.get(1).data()))
                     .nonce(tuple.get(2).asLong())
                     .yParity(tuple.get(3).asByte() == 0 ? HEX_PREFIX + "0" : HEX_PREFIX + "1")
-                    .r(HEX_PREFIX + StringUtils.leftPad(ArrayUtils.isEmpty(r) ? "" : hexFormat.formatHex(r), 64, '0'))
-                    .s(HEX_PREFIX + StringUtils.leftPad(ArrayUtils.isEmpty(s) ? "" : hexFormat.formatHex(s), 64, '0'))
+                    .r(HEX_PREFIX + hexFormat.formatHex(tuple.get(4).data()))
+                    .s(HEX_PREFIX + hexFormat.formatHex(tuple.get(5).data()))
                     .build();
 
             authorizations.add(authorization);

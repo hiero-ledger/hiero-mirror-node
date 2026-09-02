@@ -13,7 +13,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
@@ -28,6 +27,7 @@ import org.hiero.mirror.importer.util.Utility;
 abstract class AbstractEthereumTransactionParser implements EthereumTransactionParser {
 
     public static final String HEX_PREFIX = "0x";
+    static final int MAX_ACCESS_LIST_SIZE = 7000;
 
     private final ContractBytecodeService contractBytecodeService;
     private final FileDataRepository fileDataRepository;
@@ -72,6 +72,14 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
         }
 
         final var accessListEntries = rlpAccessList.asRLPList().elements();
+        if (accessListEntries.size() > MAX_ACCESS_LIST_SIZE) {
+            throw new InvalidEthereumBytesException(
+                    transactionTypeName,
+                    String.format(
+                            "Access list size was %d but expected at most %d",
+                            accessListEntries.size(), MAX_ACCESS_LIST_SIZE));
+        }
+
         final var accessList = new ArrayList<AccessList>(accessListEntries.size());
 
         final var hexFormat = HexFormat.of();
@@ -86,9 +94,8 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
                         transactionTypeName,
                         String.format("Access list entry size was %d but expected 2", entryProperties.size()));
             }
-            final var address = HEX_PREFIX
-                    + StringUtils.leftPad(
-                            hexFormat.formatHex(entryProperties.get(0).data()), 40, '0');
+            final var address =
+                    HEX_PREFIX + hexFormat.formatHex(entryProperties.get(0).data());
             final var storageKeysItem = entryProperties.get(1);
             if (!storageKeysItem.isList()) {
                 throw new InvalidEthereumBytesException(
@@ -97,7 +104,7 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
             final var storageKeyItems = storageKeysItem.asRLPList().elements();
             final var storageKeys = new ArrayList<String>(storageKeyItems.size());
             for (final var key : storageKeyItems) {
-                storageKeys.add(HEX_PREFIX + StringUtils.leftPad(hexFormat.formatHex(key.data()), 64, '0'));
+                storageKeys.add(HEX_PREFIX + hexFormat.formatHex(key.data()));
             }
 
             accessList.add(new AccessList(address, storageKeys));

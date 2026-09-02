@@ -88,9 +88,9 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     this.nonce = null;
 
     if (!isNil(ethTransaction)) {
-      this.access_list = ethTransaction.accessList ?? [];
+      this.access_list = ContractResultViewModel.padAccessList(ethTransaction.accessList);
       if (config.response.enableDelegationAddress) {
-        this.authorization_list = ethTransaction.authorizationList ?? [];
+        this.authorization_list = ContractResultViewModel.padAuthorizationList(ethTransaction.authorizationList);
       }
       this.chain_id = utils.toHexStringQuantity(ethTransaction.chainId);
 
