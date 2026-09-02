@@ -9,6 +9,7 @@ import java.io.IOException;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
+import org.jspecify.annotations.Nullable;
 
 final class RecordFileItemReaderV5 extends AbstractRecordFileItemReader {
 
@@ -44,9 +45,17 @@ final class RecordFileItemReaderV5 extends AbstractRecordFileItemReader {
     }
 
     @Override
-    protected void onRecordStreamItem(final Context context, final RecordStreamItem recordStreamItem)
+    protected void onRecordStreamItem(
+            final Context context,
+            @Nullable final RecordStreamItem recordStreamItem,
+            @Nullable final RecordStreamItem amendment)
             throws IOException {
-        super.onRecordStreamItem(context, recordStreamItem);
+        super.onRecordStreamItem(context, recordStreamItem, amendment);
+
+        if (recordStreamItem == null) {
+            // Amendments don't contribute to the file hash
+            return;
+        }
 
         final var dos = context.dos();
         dos.writeLong(RECORD_STREAM_OBJECT_CLASS_ID);
