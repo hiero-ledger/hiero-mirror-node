@@ -343,6 +343,47 @@ final class LinkFactoryTest {
         assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
     }
 
+    @DisplayName("A blank value for the primary sort parameter yields a valid, advancing next link")
+    @Test
+    void testBlankPrimarySortValue() {
+        when(request.getAttribute(BEST_MATCHING_HANDLER_ATTRIBUTE)).thenReturn(NODES_HANDLER);
+        var params = new LinkedHashMap<String, String[]>();
+        params.put("limit", new String[] {"1"});
+        params.put("order", new String[] {"asc"});
+        params.put("node.id", new String[] {""});
+        when(request.getParameterMap()).thenReturn(params);
+        when(extractor.apply(nftAllowance)).thenReturn(Map.of(NODE_ID, "3"));
+        final var sort = Sort.by(Direction.ASC, NODE_ID);
+        final var pageable = PageRequest.of(0, 1, sort);
+
+        // The blank node.id is dropped and the advancing node.id=gt:3 bound is emitted - the link advances
+        // instead of echoing the blank value back as a self-referential next link.
+        final var expectedLink = "/api?limit=1&order=asc&node.id=gt:3";
+        assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
+                .returns(expectedLink, Links::getNext);
+        assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
+    }
+
+    @DisplayName("A blank repeated primary sort value keeps the sibling constraint and still advances")
+    @Test
+    void testBlankRepeatedPrimarySortValue() {
+        when(request.getAttribute(BEST_MATCHING_HANDLER_ATTRIBUTE)).thenReturn(NODES_HANDLER);
+        var params = new LinkedHashMap<String, String[]>();
+        params.put("limit", new String[] {"1"});
+        params.put("order", new String[] {"asc"});
+        params.put("node.id", new String[] {"", "lte:5"});
+        when(request.getParameterMap()).thenReturn(params);
+        when(extractor.apply(nftAllowance)).thenReturn(Map.of(NODE_ID, "3"));
+        var sort = Sort.by(Direction.ASC, NODE_ID);
+        var pageable = PageRequest.of(0, 1, sort);
+
+        // Only the blank occurrence is dropped; the lte:5 bound is preserved and the advancing gt:3 bound is added.
+        final var expectedLink = "/api?limit=1&order=asc&node.id=lte:5&node.id=gt:3";
+        assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
+                .returns(expectedLink, Links::getNext);
+        assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
+    }
+
     private static HandlerMethod handlerMethod(Class<?> type, String methodName, Class<?>... parameterTypes) {
         try {
             return new HandlerMethod(new Object(), type.getDeclaredMethod(methodName, parameterTypes));

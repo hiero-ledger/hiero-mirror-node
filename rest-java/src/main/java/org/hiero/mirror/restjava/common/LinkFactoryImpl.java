@@ -70,6 +70,12 @@ final class LinkFactoryImpl implements LinkFactory {
     }
 
     private static boolean hasEq(String value) {
+        if (value.isBlank()) {
+            // Treating blank value as an implicit eq would suppress the advancing
+            // pagination bound and produce a next link identical to the current request.
+            return false;
+        }
+
         var normalized = value.toLowerCase();
         return normalized.startsWith("eq:")
                 || (!normalized.startsWith("gt:")
@@ -248,7 +254,8 @@ final class LinkFactoryImpl implements LinkFactory {
     }
 
     private static boolean isSafeQueryValue(@Nullable String value) {
-        if (value == null) {
+        if (value == null || value.isBlank()) {
+            // Blank values carry no constraint and must never be echoed into the next link.
             return false;
         }
 
