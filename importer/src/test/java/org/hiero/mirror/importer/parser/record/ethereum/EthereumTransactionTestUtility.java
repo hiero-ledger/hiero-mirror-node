@@ -2,11 +2,14 @@
 
 package org.hiero.mirror.importer.parser.record.ethereum;
 
+import com.esaulpaugh.headlong.rlp.RLPDecoder;
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
+import com.esaulpaugh.headlong.rlp.RLPItem;
 import com.esaulpaugh.headlong.util.Integers;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import lombok.SneakyThrows;
@@ -64,6 +67,10 @@ public class EthereumTransactionTestUtility {
     public static final String ACCESS_LIST_STORAGE_KEY_RAW =
             "0000000000000000000000000000000000000000000000000000000000000081";
 
+    private static final List<List<Object>> SAMPLE_ACCESS_LIST = List.of(List.of(
+            HexFormat.of().parseHex(ACCESS_LIST_ADDRESS_RAW),
+            List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY_RAW))));
+
     public static final byte[] EIP_2930_RAW_TX_WITH_ACCESS_LIST = RLPEncoder.sequence(
             Integers.toBytes(1),
             List.of(
@@ -74,9 +81,22 @@ public class EthereumTransactionTestUtility {
                     HexFormat.of().parseHex("000000000000000000000000000000000000052d"),
                     HexFormat.of().parseHex("02540be400"),
                     HexFormat.of().parseHex("123456"),
-                    List.of(List.of(
-                            HexFormat.of().parseHex(ACCESS_LIST_ADDRESS_RAW),
-                            List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY_RAW)))),
+                    SAMPLE_ACCESS_LIST,
+                    Integers.toBytes(1),
+                    HexFormat.of().parseHex("abb9e9c510716df2988cf626734ee50dcd9f41d30d638220712b5fe33fe4c816"),
+                    HexFormat.of().parseHex("249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53")));
+
+    public static final byte[] EIP_2930_RAW_TX_WITH_ACCESS_LIST_CALL_DATA_OFFLOADED = RLPEncoder.sequence(
+            Integers.toBytes(1),
+            List.of(
+                    HexFormat.of().parseHex("012a"),
+                    Integers.toBytes(5644),
+                    HexFormat.of().parseHex("a54f4c3c00"),
+                    Integers.toBytes(3_000_000),
+                    HexFormat.of().parseHex("000000000000000000000000000000000000052d"),
+                    HexFormat.of().parseHex("02540be400"),
+                    new byte[0],
+                    SAMPLE_ACCESS_LIST,
                     Integers.toBytes(1),
                     HexFormat.of().parseHex("abb9e9c510716df2988cf626734ee50dcd9f41d30d638220712b5fe33fe4c816"),
                     HexFormat.of().parseHex("249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53")));
@@ -92,9 +112,39 @@ public class EthereumTransactionTestUtility {
                     HexFormat.of().parseHex("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
                     HexFormat.of().parseHex("0de0b6b3a7640000"),
                     HexFormat.of().parseHex("123456"),
-                    List.of(List.of(
-                            HexFormat.of().parseHex(ACCESS_LIST_ADDRESS_RAW),
-                            List.of(HexFormat.of().parseHex(ACCESS_LIST_STORAGE_KEY_RAW)))),
+                    SAMPLE_ACCESS_LIST,
+                    Integers.toBytes(1),
+                    HexFormat.of().parseHex("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
+                    HexFormat.of().parseHex("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66")));
+
+    public static final byte[] LONDON_RAW_TX_WITH_ACCESS_LIST_CALL_DATA_OFFLOADED = RLPEncoder.sequence(
+            Integers.toBytes(2),
+            List.of(
+                    HexFormat.of().parseHex("012a"),
+                    Integers.toBytes(2),
+                    HexFormat.of().parseHex("2f"),
+                    HexFormat.of().parseHex("2f"),
+                    Integers.toBytes(98_304),
+                    HexFormat.of().parseHex("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
+                    HexFormat.of().parseHex("0de0b6b3a7640000"),
+                    new byte[0],
+                    SAMPLE_ACCESS_LIST,
+                    Integers.toBytes(1),
+                    HexFormat.of().parseHex("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
+                    HexFormat.of().parseHex("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66")));
+
+    public static final byte[] LONDON_RAW_TX_CALL_DATA_OFFLOADED = RLPEncoder.sequence(
+            Integers.toBytes(2),
+            List.of(
+                    HexFormat.of().parseHex("012a"),
+                    Integers.toBytes(2),
+                    HexFormat.of().parseHex("2f"),
+                    HexFormat.of().parseHex("2f"),
+                    Integers.toBytes(98_304),
+                    HexFormat.of().parseHex("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
+                    HexFormat.of().parseHex("0de0b6b3a7640000"),
+                    new byte[0],
+                    List.of(),
                     Integers.toBytes(1),
                     HexFormat.of().parseHex("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
                     HexFormat.of().parseHex("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66")));
@@ -117,5 +167,42 @@ public class EthereumTransactionTestUtility {
     public static void populateFileData(JdbcOperations jdbcOperations) {
         var file = ResourceUtils.getFile("classpath:data/ethereumTransaction/file_data.sql");
         jdbcOperations.update(FileUtils.readFileToString(file, StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Replaces the access list with an empty RLP string. The access list is the first field after call data: index 7
+     * for EIP-2930, index 8 for EIP-1559 and EIP-7702.
+     */
+    public static byte[] withEmptyStringAccessList(byte[] transactionBytes) {
+        final var decoder = RLPDecoder.RLP_STRICT.sequenceIterator(transactionBytes);
+        final var type = decoder.next();
+        final var items = decoder.next().asRLPList().elements();
+        final int accessListIndex = accessListIndex(type.asByte());
+        final var rebuilt = new ArrayList<>(items.size());
+        for (int i = 0; i < items.size(); i++) {
+            rebuilt.add(i == accessListIndex ? new byte[0] : asEncodable(items.get(i)));
+        }
+        return RLPEncoder.sequence(type.data(), rebuilt);
+    }
+
+    private static int accessListIndex(byte type) {
+        return switch (type) {
+            case Eip2930EthereumTransactionParser.EIP2930_TYPE_BYTE -> 7;
+            case Eip1559EthereumTransactionParser.EIP1559_TYPE_BYTE,
+                    Eip7702EthereumTransactionParser.EIP7702_TYPE_BYTE -> 8;
+            default -> throw new IllegalArgumentException("Unsupported ethereum transaction type: " + type);
+        };
+    }
+
+    private static Object asEncodable(RLPItem item) {
+        if (!item.isList()) {
+            return item.data();
+        }
+        final var elements = item.asRLPList().elements();
+        final var encoded = new ArrayList<>(elements.size());
+        for (final var element : elements) {
+            encoded.add(asEncodable(element));
+        }
+        return encoded;
     }
 }

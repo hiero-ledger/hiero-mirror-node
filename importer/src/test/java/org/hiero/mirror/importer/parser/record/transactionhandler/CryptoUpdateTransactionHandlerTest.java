@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_77_0;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -233,6 +234,7 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         RecordItem recordItem = recordItemBuilder
                 .cryptoUpdate()
                 .transactionBody(body -> body.setDelegationAddress(DomainUtils.fromBytes(delegationAddressBytes)))
+                .recordItem(r -> r.hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         setupForCryptoUpdateTransactionTest(
                 recordItem, t -> assertThat(t).returns(delegationAddressBytes, Entity::getDelegationAddress));
@@ -244,7 +246,7 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         RecordItem recordItem = recordItemBuilder
                 .cryptoUpdate()
                 .transactionBody(body -> body.setDelegationAddress(DomainUtils.fromBytes(delegationAddressBytes)))
-                .recordItem(r -> r.blockstream(true).accountEthereumNonce(7L))
+                .recordItem(r -> r.blockstream(true).accountEthereumNonce(7L).hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         setupForCryptoUpdateTransactionTest(recordItem, t -> assertThat(t)
                 .returns(delegationAddressBytes, Entity::getDelegationAddress)
@@ -258,11 +260,21 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         RecordItem recordItem = recordItemBuilder
                 .cryptoUpdate()
                 .transactionBody(body -> body.setDelegationAddress(DomainUtils.fromBytes(delegationAddressBytes)))
-                .recordItem(r -> r.blockstream(true).accountEthereumNonce(7L))
+                .recordItem(r -> r.blockstream(true).accountEthereumNonce(7L).hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         setupForCryptoUpdateTransactionTest(recordItem, t -> assertThat(t)
                 .returns(delegationAddressBytes, Entity::getDelegationAddress)
                 .returns(null, Entity::getEthereumNonce));
+    }
+
+    @Test
+    void updateTransactionDelegationAddressSkippedBeforePectra() {
+        final var delegationAddressBytes = Hex.decode("a94f5374fce5edbc8e2a8697c15331677e6ebf0b");
+        RecordItem recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(body -> body.setDelegationAddress(DomainUtils.fromBytes(delegationAddressBytes)))
+                .build();
+        setupForCryptoUpdateTransactionTest(recordItem, t -> assertThat(t).returns(null, Entity::getDelegationAddress));
     }
 
     private void assertCryptoUpdate(long timestamp, Consumer<Entity> extraAssert) {

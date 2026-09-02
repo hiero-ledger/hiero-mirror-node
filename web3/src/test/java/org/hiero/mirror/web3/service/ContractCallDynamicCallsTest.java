@@ -815,7 +815,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var result = functionCall.send();
 
         // Then
-        assertEquals(Bytes.wrap(canonicalAddress).toHexString(), result);
+        assertEquals(Bytes.wrap(canonicalAddress.getBytes()).toHexString(), result);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
@@ -835,7 +835,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final String result = functionCall.send();
 
         // Then
-        assertEquals(Bytes.wrap(canonicalAddress).toHexString(), result);
+        assertEquals(Bytes.wrap(canonicalAddress.getBytes()).toHexString(), result);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 

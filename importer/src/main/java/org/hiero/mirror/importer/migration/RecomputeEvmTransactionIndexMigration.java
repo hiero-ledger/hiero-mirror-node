@@ -28,58 +28,88 @@ import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Named
-final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
+final class RecomputeEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
     static final String DEFAULT_BATCH_INTERVAL = "3h";
 
     private static final String BATCH_INTERVAL_PROPERTIES_KEY = "batchInterval";
 
+    private static final String DROP_OLD_PROGRESS_TABLES = """
+            drop table if exists fix_evm_transaction_index_progress_temp;
+            drop table if exists contract_log_synthetic_progress_temp;
+            """;
+
     private static final String CREATE_PROGRESS_TABLE = """
-            create table if not exists fix_evm_transaction_index_progress_temp(
+            create table if not exists recompute_evm_transaction_index_progress_temp(
                 upper_bound bigint not null
             );
             """;
 
     private static final String DROP_PROGRESS_TABLE = """
-            drop table if exists fix_evm_transaction_index_progress_temp;
+            drop table if exists recompute_evm_transaction_index_progress_temp;
             """;
 
     private static final String SELECT_MAX_CONSENSUS_END = "select max(consensus_end) from record_file";
 
     private static final String SELECT_PROGRESS_UPPER_BOUND =
-            "select (select upper_bound from fix_evm_transaction_index_progress_temp limit 1)";
+            "select (select upper_bound from recompute_evm_transaction_index_progress_temp limit 1)";
 
     private static final String CHECKPOINT_SQL = """
-            with clear_table as (delete from fix_evm_transaction_index_progress_temp)
-            insert into fix_evm_transaction_index_progress_temp(upper_bound)
+            with clear_table as (delete from recompute_evm_transaction_index_progress_temp)
+            insert into recompute_evm_transaction_index_progress_temp(upper_bound)
             values (:upperBound)
             """;
 
-    private static final String UPDATE_EVM_TRANSACTION_INDEX_SQL = """
+    private static final String BACKFILL_SYNTHETIC_FLAG_SQL = """
+            update contract_log
+            set synthetic = true
+            where synthetic is not true
+              and consensus_timestamp >= :consensusStart
+              and consensus_timestamp <= :lastConsensusEnd
+              and consensus_timestamp not in (
+                select consensus_timestamp from contract_result
+                where consensus_timestamp >= :consensusStart
+                  and consensus_timestamp <= :lastConsensusEnd
+              )
+            """;
+
+    private static final String RECOMPUTE_EVM_TRANSACTION_INDEX_SQL = """
             with evm_candidates as (
                 select
                     cr.consensus_timestamp,
-                    (cr.transaction_nonce = 0 or cr.contract_id = :hookContractId) as is_root
+                    (cr.transaction_nonce = 0 or cr.contract_id = :hookContractId) as is_root,
+                    (
+                        (cr.transaction_nonce <> 0 and cr.contract_id <> :hookContractId)
+                        or cr.gas_used > 0
+                    ) as qualifies
                 from contract_result cr
                 where cr.consensus_timestamp >= :consensusStart
                   and cr.consensus_timestamp <= :lastConsensusEnd
-                  and cr.transaction_result <> 312
                 union all
+                -- avoids double-counting an already-covered timestamp
                 select distinct
                     cl.consensus_timestamp,
-                    true as is_root
+                    true as is_root,
+                    true as qualifies
                 from contract_log cl
                 where cl.synthetic = true
                   and cl.consensus_timestamp >= :consensusStart
                   and cl.consensus_timestamp <= :lastConsensusEnd
+                  and cl.consensus_timestamp not in (
+                    select consensus_timestamp from contract_result
+                    where consensus_timestamp >= :consensusStart
+                      and consensus_timestamp <= :lastConsensusEnd
+                  )
             ),
             evm_index as (
                 select
                     ec.consensus_timestamp,
-                    sum(case when ec.is_root then 1 else 0 end) over (
-                        partition by rf.consensus_end
-                        order by ec.consensus_timestamp
-                    ) - 1 as evm_index
+                    case when ec.qualifies then
+                        sum(case when ec.is_root and ec.qualifies then 1 else 0 end) over (
+                            partition by rf.consensus_end
+                            order by ec.consensus_timestamp
+                        ) - 1
+                    end as evm_index
                 from evm_candidates ec
                 join record_file rf
                     on ec.consensus_timestamp between rf.consensus_start and rf.consensus_end
@@ -91,7 +121,8 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 from evm_index ei
                 where cr.consensus_timestamp = ei.consensus_timestamp
                   and cr.consensus_timestamp between :consensusStart and :lastConsensusEnd
-                returning cr.consensus_timestamp
+                  and cr.transaction_index is distinct from ei.evm_index
+                returning ei.evm_index
             ),
             updated_contract_log as (
                 update contract_log cl
@@ -99,11 +130,14 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 from evm_index ei
                 where cl.consensus_timestamp = ei.consensus_timestamp
                   and cl.consensus_timestamp between :consensusStart and :lastConsensusEnd
-                returning cl.consensus_timestamp
+                  and cl.transaction_index is distinct from ei.evm_index
+                returning ei.evm_index
             )
             select
-                (select count(*) from updated_contract_result) as updated_results,
-                (select count(*) from updated_contract_log) as updated_logs
+                (select count(*) from updated_contract_result where evm_index is not null) as updated_results,
+                (select count(*) from updated_contract_result where evm_index is null) as nulled_results,
+                (select count(*) from updated_contract_log where evm_index is not null) as updated_logs,
+                (select count(*) from updated_contract_log where evm_index is null) as nulled_logs
             """;
 
     private static final String SELECT_RECORD_FILES_RANGE = """
@@ -134,7 +168,7 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
     private final EntityProperties entityProperties;
     private long initialUpperBound = -1L;
 
-    FixEvmTransactionIndexMigration(
+    RecomputeEvmTransactionIndexMigration(
             DBProperties dbProperties,
             ImporterProperties importerProperties,
             @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider,
@@ -152,17 +186,12 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
     @Override
     public String getDescription() {
-        return "Fix EVM transaction index in contract_result and contract_log to use EVM-only ordering";
+        return "Recompute EVM transaction index using gasUsed and backfill contract_log synthetic flag";
     }
 
     @Override
     protected MigrationVersion getMinimumVersion() {
-        return MigrationVersion.fromVersion("1.61.1");
-    }
-
-    @Override
-    protected Long getInitial() {
-        return initialUpperBound;
+        return MigrationVersion.fromVersion("1.127.0");
     }
 
     @Override
@@ -178,12 +207,19 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
             return false;
         }
 
+        getJdbcOperations().execute(DROP_OLD_PROGRESS_TABLES);
         getJdbcOperations().execute(CREATE_PROGRESS_TABLE);
 
         final var savedProgress = getJdbcOperations().queryForObject(SELECT_PROGRESS_UPPER_BOUND, Long.class);
         initialUpperBound = savedProgress != null ? savedProgress : maxConsensusEnd;
-        log.info("Starting EVM transaction index fix with initial timestamp: {}", initialUpperBound);
+        log.info("Starting EVM transaction index recompute with initial timestamp: {}", initialUpperBound);
         return true;
+    }
+
+    @NonNull
+    @Override
+    protected Long getInitial() {
+        return initialUpperBound;
     }
 
     @NonNull
@@ -208,13 +244,30 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
                 .addValue("lastConsensusEnd", slice.maxConsensusTimestamp())
                 .addValue("hookContractId", getHookContractId());
 
-        final var counts = getNamedParameterJdbcOperations()
-                .queryForObject(UPDATE_EVM_TRANSACTION_INDEX_SQL, params, UPDATE_COUNTS_ROW_MAPPER);
-        if (counts.updatedResults() > 0 || counts.updatedLogs() > 0) {
+        final var backfilledSyntheticLogs =
+                getNamedParameterJdbcOperations().update(BACKFILL_SYNTHETIC_FLAG_SQL, params);
+        if (backfilledSyntheticLogs > 0) {
             log.info(
-                    "Fixed EVM transaction index for {} contract_result and {} contract_log rows in range [{}, {}]",
+                    "Backfilled synthetic flag for {} contract_log rows in range [{}, {}]",
+                    backfilledSyntheticLogs,
+                    slice.minConsensusTimestamp(),
+                    slice.maxConsensusTimestamp());
+        }
+
+        final var counts = getNamedParameterJdbcOperations()
+                .queryForObject(RECOMPUTE_EVM_TRANSACTION_INDEX_SQL, params, UPDATE_COUNTS_ROW_MAPPER);
+
+        if (counts.updatedResults() > 0
+                || counts.nulledResults() > 0
+                || counts.updatedLogs() > 0
+                || counts.nulledLogs() > 0) {
+            log.info(
+                    "Recomputed EVM transaction index for {} contract_result and {} contract_log rows, nulled {}"
+                            + " contract_result and {} contract_log rows in range [{}, {}]",
                     counts.updatedResults(),
                     counts.updatedLogs(),
+                    counts.nulledResults(),
+                    counts.nulledLogs(),
                     slice.minConsensusTimestamp(),
                     slice.maxConsensusTimestamp());
         }
@@ -233,5 +286,5 @@ final class FixEvmTransactionIndexMigration extends AsyncJavaMigration<Long> {
 
     private record RecordFileSlice(Long minConsensusTimestamp, Long maxConsensusTimestamp) {}
 
-    private record UpdateCounts(long updatedResults, long updatedLogs) {}
+    private record UpdateCounts(long updatedResults, long nulledResults, long updatedLogs, long nulledLogs) {}
 }

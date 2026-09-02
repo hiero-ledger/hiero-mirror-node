@@ -32,7 +32,6 @@ import com.hedera.node.app.service.token.ReadableNftStore;
 import com.hedera.node.app.service.token.ReadableTokenRelationStore;
 import com.hedera.node.app.service.token.ReadableTokenStore;
 import com.hedera.node.app.spi.authorization.Authorizer;
-import com.hedera.node.app.spi.fees.FeeCalculatorFactory;
 import com.hedera.node.app.spi.fees.FeeContext;
 import com.hedera.node.app.spi.fees.Fees;
 import com.hedera.node.app.spi.fees.SimpleFeeCalculator;
@@ -244,12 +243,6 @@ final class FeeEstimationFeeContext implements FeeContext {
     @NonNull
     public TransactionBody body() {
         return body;
-    }
-
-    @Override
-    @NonNull
-    public FeeCalculatorFactory feeCalculatorFactory() {
-        throw new UnsupportedOperationException();
     }
 
     @Override
