@@ -17,6 +17,7 @@ import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.stream.Stream;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.Authorization;
@@ -24,6 +25,9 @@ import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
@@ -104,6 +108,23 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         assertGetHashWithOffloadedCallData(
                 EIP7702_RAW_TX,
                 encodeEip7702Transaction(DEFAULT_ACCESS_LIST, DEFAULT_AUTHORIZATION_LIST, new byte[0]),
+                CALL_DATA_HEX);
+    }
+
+    @ParameterizedTest
+    @MethodSource("shortAuthorizationFields")
+    void encodePreservesHashWithShortAuthorizationFields(String addressHex, String rHex, String sHex) {
+        assertEncodeProducesOriginalHash(
+                encodeEip7702Transaction(List.of(), authorizationList(addressHex, rHex, sHex)));
+    }
+
+    @ParameterizedTest
+    @MethodSource("shortAuthorizationFields")
+    void getHashWithOffloadedCallDataAndShortAuthorizationFields(String addressHex, String rHex, String sHex) {
+        final var authorizationList = authorizationList(addressHex, rHex, sHex);
+        assertGetHashWithOffloadedCallData(
+                encodeEip7702Transaction(List.of(), authorizationList),
+                encodeEip7702Transaction(List.of(), authorizationList, new byte[0]),
                 CALL_DATA_HEX);
     }
 
@@ -270,13 +291,13 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
 
         assertThat(authorization)
                 .returns("0x127", Authorization::getChainId)
-                .returns("0x0000000000000000000000000000000000000001", Authorization::getAddress)
-                .returns("0x00000000000000000000000000000000000000000000000000000000000000ab", Authorization::getR)
+                .returns("0x01", Authorization::getAddress)
+                .returns("0x00ab", Authorization::getR)
                 .returns(HEX_PREFIX + SIGNATURE_S_HEX, Authorization::getS);
     }
 
     @Test
-    void decodeAuthorizationListPadsShortSBytes() {
+    void decodeAuthorizationListPreservesShortSBytes() {
         final var authorizationList = List.of(List.of(
                 HexFormat.of().parseHex("0127"),
                 new byte[] {0x01},
@@ -291,8 +312,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
                 .getAuthorizationList()
                 .getFirst();
 
-        assertThat(authorization)
-                .returns("0x00000000000000000000000000000000000000000000000000000000000000cd", Authorization::getS);
+        assertThat(authorization).returns("0x00cd", Authorization::getS);
     }
 
     @Test
@@ -358,6 +378,25 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         } else {
             assertThat(ethereumTransaction.getAuthorizationList()).isEmpty();
         }
+    }
+
+    private static Stream<Arguments> shortAuthorizationFields() {
+        return Stream.of(
+                Arguments.of("01", SIGNATURE_R_HEX, SIGNATURE_S_HEX),
+                Arguments.of(TO_ADDRESS_HEX, "00ab", SIGNATURE_S_HEX),
+                Arguments.of(TO_ADDRESS_HEX, SIGNATURE_R_HEX, "00cd"),
+                Arguments.of(TO_ADDRESS_HEX, "ab", SIGNATURE_S_HEX),
+                Arguments.of("01", "00ab", "00cd"));
+    }
+
+    private static List<?> authorizationList(String addressHex, String rHex, String sHex) {
+        return List.of(List.of(
+                HexFormat.of().parseHex(AUTH_CHAIN_ID_HEX_RAW),
+                HexFormat.of().parseHex(addressHex),
+                Integers.toBytes(AUTH_NONCE),
+                Integers.toBytes(0),
+                HexFormat.of().parseHex(rHex),
+                HexFormat.of().parseHex(sHex)));
     }
 
     private static byte[] encodeEip7702Transaction(Object accessList, List<?> authorizationList) {

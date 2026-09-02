@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {ContractResultViewModel} from '../../viewmodel';
+import config from '../../config';
 
 describe('ContractResultViewModel', () => {
   const defaultContractResult = {
@@ -36,6 +37,42 @@ describe('ContractResultViewModel', () => {
 
   test('default', () => {
     expect(new ContractResultViewModel(defaultContractResult)).toEqual(defaultExpected);
+  });
+
+  test('pads short authorization address, r, and s', () => {
+    const originalFlagValue = config.response.enableDelegationAddress;
+    config.response.enableDelegationAddress = true;
+    try {
+      expect(
+        new ContractResultViewModel({
+          ...defaultContractResult,
+          authorizationList: [
+            {
+              address: '0x01',
+              chain_id: '0x127',
+              nonce: 2,
+              r: '0x00ab',
+              s: '0x00cd',
+              y_parity: '0x0',
+            },
+          ],
+        })
+      ).toEqual({
+        ...defaultExpected,
+        authorization_list: [
+          {
+            address: '0x0000000000000000000000000000000000000001',
+            chain_id: '0x127',
+            nonce: 2,
+            r: '0x00000000000000000000000000000000000000000000000000000000000000ab',
+            s: '0x00000000000000000000000000000000000000000000000000000000000000cd',
+            y_parity: '0x0',
+          },
+        ],
+      });
+    } finally {
+      config.response.enableDelegationAddress = originalFlagValue;
+    }
   });
 
   test.each`

@@ -1106,6 +1106,31 @@ const toHexStringNonQuantity = (byteArray) => {
   return toHexString(byteArray, true, 2);
 };
 
+const padAuthorizationHex = (hex, padLength) => {
+  if (hex == null) {
+    return hex;
+  }
+  return constants.HEX_PREFIX + stripHexPrefix(hex).padStart(padLength, '0');
+};
+
+/**
+ * Left-pads authorization list address to 20 bytes and r/s to 32 bytes for REST responses.
+ * @param {Array|null|undefined} authorizationList
+ * @return {Array}
+ */
+const padAuthorizationList = (authorizationList) => {
+  if (!Array.isArray(authorizationList) || authorizationList.length === 0) {
+    return authorizationList ?? [];
+  }
+
+  return authorizationList.map((authorization) => ({
+    ...authorization,
+    address: padAuthorizationHex(authorization.address, constants.EVM_ADDRESS_LENGTH * 2),
+    r: padAuthorizationHex(authorization.r, constants.ETH_HASH_LENGTH * 2),
+    s: padAuthorizationHex(authorization.s, constants.ETH_HASH_LENGTH * 2),
+  }));
+};
+
 // These match protobuf encoded hex strings. The prefixes listed check if it's a primitive key, a key list with one
 // primitive key, or a 1/1 threshold key, respectively.
 const PATTERN_ECDSA = /^(3a21|32250a233a21|2a29080112250a233a21)([A-Fa-f0-9]{66})$/;
@@ -1859,6 +1884,7 @@ export {
   parseTokenBalances,
   randomString,
   resultSuccess,
+  padAuthorizationList,
   toHexString,
   toHexStringNonQuantity,
   toHexStringQuantity,

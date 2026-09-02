@@ -1294,6 +1294,69 @@ describe('Utils toHexStringNonQuantity and toHexStringQuantity tests', () => {
   });
 });
 
+describe('Utils padAuthorizationList tests', () => {
+  const paddedAddress = '0x0000000000000000000000000000000000000001';
+  const paddedR = '0x00000000000000000000000000000000000000000000000000000000000000ab';
+  const paddedS = '0x00000000000000000000000000000000000000000000000000000000000000cd';
+
+  test('pads short address, r, and s', () => {
+    expect(
+      utils.padAuthorizationList([
+        {
+          address: '0x01',
+          chain_id: '0x127',
+          nonce: 2,
+          r: '0x00ab',
+          s: '0x00cd',
+          y_parity: '0x0',
+        },
+      ])
+    ).toEqual([
+      {
+        address: paddedAddress,
+        chain_id: '0x127',
+        nonce: 2,
+        r: paddedR,
+        s: paddedS,
+        y_parity: '0x0',
+      },
+    ]);
+  });
+
+  test('pads minimal integer r without 0x prefix', () => {
+    expect(
+      utils.padAuthorizationList([
+        {
+          address: '01',
+          r: 'ab',
+          s: 'cd',
+        },
+      ])
+    ).toEqual([
+      {
+        address: paddedAddress,
+        r: paddedR,
+        s: paddedS,
+      },
+    ]);
+  });
+
+  test('leaves already padded values unchanged', () => {
+    const authorization = {
+      address: paddedAddress,
+      r: paddedR,
+      s: paddedS,
+    };
+    expect(utils.padAuthorizationList([authorization])).toEqual([authorization]);
+  });
+
+  test('returns empty array for null, undefined, or empty list', () => {
+    expect(utils.padAuthorizationList(null)).toEqual([]);
+    expect(utils.padAuthorizationList(undefined)).toEqual([]);
+    expect(utils.padAuthorizationList([])).toEqual([]);
+  });
+});
+
 describe('Utils getLimitParamValue', () => {
   test('undefined', () => {
     expect(utils.getLimitParamValue(undefined)).toEqual(responseLimit.default);

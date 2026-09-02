@@ -7,7 +7,7 @@ import config from '../config';
 import EntityId from '../entityId';
 import {fromBinary} from '@bufbuild/protobuf';
 import {ContractFunctionResultSchema} from '../gen/services/contract_types_pb.js';
-import {nsToSecNs, toHexString} from '../utils';
+import {nsToSecNs, padAuthorizationList, toHexString} from '../utils';
 
 /**
  * Contract results view model
@@ -28,7 +28,7 @@ class ContractResultViewModel {
       : contractId.toEvmAddress();
     this.amount = contractResult.amount;
     if (config.response.enableDelegationAddress && !isEmpty(contractResult.authorizationList)) {
-      this.authorization_list = contractResult.authorizationList || [];
+      this.authorization_list = padAuthorizationList(contractResult.authorizationList || []);
     }
     this.bloom = this.#encodeBloom(contractResult.bloom);
     this.call_result = toHexString(contractResult.callResult, true);
