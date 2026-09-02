@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.restjava.parameter.RequestParameter;
 import org.hiero.mirror.restjava.parameter.RestJavaQueryParam;
@@ -70,7 +71,7 @@ final class LinkFactoryImpl implements LinkFactory {
     }
 
     private static boolean hasEq(String value) {
-        if (value.isBlank()) {
+        if (StringUtils.isBlank(value)) {
             // Treating blank value as an implicit eq would suppress the advancing
             // pagination bound and produce a next link identical to the current request.
             return false;
@@ -262,8 +263,7 @@ final class LinkFactoryImpl implements LinkFactory {
     }
 
     private static boolean isSafeQueryValue(@Nullable String value) {
-        if (value == null || value.isBlank()) {
-            // Blank values carry no constraint and must never be echoed into the next link.
+        if (StringUtils.isBlank(value)) {
             return false;
         }
 
