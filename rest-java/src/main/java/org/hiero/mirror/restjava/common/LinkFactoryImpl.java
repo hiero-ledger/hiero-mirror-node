@@ -173,7 +173,15 @@ final class LinkFactoryImpl implements LinkFactory {
         var queryParams = new LinkedMultiValueMap<String, String>();
 
         addParamMapToQueryParams(paramsMap, paginationParamsMap, allowedQueryParams, order, queryParams);
-        addExtractedParamsToQueryParams(sortOrders, paginationParamsMap, order, queryParams);
+        final var advancingBoundAdded =
+                addExtractedParamsToQueryParams(sortOrders, paginationParamsMap, order, queryParams);
+
+        // If no advancing bound was added (every sort field is eq-constrained, e.g. ?node.id=0&limit=1), the next
+        // link would carry the same effective query as the current request - a next page that never advances. There
+        // are no further results to page through, so return null instead of emitting a self-referential link.
+        if (!advancingBoundAdded) {
+            return null;
+        }
 
         // Check if the pagination would create an empty range (e.g., gt:4 AND lt:5 with no values in between)
         // If so, return null to indicate no more results
@@ -305,8 +313,15 @@ final class LinkFactoryImpl implements LinkFactory {
         }
     }
 
+    /**
+     * Appends the advancing pagination bounds (e.g. {@code node.id=gt:<lastId>}) for each sort field that is not
+     * already eq-constrained.
+     *
+     * @return whether at least one advancing bound was added. When {@code false}, the next link would not advance
+     *     past the current page and no further page exists.
+     */
     @SuppressWarnings("java:S1125")
-    private void addExtractedParamsToQueryParams(
+    private boolean addExtractedParamsToQueryParams(
             Sort sort,
             Map<String, String> paginationParamsMap,
             Direction order,
@@ -319,6 +334,7 @@ final class LinkFactoryImpl implements LinkFactory {
                 })
                 .toList();
 
+        var advancingBoundAdded = false;
         for (int i = 0; i < sortList.size(); i++) {
             var key = sortList.get(i);
             if (queryParams.containsKey(key) && Boolean.TRUE.equals(sortEqMap.get(key))) {
@@ -332,7 +348,10 @@ final class LinkFactoryImpl implements LinkFactory {
             var paramValue = getOperator(order, exclusive) + ":" + value;
             if (isSafeQueryValue(paramValue)) {
                 queryParams.add(key, paramValue);
+                advancingBoundAdded = true;
             }
         }
+
+        return advancingBoundAdded;
     }
 }

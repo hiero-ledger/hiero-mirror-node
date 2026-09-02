@@ -103,9 +103,9 @@ final class LinkFactoryTest {
     @DisplayName("Get pagination links for all query parameters")
     @ParameterizedTest
     @CsvSource({
-        "1, ASC,  eq:0.0.1000, eq:0.0.1000, false, /api?limit=1&order=ASC&account.id=eq:0.0.1000&token.id=eq:0.0.1000&owner=false",
+        "1, ASC,  eq:0.0.1000, eq:0.0.1000, false,",
         "1, asc,  lt:0.0.2000, 0.0.1000,    false, /api?limit=1&order=asc&account.id=lt:0.0.2000&account.id=gt:0.0.1000&token.id=0.0.1000&owner=false",
-        "1, DESC, 0.0.1000,    0.0.1000,    false, /api?limit=1&order=DESC&account.id=0.0.1000&token.id=0.0.1000&owner=false",
+        "1, DESC, 0.0.1000,    0.0.1000,    false,",
         "1, desc, gt:0.0.900,  gt:0.0.900,  false, /api?limit=1&order=desc&account.id=gt:0.0.900&account.id=lte:0.0.1000&token.id=gt:0.0.900&token.id=lt:0.0.6458&owner=false",
         "1, desc, gt:0.0.900, gte:0.0.900,  false,  /api?limit=1&order=desc&account.id=gt:0.0.900&account.id=lte:0.0.1000&token.id=gte:0.0.900&token.id=lt:0.0.6458&owner=false",
         "1, desc, lt:0.0.9000, gte:0.0.900, false, /api?limit=1&order=desc&token.id=gte:0.0.900&token.id=lt:0.0.6458&owner=false&account.id=lte:0.0.1000",
@@ -152,7 +152,8 @@ final class LinkFactoryTest {
     @DisplayName("Get pagination links with no primary sort")
     @ParameterizedTest
     @CsvSource({
-        "0.0.1000,    0.0.1000,    /api?limit=1&account.id=0.0.1000&token.id=0.0.1000",
+        // Both sort fields are eq-constrained, so no advancing bound exists - the next link would repeat the request.
+        "0.0.1000,    0.0.1000,",
         "lt:0.0.9000, gte:0.0.900, /api?limit=1&account.id=lt:0.0.9000&account.id=gte:0.0.1000&token.id=gt:0.0.6458",
     })
     void testNoPrimarySort(String accountParameter, String tokenParameter, String expectedLink) {
@@ -166,7 +167,11 @@ final class LinkFactoryTest {
 
         assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
                 .returns(expectedLink, Links::getNext);
-        assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
+        if (expectedLink != null) {
+            assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
+        } else {
+            assertThat(response.getHeader(HttpHeaders.LINK)).isNull();
+        }
     }
 
     @DisplayName("Omits unknown query parameters from pagination links")
@@ -289,7 +294,7 @@ final class LinkFactoryTest {
     void testParamsFromOtherApis() {
         var params = new LinkedHashMap<String, String[]>();
         params.put("limit", new String[] {"1"});
-        params.put("account.id", new String[] {"0.0.1000"});
+        params.put("account.id", new String[] {"lt:0.0.2000"});
         params.put("hook.id", new String[] {"1"});
         params.put("node.id", new String[] {"3"});
         params.put("token.id", new String[] {"0.0.1000"});
@@ -297,7 +302,7 @@ final class LinkFactoryTest {
         var sort = Sort.by(Direction.ASC, ACCOUNT_ID, TOKEN_ID);
         var pageable = PageRequest.of(0, 1, sort);
 
-        final var expectedLink = "/api?limit=1&account.id=0.0.1000&token.id=0.0.1000";
+        final var expectedLink = "/api?limit=1&account.id=lt:0.0.2000&account.id=gt:0.0.1000&token.id=0.0.1000";
         assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
                 .returns(expectedLink, Links::getNext);
         assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
@@ -311,14 +316,14 @@ final class LinkFactoryTest {
         params.put("limit", new String[] {"1"});
         params.put("order", new String[] {"asc"});
         params.put("file.id", new String[] {"0.0.101"});
-        params.put("node.id", new String[] {"1"});
+        params.put("node.id", new String[] {"lte:5"});
         params.put("token.id", new String[] {"0.0.1000"});
         when(request.getParameterMap()).thenReturn(params);
         when(extractor.apply(nftAllowance)).thenReturn(Map.of(NODE_ID, "3"));
         var sort = Sort.by(Direction.ASC, NODE_ID);
         var pageable = PageRequest.of(0, 1, sort);
 
-        final var expectedLink = "/api?limit=1&order=asc&file.id=0.0.101&node.id=1";
+        final var expectedLink = "/api?limit=1&order=asc&file.id=0.0.101&node.id=lte:5&node.id=gt:3";
         assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
                 .returns(expectedLink, Links::getNext);
         assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
@@ -382,6 +387,25 @@ final class LinkFactoryTest {
         assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
                 .returns(expectedLink, Links::getNext);
         assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
+    }
+
+    @DisplayName("An eq-constrained, exactly-full page omits the next link instead of repeating the request")
+    @Test
+    void testEqConstrainedPrimarySortNoNextLink() {
+        when(request.getAttribute(BEST_MATCHING_HANDLER_ATTRIBUTE)).thenReturn(NODES_HANDLER);
+        var params = new LinkedHashMap<String, String[]>();
+        params.put("limit", new String[] {"1"});
+        params.put("node.id", new String[] {"0"});
+        when(request.getParameterMap()).thenReturn(params);
+        when(extractor.apply(nftAllowance)).thenReturn(Map.of(NODE_ID, "0"));
+        var sort = Sort.by(Direction.ASC, NODE_ID);
+        var pageable = PageRequest.of(0, 1, sort);
+
+        // node.id=0 is an eq constraint on the only sort field, so no advancing bound can be added; emitting a next
+        // link would repeat the request verbatim. There are no more results, so no link is produced.
+        assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
+                .returns(null, Links::getNext);
+        assertThat(response.getHeader(HttpHeaders.LINK)).isNull();
     }
 
     private static HandlerMethod handlerMethod(Class<?> type, String methodName, Class<?>... parameterTypes) {
