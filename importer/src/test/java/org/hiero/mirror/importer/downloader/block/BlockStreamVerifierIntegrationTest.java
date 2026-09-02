@@ -240,6 +240,19 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
                         "Verification of initial state in wrapped record block 2025-06-01T00_00_10.207594022Z.rcd with block number 20346052 is not supported");
     }
 
+    @Test
+    void verifyWithPreV6Version() {
+        // given
+        final var blockFile = createBlockFileWithWrb();
+        blockFile.getRecordFile().setVersion(5);
+
+        // when, then
+        assertThatThrownBy(() -> verifier.verify(blockFile))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage(
+                        "Verification of pre-v6 wrapped record block 2025-06-01T00_00_10.207594022Z.rcd with block number 20346052 is not supported");
+    }
+
     private void persistNodeStakes() {
         for (int i = 0; i < 4; i++) {
             final long nodeId = i;
