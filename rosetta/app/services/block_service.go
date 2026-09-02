@@ -20,10 +20,9 @@ import (
 type blockAPIService struct {
 	accountRepo interfaces.AccountRepository
 	BaseService
-	entityCache                   *cache.Cache[int64, types.AccountId]
-	maxTransactions               int
-	maxTransactionsInBlock        int
-	transactionIdentifierPageSize int
+	entityCache            *cache.Cache[int64, types.AccountId]
+	maxTransactions        int
+	maxTransactionsInBlock int
 }
 
 // NewBlockAPIService creates a new instance of a blockAPIService.
@@ -39,12 +38,11 @@ func NewBlockAPIService(
 		cache.AsLRU[int64, types.AccountId](lru.WithCapacity(entityCacheConfig.MaxSize)),
 	)
 	return &blockAPIService{
-		accountRepo:                   accountRepo,
-		BaseService:                   baseService,
-		entityCache:                   entityCache,
-		maxTransactions:               responseConfig.MaxTransactions,
-		maxTransactionsInBlock:        responseConfig.MaxTransactionsInBlock,
-		transactionIdentifierPageSize: responseConfig.TransactionIdentifierPageSize,
+		accountRepo:            accountRepo,
+		BaseService:            baseService,
+		entityCache:            entityCache,
+		maxTransactions:        responseConfig.MaxTransactions,
+		maxTransactionsInBlock: responseConfig.MaxTransactionsInBlock,
 	}
 }
 
@@ -58,22 +56,21 @@ func (s *blockAPIService) Block(
 		return nil, err
 	}
 
-	includedHashes, otherTransactions, err := s.findTransactionIdentifiers(
-		ctx,
-		block.ConsensusStartNanos,
-		block.ConsensusEndNanos,
-	)
-	if err != nil {
+	if block.Count > int64(s.maxTransactions) {
+		return nil, errors.ErrTransactionLimitExceeded
+	}
+
+	if block.Transactions, err = s.FindBetween(ctx, block.ConsensusStartNanos, block.ConsensusEndNanos); err != nil {
 		return nil, err
 	}
 
-	if block.Transactions, err = s.FindBetween(
-		ctx,
-		block.ConsensusStartNanos,
-		block.ConsensusEndNanos,
-		includedHashes,
-	); err != nil {
-		return nil, err
+	var otherTransactions []*rTypes.TransactionIdentifier
+	if len(block.Transactions) > s.maxTransactionsInBlock {
+		otherTransactions = make([]*rTypes.TransactionIdentifier, 0, len(block.Transactions)-s.maxTransactionsInBlock)
+		for _, transaction := range block.Transactions[s.maxTransactionsInBlock:] {
+			otherTransactions = append(otherTransactions, &rTypes.TransactionIdentifier{Hash: transaction.Hash})
+		}
+		block.Transactions = block.Transactions[0:s.maxTransactionsInBlock]
 	}
 
 	if err = s.updateOperationAccountAlias(ctx, block.Transactions...); err != nil {
@@ -81,57 +78,6 @@ func (s *blockAPIService) Block(
 	}
 
 	return &rTypes.BlockResponse{Block: block.ToRosetta(), OtherTransactions: otherTransactions}, nil
-}
-
-func (s *blockAPIService) findTransactionIdentifiers(
-	ctx context.Context,
-	consensusStart int64,
-	consensusEnd int64,
-) ([]string, []*rTypes.TransactionIdentifier, *rTypes.Error) {
-	includedHashes := make([]string, 0, s.maxTransactionsInBlock)
-	var otherTransactions []*rTypes.TransactionIdentifier
-	seen := make(map[string]struct{})
-	cursor := consensusStart - 1
-
-	for {
-		identifiers, err := s.FindBetweenTransactionIdentifiers(
-			ctx,
-			consensusStart,
-			consensusEnd,
-			cursor,
-			s.transactionIdentifierPageSize,
-		)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		for _, identifier := range identifiers {
-			if _, ok := seen[identifier.Hash]; ok {
-				continue
-			}
-
-			seen[identifier.Hash] = struct{}{}
-			if len(seen) > s.maxTransactions {
-				return nil, nil, errors.ErrTransactionLimitExceeded
-			}
-
-			if len(includedHashes) < s.maxTransactionsInBlock {
-				includedHashes = append(includedHashes, identifier.Hash)
-			} else {
-				otherTransactions = append(
-					otherTransactions,
-					&rTypes.TransactionIdentifier{Hash: identifier.Hash},
-				)
-			}
-		}
-
-		// an empty page also ends the scan, so a non-positive configured page size cannot spin forever
-		if len(identifiers) == 0 || len(identifiers) < s.transactionIdentifierPageSize {
-			return includedHashes, otherTransactions, nil
-		}
-
-		cursor = identifiers[len(identifiers)-1].ConsensusTimestamp
-	}
 }
 
 // BlockTransaction implements the /block/transaction endpoint.

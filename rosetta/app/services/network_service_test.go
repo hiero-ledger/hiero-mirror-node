@@ -145,7 +145,6 @@ func (suite *offlineNetworkServiceSuite) TestNetworkOptions() {
 		errors.ErrNodeAccountIdsEmpty,
 		errors.ErrMissingNodeAccountIdMetadata,
 		errors.ErrTransactionLimitExceeded,
-		errors.ErrTransferLimitExceeded,
 		errors.ErrInternalServerError,
 	}
 

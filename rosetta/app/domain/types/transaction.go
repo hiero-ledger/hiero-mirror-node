@@ -15,12 +15,6 @@ type Transaction struct {
 	Operations OperationSlice
 }
 
-// TransactionIdentifier identifies a transaction row and provides a cursor for pagination.
-type TransactionIdentifier struct {
-	ConsensusTimestamp int64
-	Hash               string
-}
-
 // ToRosetta returns Rosetta type Transaction from the current domain type Transaction
 func (t *Transaction) ToRosetta() *types.Transaction {
 	operations := t.Operations.ToRosetta()

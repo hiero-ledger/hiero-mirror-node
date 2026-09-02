@@ -54,7 +54,6 @@ const (
 	TransactionNotFound               = "Transaction not found"
 	TransactionSubmissionFailed       = "Transaction submission failed"
 	TransactionUnmarshallingFailed    = "Transaction unmarshalling failed"
-	TransferLimitExceeded             = "Transaction transfer data limit exceeded"
 )
 
 var (
@@ -101,7 +100,6 @@ var (
 	ErrNodeAccountIdsEmpty               = newError(NodeAccountIdsEmpty, 140, true)
 	ErrMissingNodeAccountIdMetadata      = newError(MissingNodeAccountIdMetadata, 141, false)
 	ErrTransactionLimitExceeded          = newError(TransactionLimitExceeded, 142, false)
-	ErrTransferLimitExceeded             = newError(TransferLimitExceeded, 143, false)
 	ErrInternalServerError               = newError(InternalServerError, 500, true)
 
 	Errors = make([]*types.Error, 0)

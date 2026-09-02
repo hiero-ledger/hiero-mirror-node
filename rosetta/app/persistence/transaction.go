@@ -15,25 +15,20 @@ import (
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/interfaces"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/persistence/domain"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/tools"
-	"github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	maxTransactions = 100_000
-	// maxTransferCount bounds how many crypto transfers or staking reward payouts may be aggregated into a single
-	// transaction row. The bound is applied by the database so an oversized payload is never built or transferred.
-	maxTransferCount                                          = 25_000
+	batchSize                                                 = 2000
 	transactionResultFeeScheduleFilePartUploaded        int32 = 104
 	transactionResultSuccess                            int32 = 22
 	transactionResultSuccessButMissingExpectedOperation int32 = 220
 )
 
 const (
-	andTransactionHashFilter = " and transaction_hash = @hash"
-	// selectTransactionsInTimestampRange selects the transactions with its crypto transfers in json. An aggregate
-	// column is null when the transaction has more than @maxTransferCount transfers, in which case the aggregate is
-	// not built at all.
+	andTransactionHashFilter  = " and transaction_hash = @hash"
+	orderByConsensusTimestamp = " order by consensus_timestamp"
+	// selectTransactionsInTimestampRange selects the transactions with its crypto transfers in json.
 	selectTransactionsInTimestampRange = `select
                                             t.consensus_timestamp,
                                             t.entity_id,
@@ -43,62 +38,39 @@ const (
                                             t.result,
                                             t.transaction_hash as hash,
                                             t.type,
-                                            case when (
-                                              select count(*)
-                                              from crypto_transfer
-                                              where consensus_timestamp = t.consensus_timestamp and
-                                                (errata is null or errata <> 'DELETE')
-                                            ) > @maxTransferCount then null else coalesce((
+                                            coalesce((
                                               select json_agg(json_build_object(
                                                 'account_id', entity_id,
                                                 'amount', amount) order by entity_id)
                                               from crypto_transfer
                                               where consensus_timestamp = t.consensus_timestamp and
                                                 (errata is null or errata <> 'DELETE')
-                                            ), '[]') end as crypto_transfers,
-                                            case when (
-                                              select count(*)
-                                              from staking_reward_transfer
-                                              where consensus_timestamp = t.consensus_timestamp
-                                            ) > @maxTransferCount then null else coalesce((
+                                            ), '[]') as crypto_transfers,
+                                            coalesce((
                                               select json_agg(json_build_object(
                                                 'account_id', account_id,
                                                 'amount', amount) order by account_id)
                                               from staking_reward_transfer
                                               where consensus_timestamp = t.consensus_timestamp
-                                            ), '[]') end as staking_reward_payouts
+                                            ), '[]') as staking_reward_payouts
                                           from transaction t
                                           where consensus_timestamp >= @start and consensus_timestamp <= @end`
-	selectTransactionsByHashInTimestampRange = selectTransactionsInTimestampRange + andTransactionHashFilter
-	// selectTransactionsByHashesInTimestampRange binds the hashes as a single bytea[] so the plan shape stays constant
-	// regardless of how many transactions the block resolves to. The cast is spelled out because gorm does not
-	// terminate a named parameter on ':', so the '::' form would be read as part of the parameter name.
-	selectTransactionsByHashesInTimestampRange = selectTransactionsInTimestampRange + `
-                                            and t.transaction_hash = any(cast(@hashes as bytea[]))
-                                          order by consensus_timestamp, transaction_hash
-                                          limit @rowLimit`
-	selectTransactionIdentifiersInTimestampRange = `select consensus_timestamp, transaction_hash as hash
-	                                                  from transaction
-	                                                  where consensus_timestamp >= @start and
-	                                                    consensus_timestamp <= @end and
-	                                                    consensus_timestamp > @cursor
-	                                                  order by consensus_timestamp
-	                                                  limit @limit`
+	selectTransactionsByHashInTimestampRange  = selectTransactionsInTimestampRange + andTransactionHashFilter
+	selectTransactionsInTimestampRangeOrdered = selectTransactionsInTimestampRange + orderByConsensusTimestamp
 )
 
 // transaction maps to the transaction query which returns the required transaction fields, CryptoTransfers json string,
-// and itemizedTransfers json string. CryptoTransfers and StakingRewardPayouts are nil when the database declined to
-// aggregate them because the transaction exceeds maxTransferCount transfers.
+// and itemizedTransfers json string.
 type transaction struct {
 	ConsensusTimestamp   int64
-	CryptoTransfers      *string
+	CryptoTransfers      string
 	EntityId             *domain.EntityId
 	Hash                 []byte
 	ItemizedTransfer     domain.ItemizedTransferSlice `gorm:"type:jsonb"`
 	Memo                 []byte
 	PayerAccountId       domain.EntityId
 	Result               int16
-	StakingRewardPayouts *string
+	StakingRewardPayouts string
 	Type                 int16
 }
 
@@ -128,23 +100,16 @@ func (t hbarTransfer) getAmount() types.Amount {
 type transactionRepository struct {
 	once                  sync.Once
 	dbClient              interfaces.DbClient
-	maxTransferCount      int
-	maxTransactions       int
 	stakingRewardEntityId domain.EntityId
 	types                 map[int]string
 }
 
 // NewTransactionRepository creates an instance of a TransactionRepository struct
 func NewTransactionRepository(dbClient interfaces.DbClient, stakingRewardEntityId domain.EntityId) interfaces.TransactionRepository {
-	return &transactionRepository{
-		dbClient:              dbClient,
-		maxTransferCount:      maxTransferCount,
-		maxTransactions:       maxTransactions,
-		stakingRewardEntityId: stakingRewardEntityId,
-	}
+	return &transactionRepository{dbClient: dbClient, stakingRewardEntityId: stakingRewardEntityId}
 }
 
-func (tr *transactionRepository) FindBetween(ctx context.Context, start, end int64, hashes []string) (
+func (tr *transactionRepository) FindBetween(ctx context.Context, start, end int64) (
 	[]*types.Transaction,
 	*rTypes.Error,
 ) {
@@ -152,66 +117,49 @@ func (tr *transactionRepository) FindBetween(ctx context.Context, start, end int
 		return nil, hErrors.ErrStartMustNotBeAfterEnd
 	}
 
-	if len(hashes) == 0 {
-		return []*types.Transaction{}, nil
-	}
-
-	transactionHashes := make(pq.ByteaArray, 0, len(hashes))
-	for _, hash := range hashes {
-		transactionHash, err := hex.DecodeString(tools.SafeRemoveHexPrefix(hash))
-		if err != nil {
-			return nil, hErrors.ErrInvalidTransactionIdentifier
-		}
-		transactionHashes = append(transactionHashes, transactionHash)
-	}
-
-	// bind the hashes as a single bytea[] literal instead of one placeholder per hash
-	hashArray, err := transactionHashes.Value()
-	if err != nil {
-		return nil, hErrors.ErrInternalServerError
-	}
-
 	db, cancel := tr.dbClient.GetDbWithContext(ctx)
 	defer cancel()
 
-	var transactions []*transaction
-	if err := db.
-		Raw(
-			selectTransactionsByHashesInTimestampRange,
-			sql.Named("start", start),
-			sql.Named("end", end),
-			sql.Named("hashes", hashArray),
-			sql.Named("maxTransferCount", tr.maxTransferCount),
-			sql.Named("rowLimit", tr.maxTransactions+1),
-		).
-		Find(&transactions).
-		Error; err != nil {
-		log.Errorf(databaseErrorFormat, hErrors.ErrDatabaseError.Message, err)
-		return nil, hErrors.ErrDatabaseError
+	transactions := make([]*transaction, 0)
+	for start <= end {
+		transactionsBatch := make([]*transaction, 0)
+		err := db.
+			Raw(
+				selectTransactionsInTimestampRangeOrdered,
+				sql.Named("start", start),
+				sql.Named("end", end),
+			).
+			Limit(batchSize).
+			Find(&transactionsBatch).
+			Error
+		if err != nil {
+			log.Errorf(databaseErrorFormat, hErrors.ErrDatabaseError.Message, err)
+			return nil, hErrors.ErrDatabaseError
+		}
+
+		transactions = append(transactions, transactionsBatch...)
+
+		if len(transactionsBatch) < batchSize {
+			break
+		}
+
+		start = transactionsBatch[len(transactionsBatch)-1].ConsensusTimestamp + 1
 	}
 
-	if rErr := validateTransferCounts(transactions); rErr != nil {
-		return nil, rErr
-	}
-
-	if len(transactions) > tr.maxTransactions {
-		return nil, hErrors.ErrTransactionLimitExceeded
-	}
-
-	resultHashes := make([]string, 0)
+	hashes := make([]string, 0)
 	sameHashMap := make(map[string][]*transaction)
 	for _, t := range transactions {
 		h := t.getHashString()
 		if _, ok := sameHashMap[h]; !ok {
 			// save the unique hashes in chronological order
-			resultHashes = append(resultHashes, h)
+			hashes = append(hashes, h)
 		}
 
 		sameHashMap[h] = append(sameHashMap[h], t)
 	}
 
 	res := make([]*types.Transaction, 0, len(sameHashMap))
-	for _, hash := range resultHashes {
+	for _, hash := range hashes {
 		sameHashTransactions := sameHashMap[hash]
 		transaction, err := tr.constructTransaction(sameHashTransactions)
 		if err != nil {
@@ -220,54 +168,6 @@ func (tr *transactionRepository) FindBetween(ctx context.Context, start, end int
 		res = append(res, transaction)
 	}
 	return res, nil
-}
-
-func (tr *transactionRepository) FindBetweenTransactionIdentifiers(
-	ctx context.Context,
-	start int64,
-	end int64,
-	cursor int64,
-	limit int,
-) ([]types.TransactionIdentifier, *rTypes.Error) {
-	if start > end {
-		return nil, hErrors.ErrStartMustNotBeAfterEnd
-	}
-
-	if limit <= 0 {
-		return []types.TransactionIdentifier{}, nil
-	}
-
-	db, cancel := tr.dbClient.GetDbWithContext(ctx)
-	defer cancel()
-
-	var identifiers []struct {
-		ConsensusTimestamp int64
-		Hash               []byte
-	}
-	err := db.
-		Raw(
-			selectTransactionIdentifiersInTimestampRange,
-			sql.Named("start", start),
-			sql.Named("end", end),
-			sql.Named("cursor", cursor),
-			sql.Named("limit", min(limit, tr.maxTransactions+1)),
-		).
-		Find(&identifiers).
-		Error
-	if err != nil {
-		log.Errorf(databaseErrorFormat, hErrors.ErrDatabaseError.Message, err)
-		return nil, hErrors.ErrDatabaseError
-	}
-
-	result := make([]types.TransactionIdentifier, 0, len(identifiers))
-	for _, identifier := range identifiers {
-		result = append(result, types.TransactionIdentifier{
-			ConsensusTimestamp: identifier.ConsensusTimestamp,
-			Hash:               tools.SafeAddHexPrefix(hex.EncodeToString(identifier.Hash)),
-		})
-	}
-
-	return result, nil
 }
 
 func (tr *transactionRepository) FindByHashInBlock(
@@ -290,7 +190,6 @@ func (tr *transactionRepository) FindByHashInBlock(
 		sql.Named("hash", transactionHash),
 		sql.Named("start", consensusStart),
 		sql.Named("end", consensusEnd),
-		sql.Named("maxTransferCount", tr.maxTransferCount),
 	).Find(&transactions).Error; err != nil {
 		log.Errorf(databaseErrorFormat, hErrors.ErrDatabaseError.Message, err)
 		return nil, hErrors.ErrDatabaseError
@@ -300,28 +199,12 @@ func (tr *transactionRepository) FindByHashInBlock(
 		return nil, hErrors.ErrTransactionNotFound
 	}
 
-	if rErr := validateTransferCounts(transactions); rErr != nil {
-		return nil, rErr
-	}
-
 	transaction, rErr := tr.constructTransaction(transactions)
 	if rErr != nil {
 		return nil, rErr
 	}
 
 	return transaction, nil
-}
-
-// validateTransferCounts rejects transactions whose aggregates the database declined to build because they exceed
-// maxTransferCount transfers.
-func validateTransferCounts(transactions []*transaction) *rTypes.Error {
-	for _, transaction := range transactions {
-		if transaction.CryptoTransfers == nil || transaction.StakingRewardPayouts == nil {
-			return hErrors.ErrTransferLimitExceeded
-		}
-	}
-
-	return nil
 }
 
 func (tr *transactionRepository) constructTransaction(sameHashTransactions []*transaction) (
@@ -337,12 +220,12 @@ func (tr *transactionRepository) constructTransaction(sameHashTransactions []*tr
 
 	for _, transaction := range sameHashTransactions {
 		cryptoTransfers := make([]hbarTransfer, 0)
-		if err := json.Unmarshal([]byte(*transaction.CryptoTransfers), &cryptoTransfers); err != nil {
+		if err := json.Unmarshal([]byte(transaction.CryptoTransfers), &cryptoTransfers); err != nil {
 			return nil, hErrors.ErrInternalServerError
 		}
 
 		stakingRewardPayouts := make([]hbarTransfer, 0)
-		if err := json.Unmarshal([]byte(*transaction.StakingRewardPayouts), &stakingRewardPayouts); err != nil {
+		if err := json.Unmarshal([]byte(transaction.StakingRewardPayouts), &stakingRewardPayouts); err != nil {
 			return nil, hErrors.ErrInternalServerError
 		}
 

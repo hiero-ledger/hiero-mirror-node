@@ -12,19 +12,8 @@ import (
 // TransactionRepository Interface that all TransactionRepository structs must implement
 type TransactionRepository interface {
 
-	// FindBetween retrieves the requested logical transactions between the provided timestamps inclusively
-	FindBetween(ctx context.Context, start, end int64, hashes []string) ([]*types.Transaction, *rTypes.Error)
-
-	// FindBetweenTransactionIdentifiers retrieves a page of distinct transaction identifiers after the provided cursor
-	FindBetweenTransactionIdentifiers(
-		ctx context.Context,
-		start, end int64,
-		cursor int64,
-		limit int,
-	) (
-		[]types.TransactionIdentifier,
-		*rTypes.Error,
-	)
+	// FindBetween retrieves all Transaction between the provided start and end timestamp inclusively
+	FindBetween(ctx context.Context, start, end int64) ([]*types.Transaction, *rTypes.Error)
 
 	// FindByHashInBlock retrieves a transaction by its hash in the block identified by [consensusStart, consensusEnd]
 	FindByHashInBlock(ctx context.Context, hash string, consensusStart, consensusEnd int64) (

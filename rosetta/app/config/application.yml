@@ -38,5 +38,4 @@ hiero:
       response:
         maxTransactions: 100000
         maxTransactionsInBlock: 6000
-        transactionIdentifierPageSize: 2000
       shutdownTimeout: 10s

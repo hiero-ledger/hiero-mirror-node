@@ -81,9 +81,7 @@ type Pool struct {
 }
 
 type Response struct {
-	// MaxTransactions caps the distinct transactions a single block may resolve to, including those reported in
-	// other_transactions.
-	MaxTransactions               int `yaml:"maxTransactions"`
-	MaxTransactionsInBlock        int `yaml:"maxTransactionsInBlock"`
-	TransactionIdentifierPageSize int `yaml:"transactionIdentifierPageSize"`
+	// MaxTransactions caps the transactions a single block may contain, as reported by record_file.count.
+	MaxTransactions        int `yaml:"maxTransactions"`
+	MaxTransactionsInBlock int `yaml:"maxTransactionsInBlock"`
 }
