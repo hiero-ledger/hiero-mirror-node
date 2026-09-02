@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.record.entity.sql;
 
 import com.google.common.base.Stopwatch;
 import jakarta.inject.Named;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -238,7 +239,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
     @Override
     public void onLedger(final Ledger ledger) throws ImporterException {
-        context.merge(ledger.getLedgerId(), ledger, this::mergeLedger);
+        context.merge(ByteBuffer.wrap(ledger.getLedgerId()), ledger, this::mergeLedger);
     }
 
     @Override
