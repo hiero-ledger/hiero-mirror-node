@@ -9,6 +9,8 @@ import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.token.TokenAirdropStateEnum;
+import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenSupplyTypeEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
@@ -31,8 +33,9 @@ public class NativeEnumJdbcConverter extends MappingJdbcConverter {
 
     /**
      * Enum types stored as native PostgreSQL enum columns. Keep in sync with the {@code *ToJdbcValue} enum writing
-     * converters. Integer-backed enums (freeze_status, kyc_status, digest_algorithm, reconciliation_status) are
-     * intentionally excluded — their columns are smallint/int, so their nulls must keep the numeric target type.
+     * converters. Other integer-backed enum columns are intentionally excluded because they have a not null
+     * restriction. Nullable smallint enum columns, whose nulls would otherwise bind as VARCHAR, are handled
+     * by {@link #SMALLINT_ENUM_TYPES} instead.
      */
     private static final Set<Class<?>> NATIVE_ENUM_TYPES = Set.of(
             ErrataType.class,
@@ -44,6 +47,14 @@ public class NativeEnumJdbcConverter extends MappingJdbcConverter {
             HookType.class,
             HookExtensionPoint.class);
 
+    /**
+     * Enum types stored as smallint columns (freeze_status, kyc_status). Spring Data JDBC resolves an enum property to
+     * VARCHAR, so a null value would bind as VARCHAR and PostgreSQL rejects it against the smallint column. Binding the
+     * target type as SMALLINT keeps null (and any path that reads the target SQL type) numeric.
+     */
+    private static final Set<Class<?>> SMALLINT_ENUM_TYPES =
+            Set.of(TokenFreezeStatusEnum.class, TokenKycStatusEnum.class);
+
     public NativeEnumJdbcConverter(
             RelationalMappingContext context,
             RelationResolver relationResolver,
@@ -54,6 +65,13 @@ public class NativeEnumJdbcConverter extends MappingJdbcConverter {
 
     @Override
     public SQLType getTargetSqlType(RelationalPersistentProperty property) {
-        return NATIVE_ENUM_TYPES.contains(property.getActualType()) ? JDBCType.OTHER : super.getTargetSqlType(property);
+        final var type = property.getActualType();
+        if (NATIVE_ENUM_TYPES.contains(type)) {
+            return JDBCType.OTHER;
+        }
+        if (SMALLINT_ENUM_TYPES.contains(type)) {
+            return JDBCType.SMALLINT;
+        }
+        return super.getTargetSqlType(property);
     }
 }

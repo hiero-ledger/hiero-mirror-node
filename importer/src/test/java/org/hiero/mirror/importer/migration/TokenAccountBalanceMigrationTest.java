@@ -269,8 +269,8 @@ class TokenAccountBalanceMigrationTest extends ImporterIntegrationTest {
                         "associated",
                         "automaticAssociation",
                         "createdTimestamp",
-                        "freezeStatusId",
-                        "kycStatusId",
+                        "freezeStatus",
+                        "kycStatus",
                         "timestampRange")
                 .containsExactlyInAnyOrder(
                         tokenAccount,

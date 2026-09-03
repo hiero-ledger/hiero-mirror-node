@@ -13,7 +13,6 @@ import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.annotation.Transient;
-import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
@@ -48,9 +47,7 @@ public abstract class AbstractTokenAccount implements History {
                  else coalesce({0}, e_{0})
             end
             """)
-    @JsonIgnore
-    @Column("freeze_status")
-    private Integer freezeStatusId;
+    private TokenFreezeStatusEnum freezeStatus;
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
@@ -61,27 +58,9 @@ public abstract class AbstractTokenAccount implements History {
                  else coalesce({0}, e_{0})
             end
             """)
-    @JsonIgnore
-    @Column("kyc_status")
-    private Integer kycStatusId;
+    private TokenKycStatusEnum kycStatus;
 
     private Range<Long> timestampRange;
-
-    public TokenFreezeStatusEnum getFreezeStatus() {
-        return freezeStatusId == null ? null : TokenFreezeStatusEnum.fromId(freezeStatusId);
-    }
-
-    public void setFreezeStatus(TokenFreezeStatusEnum freezeStatus) {
-        this.freezeStatusId = freezeStatus == null ? null : freezeStatus.getDbId();
-    }
-
-    public TokenKycStatusEnum getKycStatus() {
-        return kycStatusId == null ? null : TokenKycStatusEnum.fromId(kycStatusId);
-    }
-
-    public void setKycStatus(TokenKycStatusEnum kycStatus) {
-        this.kycStatusId = kycStatus == null ? null : kycStatus.getDbId();
-    }
 
     public long getAccountId() {
         return id != null ? id.getAccountId() : 0L;
@@ -137,16 +116,6 @@ public abstract class AbstractTokenAccount implements History {
                 this.id = new Id();
             }
             this.id.setTokenId(tokenId);
-            return self();
-        }
-
-        public B freezeStatus(TokenFreezeStatusEnum freezeStatus) {
-            this.freezeStatusId = freezeStatus == null ? null : freezeStatus.getDbId();
-            return self();
-        }
-
-        public B kycStatus(TokenKycStatusEnum kycStatus) {
-            this.kycStatusId = kycStatus == null ? null : kycStatus.getDbId();
             return self();
         }
     }

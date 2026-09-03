@@ -43,7 +43,6 @@ public abstract class AbstractCustomFee implements History {
     @UpsertColumn(shouldCoalesce = false)
     private RoyaltyFeesHolder royaltyFeesColumn;
 
-    // Persisted via RangeToPGobjectWritingConverter / PGobjectToRangeReadingConverter
     private Range<Long> timestampRange;
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
