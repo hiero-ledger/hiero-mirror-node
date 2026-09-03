@@ -118,7 +118,7 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Spring Data JDBC querying before insert
+        return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
     @Data

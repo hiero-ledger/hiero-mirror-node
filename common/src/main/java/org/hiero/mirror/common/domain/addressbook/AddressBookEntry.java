@@ -95,14 +95,6 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
 
     private Long stake;
 
-    public long getConsensusTimestamp() {
-        return consensusTimestamp;
-    }
-
-    public long getNodeId() {
-        return nodeId;
-    }
-
     private PublicKey parsePublicKey() {
         try {
             byte[] bytes = Hex.decodeHex(publicKey);
@@ -123,7 +115,7 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Spring Data JDBC querying before insert
+        return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
     @Data
@@ -135,15 +127,4 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
         private long nodeId;
     }
 
-    public static class AddressBookEntryBuilder {
-        public AddressBookEntryBuilder consensusTimestamp(long consensusTimestamp) {
-            this.consensusTimestamp = consensusTimestamp;
-            return this;
-        }
-
-        public AddressBookEntryBuilder nodeId(long nodeId) {
-            this.nodeId = nodeId;
-            return this;
-        }
-    }
 }
