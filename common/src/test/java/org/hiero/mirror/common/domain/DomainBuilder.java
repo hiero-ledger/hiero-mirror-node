@@ -840,10 +840,7 @@ public class DomainBuilder {
         long timestamp = timestamp();
 
         var builder = NodeStake.builder()
-                .id(NodeStake.Id.builder()
-                        .consensusTimestamp(timestamp)
-                        .nodeId(number())
-                        .build())
+                .id(new NodeStake.Id(timestamp, number()))
                 .epochDay(getEpochDay(timestamp))
                 .maxStake(maxStake)
                 .minStake(maxStake / 2L)

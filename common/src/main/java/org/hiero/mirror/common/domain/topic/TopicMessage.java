@@ -42,7 +42,6 @@ public class TopicMessage implements Comparable<TopicMessage>, Persistable<Long>
     @ToString.Exclude
     private byte[] message;
 
-    // JDBC: Handled by global EntityId converters registered in CommonConfiguration
     private EntityId payerAccountId;
 
     @ToString.Exclude

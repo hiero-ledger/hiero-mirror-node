@@ -101,7 +101,6 @@ public class NodeStake implements Persistable<NodeStake.Id> {
     }
 
     @AllArgsConstructor
-    @Builder
     @Data
     @NoArgsConstructor
     @With

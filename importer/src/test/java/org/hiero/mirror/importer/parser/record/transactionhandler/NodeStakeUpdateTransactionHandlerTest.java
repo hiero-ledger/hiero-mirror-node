@@ -178,10 +178,7 @@ class NodeStakeUpdateTransactionHandlerTest extends AbstractTransactionHandlerTe
             com.hederahashgraph.api.proto.java.NodeStake nodeStakeProto,
             long stakingPeriod) {
         return NodeStake.builder()
-                .id(NodeStake.Id.builder()
-                        .consensusTimestamp(consensusTimestamp)
-                        .nodeId(nodeStakeProto.getNodeId())
-                        .build())
+                .id(new NodeStake.Id(consensusTimestamp, nodeStakeProto.getNodeId()))
                 .epochDay(epochDay)
                 .maxStake(nodeStakeProto.getMaxStake())
                 .minStake(nodeStakeProto.getMinStake())

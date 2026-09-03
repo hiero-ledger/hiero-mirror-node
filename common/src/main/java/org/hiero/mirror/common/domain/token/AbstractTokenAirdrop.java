@@ -13,7 +13,6 @@ import lombok.With;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
-import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
@@ -24,7 +23,6 @@ public abstract class AbstractTokenAirdrop implements History {
 
     private Long amount;
 
-    @Column("state")
     private TokenAirdropStateEnum state;
 
     @org.springframework.data.annotation.Id
