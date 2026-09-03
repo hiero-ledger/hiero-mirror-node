@@ -647,7 +647,7 @@ final class CutoverServiceTest {
                 .consensusStart(consensusStart)
                 .consensusEnd(consensusStart + 2000L)
                 .hapiVersionMajor(0)
-                .hapiVersionMinor(78)
+                .hapiVersionMinor(79)
                 .hapiVersionPatch(0)
                 .index(index)
                 .version(isBlockStream ? BlockStreamReader.VERSION : ProtoRecordFileReader.VERSION)
