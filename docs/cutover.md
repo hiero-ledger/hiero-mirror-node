@@ -15,11 +15,11 @@ This guide walks mirror node operators (commercial providers and self-hosted dep
 
 ## Timeline
 
-| Milestone                              | Date                 | Notes                                                                               |
-| -------------------------------------- | -------------------- | ----------------------------------------------------------------------------------- |
-| Testnet cutover (consensus node v0.79) | **October 14, 2026** | Block stream becomes canonical on testnet; validate your upgrade here first.        |
-| Mainnet cutover (consensus node v0.79) | **November 4, 2026** | Block stream (with network-aggregated TSS signatures) becomes canonical on mainnet. |
-| Minimum `hiero-mirror-node` version    | **v0.164.0**         | Hard floor — releases earlier than this stop ingesting new data at cutover.         |
+| Milestone                              | Date                  | Notes                                                                               |
+| -------------------------------------- | --------------------- | ----------------------------------------------------------------------------------- |
+| Testnet cutover (consensus node v0.80) | **November 25, 2026** | Block stream becomes canonical on testnet; validate your upgrade here first.        |
+| Mainnet cutover (consensus node v0.80) | **December 9, 2026**  | Block stream (with network-aggregated TSS signatures) becomes canonical on mainnet. |
+| Minimum `hiero-mirror-node` version    | **v0.164.0**          | Hard floor — releases earlier than this stop ingesting new data at cutover.         |
 
 If your mirror node isn't upgraded by the relevant date, it will **stop ingesting new data** on that network. The legacy network streams bucket you read today (e.g. `hedera-mainnet-streams`) and its historical record files remain available after cutover — nothing is deleted, but new data stops being written there.
 
@@ -35,7 +35,7 @@ Record streams, event streams, signature files, and sidecars are unified into a 
 
 ### 1. Upgrade `hiero-mirror-node`
 
-Upgrade to **v0.164.0 at minimum**, validated against testnet before October 14 and confirmed on mainnet before November 4. Treat v0.164.0 as a floor, not a target — keep moving to each newer release shipped between now and the mainnet cutover for the smoothest transition, then return to your normal upgrade cadence once mainnet cutover is complete.
+Upgrade to **v0.164.0 at minimum**, validated against testnet before November 25 and confirmed on mainnet before December 9. Treat v0.164.0 as a floor, not a target — keep moving to each newer release shipped between now and the mainnet cutover for the smoothest transition, then return to your normal upgrade cadence once mainnet cutover is complete.
 
 ### 2. Pre-grant read IAM access to the new buckets
 
@@ -65,7 +65,7 @@ You do **not** need to change any configuration to get _through_ the cutover —
 | `hiero.mirror.importer.block.enabled`              | `false` | Whether the block stream source is enabled. The importer streams blocks through the cutover even while this is `false`; once cutover completes it logs a warning asking you to set this `true` and restart (see note below). Block stream and record downloader cannot both be enabled at once. |
 | `hiero.mirror.importer.block.sourceType`           | `AUTO`  | `AUTO`, `BLOCK_NODE`, or `FILE`. In `AUTO`, `BLOCK_NODE` is tried first, then falls back to `FILE`.                                                                                                                                                                                             |
 | `hiero.mirror.importer.block.cutover.enabled`      |         | Overrides whether the record-to-block-stream cutover is enabled for your instance. Defaults per-network (on for mainnet/testnet); leave unset to use the network default.                                                                                                                       |
-| `hiero.mirror.importer.block.cutover.hapiVersion`  | 0.78.0  | The HAPI version after which the final cutover happens. Advanced/testing use only — leave unset in production unless you have a specific reason to override the network default.                                                                                                                |
+| `hiero.mirror.importer.block.cutover.hapiVersion`  | 0.79.0  | The HAPI version after which the final cutover happens. Advanced/testing use only — leave unset in production unless you have a specific reason to override the network default.                                                                                                                |
 | `hiero.mirror.importer.block.cutover.threshold`    | 16s     | Time to wait when switching between block stream and record stream during cutover.                                                                                                                                                                                                              |
 | `hiero.mirror.importer.block.autoDiscoveryEnabled` | `true`  | Whether the importer auto-discovers block nodes registered on-chain (HIP-1137). Set to `false` to rely solely on manually configured `block.nodes[]`.                                                                                                                                           |
 | `hiero.mirror.importer.block.nodes[]`              |         | Explicit block node endpoints. Not required if relying on on-chain block node discovery (HIP-1137).                                                                                                                                                                                             |
