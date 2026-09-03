@@ -414,6 +414,27 @@ final class DomainUtilsTest {
                 .isSameAs(cause);
     }
 
+    @ParameterizedTest
+    @CsvSource({
+        "0, 0",
+        "32767, 32767",
+        "-32768, -32768",
+        "32768, 32767",
+        "-32769, -32768",
+        "2147483647, 32767",
+        "-2147483648, -32768"
+    })
+    void toSmallint(int value, int expected) {
+        assertThat(DomainUtils.isSmallint(value)).isEqualTo(value == expected);
+        assertThat(DomainUtils.toSmallint(value)).isEqualTo(expected);
+        assertThat(DomainUtils.toSmallint(Integer.valueOf(value))).isEqualTo(expected);
+    }
+
+    @Test
+    void toSmallintNull() {
+        assertThat(DomainUtils.toSmallint((Integer) null)).isNull();
+    }
+
     @Test
     void sanitize() {
         assertThat(DomainUtils.sanitize(null)).isNull();
