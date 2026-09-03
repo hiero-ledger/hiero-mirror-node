@@ -8,8 +8,8 @@ runs:
     - name: Parse acceptance tests logs and set k6 environment variables
       shell: bash
       run: |
-        set -ex
-        LOG_FILE="./output_log.txt"
+        set -euxo pipefail
+        LOG_FILE="./logs/acceptance-tests/output.log"
 
         declare -A k6Map
         k6Map["PARENT"]="DEFAULT_CONTRACT_ADDRESS"
