@@ -41,15 +41,15 @@ on:
         type: string
       target_cluster_location:
         type: string
-        default: "us-central1"
+        default: "us-east1"
         required: true
       target_cluster_name:
         type: string
-        default: "mainnet-staging-na"
+        default: "mainnet-staging"
         required: true
       target_default_pool:
         type: string
-        default: "mainnet-staging-na"
+        default: "mainnet-staging"
         required: true
       target_project:
         type: string
@@ -114,15 +114,15 @@ on:
         required: false
         type: string
       target_cluster_location:
-        default: "us-central1"
+        default: "us-east1"
         description: "Target: GKE location (zone or region)"
         required: true
       target_cluster_name:
-        default: "mainnet-staging-na"
+        default: "mainnet-staging"
         description: "Target: GKE cluster name"
         required: true
       target_default_pool:
-        default: "mainnet-staging-na"
+        default: "mainnet-staging"
         description: "Target: default pool name"
         required: true
       target_project:
