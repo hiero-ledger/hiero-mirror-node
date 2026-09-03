@@ -2261,6 +2261,25 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void onNodeStakeDuplicate() {
+        // given
+        var nodeStake1 = domainBuilder.nodeStake().get();
+        var nodeStake2 = domainBuilder
+                .nodeStake()
+                .customize(n ->
+                        n.consensusTimestamp(nodeStake1.getConsensusTimestamp()).nodeId(nodeStake1.getNodeId()))
+                .get();
+
+        // when
+        sqlEntityListener.onNodeStake(nodeStake1);
+        sqlEntityListener.onNodeStake(nodeStake2);
+        completeFileAndCommit();
+
+        // then
+        assertThat(nodeStakeRepository.findAll()).containsExactlyInAnyOrder(nodeStake2);
+    }
+
+    @Test
     void onPrng() {
         var prng = domainBuilder.prng().get();
         var prng2 = domainBuilder

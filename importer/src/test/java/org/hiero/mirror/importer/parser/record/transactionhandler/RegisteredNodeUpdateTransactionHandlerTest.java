@@ -22,6 +22,7 @@ import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.RegisteredNodeChangedEvent;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -136,5 +137,34 @@ final class RegisteredNodeUpdateTransactionHandlerTest extends AbstractTransacti
         verify(applicationEventPublisher, never()).publishEvent(any(RegisteredNodeChangedEvent.class));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void updateTransactionInvalidDomainName() {
+        // given
+        final var domainName = "hedera.com" + DomainUtils.NULL_CHARACTER;
+        final var recordItem = recordItemBuilder
+                .registeredNodeUpdate()
+                .transactionBody(b -> b.getServiceEndpointBuilder(0).setDomainName(domainName))
+                .build();
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(consensusTimestamp).entityId(EntityId.EMPTY))
+                .get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener, times(1)).onRegisteredNode(assertArg(registeredNode -> assertThat(registeredNode)
+                .extracting(RegisteredNode::getServiceEndpoints)
+                .asInstanceOf(InstanceOfAssertFactories.list(RegisteredServiceEndpoint.class))
+                .first()
+                .extracting(RegisteredServiceEndpoint::getDomainName)
+                .asString()
+                .startsWith("hedera.com")
+                .doesNotContain(String.valueOf(DomainUtils.NULL_CHARACTER))));
+        verify(applicationEventPublisher, times(1)).publishEvent(any(RegisteredNodeChangedEvent.class));
     }
 }
