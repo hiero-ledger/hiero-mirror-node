@@ -4,8 +4,9 @@ package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCREATEINSTANCE;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
+import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
-import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.OPCODES;
+import static org.hiero.mirror.web3.ApiEndpointName.OPCODES;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
@@ -57,6 +58,7 @@ public class OpcodeServiceImpl implements OpcodeService {
     static final String STACK_METRIC = "hiero.mirror.web3.opcodes.stack";
     static final String STORAGE_METRIC = "hiero.mirror.web3.opcodes.storage";
 
+    public static final long MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS = 35 * 60 * NANOS_PER_SECOND;
     private static final Address EMPTY_ADDRESS = Address.ZERO;
     private static final BigInteger ZERO = BigInteger.ZERO;
 
@@ -108,7 +110,7 @@ public class OpcodeServiceImpl implements OpcodeService {
         });
     }
 
-    private ContractDebugParameters buildCallServiceParameters(
+    protected ContractDebugParameters buildCallServiceParameters(
             @NonNull TransactionIdOrHashParameter transactionIdOrHash) {
         final Long consensusTimestamp;
         final Transaction transaction;
@@ -132,19 +134,17 @@ public class OpcodeServiceImpl implements OpcodeService {
                 final var validStartNs = convertToNanosMax(transactionId.validStart());
                 final var payerAccountId = transactionId.payerAccountId();
 
-                final var transactionList =
-                        transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
-                                payerAccountId, validStartNs);
-                if (transactionList.isEmpty()) {
-                    throw new EntityNotFoundException("Transaction not found: " + transactionId);
-                }
+                transaction = transactionRepository
+                        .findByTransactionId(
+                                payerAccountId.getId(),
+                                validStartNs,
+                                validStartNs,
+                                validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS)
+                        .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + transactionId));
 
-                final var parentTransaction = transactionList.getFirst();
-                transaction = parentTransaction;
-                consensusTimestamp = parentTransaction.getConsensusTimestamp();
+                consensusTimestamp = transaction.getConsensusTimestamp();
                 ethereumTransaction = ethereumTransactionRepository
-                        .findByConsensusTimestampAndPayerAccountId(
-                                consensusTimestamp, parentTransaction.getPayerAccountId())
+                        .findByConsensusTimestampAndPayerAccountId(consensusTimestamp, transaction.getPayerAccountId())
                         .orElse(null);
             }
         }

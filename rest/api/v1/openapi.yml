@@ -753,6 +753,46 @@ paths:
                 $ref: "#/components/schemas/Error"
       tags:
         - contracts
+  /api/v1/contracts/results/{transactionIdOrHash}/prestate:
+    get:
+      summary: Get the account traces for a historical transaction on the network with the given transaction ID or hash
+      description: |
+        Inspects contract result related data for a transaction and returns a response containing detailed information
+        for the accounts needed for the transaction execution with some basic fields about them.
+
+      operationId: getContractPrestate
+      parameters:
+        - $ref: "#/components/parameters/transactionIdOrEthHashPathParam"
+        - $ref: "#/components/parameters/diff"
+        - $ref: "#/components/parameters/code"
+        - $ref: "#/components/parameters/storage"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrestateResponse"
+        400:
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        404:
+          description: Transaction or record file not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        429:
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - contracts
   /api/v1/contracts/{contractIdOrAddress}/results/logs:
     get:
       summary: List contract logs from a contract on the network
@@ -1874,10 +1914,47 @@ components:
             format: binary
         storage:
           description: The storage slots (keys and values in hex) of the current contract which is read from and written to
-          type: [object, "null"]
+          type: object
           additionalProperties:
             type: string
             format: binary
+          default: {}
+    PrestateResponse:
+      type: object
+      properties:
+        pre:
+          description: The accounts/contracts which state is touched during transaction execution
+          type: array
+          items:
+            $ref: "#/components/schemas/PrestateAccountTrace"
+        post:
+          description: The accounts/contracts which state is touched during transaction execution with their applied changes
+          type: array
+          items:
+            $ref: "#/components/schemas/PrestateAccountTrace"
+    PrestateAccountTrace:
+      type: object
+      properties:
+        address:
+          description: the address of the account
+          type: string
+        balance:
+          description: The account balance as a hex-encoded quantity in weibars
+          type: string
+        code:
+          description: the bytecode of the account
+          type: string
+        nonce:
+          description: the nonce of the account
+          type: integer
+          format: int64
+        storage:
+          description: The storage slots (keys and values in hex) of the contract which is read from and written to
+          type: object
+          additionalProperties:
+            type: string
+            format: binary
+          default: {}
     RegisteredNodesResponse:
       type: object
       required:
@@ -4732,6 +4809,14 @@ components:
       schema:
         type: boolean
         default: true
+    code:
+      name: code
+      description: If provided and set to true, bytecode information will be included in the response
+      in: query
+      example: true
+      schema:
+        type: boolean
+        default: false
     contractIdQueryParam:
       name: contract.id
       description: The ID of the smart contract
@@ -4798,6 +4883,14 @@ components:
       schema:
         pattern: ^(\d{1,10}\.){0,2}(\d{1,10}|(0x)?[A-Fa-f0-9]{40})$
         type: string
+    diff:
+      name: diff
+      description: If provided and set to true, include account trace information with changes from transaction execution
+      in: query
+      example: true
+      schema:
+        type: boolean
+        default: false
     hashOrNumberPathParam:
       name: hashOrNumber
       in: path
