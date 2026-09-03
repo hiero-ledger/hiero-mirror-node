@@ -49,13 +49,12 @@ class AddressBookEntryRepositoryTest extends GrpcIntegrationTest {
             final int index = i;
             expected.add(domainBuilder
                     .addressBookServiceEndpoint()
-                    .customize(e -> e.id(AddressBookServiceEndpoint.Id.builder()
-                            .consensusTimestamp(addressBookEntry.getConsensusTimestamp())
-                            .nodeId(addressBookEntry.getNodeId())
-                            .ipAddressV4("0.0.0." + index)
-                            .port(50211)
-                            .domainName("")
-                            .build()))
+                    .customize(e -> e.id(new AddressBookServiceEndpoint.Id(
+                            addressBookEntry.getConsensusTimestamp(),
+                            "0.0.0." + index,
+                            addressBookEntry.getNodeId(),
+                            50211,
+                            "")))
                     .persist());
         }
 

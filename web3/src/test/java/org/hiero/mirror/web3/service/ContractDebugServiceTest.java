@@ -145,10 +145,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
             for (int actionIndex = 0; actionIndex < ACTIONS_PER_DEPTH; actionIndex++) {
                 actions.add(ContractAction.builder()
                         .callDepth(depth)
-                        .id(ContractAction.Id.builder()
-                                .consensusTimestamp(consensusTimestamp)
-                                .index(actionIndex)
-                                .build())
+                        .id(new ContractAction.Id(consensusTimestamp, actionIndex))
                         .callType(SYSTEM.getNumber())
                         .resultDataType(REVERT_REASON.getNumber())
                         .resultData(revertReasonBytes(depth, actionIndex))

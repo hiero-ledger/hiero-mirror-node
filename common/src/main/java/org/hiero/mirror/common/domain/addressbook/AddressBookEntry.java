@@ -126,5 +126,4 @@ public class AddressBookEntry implements Persistable<AddressBookEntry.Id> {
         private long consensusTimestamp;
         private long nodeId;
     }
-
 }

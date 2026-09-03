@@ -245,13 +245,7 @@ public class DomainBuilder {
         }
 
         var builder = AddressBookServiceEndpoint.builder()
-                .id(AddressBookServiceEndpoint.Id.builder()
-                        .consensusTimestamp(timestamp())
-                        .ipAddressV4(ipAddress)
-                        .nodeId(number())
-                        .domainName("")
-                        .port(50211)
-                        .build());
+                .id(new AddressBookServiceEndpoint.Id(timestamp(), ipAddress, number(), 50211, ""));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -282,10 +276,7 @@ public class DomainBuilder {
                 .callerType(CONTRACT)
                 .callOperationType(CallOperationType.OP_CALL.getNumber())
                 .callType(ContractActionType.CALL.getNumber())
-                .id(ContractAction.Id.builder()
-                        .consensusTimestamp(timestamp())
-                        .index((int) number())
-                        .build())
+                .id(new ContractAction.Id(timestamp(), (int) number()))
                 .gas(100L)
                 .gasUsed(50L)
                 .input(bytes(256))

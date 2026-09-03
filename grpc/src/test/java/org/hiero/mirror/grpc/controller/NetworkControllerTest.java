@@ -210,13 +210,8 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
 
         final var endpoint = domainBuilder
                 .addressBookServiceEndpoint()
-                .customize(e -> e.id(AddressBookServiceEndpoint.Id.builder()
-                        .consensusTimestamp(CONSENSUS_TIMESTAMP)
-                        .nodeId(addressBookEntry.getNodeId())
-                        .ipAddressV4("10.0.0.1")
-                        .port(50211)
-                        .domainName("")
-                        .build()))
+                .customize(e -> e.id(new AddressBookServiceEndpoint.Id(
+                        CONSENSUS_TIMESTAMP, "10.0.0.1", addressBookEntry.getNodeId(), 50211, "")))
                 .persist();
         addressBookEntry.getServiceEndpoints().add(endpoint);
         return addressBookEntry;
@@ -230,13 +225,8 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
 
         final var endpoint = domainBuilder
                 .addressBookServiceEndpoint()
-                .customize(e -> e.id(AddressBookServiceEndpoint.Id.builder()
-                        .consensusTimestamp(CONSENSUS_TIMESTAMP)
-                        .nodeId(addressBookEntry.getNodeId())
-                        .domainName(domainName)
-                        .ipAddressV4(ipAddress)
-                        .port(port)
-                        .build()))
+                .customize(e -> e.id(new AddressBookServiceEndpoint.Id(
+                        CONSENSUS_TIMESTAMP, ipAddress, addressBookEntry.getNodeId(), port, domainName)))
                 .persist();
         addressBookEntry.getServiceEndpoints().add(endpoint);
         return addressBookEntry;

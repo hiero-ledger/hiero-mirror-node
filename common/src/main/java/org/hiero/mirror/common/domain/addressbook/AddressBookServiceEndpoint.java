@@ -85,7 +85,6 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
         return id != null ? id.getDomainName() : null;
     }
 
-    @Builder
     @Data
     @AllArgsConstructor
     @NoArgsConstructor

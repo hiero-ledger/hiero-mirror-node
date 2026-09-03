@@ -237,11 +237,8 @@ final class BlockStreamVerificationTest {
                             .callDepth(action.getCallDepth())
                             .callOperationType(action.getCallOperationTypeValue())
                             .callType(action.getCallTypeValue())
-                            .id(ContractAction.Id.builder()
-                                    .consensusTimestamp(
-                                            DomainUtils.timestampInNanosMax(sidecarRecord.getConsensusTimestamp()))
-                                    .index(i)
-                                    .build())
+                            .id(new ContractAction.Id(
+                                    DomainUtils.timestampInNanosMax(sidecarRecord.getConsensusTimestamp()), i))
                             .gas(action.getGas())
                             .gasUsed(action.getGasUsed())
                             .input(DomainUtils.toBytes(action.getInput()))

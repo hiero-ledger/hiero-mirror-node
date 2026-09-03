@@ -90,7 +90,6 @@ public class TokenTransfer implements Persistable<TokenTransfer.Id> {
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    @Builder(toBuilder = true)
     public static class Id implements Serializable {
 
         @Serial

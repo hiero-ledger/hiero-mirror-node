@@ -103,7 +103,6 @@ public class ContractAction implements Persistable<ContractAction.Id> {
 
     @Data
     @AllArgsConstructor
-    @Builder
     @NoArgsConstructor
     public static class Id implements Serializable {
         private static final long serialVersionUID = -6192177810161178246L;
