@@ -26,6 +26,7 @@ public class ContractTransaction implements Persistable<ContractTransaction.Id> 
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     @Builder.Default
@@ -58,12 +59,6 @@ public class ContractTransaction implements Persistable<ContractTransaction.Id> 
 
     public long getEntityId() {
         return id != null ? id.getEntityId() : 0L;
-    }
-
-    @Override
-    @JsonIgnore
-    public Id getId() {
-        return id;
     }
 
     @Override

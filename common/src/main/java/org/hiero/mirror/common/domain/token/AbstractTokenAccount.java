@@ -51,6 +51,7 @@ public abstract class AbstractTokenAccount implements History {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     @UpsertColumn(coalesce = """
@@ -82,11 +83,6 @@ public abstract class AbstractTokenAccount implements History {
             id = new Id();
         }
         id.setTokenId(tokenId);
-    }
-
-    @JsonIgnore
-    public Id getId() {
-        return id;
     }
 
     @Data

@@ -28,6 +28,7 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     @ToString.Exclude
@@ -82,12 +83,6 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
 
     public void setOwnerId(long ownerId) {
         setOwnerId(EntityId.of(ownerId));
-    }
-
-    @Override
-    @JsonIgnore
-    public Id getId() {
-        return id;
     }
 
     @JsonIgnore

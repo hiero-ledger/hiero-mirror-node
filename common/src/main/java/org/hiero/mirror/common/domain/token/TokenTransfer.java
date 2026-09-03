@@ -24,6 +24,7 @@ public class TokenTransfer implements Persistable<TokenTransfer.Id> {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     private long amount;
@@ -73,12 +74,6 @@ public class TokenTransfer implements Persistable<TokenTransfer.Id> {
 
     public EntityId getAccountId() {
         return id != null ? id.getAccountId() : null;
-    }
-
-    @JsonIgnore
-    @Override
-    public Id getId() {
-        return id;
     }
 
     @JsonIgnore

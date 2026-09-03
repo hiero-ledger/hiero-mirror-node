@@ -23,6 +23,7 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     private EntityId payerAccountId;
@@ -55,12 +56,6 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
 
     public Long getEntityId() {
         return id != null ? id.getEntityId() : null;
-    }
-
-    @JsonIgnore
-    @Override
-    public Id getId() {
-        return id;
     }
 
     @JsonIgnore

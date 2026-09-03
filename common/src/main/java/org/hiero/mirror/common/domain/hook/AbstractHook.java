@@ -50,6 +50,7 @@ public abstract class AbstractHook implements History {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     private Range<Long> timestampRange;
@@ -81,11 +82,6 @@ public abstract class AbstractHook implements History {
 
     public void setOwnerId(long ownerId) {
         setOwnerId(EntityId.of(ownerId));
-    }
-
-    @JsonIgnore
-    public Id getId() {
-        return id;
     }
 
     @AllArgsConstructor

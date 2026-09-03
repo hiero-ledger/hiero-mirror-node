@@ -24,6 +24,7 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     private ErrataType errata;
@@ -89,12 +90,6 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
             id = new Id();
         }
         id.setEntityId(entityId);
-    }
-
-    @JsonIgnore
-    @Override
-    public Id getId() {
-        return id;
     }
 
     @JsonIgnore

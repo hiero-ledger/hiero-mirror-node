@@ -26,6 +26,7 @@ public abstract class AbstractNftAllowance implements History {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     private Range<Long> timestampRange;
@@ -61,11 +62,6 @@ public abstract class AbstractNftAllowance implements History {
             id = new Id();
         }
         id.setTokenId(tokenId);
-    }
-
-    @JsonIgnore
-    public Id getId() {
-        return id;
     }
 
     @Data

@@ -42,6 +42,7 @@ public class HookStorage {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     private Long modifiedTimestamp;
@@ -84,11 +85,6 @@ public class HookStorage {
 
     public void setOwnerId(long ownerId) {
         setOwnerId(EntityId.of(ownerId));
-    }
-
-    @JsonIgnore
-    public Id getId() {
-        return id;
     }
 
     public void setValue(byte[] value) {

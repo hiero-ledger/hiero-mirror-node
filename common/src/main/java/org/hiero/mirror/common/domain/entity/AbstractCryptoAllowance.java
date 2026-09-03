@@ -31,12 +31,8 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    private Id id;
-
     @JsonIgnore
-    public Id getId() {
-        return id;
-    }
+    private Id id;
 
     @Data
     @NoArgsConstructor

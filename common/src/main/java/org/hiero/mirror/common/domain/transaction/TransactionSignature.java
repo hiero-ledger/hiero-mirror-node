@@ -25,6 +25,7 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     private EntityId entityId;
@@ -72,12 +73,6 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
             id = new Id();
         }
         id.setPublicKeyPrefix(publicKeyPrefix);
-    }
-
-    @Override
-    @JsonIgnore
-    public Id getId() {
-        return id;
     }
 
     @JsonIgnore

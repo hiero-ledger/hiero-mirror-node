@@ -28,6 +28,7 @@ public class ContractState {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     @InsertOnlyProperty
@@ -58,11 +59,6 @@ public class ContractState {
 
     public byte[] getSlot() {
         return id != null ? id.getSlot() : null;
-    }
-
-    @JsonIgnore
-    public Id getId() {
-        return id;
     }
 
     @Data

@@ -28,6 +28,7 @@ public class TopicMessageLookup {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     @UpsertColumn(coalesce = COALESCE_RANGE)
@@ -67,11 +68,6 @@ public class TopicMessageLookup {
             id = new Id();
         }
         id.setTopicId(topicId);
-    }
-
-    @JsonIgnore
-    public Id getId() {
-        return id;
     }
 
     @Data

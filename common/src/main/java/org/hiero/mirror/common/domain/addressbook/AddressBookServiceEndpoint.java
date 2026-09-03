@@ -23,13 +23,8 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    private Id id;
-
     @JsonIgnore
-    @Override
-    public Id getId() {
-        return id;
-    }
+    private Id id;
 
     @JsonIgnore
     @Override

@@ -34,6 +34,7 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     @JsonIgnore
@@ -107,12 +108,6 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
             id = new Id();
         }
         id.setIndex(index);
-    }
-
-    @JsonIgnore
-    @Override
-    public Id getId() {
-        return id;
     }
 
     @JsonIgnore

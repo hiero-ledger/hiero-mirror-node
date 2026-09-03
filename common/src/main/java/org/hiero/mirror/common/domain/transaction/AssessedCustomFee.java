@@ -28,6 +28,7 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     private long amount;
@@ -78,12 +79,6 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
             id = new Id();
         }
         id.setConsensusTimestamp(consensusTimestamp);
-    }
-
-    @JsonIgnore
-    @Override
-    public Id getId() {
-        return id;
     }
 
     @JsonIgnore

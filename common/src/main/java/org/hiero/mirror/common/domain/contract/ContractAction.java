@@ -37,6 +37,7 @@ public class ContractAction implements Persistable<ContractAction.Id> {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     private long gas;
@@ -82,12 +83,6 @@ public class ContractAction implements Persistable<ContractAction.Id> {
 
     public int getIndex() {
         return id != null ? id.getIndex() : 0;
-    }
-
-    @Override
-    @JsonIgnore
-    public ContractAction.Id getId() {
-        return id;
     }
 
     @JsonIgnore

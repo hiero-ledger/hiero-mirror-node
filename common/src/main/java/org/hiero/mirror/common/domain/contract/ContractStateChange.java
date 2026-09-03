@@ -23,6 +23,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @NoArgsConstructor
 public class ContractStateChange implements Persistable<ContractStateChange.Id> {
 
+    @JsonIgnore
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     private Id id;
@@ -75,12 +76,6 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
 
     public byte[] getSlot() {
         return id != null ? id.getSlot() : null;
-    }
-
-    @Override
-    @JsonIgnore
-    public Id getId() {
-        return id;
     }
 
     @JsonIgnore

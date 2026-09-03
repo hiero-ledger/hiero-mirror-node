@@ -29,6 +29,7 @@ public abstract class AbstractTokenAllowance implements FungibleAllowance {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     private Range<Long> timestampRange;
@@ -64,11 +65,6 @@ public abstract class AbstractTokenAllowance implements FungibleAllowance {
             id = new Id();
         }
         id.setTokenId(tokenId);
-    }
-
-    @JsonIgnore
-    public Id getId() {
-        return id;
     }
 
     @Data

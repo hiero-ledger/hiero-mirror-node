@@ -23,6 +23,7 @@ public class NodeStake implements Persistable<NodeStake.Id> {
 
     @org.springframework.data.annotation.Id
     @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     /**
@@ -91,12 +92,6 @@ public class NodeStake implements Persistable<NodeStake.Id> {
 
     public long getNodeId() {
         return id != null ? id.getNodeId() : 0L;
-    }
-
-    @JsonIgnore
-    @Override
-    public Id getId() {
-        return id;
     }
 
     @JsonIgnore
