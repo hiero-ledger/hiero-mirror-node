@@ -126,12 +126,12 @@ final class EVMHookHandlerTest {
                         .isEqualTo(hookCreationDetails.getAdminKey().toByteArray()),
                 () -> assertThat(capturedHook.getExtensionPoint()).isEqualTo(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK),
                 () -> assertThat(capturedHook.getType()).isEqualTo(HookType.EVM),
-                () -> assertThat(capturedHook.getOwnerId()).isEqualTo(entityId.getId()),
+                () -> assertThat(capturedHook.getOwnerId()).isEqualTo(entityId),
                 () -> assertThat(capturedHook.getCreatedTimestamp()).isEqualTo(consensusTimestamp),
                 () -> assertThat(capturedHook.getTimestampRange()).isEqualTo(Range.atLeast(consensusTimestamp)),
                 () -> assertThat(capturedHook.getDeleted()).isFalse(),
                 () -> assertThat(capturedHookStorageChange.getHookId()).isEqualTo(hookId),
-                () -> assertThat(capturedHookStorageChange.getOwnerId()).isEqualTo(entityId.getNum()),
+                () -> assertThat(capturedHookStorageChange.getOwnerId()).isEqualTo(entityId),
                 () -> assertThat(capturedHookStorageChange.getKey()).isEqualTo(key),
                 () -> assertThat(capturedHookStorageChange.getValueRead()).isEqualTo(trimmedValue),
                 () -> assertThat(capturedHookStorageChange.getValueWritten()).isEqualTo(trimmedValue));
@@ -181,7 +181,7 @@ final class EVMHookHandlerTest {
                         .isEqualTo(hookCreationDetails.getAdminKey().toByteArray()),
                 () -> assertThat(capturedHook.getExtensionPoint()).isEqualTo(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK),
                 () -> assertThat(capturedHook.getType()).isEqualTo(HookType.EVM),
-                () -> assertThat(capturedHook.getOwnerId()).isEqualTo(entityId.getId()),
+                () -> assertThat(capturedHook.getOwnerId()).isEqualTo(entityId),
                 () -> assertThat(capturedHook.getCreatedTimestamp()).isEqualTo(consensusTimestamp),
                 () -> assertThat(capturedHook.getTimestampRange()).isEqualTo(Range.atLeast(consensusTimestamp)),
                 () -> assertThat(capturedHook.getDeleted()).isFalse());
@@ -251,7 +251,7 @@ final class EVMHookHandlerTest {
 
         assertAll(
                 () -> assertThat(firstHook.getHookId()).isEqualTo(hookId1),
-                () -> assertThat(firstHook.getOwnerId()).isEqualTo(entityId.getId()),
+                () -> assertThat(firstHook.getOwnerId()).isEqualTo(entityId),
                 () -> assertThat(firstHook.getDeleted()).isTrue(),
                 () -> assertThat(firstHook.getTimestampRange()).isEqualTo(Range.atLeast(consensusTimestamp)),
                 () -> assertThat(firstHook.getAdminKey()).isNull(),
@@ -260,7 +260,7 @@ final class EVMHookHandlerTest {
                 () -> assertThat(firstHook.getExtensionPoint()).isNull(),
                 () -> assertThat(firstHook.getType()).isNull(),
                 () -> assertThat(secondHook.getHookId()).isEqualTo(hookId2),
-                () -> assertThat(secondHook.getOwnerId()).isEqualTo(entityId.getId()),
+                () -> assertThat(secondHook.getOwnerId()).isEqualTo(entityId),
                 () -> assertThat(secondHook.getDeleted()).isTrue(),
                 () -> assertThat(secondHook.getTimestampRange()).isEqualTo(Range.atLeast(consensusTimestamp)));
     }
@@ -286,7 +286,7 @@ final class EVMHookHandlerTest {
         var capturedHook = hookCaptor.getValue();
         assertAll(
                 () -> assertThat(capturedHook.getHookId()).isEqualTo(hookId),
-                () -> assertThat(capturedHook.getOwnerId()).isEqualTo(entityId.getId()),
+                () -> assertThat(capturedHook.getOwnerId()).isEqualTo(entityId),
                 () -> assertThat(capturedHook.getDeleted()).isTrue(),
                 () -> assertThat(capturedHook.getCreatedTimestamp()).isNull(),
                 () -> assertThat(capturedHook.getTimestampRange()).isEqualTo(Range.atLeast(consensusTimestamp)));
@@ -314,10 +314,6 @@ final class EVMHookHandlerTest {
 
         final var updates = new ArrayList<EvmHookStorageUpdate>(numSlots);
         final var expectedStorageChanges = new ArrayList<HookStorageChange>(numSlots);
-        final var hookStorageChangeBuilder = HookStorageChange.builder()
-                .consensusTimestamp(consensusTimestamp)
-                .hookId(hookId)
-                .ownerId(ownerId.getId());
 
         updates.add(EvmHookStorageUpdate.getDefaultInstance());
 
@@ -336,7 +332,10 @@ final class EVMHookHandlerTest {
                             .setKey(ByteString.copyFrom(key))
                             .setValue(ByteString.copyFrom(value)))
                     .build());
-            expectedStorageChanges.add(hookStorageChangeBuilder
+            expectedStorageChanges.add(HookStorageChange.builder()
+                    .consensusTimestamp(consensusTimestamp)
+                    .hookId(hookId)
+                    .ownerId(ownerId.getId())
                     .key(key)
                     .valueRead(trimmedValue)
                     .valueWritten(trimmedValue)
@@ -364,10 +363,6 @@ final class EVMHookHandlerTest {
         final var ownerId = domainBuilder.entityId();
         final var mappingSlot = domainBuilder.bytes(2);
         final var expectedStorageChanges = new ArrayList<HookStorageChange>();
-        final var hookStorageChangeBuilder = HookStorageChange.builder()
-                .consensusTimestamp(consensusTimestamp)
-                .hookId(hookId)
-                .ownerId(ownerId.getId());
 
         final var entriesBuilder = EvmHookMappingEntries.newBuilder().setMappingSlot(ByteString.copyFrom(mappingSlot));
 
@@ -383,7 +378,10 @@ final class EVMHookHandlerTest {
             entriesBuilder.addEntries(EvmHookMappingEntry.newBuilder()
                     .setKey(ByteString.copyFrom(key))
                     .setValue(ByteString.copyFrom(value)));
-            expectedStorageChanges.add(hookStorageChangeBuilder
+            expectedStorageChanges.add(HookStorageChange.builder()
+                    .consensusTimestamp(consensusTimestamp)
+                    .hookId(hookId)
+                    .ownerId(ownerId.getId())
                     .key(keccak256(leftPadBytes(key, 32), leftPadBytes(mappingSlot, 32)))
                     .valueRead(trimmedValue)
                     .valueWritten(trimmedValue)
@@ -416,10 +414,6 @@ final class EVMHookHandlerTest {
         final var ownerId = domainBuilder.entityId();
         final var mappingSlot = domainBuilder.bytes(4);
         final var entriesBuilder = EvmHookMappingEntries.newBuilder().setMappingSlot(ByteString.copyFrom(mappingSlot));
-        final var hookStorageChangeBuilder = HookStorageChange.builder()
-                .consensusTimestamp(consensusTimestamp)
-                .hookId(hookId)
-                .ownerId(ownerId.getId());
         final var expectedStorageChanges = new ArrayList<HookStorageChange>();
 
         for (int i = 0; i < numEntries; i++) {
@@ -430,7 +424,10 @@ final class EVMHookHandlerTest {
             entriesBuilder.addEntries(EvmHookMappingEntry.newBuilder()
                     .setPreimage(ByteString.copyFrom(preimage))
                     .setValue(ByteString.copyFrom(value)));
-            expectedStorageChanges.add(hookStorageChangeBuilder
+            expectedStorageChanges.add(HookStorageChange.builder()
+                    .consensusTimestamp(consensusTimestamp)
+                    .hookId(hookId)
+                    .ownerId(ownerId.getId())
                     .key(keccak256(keccak256(preimage), leftPadBytes(mappingSlot, 32)))
                     .valueRead(trimmedValue)
                     .valueWritten(trimmedValue)
@@ -461,10 +458,6 @@ final class EVMHookHandlerTest {
         final long hookId = domainBuilder.id();
         final var ownerId = domainBuilder.entityId();
         final var expectedStorageChanges = new ArrayList<HookStorageChange>();
-        final var hookStorageChangeBuilder = HookStorageChange.builder()
-                .consensusTimestamp(consensusTimestamp)
-                .hookId(hookId)
-                .ownerId(ownerId.getId());
         final var storageUpdates = new ArrayList<EvmHookStorageUpdate>();
 
         final byte[] key = domainBuilder.nonZeroBytes(16);
@@ -479,7 +472,10 @@ final class EVMHookHandlerTest {
                         .setKey(DomainUtils.fromBytes(key))
                         .setValue(DomainUtils.fromBytes(value)))
                 .build()));
-        expectedStorageChanges.add(hookStorageChangeBuilder
+        expectedStorageChanges.add(HookStorageChange.builder()
+                .consensusTimestamp(consensusTimestamp)
+                .hookId(hookId)
+                .ownerId(ownerId.getId())
                 .key(key)
                 .valueRead(value)
                 .valueWritten(value)
@@ -499,7 +495,10 @@ final class EVMHookHandlerTest {
                 .addEntries(EvmHookMappingEntry.newBuilder()
                         .setPreimage(DomainUtils.fromBytes(preimage))
                         .setValue(DomainUtils.fromBytes(value)));
-        expectedStorageChanges.add(hookStorageChangeBuilder
+        expectedStorageChanges.add(HookStorageChange.builder()
+                .consensusTimestamp(consensusTimestamp)
+                .hookId(hookId)
+                .ownerId(ownerId.getId())
                 .key(keccak256(keccak256(preimage), leftPadBytes(mappingSlot, 32)))
                 .valueRead(value)
                 .valueWritten(value)
@@ -519,7 +518,10 @@ final class EVMHookHandlerTest {
                         .setKey(DomainUtils.fromBytes(mappedKey))
                         .setValue(DomainUtils.fromBytes(value)))
                 .build());
-        expectedStorageChanges.add(hookStorageChangeBuilder
+        expectedStorageChanges.add(HookStorageChange.builder()
+                .consensusTimestamp(consensusTimestamp)
+                .hookId(hookId)
+                .ownerId(ownerId.getId())
                 .key(mappedKey)
                 .valueRead(value)
                 .valueWritten(value)
@@ -597,7 +599,7 @@ final class EVMHookHandlerTest {
             final var change = changes.get(i);
             assertThat(change.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
             assertThat(change.getHookId()).isEqualTo(hookId);
-            assertThat(change.getOwnerId()).isEqualTo(ownerId);
+            assertThat(change.getOwnerId()).isEqualTo(EntityId.of(ownerId));
             assertThat(change.getKey()).isEqualTo(expectedKeys.get(i));
             assertThat(change.getValueRead()).isEqualTo(expectedValuesRead.get(i));
 

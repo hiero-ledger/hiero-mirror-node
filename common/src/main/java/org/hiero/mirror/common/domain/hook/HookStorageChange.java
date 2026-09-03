@@ -11,6 +11,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
@@ -68,15 +69,19 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         id.setKey(key);
     }
 
-    public long getOwnerId() {
-        return id != null ? id.getOwnerId() : 0L;
+    public EntityId getOwnerId() {
+        return id != null ? id.getOwnerId() : null;
     }
 
-    public void setOwnerId(long ownerId) {
+    public void setOwnerId(EntityId ownerId) {
         if (id == null) {
             id = new Id();
         }
         id.setOwnerId(ownerId);
+    }
+
+    public void setOwnerId(long ownerId) {
+        setOwnerId(EntityId.of(ownerId));
     }
 
     @Override
@@ -114,7 +119,7 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         @ToString.Exclude
         private byte[] key;
 
-        private long ownerId;
+        private EntityId ownerId;
     }
 
     public static class HookStorageChangeBuilder {
@@ -142,12 +147,16 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
             return this;
         }
 
-        public HookStorageChangeBuilder ownerId(long ownerId) {
+        public HookStorageChangeBuilder ownerId(EntityId ownerId) {
             if (this.id == null) {
                 this.id = new Id();
             }
             this.id.setOwnerId(ownerId);
             return this;
+        }
+
+        public HookStorageChangeBuilder ownerId(long ownerId) {
+            return ownerId(EntityId.of(ownerId));
         }
 
         public HookStorageChangeBuilder valueRead(byte[] valueRead) {

@@ -554,7 +554,7 @@ final class ContractResultServiceImpl implements ContractResultService {
     private void processHookStorageChanges(RecordItem recordItem, ContractStateChange stateChange) {
         // Get one hook context for this ContractStateChange
         var hookContext = recordItem.nextHookContext();
-        if (hookContext == null || hookContext.getOwnerId() == EntityId.EMPTY.getId()) {
+        if (hookContext == null || EntityId.EMPTY.equals(hookContext.getOwnerId())) {
             Utility.handleRecoverableError(
                     "No hook context available in parent transaction for hook execution at consensus timestamp {}",
                     recordItem.getConsensusTimestamp());
@@ -565,7 +565,7 @@ final class ContractResultServiceImpl implements ContractResultService {
         evmHookStorageHandler.processStorageUpdatesForSidecar(
                 recordItem.getConsensusTimestamp(),
                 hookContext.getHookId(),
-                hookContext.getOwnerId(),
+                hookContext.getOwnerId().getId(),
                 stateChange.getStorageChangesList());
     }
 

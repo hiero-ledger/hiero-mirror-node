@@ -68,19 +68,19 @@ public abstract class AbstractHook implements History {
         id.setHookId(hookId);
     }
 
-    public long getOwnerId() {
-        return id != null ? id.getOwnerId() : 0L;
+    public EntityId getOwnerId() {
+        return id != null ? id.getOwnerId() : null;
     }
 
     public void setOwnerId(EntityId ownerId) {
-        setOwnerId(ownerId.getId());
-    }
-
-    public void setOwnerId(long ownerId) {
         if (id == null) {
             id = new Id();
         }
         id.setOwnerId(ownerId);
+    }
+
+    public void setOwnerId(long ownerId) {
+        setOwnerId(EntityId.of(ownerId));
     }
 
     @JsonIgnore
@@ -97,7 +97,11 @@ public abstract class AbstractHook implements History {
 
         private long hookId;
 
-        private long ownerId;
+        private EntityId ownerId;
+
+        public Id(long hookId, long ownerId) {
+            this(hookId, EntityId.of(ownerId));
+        }
     }
 
     @SuppressWarnings("java:S1610")
@@ -110,7 +114,7 @@ public abstract class AbstractHook implements History {
             return self();
         }
 
-        public B ownerId(long ownerId) {
+        public B ownerId(EntityId ownerId) {
             if (this.id == null) {
                 this.id = new Id();
             }
@@ -118,8 +122,8 @@ public abstract class AbstractHook implements History {
             return self();
         }
 
-        public B ownerId(EntityId ownerId) {
-            return ownerId(ownerId.getId());
+        public B ownerId(long ownerId) {
+            return ownerId(EntityId.of(ownerId));
         }
 
         public B extensionPoint(HookExtensionPoint extensionPoint) {

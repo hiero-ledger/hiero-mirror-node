@@ -17,7 +17,6 @@ import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 @Data
@@ -113,18 +112,7 @@ public abstract class AbstractEntity implements History {
 
     private Range<Long> timestampRange;
 
-    // Hidden from Jackson so batch COPY serialization only sees the "type" property matching the db column
-    @JsonIgnore
-    @Column("type")
-    private EntityType entityType;
-
-    public EntityType getType() {
-        return entityType;
-    }
-
-    public void setType(EntityType type) {
-        this.entityType = type;
-    }
+    private EntityType type;
 
     public void addBalance(Long balance) {
         if (balance == null) {
@@ -193,11 +181,6 @@ public abstract class AbstractEntity implements History {
 
         public B memo(String memo) {
             this.memo = DomainUtils.sanitize(memo);
-            return self();
-        }
-
-        public B type(EntityType entityType) {
-            this.entityType = entityType;
             return self();
         }
     }

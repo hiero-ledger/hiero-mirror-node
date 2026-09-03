@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.common.domain.job;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -31,11 +30,6 @@ public class ReconciliationJob {
 
     @Id
     private Instant timestampStart;
-
-    @JsonIgnore
-    public Instant getId() {
-        return timestampStart;
-    }
 
     public boolean hasErrors() {
         return status.ordinal() > ReconciliationStatus.SUCCESS.ordinal();

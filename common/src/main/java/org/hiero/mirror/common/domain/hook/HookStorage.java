@@ -14,6 +14,7 @@ import lombok.ToString;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
@@ -70,15 +71,19 @@ public class HookStorage {
         id.setKey(DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH));
     }
 
-    public long getOwnerId() {
-        return id != null ? id.getOwnerId() : 0L;
+    public EntityId getOwnerId() {
+        return id != null ? id.getOwnerId() : null;
     }
 
-    public void setOwnerId(long ownerId) {
+    public void setOwnerId(EntityId ownerId) {
         if (id == null) {
             id = new Id();
         }
         id.setOwnerId(ownerId);
+    }
+
+    public void setOwnerId(long ownerId) {
+        setOwnerId(EntityId.of(ownerId));
     }
 
     @JsonIgnore
@@ -103,7 +108,7 @@ public class HookStorage {
         @ToString.Exclude
         private byte[] key;
 
-        private long ownerId;
+        private EntityId ownerId;
     }
 
     public static class HookStorageBuilder {
@@ -123,12 +128,16 @@ public class HookStorage {
             return this;
         }
 
-        public HookStorageBuilder ownerId(long ownerId) {
+        public HookStorageBuilder ownerId(EntityId ownerId) {
             if (this.id == null) {
                 this.id = new Id();
             }
             this.id.setOwnerId(ownerId);
             return this;
+        }
+
+        public HookStorageBuilder ownerId(long ownerId) {
+            return ownerId(EntityId.of(ownerId));
         }
 
         public HookStorageBuilder value(byte[] value) {
