@@ -7,7 +7,7 @@ on:
     branches: [deploy]
     paths:
       # - do-not-exist/nothing.yaml
-      - clusters/mainnet-staging-na/mainnet-citus/helmrelease.yaml
+      - clusters/mainnet-staging/mainnet-citus/helmrelease.yaml
 
 permissions:
   id-token: write
@@ -23,9 +23,9 @@ jobs:
       source_cluster_name: "mainnet-na"
       source_project: "prod"
       staging_snapshot_id: "${{vars.STAGING_SNAPSHOT_ID}}"
-      target_cluster_location: "us-central1"
-      target_cluster_name: "mainnet-staging-na"
-      target_default_pool: "mainnet-staging-na"
+      target_cluster_location: "us-east1"
+      target_cluster_name: "mainnet-staging"
+      target_default_pool: "mainnet-staging"
       target_project: "nonprod"
       teardown_target: false
       use_static_snapshot: true
