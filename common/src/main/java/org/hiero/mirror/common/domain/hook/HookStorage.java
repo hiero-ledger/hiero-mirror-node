@@ -11,7 +11,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import lombok.With;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
@@ -54,7 +53,10 @@ public class HookStorage {
     }
 
     public void setHookId(long hookId) {
-        id = (id == null ? new Id() : id).withHookId(hookId);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setHookId(hookId);
     }
 
     public byte[] getKey() {
@@ -62,7 +64,10 @@ public class HookStorage {
     }
 
     public void setKey(byte[] key) {
-        id = (id == null ? new Id() : id).withKey(DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH));
+        if (id == null) {
+            id = new Id();
+        }
+        id.setKey(DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH));
     }
 
     public long getOwnerId() {
@@ -70,7 +75,10 @@ public class HookStorage {
     }
 
     public void setOwnerId(long ownerId) {
-        id = (id == null ? new Id() : id).withOwnerId(ownerId);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setOwnerId(ownerId);
     }
 
     @JsonIgnore
@@ -86,7 +94,6 @@ public class HookStorage {
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    @With
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = 4567832945612847391L;
@@ -101,17 +108,26 @@ public class HookStorage {
 
     public static class HookStorageBuilder {
         public HookStorageBuilder hookId(long hookId) {
-            this.id = (this.id == null ? new Id() : this.id).withHookId(hookId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setHookId(hookId);
             return this;
         }
 
         public HookStorageBuilder key(byte[] key) {
-            this.id = (this.id == null ? new Id() : this.id).withKey(DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH));
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setKey(DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH));
             return this;
         }
 
         public HookStorageBuilder ownerId(long ownerId) {
-            this.id = (this.id == null ? new Id() : this.id).withOwnerId(ownerId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setOwnerId(ownerId);
             return this;
         }
 

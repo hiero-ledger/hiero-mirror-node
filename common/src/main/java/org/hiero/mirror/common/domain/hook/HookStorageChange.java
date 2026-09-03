@@ -11,7 +11,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import lombok.With;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
@@ -41,7 +40,10 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     }
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        id = (id == null ? new Id() : id).withConsensusTimestamp(consensusTimestamp);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setConsensusTimestamp(consensusTimestamp);
     }
 
     public long getHookId() {
@@ -49,7 +51,10 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     }
 
     public void setHookId(long hookId) {
-        id = (id == null ? new Id() : id).withHookId(hookId);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setHookId(hookId);
     }
 
     public byte[] getKey() {
@@ -57,7 +62,10 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     }
 
     public void setKey(byte[] key) {
-        id = (id == null ? new Id() : id).withKey(key);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setKey(key);
     }
 
     public long getOwnerId() {
@@ -65,7 +73,10 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     }
 
     public void setOwnerId(long ownerId) {
-        id = (id == null ? new Id() : id).withOwnerId(ownerId);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setOwnerId(ownerId);
     }
 
     @Override
@@ -92,7 +103,6 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
-    @With
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = -2847639184756392847L;
@@ -109,22 +119,34 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
 
     public static class HookStorageChangeBuilder {
         public HookStorageChangeBuilder consensusTimestamp(long consensusTimestamp) {
-            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public HookStorageChangeBuilder hookId(long hookId) {
-            this.id = (this.id == null ? new Id() : this.id).withHookId(hookId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setHookId(hookId);
             return this;
         }
 
         public HookStorageChangeBuilder key(byte[] key) {
-            this.id = (this.id == null ? new Id() : this.id).withKey(key);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setKey(key);
             return this;
         }
 
         public HookStorageChangeBuilder ownerId(long ownerId) {
-            this.id = (this.id == null ? new Id() : this.id).withOwnerId(ownerId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setOwnerId(ownerId);
             return this;
         }
 

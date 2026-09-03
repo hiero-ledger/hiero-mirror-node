@@ -9,7 +9,6 @@ import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.With;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
@@ -48,19 +47,31 @@ public abstract class AbstractTokenAirdrop implements History {
     }
 
     public void setReceiverAccountId(long receiverAccountId) {
-        id = (id == null ? new Id() : id).withReceiverAccountId(receiverAccountId);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setReceiverAccountId(receiverAccountId);
     }
 
     public void setSenderAccountId(long senderAccountId) {
-        id = (id == null ? new Id() : id).withSenderAccountId(senderAccountId);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setSenderAccountId(senderAccountId);
     }
 
     public void setSerialNumber(long serialNumber) {
-        id = (id == null ? new Id() : id).withSerialNumber(serialNumber);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setSerialNumber(serialNumber);
     }
 
     public void setTokenId(long tokenId) {
-        id = (id == null ? new Id() : id).withTokenId(tokenId);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setTokenId(tokenId);
     }
 
     @JsonIgnore
@@ -71,7 +82,6 @@ public abstract class AbstractTokenAirdrop implements History {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    @With
     public static class Id implements Serializable {
 
         @Serial
@@ -90,22 +100,34 @@ public abstract class AbstractTokenAirdrop implements History {
             C extends AbstractTokenAirdrop, B extends AbstractTokenAirdropBuilder<C, B>> {
 
         public B receiverAccountId(long receiverAccountId) {
-            this.id = (this.id == null ? new Id() : this.id).withReceiverAccountId(receiverAccountId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setReceiverAccountId(receiverAccountId);
             return self();
         }
 
         public B senderAccountId(long senderAccountId) {
-            this.id = (this.id == null ? new Id() : this.id).withSenderAccountId(senderAccountId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setSenderAccountId(senderAccountId);
             return self();
         }
 
         public B serialNumber(long serialNumber) {
-            this.id = (this.id == null ? new Id() : this.id).withSerialNumber(serialNumber);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setSerialNumber(serialNumber);
             return self();
         }
 
         public B tokenId(long tokenId) {
-            this.id = (this.id == null ? new Id() : this.id).withTokenId(tokenId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setTokenId(tokenId);
             return self();
         }
     }

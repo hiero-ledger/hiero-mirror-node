@@ -9,7 +9,6 @@ import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.With;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
@@ -42,7 +41,6 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    @With
     public static class Id implements Serializable {
 
         @Serial
@@ -62,11 +60,17 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance {
     }
 
     public void setOwner(long owner) {
-        id = (id == null ? new Id() : id).withOwner(owner);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setOwner(owner);
     }
 
     public void setSpender(long spender) {
-        id = (id == null ? new Id() : id).withSpender(spender);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setSpender(spender);
     }
 
     /**
@@ -83,12 +87,18 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance {
     public abstract static class AbstractCryptoAllowanceBuilder<
             C extends AbstractCryptoAllowance, B extends AbstractCryptoAllowanceBuilder<C, B>> {
         public B owner(long owner) {
-            this.id = (this.id == null ? new Id() : this.id).withOwner(owner);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setOwner(owner);
             return self();
         }
 
         public B spender(long spender) {
-            this.id = (this.id == null ? new Id() : this.id).withSpender(spender);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setSpender(spender);
             return self();
         }
     }

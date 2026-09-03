@@ -12,7 +12,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.With;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
@@ -35,16 +34,20 @@ public class ContractTransaction implements Persistable<ContractTransaction.Id> 
 
     private long payerAccountId;
 
-    // Replaces rather than mutates the builder's Id so objects built earlier from the same (reused) builder keep
-    // their values, matching the snapshot semantics the flat JPA fields had
     public static class ContractTransactionBuilder {
         public ContractTransactionBuilder consensusTimestamp(long consensusTimestamp) {
-            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public ContractTransactionBuilder entityId(long entityId) {
-            this.id = (this.id == null ? new Id() : this.id).withEntityId(entityId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setEntityId(entityId);
             return this;
         }
     }
@@ -72,7 +75,6 @@ public class ContractTransaction implements Persistable<ContractTransaction.Id> 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    @With
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = -6807023295883699004L;

@@ -12,7 +12,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import lombok.With;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.springframework.data.domain.Persistable;
@@ -64,11 +63,17 @@ public class ContractAction implements Persistable<ContractAction.Id> {
     private long value;
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        id = (id == null ? new Id() : id).withConsensusTimestamp(consensusTimestamp);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setConsensusTimestamp(consensusTimestamp);
     }
 
     public void setIndex(int index) {
-        id = (id == null ? new Id() : id).withIndex(index);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setIndex(index);
     }
 
     public long getConsensusTimestamp() {
@@ -100,7 +105,6 @@ public class ContractAction implements Persistable<ContractAction.Id> {
     @AllArgsConstructor
     @Builder
     @NoArgsConstructor
-    @With
     public static class Id implements Serializable {
         private static final long serialVersionUID = -6192177810161178246L;
 

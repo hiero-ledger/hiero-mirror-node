@@ -11,7 +11,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import lombok.With;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
@@ -37,12 +36,18 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
 
     public static class TransactionSignatureBuilder {
         public TransactionSignatureBuilder consensusTimestamp(long consensusTimestamp) {
-            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public TransactionSignatureBuilder publicKeyPrefix(byte[] publicKeyPrefix) {
-            this.id = (this.id == null ? new Id() : this.id).withPublicKeyPrefix(publicKeyPrefix);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setPublicKeyPrefix(publicKeyPrefix);
             return this;
         }
     }
@@ -56,11 +61,17 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
     }
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        id = (id == null ? new Id() : id).withConsensusTimestamp(consensusTimestamp);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setConsensusTimestamp(consensusTimestamp);
     }
 
     public void setPublicKeyPrefix(byte[] publicKeyPrefix) {
-        id = (id == null ? new Id() : id).withPublicKeyPrefix(publicKeyPrefix);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setPublicKeyPrefix(publicKeyPrefix);
     }
 
     @Override
@@ -78,7 +89,6 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    @With
     public static class Id implements Serializable {
 
         @Serial

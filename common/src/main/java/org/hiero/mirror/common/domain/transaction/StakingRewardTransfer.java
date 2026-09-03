@@ -10,7 +10,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.With;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
@@ -33,12 +32,18 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
 
     public static class StakingRewardTransferBuilder {
         public StakingRewardTransferBuilder accountId(long accountId) {
-            this.id = (this.id == null ? new Id() : this.id).withAccountId(accountId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setAccountId(accountId);
             return this;
         }
 
         public StakingRewardTransferBuilder consensusTimestamp(long consensusTimestamp) {
-            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setConsensusTimestamp(consensusTimestamp);
             return this;
         }
     }
@@ -52,11 +57,17 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
     }
 
     public void setAccountId(long accountId) {
-        id = (id == null ? new Id() : id).withAccountId(accountId);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setAccountId(accountId);
     }
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        id = (id == null ? new Id() : id).withConsensusTimestamp(consensusTimestamp);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setConsensusTimestamp(consensusTimestamp);
     }
 
     @JsonIgnore
@@ -74,7 +85,6 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
-    @With
     public static class Id implements Serializable {
 
         @Serial

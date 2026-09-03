@@ -8,7 +8,6 @@ import java.io.Serial;
 import java.io.Serializable;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.With;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
@@ -89,7 +88,10 @@ public abstract class AbstractTokenAccount implements History {
     }
 
     public void setAccountId(long accountId) {
-        id = (id == null ? new Id() : id).withAccountId(accountId);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setAccountId(accountId);
     }
 
     public long getTokenId() {
@@ -97,7 +99,10 @@ public abstract class AbstractTokenAccount implements History {
     }
 
     public void setTokenId(long tokenId) {
-        id = (id == null ? new Id() : id).withTokenId(tokenId);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setTokenId(tokenId);
     }
 
     @JsonIgnore
@@ -108,7 +113,6 @@ public abstract class AbstractTokenAccount implements History {
     @Data
     @NoArgsConstructor
     @lombok.AllArgsConstructor
-    @With
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = 4078820027811154183L;
@@ -121,12 +125,18 @@ public abstract class AbstractTokenAccount implements History {
     public abstract static class AbstractTokenAccountBuilder<
             C extends AbstractTokenAccount, B extends AbstractTokenAccountBuilder<C, B>> {
         public B accountId(long accountId) {
-            this.id = (this.id == null ? new Id() : this.id).withAccountId(accountId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setAccountId(accountId);
             return self();
         }
 
         public B tokenId(long tokenId) {
-            this.id = (this.id == null ? new Id() : this.id).withTokenId(tokenId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setTokenId(tokenId);
             return self();
         }
 

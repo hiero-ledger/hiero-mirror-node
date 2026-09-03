@@ -10,7 +10,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import lombok.With;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
@@ -60,11 +59,17 @@ public abstract class AbstractNft implements History {
     }
 
     public void setSerialNumber(long serialNumber) {
-        id = (id == null ? new Id() : id).withSerialNumber(serialNumber);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setSerialNumber(serialNumber);
     }
 
     public void setTokenId(long tokenId) {
-        id = (id == null ? new Id() : id).withTokenId(tokenId);
+        if (id == null) {
+            id = new Id();
+        }
+        id.setTokenId(tokenId);
     }
 
     public static boolean shouldKeepSpender(Long spender) {
@@ -79,7 +84,6 @@ public abstract class AbstractNft implements History {
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
-    @With
     public static class Id implements Serializable {
 
         @Serial
@@ -93,12 +97,18 @@ public abstract class AbstractNft implements History {
     public abstract static class AbstractNftBuilder<C extends AbstractNft, B extends AbstractNftBuilder<C, B>> {
 
         public B serialNumber(long serialNumber) {
-            this.id = (this.id == null ? new Id() : this.id).withSerialNumber(serialNumber);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setSerialNumber(serialNumber);
             return self();
         }
 
         public B tokenId(long tokenId) {
-            this.id = (this.id == null ? new Id() : this.id).withTokenId(tokenId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setTokenId(tokenId);
             return self();
         }
     }

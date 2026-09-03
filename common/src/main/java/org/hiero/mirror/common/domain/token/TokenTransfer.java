@@ -10,7 +10,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.With;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
@@ -40,17 +39,26 @@ public class TokenTransfer implements Persistable<TokenTransfer.Id> {
 
     public static class TokenTransferBuilder {
         public TokenTransferBuilder consensusTimestamp(long consensusTimestamp) {
-            this.id = (this.id == null ? new Id() : this.id).withConsensusTimestamp(consensusTimestamp);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public TokenTransferBuilder tokenId(EntityId tokenId) {
-            this.id = (this.id == null ? new Id() : this.id).withTokenId(tokenId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setTokenId(tokenId);
             return this;
         }
 
         public TokenTransferBuilder accountId(EntityId accountId) {
-            this.id = (this.id == null ? new Id() : this.id).withAccountId(accountId);
+            if (this.id == null) {
+                this.id = new Id();
+            }
+            this.id.setAccountId(accountId);
             return this;
         }
     }
@@ -83,7 +91,6 @@ public class TokenTransfer implements Persistable<TokenTransfer.Id> {
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder(toBuilder = true)
-    @With
     public static class Id implements Serializable {
 
         @Serial
