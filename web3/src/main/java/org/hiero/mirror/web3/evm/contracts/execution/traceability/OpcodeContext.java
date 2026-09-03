@@ -9,20 +9,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.Setter;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.rest.model.Opcode;
+import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 
 /**
  * Properties for tracing opcodes
  */
 @Data
-@Builder(toBuilder = true)
-@AllArgsConstructor
 public final class OpcodeContext {
 
     /**
@@ -31,6 +28,26 @@ public final class OpcodeContext {
      * backing array before any opcode executes.
      */
     private static final int MAX_INITIAL_OPCODES_CAPACITY = 10_000;
+
+    /**
+     * Name used for the marker opcode appended when a trace is truncated at maxOpcodes.
+     */
+    static final String TRUNCATED_OP = "TRUNCATED";
+
+    /**
+     * Immutable marker opcode appended once when a trace reaches maxOpcodes. Shared across requests since it carries no
+     * per-request state and is never mutated after construction.
+     */
+    private static final Opcode TRUNCATED_OPCODE = new Opcode()
+            .pc(0)
+            .op(TRUNCATED_OP)
+            .gas(0L)
+            .gasCost(0L)
+            .depth(0)
+            .stack(List.of())
+            .memory(List.of())
+            .storage(Map.of())
+            .reason("Trace truncated after reaching the configured maxOpcodes limit");
 
     /**
      * Actions pre-grouped by call depth and sorted by index within each depth.
@@ -67,15 +84,92 @@ public final class OpcodeContext {
      */
     private final boolean storage;
 
-    public OpcodeContext(final OpcodeRequest opcodeRequest, final int opcodesSize) {
+    private final OpcodesProperties properties;
+
+    /**
+     * Running total of memory words captured so far across all recorded opcodes.
+     */
+    @Setter(AccessLevel.NONE)
+    private long capturedMemoryWords;
+
+    /**
+     * Running total of stack items captured so far across all recorded opcodes.
+     */
+    @Setter(AccessLevel.NONE)
+    private long capturedStack;
+
+    /**
+     * Running total of storage entries captured so far across all recorded opcodes.
+     */
+    @Setter(AccessLevel.NONE)
+    private long capturedStorage;
+
+    /**
+     * Whether the trace has been truncated because the opcode-count or one of the memory/stack/storage budgets was
+     * reached. Once set, the single {@link #TRUNCATED_OPCODE} marker has been appended and further opcodes are dropped.
+     */
+    @Setter(AccessLevel.NONE)
+    private boolean truncated;
+
+    /**
+     * Total number of opcodes offered for this request, including the ones dropped once a budget was reached. Kept so
+     * truncation can be reported without walking the opcode list.
+     */
+    @Setter(AccessLevel.NONE)
+    private long executedOpcodes;
+
+    public OpcodeContext(
+            final OpcodeRequest opcodeRequest, final int initialOpcodesCapacity, final OpcodesProperties properties) {
         this.stack = opcodeRequest.isStack();
         this.memory = opcodeRequest.isMemory();
         this.storage = opcodeRequest.isStorage();
-        this.opcodes = new ArrayList<>(Math.min(Math.max(opcodesSize, 0), MAX_INITIAL_OPCODES_CAPACITY));
+        this.properties = properties;
+        this.opcodes = new ArrayList<>(Math.min(Math.max(initialOpcodesCapacity, 0), MAX_INITIAL_OPCODES_CAPACITY));
     }
 
+    /**
+     * Records an offered opcode. Every opcode is counted in {@link #executedOpcodes}. While within all budgets the opcode
+     * is stored and its captured memory/stack/storage added to the running totals; once a budget would be exceeded (see
+     * {@link #isAtCapacity()} and {@link #exceedsCaptureBudget(Opcode)}) the opcode is dropped and a single
+     * {@link #TRUNCATED_OPCODE} marker is appended the first time truncation occurs so clients can detect it. Callers
+     * that already know the cap is reached may pass {@code null} to avoid building an opcode that would be dropped.
+     */
     public void addOpcodes(Opcode opcode) {
+        executedOpcodes++;
+        if (isAtCapacity() || exceedsCaptureBudget(opcode)) {
+            if (!truncated) {
+                truncated = true;
+                opcodes.add(TRUNCATED_OPCODE);
+            }
+            return;
+        }
         opcodes.add(opcode);
+        capturedMemoryWords += size(opcode.getMemory());
+        capturedStack += size(opcode.getStack());
+        capturedStorage += size(opcode.getStorage());
+    }
+
+    /**
+     * Whether recording another opcode would exceed one of the configured budgets: the opcode count, or the cumulative
+     * memory/stack/storage captured so far. Once true the trace is truncated and no further opcodes are recorded.
+     */
+    public boolean isAtCapacity() {
+        return truncated || opcodes.size() + 1 >= properties.getMaxOpcodes();
+    }
+
+    private boolean exceedsCaptureBudget(final Opcode opcode) {
+        return opcode != null
+                && (capturedMemoryWords + size(opcode.getMemory()) > properties.getMaxMemoryWords()
+                        || capturedStack + size(opcode.getStack()) > properties.getMaxStack()
+                        || capturedStorage + size(opcode.getStorage()) > properties.getMaxStorage());
+    }
+
+    private static int size(final List<?> list) {
+        return list == null ? 0 : list.size();
+    }
+
+    private static int size(final Map<?, ?> map) {
+        return map == null ? 0 : map.size();
     }
 
     /**

@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.TreeSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
@@ -434,6 +435,24 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     @Test
+    void streamResponseExceedsMaxStreamResponseSize() {
+        // given a malicious block node which replies with a zstd bomb of 32 GB once decompressed. gRPC enforces the max
+        // inbound message size against both the compressed and the decompressed bytes, so the response is rejected
+        // mid-decompression, long before 32GB is materialized.
+        final var maxStreamResponseSize = DataSize.ofMegabytes(1);
+        streamProperties.setMaxStreamResponseSize(maxStreamResponseSize);
+        blockNodeSimulator = new BlockNodeSimulator()
+                .withBlocks(new BlockGenerator(0).next(1))
+                .withHttpChannel()
+                .withZstdBomb(DataSize.ofGigabytes(32))
+                .start();
+        node = httpBlockNode(blockNodeSimulator);
+
+        // when, then
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
+    }
+
+    @Test
     void streamTooManyBlockItems(Resources resources) {
         // given
         streamProperties.setMaxBlockItems(2);
@@ -491,6 +510,27 @@ final class BlockNodeTest extends BlockNodeTestBase {
         var expected = String.format(
                 "BlockNode(%s)", blockNodeProperties.getEndpoints().first());
         assertThat(node.toString()).isEqualTo(expected);
+        assertThat(node.getSubscribeStreamName()).isEqualTo(expected);
+    }
+
+    @Test
+    void subscribeStreamName() {
+        // given
+        final var statusEndpoint = singleServiceEndpoint(BlockNodeApi.STATUS, "host", 40840);
+        final var subscribeStreamEndpoint = singleServiceEndpoint(BlockNodeApi.SUBSCRIBE_STREAM, "host", 40841);
+        final var properties = new BlockNodeProperties();
+        properties.setEndpoints(new TreeSet<>(List.of(statusEndpoint, subscribeStreamEndpoint)));
+        final var blockNode = new BlockNode(
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                NOOP_GRPC_BUFFER_DISPOSER,
+                meterRegistry,
+                properties,
+                streamProperties);
+
+        // when, then
+        assertThat(blockNode.toString()).isEqualTo("BlockNode(host:40840)");
+        assertThat(blockNode.getSubscribeStreamName()).isEqualTo("BlockNode(host:40841)");
+        blockNode.close();
     }
 
     @ParameterizedTest

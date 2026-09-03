@@ -4,6 +4,8 @@ package database
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -35,7 +37,7 @@ func TestInitScriptURL(t *testing.T) {
 		t.Error("InitScriptURL constant should not be empty")
 	}
 
-	expected := "https://raw.githubusercontent.com/hiero-ledger/hiero-mirror-node/refs/heads/main/importer/src/main/resources/db/scripts/init.sh"
+	expected := fmt.Sprintf("https://raw.githubusercontent.com/hiero-ledger/hiero-mirror-node/%s/importer/src/main/resources/db/scripts/init.sh", InitScriptCommitSHA)
 	if InitScriptURL != expected {
 		t.Errorf("InitScriptURL mismatch:\nexpected: %s\ngot: %s", expected, InitScriptURL)
 	}
@@ -57,7 +59,7 @@ func TestDownloadInitScript_Success(t *testing.T) {
 	defer server.Close()
 
 	// Download the script
-	path, err := downloadInitScript(server.URL)
+	path, err := downloadInitScript(server.URL, "")
 	if err != nil {
 		t.Fatalf("downloadInitScript failed: %v", err)
 	}
@@ -93,16 +95,57 @@ func TestDownloadInitScript_HTTPError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := downloadInitScript(server.URL)
+	_, err := downloadInitScript(server.URL, "")
 	if err == nil {
 		t.Error("Expected error for HTTP 404, got nil")
 	}
 }
 
 func TestDownloadInitScript_InvalidURL(t *testing.T) {
-	_, err := downloadInitScript("http://invalid.invalid.invalid/notfound")
+	_, err := downloadInitScript("http://invalid.invalid.invalid/notfound", "")
 	if err == nil {
 		t.Error("Expected error for invalid URL, got nil")
+	}
+}
+
+func TestDownloadInitScript_ChecksumMatch(t *testing.T) {
+	scriptContent := "#!/bin/bash\necho 'test script'\n"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(scriptContent))
+	}))
+	defer server.Close()
+
+	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(scriptContent)))
+	path, err := downloadInitScript(server.URL, hash)
+	if err != nil {
+		t.Fatalf("downloadInitScript failed on a matching checksum: %v", err)
+	}
+	defer os.Remove(path)
+}
+
+func TestDownloadInitScript_ChecksumMismatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("#!/bin/bash\necho 'tampered'\n"))
+	}))
+	defer server.Close()
+
+	t.Setenv("TMPDIR", tmpDir)
+
+	_, err := downloadInitScript(server.URL, InitScriptSHA256)
+	if err == nil {
+		t.Fatal("Expected a checksum mismatch error")
+	}
+	if !contains(err.Error(), "checksum mismatch") {
+		t.Errorf("Expected 'checksum mismatch' error, got: %v", err)
+	}
+
+	entries, err := os.ReadDir(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to read temp dir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("A tampered script should not be written to disk, found %d file(s)", len(entries))
 	}
 }
 
@@ -152,7 +195,7 @@ func TestInitialize_MissingSchemaFile(t *testing.T) {
 	}
 }
 
-func TestInitialize_SchemaFileFound(t *testing.T) {
+func TestInitialize_FailsFastWhenDBUnreachable(t *testing.T) {
 	logsDir := t.TempDir()
 	dataDir := t.TempDir()
 
@@ -162,11 +205,10 @@ func TestInitialize_SchemaFileFound(t *testing.T) {
 		t.Fatalf("Failed to create schema.sql: %v", err)
 	}
 
-	// Create a mock server for init.sh that returns an error script
-	// This tests that we properly reach the download phase
+	downloaded := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		downloaded = true // should never happen - the connection check must fail first
 		w.WriteHeader(http.StatusOK)
-		// Return a script that exits with error (to prevent full execution)
 		w.Write([]byte("#!/bin/bash\nexit 1\n"))
 	}))
 	defer server.Close()
@@ -175,18 +217,23 @@ func TestInitialize_SchemaFileFound(t *testing.T) {
 		LogsDir:       logsDir,
 		DataDir:       dataDir,
 		InitScriptURL: server.URL,
+		AdminHost:     "127.0.0.1",
+		AdminPort:     "1", // nothing listens here, so this fails fast
+		PGSSLMode:     "disable",
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	err := Initialize(ctx, cfg)
-	// We expect an error from init.sh failing
 	if err == nil {
-		t.Error("Expected init.sh to fail")
+		t.Fatal("Expected error when database is unreachable")
 	}
-	if err != nil && !contains(err.Error(), "init.sh failed") {
-		t.Errorf("Expected 'init.sh failed' error, got: %v", err)
+	if !contains(err.Error(), "cannot connect to database") {
+		t.Errorf("Expected 'cannot connect to database' error, got: %v", err)
+	}
+	if downloaded {
+		t.Error("init.sh should not be downloaded when the admin connection check fails")
 	}
 }
 
@@ -253,6 +300,46 @@ exit 0
 
 	err := runInitScript(ctx, scriptPath, cfg)
 	if err != nil {
+		t.Errorf("runInitScript failed: %v", err)
+	}
+}
+
+func TestSSLModeOrDefault(t *testing.T) {
+	if got := sslModeOrDefault(""); got != "verify-full" {
+		t.Errorf("Expected verify-full for empty mode, got %s", got)
+	}
+	if got := sslModeOrDefault("disable"); got != "disable" {
+		t.Errorf("Expected disable to pass through unchanged, got %s", got)
+	}
+}
+
+func TestRunInitScript_SSLModeEnvVars(t *testing.T) {
+	tmpDir := t.TempDir()
+	scriptPath := filepath.Join(tmpDir, "test_ssl_env.sh")
+
+	script := `#!/bin/bash
+if [ "$PGSSLMODE" != "verify-full" ]; then exit 1; fi
+if [ "$PGSSLROOTCERT" != "/etc/ssl/ca.pem" ]; then exit 2; fi
+exit 0
+`
+	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
+		t.Fatalf("Failed to create test script: %v", err)
+	}
+
+	cfg := InitConfig{
+		AdminHost:     "localhost",
+		AdminPort:     "5432",
+		AdminUser:     "postgres",
+		AdminPassword: "test",
+		OwnerPassword: "owner123",
+		PGSSLRootCert: "/etc/ssl/ca.pem",
+		// PGSSLMode left empty on purpose - checking the default kicks in
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := runInitScript(ctx, scriptPath, cfg); err != nil {
 		t.Errorf("runInitScript failed: %v", err)
 	}
 }

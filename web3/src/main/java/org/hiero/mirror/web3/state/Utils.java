@@ -15,6 +15,7 @@ import java.time.Instant;
 import lombok.experimental.UtilityClass;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hyperledger.besu.datatypes.Address;
 import org.jspecify.annotations.NonNull;
 
 @UtilityClass
@@ -34,6 +35,8 @@ public class Utils {
                     .build())
             .build();
 
+    public static final byte[] ZERO_ADDRESS = Address.ZERO.getBytes().toArrayUnsafe();
+
     public static Key parseKey(final byte[] keyBytes) {
         try {
             if (keyBytes != null && keyBytes.length > 0) {
@@ -47,13 +50,23 @@ public class Utils {
     }
 
     /**
+     * Converts a timestamp in nanoseconds (since epoch) to a Java Instant.
+     *
+     * @param nanos The timestamp in nanoseconds since epoch.
+     * @return The Java Instant.
+     */
+    public static Instant convertToInstant(final long nanos) {
+        return Instant.ofEpochSecond(0, nanos);
+    }
+
+    /**
      * Converts a timestamp in nanoseconds to a PBJ Timestamp object.
      *
      * @param timestamp The timestamp in nanoseconds.
      * @return The PBJ Timestamp object.
      */
     public static Timestamp convertToTimestamp(final long timestamp) {
-        var instant = Instant.ofEpochSecond(0, timestamp);
+        var instant = convertToInstant(timestamp);
         return new Timestamp(instant.getEpochSecond(), instant.getNano());
     }
 
@@ -67,6 +80,12 @@ public class Utils {
         var start = hex.startsWith(HEX_PREFIX) || hex.startsWith(HEX_PREFIX_CAPITAL) ? 2 : 0;
         while (start < hex.length() && hex.charAt(start) == '0') {
             start++;
+        }
+
+        // Empty, prefix-only or all-zero input (e.g. "", "0x", "0", "0x0") represents the value zero. Return early
+        // to avoid Long.parseUnsignedLong throwing on an empty range.
+        if (start == hex.length()) {
+            return 0L;
         }
 
         if (hex.length() - start > 16) {
@@ -116,12 +135,20 @@ public class Utils {
         int j = 0;
 
         if (nibbles % 2 != 0) {
-            result[j++] = (byte) Character.digit(hex.charAt(i++), 16);
+            result[j++] = (byte) parseNibble(hex.charAt(i++));
         }
         while (i < len) {
-            result[j++] = (byte) ((Character.digit(hex.charAt(i++), 16) << 4) | Character.digit(hex.charAt(i++), 16));
+            result[j++] = (byte) ((parseNibble(hex.charAt(i++)) << 4) | parseNibble(hex.charAt(i++)));
         }
         return result;
+    }
+
+    private static int parseNibble(final char c) {
+        final int digit = Character.digit(c, 16);
+        if (digit < 0) {
+            throw new NumberFormatException("Invalid hex character: " + c);
+        }
+        return digit;
     }
 
     public static FileID toFileID(final EntityId entityId) {

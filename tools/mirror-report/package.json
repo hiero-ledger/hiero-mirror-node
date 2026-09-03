@@ -16,10 +16,10 @@
   "description": "Generates a report showing an account's hbar transfers",
   "devDependencies": {
     "@fetch-mock/jest": "0.2.20",
-    "jest": "30.4.2"
+    "jest": "30.5.0"
   },
   "engines": {
-    "node": ">=24.18.1 <25"
+    "node": ">=24.20.0 <25"
   },
   "homepage": "https://github.com/hiero-ledger/hiero-mirror-node/tree/main/tools/mirror-report",
   "jest": {
@@ -36,9 +36,9 @@
   "main": "index.js",
   "name": "@hiero-ledger/mirror-report",
   "overrides": {
-    "brace-expansion": "5.0.8",
+    "brace-expansion": "5.0.9",
     "glob": "13.0.6",
-    "js-yaml": "5.2.2"
+    "js-yaml": "5.4.1"
   },
   "repository": {
     "type": "git",

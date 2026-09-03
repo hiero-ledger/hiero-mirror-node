@@ -7,9 +7,12 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -26,9 +29,10 @@ import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
 import org.hiero.mirror.web3.Web3Properties;
@@ -107,6 +111,7 @@ final class ContractControllerTest {
 
     @BeforeEach
     void setUp() {
+        web3Properties.setEnableStateOverrides(true);
         throttleManager.throttle(any(ContractCallRequest.class));
     }
 
@@ -121,19 +126,6 @@ final class ContractControllerTest {
                 .accept(MediaType.APPLICATION_JSON)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(convert(request)));
-    }
-
-    @SneakyThrows
-    private ResultActions contractCall(ContractCallRequest request, final Map<String, String> headers) {
-        final var requestBuilder = post(CALL_URI)
-                .accept(MediaType.APPLICATION_JSON)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(convert(request));
-
-        // Add headers dynamically
-        headers.forEach(requestBuilder::header);
-
-        return mockMvc.perform(requestBuilder);
     }
 
     @ParameterizedTest
@@ -172,6 +164,7 @@ final class ContractControllerTest {
     @ValueSource(longs = {2000, -2000, 16_000_000L, 0})
     @ParameterizedTest
     void estimateGasWithInvalidGasParameter(long gas) throws Exception {
+        clearInvocations(throttleManager);
         final var errorString = gas < 21000L
                 ? numberErrorString("gas", "greater", 21000L)
                 : numberErrorString("gas", "less", 15_000_000L);
@@ -182,6 +175,8 @@ final class ContractControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content()
                         .string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), errorString))));
+        verify(throttleManager, never()).throttle(any());
+        verify(throttleManager, never()).restore(anyLong());
     }
 
     @Test
@@ -357,6 +352,19 @@ final class ContractControllerTest {
         contractCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), error))));
+        verify(throttleManager).restore(request.getGas());
+    }
+
+    @Test
+    void callWithIllegalArgumentExceptionRestoresThrottle() throws Exception {
+        final var request = request();
+
+        given(service.processCall(any())).willThrow(new IllegalArgumentException("Invalid hex value"));
+        contractCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), "Invalid hex value"))));
+        verify(throttleManager).restore(request.getGas());
     }
 
     @Test
@@ -443,15 +451,19 @@ final class ContractControllerTest {
 
     @ParameterizedTest
     @MethodSource("serverResponseCodes")
-    void callWithErrorStatusesProducesInternalServerErrorTest(ResponseCodeEnum responseCode) throws Exception {
+    void serverErrorStatusesDoNotLeakErrorDetailsToClient(ResponseCodeEnum responseCode) throws Exception {
         final var request = request();
         request.setData("0xa26388bb");
 
-        given(service.processCall(any())).willThrow(new MirrorEvmTransactionException(responseCode, null, null));
+        given(service.processCall(any()))
+                .willThrow(new MirrorEvmTransactionException(responseCode, "internal detail", "0xdeadbeef"));
 
+        // On 5xx the detail and data must be redacted so internal server-side state is never leaked to the client.
         contractCall(request)
                 .andExpect(status().isInternalServerError())
-                .andExpect(content().string(convert(new GenericErrorResponse(responseCode.name(), null, null))));
+                .andExpect(content()
+                        .string(convert(
+                                new GenericErrorResponse(responseCode.name(), StringUtils.EMPTY, StringUtils.EMPTY))));
     }
 
     @Test
@@ -488,6 +500,7 @@ final class ContractControllerTest {
     @ParameterizedTest
     @ValueSource(strings = {"1", "1aa"})
     void callBadRequestWithInvalidHexData(String data) throws Exception {
+        clearInvocations(throttleManager);
         final var request = request();
         request.setData(data);
         request.setValue(0);
@@ -495,6 +508,38 @@ final class ContractControllerTest {
         contractCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(new StringContains("Odd number of characters")));
+
+        verify(throttleManager, never()).throttle(any());
+        verify(throttleManager, never()).restore(anyLong());
+        verify(service, never()).processCall(any());
+    }
+
+    @Test
+    void callFromWithUpperCaseHexPrefixDoesNotThrottle() throws Exception {
+        clearInvocations(throttleManager);
+        final var request = request();
+        request.setFrom("0X00000000000000000000000000000000000004e2");
+        request.setValue(0);
+
+        contractCall(request).andExpect(status().isBadRequest());
+
+        verify(throttleManager, never()).throttle(any());
+        verify(throttleManager, never()).restore(anyLong());
+        verify(service, never()).processCall(any());
+    }
+
+    @Test
+    void callToWithUpperCaseHexPrefixDoesNotThrottle() throws Exception {
+        clearInvocations(throttleManager);
+        final var request = request();
+        request.setTo("0X00000000000000000000000000000000000004e4");
+        request.setValue(0);
+
+        contractCall(request).andExpect(status().isBadRequest());
+
+        verify(throttleManager, never()).throttle(any());
+        verify(throttleManager, never()).restore(anyLong());
+        verify(service, never()).processCall(any());
     }
 
     @Test
@@ -557,15 +602,39 @@ final class ContractControllerTest {
     // ── State override tests ──────────────────────────────────────────────────
 
     @Test
+    void callWithStateOverrideDisabled() throws Exception {
+        web3Properties.setEnableStateOverrides(false);
+        final var override = new StateOverride();
+        override.setAddress("0x00000000000000000000000000000000000004e4");
+        override.setCode("0x6080604052");
+        final var request = request();
+        request.setStateOverrides(List.of(override));
+        contractCall(request).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void callWithMaxStateOverrides() throws Exception {
+        final var overrides = new ArrayList<StateOverride>();
+        for (int i = 0; i < 11; i++) {
+            final var override = new StateOverride();
+            override.setAddress("0x00000000000000000000000000000000000004e4");
+            overrides.add(override);
+        }
+        final var request = request();
+        request.setStateOverrides(overrides);
+        contractCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("stateOverrides field size must be between 0 and 10")));
+    }
+
+    @Test
     void callWithStateOverrideBalance() throws Exception {
         final var override = new StateOverride();
         override.setAddress("0x00000000000000000000000000000000000004e2");
         override.setBalance("0xde0b6b3a7640000"); // 1 HBAR in tinybars hex
         final var request = request();
         request.setStateOverrides(List.of(override));
-
-        contractCall(request)
-                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
+        contractCall(request).andExpect(status().isOk());
     }
 
     @Test
@@ -575,9 +644,7 @@ final class ContractControllerTest {
         override.setNonce("0x2a");
         final var request = request();
         request.setStateOverrides(List.of(override));
-
-        contractCall(request)
-                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
+        contractCall(request).andExpect(status().isOk());
     }
 
     @Test
@@ -587,9 +654,19 @@ final class ContractControllerTest {
         override.setCode("0x6080604052");
         final var request = request();
         request.setStateOverrides(List.of(override));
+        contractCall(request).andExpect(status().isOk());
+    }
 
+    @Test
+    void callWithStateOverrideCodeExceedsMax() throws Exception {
+        final var override = new StateOverride();
+        override.setAddress("0x00000000000000000000000000000000000004e4");
+        override.setCode("0x" + RandomStringUtils.secure().next(StateOverride.CODE_MAX_LENGTH + 1, "0123456789abcdef"));
+        final var request = request();
+        request.setStateOverrides(List.of(override));
         contractCall(request)
-                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("code field invalid hexadecimal string")));
     }
 
     @Test
@@ -602,9 +679,7 @@ final class ContractControllerTest {
         override.setStateDiff(List.of(entry));
         final var request = request();
         request.setStateOverrides(List.of(override));
-
-        contractCall(request)
-                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
+        contractCall(request).andExpect(status().isOk());
     }
 
     @Test
@@ -617,9 +692,7 @@ final class ContractControllerTest {
         override.setState(List.of(entry));
         final var request = request();
         request.setStateOverrides(List.of(override));
-
-        contractCall(request)
-                .andExpect(web3Properties.isEnableStateOverrides() ? status().isOk() : status().isBadRequest());
+        contractCall(request).andExpect(status().isOk());
     }
 
     @Test
@@ -655,8 +728,6 @@ final class ContractControllerTest {
 
     @Test
     void callWithStateOverrideUpperCaseAddressPrefix() throws Exception {
-        web3Properties.setEnableStateOverrides(true);
-
         final var override = new StateOverride();
         override.setAddress("0X00000000000000000000000000000000000004e4");
         override.setBalance("0x1");

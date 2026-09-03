@@ -2,6 +2,7 @@
 
 import ContractResultDetailsViewModel from '../../viewmodel/contractResultDetailsViewModel.js';
 import EthereumTransaction from '../../model/ethereumTransaction.js';
+import config from '../../config';
 
 describe('ContractResultDetailsViewModel', () => {
   describe('_convertWeibarToTinybar', () => {
@@ -248,6 +249,48 @@ describe('ContractResultDetailsViewModel', () => {
       expect(viewModel.gas_price).toBe('0x4a817c80');
     });
 
+    test('pads short authorization address, r, and s', () => {
+      const originalFlagValue = config.response.enableDelegationAddress;
+      config.response.enableDelegationAddress = true;
+      try {
+        const ethTransaction = {
+          ...mockEthTransaction,
+          authorizationList: [
+            {
+              address: '0x01',
+              chain_id: '0x127',
+              nonce: 2,
+              r: '0x00ab',
+              s: '0x00cd',
+              y_parity: '0x0',
+            },
+          ],
+        };
+
+        const viewModel = new ContractResultDetailsViewModel(
+          mockContractResult,
+          mockRecordFile,
+          ethTransaction,
+          [],
+          [],
+          null
+        );
+
+        expect(viewModel.authorization_list).toEqual([
+          {
+            address: '0x0000000000000000000000000000000000000001',
+            chain_id: '0x127',
+            nonce: 2,
+            r: '0x00000000000000000000000000000000000000000000000000000000000000ab',
+            s: '0x00000000000000000000000000000000000000000000000000000000000000cd',
+            y_parity: '0x0',
+          },
+        ]);
+      } finally {
+        config.response.enableDelegationAddress = originalFlagValue;
+      }
+    });
+
     test('returns access_list from db jsonb', () => {
       const accessList = [
         {
@@ -272,6 +315,34 @@ describe('ContractResultDetailsViewModel', () => {
       expect(viewModel.access_list).toEqual([
         {
           address: '0xa02457e5dfd32bda5fc7e1f1b008aa5979568150',
+          storage_keys: ['0x0000000000000000000000000000000000000000000000000000000000000081'],
+        },
+      ]);
+    });
+
+    test('pads short access list address and storage keys', () => {
+      const ethTransaction = {
+        ...mockEthTransaction,
+        accessList: [
+          {
+            address: '0x01',
+            storage_keys: ['0x81'],
+          },
+        ],
+      };
+
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult,
+        mockRecordFile,
+        ethTransaction,
+        [],
+        [],
+        null
+      );
+
+      expect(viewModel.access_list).toEqual([
+        {
+          address: '0x0000000000000000000000000000000000000001',
           storage_keys: ['0x0000000000000000000000000000000000000000000000000000000000000081'],
         },
       ]);

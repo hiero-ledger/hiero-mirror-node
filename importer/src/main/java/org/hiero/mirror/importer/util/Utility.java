@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.util;
 
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 import static org.hiero.mirror.common.util.SignatureUtils.ECDSA_SECP256K1_COMPRESSED_KEY_LENGTH;
 
 import com.google.common.base.CaseFormat;
@@ -64,7 +65,7 @@ public class Utility {
 
         byte[] evmAddress = null;
         try {
-            var key = Key.parseFrom(alias);
+            var key = parseProtobuf(alias, Key::parseFrom);
             if (key.getKeyCase() == Key.KeyCase.ECDSA_SECP256K1
                     && key.getECDSASecp256K1().size() == ECDSA_SECP256K1_COMPRESSED_KEY_LENGTH) {
                 byte[] rawCompressedKey = DomainUtils.toBytes(key.getECDSASecp256K1());
@@ -117,9 +118,13 @@ public class Utility {
     }
 
     public static void archiveFile(String filename, byte[] contents, Path destinationRoot) {
-        Path destination = destinationRoot.resolve(filename);
+        final var destination = destinationRoot.resolve(filename).normalize();
 
         try {
+            if (!destination.startsWith(destinationRoot.normalize())) {
+                throw new IllegalArgumentException(
+                        "Destination file " + destination + " does not start with " + destinationRoot);
+            }
             destination.getParent().toFile().mkdirs();
             Files.write(destination, contents, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             log.trace("Archived file to {}", destination);

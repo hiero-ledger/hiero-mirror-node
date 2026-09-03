@@ -81,5 +81,7 @@ type Pool struct {
 }
 
 type Response struct {
+	// MaxTransactions caps the transactions a single block may contain, as reported by record_file.count.
+	MaxTransactions        int `yaml:"maxTransactions"`
 	MaxTransactionsInBlock int `yaml:"maxTransactionsInBlock"`
 }

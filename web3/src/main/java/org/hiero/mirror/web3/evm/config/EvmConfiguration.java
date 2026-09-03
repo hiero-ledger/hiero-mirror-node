@@ -4,7 +4,8 @@ package org.hiero.mirror.web3.evm.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.SemanticVersion;
-import com.hedera.node.app.service.contract.impl.exec.gas.CustomGasCalculator;
+import com.hedera.node.app.service.contract.impl.exec.gas.HederaGasCalculator;
+import com.hedera.node.app.service.contract.impl.exec.gas.HederaGasCalculatorImpl;
 import com.hedera.node.app.service.entityid.EntityIdFactory;
 import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
 import java.util.Set;
@@ -12,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
-import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
@@ -33,7 +33,6 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_RECORD_FILE_EARLIEST = "recordFileEarliest";
     public static final String CACHE_MANAGER_RECORD_FILE_INDEX = "recordFileIndex";
     public static final String CACHE_MANAGER_RECORD_FILE_TIMESTAMP = "recordFileTimestamp";
-    public static final String CACHE_MANAGER_SLOTS_PER_CONTRACT = "slotsPerContract";
     public static final String CACHE_MANAGER_SYSTEM_FILE = "systemFile";
     public static final String CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE = "exchangeRate";
     public static final String CACHE_MANAGER_SYSTEM_ACCOUNT = "systemAccount";
@@ -60,7 +59,8 @@ public class EvmConfiguration {
     public static final SemanticVersion EVM_VERSION_0_65 = new SemanticVersion(0, 65, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_66 = new SemanticVersion(0, 66, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_67 = new SemanticVersion(0, 67, 0, "", "");
-    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_67;
+    public static final SemanticVersion EVM_VERSION_0_70 = new SemanticVersion(0, 70, 0, "", "");
+    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_70;
     private final CacheProperties cacheProperties;
     private final EvmProperties evmProperties;
 
@@ -101,13 +101,6 @@ public class EvmConfiguration {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME, CACHE_NAME_EVM_ADDRESS, CACHE_NAME_ALIAS));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getEntity());
-        return caffeineCacheManager;
-    }
-
-    @Bean(CACHE_MANAGER_SLOTS_PER_CONTRACT)
-    CaffeineCacheManager cacheManagerSlotsPerContract() {
-        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheSpecification(cacheProperties.getSlotsPerContract());
         return caffeineCacheManager;
     }
 
@@ -197,8 +190,8 @@ public class EvmConfiguration {
     }
 
     @Bean
-    public GasCalculator provideGasCalculator() {
-        return new CustomGasCalculator();
+    public HederaGasCalculator provideGasCalculator() {
+        return new HederaGasCalculatorImpl();
     }
 
     @Bean

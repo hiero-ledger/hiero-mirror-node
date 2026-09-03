@@ -12,6 +12,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.Internal;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.UnsafeByteOperations;
 import com.hedera.services.stream.proto.HashObject;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -23,9 +24,12 @@ import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.ThresholdKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
+import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.HexFormat;
+import java.util.List;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
@@ -36,6 +40,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.ContractSlotId;
 import org.hiero.mirror.common.domain.transaction.ContractSlotKey;
 import org.hiero.mirror.common.exception.InvalidEntityException;
+import org.hiero.mirror.common.exception.ProtobufException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -68,6 +73,8 @@ final class DomainUtilsTest {
             + "8ecadacc328cb02594a2a5e9e46602010e2430203010001";
     private static final String EMPTY_EVM_ADDRESS = "0000000000000000000000000000000000000000";
     private static final String MAX_LONG_EVM_ADDRESS = "0000000000000000000000000000003FFFFFFFFF";
+    private static final Timestamp TIMESTAMP =
+            Timestamp.newBuilder().setSeconds(1234567890L).setNanos(42).build();
 
     private static Stream<Arguments> paddingByteProvider() {
         return Stream.of(
@@ -311,6 +318,100 @@ final class DomainUtilsTest {
         var hookSlotKey = new ContractSlotKey(slotId, ByteString.fromHex(input));
         var expected = new ContractSlotKey(slotId, ByteString.fromHex(trimmed));
         assertThat(DomainUtils.normalize(hookSlotKey)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"byte[]", "ByteString", "InputStream"})
+    void parseProtobufSupportedTypes(String type) {
+        // given
+        final var bytes = TIMESTAMP.toByteArray();
+        final var input =
+                switch (type) {
+                    case "byte[]" -> bytes;
+                    case "ByteString" -> ByteString.copyFrom(bytes);
+                    case "InputStream" -> new ByteArrayInputStream(bytes);
+                    default -> throw new IllegalArgumentException(type);
+                };
+
+        // when
+        final var actual = DomainUtils.parseProtobuf(input, Timestamp::parseFrom);
+
+        // then
+        assertThat(actual).isEqualTo(TIMESTAMP);
+    }
+
+    @Test
+    void parseProtobufNull() {
+        // when
+        final var actual = DomainUtils.parseProtobuf(null, Timestamp::parseFrom);
+
+        // then
+        assertThat(actual).isEqualTo(Timestamp.getDefaultInstance());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"String", "ByteBuffer", "Integer", "List"})
+    void parseProtobufUnsupportedType(String type) {
+        // given
+        final var input =
+                switch (type) {
+                    case "String" -> "not protobuf";
+                    case "ByteBuffer" -> ByteBuffer.allocate(8);
+                    case "Integer" -> 42;
+                    case "List" -> List.of();
+                    default -> throw new IllegalArgumentException(type);
+                };
+
+        // when, then
+        assertThatThrownBy(() -> DomainUtils.parseProtobuf(input, Timestamp::parseFrom))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unexpected type:")
+                .hasMessageContaining(input.getClass().getName());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ffffff", "08", "1a05"})
+    void parseProtobufMalformed(String hex) {
+        // given
+        final var malformed = HexFormat.of().parseHex(hex);
+
+        // when, then
+        assertThatThrownBy(() -> DomainUtils.parseProtobuf(malformed, Timestamp::parseFrom))
+                .isInstanceOf(ProtobufException.class)
+                .hasCauseInstanceOf(InvalidProtocolBufferException.class);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "2, true",
+        "0, false",
+        "-1, false",
+    })
+    void parseProtobufRecursionLimit(int offsetFromLimit, boolean expectFailure) {
+        // given
+        final var nested = nest(DomainUtils.MAX_DEPTH + offsetFromLimit);
+
+        // when, then
+        if (!expectFailure) {
+            final var actual = DomainUtils.parseProtobuf(nested, Key::parseFrom);
+            assertThat(actual).isNotNull();
+        } else {
+            assertThatThrownBy(() -> DomainUtils.parseProtobuf(nested, Key::parseFrom))
+                    .isInstanceOf(ProtobufException.class)
+                    .hasCauseInstanceOf(InvalidProtocolBufferException.class);
+        }
+    }
+
+    @Test
+    void parseProtobufPropagatesParserException() {
+        // given
+        final var cause = new IllegalArgumentException("boom");
+
+        // when, then
+        assertThatThrownBy(() -> DomainUtils.parseProtobuf(new byte[0], stream -> {
+                    throw cause;
+                }))
+                .isSameAs(cause);
     }
 
     @Test
@@ -599,5 +700,13 @@ final class DomainUtilsTest {
         } else {
             assertThat(result.getNum()).isEqualTo(expectedNum);
         }
+    }
+
+    private static byte[] nest(int depth) {
+        var key = Key.newBuilder().setEd25519(ByteString.fromHex(ED25519_KEY)).build();
+        for (int i = 0; i < depth / 2; i++) {
+            key = Key.newBuilder().setKeyList(KeyList.newBuilder().addKeys(key)).build();
+        }
+        return key.toByteArray();
     }
 }

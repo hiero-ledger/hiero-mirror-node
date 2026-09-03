@@ -14,6 +14,7 @@ const AUTO_RENEW_PERIOD_MULTIPLE = BigInt(1e9);
 const WEIBARS_TO_TINYBARS = 10_000_000_000n;
 const EMPTY_STRING = '';
 const EVM_ADDRESS_LENGTH = 20;
+const EVM_SLOT_LENGTH = 32;
 const ZERO_EVM_ADDRESS = `${HEX_PREFIX}0000000000000000000000000000000000000000`;
 const ETH_HASH_LENGTH = 32;
 
@@ -131,6 +132,13 @@ const tokenTypeFilter = {
 
 const zeroRandomPageCostQueryHint = 'set local random_page_cost = 0';
 
+// keccak256 of Transfer(address,address,uint256) — used as topic0 for ERC Transfer events
+const TRANSFER_EVENT_TOPIC0 = Buffer.from('ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', 'hex');
+
+// Synthetic NFT transfer logs use -1 as a sentinel serial number for treasury changes
+// This gets stored as 0xffffffffffffffff (8 bytes) in the topic3 field
+const SYNTHETIC_NFT_SERIAL_TOPIC3 = Buffer.from('ffffffffffffffff', 'hex');
+
 export class StatusCode {
   constructor(code, message) {
     this.code = code;
@@ -173,6 +181,7 @@ export {
   AUTO_RENEW_PERIOD_MULTIPLE,
   EMPTY_STRING,
   EVM_ADDRESS_LENGTH,
+  EVM_SLOT_LENGTH,
   ETH_HASH_LENGTH,
   HEX_PREFIX,
   NANOSECONDS_PER_MILLISECOND,
@@ -186,6 +195,8 @@ export {
   WEIBARS_TO_TINYBARS,
   ZERO_EVM_ADDRESS,
   ZERO_UINT256,
+  TRANSFER_EVENT_TOPIC0,
+  SYNTHETIC_NFT_SERIAL_TOPIC3,
   apiPrefix,
   characterEncoding,
   contentTypeHeader,

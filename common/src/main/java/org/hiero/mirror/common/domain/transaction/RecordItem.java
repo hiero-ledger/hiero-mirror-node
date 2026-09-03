@@ -3,9 +3,9 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import static lombok.AccessLevel.PRIVATE;
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -147,9 +147,8 @@ public class RecordItem implements StreamItem {
     }
 
     public void addContractTransaction(EntityId entityId) {
-        if (EntityId.isEmpty(entityId)
-                || contractTransactionPredicate == null
-                || !contractTransactionPredicate.test(entityId)) {
+        // Explicitly allow empty entity IDs for failed transactions
+        if (contractTransactionPredicate == null || !contractTransactionPredicate.test(entityId)) {
             return;
         }
         getContractTransactions().computeIfAbsent(entityId.getId(), key -> ContractTransaction.builder()
@@ -309,7 +308,7 @@ public class RecordItem implements StreamItem {
         return transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult();
     }
 
-    private ContractFunctionResult getContractResult() {
+    public ContractFunctionResult getContractResult() {
         if (transactionRecord.hasContractCallResult()) {
             return transactionRecord.getContractCallResult();
         } else if (transactionRecord.hasContractCreateResult()) {
@@ -437,20 +436,17 @@ public class RecordItem implements StreamItem {
         @SuppressWarnings("deprecation")
         private void parseTransaction() {
             if (transactionBody == null || signatureMap == null) {
-                try {
-                    if (!transaction.getSignedTransactionBytes().equals(ByteString.EMPTY)) {
-                        var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
-                        this.transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
-                        this.signatureMap = signedTransaction.getSigMap();
-                    } else if (!transaction.getBodyBytes().equals(ByteString.EMPTY)) {
-                        this.transactionBody = TransactionBody.parseFrom(transaction.getBodyBytes());
-                        this.signatureMap = transaction.getSigMap();
-                    } else if (transaction.hasBody()) {
-                        this.transactionBody = transaction.getBody();
-                        this.signatureMap = transaction.getSigMap();
-                    }
-                } catch (InvalidProtocolBufferException e) {
-                    throw new ProtobufException(BAD_TRANSACTION_BODY_BYTES_MESSAGE, e);
+                if (!transaction.getSignedTransactionBytes().equals(ByteString.EMPTY)) {
+                    final var signedTransactionBytes = transaction.getSignedTransactionBytes();
+                    final var signedTransaction = parseProtobuf(signedTransactionBytes, SignedTransaction::parseFrom);
+                    this.transactionBody = parseProtobuf(signedTransaction.getBodyBytes(), TransactionBody::parseFrom);
+                    this.signatureMap = signedTransaction.getSigMap();
+                } else if (!transaction.getBodyBytes().equals(ByteString.EMPTY)) {
+                    this.transactionBody = parseProtobuf(transaction.getBodyBytes(), TransactionBody::parseFrom);
+                    this.signatureMap = transaction.getSigMap();
+                } else if (transaction.hasBody()) {
+                    this.transactionBody = transaction.getBody();
+                    this.signatureMap = transaction.getSigMap();
                 }
             }
 

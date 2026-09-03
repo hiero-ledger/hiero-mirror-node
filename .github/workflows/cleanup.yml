@@ -40,7 +40,7 @@ jobs:
       id-token: "write"
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
@@ -58,7 +58,7 @@ jobs:
           workload_identity_provider: "projects/521285740332/locations/global/workloadIdentityPools/mirrornode-gh-actions/providers/mirrornode-gh-actions"
 
       - name: Login to GCR
-        uses: step-security/docker-login-action@164e21d7e52229904128e2f946001cb88278c33d # v4.2.0
+        uses: step-security/docker-login-action@bd6978fd4ef9a5f78130095b298b8a721afcb0d8 # v4.5.1
         with:
           registry: gcr.io
           username: oauth2accesstoken

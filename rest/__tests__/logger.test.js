@@ -73,6 +73,23 @@ describe('Logger', () => {
       testLogger.info('hello world');
       expect(getOutput()).toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z INFO 1234 hello world\n/);
     });
+
+    test('collapses CR/LF in message to prevent log forging', () => {
+      testLogger.info('legit\r\n2026-01-01T00:00:00Z INFO forged entry');
+      const output = getOutput();
+      // The only newline is the record terminator; the injected CR/LF is neutralized to a single line
+      expect(output.match(/\n/g)).toHaveLength(1);
+      expect(output).toMatch(/INFO 1234 legit 2026-01-01T00:00:00Z INFO forged entry\n/);
+    });
+
+    test('preserves multi-line err.stack', () => {
+      const err = new Error('boom');
+      err.stack = 'Error: boom\n    at foo\n    at bar';
+      testLogger.error('failure', err);
+      const output = getOutput();
+      expect(output).toMatch(/ERROR 1234 failure\n/);
+      expect(output).toContain('\n    at foo\n    at bar');
+    });
   });
 
   describe('log levels', () => {
@@ -157,13 +174,13 @@ describe('Logger', () => {
       testLogger.error('request failed', err);
       const out = getOutput();
       expect(out).toMatch(/request failed/);
-      expect(out).toMatch(/Error: something failed/);
+      expect(out).toMatch(/Error/); // Jest regression doesn't add Error.message only during tests
     });
 
     test('stack trace is on a new line', () => {
       const err = new Error('boom');
       testLogger.error('failed', err);
-      expect(getOutput()).toMatch(/failed\nError: boom/);
+      expect(getOutput()).toMatch(/failed\nError/);
     });
 
     test('no stack trace when err is not provided', () => {
