@@ -103,7 +103,7 @@ import java.util.function.Supplier;
  * @param numberHooksInUse <b>(36)</b> The number of hooks currently in use on this account.
  * @param firstHookId <b>(37)</b> If the account has more than zero hooks in use, the id of the first hook in its
  *                    doubly-linked list of hooks.
- * @param numberLambdaStorageSlots <b>(38)</b> The number of storage slots in use by this account's lambdas.
+ * @param numberEvmHookStorageSlots <b>(38)</b> The number of storage slots in use by this account's EVM hooks.
  * @param delegationAddress <b>(39)</b> The delegated contract address for the account.
  *      If this field is set, a call to the account's address within a smart contract will
  *      result in the code of the authorized contract being executed.
@@ -145,7 +145,7 @@ public record Account(
         long numberPendingAirdrops,
         long numberHooksInUse,
         long firstHookId,
-        long numberLambdaStorageSlots,
+        long numberEvmHookStorageSlots,
         @Nonnull Bytes delegationAddress) {
     /** Protobuf codec for reading and writing in protobuf format */
     public static final Codec<Account> PROTOBUF = new com.hedera.hapi.node.state.token.codec.AccountProtoCodec();
@@ -195,7 +195,7 @@ public record Account(
             long numberPendingAirdrops,
             long numberHooksInUse,
             long firstHookId,
-            long numberLambdaStorageSlots,
+            long numberEvmHookStorageSlots,
             Bytes delegationAddress) {
         this(
                 accountId,
@@ -234,7 +234,7 @@ public record Account(
                 numberPendingAirdrops,
                 numberHooksInUse,
                 firstHookId,
-                numberLambdaStorageSlots,
+                numberEvmHookStorageSlots,
                 delegationAddress);
     }
 
@@ -383,8 +383,8 @@ public record Account(
         if (firstHookId != DEFAULT.firstHookId) {
             result = 31 * result + Long.hashCode(firstHookId);
         }
-        if (numberLambdaStorageSlots != DEFAULT.numberLambdaStorageSlots) {
-            result = 31 * result + Long.hashCode(numberLambdaStorageSlots);
+        if (numberEvmHookStorageSlots != DEFAULT.numberEvmHookStorageSlots) {
+            result = 31 * result + Long.hashCode(numberEvmHookStorageSlots);
         }
         if (!delegationAddress.equals(DEFAULT.delegationAddress)) {
             result = 31 * result + delegationAddress.hashCode();
@@ -570,7 +570,7 @@ public record Account(
         if (firstHookId != thatObj.firstHookId) {
             return false;
         }
-        if (numberLambdaStorageSlots != thatObj.numberLambdaStorageSlots) {
+        if (numberEvmHookStorageSlots != thatObj.numberEvmHookStorageSlots) {
             return false;
         }
         return delegationAddress.equals(thatObj.delegationAddress);
@@ -955,7 +955,7 @@ public record Account(
                 numberPendingAirdrops,
                 numberHooksInUse,
                 firstHookId,
-                numberLambdaStorageSlots,
+                numberEvmHookStorageSlots,
                 delegationAddress);
     }
 
@@ -1150,7 +1150,7 @@ public record Account(
 
         private long firstHookId = 0;
 
-        private long numberLambdaStorageSlots = 0;
+        private long numberEvmHookStorageSlots = 0;
 
         @Nonnull
         private Bytes delegationAddress = Bytes.EMPTY;
@@ -1231,7 +1231,7 @@ public record Account(
          * @param numberHooksInUse <b>(36)</b> The number of hooks currently in use on this account.
          * @param firstHookId <b>(37)</b> If the account has more than zero hooks in use, the id of the first hook in its
          *                    doubly-linked list of hooks.
-         * @param numberLambdaStorageSlots <b>(38)</b> The number of storage slots in use by this account's lambdas.
+         * @param numberEvmHookStorageSlots <b>(38)</b> The number of storage slots in use by this account's EVM hooks.
          * @param delegationAddress <b>(39)</b> The delegated contract address for the account.
          *      If this field is set, a call to the account's address within a smart contract will
          *      result in the code of the authorized contract being executed.
@@ -1274,7 +1274,7 @@ public record Account(
                 long numberPendingAirdrops,
                 long numberHooksInUse,
                 long firstHookId,
-                long numberLambdaStorageSlots,
+                long numberEvmHookStorageSlots,
                 Bytes delegationAddress) {
             this.accountId = accountId;
             this.alias = alias != null ? alias : Bytes.EMPTY;
@@ -1316,7 +1316,7 @@ public record Account(
             this.numberPendingAirdrops = numberPendingAirdrops;
             this.numberHooksInUse = numberHooksInUse;
             this.firstHookId = firstHookId;
-            this.numberLambdaStorageSlots = numberLambdaStorageSlots;
+            this.numberEvmHookStorageSlots = numberEvmHookStorageSlots;
             this.delegationAddress = delegationAddress != null ? delegationAddress : Bytes.EMPTY;
         }
 
@@ -1363,7 +1363,7 @@ public record Account(
                     numberPendingAirdrops,
                     numberHooksInUse,
                     firstHookId,
-                    numberLambdaStorageSlots,
+                    numberEvmHookStorageSlots,
                     delegationAddress);
         }
 
@@ -1984,13 +1984,13 @@ public record Account(
         }
 
         /**
-         * <b>(38)</b> The number of storage slots in use by this account's lambdas.
+         * <b>(38)</b> The number of storage slots in use by this account's EVM hooks.
          *
-         * @param numberLambdaStorageSlots value to set
+         * @param numberEvmHookStorageSlots value to set
          * @return builder to continue building with
          */
-        public Builder numberLambdaStorageSlots(long numberLambdaStorageSlots) {
-            this.numberLambdaStorageSlots = numberLambdaStorageSlots;
+        public Builder numberEvmHookStorageSlots(long numberEvmHookStorageSlots) {
+            this.numberEvmHookStorageSlots = numberEvmHookStorageSlots;
             return this;
         }
 
