@@ -22,20 +22,22 @@ public class OpcodesProperties {
     private int maxOpcodes = 20_000;
 
     /**
-     * Maximum total number of 32-byte EVM memory words captured across all opcodes of a single trace (default
-     * 3,000,000 ≈ 96 MB). Once the running total reaches this limit the trace is truncated and the remaining opcodes are
-     * dropped. Unlike a per-opcode cap this bounds the whole response, so a single large opcode is captured in full as
-     * long as the trace total stays within budget.
+     * Maximum total number of 32-byte EVM memory words captured across all opcodes of a single trace. Each captured
+     * word is retained as a hex String (~117 bytes/word on JDK 25), so the default of 750,000 bounds retained heap to
+     * ~87.6 MB rather than the raw 32-byte word size. Once the running total reaches this limit the trace is
+     * truncated and the remaining opcodes are dropped.
      */
     @Positive
-    private int maxMemoryWords = 3_000_000;
+    private int maxMemoryWords = 750_000;
 
     /**
-     * Maximum total number of stack items captured across all opcodes of a single trace. Once the running total reaches
-     * this limit the trace is truncated and the remaining opcodes are dropped.
+     * Maximum total number of stack items captured across all opcodes of a single trace, at the same ~117 bytes/item
+     * heap cost as {@link #maxMemoryWords}. The default of 250,000 (~29 MB) keeps the original 1:3 ratio to
+     * {@link #maxMemoryWords}. Once the running total reaches this limit the trace is truncated and the remaining
+     * opcodes are dropped.
      */
     @Positive
-    private int maxStack = 1_000_000;
+    private int maxStack = 250_000;
 
     /**
      * Maximum total number of storage entries captured across all opcodes of a single trace. Storage capture reflects
@@ -45,4 +47,12 @@ public class OpcodesProperties {
      */
     @Positive
     private int maxStorage = 100_000;
+
+    /**
+     * Maximum number of opcode trace requests allowed to execute concurrently, including while a slow client is
+     * still downloading the response. Independent of {@code throttle.opcodeRequestsPerSecond}, which only limits
+     * how fast requests are admitted, not how many stay in flight at once.
+     */
+    @Positive
+    private int maxConcurrentTraces = 3;
 }
