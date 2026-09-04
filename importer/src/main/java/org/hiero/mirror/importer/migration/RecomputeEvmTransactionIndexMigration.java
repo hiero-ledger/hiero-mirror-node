@@ -50,6 +50,7 @@ final class RecomputeEvmTransactionIndexMigration extends AsyncJavaMigration<Lon
             """;
 
     private static final String SELECT_MAX_CONSENSUS_END = "select max(consensus_end) from record_file";
+    private static final String SELECT_MIN_CONSENSUS_END = "select min(consensus_end) from record_file";
 
     private static final String SELECT_PROGRESS_UPPER_BOUND =
             "select (select upper_bound from recompute_evm_transaction_index_progress_temp limit 1)";
@@ -167,6 +168,7 @@ final class RecomputeEvmTransactionIndexMigration extends AsyncJavaMigration<Lon
     private final long batchInterval;
     private final EntityProperties entityProperties;
     private long initialUpperBound = -1L;
+    private long lowerBound = Long.MAX_VALUE;
 
     RecomputeEvmTransactionIndexMigration(
             DBProperties dbProperties,
@@ -201,18 +203,23 @@ final class RecomputeEvmTransactionIndexMigration extends AsyncJavaMigration<Lon
             return false;
         }
 
-        final var maxConsensusEnd = getJdbcOperations().queryForObject(SELECT_MAX_CONSENSUS_END, Long.class);
+        final var jdbcOperations = getJdbcOperations();
+        final var maxConsensusEnd = jdbcOperations.queryForObject(SELECT_MAX_CONSENSUS_END, Long.class);
         if (maxConsensusEnd == null) {
             log.info("No record files to process, skipping migration");
             return false;
         }
 
-        getJdbcOperations().execute(DROP_OLD_PROGRESS_TABLES);
-        getJdbcOperations().execute(CREATE_PROGRESS_TABLE);
+        jdbcOperations.execute(DROP_OLD_PROGRESS_TABLES);
+        jdbcOperations.execute(CREATE_PROGRESS_TABLE);
 
-        final var savedProgress = getJdbcOperations().queryForObject(SELECT_PROGRESS_UPPER_BOUND, Long.class);
+        final var savedProgress = jdbcOperations.queryForObject(SELECT_PROGRESS_UPPER_BOUND, Long.class);
         initialUpperBound = savedProgress != null ? savedProgress : maxConsensusEnd;
-        log.info("Starting EVM transaction index recompute with initial timestamp: {}", initialUpperBound);
+        lowerBound = Objects.requireNonNull(jdbcOperations.queryForObject(SELECT_MIN_CONSENSUS_END, Long.class));
+        log.info(
+                "Starting EVM transaction index recompute with initial timestamp: {}, lower bound: {}",
+                initialUpperBound,
+                lowerBound);
         return true;
     }
 
@@ -225,13 +232,8 @@ final class RecomputeEvmTransactionIndexMigration extends AsyncJavaMigration<Lon
     @NonNull
     @Override
     protected Optional<Long> migratePartial(Long consensusEndTimestamp) {
-        final var consensusStartTimestamp = consensusEndTimestamp - batchInterval;
-        final var sliceParams = new MapSqlParameterSource()
-                .addValue("consensusEndUpperBound", consensusEndTimestamp)
-                .addValue("consensusEndLowerBound", consensusStartTimestamp);
-        final var slice = queryForObjectOrNull(SELECT_RECORD_FILES_RANGE, sliceParams, ROW_MAPPER);
-
-        if (slice == null || slice.minConsensusTimestamp() == null || slice.maxConsensusTimestamp() == null) {
+        final var slice = getNextSlice(consensusEndTimestamp);
+        if (slice == null) {
             log.info(
                     "No more record files remaining to process. Last consensus end timestamp: {}.",
                     consensusEndTimestamp);
@@ -272,9 +274,27 @@ final class RecomputeEvmTransactionIndexMigration extends AsyncJavaMigration<Lon
                     slice.maxConsensusTimestamp());
         }
 
+        final long nextUpperBound = slice.minConsensusTimestamp() - 1;
         getNamedParameterJdbcOperations()
-                .update(CHECKPOINT_SQL, new MapSqlParameterSource("upperBound", consensusStartTimestamp));
-        return Optional.of(consensusStartTimestamp);
+                .update(CHECKPOINT_SQL, new MapSqlParameterSource("upperBound", nextUpperBound));
+        return Optional.of(nextUpperBound);
+    }
+
+    private RecordFileSlice getNextSlice(long sliceUpperBound) {
+        while (sliceUpperBound >= lowerBound) {
+            final var sliceLowerBound = sliceUpperBound - batchInterval;
+            final var sliceParams = new MapSqlParameterSource()
+                    .addValue("consensusEndUpperBound", sliceUpperBound)
+                    .addValue("consensusEndLowerBound", sliceLowerBound);
+            final var slice = queryForObjectOrNull(SELECT_RECORD_FILES_RANGE, sliceParams, ROW_MAPPER);
+            if (slice != null && slice.minConsensusTimestamp() != null && slice.maxConsensusTimestamp() != null) {
+                return slice;
+            }
+
+            sliceUpperBound = sliceLowerBound;
+        }
+
+        return null;
     }
 
     private TransactionOperations transactionOperations() {
