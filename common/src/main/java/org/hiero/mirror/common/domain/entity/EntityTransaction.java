@@ -33,19 +33,21 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
     private Integer type;
 
     public static class EntityTransactionBuilder {
-        public EntityTransactionBuilder consensusTimestamp(long consensusTimestamp) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this.id;
+        }
+
+        public EntityTransactionBuilder consensusTimestamp(long consensusTimestamp) {
+            ensureId().setConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public EntityTransactionBuilder entityId(long entityId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setEntityId(entityId);
+            ensureId().setEntityId(entityId);
             return this;
         }
     }

@@ -40,17 +40,11 @@ public class ContractState {
     private byte[] value;
 
     public void setContractId(long contractId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setContractId(contractId);
+        id().setContractId(contractId);
     }
 
     public void setSlot(byte[] slot) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
+        id().setSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
     }
 
     public long getContractId() {
@@ -59,6 +53,13 @@ public class ContractState {
 
     public byte[] getSlot() {
         return id != null ? id.getSlot() : null;
+    }
+
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
     }
 
     @Data
@@ -73,19 +74,21 @@ public class ContractState {
     }
 
     public static class ContractStateBuilder {
-        public ContractStateBuilder contractId(long contractId) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setContractId(contractId);
+            return this.id;
+        }
+
+        public ContractStateBuilder contractId(long contractId) {
+            ensureId().setContractId(contractId);
             return this;
         }
 
         public ContractStateBuilder slot(byte[] slot) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
+            ensureId().setSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
             return this;
         }
     }

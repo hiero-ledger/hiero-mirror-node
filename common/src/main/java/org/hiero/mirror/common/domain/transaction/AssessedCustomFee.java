@@ -42,19 +42,21 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
     private EntityId payerAccountId;
 
     public static class AssessedCustomFeeBuilder {
-        public AssessedCustomFeeBuilder collectorAccountId(long collectorAccountId) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setCollectorAccountId(collectorAccountId);
+            return this.id;
+        }
+
+        public AssessedCustomFeeBuilder collectorAccountId(long collectorAccountId) {
+            ensureId().setCollectorAccountId(collectorAccountId);
             return this;
         }
 
         public AssessedCustomFeeBuilder consensusTimestamp(long consensusTimestamp) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            ensureId().setConsensusTimestamp(consensusTimestamp);
             return this;
         }
     }
@@ -68,23 +70,24 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
     }
 
     public void setCollectorAccountId(long collectorAccountId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setCollectorAccountId(collectorAccountId);
+        id().setCollectorAccountId(collectorAccountId);
     }
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setConsensusTimestamp(consensusTimestamp);
+        id().setConsensusTimestamp(consensusTimestamp);
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
         return true; // Since we never update and use a natural ID, avoid querying before insert
+    }
+
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
     }
 
     @AllArgsConstructor

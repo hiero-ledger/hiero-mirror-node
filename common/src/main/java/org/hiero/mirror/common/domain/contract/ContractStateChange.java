@@ -39,31 +39,19 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
     private byte[] valueWritten;
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setConsensusTimestamp(consensusTimestamp);
+        id().setConsensusTimestamp(consensusTimestamp);
     }
 
     public void setContractId(EntityId entityId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setContractId(entityId.getId());
+        id().setContractId(entityId.getId());
     }
 
     public void setContractId(long contractId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setContractId(contractId);
+        id().setContractId(contractId);
     }
 
     public void setSlot(byte[] slot) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setSlot(slot);
+        id().setSlot(slot);
     }
 
     public long getConsensusTimestamp() {
@@ -84,6 +72,13 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
         return true;
     }
 
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
+    }
+
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
@@ -99,27 +94,26 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
     }
 
     public static class ContractStateChangeBuilder {
-        public ContractStateChangeBuilder consensusTimestamp(long consensusTimestamp) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this.id;
+        }
+
+        public ContractStateChangeBuilder consensusTimestamp(long consensusTimestamp) {
+            ensureId().setConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public ContractStateChangeBuilder contractId(long contractId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setContractId(contractId);
+            ensureId().setContractId(contractId);
             return this;
         }
 
         public ContractStateChangeBuilder slot(byte[] slot) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setSlot(slot);
+            ensureId().setSlot(slot);
             return this;
         }
     }

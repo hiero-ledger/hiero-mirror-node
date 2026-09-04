@@ -32,19 +32,21 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
     private EntityId payerAccountId;
 
     public static class StakingRewardTransferBuilder {
-        public StakingRewardTransferBuilder accountId(long accountId) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setAccountId(accountId);
+            return this.id;
+        }
+
+        public StakingRewardTransferBuilder accountId(long accountId) {
+            ensureId().setAccountId(accountId);
             return this;
         }
 
         public StakingRewardTransferBuilder consensusTimestamp(long consensusTimestamp) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            ensureId().setConsensusTimestamp(consensusTimestamp);
             return this;
         }
     }
@@ -58,23 +60,24 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
     }
 
     public void setAccountId(long accountId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setAccountId(accountId);
+        id().setAccountId(accountId);
     }
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setConsensusTimestamp(consensusTimestamp);
+        id().setConsensusTimestamp(consensusTimestamp);
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
         return true; // Since we never update and use a natural ID, avoid querying before insert
+    }
+
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
     }
 
     @AllArgsConstructor

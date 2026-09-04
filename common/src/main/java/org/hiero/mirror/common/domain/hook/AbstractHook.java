@@ -63,10 +63,7 @@ public abstract class AbstractHook implements History {
     }
 
     public void setHookId(long hookId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setHookId(hookId);
+        id().setHookId(hookId);
     }
 
     public EntityId getOwnerId() {
@@ -74,14 +71,18 @@ public abstract class AbstractHook implements History {
     }
 
     public void setOwnerId(EntityId ownerId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setOwnerId(ownerId);
+        id().setOwnerId(ownerId);
     }
 
     public void setOwnerId(long ownerId) {
         setOwnerId(EntityId.of(ownerId));
+    }
+
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
     }
 
     @AllArgsConstructor
@@ -102,19 +103,21 @@ public abstract class AbstractHook implements History {
 
     @SuppressWarnings("java:S1610")
     public abstract static class AbstractHookBuilder<C extends AbstractHook, B extends AbstractHookBuilder<C, B>> {
-        public B hookId(long hookId) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setHookId(hookId);
+            return this.id;
+        }
+
+        public B hookId(long hookId) {
+            ensureId().setHookId(hookId);
             return self();
         }
 
         public B ownerId(EntityId ownerId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setOwnerId(ownerId);
+            ensureId().setOwnerId(ownerId);
             return self();
         }
 

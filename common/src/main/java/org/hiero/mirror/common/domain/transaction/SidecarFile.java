@@ -68,19 +68,21 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     private List<Integer> types = Collections.emptyList();
 
     public static class SidecarFileBuilder {
-        public SidecarFileBuilder consensusEnd(long consensusEnd) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setConsensusEnd(consensusEnd);
+            return this.id;
+        }
+
+        public SidecarFileBuilder consensusEnd(long consensusEnd) {
+            ensureId().setConsensusEnd(consensusEnd);
             return this;
         }
 
         public SidecarFileBuilder index(int index) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setIndex(index);
+            ensureId().setIndex(index);
             return this;
         }
     }
@@ -96,24 +98,25 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     }
 
     public void setConsensusEnd(long consensusEnd) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setConsensusEnd(consensusEnd);
+        id().setConsensusEnd(consensusEnd);
     }
 
     @JsonProperty("id")
     public void setIndex(int index) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setIndex(index);
+        id().setIndex(index);
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
         return true; // Since we never update and use a natural ID, avoid querying before insert
+    }
+
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
     }
 
     @Data

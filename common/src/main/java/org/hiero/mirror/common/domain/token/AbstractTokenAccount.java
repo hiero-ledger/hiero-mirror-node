@@ -68,10 +68,7 @@ public abstract class AbstractTokenAccount implements History {
     }
 
     public void setAccountId(long accountId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setAccountId(accountId);
+        id().setAccountId(accountId);
     }
 
     public long getTokenId() {
@@ -79,10 +76,14 @@ public abstract class AbstractTokenAccount implements History {
     }
 
     public void setTokenId(long tokenId) {
+        id().setTokenId(tokenId);
+    }
+
+    private Id id() {
         if (id == null) {
             id = new Id();
         }
-        id.setTokenId(tokenId);
+        return id;
     }
 
     @Data
@@ -99,19 +100,21 @@ public abstract class AbstractTokenAccount implements History {
 
     public abstract static class AbstractTokenAccountBuilder<
             C extends AbstractTokenAccount, B extends AbstractTokenAccountBuilder<C, B>> {
-        public B accountId(long accountId) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setAccountId(accountId);
+            return this.id;
+        }
+
+        public B accountId(long accountId) {
+            ensureId().setAccountId(accountId);
             return self();
         }
 
         public B tokenId(long tokenId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setTokenId(tokenId);
+            ensureId().setTokenId(tokenId);
             return self();
         }
     }

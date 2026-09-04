@@ -53,10 +53,7 @@ public class TopicMessageLookup {
     }
 
     public void setPartition(String partition) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setPartition(partition);
+        id().setPartition(partition);
     }
 
     public long getTopicId() {
@@ -64,10 +61,14 @@ public class TopicMessageLookup {
     }
 
     public void setTopicId(long topicId) {
+        id().setTopicId(topicId);
+    }
+
+    private Id id() {
         if (id == null) {
             id = new Id();
         }
-        id.setTopicId(topicId);
+        return id;
     }
 
     @Data
@@ -83,19 +84,21 @@ public class TopicMessageLookup {
     }
 
     public static class TopicMessageLookupBuilder {
-        public TopicMessageLookupBuilder partition(String partition) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setPartition(partition);
+            return this.id;
+        }
+
+        public TopicMessageLookupBuilder partition(String partition) {
+            ensureId().setPartition(partition);
             return this;
         }
 
         public TopicMessageLookupBuilder topicId(long topicId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setTopicId(topicId);
+            ensureId().setTopicId(topicId);
             return this;
         }
     }

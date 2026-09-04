@@ -48,31 +48,26 @@ public abstract class AbstractTokenAirdrop implements History {
     }
 
     public void setReceiverAccountId(long receiverAccountId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setReceiverAccountId(receiverAccountId);
+        id().setReceiverAccountId(receiverAccountId);
     }
 
     public void setSenderAccountId(long senderAccountId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setSenderAccountId(senderAccountId);
+        id().setSenderAccountId(senderAccountId);
     }
 
     public void setSerialNumber(long serialNumber) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setSerialNumber(serialNumber);
+        id().setSerialNumber(serialNumber);
     }
 
     public void setTokenId(long tokenId) {
+        id().setTokenId(tokenId);
+    }
+
+    private Id id() {
         if (id == null) {
             id = new Id();
         }
-        id.setTokenId(tokenId);
+        return id;
     }
 
     @Data
@@ -95,35 +90,30 @@ public abstract class AbstractTokenAirdrop implements History {
     public abstract static class AbstractTokenAirdropBuilder<
             C extends AbstractTokenAirdrop, B extends AbstractTokenAirdropBuilder<C, B>> {
 
-        public B receiverAccountId(long receiverAccountId) {
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setReceiverAccountId(receiverAccountId);
+            return this.id;
+        }
+
+        public B receiverAccountId(long receiverAccountId) {
+            ensureId().setReceiverAccountId(receiverAccountId);
             return self();
         }
 
         public B senderAccountId(long senderAccountId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setSenderAccountId(senderAccountId);
+            ensureId().setSenderAccountId(senderAccountId);
             return self();
         }
 
         public B serialNumber(long serialNumber) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setSerialNumber(serialNumber);
+            ensureId().setSerialNumber(serialNumber);
             return self();
         }
 
         public B tokenId(long tokenId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setTokenId(tokenId);
+            ensureId().setTokenId(tokenId);
             return self();
         }
     }

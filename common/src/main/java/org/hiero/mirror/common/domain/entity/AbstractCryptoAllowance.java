@@ -34,6 +34,13 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance {
     @JsonIgnore
     private Id id;
 
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
+    }
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -56,17 +63,11 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance {
     }
 
     public void setOwner(long owner) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setOwner(owner);
+        id().setOwner(owner);
     }
 
     public void setSpender(long spender) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setSpender(spender);
+        id().setSpender(spender);
     }
 
     /**
@@ -82,19 +83,21 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance {
      */
     public abstract static class AbstractCryptoAllowanceBuilder<
             C extends AbstractCryptoAllowance, B extends AbstractCryptoAllowanceBuilder<C, B>> {
-        public B owner(long owner) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setOwner(owner);
+            return this.id;
+        }
+
+        public B owner(long owner) {
+            ensureId().setOwner(owner);
             return self();
         }
 
         public B spender(long spender) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setSpender(spender);
+            ensureId().setSpender(spender);
             return self();
         }
     }

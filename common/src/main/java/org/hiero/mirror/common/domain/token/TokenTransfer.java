@@ -39,27 +39,26 @@ public class TokenTransfer implements Persistable<TokenTransfer.Id> {
     }
 
     public static class TokenTransferBuilder {
-        public TokenTransferBuilder consensusTimestamp(long consensusTimestamp) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this.id;
+        }
+
+        public TokenTransferBuilder consensusTimestamp(long consensusTimestamp) {
+            ensureId().setConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public TokenTransferBuilder tokenId(EntityId tokenId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setTokenId(tokenId);
+            ensureId().setTokenId(tokenId);
             return this;
         }
 
         public TokenTransferBuilder accountId(EntityId accountId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setAccountId(accountId);
+            ensureId().setAccountId(accountId);
             return this;
         }
     }

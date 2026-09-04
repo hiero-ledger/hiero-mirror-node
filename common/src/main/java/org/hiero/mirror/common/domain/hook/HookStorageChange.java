@@ -42,10 +42,7 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     }
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setConsensusTimestamp(consensusTimestamp);
+        id().setConsensusTimestamp(consensusTimestamp);
     }
 
     public long getHookId() {
@@ -53,10 +50,7 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     }
 
     public void setHookId(long hookId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setHookId(hookId);
+        id().setHookId(hookId);
     }
 
     public byte[] getKey() {
@@ -64,10 +58,7 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     }
 
     public void setKey(byte[] key) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setKey(key);
+        id().setKey(key);
     }
 
     public EntityId getOwnerId() {
@@ -75,10 +66,7 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     }
 
     public void setOwnerId(EntityId ownerId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setOwnerId(ownerId);
+        id().setOwnerId(ownerId);
     }
 
     public void setOwnerId(long ownerId) {
@@ -100,6 +88,13 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         this.deleted = this.valueWritten != null && this.valueWritten.length == 0;
     }
 
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
+    }
+
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
@@ -118,35 +113,31 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     }
 
     public static class HookStorageChangeBuilder {
-        public HookStorageChangeBuilder consensusTimestamp(long consensusTimestamp) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this.id;
+        }
+
+        public HookStorageChangeBuilder consensusTimestamp(long consensusTimestamp) {
+            ensureId().setConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public HookStorageChangeBuilder hookId(long hookId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setHookId(hookId);
+            ensureId().setHookId(hookId);
             return this;
         }
 
         public HookStorageChangeBuilder key(byte[] key) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setKey(key);
+            ensureId().setKey(key);
             return this;
         }
 
         public HookStorageChangeBuilder ownerId(EntityId ownerId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setOwnerId(ownerId);
+            ensureId().setOwnerId(ownerId);
             return this;
         }
 

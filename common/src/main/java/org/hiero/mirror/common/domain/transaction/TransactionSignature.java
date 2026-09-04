@@ -36,19 +36,21 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
     private int type;
 
     public static class TransactionSignatureBuilder {
-        public TransactionSignatureBuilder consensusTimestamp(long consensusTimestamp) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this.id;
+        }
+
+        public TransactionSignatureBuilder consensusTimestamp(long consensusTimestamp) {
+            ensureId().setConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public TransactionSignatureBuilder publicKeyPrefix(byte[] publicKeyPrefix) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setPublicKeyPrefix(publicKeyPrefix);
+            ensureId().setPublicKeyPrefix(publicKeyPrefix);
             return this;
         }
     }
@@ -62,23 +64,24 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
     }
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setConsensusTimestamp(consensusTimestamp);
+        id().setConsensusTimestamp(consensusTimestamp);
     }
 
     public void setPublicKeyPrefix(byte[] publicKeyPrefix) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setPublicKeyPrefix(publicKeyPrefix);
+        id().setPublicKeyPrefix(publicKeyPrefix);
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
         return true; // Force INSERT for performance
+    }
+
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
     }
 
     @Data

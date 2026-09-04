@@ -60,21 +60,22 @@ public abstract class AbstractNft implements History {
     }
 
     public void setSerialNumber(long serialNumber) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setSerialNumber(serialNumber);
+        id().setSerialNumber(serialNumber);
     }
 
     public void setTokenId(long tokenId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setTokenId(tokenId);
+        id().setTokenId(tokenId);
     }
 
     public static boolean shouldKeepSpender(Long spender) {
         return spender != null && spender == RETAIN_SPENDER;
+    }
+
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
     }
 
     @AllArgsConstructor
@@ -92,19 +93,20 @@ public abstract class AbstractNft implements History {
 
     public abstract static class AbstractNftBuilder<C extends AbstractNft, B extends AbstractNftBuilder<C, B>> {
 
-        public B serialNumber(long serialNumber) {
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setSerialNumber(serialNumber);
+            return this.id;
+        }
+
+        public B serialNumber(long serialNumber) {
+            ensureId().setSerialNumber(serialNumber);
             return self();
         }
 
         public B tokenId(long tokenId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setTokenId(tokenId);
+            ensureId().setTokenId(tokenId);
             return self();
         }
     }

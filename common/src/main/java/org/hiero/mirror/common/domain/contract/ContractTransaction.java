@@ -36,19 +36,21 @@ public class ContractTransaction implements Persistable<ContractTransaction.Id> 
     private long payerAccountId;
 
     public static class ContractTransactionBuilder {
-        public ContractTransactionBuilder consensusTimestamp(long consensusTimestamp) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this.id;
+        }
+
+        public ContractTransactionBuilder consensusTimestamp(long consensusTimestamp) {
+            ensureId().setConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public ContractTransactionBuilder entityId(long entityId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setEntityId(entityId);
+            ensureId().setEntityId(entityId);
             return this;
         }
     }

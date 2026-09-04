@@ -55,10 +55,7 @@ public class HookStorage {
     }
 
     public void setHookId(long hookId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setHookId(hookId);
+        id().setHookId(hookId);
     }
 
     public byte[] getKey() {
@@ -66,10 +63,7 @@ public class HookStorage {
     }
 
     public void setKey(byte[] key) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setKey(DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH));
+        id().setKey(DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH));
     }
 
     public EntityId getOwnerId() {
@@ -77,10 +71,7 @@ public class HookStorage {
     }
 
     public void setOwnerId(EntityId ownerId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setOwnerId(ownerId);
+        id().setOwnerId(ownerId);
     }
 
     public void setOwnerId(long ownerId) {
@@ -90,6 +81,13 @@ public class HookStorage {
     public void setValue(byte[] value) {
         this.value = DomainUtils.trim(value);
         this.deleted = ArrayUtils.isEmpty(this.value);
+    }
+
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
     }
 
     @Data
@@ -108,27 +106,26 @@ public class HookStorage {
     }
 
     public static class HookStorageBuilder {
-        public HookStorageBuilder hookId(long hookId) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setHookId(hookId);
+            return this.id;
+        }
+
+        public HookStorageBuilder hookId(long hookId) {
+            ensureId().setHookId(hookId);
             return this;
         }
 
         public HookStorageBuilder key(byte[] key) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setKey(DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH));
+            ensureId().setKey(DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH));
             return this;
         }
 
         public HookStorageBuilder ownerId(EntityId ownerId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setOwnerId(ownerId);
+            ensureId().setOwnerId(ownerId);
             return this;
         }
 

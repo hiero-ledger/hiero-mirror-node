@@ -44,24 +44,22 @@ public abstract class AbstractNftAllowance implements History {
     }
 
     public void setOwner(long owner) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setOwner(owner);
+        id().setOwner(owner);
     }
 
     public void setSpender(long spender) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setSpender(spender);
+        id().setSpender(spender);
     }
 
     public void setTokenId(long tokenId) {
+        id().setTokenId(tokenId);
+    }
+
+    private Id id() {
         if (id == null) {
             id = new Id();
         }
-        id.setTokenId(tokenId);
+        return id;
     }
 
     @Data
@@ -82,27 +80,25 @@ public abstract class AbstractNftAllowance implements History {
     public abstract static class AbstractNftAllowanceBuilder<
             C extends AbstractNftAllowance, B extends AbstractNftAllowanceBuilder<C, B>> {
 
-        public B owner(long owner) {
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setOwner(owner);
+            return this.id;
+        }
+
+        public B owner(long owner) {
+            ensureId().setOwner(owner);
             return self();
         }
 
         public B spender(long spender) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setSpender(spender);
+            ensureId().setSpender(spender);
             return self();
         }
 
         public B tokenId(long tokenId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setTokenId(tokenId);
+            ensureId().setTokenId(tokenId);
             return self();
         }
     }

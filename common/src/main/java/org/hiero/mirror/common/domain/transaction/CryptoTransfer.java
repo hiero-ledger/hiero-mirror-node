@@ -34,27 +34,26 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
     private EntityId payerAccountId;
 
     public static class CryptoTransferBuilder {
-        public CryptoTransferBuilder amount(long amount) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setAmount(amount);
+            return this.id;
+        }
+
+        public CryptoTransferBuilder amount(long amount) {
+            ensureId().setAmount(amount);
             return this;
         }
 
         public CryptoTransferBuilder consensusTimestamp(long consensusTimestamp) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            ensureId().setConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public CryptoTransferBuilder entityId(long entityId) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setEntityId(entityId);
+            ensureId().setEntityId(entityId);
             return this;
         }
     }
@@ -72,24 +71,15 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
     }
 
     public void setAmount(long amount) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setAmount(amount);
+        id().setAmount(amount);
     }
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setConsensusTimestamp(consensusTimestamp);
+        id().setConsensusTimestamp(consensusTimestamp);
     }
 
     public void setEntityId(long entityId) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setEntityId(entityId);
+        id().setEntityId(entityId);
     }
 
     @JsonIgnore
@@ -104,6 +94,13 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
      * (consensusTimestamp, entityId). Since we didn't migrate the old data to aggregate we have to treat all fields as
      * the key still.
      */
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
+    }
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor

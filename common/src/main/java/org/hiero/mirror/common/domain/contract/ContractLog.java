@@ -67,17 +67,11 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     private ContractResult contractResult;
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setConsensusTimestamp(consensusTimestamp);
+        id().setConsensusTimestamp(consensusTimestamp);
     }
 
     public void setIndex(int index) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setIndex(index);
+        id().setIndex(index);
     }
 
     public long getConsensusTimestamp() {
@@ -110,6 +104,13 @@ public class ContractLog implements Persistable<ContractLog.Id> {
         }
     }
 
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
+    }
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
@@ -122,19 +123,21 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     }
 
     public static class ContractLogBuilder {
-        public ContractLogBuilder consensusTimestamp(long consensusTimestamp) {
+
+        private Id ensureId() {
             if (this.id == null) {
                 this.id = new Id();
             }
-            this.id.setConsensusTimestamp(consensusTimestamp);
+            return this.id;
+        }
+
+        public ContractLogBuilder consensusTimestamp(long consensusTimestamp) {
+            ensureId().setConsensusTimestamp(consensusTimestamp);
             return this;
         }
 
         public ContractLogBuilder index(int index) {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            this.id.setIndex(index);
+            ensureId().setIndex(index);
             return this;
         }
     }

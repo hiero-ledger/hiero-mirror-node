@@ -64,17 +64,11 @@ public class ContractAction implements Persistable<ContractAction.Id> {
     private long value;
 
     public void setConsensusTimestamp(long consensusTimestamp) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setConsensusTimestamp(consensusTimestamp);
+        id().setConsensusTimestamp(consensusTimestamp);
     }
 
     public void setIndex(int index) {
-        if (id == null) {
-            id = new Id();
-        }
-        id.setIndex(index);
+        id().setIndex(index);
     }
 
     public long getConsensusTimestamp() {
@@ -94,6 +88,13 @@ public class ContractAction implements Persistable<ContractAction.Id> {
     @JsonIgnore
     public boolean hasRevertReason() {
         return resultDataType == REVERT_REASON.getNumber();
+    }
+
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
     }
 
     @Data
