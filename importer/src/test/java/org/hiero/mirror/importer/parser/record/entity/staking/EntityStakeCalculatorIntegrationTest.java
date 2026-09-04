@@ -323,9 +323,9 @@ final class EntityStakeCalculatorIntegrationTest extends ImporterIntegrationTest
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(lastNodeStakeTimestamp)
-                        .epochDay(epochDay - 1)
-                        .nodeId(0L))
+                .customize(ns -> ns.id(
+                                new org.hiero.mirror.common.domain.addressbook.NodeStake.Id(lastNodeStakeTimestamp, 0L))
+                        .epochDay(epochDay - 1))
                 .persist();
 
         // when

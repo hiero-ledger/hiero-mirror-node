@@ -4,7 +4,7 @@ package org.hiero.mirror.restjava.repository;
 
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface AccountBalanceRepository extends CrudRepository<AccountBalance, AccountBalance.Id> {
@@ -24,6 +24,6 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
     select cast(coalesce(sum(balance), 0) as bigint) as unreleased_supply,
            coalesce(max(consensus_timestamp), 0) as consensus_timestamp
     from account_balances
-    """, nativeQuery = true)
+    """)
     NetworkSupply getSupplyHistory(String lowerBounds, String upperBounds, long lowerTimestamp, long upperTimestamp);
 }

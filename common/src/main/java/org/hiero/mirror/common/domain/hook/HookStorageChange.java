@@ -3,8 +3,6 @@
 package org.hiero.mirror.common.domain.hook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
@@ -13,30 +11,25 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Data
-@Entity
-@IdClass(HookStorageChange.Id.class)
+@Table
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor
+@Builder(toBuilder = true)
 public class HookStorageChange implements Persistable<HookStorageChange.Id> {
-
-    @jakarta.persistence.Id
-    private long consensusTimestamp;
 
     private boolean deleted;
 
-    @jakarta.persistence.Id
-    private long hookId;
-
-    @jakarta.persistence.Id
-    @ToString.Exclude
-    private byte[] key;
-
-    @jakarta.persistence.Id
-    private long ownerId;
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
+    private Id id;
 
     @ToString.Exclude
     private byte[] valueRead;
@@ -44,27 +37,46 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     @ToString.Exclude
     private byte[] valueWritten;
 
-    @Builder(toBuilder = true)
-    private HookStorageChange(
-            long consensusTimestamp, long hookId, byte[] key, long ownerId, byte[] valueRead, byte[] valueWritten) {
-        this.consensusTimestamp = consensusTimestamp;
-        this.hookId = hookId;
-        this.key = key;
-        this.ownerId = ownerId;
-        this.valueRead = DomainUtils.trim(valueRead);
-        this.valueWritten = DomainUtils.trim(valueWritten);
-        this.deleted = this.valueWritten != null && this.valueWritten.length == 0;
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
     }
 
-    @Override
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        id().setConsensusTimestamp(consensusTimestamp);
+    }
+
+    public long getHookId() {
+        return id != null ? id.getHookId() : 0L;
+    }
+
+    public void setHookId(long hookId) {
+        id().setHookId(hookId);
+    }
+
+    public byte[] getKey() {
+        return id != null ? id.getKey() : null;
+    }
+
+    public void setKey(byte[] key) {
+        id().setKey(key);
+    }
+
+    public EntityId getOwnerId() {
+        return id != null ? id.getOwnerId() : null;
+    }
+
+    public void setOwnerId(EntityId ownerId) {
+        id().setOwnerId(ownerId);
+    }
+
+    public void setOwnerId(long ownerId) {
+        setOwnerId(EntityId.of(ownerId));
+    }
+
     @JsonIgnore
-    public Id getId() {
-        Id id = new Id();
-        id.setConsensusTimestamp(consensusTimestamp);
-        id.setHookId(hookId);
-        id.setKey(key);
-        id.setOwnerId(ownerId);
-        return id;
+    @Override
+    public boolean isNew() {
+        return true;
     }
 
     public void setValueRead(byte[] valueRead) {
@@ -76,10 +88,11 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         this.deleted = this.valueWritten != null && this.valueWritten.length == 0;
     }
 
-    @JsonIgnore
-    @Override
-    public boolean isNew() {
-        return true;
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
     }
 
     @AllArgsConstructor
@@ -90,8 +103,61 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         private static final long serialVersionUID = -2847639184756392847L;
 
         private long consensusTimestamp;
+
         private long hookId;
+
+        @ToString.Exclude
         private byte[] key;
-        private long ownerId;
+
+        private EntityId ownerId;
+    }
+
+    public static class HookStorageChangeBuilder {
+
+        private Id ensureId() {
+            this.id = this.id == null
+                    ? new Id()
+                    : new Id(
+                            this.id.getConsensusTimestamp(),
+                            this.id.getHookId(),
+                            this.id.getKey(),
+                            this.id.getOwnerId());
+            return this.id;
+        }
+
+        public HookStorageChangeBuilder consensusTimestamp(long consensusTimestamp) {
+            ensureId().setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public HookStorageChangeBuilder hookId(long hookId) {
+            ensureId().setHookId(hookId);
+            return this;
+        }
+
+        public HookStorageChangeBuilder key(byte[] key) {
+            ensureId().setKey(key);
+            return this;
+        }
+
+        public HookStorageChangeBuilder ownerId(EntityId ownerId) {
+            ensureId().setOwnerId(ownerId);
+            return this;
+        }
+
+        public HookStorageChangeBuilder ownerId(long ownerId) {
+            return ownerId(EntityId.of(ownerId));
+        }
+
+        public HookStorageChangeBuilder valueRead(byte[] valueRead) {
+            this.valueRead = DomainUtils.trim(valueRead);
+            return this;
+        }
+
+        public HookStorageChangeBuilder valueWritten(byte[] valueWritten) {
+            this.valueWritten = DomainUtils.trim(valueWritten);
+            this.deleted = this.valueWritten != null && this.valueWritten.length == 0;
+            return this;
+        }
     }
 }

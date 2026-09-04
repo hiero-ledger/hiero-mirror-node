@@ -49,16 +49,16 @@ class TokenUpdateNftsTransactionHandler extends AbstractTransactionHandler {
 
         var tokenId = transaction.getEntityId();
         var consensusTimestamp = recordItem.getConsensusTimestamp();
-        var nftBuilder = Nft.builder()
-                .metadata(toBytes(transactionBody.getMetadata().getValue()))
-                .delegatingSpender(RETAIN_SPENDER)
-                .spender(RETAIN_SPENDER)
-                .timestampRange(Range.atLeast(consensusTimestamp))
-                .tokenId(tokenId.getId());
-
-        var serialNumbers = transactionBody.getSerialNumbersList();
-        for (int i = 0; i < serialNumbers.size(); i++) {
-            var nft = nftBuilder.serialNumber(serialNumbers.get(i)).build();
+        var metadata = toBytes(transactionBody.getMetadata().getValue());
+        for (var serialNumber : transactionBody.getSerialNumbersList()) {
+            final var nft = Nft.builder()
+                    .metadata(metadata)
+                    .delegatingSpender(RETAIN_SPENDER)
+                    .spender(RETAIN_SPENDER)
+                    .timestampRange(Range.atLeast(consensusTimestamp))
+                    .tokenId(tokenId.getId())
+                    .serialNumber(serialNumber)
+                    .build();
             entityListener.onNft(nft);
         }
     }

@@ -5,8 +5,9 @@ package org.hiero.mirror.restjava.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.SystemEntity;
-import org.hiero.mirror.restjava.RestJavaIntegrationTest;
+import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -198,7 +199,10 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
                 .addressBookEntry(2)
                 .customize(e -> e.consensusTimestamp(timestamp).nodeId(1L))
                 .persist();
-        domainBuilder.nodeStake().customize(ns -> ns.nodeId(1L)).persist();
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 1L)))
+                .persist();
 
         // when
         var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
@@ -272,7 +276,10 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
                 .addressBookEntry(2)
                 .customize(e -> e.consensusTimestamp(timestamp).nodeId(1L))
                 .persist();
-        domainBuilder.nodeStake().customize(ns -> ns.nodeId(1L)).persist();
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 1L)))
+                .persist();
         domainBuilder.node().customize(n -> n.nodeId(1L)).persist();
 
         // when
@@ -379,11 +386,11 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.nodeId(1L).consensusTimestamp(stakeTimestamp1))
+                .customize(ns -> ns.id(new NodeStake.Id(stakeTimestamp1, 1L)))
                 .persist();
         var latestStake = domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.nodeId(1L).consensusTimestamp(stakeTimestamp2))
+                .customize(ns -> ns.id(new NodeStake.Id(stakeTimestamp2, 1L)))
                 .persist();
 
         // when
@@ -490,9 +497,18 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
                 .persist();
 
         // Add corresponding node stake data
-        domainBuilder.nodeStake().customize(ns -> ns.nodeId(1L)).persist();
-        domainBuilder.nodeStake().customize(ns -> ns.nodeId(2L)).persist();
-        domainBuilder.nodeStake().customize(ns -> ns.nodeId(3L)).persist();
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 1L)))
+                .persist();
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 2L)))
+                .persist();
+        domainBuilder
+                .nodeStake()
+                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 3L)))
+                .persist();
 
         // Add corresponding node data
         domainBuilder.node().customize(n -> n.nodeId(1L)).persist();

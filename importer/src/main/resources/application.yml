@@ -75,6 +75,9 @@ server:
 spring:
   aot:
     enabled: true
+    repositories:
+      # Disabling due to issues with aot repositories https://github.com/spring-projects/spring-data-jpa/issues/4223
+      enabled: false
   application:
     name: importer
   datasource:
@@ -109,16 +112,6 @@ spring:
       tempSchema: ${hiero.mirror.importer.db.tempSchema}
       transactionHashLookbackInterval: "'60 days'"
     target: latest
-  jpa:
-    properties:
-      hibernate:
-        hbm2ddl:
-          import_files_sql_extractor: org.hibernate.tool.hbm2ddl.MultipleLinesSqlCommandExtractor
-        jdbc:
-          batch_size: 250
-        order_inserts: true
-        order_updates: true
-    show-sql: false
   lifecycle:
     timeout-per-shutdown-phase: 20s
   main:

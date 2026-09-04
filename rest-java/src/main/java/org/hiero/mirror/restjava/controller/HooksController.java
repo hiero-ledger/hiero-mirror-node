@@ -84,7 +84,7 @@ final class HooksController {
                     @Size(max = MAX_REPEATED_QUERY_PARAMETERS)
                     NumberRangeParameter[] hookId,
             @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
-            @RequestParam(defaultValue = "desc") Sort.Direction order) {
+            @RequestParam(defaultValue = "desc") Direction order) {
 
         final var hooksRequest = hooksRequest(ownerId, hookId, limit, order);
         final var hooksServiceResponse = hookService.getHooks(hooksRequest);
@@ -130,7 +130,7 @@ final class HooksController {
     }
 
     private HooksRequest hooksRequest(
-            EntityIdParameter ownerId, NumberRangeParameter[] hookIdFilters, int limit, Sort.Direction order) {
+            EntityIdParameter ownerId, NumberRangeParameter[] hookIdFilters, int limit, Direction order) {
         final var hookIds = new TreeSet<Long>();
         long lowerBound = 0L; // The most restrictive lower bound (max of all gt/gte)
         long upperBound = MAX_VALUE; // The most restrictive upper bound (min of all lt/lte)

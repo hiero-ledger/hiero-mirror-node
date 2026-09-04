@@ -9,7 +9,6 @@ import static org.hiero.mirror.common.domain.entity.EntityType.TOKEN;
 
 import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.io.File;
 import java.sql.PreparedStatement;
 import java.util.Arrays;
@@ -29,6 +28,7 @@ import org.hiero.mirror.common.domain.token.TokenTransfer;
 import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
@@ -567,7 +567,7 @@ class TransferTransactionPayerMigrationTest extends ImporterIntegrationTest {
                     entity.getRealm(),
                     entity.getShard(),
                     entity.getType().getId(),
-                    PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()));
+                    RangeUtils.rangeToString(entity.getTimestampRange()));
         }
     }
 

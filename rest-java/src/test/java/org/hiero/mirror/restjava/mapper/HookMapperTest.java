@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
 import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookType;
@@ -27,18 +28,20 @@ final class HookMapperTest {
     @Test
     void map() throws DecoderException {
         // given
-        final var source = new org.hiero.mirror.common.domain.hook.Hook();
-        source.setContractId(EntityId.of(100L));
-        source.setCreatedTimestamp(1234567890000000000L);
-        source.setHookId(10L);
-        source.setOwnerId(200L);
-        source.setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK);
-        source.setTimestampRange(Range.closed(1L, 100000L));
-        source.setType(HookType.EVM);
-        source.setDeleted(false);
-
         final var ed25519Hex = "1220" + "a".repeat(64);
-        source.setAdminKey(org.apache.commons.codec.binary.Hex.decodeHex(ed25519Hex));
+
+        final var source = new org.hiero.mirror.common.domain.hook.Hook()
+                .toBuilder()
+                        .adminKey(Hex.decodeHex(ed25519Hex))
+                        .contractId(EntityId.of(100L))
+                        .createdTimestamp(1234567890000000000L)
+                        .hookId(10L)
+                        .ownerId(200L)
+                        .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                        .timestampRange(Range.closed(1L, 100000L))
+                        .type(HookType.EVM)
+                        .deleted(false)
+                        .build();
 
         // when
         final var result = mapper.map(source);
