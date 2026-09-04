@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import static lombok.AccessLevel.PRIVATE;
+import static org.hiero.mirror.common.util.DomainUtils.logRecoverableError;
 import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 
 import com.google.protobuf.ByteString;
@@ -467,7 +468,7 @@ public class RecordItem implements StreamItem {
 
             final var unknownFields = body.getUnknownFields().asMap().keySet();
             if (unknownFields.size() != 1) {
-                log.error(
+                logRecoverableError(
                         "Unable to guess correct transaction type since there's not exactly one unknown field {}: {}",
                         unknownFields,
                         Hex.encodeHexString(body.toByteArray()));
@@ -476,11 +477,11 @@ public class RecordItem implements StreamItem {
 
             final int genericTransactionType = unknownFields.iterator().next();
             if (!DomainUtils.isSmallint(genericTransactionType)) {
-                log.warn("Encountered unknown transaction type: {}", genericTransactionType);
+                logRecoverableError("Encountered unknown transaction type: {}", genericTransactionType);
                 return TransactionBody.DataCase.DATA_NOT_SET.getNumber();
             }
 
-            log.warn("Encountered unknown transaction type: {}", genericTransactionType);
+            logRecoverableError("Encountered unknown transaction type: {}", genericTransactionType);
             return genericTransactionType;
         }
     }
