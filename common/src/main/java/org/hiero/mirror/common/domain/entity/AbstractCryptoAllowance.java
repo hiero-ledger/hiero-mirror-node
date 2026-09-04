@@ -70,24 +70,11 @@ public abstract class AbstractCryptoAllowance implements FungibleAllowance {
         id().setSpender(spender);
     }
 
-    /**
-     *  Allows using
-     *  CryptoAllowance.builder()
-     *       .owner(entityId.getId())
-     *       .spender(payerAccount.getId())
-     *       ...
-     *   instead of
-     *   CryptoAllowance.builder()
-     *       .id(new AbstractCryptoAllowance.Id(ownerValue, spenderValue))
-     *       ...
-     */
     public abstract static class AbstractCryptoAllowanceBuilder<
             C extends AbstractCryptoAllowance, B extends AbstractCryptoAllowanceBuilder<C, B>> {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null ? new Id() : new Id(this.id.getOwner(), this.id.getSpender());
             return this.id;
         }
 

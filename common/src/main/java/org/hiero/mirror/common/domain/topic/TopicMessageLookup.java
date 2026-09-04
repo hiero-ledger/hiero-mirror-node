@@ -86,9 +86,7 @@ public class TopicMessageLookup {
     public static class TopicMessageLookupBuilder {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null ? new Id() : new Id(this.id.getPartition(), this.id.getTopicId());
             return this.id;
         }
 

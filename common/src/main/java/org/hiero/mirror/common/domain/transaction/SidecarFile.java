@@ -70,9 +70,7 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     public static class SidecarFileBuilder {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null ? new Id() : new Id(this.id.getConsensusEnd(), this.id.getIndex());
             return this.id;
         }
 

@@ -6,10 +6,6 @@ import static org.hiero.mirror.common.converter.ObjectToStringSerializer.OBJECT_
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import java.sql.Array;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;

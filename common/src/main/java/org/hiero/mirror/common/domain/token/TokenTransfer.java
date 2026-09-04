@@ -41,9 +41,9 @@ public class TokenTransfer implements Persistable<TokenTransfer.Id> {
     public static class TokenTransferBuilder {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null
+                    ? new Id()
+                    : new Id(this.id.getConsensusTimestamp(), this.id.getTokenId(), this.id.getAccountId());
             return this.id;
         }
 

@@ -76,9 +76,7 @@ public class ContractState {
     public static class ContractStateBuilder {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null ? new Id() : new Id(this.id.getContractId(), this.id.getSlot());
             return this.id;
         }
 

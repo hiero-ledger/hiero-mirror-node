@@ -102,9 +102,7 @@ public abstract class AbstractTokenAccount implements History {
             C extends AbstractTokenAccount, B extends AbstractTokenAccountBuilder<C, B>> {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null ? new Id() : new Id(this.id.getAccountId(), this.id.getTokenId());
             return this.id;
         }
 

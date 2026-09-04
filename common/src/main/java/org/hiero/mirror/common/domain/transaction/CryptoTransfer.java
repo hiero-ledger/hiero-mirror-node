@@ -36,9 +36,9 @@ public class CryptoTransfer implements Persistable<CryptoTransfer.Id> {
     public static class CryptoTransferBuilder {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null
+                    ? new Id()
+                    : new Id(this.id.getAmount(), this.id.getConsensusTimestamp(), this.id.getEntityId());
             return this.id;
         }
 

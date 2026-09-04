@@ -91,9 +91,13 @@ public abstract class AbstractTokenAirdrop implements History {
             C extends AbstractTokenAirdrop, B extends AbstractTokenAirdropBuilder<C, B>> {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null
+                    ? new Id()
+                    : new Id(
+                            this.id.getReceiverAccountId(),
+                            this.id.getSenderAccountId(),
+                            this.id.getSerialNumber(),
+                            this.id.getTokenId());
             return this.id;
         }
 

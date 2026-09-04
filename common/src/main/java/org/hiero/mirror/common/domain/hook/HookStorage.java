@@ -108,9 +108,7 @@ public class HookStorage {
     public static class HookStorageBuilder {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null ? new Id() : new Id(this.id.getHookId(), this.id.getKey(), this.id.getOwnerId());
             return this.id;
         }
 

@@ -44,9 +44,9 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
     public static class AssessedCustomFeeBuilder {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null
+                    ? new Id()
+                    : new Id(this.id.getCollectorAccountId(), this.id.getConsensusTimestamp());
             return this.id;
         }
 

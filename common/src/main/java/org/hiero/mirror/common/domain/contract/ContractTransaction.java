@@ -38,9 +38,7 @@ public class ContractTransaction implements Persistable<ContractTransaction.Id> 
     public static class ContractTransactionBuilder {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null ? new Id() : new Id(this.id.getConsensusTimestamp(), this.id.getEntityId());
             return this.id;
         }
 

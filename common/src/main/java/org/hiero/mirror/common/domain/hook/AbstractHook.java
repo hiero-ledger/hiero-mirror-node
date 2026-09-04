@@ -105,9 +105,7 @@ public abstract class AbstractHook implements History {
     public abstract static class AbstractHookBuilder<C extends AbstractHook, B extends AbstractHookBuilder<C, B>> {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null ? new Id() : new Id(this.id.getHookId(), this.id.getOwnerId());
             return this.id;
         }
 

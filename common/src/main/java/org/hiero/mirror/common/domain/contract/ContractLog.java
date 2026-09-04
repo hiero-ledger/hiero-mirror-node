@@ -125,9 +125,7 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     public static class ContractLogBuilder {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null ? new Id() : new Id(this.id.getConsensusTimestamp(), this.id.getIndex());
             return this.id;
         }
 

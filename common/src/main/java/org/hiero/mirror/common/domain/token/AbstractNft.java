@@ -94,9 +94,7 @@ public abstract class AbstractNft implements History {
     public abstract static class AbstractNftBuilder<C extends AbstractNft, B extends AbstractNftBuilder<C, B>> {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null ? new Id() : new Id(this.id.getSerialNumber(), this.id.getTokenId());
             return this.id;
         }
 

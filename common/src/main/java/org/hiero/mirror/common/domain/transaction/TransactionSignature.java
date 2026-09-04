@@ -38,9 +38,8 @@ public class TransactionSignature implements Persistable<TransactionSignature.Id
     public static class TransactionSignatureBuilder {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id =
+                    this.id == null ? new Id() : new Id(this.id.getConsensusTimestamp(), this.id.getPublicKeyPrefix());
             return this.id;
         }
 

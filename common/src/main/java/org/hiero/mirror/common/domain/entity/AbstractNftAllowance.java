@@ -81,9 +81,8 @@ public abstract class AbstractNftAllowance implements History {
             C extends AbstractNftAllowance, B extends AbstractNftAllowanceBuilder<C, B>> {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id =
+                    this.id == null ? new Id() : new Id(this.id.getOwner(), this.id.getSpender(), this.id.getTokenId());
             return this.id;
         }
 

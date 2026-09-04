@@ -96,9 +96,9 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
     public static class ContractStateChangeBuilder {
 
         private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
+            this.id = this.id == null
+                    ? new Id()
+                    : new Id(this.id.getConsensusTimestamp(), this.id.getContractId(), this.id.getSlot());
             return this.id;
         }
 

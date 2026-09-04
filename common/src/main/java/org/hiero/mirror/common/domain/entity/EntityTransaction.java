@@ -50,6 +50,11 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
             ensureId().setEntityId(entityId);
             return this;
         }
+
+        public EntityTransaction build() {
+            final var builtId = id == null ? null : new Id(id.getConsensusTimestamp(), id.getEntityId());
+            return new EntityTransaction(builtId, payerAccountId, result, type);
+        }
     }
 
     public Long getConsensusTimestamp() {
