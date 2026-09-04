@@ -122,40 +122,6 @@ public final class JsonbReadingConverters {
     }
 
     @ReadingConverter
-    public static final class SqlArrayToShortList implements Converter<Array, List<Short>> {
-        @Override
-        public List<Short> convert(Array source) {
-            if (source == null) {
-                return null;
-            }
-            try {
-                return arrayObjectToShortList(source.getArray());
-            } catch (SQLException e) {
-                throw new IllegalStateException(e);
-            }
-        }
-
-        private static List<Short> arrayObjectToShortList(Object arr) {
-            if (arr == null) {
-                return null;
-            }
-            if (arr instanceof Short[] shortArr) {
-                return Arrays.asList(shortArr);
-            }
-            if (arr instanceof Object[] objArr) {
-                var list = new ArrayList<Short>(objArr.length);
-                for (Object o : objArr) {
-                    if (o != null) {
-                        list.add(((Number) o).shortValue());
-                    }
-                }
-                return list;
-            }
-            throw new IllegalStateException("Unsupported PostgreSQL array component type: " + arr.getClass());
-        }
-    }
-
-    @ReadingConverter
     public static final class PgobjectToItemizedTransferListHolder
             implements Converter<PGobject, ItemizedTransferListHolder> {
 

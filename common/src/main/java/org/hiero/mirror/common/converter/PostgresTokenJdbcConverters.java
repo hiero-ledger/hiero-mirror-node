@@ -28,7 +28,7 @@ public final class PostgresTokenJdbcConverters {
             if (source == null) {
                 return JdbcValue.of(null, JDBCType.SMALLINT);
             }
-            return JdbcValue.of((short) source.getDbId(), JDBCType.SMALLINT);
+            return JdbcValue.of(Short.valueOf(source.getId()), JDBCType.SMALLINT);
         }
     }
 
@@ -41,7 +41,7 @@ public final class PostgresTokenJdbcConverters {
 
         @Override
         public Integer convert(TokenFreezeStatusEnum source) {
-            return source == null ? null : source.getDbId();
+            return source == null ? null : source.ordinal();
         }
     }
 
@@ -62,7 +62,7 @@ public final class PostgresTokenJdbcConverters {
             if (source == null) {
                 return JdbcValue.of(null, JDBCType.SMALLINT);
             }
-            return JdbcValue.of((short) source.getDbId(), JDBCType.SMALLINT);
+            return JdbcValue.of((short) source.ordinal(), JDBCType.SMALLINT);
         }
     }
 
@@ -71,7 +71,7 @@ public final class PostgresTokenJdbcConverters {
 
         @Override
         public Integer convert(TokenKycStatusEnum source) {
-            return source == null ? null : source.getDbId();
+            return source == null ? null : source.ordinal();
         }
     }
 

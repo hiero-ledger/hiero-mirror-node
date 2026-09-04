@@ -26,7 +26,6 @@ import org.hiero.mirror.common.converter.PostgresHookJdbcConverters;
 import org.hiero.mirror.common.converter.PostgresTokenJdbcConverters;
 import org.hiero.mirror.common.converter.RangeToPGobjectWritingConverter;
 import org.hiero.mirror.common.converter.ReconciliationStatusJdbcConverters;
-import org.hiero.mirror.common.converter.ShortArrayJdbcConverters;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.repository.AssignedIdDataAccessStrategy;
 import org.hiero.mirror.common.repository.MergingJdbcRepository;
@@ -231,14 +230,8 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new DigestAlgorithmJdbcConverters.IntegerToDigestAlgorithm(),
                 new ReconciliationStatusJdbcConverters.ReconciliationStatusToJdbcValue(),
                 new ReconciliationStatusJdbcConverters.IntegerToReconciliationStatus(),
-                new LongArrayJdbcConverters.AssociatedRegisteredNodeIdsToLongArray(),
-                new LongArrayJdbcConverters.SqlArrayToAssociatedRegisteredNodeIds(),
-                new LongArrayJdbcConverters.LongArrayToAssociatedRegisteredNodeIds(),
                 new LongArrayJdbcConverters.SqlArrayToLongList(),
                 new LongArrayJdbcConverters.SqlArrayToLongArray(),
-                new ShortArrayJdbcConverters.RegisteredNodeTypesHolderToShortArray(),
-                new ShortArrayJdbcConverters.SqlArrayToRegisteredNodeTypesHolder(),
-                new ShortArrayJdbcConverters.ShortArrayToRegisteredNodeTypesHolder(),
                 new PostgresAirdropStateJdbcConverters.TokenAirdropStateEnumToJdbcValue(),
                 new PostgresAirdropStateJdbcConverters.StringToTokenAirdropStateEnum(),
                 new PostgresEntityTypeJdbcConverters.EntityTypeToJdbcValue(),
@@ -276,7 +269,6 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
                 new JsonbReadingConverters.PgobjectToRegisteredServiceEndpointList(),
                 new JsonbReadingConverters.PgobjectToServiceEndpointsHolder(),
                 new JsonbReadingConverters.StringToRegisteredServiceEndpointList(),
-                new JsonbReadingConverters.SqlArrayToShortList(),
                 new JsonbWritingConverters.AccessListHolderToJsonb(),
                 new JsonbWritingConverters.AuthorizationListHolderToJsonb(),
                 new JsonbWritingConverters.ItemizedTransferListHolderToJsonb(),

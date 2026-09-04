@@ -26,11 +26,6 @@ public enum TokenKycStatusEnum {
         return ID_MAP.getOrDefault(id, NOT_APPLICABLE);
     }
 
-    /** Ordinal stored in {@code smallint} database columns. */
-    public int getDbId() {
-        return id;
-    }
-
     @JsonValue
     public String getId() {
         return String.valueOf(id);

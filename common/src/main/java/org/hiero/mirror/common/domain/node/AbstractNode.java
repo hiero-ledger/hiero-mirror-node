@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain.node;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.Range;
+import java.util.Arrays;
 import java.util.List;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -40,7 +41,7 @@ public abstract class AbstractNode implements History {
 
     @JsonIgnore
     @Column("associated_registered_nodes")
-    private AssociatedRegisteredNodeIds associatedRegisteredNodesColumn;
+    private Long[] associatedRegisteredNodesColumn;
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
     @UpsertColumn(coalesce = "case when ({0} -> ''port'')::integer = -1 then null else coalesce({0}, e_{0}) end")
@@ -53,17 +54,17 @@ public abstract class AbstractNode implements History {
 
     @JsonSerialize(using = ListToStringSerializer.class)
     public List<Long> getAssociatedRegisteredNodes() {
-        return associatedRegisteredNodesColumn == null ? null : associatedRegisteredNodesColumn.ids();
+        return associatedRegisteredNodesColumn == null ? null : Arrays.asList(associatedRegisteredNodesColumn);
     }
 
     public void setAssociatedRegisteredNodes(List<Long> value) {
-        this.associatedRegisteredNodesColumn = AssociatedRegisteredNodeIds.of(value);
+        this.associatedRegisteredNodesColumn = value == null ? null : value.toArray(Long[]::new);
     }
 
     public abstract static class AbstractNodeBuilder<C extends AbstractNode, B extends AbstractNodeBuilder<C, B>> {
 
         public B associatedRegisteredNodes(List<Long> ids) {
-            this.associatedRegisteredNodesColumn = AssociatedRegisteredNodeIds.of(ids);
+            this.associatedRegisteredNodesColumn = ids == null ? null : ids.toArray(Long[]::new);
             return self();
         }
     }

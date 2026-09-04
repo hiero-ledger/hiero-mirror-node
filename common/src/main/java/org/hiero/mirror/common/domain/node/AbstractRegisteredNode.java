@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain.node;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.Range;
+import java.util.Arrays;
 import java.util.List;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -45,15 +46,15 @@ public abstract class AbstractRegisteredNode implements History {
 
     @JsonIgnore
     @Column("type")
-    private RegisteredNodeTypesHolder typeColumn;
+    private Short[] typeColumn;
 
     @JsonSerialize(using = ListToStringSerializer.class)
     public List<Short> getType() {
-        return typeColumn == null ? null : typeColumn.types();
+        return typeColumn == null ? null : Arrays.asList(typeColumn);
     }
 
     public void setType(List<Short> value) {
-        this.typeColumn = RegisteredNodeTypesHolder.of(value);
+        this.typeColumn = value == null ? null : value.toArray(Short[]::new);
     }
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
@@ -74,7 +75,7 @@ public abstract class AbstractRegisteredNode implements History {
         }
 
         public B type(List<Short> types) {
-            this.typeColumn = RegisteredNodeTypesHolder.of(types);
+            this.typeColumn = types == null ? null : types.toArray(Short[]::new);
             return self();
         }
     }
