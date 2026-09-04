@@ -57,6 +57,27 @@ final class TransactionTest {
                     """;
 
     @Test
+    void setTypeAndResultClampsToSmallint() {
+        var transaction = new Transaction();
+        transaction.setType(Short.MAX_VALUE + 1);
+        transaction.setResult(Integer.MAX_VALUE);
+        assertThat(transaction.getType()).isEqualTo((int) Short.MAX_VALUE);
+        assertThat(transaction.getResult()).isEqualTo((int) Short.MAX_VALUE);
+
+        transaction.setType(Short.MIN_VALUE - 1);
+        transaction.setResult(Integer.MIN_VALUE);
+        assertThat(transaction.getType()).isEqualTo((int) Short.MIN_VALUE);
+        assertThat(transaction.getResult()).isEqualTo((int) Short.MIN_VALUE);
+
+        var built = Transaction.builder()
+                .type(Short.MAX_VALUE + 1)
+                .result(Integer.MAX_VALUE)
+                .build();
+        assertThat(built.getType()).isEqualTo((int) Short.MAX_VALUE);
+        assertThat(built.getResult()).isEqualTo((int) Short.MAX_VALUE);
+    }
+
+    @Test
     void highVolume() {
         var transaction = Transaction.builder().build();
         assertThat(transaction.getHighVolume()).isNull();

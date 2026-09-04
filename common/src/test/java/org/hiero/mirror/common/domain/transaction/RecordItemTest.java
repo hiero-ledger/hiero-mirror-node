@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.util.CommonUtils.nextBytes;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.UnknownFieldSet;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -695,6 +696,43 @@ class RecordItemTest {
                 .build();
 
         assertThat(recordItem.getTransactionType()).isEqualTo(unknownType);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {9999, 20000, 32767})
+    void unknownTransactionTypeWithinSmallintRange(int unknownType) {
+        assertThat(recordItemWithUnknownType(unknownType).getTransactionType()).isEqualTo(unknownType);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {32768, 536870911})
+    void unknownTransactionTypeOutsideSmallintRange(int unknownType) {
+        final var recordItem = recordItemWithUnknownType(unknownType);
+        recordItem.setEntityTransactionPredicate(_ -> true);
+        recordItem.addEntityId(EntityId.of(2));
+
+        assertThat(recordItem.getTransactionType()).isEqualTo(TransactionBody.DataCase.DATA_NOT_SET.getNumber());
+        assertThat(recordItem.getEntityTransactions().values()).isNotEmpty().allSatisfy(entityTransaction -> assertThat(
+                        entityTransaction.getType())
+                .isEqualTo(TransactionBody.DataCase.DATA_NOT_SET.getNumber()));
+    }
+
+    private static RecordItem recordItemWithUnknownType(int fieldNumber) {
+        final var field = UnknownFieldSet.Field.newBuilder()
+                .addLengthDelimited(ByteString.copyFromUtf8("foo"))
+                .build();
+        final var body = TransactionBody.newBuilder()
+                .mergeUnknownFields(UnknownFieldSet.newBuilder()
+                        .addField(fieldNumber, field)
+                        .build())
+                .build();
+        final var transaction =
+                Transaction.newBuilder().setBodyBytes(body.toByteString()).build();
+        return RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transactionRecord(TRANSACTION_RECORD)
+                .transaction(transaction)
+                .build();
     }
 
     @EnumSource(
