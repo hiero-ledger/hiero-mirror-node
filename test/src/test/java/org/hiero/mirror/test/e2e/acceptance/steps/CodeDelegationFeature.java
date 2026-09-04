@@ -14,6 +14,7 @@ import static org.web3j.crypto.transaction.type.TransactionType.EIP7702;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
 import io.cucumber.java.Before;
+import io.cucumber.java.Scenario;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -36,6 +37,8 @@ import org.web3j.utils.Numeric;
 @RequiredArgsConstructor
 public class CodeDelegationFeature extends AbstractFeature {
 
+    private static final String CODE_DELEGATIONS_TAG = "@codeDelegations";
+
     private final AccountClient accountClient;
     private final EthereumClient ethereumClient;
     private final FeatureProperties featureProperties;
@@ -48,7 +51,11 @@ public class CodeDelegationFeature extends AbstractFeature {
     private AuthorizationTuple authorization;
 
     @Before
-    public void before() {
+    public void before(final Scenario scenario) {
+        if (!scenario.getSourceTagNames().contains(CODE_DELEGATIONS_TAG)) {
+            return;
+        }
+
         assumeTrue(featureProperties.isCodeDelegationsEnabled(), "HIP-1340 code delegations are not enabled");
     }
 
