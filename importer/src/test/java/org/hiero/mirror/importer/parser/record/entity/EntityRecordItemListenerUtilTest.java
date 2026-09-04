@@ -9,11 +9,13 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.UnknownFieldSet;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.Prng;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -65,6 +67,27 @@ class EntityRecordItemListenerUtilTest extends AbstractEntityRecordItemListenerT
                         .returns(0, Prng::getRange)
                         .returns(pseudorandomBytes, Prng::getPrngBytes)
                         .returns(null, Prng::getPrngNumber));
+    }
+
+    @Test
+    void outOfRangePayerAccountIdIsSkippedWithoutHaltingFile() {
+        final var valid = recordItemBuilder.cryptoTransfer().build();
+        final var invalid = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBodyWrapper(body -> body.setTransactionID(TransactionID.newBuilder()
+                        .setAccountID(AccountID.newBuilder().setShardNum(5000).setAccountNum(1))))
+                .build();
+
+        parseRecordItemsAndCommit(List.of(invalid, valid));
+
+        assertAll(
+                () -> assertEquals(1, transactionRepository.count()),
+                () -> assertThat(transactionRepository.findById(invalid.getConsensusTimestamp()))
+                        .isEmpty(),
+                () -> assertThat(transactionRepository.findById(valid.getConsensusTimestamp()))
+                        .get()
+                        .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getPayerAccountId)
+                        .isEqualTo(valid.getPayerAccountId()));
     }
 
     /**

@@ -331,7 +331,8 @@ public class RecordItem implements StreamItem {
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
             this.parent = parseParent();
             this.hookParent = parsePossiblyHookContractRelatedParent();
-            this.payerAccountId = EntityId.of(transactionBody.getTransactionID().getAccountID());
+            this.payerAccountId =
+                    EntityId.tryOf(transactionBody.getTransactionID().getAccountID());
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
             return buildInternal();
