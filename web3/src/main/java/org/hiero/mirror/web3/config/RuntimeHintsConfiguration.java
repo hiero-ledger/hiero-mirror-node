@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.config;
 
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_FIELDS;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.METHODS_ONLY;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.NONE;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerAnnotatedPackage;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
@@ -15,6 +16,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
+import org.hyperledger.besu.evm.MainnetEVMs;
 import org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -38,6 +40,10 @@ final class RuntimeHintsConfiguration {
             registerAnnotatedPackage(hints, loader, "com.hedera.node.config.data", ConfigData.class);
 
             registerPackage(hints, loader, ThrottleGroup.class.getPackageName());
+
+            // HederaOperationsRegistry looks up private MainnetEVMs.register*Operations methods
+            // via Class.getDeclaredMethod; native image otherwise throws NoSuchMethodException.
+            registerReflectionTypes(hints, METHODS_ONLY, MainnetEVMs.class);
 
             registerReflectionTypes(
                     hints,
