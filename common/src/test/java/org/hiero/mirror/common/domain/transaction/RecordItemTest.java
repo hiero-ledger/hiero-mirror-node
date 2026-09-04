@@ -33,13 +33,18 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.exception.ProtobufException;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.data.util.Version;
 
+@ExtendWith(OutputCaptureExtension.class)
 @SuppressWarnings("deprecation")
 class RecordItemTest {
 
@@ -279,6 +284,37 @@ class RecordItemTest {
                 .build();
 
         assertThat(recordItem.isTopLevel()).isFalse();
+    }
+
+    @CsvSource({"5000, 0, 1", "0, 0, -1"})
+    @ParameterizedTest
+    void outOfRangePayerAccountIdDoesNotThrow(long shard, long realm, long num, CapturedOutput output) {
+        final var payer = AccountID.newBuilder()
+                .setShardNum(shard)
+                .setRealmNum(realm)
+                .setAccountNum(num)
+                .build();
+        final var txBody = TransactionBody.newBuilder()
+                .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
+                .setTransactionID(TransactionID.newBuilder().setAccountID(payer))
+                .build();
+        final var signedTx = SignedTransaction.newBuilder()
+                .setBodyBytes(txBody.toByteString())
+                .setSigMap(SIGNATURE_MAP)
+                .build();
+        final var tx = Transaction.newBuilder()
+                .setSignedTransactionBytes(signedTx.toByteString())
+                .build();
+
+        final var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(tx)
+                .transactionRecord(TRANSACTION_RECORD)
+                .build();
+
+        assertThat(recordItem.getPayerAccountId()).isEqualTo(EntityId.EMPTY);
+        assertThat(recordItem.getTransactionBody()).isEqualTo(txBody);
+        assertThat(output.getAll()).contains(DomainUtils.RECOVERABLE_ERROR);
     }
 
     @Test
