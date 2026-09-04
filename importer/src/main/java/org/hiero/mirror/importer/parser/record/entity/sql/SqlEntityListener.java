@@ -274,7 +274,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
     @Override
     public void onNodeStake(NodeStake nodeStake) {
-        context.add(nodeStake);
+        context.replace(nodeStake.getId(), nodeStake);
     }
 
     @Override

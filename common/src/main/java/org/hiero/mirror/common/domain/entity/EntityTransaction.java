@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
@@ -32,6 +33,28 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
 
     private Integer type;
 
+    public void setResult(Integer result) {
+        this.result = DomainUtils.toSmallint(result);
+    }
+
+    public void setType(Integer type) {
+        this.type = DomainUtils.toSmallint(type);
+    }
+
+    public Long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : null;
+    }
+
+    public Long getEntityId() {
+        return id != null ? id.getEntityId() : null;
+    }
+
+    @JsonIgnore
+    @Override
+    public boolean isNew() {
+        return true; // Since we never update and use a natural ID, avoid querying before insert
+    }
+
     public static class EntityTransactionBuilder {
 
         private Id ensureId() {
@@ -51,24 +74,20 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
             return this;
         }
 
+        public EntityTransactionBuilder result(Integer result) {
+            this.result = DomainUtils.toSmallint(result);
+            return this;
+        }
+
+        public EntityTransactionBuilder type(Integer type) {
+            this.type = DomainUtils.toSmallint(type);
+            return this;
+        }
+
         public EntityTransaction build() {
             final var builtId = id == null ? null : new Id(id.getConsensusTimestamp(), id.getEntityId());
             return new EntityTransaction(builtId, payerAccountId, result, type);
         }
-    }
-
-    public Long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : null;
-    }
-
-    public Long getEntityId() {
-        return id != null ? id.getEntityId() : null;
-    }
-
-    @JsonIgnore
-    @Override
-    public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
     @AllArgsConstructor

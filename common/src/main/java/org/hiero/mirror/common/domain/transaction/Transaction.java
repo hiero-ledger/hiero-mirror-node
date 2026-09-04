@@ -16,6 +16,7 @@ import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.NftTransfer;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
@@ -173,6 +174,14 @@ public class Transaction implements Persistable<Long> {
         return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
+    public void setResult(Integer result) {
+        this.result = DomainUtils.toSmallint(result);
+    }
+
+    public void setType(Integer type) {
+        this.type = DomainUtils.toSmallint(type);
+    }
+
     public TransactionHash toTransactionHash() {
         return TransactionHash.builder()
                 .consensusTimestamp(consensusTimestamp)
@@ -194,6 +203,16 @@ public class Transaction implements Persistable<Long> {
 
         public TransactionBuilder nftTransfer(List<NftTransfer> value) {
             this.nftTransferColumn = NftTransferListHolder.of(value);
+            return this;
+        }
+
+        public TransactionBuilder result(Integer result) {
+            this.result = DomainUtils.toSmallint(result);
+            return this;
+        }
+
+        public TransactionBuilder type(Integer type) {
+            this.type = DomainUtils.toSmallint(type);
             return this;
         }
     }

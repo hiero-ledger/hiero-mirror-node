@@ -218,6 +218,26 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     }
 
     @Test
+    @Transactional
+    void updateFileWithNoNodes() {
+        long consensusTimeStamp = domainBuilder.timestamp();
+        final var nodeAddressBook = NodeAddressBook.newBuilder().build();
+        update(nodeAddressBook.toByteArray(), consensusTimeStamp, true);
+        assertThat(addressBookRepository.findById(consensusTimeStamp + 1)).isEmpty();
+    }
+
+    @Test
+    @Transactional
+    void updateFileWithNoValidEntry() {
+        long consensusTimeStamp = domainBuilder.timestamp();
+        final var nodeAddressBook = NodeAddressBook.newBuilder()
+                .addNodeAddress(NodeAddress.newBuilder())
+                .build();
+        update(nodeAddressBook.toByteArray(), consensusTimeStamp, true);
+        assertThat(addressBookRepository.findById(consensusTimeStamp + 1)).isEmpty();
+    }
+
+    @Test
     void appendFileWithoutFileCreateOrUpdate() {
         byte[] addressBookBytes = UPDATED.toByteArray();
         int index = addressBookBytes.length / 2;
@@ -1021,6 +1041,14 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
 
         // when, then
         assertThat(addressBookService.getNode(4L)).isNull();
+    }
+
+    @Test
+    void getNodesEmpty() {
+        domainBuilder.addressBook().customize(ab -> ab.nodeCount(null)).persist();
+        assertThatThrownBy(() -> addressBookService.getNodes())
+                .isInstanceOf(InvalidDatasetException.class)
+                .hasMessage("Unable to find a valid address book");
     }
 
     @Test

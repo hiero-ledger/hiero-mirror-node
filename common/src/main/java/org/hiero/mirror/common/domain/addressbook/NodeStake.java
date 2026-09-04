@@ -94,6 +94,25 @@ public class NodeStake implements Persistable<NodeStake.Id> {
         return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
+    public static class NodeStakeBuilder {
+
+        // Copy-on-write so a setter never mutates an Id shared with an already-built instance or a toBuilder() source
+        private Id ensureId() {
+            this.id = this.id == null ? new Id() : new Id(this.id.getConsensusTimestamp(), this.id.getNodeId());
+            return this.id;
+        }
+
+        public NodeStakeBuilder consensusTimestamp(long consensusTimestamp) {
+            ensureId().setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public NodeStakeBuilder nodeId(long nodeId) {
+            ensureId().setNodeId(nodeId);
+            return this;
+        }
+    }
+
     private Id id() {
         if (id == null) {
             id = new Id();
