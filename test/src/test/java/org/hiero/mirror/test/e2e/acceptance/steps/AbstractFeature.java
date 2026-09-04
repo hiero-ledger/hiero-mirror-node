@@ -112,7 +112,7 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
     }
 
     public DeployedContract getContract(ContractResource contractResource) {
-        return contractIdMap.computeIfAbsent(contractResource, x -> {
+        var deployed = contractIdMap.computeIfAbsent(contractResource, x -> {
             var resource = resourceLoader.getResource(contractResource.path);
             try (var in = resource.getInputStream()) {
                 CompiledSolidityArtifact compiledSolidityArtifact = readCompiledArtifact(in);
@@ -131,12 +131,20 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
                                 : Hbar.fromTinybars(contractResource.initialBalance),
                         null);
                 ContractId networkTransactionResponseContractId = verifyCreateContractNetworkResponse();
-                return new DeployedContract(fileId, networkTransactionResponseContractId, compiledSolidityArtifact);
+                return new DeployedContract(
+                        fileId,
+                        networkTransactionResponseContractId,
+                        compiledSolidityArtifact,
+                        networkTransactionResponse);
             } catch (IOException e) {
                 log.warn("Issue creating contract: {}, ex: {}", contractResource, e);
                 throw new RuntimeException(e);
             }
         });
+        if (deployed.createTransactionResponse() != null) {
+            networkTransactionResponse = deployed.createTransactionResponse();
+        }
+        return deployed;
     }
 
     protected FileId persistContractBytes(String contractContents) {
@@ -278,5 +286,14 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
     }
 
     public record DeployedContract(
-            FileId fileId, ContractId contractId, CompiledSolidityArtifact compiledSolidityArtifact) {}
+            FileId fileId,
+            ContractId contractId,
+            CompiledSolidityArtifact compiledSolidityArtifact,
+            NetworkTransactionResponse createTransactionResponse) {
+
+        public DeployedContract(
+                FileId fileId, ContractId contractId, CompiledSolidityArtifact compiledSolidityArtifact) {
+            this(fileId, contractId, compiledSolidityArtifact, null);
+        }
+    }
 }

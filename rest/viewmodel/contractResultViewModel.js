@@ -4,6 +4,7 @@ import isEmpty from 'lodash/isEmpty';
 import isNil from 'lodash/isNil';
 import toArray from 'lodash/toArray';
 import config from '../config';
+import {EVM_ADDRESS_LENGTH, EVM_SLOT_LENGTH} from '../constants';
 import EntityId from '../entityId';
 import {fromBinary} from '@bufbuild/protobuf';
 import {ContractFunctionResultSchema} from '../gen/services/contract_types_pb.js';
@@ -28,7 +29,7 @@ class ContractResultViewModel {
       : contractId.toEvmAddress();
     this.amount = contractResult.amount;
     if (config.response.enableDelegationAddress && !isEmpty(contractResult.authorizationList)) {
-      this.authorization_list = contractResult.authorizationList || [];
+      this.authorization_list = ContractResultViewModel.padAuthorizationList(contractResult.authorizationList);
     }
     this.bloom = this.#encodeBloom(contractResult.bloom);
     this.call_result = toHexString(contractResult.callResult, true);
@@ -63,6 +64,46 @@ class ContractResultViewModel {
     }
 
     return null;
+  }
+
+  /**
+   * Left-pads access list address to 20 bytes and storage keys to 32 bytes for REST responses.
+   * @param {Array|null|undefined} accessList
+   * @return {Array}
+   */
+  static padAccessList(accessList) {
+    if (!Array.isArray(accessList) || accessList.length === 0) {
+      return accessList ?? [];
+    }
+
+    return accessList.map((entry) => {
+      const storageKeys = entry.storage_keys ?? entry.storageKeys;
+      return {
+        ...entry,
+        address: toHexString(entry.address, true, EVM_ADDRESS_LENGTH * 2),
+        storage_keys: Array.isArray(storageKeys)
+          ? storageKeys.map((key) => toHexString(key, true, EVM_SLOT_LENGTH * 2))
+          : [],
+      };
+    });
+  }
+
+  /**
+   * Left-pads authorization list address to 20 bytes and r/s to 32 bytes for REST responses.
+   * @param {Array|null|undefined} authorizationList
+   * @return {Array}
+   */
+  static padAuthorizationList(authorizationList) {
+    if (!Array.isArray(authorizationList) || authorizationList.length === 0) {
+      return authorizationList ?? [];
+    }
+
+    return authorizationList.map((authorization) => ({
+      ...authorization,
+      address: toHexString(authorization.address, true, EVM_ADDRESS_LENGTH * 2),
+      r: toHexString(authorization.r, true, EVM_SLOT_LENGTH * 2),
+      s: toHexString(authorization.s, true, EVM_SLOT_LENGTH * 2),
+    }));
   }
 }
 

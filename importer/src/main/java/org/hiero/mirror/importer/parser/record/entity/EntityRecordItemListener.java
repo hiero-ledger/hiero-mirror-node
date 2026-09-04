@@ -577,6 +577,9 @@ public class EntityRecordItemListener implements RecordItemListener {
             recordItem.addNftTransactionEntityId(senderId);
 
             transferNftOwnership(consensusTimestamp, serialNumber, entityTokenId, receiverId);
+            // If there is a wildcard used as a serial number for an NFT transfer, the importer won't create
+            // synthetic logs for each serial number from the NFT collection due to performance considerations.
+            // This behaviour will be improved in a future task.
             syntheticContractLogService.create(
                     new TransferIndexedContractLog(recordItem, entityTokenId, senderId, receiverId, serialNumber));
         }

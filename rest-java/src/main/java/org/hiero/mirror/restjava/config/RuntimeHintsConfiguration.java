@@ -23,6 +23,7 @@ import java.util.Objects;
 import org.hibernate.validator.internal.util.logging.Log_$logger;
 import org.hibernate.validator.internal.util.logging.Messages_$bundle;
 import org.hiero.mirror.rest.model.Error;
+import org.hiero.mirror.restjava.RestJavaProperties;
 import org.hiero.mirror.restjava.config.RuntimeHintsConfiguration.CustomRuntimeHints;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.jooq.domain.tables.records.NftAllowanceRecord;
@@ -71,6 +72,7 @@ final class RuntimeHintsConfiguration {
             registerAnnotatedPackage(hints, loader, "com.hedera.node.config.data", ConfigData.class);
             registerPackage(hints, loader, ThrottleGroup.class.getPackageName());
             registerPackage(hints, loader, NumberRangeParameter.class.getPackageName());
+            registerReflectionTypes(hints, CONSTRUCTORS_AND_METHODS, RestJavaProperties.class.getName());
 
             registerReflectionTypes(hints, CONSTRUCTORS_ONLY, Log_$logger.class, Messages_$bundle.class);
 

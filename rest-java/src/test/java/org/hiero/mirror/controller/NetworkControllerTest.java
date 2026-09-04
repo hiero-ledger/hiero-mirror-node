@@ -8,6 +8,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.list;
 
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
+import com.hederahashgraph.api.proto.java.CryptoCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
@@ -15,6 +16,8 @@ import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import com.hederahashgraph.api.proto.java.FeeComponents;
 import com.hederahashgraph.api.proto.java.FeeData;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
+import com.hederahashgraph.api.proto.java.Key;
+import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import com.hederahashgraph.api.proto.java.Transaction;
@@ -53,6 +56,7 @@ import org.hiero.mirror.rest.model.NetworkSupplyResponse;
 import org.hiero.mirror.rest.model.RegisteredNodesResponse;
 import org.hiero.mirror.restjava.RestJavaProperties.HederaNetwork;
 import org.hiero.mirror.restjava.common.Constants;
+import org.hiero.mirror.restjava.common.ProtobufParser;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.config.NetworkProperties;
 import org.hiero.mirror.restjava.dto.SystemFile;
@@ -74,6 +78,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient.RequestHeadersSpec;
@@ -750,6 +755,28 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         @Test
+        void payloadTooLarge() {
+            // given a body one byte over the configured maximum request size
+            final var maxBytes = properties.getMaxRequestBodySize().toBytes();
+            final var transaction = new byte[(int) maxBytes + 1];
+
+            // when / then — the interceptor rejects it before the body is buffered/parsed
+            assertThatThrownBy(() -> restClient
+                            .post()
+                            .uri("")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class))
+                    .isInstanceOfSatisfying(HttpClientErrorException.class, e -> {
+                        assertThat(e.getStatusCode()).isEqualTo(HttpStatus.CONTENT_TOO_LARGE);
+                        assertThat(e.getResponseBodyAsString())
+                                .contains("\"_status\"")
+                                .contains("Request body %d exceeds maximum %d bytes".formatted(maxBytes + 1, maxBytes));
+                    });
+        }
+
+        @Test
         void invalidMode() {
             // given
             final var transaction = transaction();
@@ -778,6 +805,23 @@ final class NetworkControllerTest extends ControllerTest {
                     .toByteArray();
 
             // when / then
+            assertThatThrownBy(() -> restClient
+                            .post()
+                            .uri("")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class))
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class)
+                    .hasMessageContaining("Unable to parse transaction");
+        }
+
+        @Test
+        void deeplyNestedTransaction() {
+            // given a body within the max size but nested far beyond the parser's max depth
+            final var transaction = deeplyNestedTransactionBytes();
+
+            // when / then — rejected while parsing rather than exhausting the stack
             assertThatThrownBy(() -> restClient
                             .post()
                             .uri("")
@@ -944,6 +988,33 @@ final class NetworkControllerTest extends ControllerTest {
             final var transactionBody = TransactionBody.newBuilder()
                     .setMemo("test")
                     .setCryptoTransfer(cryptoTransfer)
+                    .build()
+                    .toByteString();
+            final var signedTransaction = SignedTransaction.newBuilder()
+                    .setBodyBytes(transactionBody)
+                    .build()
+                    .toByteString();
+            return Transaction.newBuilder()
+                    .setSignedTransactionBytes(signedTransaction)
+                    .build()
+                    .toByteArray();
+        }
+
+        private byte[] deeplyNestedTransactionBytes() {
+            // Wrap a Key in nested KeyLists to a depth well beyond ProtobufParser.MAX_DEPTH. Each level adds only a few
+            // bytes, so the payload stays small while its nesting would recurse the parser past the stack limit. The
+            // transaction is assembled by hand rather than via recordItemBuilder: its build() re-parses the transaction
+            // with protobuf-java, whose own recursion limit would reject this payload before it could be sent.
+            var key = Key.newBuilder().build();
+            for (int i = 0; i <= ProtobufParser.MAX_DEPTH; i++) {
+                key = Key.newBuilder()
+                        .setKeyList(KeyList.newBuilder().addKeys(key))
+                        .build();
+            }
+            final var cryptoCreate =
+                    CryptoCreateTransactionBody.newBuilder().setKey(key).build();
+            final var transactionBody = TransactionBody.newBuilder()
+                    .setCryptoCreateAccount(cryptoCreate)
                     .build()
                     .toByteString();
             final var signedTransaction = SignedTransaction.newBuilder()

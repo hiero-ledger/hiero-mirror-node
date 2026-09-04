@@ -64,8 +64,6 @@ server:
   compression:
     enabled: true
   forward-headers-strategy: framework #Enable spring ForwardedHeaderFilter
-  http2:
-    enabled: true
   max-http-request-header-size: 3KB
   port: 8084
   shutdown: graceful
@@ -73,7 +71,7 @@ server:
     connection-timeout: 3s
     keep-alive-timeout: 620s
     max-http-form-post-size: 1KB
-    max-swallow-size: 1KB
+    max-swallow-size: 150KB
 spring:
   aot:
     enabled: true

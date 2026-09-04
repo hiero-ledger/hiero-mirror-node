@@ -81,7 +81,7 @@ func newBlockchainOnlineRouter(
 		accountRepo,
 		baseService,
 		mirrorConfig.Rosetta.Cache[config.EntityCacheKey],
-		mirrorConfig.Rosetta.Response.MaxTransactionsInBlock,
+		mirrorConfig.Rosetta.Response,
 		serverContext,
 	)
 	blockAPIController := server.NewBlockAPIController(blockAPIService, asserter)

@@ -169,7 +169,7 @@ snyk
 rest/report.*
 rest/monitoring/config/serverlist.json
 report-*.csv
-
+tools/bootstrap/bootstrap
 web3/src/testHistorical/solidity/openzeppelin
 
 # AI

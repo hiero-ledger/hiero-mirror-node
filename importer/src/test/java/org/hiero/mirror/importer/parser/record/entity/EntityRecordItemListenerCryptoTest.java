@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.record.entity;
 
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_77_0;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransaction;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransactions;
 import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_ALIAS;
@@ -1034,6 +1035,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(newAddress)))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(r -> r.setTransactionID(transactionId))
+                .recordItem(r -> r.hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -1056,6 +1058,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(r -> r.setTransactionID(transactionId))
+                .recordItem(r -> r.hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -1076,7 +1079,8 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                 .transactionBody(b -> b.setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(r -> r.setTransactionID(transactionId))
-                .recordItem(r -> r.blockstream(true).accountEthereumNonce(expectedNonce))
+                .recordItem(r ->
+                        r.blockstream(true).accountEthereumNonce(expectedNonce).hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -1107,7 +1111,8 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(r -> r.setTransactionID(transactionId))
-                .recordItem(r -> r.blockstream(true).accountEthereumNonce(expectedNonce))
+                .recordItem(r ->
+                        r.blockstream(true).accountEthereumNonce(expectedNonce).hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -1136,11 +1141,30 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(zeroAddress)))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(r -> r.setTransactionID(transactionId))
+                .recordItem(r -> r.hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
         // then - zero address is persisted, not treated as null/clear
         assertThat(entityRepository.findById(account.getId())).get().returns(zeroAddress, Entity::getDelegationAddress);
+    }
+
+    @Test
+    void cryptoUpdateDelegationAddressSkippedBeforePectra() {
+        var account =
+                domainBuilder.entity().customize(e -> e.delegationAddress(null)).persist();
+        var protoAccountId = account.toEntityId().toAccountID();
+        var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b ->
+                        b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .record(r -> r.setTransactionID(transactionId))
+                .build();
+        parseRecordItemAndCommit(recordItem);
+
+        assertThat(entityRepository.findById(account.getId())).get().returns(null, Entity::getDelegationAddress);
     }
 
     @Test
@@ -2447,8 +2471,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         DomainUtils.getPublicKey(expected.getKey().toByteArray()), actualAccount.getPublicKey()),
                 () -> assertEquals(EntityId.of(expected.getProxyAccountID()), actualAccount.getProxyAccountId()),
                 () -> assertEquals(expected.getReceiverSigRequired(), actualAccount.getReceiverSigRequired()),
-                () -> assertEquals(
-                        expected.getDelegationAddress(), ByteString.copyFrom(actualAccount.getDelegationAddress())));
+                () -> assertNull(actualAccount.getDelegationAddress()));
     }
 
     protected IterableAssert<CryptoTransfer> assertCryptoTransfers(int expectedNumberOfCryptoTransfers) {

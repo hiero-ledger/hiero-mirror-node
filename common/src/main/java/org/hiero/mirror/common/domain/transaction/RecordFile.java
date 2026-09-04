@@ -23,6 +23,7 @@ import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.util.Version;
+import org.springframework.util.CollectionUtils;
 
 @Builder(toBuilder = true)
 @Data
@@ -39,6 +40,11 @@ public class RecordFile implements StreamFile<RecordItem> {
     public static final Version HAPI_VERSION_0_47_0 = new Version(0, 47, 0);
     public static final Version HAPI_VERSION_0_49_0 = new Version(0, 49, 0);
     public static final Version HAPI_VERSION_0_53_0 = new Version(0, 53, 0);
+    public static final Version HAPI_VERSION_0_77_0 = new Version(0, 77, 0);
+
+    @JsonIgnore
+    @Transient
+    private boolean amended;
 
     @ToString.Exclude
     private byte[] bytes;
@@ -168,6 +174,12 @@ public class RecordFile implements StreamFile<RecordItem> {
 
         public InitialState() {
             this(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+        }
+
+        public boolean isEmpty() {
+            return CollectionUtils.isEmpty(contracts)
+                    && CollectionUtils.isEmpty(entities)
+                    && CollectionUtils.isEmpty(fileDatum);
         }
     }
 }

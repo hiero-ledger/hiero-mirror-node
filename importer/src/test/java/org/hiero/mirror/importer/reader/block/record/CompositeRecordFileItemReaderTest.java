@@ -365,6 +365,34 @@ final class CompositeRecordFileItemReaderTest {
                                 .isEqualTo(amendedHash));
     }
 
+    @ParameterizedTest
+    @ValueSource(ints = {2, 5, 6})
+    void readWithAmendmentsPreservesSignedFileHash(final int version) {
+        // given - record file contents signed by the consensus nodes, and amendments which add an item at t2 and
+        // replace the item at t3
+        final var timestamp1 = TestUtils.toTimestamp(1_000_000_000L);
+        final var timestamp2 = TestUtils.toTimestamp(2_000_000_000L);
+        final var timestamp3 = TestUtils.toTimestamp(3_000_000_000L);
+        final var amendedHash = ByteString.copyFrom(TestUtils.generateRandomByteArray(48));
+        final var withAmendments = createRecordFileItemWithAmendments(
+                List.of(recordStreamItem(timestamp1), recordStreamItem(timestamp3)),
+                List.of(recordStreamItem(timestamp2), recordStreamItemWithHash(timestamp3, amendedHash)));
+        final var withoutAmendments =
+                withAmendments.toBuilder().clearAmendments().build();
+
+        // when
+        final var amended = reader.read(withAmendments, version);
+        final var signed = reader.read(withoutAmendments, version);
+
+        // then - the amendments are applied to the record items
+        assertThat(amended.getItems()).hasSize(3);
+        assertThat(signed.getItems()).hasSize(2);
+
+        // and - the file hash still matches the hash of the signed record file, so signature verification passes
+        assertThat(amended.getFileHash()).isEqualTo(signed.getFileHash());
+        assertThat(amended.getBytes()).isEqualTo(signed.getBytes());
+    }
+
     private static void assertRecordFileWithSidecars(
             final RecordFile recordFile, final ThrowingConsumer<List<? extends RecordItem>> recordItemAssertion) {
         assertRecordFileWithSidecars(recordFile, recordItemAssertion, sidecars -> assertThat(sidecars)

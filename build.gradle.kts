@@ -17,8 +17,8 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.40.1")
-    set("consensusNodeVersion", "0.76.2")
+    set("blockNodeVersion", "0.41.0")
+    set("consensusNodeVersion", "0.77.0-rc.11")
     set("grpc-java.version", "1.83.1") // Temporary until next Spring Boot
     set("httpclient5.version", "5.6.2") // Temporary until next Spring Boot
     set("httpcore5.version", "5.4.3") // Temporary until next Spring Boot
@@ -28,11 +28,11 @@ extra.apply {
     set("logback.version", "1.5.36") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
     set("netty.version", "4.2.16.Final") // Temporary until next Spring Boot
-    set("nodeJsVersion", "24.19.0")
+    set("nodeJsVersion", "24.20.0")
     set("protobufVersion", "4.34.1")
     set("springGrpcVersion", "1.0.3")
     set("postgresql.version", "42.7.13") // Temporary until next Spring Boot
-    set("tomcat.version", "11.0.23") // Temporary until next Spring Boot
+    set("tomcat.version", "11.0.25") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
 
@@ -50,7 +50,7 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.1")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-15")
+        api("com.github.luben:zstd-jni:1.5.7-16")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
@@ -64,7 +64,7 @@ dependencies {
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.77.0")
+        api("com.hedera.hashgraph:sdk:2.78.0-beta.1")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
@@ -82,9 +82,10 @@ dependencies {
         api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.bouncycastle:bcpkix-jdk18on:1.85") // Temporary until next hedera-app
         api("org.bouncycastle:bcprov-jdk18on:1.85.2")
-        api("org.gaul:s3proxy:4.0.0")
+        api("org.gaul:s3proxy:4.1.0")
         api("org.graalvm.nativeimage:svm:25.0.4.1")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
+        api("org.hyperledger.besu.internal:besu-crypto-algorithms:$besuVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
         api("org.hyperledger.besu:evm:$besuVersion")
@@ -94,7 +95,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.54.2")
+        api("software.amazon.awssdk:bom:2.54.7")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

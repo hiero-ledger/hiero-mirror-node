@@ -4,20 +4,31 @@ package org.hiero.mirror.importer.parser.record.ethereum;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.importer.parser.record.ethereum.AbstractEthereumTransactionParser.MAX_ACCESS_LIST_SIZE;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS_RAW;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY_RAW;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.accessList;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.encodeEip1559Transaction;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.encodeEip2930Transaction;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.encodeEip7702Transaction;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.encodeLegacyTransaction;
 
 import com.esaulpaugh.headlong.rlp.RLPDecoder;
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.rlp.RLPItem;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.transaction.AccessList;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
 import org.junit.jupiter.api.Test;
@@ -28,9 +39,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 @RequiredArgsConstructor
 abstract class AbstractEthereumTransactionParserTest extends ImporterIntegrationTest {
 
-    private static final String PADDED_ADDRESS = "0x0000000000000000000000000000000000000001";
-    private static final String PADDED_STORAGE_KEY =
-            "0x0000000000000000000000000000000000000000000000000000000000000081";
     private static final String SECOND_ACCESS_LIST_ADDRESS = "0x000000000000000000000000000000000000052d";
     private static final String SECOND_ACCESS_LIST_ADDRESS_RAW = "000000000000000000000000000000000000052d";
     private static final String SECOND_ACCESS_LIST_STORAGE_KEY =
@@ -52,11 +60,28 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
 
     @ParameterizedTest
     @MethodSource("accessListTransactionTypes")
-    void parseAccessListPadsShortRlpBytes(String transactionType) {
+    void parseAccessListPreservesShortRlpBytes(String transactionType) {
         final var accessList = parseAccessList(
                 List.of(List.of(new byte[] {0x01}, List.of(new byte[] {(byte) 0x81}))), transactionType);
 
-        assertThat(accessList).containsExactly(new AccessList(PADDED_ADDRESS, List.of(PADDED_STORAGE_KEY)));
+        assertThat(accessList).containsExactly(new AccessList("0x01", List.of("0x81")));
+    }
+
+    @ParameterizedTest
+    @MethodSource("shortAccessListFields")
+    void encodePreservesHashWithShortAccessList(String addressHex, String storageKeyHex) {
+        assertEncodeProducesOriginalHash(encodeTransaction(
+                accessList(addressHex, storageKeyHex), HexFormat.of().parseHex(RAW_TX_TYPE_1_CALL_DATA)));
+    }
+
+    @ParameterizedTest
+    @MethodSource("shortAccessListFields")
+    void getHashWithOffloadedCallDataAndShortAccessList(String addressHex, String storageKeyHex) {
+        final var shortAccessList = accessList(addressHex, storageKeyHex);
+        assertGetHashWithOffloadedCallData(
+                encodeTransaction(shortAccessList, HexFormat.of().parseHex(RAW_TX_TYPE_1_CALL_DATA)),
+                encodeTransaction(shortAccessList, new byte[0]),
+                RAW_TX_TYPE_1_CALL_DATA);
     }
 
     @ParameterizedTest
@@ -103,13 +128,21 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
 
     @ParameterizedTest
     @MethodSource("accessListTransactionTypes")
+    void parseAccessListEmptyString(String transactionType) {
+        final var accessListItem = RLPDecoder.RLP_STRICT.wrapItem(new byte[] {(byte) 0x80});
+
+        assertThat(AbstractEthereumTransactionParser.parseAccessList(accessListItem, transactionType))
+                .isEmpty();
+    }
+
+    @ParameterizedTest
+    @MethodSource("accessListTransactionTypes")
     void parseAccessListNotList(String transactionType) {
         final var accessListItem =
                 RLPDecoder.RLP_STRICT.wrapItem(RLPEncoder.string(HexFormat.of().parseHex(ACCESS_LIST_ADDRESS_RAW)));
 
-        assertThatThrownBy(() -> AbstractEthereumTransactionParser.parseAccessList(accessListItem, transactionType))
-                .isInstanceOf(InvalidEthereumBytesException.class)
-                .hasMessage(decodeError(transactionType, "Access list is not a list"));
+        assertThat(AbstractEthereumTransactionParser.parseAccessList(accessListItem, transactionType))
+                .isEmpty();
     }
 
     @ParameterizedTest
@@ -145,6 +178,78 @@ abstract class AbstractEthereumTransactionParserTest extends ImporterIntegration
         assertThatThrownBy(() -> AbstractEthereumTransactionParser.parseAccessList(accessListItem, transactionType))
                 .isInstanceOf(InvalidEthereumBytesException.class)
                 .hasMessage(decodeError(transactionType, "Access list entry size was 3 but expected 2"));
+    }
+
+    @Test
+    void parseAccessListAtMaxSize() {
+        final var entries = Collections.nCopies(MAX_ACCESS_LIST_SIZE, List.of(new byte[] {0x01}, List.of()));
+
+        assertThat(parseAccessList(entries, "EIP1559")).hasSize(MAX_ACCESS_LIST_SIZE);
+    }
+
+    @Test
+    void parseAccessListExceedsMaxSize() {
+        final var entries = Collections.nCopies(MAX_ACCESS_LIST_SIZE + 1, List.of(new byte[] {0x01}, List.of()));
+
+        assertThatThrownBy(() -> parseAccessList(entries, "EIP1559"))
+                .isInstanceOf(InvalidEthereumBytesException.class)
+                .hasMessage(decodeError(
+                        "EIP1559",
+                        "Access list size was %d but expected at most %d"
+                                .formatted(MAX_ACCESS_LIST_SIZE + 1, MAX_ACCESS_LIST_SIZE)));
+    }
+
+    protected void assertEncodeProducesOriginalHash(byte[] transactionBytes) {
+        final var decoded = ethereumTransactionParser.decode(transactionBytes);
+        if (ethereumTransactionParser instanceof AbstractEthereumTransactionParser parser) {
+            final var encoded = parser.encode(decoded);
+            assertThat(encoded).isEqualTo(transactionBytes);
+            assertThat(new Keccak.Digest256().digest(encoded))
+                    .isEqualTo(new Keccak.Digest256().digest(transactionBytes));
+            return;
+        }
+        assertThat(ethereumTransactionParser.getHash(decoded.getCallData(), null, 0L, transactionBytes, true))
+                .isEqualTo(new Keccak.Digest256().digest(transactionBytes));
+    }
+
+    private byte[] encodeTransaction(Object accessList, byte[] callData) {
+        return switch (ethereumTransactionParser) {
+            case Eip2930EthereumTransactionParser ignored -> encodeEip2930Transaction(accessList, callData);
+            case Eip7702EthereumTransactionParser ignored -> encodeEip7702Transaction(accessList, callData);
+            case LegacyEthereumTransactionParser ignored -> encodeLegacyTransaction(callData);
+            default -> encodeEip1559Transaction(accessList, callData);
+        };
+    }
+
+    protected void assertEmptyAccessListFormatsProduceSameHash(byte[] emptyListTx, byte[] emptyStringTx) {
+        final var parser = (AbstractEthereumTransactionParser) ethereumTransactionParser;
+        final var hashFromEmptyList = new Keccak.Digest256().digest(parser.encode(parser.decode(emptyListTx)));
+        final var hashFromEmptyString = new Keccak.Digest256().digest(parser.encode(parser.decode(emptyStringTx)));
+
+        assertThat(hashFromEmptyString).isEqualTo(hashFromEmptyList);
+        assertThat(hashFromEmptyList).isEqualTo(new Keccak.Digest256().digest(emptyListTx));
+    }
+
+    protected void assertGetHashWithOffloadedCallData(byte[] original, byte[] offloaded, String callDataHex) {
+        final var expected = new Keccak.Digest256().digest(original);
+        final var fileData = domainBuilder
+                .fileData()
+                .customize(f -> f.fileData(callDataHex.getBytes(StandardCharsets.UTF_8)))
+                .persist();
+        final var actual = ethereumTransactionParser.getHash(
+                DomainUtils.EMPTY_BYTE_ARRAY,
+                fileData.getEntityId(),
+                fileData.getConsensusTimestamp() + 1,
+                offloaded,
+                true);
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    private static Stream<Arguments> shortAccessListFields() {
+        return Stream.of(
+                Arguments.of("01", ACCESS_LIST_STORAGE_KEY_RAW),
+                Arguments.of(ACCESS_LIST_ADDRESS_RAW, "81"),
+                Arguments.of("01", "81"));
     }
 
     private static Stream<Arguments> accessListTransactionTypes() {

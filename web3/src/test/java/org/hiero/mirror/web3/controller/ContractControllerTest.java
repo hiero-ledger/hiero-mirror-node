@@ -456,15 +456,19 @@ final class ContractControllerTest {
 
     @ParameterizedTest
     @MethodSource("serverResponseCodes")
-    void callWithErrorStatusesProducesInternalServerErrorTest(ResponseCodeEnum responseCode) throws Exception {
+    void serverErrorStatusesDoNotLeakErrorDetailsToClient(ResponseCodeEnum responseCode) throws Exception {
         final var request = request();
         request.setData("0xa26388bb");
 
-        given(service.processCall(any())).willThrow(new MirrorEvmTransactionException(responseCode, null, null));
+        given(service.processCall(any()))
+                .willThrow(new MirrorEvmTransactionException(responseCode, "internal detail", "0xdeadbeef"));
 
+        // On 5xx the detail and data must be redacted so internal server-side state is never leaked to the client.
         contractCall(request)
                 .andExpect(status().isInternalServerError())
-                .andExpect(content().string(convert(new GenericErrorResponse(responseCode.name(), null, null))));
+                .andExpect(content()
+                        .string(convert(
+                                new GenericErrorResponse(responseCode.name(), StringUtils.EMPTY, StringUtils.EMPTY))));
     }
 
     @Test

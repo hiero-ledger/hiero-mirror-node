@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
@@ -1354,11 +1355,11 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // when
         var ledgerAUpdate2 = domainBuilder
                 .ledger()
-                .customize(l -> l.ledgerId(ledgerAUpdate1.getLedgerId()))
+                .customize(l -> l.ledgerId(ArrayUtils.clone(ledgerAUpdate1.getLedgerId())))
                 .get();
         var ledgerBUpdate2 = domainBuilder
                 .ledger()
-                .customize(l -> l.ledgerId(ledgerBUpdate1.getLedgerId()))
+                .customize(l -> l.ledgerId(ArrayUtils.clone(ledgerBUpdate1.getLedgerId())))
                 .get();
         sqlEntityListener.onLedger(ledgerAUpdate2);
         sqlEntityListener.onLedger(ledgerBUpdate2);

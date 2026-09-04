@@ -8,6 +8,10 @@ plugins {
     id("spring-conventions")
 }
 
+configurations.all {
+    exclude(group = "io.vertx") // Unused and frequently has vulnerabilities
+}
+
 dependencies {
     annotationProcessor("org.mapstruct:mapstruct-processor")
     implementation(project(":common"))

@@ -56,6 +56,7 @@ import org.hiero.mirror.web3.repository.projections.TokenAccountAssociationsCoun
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -73,7 +74,7 @@ class AccountReadableKVStateTest {
     private static final long TOKEN_NUM = 1253L;
     private static final AccountID ACCOUNT_ID =
             new AccountID(SHARD, REALM, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, NUM));
-    private static final String LONG_ZERO_ADDRESS = toAddress(NUM).toUnprefixedHexString();
+    private static final String LONG_ZERO_ADDRESS = toAddress(NUM).getBytes().toUnprefixedHexString();
     private static final Bytes LONG_ZERO_ADDRESS_BYTES = Bytes.fromHex(LONG_ZERO_ADDRESS);
     private static final AccountID ACCOUNT_ID_TOKEN =
             new AccountID(SHARD, REALM, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, TOKEN_NUM));
@@ -198,6 +199,28 @@ class AccountReadableKVStateTest {
                 .returns(entity.getBalance(), Account::tinybarBalance)
                 .returns(entity.getAutoRenewPeriod(), Account::autoRenewSeconds)
                 .returns(entity.getMaxAutomaticTokenAssociations(), Account::maxAutoAssociations));
+    }
+
+    @Test
+    void doesNotApplyDelegationAddressBeforePectra() {
+        final var delegation = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        entity.setDelegationAddress(delegation);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        when(evmProperties.isPectraEvm()).thenReturn(false);
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account).returns(Bytes.EMPTY, Account::delegationAddress));
+    }
+
+    @Test
+    void appliesDelegationAddressOnPectra() {
+        final var delegation = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        entity.setDelegationAddress(delegation);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        when(evmProperties.isPectraEvm()).thenReturn(true);
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account).returns(Bytes.wrap(delegation), Account::delegationAddress));
     }
 
     @Test
@@ -659,7 +682,8 @@ class AccountReadableKVStateTest {
     @Test
     void whenAccountMissingAndStateOverridePresentCreatesSyntheticAccount() {
         final var missingAccount = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 4001L));
-        final var missingAccountAddress = toAddress(missingAccount.accountNum()).toUnprefixedHexString();
+        final var missingAccountAddress =
+                toAddress(missingAccount.accountNum()).getBytes().toUnprefixedHexString();
         final var missingAccountBytes = Bytes.fromHex(missingAccountAddress);
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(missingAccount, Optional.empty())).thenReturn(Optional.empty());
@@ -727,6 +751,78 @@ class AccountReadableKVStateTest {
     }
 
     @Test
+    void whenStateOverrideHasCodeMarksAccountAsSmartContract() {
+        entity.setEvmAddress(null);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        contractCallContext.setStateOverrides(Map.of(
+                LONG_ZERO_ADDRESS_BYTES, stateOverride(LONG_ZERO_ADDRESS_BYTES.toHex(), null, null, "0x6080604052")));
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account).returns(true, Account::smartContract));
+    }
+
+    @Test
+    void whenStateOverrideHasStorageMarksNonDelegatedAccountAsSmartContract() {
+        entity.setEvmAddress(null);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        contractCallContext.setStateOverrides(
+                Map.of(LONG_ZERO_ADDRESS_BYTES, stateOverrideWithStorage(LONG_ZERO_ADDRESS_BYTES.toHex(), false)));
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account).returns(true, Account::smartContract));
+    }
+
+    @Test
+    void whenStateOverrideHasStorageDoesNotMarkDelegatedAccountAsSmartContract() {
+        final var delegation = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        entity.setEvmAddress(null);
+        entity.setDelegationAddress(delegation);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        when(evmProperties.isPectraEvm()).thenReturn(true);
+        contractCallContext.setStateOverrides(
+                Map.of(LONG_ZERO_ADDRESS_BYTES, stateOverrideWithStorage(LONG_ZERO_ADDRESS_BYTES.toHex(), false)));
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
+                .returns(false, Account::smartContract)
+                .returns(Bytes.wrap(delegation), Account::delegationAddress));
+    }
+
+    @Test
+    void whenStateOverrideHasStateDiffDoesNotMarkDelegatedAccountAsSmartContract() {
+        final var delegation = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        entity.setEvmAddress(null);
+        entity.setDelegationAddress(delegation);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        when(evmProperties.isPectraEvm()).thenReturn(true);
+        contractCallContext.setStateOverrides(
+                Map.of(LONG_ZERO_ADDRESS_BYTES, stateOverrideWithStorage(LONG_ZERO_ADDRESS_BYTES.toHex(), true)));
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
+                .returns(false, Account::smartContract)
+                .returns(Bytes.wrap(delegation), Account::delegationAddress));
+    }
+
+    @Test
+    void whenStateOverrideHasCodeMarksDelegatedAccountAsSmartContract() {
+        final var delegation = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        entity.setEvmAddress(null);
+        entity.setDelegationAddress(delegation);
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
+        when(evmProperties.isPectraEvm()).thenReturn(true);
+        contractCallContext.setStateOverrides(Map.of(
+                LONG_ZERO_ADDRESS_BYTES, stateOverride(LONG_ZERO_ADDRESS_BYTES.toHex(), null, null, "0x6080604052")));
+
+        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
+                .returns(true, Account::smartContract)
+                .returns(Bytes.wrap(delegation), Account::delegationAddress));
+    }
+
+    @Test
     void whenStateOverridesExistButNoMatchingAddressLeavesAccountUnchanged() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
@@ -748,6 +844,19 @@ class AccountReadableKVStateTest {
         override.setBalance(balance);
         override.setNonce(nonce);
         override.setCode(code);
+        return override;
+    }
+
+    private StateOverride stateOverrideWithStorage(String address, boolean useStateDiff) {
+        final var entry = new StorageEntry();
+        entry.setKey("0x" + "00".repeat(32));
+        entry.setValue("0x" + "11".repeat(32));
+        final var override = stateOverride(address, null, null, null);
+        if (useStateDiff) {
+            override.setStateDiff(List.of(entry));
+        } else {
+            override.setState(List.of(entry));
+        }
         return override;
     }
 }

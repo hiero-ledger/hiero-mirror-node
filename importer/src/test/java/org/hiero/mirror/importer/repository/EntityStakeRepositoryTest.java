@@ -457,7 +457,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
     void createEntityStateStartWithChunking() {
         // given: two entities whose IDs are in different chunks
         final int chunkSize = 400;
-        final long accountId = 100L;
+        final long accountId = domainBuilder.entityNum(100L).getId();
         stakingProperties.setChunkSize(chunkSize);
 
         final long epochDay = 1000L;
@@ -502,7 +502,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         // given: two chunks separated by a measurable delay
         final var chunkDelay = Duration.ofMillis(50);
         final int chunkSize = 400;
-        final long accountId = 100L;
+        final long accountId = domainBuilder.entityNum(100L).getId();
         stakingProperties.setChunkSize(chunkSize);
         stakingProperties.setChunkDelay(chunkDelay);
 
@@ -1008,7 +1008,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         // forfeitedStakingPeriod is the first period the account has earned staking reward, so the stake period start
         // is forfeitedStakingPeriod - 1
         var account = domainBuilder
-                .entity(stakingRewardAccountId + domainBuilder.id(), entityLowerTimestamp + 1)
+                .entity(domainBuilder.id(), entityLowerTimestamp + 1)
                 .customize(e -> e.stakedNodeId(forfeitedStakingPeriod - 1))
                 .persist();
         // To make it underflow (pending reward becomes negative after forfeiting), the reward rate needs to be large
@@ -1133,7 +1133,7 @@ final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                 .entity(stakingRewardAccountId, entityLowerTimestamp)
                 .persist();
         final var account = domainBuilder
-                .entity(stakingRewardAccountId + domainBuilder.id(), entityLowerTimestamp + 1)
+                .entity(domainBuilder.id(), entityLowerTimestamp + 1)
                 .customize(e -> e.stakedNodeId(forfeitedStakingPeriod - 1))
                 .persist();
         domainBuilder

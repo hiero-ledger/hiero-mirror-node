@@ -15,6 +15,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Table;
@@ -88,6 +89,10 @@ public class ContractResult implements Persistable<Long> {
         return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = DomainUtils.sanitize(errorMessage);
+    }
+
     public ContractTransactionHash toContractTransactionHash() {
         return ContractTransactionHash.builder()
                 .consensusTimestamp(consensusTimestamp)
@@ -96,5 +101,13 @@ public class ContractResult implements Persistable<Long> {
                 .payerAccountId(payerAccountId.getId())
                 .transactionResult(transactionResult)
                 .build();
+    }
+
+    public abstract static class ContractResultBuilder<
+            C extends ContractResult, B extends ContractResultBuilder<C, B>> {
+        public B errorMessage(String errorMessage) {
+            this.errorMessage = DomainUtils.sanitize(errorMessage);
+            return self();
+        }
     }
 }

@@ -45,7 +45,7 @@ class ContractBytecodeReadableKVStateTest {
     private static final ContractID CONTRACT_ID_WITH_NUM =
             new ContractID(1L, 0L, new OneOf<>(ContractOneOfType.CONTRACT_NUM, 1L));
     private static final String CONTRACT_ID_WITH_NUM_ADDRESS =
-            toAddress(CONTRACT_ID_WITH_NUM.contractNum()).toUnprefixedHexString();
+            toAddress(CONTRACT_ID_WITH_NUM.contractNum()).getBytes().toUnprefixedHexString();
     private static final EntityId ENTITY_ID_WITH_NUM = EntityId.of(
             CONTRACT_ID_WITH_NUM.shardNum(), CONTRACT_ID_WITH_NUM.realmNum(), CONTRACT_ID_WITH_NUM.contractNum());
     private static final Bytes BYTES = Bytes.fromBase64("123456");
@@ -58,15 +58,27 @@ class ContractBytecodeReadableKVStateTest {
     private static final Address MISSING_EVM_ADDRESS =
             Address.fromHexString("0x8d12a197cb00d4747a1fe03395095ce2a5cc6819");
     private static final ContractID CONTRACT_ID_WITH_MIRROR_EVM_ADDRESS = new ContractID(
-            1L, 0L, new OneOf<>(ContractOneOfType.EVM_ADDRESS, Bytes.wrap(MIRROR_ADDRESS.toArrayUnsafe())));
+            1L,
+            0L,
+            new OneOf<>(
+                    ContractOneOfType.EVM_ADDRESS,
+                    Bytes.wrap(MIRROR_ADDRESS.getBytes().toArrayUnsafe())));
     private static final EntityId ENTITY_ID_WITH_MIRROR_EVM_ADDRESS =
             EntityId.of(entityIdNumFromEvmAddress(MIRROR_ADDRESS));
-    private static final ContractID CONTRACT_ID_WITH_EVM_ADDRESS =
-            new ContractID(1L, 0L, new OneOf<>(ContractOneOfType.EVM_ADDRESS, Bytes.wrap(EVM_ADDRESS.toArrayUnsafe())));
+    private static final ContractID CONTRACT_ID_WITH_EVM_ADDRESS = new ContractID(
+            1L,
+            0L,
+            new OneOf<>(
+                    ContractOneOfType.EVM_ADDRESS,
+                    Bytes.wrap(EVM_ADDRESS.getBytes().toArrayUnsafe())));
     private static final ContractID CONTRACT_ID_WITH_MISSING_EVM_ADDRESS = new ContractID(
-            1L, 0L, new OneOf<>(ContractOneOfType.EVM_ADDRESS, Bytes.wrap(MISSING_EVM_ADDRESS.toArrayUnsafe())));
+            1L,
+            0L,
+            new OneOf<>(
+                    ContractOneOfType.EVM_ADDRESS,
+                    Bytes.wrap(MISSING_EVM_ADDRESS.getBytes().toArrayUnsafe())));
     private static final Entity ENTITY = Entity.builder()
-            .evmAddress(EVM_ADDRESS.toArrayUnsafe())
+            .evmAddress(EVM_ADDRESS.getBytes().toArrayUnsafe())
             .shard(1L)
             .realm(0L)
             .num(1L)
@@ -127,7 +139,8 @@ class ContractBytecodeReadableKVStateTest {
 
     @Test
     void whenContractEvmAddressIsSetReturnRuntimeBytecode() {
-        when(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(EVM_ADDRESS.toArray(), Optional.empty()))
+        when(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(
+                        EVM_ADDRESS.getBytes().toArrayUnsafe(), Optional.empty()))
                 .thenReturn(Optional.of(ENTITY));
         when(contractRepository.findRuntimeBytecode(ENTITY.toEntityId().getId()))
                 .thenReturn(Optional.of(new ContractRuntimeBytecode(BYTES.toByteArray())));
@@ -138,7 +151,8 @@ class ContractBytecodeReadableKVStateTest {
     @Test
     void whenHistoricalContractEvmAddressIsSetUsesTimestamp() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.of(TIMESTAMP));
-        when(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(EVM_ADDRESS.toArray(), Optional.of(TIMESTAMP)))
+        when(commonEntityAccessor.getEntityByEvmAddressAndTimestamp(
+                        EVM_ADDRESS.getBytes().toArrayUnsafe(), Optional.of(TIMESTAMP)))
                 .thenReturn(Optional.of(ENTITY));
         when(contractRepository.findRuntimeBytecode(ENTITY.toEntityId().getId()))
                 .thenReturn(Optional.of(new ContractRuntimeBytecode(BYTES.toByteArray())));
@@ -190,7 +204,7 @@ class ContractBytecodeReadableKVStateTest {
     void whenAliasFoundInDBReturnsOverride() {
         // The override is keyed by the contract's non-long-zero EVM alias even though the lookup uses contractNum.
         contractCallContext.setStateOverrides(
-                Map.of(Bytes.wrap(EVM_ADDRESS.toArrayUnsafe()), stateOverrideWithCode(OVERRIDE_CODE_HEX)));
+                Map.of(Bytes.wrap(EVM_ADDRESS.getBytes().toArrayUnsafe()), stateOverrideWithCode(OVERRIDE_CODE_HEX)));
         when(commonEntityAccessor.evmAddressFromId(ENTITY_ID_WITH_NUM, Optional.empty()))
                 .thenReturn(EVM_ADDRESS);
 
@@ -207,7 +221,8 @@ class ContractBytecodeReadableKVStateTest {
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_MISSING_EVM_ADDRESS))
                 .isEqualTo(OVERRIDE_BYTECODE);
         verify(commonEntityAccessor, never())
-                .getEntityByEvmAddressAndTimestamp(MISSING_EVM_ADDRESS.toArrayUnsafe(), Optional.empty());
+                .getEntityByEvmAddressAndTimestamp(
+                        MISSING_EVM_ADDRESS.getBytes().toArrayUnsafe(), Optional.empty());
     }
 
     @Test

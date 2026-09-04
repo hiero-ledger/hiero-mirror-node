@@ -360,6 +360,26 @@ class OpcodesControllerTest {
                         CONTRACT_EXECUTION_EXCEPTION.name(), detailedErrorMessage, hexDataErrorMessage)));
     }
 
+    private static Stream<ResponseCodeEnum> serverResponseCodes() {
+        return GenericControllerAdvice.SERVER_RESPONSE_CODES.stream();
+    }
+
+    @ParameterizedTest
+    @MethodSource("serverResponseCodes")
+    void serverErrorStatusesDoNotLeakErrorDetailsToClient(final ResponseCodeEnum responseCode) throws Exception {
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(TransactionProviderEnum.CONTRACT_CALL);
+
+        reset(contractDebugService);
+        when(contractDebugService.processOpcodeCall(
+                        callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
+                .thenThrow(new MirrorEvmTransactionException(responseCode, "internal detail", "0xdeadbeef"));
+
+        // On 5xx the detail and data must be redacted so internal server-side state is never leaked to the client.
+        mockMvc.perform(opcodesRequest(transactionIdOrHash))
+                .andExpect(status().isInternalServerError())
+                .andExpect(responseBody(new GenericErrorResponse(responseCode.name(), "", "")));
+    }
+
     @ParameterizedTest
     @EnumSource(TransactionProviderEnum.class)
     void unsuccessfulCall(final TransactionProviderEnum providerEnum) throws Exception {

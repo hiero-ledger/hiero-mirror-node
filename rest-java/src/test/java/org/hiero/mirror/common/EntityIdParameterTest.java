@@ -139,6 +139,22 @@ final class EntityIdParameterTest {
         assertThatThrownBy(() -> EntityIdParameter.valueOf(input)).isInstanceOf(InvalidEntityException.class);
     }
 
+    // The alias regex accepts any length in [40, 70], but RFC 4648 base32 has no valid final quantum for lengths where
+    // length % 8 is in {1, 3, 6}. Such inputs match the regex yet fail to decode; verify they still surface as a clean
+    // IllegalArgumentException (mapped to HTTP 400) rather than propagating an unhandled decoding error.
+    // Prefixes of the valid ALIAS above, truncated to lengths whose length % 8 is in {1, 3, 6}.
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME", // 41 chars, 41 % 8 == 1
+                "0.HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B", // 43 chars, 43 % 8 == 3
+                "0.0.HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PR" // 46 chars, 46 % 8 == 6
+            })
+    @DisplayName("EntityId parse from string tests, regex-matching but undecodable base32 aliases")
+    void entityParseFromStringUndecodableAlias(String inputId) {
+        assertThatThrownBy(() -> EntityIdParameter.valueOf(inputId)).isInstanceOf(IllegalArgumentException.class);
+    }
+
     @ParameterizedTest
     @MethodSource("parsableIds")
     void valueOfId(String givenEntityId, long expectedShard, long expectedRealm, long expectedNum) {
