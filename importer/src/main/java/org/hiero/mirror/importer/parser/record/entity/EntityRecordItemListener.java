@@ -80,6 +80,12 @@ public class EntityRecordItemListener implements RecordItemListener {
             return;
         }
 
+        if (isUnencodablePayer(recordItem)) {
+            DomainUtils.logRecoverableError(
+                    "Invalid payer account ID for consensusTimestamp {}", recordItem.getConsensusTimestamp());
+            return;
+        }
+
         final var persistProperties = entityProperties.getPersist();
         recordItem.setEntityTransactionPredicate(persistProperties::shouldPersistEntityTransaction);
         recordItem.setEntityNftTransactionPredicate(persistProperties::shouldPersistEntityNftTransaction);
@@ -779,5 +785,14 @@ public class EntityRecordItemListener implements RecordItemListener {
 
         entities.remove(null);
         return new TransactionFilterFields(entities, recordItem);
+    }
+
+    private static boolean isUnencodablePayer(final RecordItem recordItem) {
+        if (!EntityId.isEmpty(recordItem.getPayerAccountId())) {
+            return false;
+        }
+
+        final var accountId = recordItem.getTransactionBody().getTransactionID().getAccountID();
+        return accountId.getShardNum() != 0 || accountId.getRealmNum() != 0 || accountId.getAccountNum() != 0;
     }
 }
