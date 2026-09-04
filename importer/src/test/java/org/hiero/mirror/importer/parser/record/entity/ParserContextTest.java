@@ -87,6 +87,22 @@ class ParserContextTest {
     }
 
     @Test
+    void replace() {
+        final var entity1 = domainBuilder.entity().get();
+        final var entity2 =
+                domainBuilder.entity().customize(e -> e.id(entity1.getId())).get();
+
+        parserContext.replace(entity1.getId(), entity1);
+        assertThat(parserContext.get(Entity.class, entity1.getId())).isEqualTo(entity1);
+        assertThat(parserContext.get(Entity.class)).isEqualTo(List.of(entity1));
+
+        parserContext.replace(entity2.getId(), entity2);
+        assertThat(parserContext.get(Entity.class, entity1.getId())).isEqualTo(entity2);
+        assertThat(parserContext.get(Entity.class, entity2.getId())).isEqualTo(entity2);
+        assertThat(parserContext.get(Entity.class)).isEqualTo(List.of(entity2));
+    }
+
+    @Test
     void addTransient() {
         assertThatThrownBy(() -> parserContext.addTransient(null)).isInstanceOf(NullPointerException.class);
         var domain = domainBuilder.entity().get();

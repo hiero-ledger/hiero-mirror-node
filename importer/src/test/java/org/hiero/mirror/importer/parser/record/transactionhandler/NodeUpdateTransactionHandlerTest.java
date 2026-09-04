@@ -20,6 +20,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -209,5 +210,28 @@ final class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerT
                 .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
                 .returns(false, Node::isDeleted)
                 .returns(null, Node::getGrpcProxyEndpoint)));
+    }
+
+    @Test
+    void nodeUpdateInvalidDomainName() {
+        // given
+        final var domainName = "hedera.com" + DomainUtils.NULL_CHARACTER;
+        final var recordItem = recordItemBuilder
+                .nodeUpdate()
+                .transactionBody(b -> b.getGrpcProxyEndpointBuilder().setDomainName(domainName))
+                .build();
+        final var transaction = domainBuilder.transaction().get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
+                .isNotNull()
+                .extracting(Node::getGrpcProxyEndpoint)
+                .extracting(ServiceEndpoint::domainName)
+                .asString()
+                .startsWith("hedera.com")
+                .doesNotContain(String.valueOf(DomainUtils.NULL_CHARACTER))));
     }
 }
