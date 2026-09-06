@@ -8,7 +8,6 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.Selecto
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 
-import com.google.common.base.Suppliers;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
@@ -17,7 +16,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Supplier;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.tuweni.bytes.Bytes32;
@@ -26,7 +24,6 @@ import org.hiero.mirror.rest.model.ContractActionsResponse;
 import org.hiero.mirror.rest.model.ContractResult;
 import org.hiero.mirror.test.e2e.acceptance.config.FeatureProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
-import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.client.HttpClientErrorException;
@@ -46,31 +43,6 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
 
     @Autowired
     protected Web3Properties web3Properties;
-
-    // Temporary until consensus node with code deposit change is deployed to all environments.
-    private final Supplier<Boolean> shouldUseCodeDepositCost = Suppliers.memoize(() -> {
-        try {
-            var blocksResponse = mirrorClient.getBlocks(Order.DESC, 1);
-            verifyMirrorTransactionsResponse(mirrorClient, 200);
-
-            if (blocksResponse != null && !blocksResponse.getBlocks().isEmpty()) {
-                var latestBlock = blocksResponse.getBlocks().getFirst();
-                String hapiVersion = latestBlock.getHapiVersion();
-                if (hapiVersion != null) {
-                    String[] versionParts = hapiVersion.split("\\.");
-                    if (versionParts.length == 3) {
-                        int minor = Integer.parseInt(versionParts[1]);
-                        return minor >= featureProperties.getHapiMinorVersionWithoutGasRefund();
-                    } else {
-                        return false;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            return false;
-        }
-        return false;
-    });
 
     /**
      * Checks if the estimatedGas is within the specified range of the actualGas.
@@ -233,7 +205,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
         var gasUsed = getGasFromActions(txId);
         // If there is a nested deploy the gas consumption is already captured in sidecars, so we shouldn't add
         // additional code deposit
-        var codeDepositCost = !shouldUseCodeDepositCost.get() || hasNestedDeploy ? 0L : getCodeDepositGas(contractId);
+        var codeDepositCost = hasNestedDeploy ? 0L : getCodeDepositGas(contractId);
         assertThat(gasConsumed).isEqualTo(gasUsed + codeDepositCost + totalGasFee);
     }
 
@@ -260,7 +232,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
         if (data instanceof String) {
             values = Hex.decodeHex(((String) data).replaceFirst(HEX_PREFIX, ""));
             int initCodeCost = (values.length + Bytes32.SIZE - 1) / Bytes32.SIZE * 2;
-            total += ADDITIONAL_FEE_FOR_CREATE + (shouldUseCodeDepositCost.get() ? initCodeCost : 0);
+            total += ADDITIONAL_FEE_FOR_CREATE + initCodeCost;
         } else if (data instanceof byte[]) {
             values = (byte[]) data;
         } else {

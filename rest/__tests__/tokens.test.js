@@ -369,6 +369,71 @@ describe('token extractSqlFromTokenRequest tests', () => {
       expectedLimit
     );
   });
+
+  const nameFilterQuery = [tokens.tokensSelectQuery, tokens.entityIdJoinQuery].join('\n');
+  const nameFilterExpectedQuery = `
+    select
+      t.decimals,
+      t.freeze_status,
+      e.key,
+      t.kyc_status,
+      t.metadata,
+      t.name,
+      t.symbol,
+      t.token_id,
+      t.type
+    from token t
+           join entity e on e.id = t.token_id
+    where t.name ILIKE $1
+    order by t.token_id asc
+    limit $2`;
+
+  test('Verify name filter wraps value with wildcards for substring match', () => {
+    const filters = [{key: constants.filterKeys.NAME, operator: ' = ', value: 'foo'}];
+
+    verifyExtractSqlFromTokenRequest(
+      nameFilterQuery,
+      [],
+      filters,
+      null,
+      nameFilterExpectedQuery,
+      ['%foo%', defaultLimit],
+      constants.orderFilterValues.ASC,
+      defaultLimit
+    );
+  });
+
+  test('Verify name filter escapes LIKE wildcards (% and _) so they match literally', () => {
+    const filters = [{key: constants.filterKeys.NAME, operator: ' = ', value: '50%_off'}];
+
+    // Without escaping the value would be pushed as '%50%_off%', where % and _ act as wildcards, broadening
+    // the match and defeating the token__name trigram index. Escaped, they are matched literally.
+    verifyExtractSqlFromTokenRequest(
+      nameFilterQuery,
+      [],
+      filters,
+      null,
+      nameFilterExpectedQuery,
+      ['%50\\%\\_off%', defaultLimit],
+      constants.orderFilterValues.ASC,
+      defaultLimit
+    );
+  });
+
+  test('Verify name filter escapes the backslash escape character', () => {
+    const filters = [{key: constants.filterKeys.NAME, operator: ' = ', value: 'a\\b'}];
+
+    verifyExtractSqlFromTokenRequest(
+      nameFilterQuery,
+      [],
+      filters,
+      null,
+      nameFilterExpectedQuery,
+      ['%a\\\\b%', defaultLimit],
+      constants.orderFilterValues.ASC,
+      defaultLimit
+    );
+  });
 });
 
 const verifyExtractSqlFromTokenRequest = (

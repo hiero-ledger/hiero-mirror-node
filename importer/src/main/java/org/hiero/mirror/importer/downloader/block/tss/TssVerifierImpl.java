@@ -24,7 +24,6 @@ import org.jspecify.annotations.Nullable;
 final class TssVerifierImpl implements TssVerifier {
 
     private static final Ledger EMPTY = new Ledger();
-
     private final AtomicReference<Optional<Ledger>> ledger = new AtomicReference<>(Optional.empty());
     private final LedgerRepository ledgerRepository;
 
@@ -32,19 +31,18 @@ final class TssVerifierImpl implements TssVerifier {
     private volatile @Nullable Ledger ledgerOnChain;
 
     @Override
-    public void setLedger(final Ledger ledger, final boolean fromConfig) {
+    public synchronized void setLedger(final Ledger ledger, final boolean fromConfig) {
         if (fromConfig) {
             ledgerConfig = ledger;
         } else {
             ledgerOnChain = ledger;
         }
 
-        // Clear the atomic reference to reload the ledger
         this.ledger.set(Optional.empty());
     }
 
     @Override
-    public void verify(final long blockNumber, final byte[] message, final byte[] signature) {
+    public synchronized void verify(final long blockNumber, final byte[] message, final byte[] signature) {
         final var ledgerId = getLedger().getLedgerId();
         if (!TSS.verifyTSS(ledgerId, signature, message)) {
             if (log.isDebugEnabled()) {
@@ -71,7 +69,7 @@ final class TssVerifierImpl implements TssVerifier {
                                 return l;
                             })
                             .or(() -> Optional.of(EMPTY));
-                    ledger.compareAndSet(Optional.empty(), resolved);
+                    ledger.set(resolved);
                     return resolved;
                 })
                 .filter(l -> l != EMPTY)

@@ -17,6 +17,7 @@ import java.util.Optional;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenAccount;
 import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
@@ -183,7 +184,8 @@ class TokenRelationshipReadableKVStateTest {
                 .automaticAssociation(true)
                 .build();
         when(contractCallContext.getTimestamp()).thenReturn(timestamp);
-        when(tokenRepository.findTypeByTokenId(anyLong())).thenReturn(Optional.of(TokenTypeEnum.FUNGIBLE_COMMON));
+        when(tokenRepository.findByTokenIdAndTimestamp(anyLong(), anyLong()))
+                .thenReturn(Optional.of(tokenWithType(TokenTypeEnum.FUNGIBLE_COMMON)));
         when(tokenAccountRepository.findByIdAndTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(tokenAccount));
         when(tokenBalanceRepository.findHistoricalTokenBalanceUpToTimestamp(anyLong(), anyLong(), anyLong(), anyLong()))
@@ -237,7 +239,8 @@ class TokenRelationshipReadableKVStateTest {
                 .automaticAssociation(true)
                 .build();
         when(contractCallContext.getTimestamp()).thenReturn(timestamp);
-        when(tokenRepository.findTypeByTokenId(anyLong())).thenReturn(Optional.of(TokenTypeEnum.NON_FUNGIBLE_UNIQUE));
+        when(tokenRepository.findByTokenIdAndTimestamp(anyLong(), anyLong()))
+                .thenReturn(Optional.of(tokenWithType(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)));
         when(tokenAccountRepository.findByIdAndTimestamp(anyLong(), anyLong(), anyLong()))
                 .thenReturn(Optional.of(tokenAccount));
         when(nftRepository.nftBalanceByAccountIdTokenIdAndTimestamp(anyLong(), anyLong(), anyLong()))
@@ -277,5 +280,9 @@ class TokenRelationshipReadableKVStateTest {
                         .automaticAssociation(true)
                         .createdTimestamp(timestamp.get()))
                 .get();
+    }
+
+    private Token tokenWithType(final TokenTypeEnum type) {
+        return domainBuilder.token().customize(t -> t.type(type)).get();
     }
 }

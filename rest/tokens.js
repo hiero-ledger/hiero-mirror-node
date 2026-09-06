@@ -174,7 +174,10 @@ const extractSqlFromTokenRequest = (query, params, filters, conditions) => {
     }
 
     if (filter.key === filterKeys.NAME) {
-      conditions.push(`t.name ILIKE $${params.push('%' + filter.value + '%')}`);
+      // Escape LIKE metacharacters (\ % _) so the value is matched literally. This keeps the search consistent
+      // with its eq validation and prevents wildcard injection.
+      const escapedName = filter.value.replace(/[\\%_]/g, '\\$&');
+      conditions.push(`t.name ILIKE $${params.push('%' + escapedName + '%')}`);
     }
 
     // handle keys that do not require formatting first

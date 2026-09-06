@@ -176,6 +176,27 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findHistoricalEntityByEvmAddressBeforeCurrentRevision() {
+        final var entityHistory = domainBuilder
+                .entityHistory()
+                .customize(e -> e.ethereumNonce(1L).timestampRange(Range.closedOpen(100L, 200L)))
+                .persist();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(entityHistory.getId())
+                        .createdTimestamp(100L)
+                        .ethereumNonce(2L)
+                        .evmAddress(entityHistory.getEvmAddress())
+                        .timestampRange(Range.atLeast(200L)))
+                .persist();
+
+        assertThat(entityRepository.findActiveByEvmAddressAndTimestamp(entityHistory.getEvmAddress(), 150L))
+                .get()
+                .usingRecursiveComparison()
+                .isEqualTo(entityHistory);
+    }
+
+    @Test
     void findByIdAndTimestampRangeLessThanBlockTimestampAndDeletedIsFalseCall() {
         final var entity = persistEntity();
 
@@ -458,6 +479,27 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
         assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(
                         entity.getEvmAddress(), entityHistory.getTimestampLower()))
+                .get()
+                .usingRecursiveComparison()
+                .isEqualTo(entityHistory);
+    }
+
+    @Test
+    void findHistoricalEntityByAliasBeforeCurrentRevision() {
+        final var entityHistory = domainBuilder
+                .entityHistory()
+                .customize(e -> e.ethereumNonce(1L).timestampRange(Range.closedOpen(100L, 200L)))
+                .persist();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(entityHistory.getId())
+                        .alias(entityHistory.getAlias())
+                        .createdTimestamp(100L)
+                        .ethereumNonce(2L)
+                        .timestampRange(Range.atLeast(200L)))
+                .persist();
+
+        assertThat(entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(entityHistory.getAlias(), 150L))
                 .get()
                 .usingRecursiveComparison()
                 .isEqualTo(entityHistory);

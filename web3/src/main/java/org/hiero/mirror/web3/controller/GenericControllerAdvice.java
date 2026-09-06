@@ -102,7 +102,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
         if (SERVER_RESPONSE_CODES.contains(e.getResponseCode())) {
             return new ResponseEntity<>(
-                    new GenericErrorResponse(e.getMessage(), e.getDetail(), e.getData(), childTransactionErrors),
+                    new GenericErrorResponse(e.getMessage(), StringUtils.EMPTY, StringUtils.EMPTY),
                     INTERNAL_SERVER_ERROR);
         } else {
             return new ResponseEntity<>(

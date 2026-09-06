@@ -115,4 +115,22 @@ class ConsensusSubmitMessageTransactionHandlerTest extends AbstractTransactionHa
         verifyNoInteractions(entityListener);
         assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
     }
+
+    @Test
+    void updateTransactionInvalidRunningHashVersion() {
+        // Given
+        final var recordItem = recordItemBuilder
+                .consensusSubmitMessage()
+                .customize(b -> b.receipt(r -> r.setTopicRunningHashVersion(Long.MAX_VALUE)))
+                .build();
+        final var transaction = domainBuilder.transaction().get();
+        final var topicMessage = ArgumentCaptor.forClass(TopicMessage.class);
+
+        // When
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // Then
+        verify(entityListener).onTopicMessage(topicMessage.capture());
+        assertThat(topicMessage.getValue().getRunningHashVersion()).isNull();
+    }
 }

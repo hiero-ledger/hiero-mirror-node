@@ -13,6 +13,7 @@ import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.util.Utility;
@@ -67,9 +68,16 @@ final class ConsensusSubmitMessageTransactionHandler extends AbstractTransaction
 
         // Only persist the value if it is not the default
         if (receipt.getTopicRunningHashVersion() != DEFAULT_RUNNING_HASH_VERSION) {
-            var runningHashVersion =
-                    receipt.getTopicRunningHashVersion() == 0 ? 1 : (int) receipt.getTopicRunningHashVersion();
-            topicMessage.setRunningHashVersion(runningHashVersion);
+            final long runningHashVersion = receipt.getTopicRunningHashVersion();
+
+            if (runningHashVersion >= 0 && runningHashVersion <= Integer.MAX_VALUE) {
+                topicMessage.setRunningHashVersion(runningHashVersion == 0 ? 1 : (int) runningHashVersion);
+            } else {
+                DomainUtils.logRecoverableError(
+                        "Invalid topic runningHashVersion {} at timestamp {}",
+                        runningHashVersion,
+                        recordItem.getConsensusTimestamp());
+            }
         }
 
         // Handle optional fragmented topic message

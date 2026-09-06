@@ -11,6 +11,7 @@ import (
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/config"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/interfaces"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/tools"
 )
@@ -20,6 +21,7 @@ type blockAPIService struct {
 	accountRepo interfaces.AccountRepository
 	BaseService
 	entityCache            *cache.Cache[int64, types.AccountId]
+	maxTransactions        int
 	maxTransactionsInBlock int
 }
 
@@ -28,7 +30,7 @@ func NewBlockAPIService(
 	accountRepo interfaces.AccountRepository,
 	baseService BaseService,
 	entityCacheConfig config.Cache,
-	maxTransactionsInBlock int,
+	responseConfig config.Response,
 	serverContext context.Context,
 ) server.BlockAPIServicer {
 	entityCache := cache.NewContext(
@@ -39,7 +41,8 @@ func NewBlockAPIService(
 		accountRepo:            accountRepo,
 		BaseService:            baseService,
 		entityCache:            entityCache,
-		maxTransactionsInBlock: maxTransactionsInBlock,
+		maxTransactions:        responseConfig.MaxTransactions,
+		maxTransactionsInBlock: responseConfig.MaxTransactionsInBlock,
 	}
 }
 
@@ -51,6 +54,10 @@ func (s *blockAPIService) Block(
 	block, err := s.RetrieveBlock(ctx, request.BlockIdentifier)
 	if err != nil {
 		return nil, err
+	}
+
+	if block.Count > int64(s.maxTransactions) {
+		return nil, errors.ErrTransactionLimitExceeded
 	}
 
 	if block.Transactions, err = s.FindBetween(ctx, block.ConsensusStartNanos, block.ConsensusEndNanos); err != nil {

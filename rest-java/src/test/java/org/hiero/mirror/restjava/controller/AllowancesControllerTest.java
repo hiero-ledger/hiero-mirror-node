@@ -290,7 +290,11 @@ final class AllowancesControllerTest extends ControllerTest {
                     "0.65537.1001",
                     "0.0.-1001",
                     "9223372036854775807",
-                    "0x00000001000000000000000200000000000000034"
+                    "0x00000001000000000000000200000000000000034",
+                    // regex-matching but undecodable base32 aliases (length % 8 in {1, 3, 6}); must yield a clean 400
+                    "0.0.HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME", // 41-char alias
+                    "0.0.HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B", // 43-char alias
+                    "0.0.HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PR" // 46-char alias
                 })
         void invalidId(String id) {
             // When

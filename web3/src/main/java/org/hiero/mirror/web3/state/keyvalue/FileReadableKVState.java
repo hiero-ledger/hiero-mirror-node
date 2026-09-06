@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.state.keyvalue;
 
 import static com.hedera.node.app.service.file.impl.schemas.V0490FileSchema.FILES_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
-import static org.hiero.mirror.web3.state.Utils.getCurrentTimestamp;
 
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
@@ -20,6 +19,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.FileDataRepository;
 import org.hiero.mirror.web3.state.SystemFileLoader;
+import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.utils.Suppliers;
 import org.jspecify.annotations.NonNull;
 
@@ -48,19 +48,18 @@ final class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
 
     @Override
     protected File readFromDataSource(@NonNull FileID key) {
-        final var timestamp = ContractCallContext.get().getTimestamp();
+        final var ctx = ContractCallContext.get();
         final var fileEntityId = toEntityId(key);
         final var fileId = fileEntityId.getId();
-        final var currentTimestamp = getCurrentTimestamp();
+        final long timestamp = ctx.getTimestampForSystemFiles().orElseGet(Utils::getCurrentTimestamp);
 
         if (systemFileLoader.isSystemFile(key)) {
-            return systemFileLoader.load(key, currentTimestamp);
+            return systemFileLoader.load(key, timestamp);
         }
 
-        return timestamp
-                .map(t -> fileDataRepository.getFileAtTimestamp(fileId, t))
-                .orElseGet(() -> fileDataRepository.getFileAtTimestamp(fileId, currentTimestamp))
-                .map(fileData -> mapToFile(fileData, key, timestamp))
+        return fileDataRepository
+                .getFileAtTimestamp(fileId, timestamp)
+                .map(fileData -> mapToFile(fileData, key, Optional.of(timestamp)))
                 .orElse(null);
     }
 

@@ -6,12 +6,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.LONDON_RAW_TX;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
+import static org.hiero.mirror.importer.parser.record.ethereum.Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX_EMPTY_ACCESS_LIST;
+import static org.hiero.mirror.importer.parser.record.ethereum.Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX_EMPTY_ACCESS_LIST_CALL_DATA_OFFLOADED;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.EIP_2930_RAW_TX_WITH_ACCESS_LIST;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.EIP_2930_RAW_TX_WITH_ACCESS_LIST_CALL_DATA_OFFLOADED;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.LONDON_RAW_TX_CALL_DATA_OFFLOADED;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA_OFFLOADED;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.loadEthereumTransactions;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.populateFileData;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.withEmptyStringAccessList;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
@@ -167,19 +172,19 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
     }
 
     @Test
-    void getHashCannotReencodeWithAccessList(CapturedOutput capturedOutput) {
-        // given
-        long consensusTimestamp = domainBuilder.timestamp();
-        String expectedMessage =
-                "Re-encoding ethereum transaction at %d with access list is unsupported".formatted(consensusTimestamp);
+    void getHashReencodesWithAccessList() {
+        assertGetHashWithOffloadedCallData(
+                EIP_2930_RAW_TX_WITH_ACCESS_LIST,
+                EIP_2930_RAW_TX_WITH_ACCESS_LIST_CALL_DATA_OFFLOADED,
+                RAW_TX_TYPE_1_CALL_DATA);
+    }
 
-        // when
-        var actual = ethereumTransactionParser.getHash(
-                EMPTY_BYTE_ARRAY, domainBuilder.entityId(), consensusTimestamp, EIP_2930_RAW_TX_WITH_ACCESS_LIST, true);
-
-        // then
-        softly.assertThat(actual).isEmpty();
-        softly.assertThat(capturedOutput.getAll()).contains(expectedMessage);
+    @ParameterizedTest
+    @MethodSource("emptyAccessListHashCases")
+    void getHashSameForEmptyListAndEmptyStringAccessList(
+            byte[] canonical, byte[] emptyListOffloaded, byte[] emptyStringOffloaded, String callDataHex) {
+        assertGetHashWithOffloadedCallData(canonical, emptyListOffloaded, callDataHex);
+        assertGetHashWithOffloadedCallData(canonical, emptyStringOffloaded, callDataHex);
     }
 
     @Test
@@ -242,6 +247,25 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
     protected void validateEthereumTransaction(EthereumTransaction ethereumTransaction) {
         assertThat(ethereumTransaction).isNotNull().satisfies(t -> assertThat(t.getChainId())
                 .isNotEmpty());
+    }
+
+    private static Stream<Arguments> emptyAccessListHashCases() {
+        return Stream.of(
+                Arguments.of(
+                        RAW_TX_TYPE_1,
+                        RAW_TX_TYPE_1_CALL_DATA_OFFLOADED,
+                        withEmptyStringAccessList(RAW_TX_TYPE_1_CALL_DATA_OFFLOADED),
+                        RAW_TX_TYPE_1_CALL_DATA),
+                Arguments.of(
+                        LONDON_RAW_TX,
+                        LONDON_RAW_TX_CALL_DATA_OFFLOADED,
+                        withEmptyStringAccessList(LONDON_RAW_TX_CALL_DATA_OFFLOADED),
+                        RAW_TX_TYPE_1_CALL_DATA),
+                Arguments.of(
+                        EIP7702_RAW_TX_EMPTY_ACCESS_LIST,
+                        EIP7702_RAW_TX_EMPTY_ACCESS_LIST_CALL_DATA_OFFLOADED,
+                        withEmptyStringAccessList(EIP7702_RAW_TX_EMPTY_ACCESS_LIST_CALL_DATA_OFFLOADED),
+                        RAW_TX_TYPE_1_CALL_DATA));
     }
 
     private static Stream<Arguments> provideAllEthereumTransactions() {

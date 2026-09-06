@@ -33,12 +33,12 @@ describe('request normalizer', () => {
     {
       description: 'Eq and ne parameters',
       input: '/api/v1/accounts?account.id=eq:1001&account.id=ne:3',
-      expected: '/api/v1/accounts?account.id=eq:1001&account.id=ne:3&balance=true&limit=25&order=asc',
+      expected: '/api/v1/accounts?account.id=eq%3A1001&account.id=ne%3A3&balance=true&limit=25&order=asc',
     },
     {
       description: 'Default query parameters are added to existing query parameters and sorted',
       input: '/api/v1/accounts?limit=3&account.id=gt:0.0.20&account.id=lt:0.0.21',
-      expected: '/api/v1/accounts?account.id=gt:0.0.20&account.id=lt:0.0.21&balance=true&limit=3&order=asc',
+      expected: '/api/v1/accounts?account.id=gt%3A0.0.20&account.id=lt%3A0.0.21&balance=true&limit=3&order=asc',
     },
     {
       description: 'Multiple instances of the same parameter are allowed',
@@ -55,12 +55,13 @@ describe('request normalizer', () => {
         'Accounts with path parameter and query parameters have default parameter added and parameters sorted',
       input: '/api/v1/accounts/0.0.1001/nfts?serialnumber=gte:2&spender.id=gte:2004&token.id=gte:1500&order=asc',
       expected:
-        '/api/v1/accounts/0.0.1001/nfts?limit=25&order=asc&serialnumber=gte:2&spender.id=gte:2004&token.id=gte:1500',
+        '/api/v1/accounts/0.0.1001/nfts?limit=25&order=asc&serialnumber=gte%3A2&spender.id=gte%3A2004&token.id=gte%3A1500',
     },
     {
       description: 'Contract result log parameters are added and sorted',
       input: '/api/v1/contracts/results/logs?index=lt:1&timestamp=1639010141.000000000&topic0=A',
-      expected: '/api/v1/contracts/results/logs?index=lt:1&limit=25&order=desc&timestamp=1639010141.000000000&topic0=A',
+      expected:
+        '/api/v1/contracts/results/logs?index=lt%3A1&limit=25&order=desc&timestamp=1639010141.000000000&topic0=A',
     },
     {
       description: 'No parameters are added',
@@ -77,7 +78,7 @@ describe('request normalizer', () => {
       description: 'Accounts nfts with path parameter and query parameters',
       input: '/api/v1/accounts/0.0.1001/nfts?token.id=gte:1500&serialnumber=gte:2&spender.id=gte:2004&order=asc',
       expected:
-        '/api/v1/accounts/0.0.1001/nfts?limit=25&order=asc&serialnumber=gte:2&spender.id=gte:2004&token.id=gte:1500',
+        '/api/v1/accounts/0.0.1001/nfts?limit=25&order=asc&serialnumber=gte%3A2&spender.id=gte%3A2004&token.id=gte%3A1500',
     },
     {
       description: 'Token nfts with path parameter',
@@ -92,13 +93,13 @@ describe('request normalizer', () => {
     {
       description: 'Token nfts with path parameter and query parameters',
       input: '/api/v1/tokens/1500/nfts/2/transactions?timestamp=gte:1234567890.000000005&order=asc',
-      expected: '/api/v1/tokens/1500/nfts/2/transactions?limit=25&order=asc&timestamp=gte:1234567890.000000005',
+      expected: '/api/v1/tokens/1500/nfts/2/transactions?limit=25&order=asc&timestamp=gte%3A1234567890.000000005',
     },
     {
       description: 'Accounts nfts with shard realm num path parameter and query parameters',
       input: '/api/v1/accounts/0.0.1001/nfts?token.id=gte:1500&serialnumber=gte:2&spender.id=gte:2004',
       expected:
-        '/api/v1/accounts/0.0.1001/nfts?limit=25&order=desc&serialnumber=gte:2&spender.id=gte:2004&token.id=gte:1500',
+        '/api/v1/accounts/0.0.1001/nfts?limit=25&order=desc&serialnumber=gte%3A2&spender.id=gte%3A2004&token.id=gte%3A1500',
     },
     {
       description: 'Topics messages with path parameter',
@@ -122,6 +123,26 @@ describe('request normalizer', () => {
       input: '/api/v1/transactions?timestamp=1639010141.000000001&timestamp=1639010141.000000000',
       expected:
         '/api/v1/transactions?limit=25&order=desc&timestamp=1639010141.000000001&timestamp=1639010141.000000000',
+    },
+    {
+      description: 'Operator colons are encoded',
+      input: '/api/v1/accounts?account.id=lt:1001',
+      expected: '/api/v1/accounts?account.id=lt%3A1001&balance=true&limit=25&order=asc',
+    },
+    {
+      description: 'Reserved characters in query values are encoded',
+      input: '/api/v1/accounts?account.id=foo%26injected%3Dbar',
+      expected: '/api/v1/accounts?account.id=foo%26injected%3Dbar&balance=true&limit=25&order=asc',
+    },
+    {
+      description: 'Reserved characters in array query values are encoded',
+      input: '/api/v1/accounts?account.id=foo%26x&account.id=bar',
+      expected: '/api/v1/accounts?account.id=bar&account.id=foo%26x&balance=true&limit=25&order=asc',
+    },
+    {
+      description: 'Unknown path encodes reserved characters in query values',
+      input: '/api/v1/unknown/123?foo=lt:bar%26injected%3Dbaz%23frag',
+      expected: '/api/v1/unknown/123?foo=lt%3Abar%26injected%3Dbaz%23frag',
     },
   ];
 

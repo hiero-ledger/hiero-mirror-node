@@ -127,7 +127,8 @@ class MirrorBlockHashOperationTest {
                 .extracting(OperationResult::getHaltReason)
                 .isNull();
         verify(messageFrame)
-                .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64)));
+                .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64))
+                        .getBytes());
     }
 
     @Test
@@ -149,7 +150,8 @@ class MirrorBlockHashOperationTest {
                 .extracting(OperationResult::getHaltReason)
                 .isNull();
         verify(messageFrame)
-                .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64)));
+                .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64))
+                        .getBytes());
     }
 
     @ParameterizedTest
@@ -177,7 +179,8 @@ class MirrorBlockHashOperationTest {
         boolean withinWindow = soughtBlock <= currentBlockNumber && offset > -256L;
         if (withinWindow) {
             verify(messageFrame)
-                    .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64)));
+                    .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64))
+                            .getBytes());
         } else {
             verify(messageFrame).pushStackItem(UInt256.ZERO);
         }
@@ -200,6 +203,6 @@ class MirrorBlockHashOperationTest {
                 .isNotNull()
                 .extracting(OperationResult::getHaltReason)
                 .isNull();
-        verify(messageFrame).pushStackItem(Hash.ZERO);
+        verify(messageFrame).pushStackItem(Hash.ZERO.getBytes());
     }
 }

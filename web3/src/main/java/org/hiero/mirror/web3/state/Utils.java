@@ -15,6 +15,7 @@ import java.time.Instant;
 import lombok.experimental.UtilityClass;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hyperledger.besu.datatypes.Address;
 import org.jspecify.annotations.NonNull;
 
 @UtilityClass
@@ -34,6 +35,8 @@ public class Utils {
                     .build())
             .build();
 
+    public static final byte[] ZERO_ADDRESS = Address.ZERO.getBytes().toArrayUnsafe();
+
     public static Key parseKey(final byte[] keyBytes) {
         try {
             if (keyBytes != null && keyBytes.length > 0) {
@@ -47,13 +50,23 @@ public class Utils {
     }
 
     /**
+     * Converts a timestamp in nanoseconds (since epoch) to a Java Instant.
+     *
+     * @param nanos The timestamp in nanoseconds since epoch.
+     * @return The Java Instant.
+     */
+    public static Instant convertToInstant(final long nanos) {
+        return Instant.ofEpochSecond(0, nanos);
+    }
+
+    /**
      * Converts a timestamp in nanoseconds to a PBJ Timestamp object.
      *
      * @param timestamp The timestamp in nanoseconds.
      * @return The PBJ Timestamp object.
      */
     public static Timestamp convertToTimestamp(final long timestamp) {
-        var instant = Instant.ofEpochSecond(0, timestamp);
+        var instant = convertToInstant(timestamp);
         return new Timestamp(instant.getEpochSecond(), instant.getNano());
     }
 

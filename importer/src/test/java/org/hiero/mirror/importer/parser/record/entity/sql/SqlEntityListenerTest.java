@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
@@ -1354,11 +1355,11 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // when
         var ledgerAUpdate2 = domainBuilder
                 .ledger()
-                .customize(l -> l.ledgerId(ledgerAUpdate1.getLedgerId()))
+                .customize(l -> l.ledgerId(ArrayUtils.clone(ledgerAUpdate1.getLedgerId())))
                 .get();
         var ledgerBUpdate2 = domainBuilder
                 .ledger()
-                .customize(l -> l.ledgerId(ledgerBUpdate1.getLedgerId()))
+                .customize(l -> l.ledgerId(ArrayUtils.clone(ledgerBUpdate1.getLedgerId())))
                 .get();
         sqlEntityListener.onLedger(ledgerAUpdate2);
         sqlEntityListener.onLedger(ledgerBUpdate2);
@@ -2257,6 +2258,25 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         // then
         assertThat(nodeStakeRepository.findAll()).containsExactlyInAnyOrder(nodeStake1, nodeStake2);
+    }
+
+    @Test
+    void onNodeStakeDuplicate() {
+        // given
+        var nodeStake1 = domainBuilder.nodeStake().get();
+        var nodeStake2 = domainBuilder
+                .nodeStake()
+                .customize(n ->
+                        n.consensusTimestamp(nodeStake1.getConsensusTimestamp()).nodeId(nodeStake1.getNodeId()))
+                .get();
+
+        // when
+        sqlEntityListener.onNodeStake(nodeStake1);
+        sqlEntityListener.onNodeStake(nodeStake2);
+        completeFileAndCommit();
+
+        // then
+        assertThat(nodeStakeRepository.findAll()).containsExactlyInAnyOrder(nodeStake2);
     }
 
     @Test

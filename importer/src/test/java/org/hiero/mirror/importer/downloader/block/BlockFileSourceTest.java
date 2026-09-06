@@ -6,7 +6,6 @@ import static org.apache.commons.lang3.StringUtils.countMatches;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.from;
-import static org.hiero.mirror.importer.TestUtils.S3_PROXY_PORT;
 import static org.hiero.mirror.importer.TestUtils.findAllMatches;
 import static org.hiero.mirror.importer.TestUtils.generateRandomByteArray;
 import static org.hiero.mirror.importer.TestUtils.zstd;
@@ -126,9 +125,9 @@ final class BlockFileSourceTest {
         meterRegistry = new SimpleMeterRegistry();
 
         s3Proxy = TestUtils.startS3Proxy(dataPath);
-        var s3AsyncClient = S3AsyncClient.builder()
+        final var s3AsyncClient = S3AsyncClient.builder()
                 .credentialsProvider(AnonymousCredentialsProvider.create())
-                .endpointOverride(URI.create("http://localhost:" + S3_PROXY_PORT))
+                .endpointOverride(URI.create("http://localhost:" + s3Proxy.getPort()))
                 .forcePathStyle(true)
                 .region(Region.of(commonDownloaderProperties.getRegion()))
                 .build();

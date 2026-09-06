@@ -4,12 +4,17 @@ package construction
 
 import (
 	"context"
+	"math"
+
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	log "github.com/sirupsen/logrus"
 )
+
+// maxTinybarTransfer is the maximum HBAR supply expressed in tinybars.
+const maxTinybarTransfer int64 = 5_000_000_000_000_000_000
 
 type cryptoTransferTransactionConstructor struct {
 	commonTransactionConstructor
@@ -127,13 +132,23 @@ func (c *cryptoTransferTransactionConstructor) preprocess(operations types.Opera
 	}
 
 	senderMap := senderMap{}
-	totalAmounts := make(map[string]int64)
+	var totalAmount int64
 	transfers := make([]transfer, 0, len(operations))
 
 	for _, operation := range operations {
 		accountId := operation.AccountId
 		amount := operation.Amount
-		if amount.GetValue() == 0 {
+		symbol := amount.GetSymbol()
+		value := amount.GetValue()
+		if symbol != types.CurrencyHbar.Symbol {
+			return nil, nil, errors.ErrInvalidCurrency
+		}
+		if value == 0 || value < -maxTinybarTransfer || value > maxTinybarTransfer {
+			return nil, nil, errors.ErrInvalidOperationsAmount
+		}
+
+		var ok bool
+		if totalAmount, ok = addInt64(totalAmount, value); !ok {
 			return nil, nil, errors.ErrInvalidOperationsAmount
 		}
 
@@ -143,21 +158,25 @@ func (c *cryptoTransferTransactionConstructor) preprocess(operations types.Opera
 		}
 		transfers = append(transfers, transfer{account: sdkAccountId, amount: amount})
 
-		if amount.GetValue() < 0 {
+		if value < 0 {
 			senderMap[accountId.String()] = accountId
 		}
-
-		totalAmounts[amount.GetSymbol()] += amount.GetValue()
 	}
 
-	for symbol, totalAmount := range totalAmounts {
-		if totalAmount != 0 {
-			log.Errorf("Transfer sum for symbol %s is not 0", symbol)
-			return nil, nil, errors.ErrInvalidOperationsTotalAmount
-		}
+	if totalAmount != 0 {
+		log.Errorf("Transfer sum for symbol %s is not 0", types.CurrencyHbar.Symbol)
+		return nil, nil, errors.ErrInvalidOperationsTotalAmount
 	}
 
 	return transfers, senderMap.toSenders(), nil
+}
+
+func addInt64(left, right int64) (int64, bool) {
+	if (right > 0 && left > math.MaxInt64-right) || (right < 0 && left < math.MinInt64-right) {
+		return 0, false
+	}
+
+	return left + right, true
 }
 
 func newCryptoTransferTransactionConstructor() transactionConstructorWithType {

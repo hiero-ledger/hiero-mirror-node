@@ -100,6 +100,7 @@ public class ContractFeature extends BaseContractFeature {
 
         assertNotNull(networkTransactionResponse.getTransactionId());
         assertNotNull(networkTransactionResponse.getReceipt());
+        removeFromContractIdMap(ContractResource.PARENT_CONTRACT);
     }
 
     @Then("the mirror node REST API should return status {int} for the contract transaction")

@@ -201,7 +201,7 @@ const isValidEthHashOrHederaHash = (hash) => {
   return ethHashOrHederaHashPattern.test(hash);
 };
 
-const slotPattern = /^(0x)?[0-9A-Fa-f]{1,64}$/;
+const slotPattern = new RegExp(`^(0x)?[0-9A-Fa-f]{1,${constants.EVM_SLOT_LENGTH * 2}}$`);
 const isValidSlot = (slot) => slotPattern.test(slot);
 
 const isValidValueIgnoreCase = (value, validValues) => validValues.includes(value.toLowerCase());
@@ -1053,7 +1053,7 @@ const toUint256 = (val) => {
   return toHexString(val, true, 64);
 };
 
-const hexStrPattern = /^([0-9a-fA-F]{2})+$/;
+const hexStrPattern = /^(0x)?[0-9a-fA-F]+$/;
 
 /**
  * Converts a value into hex string, the value can be a number, a bigint, a hex string, an array of numbers, a Buffer, or a Uint8Array
@@ -1068,7 +1068,7 @@ const toHexString = (value, addPrefix = false, padLength = undefined) => {
   if (Number.isInteger(value) || typeof value === 'bigint') {
     encoded = value.toString(16);
   } else if (typeof value === 'string' && hexStrPattern.test(value)) {
-    encoded = value;
+    encoded = stripHexPrefix(value);
   } else if (isEmpty(value)) {
     return constants.HEX_PREFIX;
   } else if (Array.isArray(value)) {
@@ -1327,7 +1327,7 @@ const zeroPaddingRegex = /^0+/;
  */
 const formatSlot = (slot, leftPad = false) => {
   if (leftPad) {
-    return Buffer.from(stripHexPrefix(slot).padStart(64, 0), 'hex');
+    return Buffer.from(toHexString(slot, false, constants.EVM_SLOT_LENGTH * 2), 'hex');
   }
 
   let formattedSlot = stripHexPrefix(slot).replace(zeroPaddingRegex, '');

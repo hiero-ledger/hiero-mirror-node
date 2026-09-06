@@ -2,10 +2,11 @@
 
 package org.hiero.mirror.importer.reader.balance.line;
 
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
+
 import com.google.common.base.Splitter;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hederahashgraph.api.proto.java.TokenBalances;
-import com.hederahashgraph.api.proto.java.TokenID;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,6 +16,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 
 @Named
@@ -78,17 +80,21 @@ public class AccountBalanceLineParserV2 implements AccountBalanceLineParser {
     private List<TokenBalance> parseTokenBalanceList(
             String tokenBalancesProtoString, long consensusTimestamp, EntityId accountId)
             throws InvalidProtocolBufferException {
-        List<com.hederahashgraph.api.proto.java.TokenBalance> tokenBalanceProtoList = TokenBalances.parseFrom(
-                        Base64.decodeBase64(tokenBalancesProtoString))
-                .getTokenBalancesList();
-        List<TokenBalance> tokenBalances = new ArrayList<>();
-        for (com.hederahashgraph.api.proto.java.TokenBalance tokenBalanceProto : tokenBalanceProtoList) {
-            TokenID tokenId = tokenBalanceProto.getTokenId();
-            TokenBalance tokenBalance = new TokenBalance(
-                    tokenBalanceProto.getBalance(),
-                    new TokenBalance.Id(consensusTimestamp, accountId, EntityId.of(tokenId)));
-            tokenBalances.add(tokenBalance);
+        try {
+            final var bytes = Base64.decodeBase64(tokenBalancesProtoString);
+            final var tokenBalanceProto = parseProtobuf(bytes, TokenBalances::parseFrom);
+            final var tokenBalanceProtoList = tokenBalanceProto.getTokenBalancesList();
+            final var tokenBalances = new ArrayList<TokenBalance>(tokenBalanceProtoList.size());
+
+            for (final var tokenBalance : tokenBalanceProtoList) {
+                final var tokenId = EntityId.of(tokenBalance.getTokenId());
+                final var id = new TokenBalance.Id(consensusTimestamp, accountId, tokenId);
+                tokenBalances.add(new TokenBalance(tokenBalance.getBalance(), id));
+            }
+
+            return tokenBalances;
+        } catch (ProtobufException e) {
+            throw new InvalidDatasetException(e);
         }
-        return tokenBalances;
     }
 }

@@ -13,7 +13,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
@@ -23,17 +22,15 @@ import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
 import org.hiero.mirror.importer.repository.FileDataRepository;
 import org.hiero.mirror.importer.service.ContractBytecodeService;
 import org.hiero.mirror.importer.util.Utility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RequiredArgsConstructor
 abstract class AbstractEthereumTransactionParser implements EthereumTransactionParser {
 
     public static final String HEX_PREFIX = "0x";
+    static final int MAX_ACCESS_LIST_SIZE = 7000;
 
     private final ContractBytecodeService contractBytecodeService;
     private final FileDataRepository fileDataRepository;
-    private final Logger log = LoggerFactory.getLogger(getClass());
 
     @Override
     public final byte[] getHash(
@@ -50,11 +47,6 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
 
         try {
             var ethereumTransaction = decode(transactionBytes);
-            if (!CollectionUtils.isEmpty(ethereumTransaction.getAccessList())) {
-                log.warn("Re-encoding ethereum transaction at {} with access list is unsupported", consensusTimestamp);
-                return EMPTY_BYTE_ARRAY;
-            }
-
             callData = getCallData(callDataId, consensusTimestamp, useCurrentState);
             if (callData == null) {
                 Utility.handleRecoverableError(
@@ -76,10 +68,18 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
 
     protected static List<AccessList> parseAccessList(RLPItem rlpAccessList, String transactionTypeName) {
         if (!rlpAccessList.isList()) {
-            throw new InvalidEthereumBytesException(transactionTypeName, "Access list is not a list");
+            return List.of();
         }
 
         final var accessListEntries = rlpAccessList.asRLPList().elements();
+        if (accessListEntries.size() > MAX_ACCESS_LIST_SIZE) {
+            throw new InvalidEthereumBytesException(
+                    transactionTypeName,
+                    String.format(
+                            "Access list size was %d but expected at most %d",
+                            accessListEntries.size(), MAX_ACCESS_LIST_SIZE));
+        }
+
         final var accessList = new ArrayList<AccessList>(accessListEntries.size());
 
         final var hexFormat = HexFormat.of();
@@ -94,9 +94,8 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
                         transactionTypeName,
                         String.format("Access list entry size was %d but expected 2", entryProperties.size()));
             }
-            final var address = HEX_PREFIX
-                    + StringUtils.leftPad(
-                            hexFormat.formatHex(entryProperties.get(0).data()), 40, '0');
+            final var address =
+                    HEX_PREFIX + hexFormat.formatHex(entryProperties.get(0).data());
             final var storageKeysItem = entryProperties.get(1);
             if (!storageKeysItem.isList()) {
                 throw new InvalidEthereumBytesException(
@@ -105,7 +104,7 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
             final var storageKeyItems = storageKeysItem.asRLPList().elements();
             final var storageKeys = new ArrayList<String>(storageKeyItems.size());
             for (final var key : storageKeyItems) {
-                storageKeys.add(HEX_PREFIX + StringUtils.leftPad(hexFormat.formatHex(key.data()), 64, '0'));
+                storageKeys.add(HEX_PREFIX + hexFormat.formatHex(key.data()));
             }
 
             accessList.add(new AccessList(address, storageKeys));
@@ -114,10 +113,40 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
         return accessList;
     }
 
+    protected static List<List<Object>> encodeAccessList(List<AccessList> accessList) {
+        if (CollectionUtils.isEmpty(accessList)) {
+            return List.of();
+        }
+
+        final var encoded = new ArrayList<List<Object>>(accessList.size());
+        for (final var entry : accessList) {
+            final var entryStorageKeys = entry.getStorageKeys();
+            final List<byte[]> storageKeys;
+            if (CollectionUtils.isEmpty(entryStorageKeys)) {
+                storageKeys = List.of();
+            } else {
+                storageKeys = new ArrayList<>(entryStorageKeys.size());
+                for (final var key : entryStorageKeys) {
+                    storageKeys.add(decodeHex(key));
+                }
+            }
+            encoded.add(List.of(decodeHex(entry.getAddress()), storageKeys));
+        }
+        return encoded;
+    }
+
     protected static byte[] getValue(EthereumTransaction ethereumTransaction) {
         // Value (BigInteger 0) is stored as a 1-byte array [0] in EthereumTransaction, in the RPL encoded raw bytes,
         // it's an empty array, so re-encoding it to get the correct raw bytes for hashing
         return Integers.toBytesUnsigned(new BigInteger(ethereumTransaction.getValue()));
+    }
+
+    private static byte[] decodeHex(String hex) {
+        final int start = hex.startsWith(HEX_PREFIX) ? HEX_PREFIX.length() : 0;
+        if ((hex.length() - start) % 2 != 0) {
+            return HexFormat.of().parseHex("0" + hex.substring(start));
+        }
+        return HexFormat.of().parseHex(hex, start, hex.length());
     }
 
     private static byte[] getHash(byte[] rawBytes) {

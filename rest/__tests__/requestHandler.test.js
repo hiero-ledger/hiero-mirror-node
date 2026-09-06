@@ -48,4 +48,30 @@ describe('qs tests', () => {
     const val = requestQueryParser('order=ASC&ORder=ASC');
     expect(val.order).toStrictEqual(['asc', 'asc']);
   });
+
+  // A case-variant of a prototype-member name (e.g. `Constructor`) survives qs's exact-case stripping, then the
+  // parser lowercases it to `constructor`. Both the dedup check and the canonicalization-map lookup must treat it
+  // as a plain key: neither merge against the inherited Object function (type-confused [<fn>, value] array) nor
+  // canonicalize via Object('x') (a boxed String). The stored value must be a plain primitive string.
+  // Read via getOwnPropertyDescriptor to avoid the special `.constructor` accessor.
+  const getOwnPropertyValue = (obj, key) => Object.getOwnPropertyDescriptor(obj, key)?.value;
+
+  test('requestQueryParser stores case-variant prototype key as a plain string', () => {
+    const val = requestQueryParser('Constructor=abc');
+    const stored = getOwnPropertyValue(val, 'constructor');
+    expect(typeof stored).toBe('string');
+    expect(stored).toBe('abc');
+  });
+
+  test('requestQueryParser merges repeated case-variant prototype keys as strings', () => {
+    const stored = getOwnPropertyValue(requestQueryParser('Constructor=a&CONSTRUCTOR=b'), 'constructor');
+    expect(stored).toStrictEqual(['a', 'b']);
+    stored.forEach((v) => expect(typeof v).toBe('string'));
+  });
+
+  test('requestQueryParser keeps normal params alongside a case-variant prototype key', () => {
+    const val = requestQueryParser('Constructor=x&limit=5');
+    expect(val.limit).toStrictEqual('5');
+    expect(getOwnPropertyValue(val, 'constructor')).toBe('x');
+  });
 });

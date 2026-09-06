@@ -71,8 +71,8 @@ final class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
 
     private EntityId getTokenTreasury(final long nftId, Optional<Long> timestamp) {
         return timestamp
-                .flatMap(t -> tokenRepository.findByTokenIdAndTimestamp(nftId, t))
-                .or(() -> tokenRepository.findById(nftId))
+                .map(t -> tokenRepository.findByTokenIdAndTimestamp(nftId, t))
+                .orElseGet(() -> tokenRepository.findById(nftId))
                 .map(AbstractToken::getTreasuryAccountId)
                 .orElse(null);
     }

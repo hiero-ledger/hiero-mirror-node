@@ -2,6 +2,9 @@
 
 package org.hiero.mirror.importer.reader.record.sidecar;
 
+import static org.hiero.mirror.common.util.DomainUtils.MAX_SIZE_FILE;
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
+
 import jakarta.inject.Named;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -17,7 +20,8 @@ public class SidecarFileReaderImpl implements SidecarFileReader {
         try (var digestInputStream = new DigestInputStream(
                 streamFileData.getInputStream(),
                 MessageDigest.getInstance(sidecarFile.getHashAlgorithm().getName()))) {
-            var protoSidecarFile = com.hedera.services.stream.proto.SidecarFile.parseFrom(digestInputStream);
+            final var protoSidecarFile = parseProtobuf(
+                    digestInputStream, com.hedera.services.stream.proto.SidecarFile::parseFrom, MAX_SIZE_FILE);
             var bytes = streamFileData.getBytes();
             sidecarFile.setActualHash(digestInputStream.getMessageDigest().digest());
             sidecarFile.setBytes(bytes);

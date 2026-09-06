@@ -49,6 +49,7 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
+import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.hyperledger.besu.datatypes.Address;
@@ -73,26 +74,27 @@ public class TransactionExecutionService {
     private final TransactionExecutorFactory transactionExecutorFactory;
 
     public EvmTransactionResult execute(final CallServiceParameters params, final long estimatedGas) {
-        final var isContractCreate = params.getReceiver().isZero();
+        final var isContractCreate = params.getReceiver().getBytes().isZero();
         final var configuration = evmProperties.getVersionedConfiguration();
         final var maxLifetime =
                 configuration.getConfigData(EntitiesConfig.class).maxLifetime();
         final var executor = transactionExecutorFactory.get();
 
+        final var consensusTime = getConsensusTimeFromContext();
         final var gas = boundedGas(estimatedGas);
         final TransactionBody transactionBody;
         final EvmTransactionResult result;
         if (params instanceof ContractDebugParameters debugParams
                 && debugParams.getEthereumData() != null
                 && debugParams.getEthereumData().length > 0) {
-            transactionBody = buildEthereumTransactionBody(debugParams);
+            transactionBody = buildEthereumTransactionBody(debugParams, consensusTime);
         } else if (isContractCreate) {
-            transactionBody = buildContractCreateTransactionBody(params, gas, maxLifetime);
+            transactionBody = buildContractCreateTransactionBody(params, gas, maxLifetime, consensusTime);
         } else {
-            transactionBody = buildContractCallTransactionBody(params, gas);
+            transactionBody = buildContractCallTransactionBody(params, gas, consensusTime);
         }
 
-        final var singleTransactionRecords = executor.execute(transactionBody, Instant.now(), getOperationTracers());
+        final var singleTransactionRecords = executor.execute(transactionBody, consensusTime, getOperationTracers());
         final var parentTransactionStatus = singleTransactionRecords
                 .getFirst()
                 .transactionRecord()
@@ -163,10 +165,11 @@ public class TransactionExecutionService {
         }
     }
 
-    private TransactionBody.Builder defaultTransactionBodyBuilder(final CallServiceParameters params) {
+    private TransactionBody.Builder defaultTransactionBodyBuilder(
+            final CallServiceParameters params, final Instant consensusNow) {
         return TransactionBody.newBuilder()
                 .transactionID(TransactionID.newBuilder()
-                        .transactionValidStart(new Timestamp(Instant.now().getEpochSecond(), 0))
+                        .transactionValidStart(new Timestamp(consensusNow.getEpochSecond(), consensusNow.getNano()))
                         .accountID(getSenderAccountID(params))
                         .build())
                 .nodeAccountID(EntityIdUtils.toAccountId(systemEntity.treasuryAccount()))
@@ -174,8 +177,11 @@ public class TransactionExecutionService {
     }
 
     private TransactionBody buildContractCreateTransactionBody(
-            final CallServiceParameters params, final long estimatedGas, final long maxLifetime) {
-        return defaultTransactionBodyBuilder(params)
+            final CallServiceParameters params,
+            final long estimatedGas,
+            final long maxLifetime,
+            final Instant consensusNow) {
+        return defaultTransactionBodyBuilder(params, consensusNow)
                 .contractCreateInstance(ContractCreateTransactionBody.newBuilder()
                         .initcode(Bytes.wrap(params.getCallData()))
                         .gas(estimatedGas)
@@ -186,13 +192,14 @@ public class TransactionExecutionService {
     }
 
     private TransactionBody buildContractCallTransactionBody(
-            final CallServiceParameters params, final long estimatedGas) {
-        return defaultTransactionBodyBuilder(params)
+            final CallServiceParameters params, final long estimatedGas, final Instant consensusNow) {
+        return defaultTransactionBodyBuilder(params, consensusNow)
                 .contractCall(ContractCallTransactionBody.newBuilder()
                         .contractID(ContractID.newBuilder()
                                 .shardNum(commonProperties.getShard())
                                 .realmNum(commonProperties.getRealm())
-                                .evmAddress(Bytes.wrap(params.getReceiver().toArrayUnsafe()))
+                                .evmAddress(Bytes.wrap(
+                                        params.getReceiver().getBytes().toArrayUnsafe()))
                                 .build())
                         .functionParameters(Bytes.wrap(params.getCallData()))
                         .amount(params.getValue()) // tinybars sent to contract
@@ -202,8 +209,16 @@ public class TransactionExecutionService {
                 .build();
     }
 
-    private TransactionBody buildEthereumTransactionBody(final ContractDebugParameters params) {
-        final var txnBody = defaultTransactionBodyBuilder(params)
+    private Instant getConsensusTimeFromContext() {
+        return ContractCallContext.get()
+                .getTimestamp()
+                .map(Utils::convertToInstant)
+                .orElseGet(Instant::now);
+    }
+
+    private TransactionBody buildEthereumTransactionBody(
+            final ContractDebugParameters params, final Instant consensusNow) {
+        final var txnBody = defaultTransactionBodyBuilder(params, consensusNow)
                 .ethereumTransaction(EthereumTransactionBody.newBuilder()
                         .ethereumData(Bytes.wrap(params.getEthereumData()))
                         .maxGasAllowance(evmProperties.getMaxGasAllowance())
@@ -220,7 +235,7 @@ public class TransactionExecutionService {
      *  the state, to bypass the nonce verification during transaction replay.
      */
     private void patchSenderNonce(final ContractDebugParameters params) {
-        if (params.getSender().isZero() && params.getValue() == 0L || !ContractCallContext.isInitialized()) {
+        if (params.getSender().getBytes().isZero() && params.getValue() == 0L || !ContractCallContext.isInitialized()) {
             return;
         }
         final long nonce = populateEthTxData(params.getEthereumData()).nonce();
@@ -236,13 +251,13 @@ public class TransactionExecutionService {
 
     private ProtoBytes convertAddressToProtoBytes(final Address address) {
         return ProtoBytes.newBuilder()
-                .value(Bytes.wrap(address.toArrayUnsafe()))
+                .value(Bytes.wrap(address.getBytes().toArrayUnsafe()))
                 .build();
     }
 
     private AccountID getSenderAccountID(final CallServiceParameters params) {
         // Set a default account to keep the sender parameter optional.
-        if (params.getSender().isZero() && params.getValue() == 0L) {
+        if (params.getSender().getBytes().isZero() && params.getValue() == 0L) {
             return EntityIdUtils.toAccountId(systemEntity.treasuryAccount());
         }
         final var senderAddress = params.getSender();

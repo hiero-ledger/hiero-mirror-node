@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"testing"
 
+	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/persistence/domain"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	"github.com/stretchr/testify/assert"
@@ -32,6 +34,15 @@ var (
 type transferOperation struct {
 	accountId types.AccountId
 	amount    types.Amount
+}
+
+type amountWithSymbol struct {
+	*types.HbarAmount
+	symbol string
+}
+
+func (a *amountWithSymbol) GetSymbol() string {
+	return a.symbol
 }
 
 func TestCryptoTransferTransactionConstructorSuite(t *testing.T) {
@@ -182,6 +193,7 @@ func (suite *cryptoTransferTransactionConstructorSuite) TestPreprocess() {
 		transfers       []transferOperation
 		operations      types.OperationSlice
 		expectError     bool
+		expectedError   *rTypes.Error
 		expectedSigners []types.AccountId
 	}{
 		{
@@ -194,7 +206,67 @@ func (suite *cryptoTransferTransactionConstructorSuite) TestPreprocess() {
 			transfers:   []transferOperation{{accountId: accountIdA, amount: &types.HbarAmount{}}},
 			expectError: true,
 		},
-
+		{
+			name: "MaximumTinybarAmount",
+			transfers: []transferOperation{
+				{accountId: accountIdA, amount: &types.HbarAmount{Value: -maxTinybarTransfer}},
+				{accountId: accountIdB, amount: &types.HbarAmount{Value: maxTinybarTransfer}},
+			},
+			expectedSigners: defaultSigners,
+		},
+		{
+			name: "AmountAboveTinybarLimit",
+			transfers: []transferOperation{
+				{accountId: accountIdA, amount: &types.HbarAmount{Value: maxTinybarTransfer + 1}},
+			},
+			expectError:   true,
+			expectedError: errors.ErrInvalidOperationsAmount,
+		},
+		{
+			name: "AmountBelowTinybarLimit",
+			transfers: []transferOperation{
+				{accountId: accountIdA, amount: &types.HbarAmount{Value: -maxTinybarTransfer - 1}},
+			},
+			expectError:   true,
+			expectedError: errors.ErrInvalidOperationsAmount,
+		},
+		{
+			name: "AmountSumOverflow",
+			transfers: []transferOperation{
+				{accountId: accountIdA, amount: &types.HbarAmount{Value: maxTinybarTransfer}},
+				{accountId: accountIdB, amount: &types.HbarAmount{Value: maxTinybarTransfer}},
+				{accountId: accountIdA, amount: &types.HbarAmount{Value: -maxTinybarTransfer}},
+				{accountId: accountIdB, amount: &types.HbarAmount{Value: -maxTinybarTransfer}},
+			},
+			expectError:   true,
+			expectedError: errors.ErrInvalidOperationsAmount,
+		},
+		{
+			name: "AmountSumUnderflow",
+			transfers: []transferOperation{
+				{accountId: accountIdA, amount: &types.HbarAmount{Value: -maxTinybarTransfer}},
+				{accountId: accountIdB, amount: &types.HbarAmount{Value: -maxTinybarTransfer}},
+				{accountId: accountIdA, amount: &types.HbarAmount{Value: maxTinybarTransfer}},
+				{accountId: accountIdB, amount: &types.HbarAmount{Value: maxTinybarTransfer}},
+			},
+			expectError:   true,
+			expectedError: errors.ErrInvalidOperationsAmount,
+		},
+		{
+			name: "InvalidCurrencySymbol",
+			transfers: []transferOperation{
+				{
+					accountId: accountIdA,
+					amount: &amountWithSymbol{
+						HbarAmount: &types.HbarAmount{Value: -15},
+						symbol:     "INVALID",
+					},
+				},
+				{accountId: accountIdB, amount: &types.HbarAmount{Value: 15}},
+			},
+			expectError:   true,
+			expectedError: errors.ErrInvalidCurrency,
+		},
 		{
 			name: "InvalidHbarSum",
 			transfers: []transferOperation{
@@ -231,7 +303,11 @@ func (suite *cryptoTransferTransactionConstructorSuite) TestPreprocess() {
 
 			// then
 			if tt.expectError {
-				assert.NotNil(t, err)
+				if tt.expectedError != nil {
+					assert.Equal(t, tt.expectedError, err)
+				} else {
+					assert.NotNil(t, err)
+				}
 				assert.Nil(t, signers)
 			} else {
 				assert.Nil(t, err)

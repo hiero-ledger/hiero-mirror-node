@@ -109,4 +109,32 @@ class BlockTypeTest {
     void invalidNoTrim(String value) {
         assertThatThrownBy(() -> BlockType.of(value)).isInstanceOf(IllegalArgumentException.class);
     }
+
+    // RecordFileRepository.findByHash binds the value into "where r.hash like concat(:hash, '%')". These confirm
+    // BlockType rejects any value carrying a SQL LIKE metacharacter (% or _), so a wildcard can never reach that
+    // query (the pattern only accepts [0-9a-f]).
+    static Stream<String> likeMetacharacterHashes() {
+        return Stream.of(
+                "%",
+                "_",
+                HEX_PREFIX + "a".repeat(63) + "%", // 64 chars, wildcard in place of a hex digit
+                HEX_PREFIX + "a".repeat(63) + "_",
+                HEX_PREFIX + "a".repeat(95) + "%", // 96 chars with a wildcard
+                HEX_PREFIX + "%",
+                HEX_PREFIX + "ab%cd");
+    }
+
+    @MethodSource("likeMetacharacterHashes")
+    @ParameterizedTest
+    void rejectsLikeMetacharacters(String value) {
+        assertThatThrownBy(() -> BlockType.of(value)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // A short hex string is parsed as a block NUMBER (isHash() == false), so it is routed to findByIndex and can
+    // never reach findByHash as a short/partial-hash prefix for enumeration.
+    @ValueSource(strings = {HEX_PREFIX + "ab", HEX_PREFIX + "1", HEX_PREFIX + "deadbeef"})
+    @ParameterizedTest
+    void shortHexIsBlockNumberNotHash(String value) {
+        assertThat(BlockType.of(value).isHash()).isFalse();
+    }
 }

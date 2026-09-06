@@ -4,9 +4,11 @@ package org.hiero.mirror.web3.state.keyvalue;
 
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.FileID;
@@ -16,6 +18,7 @@ import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.FileDataRepository;
@@ -103,7 +106,7 @@ class FileReadableKVStateTest {
 
         long internalFileId = toEntityId(FILE_ID).getId();
 
-        when(contractCallContext.getTimestamp()).thenReturn(TIMESTAMP);
+        when(contractCallContext.getTimestampForSystemFiles()).thenReturn(TIMESTAMP);
         when(fileDataRepository.getFileAtTimestamp(internalFileId, TIMESTAMP.get()))
                 .thenReturn(Optional.of(fileDataTest));
         when(entityRepository.findActiveByIdAndTimestamp(toEntityId(FILE_ID).getId(), TIMESTAMP.get()))
@@ -119,7 +122,7 @@ class FileReadableKVStateTest {
 
     @Test
     void fileFieldsReturnNullWhenFileDataNotFound() {
-        when(contractCallContext.getTimestamp()).thenReturn(TIMESTAMP);
+        when(contractCallContext.getTimestampForSystemFiles()).thenReturn(TIMESTAMP);
         long fileIdLong = toEntityId(FILE_ID).getId();
         when(fileDataRepository.getFileAtTimestamp(fileIdLong, TIMESTAMP.get())).thenReturn(Optional.empty());
 
@@ -130,7 +133,7 @@ class FileReadableKVStateTest {
 
     @Test
     void readFromDataSourceWithTimestamp() {
-        when(contractCallContext.getTimestamp()).thenReturn(TIMESTAMP);
+        when(contractCallContext.getTimestampForSystemFiles()).thenReturn(TIMESTAMP);
         when(fileDataRepository.getFileAtTimestamp(FILE_ID_LONG, TIMESTAMP.get()))
                 .thenReturn(Optional.of(fileData));
         when(entityRepository.findActiveByIdAndTimestamp(toEntityId(FILE_ID).getId(), TIMESTAMP.get()))
@@ -146,9 +149,9 @@ class FileReadableKVStateTest {
 
     @Test
     void readFromDataSourceWithoutTimestamp() {
-        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(contractCallContext.getTimestampForSystemFiles()).thenReturn(Optional.empty());
         when(fileDataRepository.getFileAtTimestamp(anyLong(), anyLong())).thenReturn(Optional.of(fileData));
-        when(entityRepository.findByIdAndDeletedIsFalse(toEntityId(FILE_ID).getId()))
+        when(entityRepository.findActiveByIdAndTimestamp(eq(toEntityId(FILE_ID).getId()), anyLong()))
                 .thenReturn(Optional.of(entity));
 
         File result = fileReadableKVState.readFromDataSource(FILE_ID);
@@ -161,7 +164,7 @@ class FileReadableKVStateTest {
 
     @Test
     void readFromDataSourceFileNotFound() {
-        when(contractCallContext.getTimestamp()).thenReturn(TIMESTAMP);
+        when(contractCallContext.getTimestampForSystemFiles()).thenReturn(TIMESTAMP);
         when(fileDataRepository.getFileAtTimestamp(FILE_ID_LONG, TIMESTAMP.get()))
                 .thenReturn(Optional.empty());
 
@@ -172,13 +175,30 @@ class FileReadableKVStateTest {
 
     @Test
     void readFromDataSourceSystemFile() {
-        when(contractCallContext.getTimestamp()).thenReturn(TIMESTAMP);
+        when(contractCallContext.getTimestampForSystemFiles()).thenReturn(TIMESTAMP);
         when(systemFileLoader.isSystemFile(FILE_ID)).thenReturn(true);
-        when(systemFileLoader.load(any(), anyLong())).thenReturn(FILE);
+        when(systemFileLoader.load(FILE_ID, TIMESTAMP.get())).thenReturn(FILE);
 
         File result = fileReadableKVState.readFromDataSource(FILE_ID);
 
         assertThat(result).isEqualTo(FILE);
+    }
+
+    @Test
+    void readFromDataSourceSystemFileUsesConsensusTimestampOnHourBoundary() {
+        final long nanosPerHour = 3600L * DomainUtils.NANOS_PER_SECOND;
+        final long consensusTimestamp = nanosPerHour;
+        final long previousBlockTimestamp = consensusTimestamp - 1;
+
+        when(contractCallContext.getTimestampForSystemFiles()).thenReturn(Optional.of(consensusTimestamp));
+        when(systemFileLoader.isSystemFile(FILE_ID)).thenReturn(true);
+        when(systemFileLoader.load(FILE_ID, consensusTimestamp)).thenReturn(FILE);
+
+        File result = fileReadableKVState.readFromDataSource(FILE_ID);
+
+        assertThat(result).isEqualTo(FILE);
+        verify(systemFileLoader).load(FILE_ID, consensusTimestamp);
+        verify(systemFileLoader, never()).load(FILE_ID, previousBlockTimestamp);
     }
 
     @Test

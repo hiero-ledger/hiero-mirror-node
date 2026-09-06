@@ -13,6 +13,7 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_65;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_66;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_67;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_70;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mockStatic;
 
@@ -122,6 +123,18 @@ class EvmPropertiesTest {
         assertThat(properties.getMaxGasAllowance())
                 .isEqualTo(100_000_000_000_000L)
                 .isNotEqualTo(Long.MAX_VALUE);
+    }
+
+    @Test
+    void isPectraEvm() {
+        staticMock.when(ContractCallContext::get).thenReturn(contractCallContext);
+        given(contractCallContext.useHistorical()).willReturn(false);
+
+        properties.setEvmVersion(EVM_VERSION_0_67);
+        assertThat(properties.isPectraEvm()).isFalse();
+
+        properties.setEvmVersion(EVM_VERSION_0_70);
+        assertThat(properties.isPectraEvm()).isTrue();
     }
 
     @ParameterizedTest

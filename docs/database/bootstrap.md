@@ -333,6 +333,9 @@ export CLOUDSDK_STORAGE_SLICED_OBJECT_DOWNLOAD_MAX_COMPONENTS=1 && \
 gcloud storage rsync -r "gs://mirrornode-db-export/$NETWORK/$VERSION/" "$DOWNLOAD_DIR/"
 ```
 
+> [!IMPORTANT]
+> Both `manifest.csv` (full file list) and `manifest.minimal.csv` (excludes `*_atma.csv.gz` files) are downloaded in **either** option above - the two manifests just describe different subsets of the same directory. When you get to [Run the Import](#6-run-the-import), pass the manifest matching what you downloaded: `manifest.minimal.csv` for the minimal option, `manifest.csv` for the full option. Using the wrong one causes the import to fail on every `_atma` file it can't find on disk.
+
 For both options:
 
 - Replace `</path/to/db_export>` with your actual download path.
@@ -392,15 +395,26 @@ The `bootstrap init` command creates the database, roles, and permissions, valid
 
 The `bootstrap import` command imports all data files into PostgreSQL using parallel streaming COPY operations. All parallelism is managed internally via Go goroutines.
 
+> [!IMPORTANT]
+> The `--manifest` flag must match the data you downloaded in [step 3.4](#34-download-the-data): `manifest.minimal.csv` if you downloaded the **minimal** DB data, `manifest.csv` if you downloaded the **full** DB data. `manifest.csv` lists `*_atma.csv.gz` files, which are never present in a minimal download - pointing `--manifest` at it after a minimal download will fail every one of those files with "no such file or directory".
+
 **Option A: Interactive Mode (stay connected)**
 
 Run directly with output to terminal:
 
 ```bash
+# Full DB download
 ./bootstrap import \
   --config bootstrap.env \
   --data-dir /path/to/db_export \
   --manifest /path/to/db_export/manifest.csv \
+  --jobs 8
+
+# Minimal DB download
+./bootstrap import \
+  --config bootstrap.env \
+  --data-dir /path/to/db_export \
+  --manifest /path/to/db_export/manifest.minimal.csv \
   --jobs 8
 ```
 
@@ -409,10 +423,19 @@ Run directly with output to terminal:
 Run in the background so it continues if your SSH session disconnects:
 
 ```bash
+# Full DB download
 nohup ./bootstrap import \
   --config bootstrap.env \
   --data-dir /path/to/db_export \
   --manifest /path/to/db_export/manifest.csv \
+  --jobs 8 \
+  > bootstrap-logs/bootstrap.log 2>&1 &
+
+# Minimal DB download
+nohup ./bootstrap import \
+  --config bootstrap.env \
+  --data-dir /path/to/db_export \
+  --manifest /path/to/db_export/manifest.minimal.csv \
   --jobs 8 \
   > bootstrap-logs/bootstrap.log 2>&1 &
 ```
@@ -421,7 +444,7 @@ nohup ./bootstrap import \
 
 - `-c, --config`: Path to the `bootstrap.env` configuration file
 - `-d, --data-dir`: Directory containing the gzipped CSV data files (required)
-- `-m, --manifest`: Path to the `manifest.csv` file (required)
+- `-m, --manifest`: Path to the manifest file - `manifest.minimal.csv` for a minimal DB download, `manifest.csv` for a full download (required)
 - `-j, --jobs`: Number of parallel import jobs (default: 8)
 
 **Note:** For live progress monitoring, use the separate `watch` command (see section 7.1 below).
@@ -447,6 +470,7 @@ ps -p $(cat bootstrap-logs/bootstrap.pid)
 tail -f bootstrap-logs/bootstrap.log
 
 # Monitor live progress (in a separate terminal)
+# Use the same manifest (manifest.csv or manifest.minimal.csv) you passed to `import`
 ./bootstrap watch -c bootstrap.env -m /path/to/db_export/manifest.csv -d /path/to/db_export
 ```
 
@@ -456,7 +480,7 @@ tail -f bootstrap-logs/bootstrap.log
 
 - **Live Progress Display (Recommended):**
 
-  Run the `watch` command in a separate terminal to see real-time progress:
+  Run the `watch` command in a separate terminal to see real-time progress. Use the same manifest (`manifest.csv` or `manifest.minimal.csv`) you passed to `import`:
 
   ```bash
   ./bootstrap watch \
@@ -468,7 +492,7 @@ tail -f bootstrap-logs/bootstrap.log
   Flags:
 
   - `-c, --config`: Path to bootstrap.env configuration file
-  - `-m, --manifest`: Path to manifest.csv file (enables row count and percentage display)
+  - `-m, --manifest`: Path to the manifest file - `manifest.minimal.csv` for a minimal DB download, `manifest.csv` for a full download (enables row count and percentage display)
   - `-d, --data-dir`: Directory containing data files
   - `-i, --interval`: Refresh interval in seconds (default: 1)
 
@@ -558,7 +582,7 @@ If you need to stop the import before it completes:
 
 #### **7.3. Resuming the Import Process**
 
-Simply re-run the import command:
+Simply re-run the import command, passing the **same manifest** (`manifest.csv` or `manifest.minimal.csv`) you used originally:
 
 ```bash
 # Interactive mode

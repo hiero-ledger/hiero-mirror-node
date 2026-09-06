@@ -234,6 +234,10 @@ contract EvmCodes {
         return codehash;
     }
 
+    function getExternalBytecode(address _target) public view returns (bytes memory) {
+        return _target.code;
+    }
+
     function destroyContract(address payable beneficiary) public {
         selfdestruct(beneficiary);
     }

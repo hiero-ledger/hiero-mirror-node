@@ -2,7 +2,10 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import static org.hiero.mirror.common.util.DomainUtils.logRecoverableError;
+
 import jakarta.inject.Named;
+import java.util.HashSet;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
@@ -48,7 +51,7 @@ class NodeStakeUpdateTransactionHandler extends AbstractTransactionHandler {
                 .map(nodeStake -> nodeStake.getStakeRewarded() + nodeStake.getStakeNotRewarded())
                 .reduce(0L, Long::sum);
 
-        NetworkStake networkStake = new NetworkStake();
+        final var networkStake = new NetworkStake();
         networkStake.setConsensusTimestamp(consensusTimestamp);
         networkStake.setEpochDay(epochDay);
         networkStake.setMaxStakeRewarded(transactionBody.getMaxStakeRewarded());
@@ -74,25 +77,33 @@ class NodeStakeUpdateTransactionHandler extends AbstractTransactionHandler {
 
         entityListener.onNetworkStake(networkStake);
 
-        var nodeStakesProtos = transactionBody.getNodeStakeList();
+        final var nodeStakesProtos = transactionBody.getNodeStakeList();
         if (nodeStakesProtos.isEmpty()) {
-            log.warn("NodeStakeUpdateTransaction has empty node stake list");
+            logRecoverableError("NodeStakeUpdate {} has an empty node stake list", consensusTimestamp);
             return;
         }
 
+        final var nodeIds = new HashSet<Long>(nodeStakesProtos.size());
+
         for (var nodeStakeProto : nodeStakesProtos) {
-            var nodeStake = new NodeStake();
+            long nodeId = nodeStakeProto.getNodeId();
+            final var nodeStake = new NodeStake();
             nodeStake.setConsensusTimestamp(consensusTimestamp);
             nodeStake.setEpochDay(epochDay);
             nodeStake.setMaxStake(nodeStakeProto.getMaxStake());
             nodeStake.setMinStake(nodeStakeProto.getMinStake());
-            nodeStake.setNodeId(nodeStakeProto.getNodeId());
+            nodeStake.setNodeId(nodeId);
             nodeStake.setRewardRate(nodeStakeProto.getRewardRate());
             nodeStake.setStake(nodeStakeProto.getStake());
             nodeStake.setStakeNotRewarded(nodeStakeProto.getStakeNotRewarded());
             nodeStake.setStakeRewarded(nodeStakeProto.getStakeRewarded());
             nodeStake.setStakingPeriod(stakingPeriod);
             entityListener.onNodeStake(nodeStake);
+
+            // Duplicate collapsing is done in EntityListener so we don't loop twice here
+            if (!nodeIds.add(nodeId)) {
+                logRecoverableError("NodeStakeUpdate {} contains a duplicate node ID {}", consensusTimestamp, nodeId);
+            }
         }
 
         applicationEventPublisher.publishEvent(new NodeStakeUpdatedEvent(this));

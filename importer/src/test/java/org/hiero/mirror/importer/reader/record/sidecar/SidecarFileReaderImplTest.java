@@ -5,10 +5,10 @@ package org.hiero.mirror.importer.reader.record.sidecar;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.compress.compressors.CompressorException;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.transaction.SidecarFile;
+import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.importer.TestRecordFiles;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
@@ -74,6 +74,6 @@ class SidecarFileReaderImplTest {
         var sidecar = domainBuilder.sidecarFile().get();
         assertThatThrownBy(() -> sidecarFileReader.read(sidecar, streamFileData))
                 .isInstanceOf(InvalidStreamFileException.class)
-                .hasCauseInstanceOf(InvalidProtocolBufferException.class);
+                .hasCauseInstanceOf(ProtobufException.class);
     }
 }

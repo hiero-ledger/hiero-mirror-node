@@ -46,7 +46,7 @@ class GoReplayConverter {
 
   #convertLine(line) {
     const request = this.#parser.parse(line);
-    if (!request) {
+    if (!request || !isSafeRequest(request)) {
       return null;
     }
 
@@ -91,6 +91,29 @@ const getElapsed = (lastSeconds) => getEpochSeconds() - lastSeconds;
 const getEpochSeconds = () => Date.now() / 1000;
 
 const getUUID = () => Buffer.from(Array.from({length: 12}, randomByte)).toString('hex');
+
+const CONTROL_CHAR_CLASS = '\\p{Cc}';
+const CONTROL_CHARACTERS = new RegExp(`[${CONTROL_CHAR_CLASS}]`, 'gu');
+const HEADER_PATTERN = new RegExp(`^(Content-Length|Content-Type): [^${CONTROL_CHAR_CLASS}]+$`, 'u');
+const MAX_BODY_LENGTH = 1_048_576;
+const MAX_HEADER_LENGTH = 102_400;
+
+const hasControlCharacters = (value) => {
+  CONTROL_CHARACTERS.lastIndex = 0;
+  return CONTROL_CHARACTERS.test(value);
+};
+
+const isSafeRequest = ({body = '', headers = [], url, verb} = {}) =>
+  typeof verb === 'string' &&
+  typeof url === 'string' &&
+  !hasControlCharacters(verb) &&
+  !hasControlCharacters(url) &&
+  Array.isArray(headers) &&
+  headers.every(
+    (header) => typeof header === 'string' && header.length <= MAX_HEADER_LENGTH && HEADER_PATTERN.test(header)
+  ) &&
+  typeof body === 'string' &&
+  body.length <= MAX_BODY_LENGTH;
 
 const randomByte = () => Math.floor(Math.random() * 256);
 

@@ -6,6 +6,7 @@ import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.AC
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.web3.state.Utils.ZERO_ADDRESS;
 import static org.hiero.mirror.web3.state.Utils.hexStringToLong;
 
 import com.hedera.hapi.node.base.AccountID;
@@ -15,6 +16,8 @@ import com.hedera.node.app.service.token.TokenService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -104,7 +107,11 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
     }
 
     /**
-     * Applies {@code balance} and {@code nonce} state overrides (if any) to the account fetched from the DB.
+     * Applies {@code balance}, {@code nonce}, and {@code code} state overrides (if any) to the account fetched
+     * from the DB. Storage-only overrides ({@code state}/{@code stateDiff}) are applied separately via
+     * {@link ContractStorageReadableKVState} and must not mark a delegated EOA as a smart contract, so HIP-1340
+     * delegation-proxy resolution is preserved.
+     * <p>
      * When the account does not exist in the DB but an override is present, a synthetic account is created so
      * that the EVM can execute against the overridden state, and is persisted in the WritableKVState write
      * cache (via {@link org.hiero.mirror.web3.common.ContractCallContext#getWriteCacheState}) so that
@@ -148,9 +155,15 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
 
         final var hasBalance = stateOverride.getBalance() != null;
         final var hasNonce = stateOverride.getNonce() != null;
-        final var isSmartContract = stateOverride.getCode() != null
-                || stateOverride.getState() != null
-                || stateOverride.getStateDiff() != null;
+        // Only a bytecode override should mark the account as a smart contract. Storage-only
+        // overrides must not flip a delegated EOA to a contract, or the EIP-7702 / HIP-1340
+        // delegation proxy is skipped and the call executes no delegated code.
+        final var hasCodeOverride = stateOverride.getCode() != null;
+        final var hasStorageOverride = isNonEmpty(stateOverride.getState()) || isNonEmpty(stateOverride.getStateDiff());
+        final var isDelegatedAccount = account != null
+                && account.delegationAddress().length() > 0
+                && !Arrays.equals(account.delegationAddress().toByteArray(), ZERO_ADDRESS);
+        final var isSmartContract = hasCodeOverride || (hasStorageOverride && !isDelegatedAccount);
 
         Account.Builder builder;
         if (account == null) {
@@ -173,6 +186,10 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
 
         context.getWriteCacheState(STATE_ID).put(key, result);
         return result;
+    }
+
+    private static boolean isNonEmpty(final List<?> list) {
+        return list != null && !list.isEmpty();
     }
 
     /**

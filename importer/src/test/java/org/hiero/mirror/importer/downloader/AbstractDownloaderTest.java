@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.downloader;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hiero.mirror.importer.TestUtils.S3_PROXY_PORT;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.DATA;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.SIGNATURE;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -232,31 +231,32 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     protected void beforeEach() {
         loadAddressBook("testnet");
         initProperties();
+
+        s3Proxy = TestUtils.startS3Proxy(s3Path);
+        commonDownloaderProperties.setEndpointOverride("http://localhost:" + s3Proxy.getPort());
         s3AsyncClient = S3AsyncClient.builder()
                 .credentialsProvider(AnonymousCredentialsProvider.create())
                 .endpointOverride(URI.create(commonDownloaderProperties.getEndpointOverride()))
                 .forcePathStyle(true)
                 .region(Region.of(commonDownloaderProperties.getRegion()))
                 .build();
-
         signatureFileReader = new CompositeSignatureFileReader(
                 new SignatureFileReaderV2(), new SignatureFileReaderV5(), new ProtoSignatureFileReader());
         var consensusValidator = new ConsensusValidatorImpl(commonDownloaderProperties);
         nodeSignatureVerifier = new NodeSignatureVerifier(consensusValidator);
         downloader = getDownloader();
         streamType = downloaderProperties.getStreamType();
-
         fileCopier = FileCopier.create(TestUtils.getResource("data").toPath(), s3Path)
                 .from(getTestDataDir())
                 .to(commonDownloaderProperties.getBucketName(), streamType.getPath());
-
-        s3Proxy = TestUtils.startS3Proxy(s3Path);
     }
 
     @AfterEach
     @SneakyThrows
     void after() {
-        s3Proxy.stop();
+        if (s3Proxy != null) {
+            s3Proxy.stop();
+        }
     }
 
     @Test
@@ -642,7 +642,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         importerProperties.setNetwork(ImporterProperties.HederaNetwork.TESTNET);
 
         commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
-        commonDownloaderProperties.setEndpointOverride("http://localhost:" + S3_PROXY_PORT);
         // tests (except for "testPartialCollection" test) expect every Streamfile to be present
         commonDownloaderProperties.setDownloadRatio(BigDecimal.ONE);
 

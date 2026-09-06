@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.migration;
 
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
+
 import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.CryptoGetInfoResponse.AccountInfo;
 import jakarta.inject.Named;
@@ -160,7 +162,7 @@ final class HistoricalAccountInfoMigration extends RepeatableMigration {
         try {
             if (StringUtils.isNotBlank(line)) {
                 byte[] data = Base64.decodeBase64(line);
-                return AccountInfo.parseFrom(data);
+                return parseProtobuf(data, AccountInfo::parseFrom);
             }
         } catch (Exception e) {
             log.error("Unable to parse AccountInfo from line: {}", line, e);
