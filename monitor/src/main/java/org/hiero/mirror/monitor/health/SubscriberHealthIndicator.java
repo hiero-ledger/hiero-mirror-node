@@ -10,6 +10,7 @@ import java.net.ConnectException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -34,7 +35,11 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
     private static final Mono<Health> UP = health(Status.UP, "");
     private static final Mono<Health> DOWN = health(Status.DOWN, "");
 
+    private final AtomicInteger consecutiveNonDown = new AtomicInteger(0);
+    private final AtomicReference<Status> lastReportedStatus = new AtomicReference<>(Status.UP);
+
     private final ReleaseHealthProperties releaseHealthProperties;
+    private final SubscriberHealthProperties subscriberHealthProperties;
     private final MirrorSubscriber mirrorSubscriber;
     private final RestApiClient restApiClient;
     private final TransactionGenerator transactionGenerator;
@@ -47,12 +52,16 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
                 .register(meterRegistry);
     }
 
-    private static Mono<Health> health(Status status, String reason) {
-        Health.Builder health = Health.status(status);
+    private static Health status(Status status, String reason) {
+        final var health = Health.status(status);
         if (StringUtils.isNotBlank(reason)) {
             health.withDetail("reason", reason);
         }
-        return Mono.just(health.build());
+        return health.build();
+    }
+
+    private static Mono<Health> health(Status status, String reason) {
+        return Mono.just(status(status, reason));
     }
 
     @Override
@@ -60,7 +69,34 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
         return restNetworkStakeHealth()
                 .flatMap(health ->
                         health.getStatus() == Status.UP ? publishing().switchIfEmpty(subscribing()) : Mono.just(health))
+                .map(this::applyRecoveryHysteresis)
                 .doOnNext(this::recordHealthMetric);
+    }
+
+    // Report DOWN immediately, but require recoveryThreshold consecutive non-DOWN results before clearing
+    // it, so a sustained outage isn't masked by one lucky healthy poll in between.
+    private Health applyRecoveryHysteresis(Health computed) {
+        if (computed.getStatus() == Status.DOWN) {
+            consecutiveNonDown.set(0);
+            lastReportedStatus.set(Status.DOWN);
+            return computed;
+        }
+
+        if (lastReportedStatus.get() != Status.DOWN) {
+            lastReportedStatus.set(computed.getStatus());
+            return computed;
+        }
+
+        if (consecutiveNonDown.incrementAndGet() < subscriberHealthProperties.getRecoveryThreshold()) {
+            return status(
+                    Status.DOWN,
+                    "Awaiting %d consecutive healthy checks to recover"
+                            .formatted(subscriberHealthProperties.getRecoveryThreshold()));
+        }
+
+        consecutiveNonDown.set(0);
+        lastReportedStatus.set(computed.getStatus());
+        return computed;
     }
 
     private void recordHealthMetric(Health health) {

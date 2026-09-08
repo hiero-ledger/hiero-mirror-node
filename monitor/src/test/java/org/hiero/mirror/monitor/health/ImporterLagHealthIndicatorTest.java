@@ -147,6 +147,23 @@ class ImporterLagHealthIndicatorTest {
     }
 
     @Test
+    void unknownWhenLocalAboveThresholdButNoPeerData() {
+        final var props = props(p -> {
+            p.setLocalCluster(THIS_CLUSTER);
+        });
+
+        final var client = mock(PrometheusApiClient.class);
+        when(client.query(anyString()))
+                .thenReturn(success(List.of(series(THIS_CLUSTER, props.getThresholdSeconds() * 2))));
+
+        final var indicator = new ImporterLagHealthIndicator(props, client);
+
+        final var health = indicator.health();
+
+        assertThat(health.getStatus()).isEqualTo(Status.UNKNOWN);
+    }
+
+    @Test
     void queriesPrometheusWithExpectedMetricName() {
         final var props = props(p -> p.setLocalCluster(THIS_CLUSTER));
         final var client = mock(PrometheusApiClient.class);
@@ -217,7 +234,7 @@ class ImporterLagHealthIndicatorTest {
     }
 
     @Test
-    void upWhenOtherClusterLagIsNotANumber() {
+    void unknownWhenOtherClusterLagIsNotANumber() {
         final var props = props(p -> {
             p.setLocalCluster(THIS_CLUSTER);
         });
@@ -233,8 +250,9 @@ class ImporterLagHealthIndicatorTest {
 
         final var health = indicator.health();
 
+        // the only peer series present fails to parse, leaving no usable peer data to compare against
         assertThat(health).isNotNull();
-        assertThat(health.getStatus()).isEqualTo(Status.UP);
+        assertThat(health.getStatus()).isEqualTo(Status.UNKNOWN);
     }
 
     @Test
