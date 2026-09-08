@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.nio.charset.StandardCharsets;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.ServiceEndpoint;
 import org.hiero.mirror.restjava.dto.NetworkNodeDto;
@@ -23,7 +24,7 @@ final class NetworkNodeMapperTest {
         when(row.nodeId()).thenReturn(3L);
         when(row.fileId()).thenReturn(102L);
         when(row.nodeAccountId()).thenReturn(8L);
-        when(row.nodeCertHash()).thenReturn("0xa1b2c3d4e5f6");
+        when(row.nodeCertHash()).thenReturn("a1b2c3d4e5f6".getBytes(StandardCharsets.UTF_8));
         when(row.publicKey()).thenReturn("0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f");
         when(row.startConsensusTimestamp()).thenReturn(1000000000L);
         when(row.endConsensusTimestamp()).thenReturn(2000000000L);
@@ -55,10 +56,10 @@ final class NetworkNodeMapperTest {
             });
         });
 
-        // Given - row with null/empty values (SQL query returns "0x" for null/empty node_cert_hash)
+        // Given - row with null/empty values (empty node_cert_hash renders as "0x")
         when(row.fileId()).thenReturn(null);
         when(row.nodeAccountId()).thenReturn(null);
-        when(row.nodeCertHash()).thenReturn("0x");
+        when(row.nodeCertHash()).thenReturn(new byte[0]);
         when(row.startConsensusTimestamp()).thenReturn(null);
         when(row.endConsensusTimestamp()).thenReturn(null);
         when(row.stakingPeriod()).thenReturn(null);
@@ -76,6 +77,29 @@ final class NetworkNodeMapperTest {
             assertThat(node.getStakingPeriod()).isNull();
             assertThat(node.getAssociatedRegisteredNodes()).isEmpty();
         });
+    }
+
+    @Test
+    void mapNodeCertHash() {
+        // null and empty both render as the bare "0x" prefix
+        assertThat(mapper.mapNodeCertHash(null)).isEqualTo("0x");
+        assertThat(mapper.mapNodeCertHash(new byte[0])).isEqualTo("0x");
+
+        // ASCII hex (the on-chain convention) is decoded and prefixed
+        assertThat(mapper.mapNodeCertHash("a1b2c3".getBytes(StandardCharsets.UTF_8)))
+                .isEqualTo("0xa1b2c3");
+
+        // an already-prefixed value is not double-prefixed
+        assertThat(mapper.mapNodeCertHash("0xa1b2c3".getBytes(StandardCharsets.UTF_8)))
+                .isEqualTo("0xa1b2c3");
+
+        // a raw 48-byte digest is almost never valid UTF-8; decoding must not throw (regression: convert_from(...)
+        // aborted the whole /network/nodes query with SQLSTATE 22021)
+        final var rawDigest = new byte[48];
+        for (int i = 0; i < rawDigest.length; i++) {
+            rawDigest[i] = (byte) (0x80 + (i % 0x40)); // continuation/invalid lead bytes, no valid UTF-8 sequence
+        }
+        assertThat(mapper.mapNodeCertHash(rawDigest)).startsWith("0x").isNotNull();
     }
 
     @Test
