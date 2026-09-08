@@ -161,18 +161,19 @@ public class AddressBookServiceImpl implements AddressBookService {
             nodeStakeTimestamp.compareAndSet(0L, nodeStake.getConsensusTimestamp());
         });
 
+        long nodeCountAddressBook = addressBook.getNodeCount() != null ? addressBook.getNodeCount() : 0L;
         long nodeCount = (consensusMode == ConsensusMode.STAKE_IN_ADDRESS_BOOK || nodeStakes.isEmpty())
-                ? addressBook.getNodeCount()
+                ? nodeCountAddressBook
                 : nodeStakes.size();
 
         // if only including address book nodes in stake count, warn if any nodes are excluded
         if (consensusMode == ConsensusMode.STAKE_IN_ADDRESS_BOOK
-                && addressBook.getNodeCount() != nodeStakes.size()
+                && nodeCountAddressBook != nodeStakes.size()
                 && !nodeStakes.isEmpty()) {
             log.warn(
                     "Using address book {} with {} nodes and node stake {} with {} nodes",
                     addressBook.getStartConsensusTimestamp(),
-                    addressBook.getNodeCount(),
+                    nodeCountAddressBook,
                     nodeStakeTimestamp.get(),
                     nodeStakes.size());
         }
@@ -234,7 +235,15 @@ public class AddressBookServiceImpl implements AddressBookService {
             return null;
         }
 
-        return addressBookBuilder.build();
+        final var addressBook = addressBookBuilder.build();
+
+        // Don't replace a valid address book with an invalid one that has no entries
+        if (CollectionUtils.isEmpty(addressBook.getEntries())) {
+            DomainUtils.logRecoverableError("No valid entries in address book {}", addressBook);
+            return null;
+        }
+
+        return addressBook;
     }
 
     private long getAddressBookStartConsensusTimestamp(FileData fileData) {

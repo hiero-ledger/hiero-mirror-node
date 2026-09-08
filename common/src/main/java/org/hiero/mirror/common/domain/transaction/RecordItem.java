@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import static lombok.AccessLevel.PRIVATE;
+import static org.hiero.mirror.common.util.DomainUtils.logRecoverableError;
 import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 
 import com.google.protobuf.ByteString;
@@ -23,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.AccessLevel;
@@ -461,25 +461,28 @@ public class RecordItem implements StreamItem {
          * @return The protobuf ID that represents the transaction type
          */
         private int parseTransactionType(TransactionBody body) {
-            TransactionBody.DataCase dataCase = body.getDataCase();
-
-            if (dataCase == null || dataCase == TransactionBody.DataCase.DATA_NOT_SET) {
-                Set<Integer> unknownFields = body.getUnknownFields().asMap().keySet();
-
-                if (unknownFields.size() != 1) {
-                    log.error(
-                            "Unable to guess correct transaction type since there's not exactly one unknown field {}: {}",
-                            unknownFields,
-                            Hex.encodeHexString(body.toByteArray()));
-                    return TransactionBody.DataCase.DATA_NOT_SET.getNumber();
-                }
-
-                int genericTransactionType = unknownFields.iterator().next();
-                log.warn("Encountered unknown transaction type: {}", genericTransactionType);
-                return genericTransactionType;
+            final var dataCase = body.getDataCase();
+            if (dataCase != null && dataCase != TransactionBody.DataCase.DATA_NOT_SET) {
+                return dataCase.getNumber();
             }
 
-            return dataCase.getNumber();
+            final var unknownFields = body.getUnknownFields().asMap().keySet();
+            if (unknownFields.size() != 1) {
+                logRecoverableError(
+                        "Unable to guess correct transaction type since there's not exactly one unknown field {}: {}",
+                        unknownFields,
+                        Hex.encodeHexString(body.toByteArray()));
+                return TransactionBody.DataCase.DATA_NOT_SET.getNumber();
+            }
+
+            final int genericTransactionType = unknownFields.iterator().next();
+            if (!DomainUtils.isSmallint(genericTransactionType)) {
+                logRecoverableError("Encountered unknown transaction type: {}", genericTransactionType);
+                return TransactionBody.DataCase.DATA_NOT_SET.getNumber();
+            }
+
+            logRecoverableError("Encountered unknown transaction type: {}", genericTransactionType);
+            return genericTransactionType;
         }
     }
 }

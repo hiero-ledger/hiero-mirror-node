@@ -89,7 +89,7 @@ class AccountTest {
         final var numberPendingAirdropsList = UNSIGNED_LONG_TESTS_LIST;
         final var numberHooksInUseList = UNSIGNED_LONG_TESTS_LIST;
         final var firstHookIdList = UNSIGNED_LONG_TESTS_LIST;
-        final var numberLambdaStorageSlotsList = UNSIGNED_LONG_TESTS_LIST;
+        final var numberEvmHookStorageSlotsList = UNSIGNED_LONG_TESTS_LIST;
         final var delegationAddressList = BYTES_TESTS_LIST;
 
         // work out the longest of all the lists of args as that is how many test cases we need
@@ -130,7 +130,7 @@ class AccountTest {
                         numberPendingAirdropsList.size(),
                         numberHooksInUseList.size(),
                         firstHookIdList.size(),
-                        numberLambdaStorageSlotsList.size())
+                        numberEvmHookStorageSlotsList.size())
                 .max()
                 .getAsInt();
         // create new stream of model objects using lists above as constructor params
@@ -173,7 +173,7 @@ class AccountTest {
                         numberPendingAirdropsList.get(Math.min(i, numberPendingAirdropsList.size() - 1)),
                         numberHooksInUseList.get(Math.min(i, numberHooksInUseList.size() - 1)),
                         firstHookIdList.get(Math.min(i, firstHookIdList.size() - 1)),
-                        numberLambdaStorageSlotsList.get(Math.min(i, numberLambdaStorageSlotsList.size() - 1)),
+                        numberEvmHookStorageSlotsList.get(Math.min(i, numberEvmHookStorageSlotsList.size() - 1)),
                         delegationAddressList.get(Math.min(i, delegationAddressList.size() - 1))))
                 .toList();
     }
@@ -653,7 +653,7 @@ class AccountTest {
         final var item2 = ARGUMENTS.get(1);
 
         final var item1WithDifferentNumberLambdaStorageSlots =
-                item2.copyBuilder().numberLambdaStorageSlots(0).build();
+                item2.copyBuilder().numberEvmHookStorageSlots(0).build();
         assertNotEquals(item2, item1WithDifferentNumberLambdaStorageSlots);
     }
 

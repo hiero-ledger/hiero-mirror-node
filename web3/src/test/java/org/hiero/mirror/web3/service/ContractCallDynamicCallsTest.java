@@ -263,8 +263,9 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         assertThatThrownBy(functionCall::send)
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .satisfies(ex -> {
-                    MirrorEvmTransactionException exception = (MirrorEvmTransactionException) ex;
-                    assertEquals("Failed to associate tokens", exception.getDetail());
+                    if (ex instanceof MirrorEvmTransactionException exception) {
+                        assertEquals("Failed to associate tokens", exception.getDetail());
+                    }
                 });
 
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
@@ -305,8 +306,9 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
             assertThatThrownBy(functionCall::send)
                     .isInstanceOf(MirrorEvmTransactionException.class)
                     .satisfies(ex -> {
-                        MirrorEvmTransactionException exception = (MirrorEvmTransactionException) ex;
-                        assertEquals("Failed to associate tokens", exception.getDetail());
+                        if (ex instanceof MirrorEvmTransactionException exception) {
+                            assertEquals("Failed to associate tokens", exception.getDetail());
+                        }
                     });
 
             verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
@@ -391,8 +393,9 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         assertThatThrownBy(functionCall::send)
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .satisfies(ex -> {
-                    MirrorEvmTransactionException exception = (MirrorEvmTransactionException) ex;
-                    assertEquals(expectedErrorMessage, exception.getDetail());
+                    if (ex instanceof MirrorEvmTransactionException exception) {
+                        assertEquals(expectedErrorMessage, exception.getDetail());
+                    }
                 });
 
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);

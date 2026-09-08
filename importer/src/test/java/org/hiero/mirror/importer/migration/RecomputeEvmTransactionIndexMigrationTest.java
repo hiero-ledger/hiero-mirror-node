@@ -539,7 +539,9 @@ final class RecomputeEvmTransactionIndexMigrationTest
     void missedTransactions() {
         // given
         final var block1 = persistBlock(1);
-        final var timestamp = block1.getConsensusStart() - INTERVAL * 2;
+        // make the gap bigger than INTERVAL so there will be a slice query whose window is completely included in the
+        // gap and returns nothing
+        final var timestamp = block1.getConsensusStart() - INTERVAL * 3;
         final var block0 = domainBuilder
                 .recordFile()
                 .customize(r -> r.index(0L)

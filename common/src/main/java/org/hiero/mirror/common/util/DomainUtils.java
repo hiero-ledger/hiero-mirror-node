@@ -242,6 +242,24 @@ public class DomainUtils {
         return convertToNanosMax(timestamp.getSeconds(), timestamp.getNanos());
     }
 
+    public static boolean isSmallint(int value) {
+        return value >= Short.MIN_VALUE && value <= Short.MAX_VALUE;
+    }
+
+    public static int toSmallint(int value) {
+        if (value > Short.MAX_VALUE) {
+            return Short.MAX_VALUE;
+        }
+        if (value < Short.MIN_VALUE) {
+            return Short.MIN_VALUE;
+        }
+        return value;
+    }
+
+    public static Integer toSmallint(Integer value) {
+        return value == null ? null : toSmallint(value.intValue());
+    }
+
     /**
      * Cleans a string of invalid characters that would cause it to fail when inserted into the database. In particular,
      * PostgreSQL does not allow the null character (0x0000) to be inserted.
