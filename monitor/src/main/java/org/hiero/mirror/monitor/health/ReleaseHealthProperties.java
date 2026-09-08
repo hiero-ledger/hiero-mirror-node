@@ -21,4 +21,11 @@ public class ReleaseHealthProperties {
     private boolean enabled = false;
 
     private boolean failWhenInactive = false;
+
+    /**
+     * Timeout for the underlying Kubernetes API calls. fabric8's own per-request timeout and retry
+     * budget can otherwise take far longer than this to give up.
+     */
+    @NotNull
+    private Duration timeout = Duration.ofSeconds(3);
 }

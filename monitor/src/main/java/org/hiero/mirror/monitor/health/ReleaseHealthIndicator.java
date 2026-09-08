@@ -94,11 +94,16 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
             return UNKNOWN;
         }
         return Mono.fromCallable(() -> getHelmRelease(kubernetesClient))
+                .subscribeOn(Schedulers.boundedElastic())
                 .cacheInvalidateIf(v -> false)
                 .doOnError(e -> log.error("Unable to get helm release", e))
                 .onErrorComplete()
                 .flatMap(release -> getHelmReleaseReadyStatus(kubernetesClient, release))
                 .doOnError(e -> log.error("Unable to get helm release ready status", e))
+                .onErrorComplete()
+                .timeout(properties.getTimeout())
+                .doOnError(e ->
+                        log.error("Kubernetes health check did not complete within {}", properties.getTimeout(), e))
                 .onErrorComplete()
                 .switchIfEmpty(UNKNOWN)
                 .cache(properties.getCacheExpiry(), Schedulers.newSingle("helmrelease-health-cache"));
