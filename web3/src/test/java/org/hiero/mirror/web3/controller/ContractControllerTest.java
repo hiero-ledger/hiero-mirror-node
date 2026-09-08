@@ -16,6 +16,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.NOT_ACCEPTABLE;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
 import static org.springframework.http.HttpStatus.UNSUPPORTED_MEDIA_TYPE;
@@ -30,6 +31,7 @@ import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.SneakyThrows;
@@ -40,6 +42,7 @@ import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.rest.model.TracerResponse;
 import org.hiero.mirror.rest.model.TracerResponseActions;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
@@ -47,11 +50,13 @@ import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
+import org.hiero.mirror.web3.exception.TraceTimeoutException;
 import org.hiero.mirror.web3.service.ContractDebugService;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.model.TraceRequest;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
+import org.hiero.mirror.web3.utils.GzipEncoding;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -67,6 +72,7 @@ import org.hiero.mirror.web3.web3j.generated.ExchangeRatePrecompileHistorical;
 import org.hiero.mirror.web3.web3j.generated.NestedCallsHistorical;
 import org.hiero.mirror.web3.web3j.generated.PrecompileTestContractHistorical;
 import org.hiero.mirror.web3.web3j.generated.TestAddressThis;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -83,6 +89,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.dao.QueryTimeoutException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -131,6 +138,11 @@ final class ContractControllerTest {
         throttleManager.throttle(any(ContractCallRequest.class));
     }
 
+    @AfterEach
+    void tearDown() {
+        tracerProperties.setEnabled(false);
+    }
+
     @SneakyThrows
     private String convert(Object object) {
         return objectMapper.writeValueAsString(object);
@@ -148,6 +160,7 @@ final class ContractControllerTest {
     private ResultActions contractDebugCall(ContractCallRequest request) {
         return mockMvc.perform(post(DEBUG_CALL_URI)
                 .accept(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(convert(request)));
     }
@@ -213,6 +226,7 @@ final class ContractControllerTest {
     @Test
     void debugTraceCallSuccess() throws Exception {
         tracerProperties.setEnabled(true);
+        clearInvocations(throttleManager);
         final var request = request();
         request.setValue(0);
         given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSE);
@@ -223,12 +237,12 @@ final class ContractControllerTest {
 
         verify(throttleManager).throttleTraceRequest();
         verify(contractDebugService).processTraceCall(argThat(traceRequest -> !traceRequest.isOnlyTopCall()));
-        tracerProperties.setEnabled(false);
     }
 
     @Test
     void debugTraceCallWithOnlyTopCall() throws Exception {
         tracerProperties.setEnabled(true);
+        clearInvocations(throttleManager);
         final var request = request();
         request.setValue(0);
         request.setTracerConfig(TracerConfig.builder().onlyTopCall(true).build());
@@ -238,7 +252,6 @@ final class ContractControllerTest {
 
         verify(throttleManager).throttleTraceRequest();
         verify(contractDebugService).processTraceCall(argThat(TraceRequest::isOnlyTopCall));
-        tracerProperties.setEnabled(false);
     }
 
     @Test
@@ -249,7 +262,6 @@ final class ContractControllerTest {
 
         contractDebugCall(request).andExpect(status().isTooManyRequests());
         verify(contractDebugService, never()).processTraceCall(any());
-        tracerProperties.setEnabled(false);
     }
 
     @Test
@@ -261,15 +273,138 @@ final class ContractControllerTest {
 
         contractDebugCall(request).andExpect(status().isBadRequest());
         verify(throttleManager).restore(request.getGas());
-        tracerProperties.setEnabled(false);
     }
 
     @Test
-    void debugTraceCallNotFoundWhenDisabled() throws Exception {
+    void debugTraceCallRequiresGzip() throws Exception {
+        tracerProperties.setEnabled(true);
         final var request = request();
         request.setValue(0);
 
-        contractDebugCall(request).andExpect(status().isNotFound());
+        mockMvc.perform(post(DEBUG_CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(convert(request)))
+                .andExpect(status().isNotAcceptable())
+                .andExpect(content().string(new StringContains(NOT_ACCEPTABLE.getReasonPhrase())))
+                .andExpect(content().string(new StringContains(GzipEncoding.MISSING_GZIP_HEADER_MESSAGE)));
+        verify(contractDebugService, never()).processTraceCall(any());
+        verify(throttleManager, never()).throttleTraceRequest();
+    }
+
+    @Test
+    void debugTraceCallRejectsEstimate() throws Exception {
+        tracerProperties.setEnabled(true);
+        final var request = request();
+        request.setEstimate(true);
+        request.setValue(0);
+
+        contractDebugCall(request).andExpect(status().isBadRequest());
+        verify(contractDebugService, never()).processTraceCall(any());
+        verify(throttleManager, never()).throttleTraceRequest();
+    }
+
+    @Test
+    void debugTraceCallRejectsMismatchedTracerOptions() throws Exception {
+        tracerProperties.setEnabled(true);
+        final var request = request();
+        request.setValue(0);
+        request.setTracerConfig(TracerConfig.builder().diff(true).build());
+
+        contractDebugCall(request).andExpect(status().isBadRequest());
+        verify(contractDebugService, never()).processTraceCall(any());
+        verify(throttleManager, never()).throttleTraceRequest();
+    }
+
+    @Test
+    void debugTraceCallUnimplementedTracer() throws Exception {
+        tracerProperties.setEnabled(true);
+        final var request = request();
+        request.setValue(0);
+        request.setTracerConfig(
+                TracerConfig.builder().tracerType(TracerType.OPCODE).build());
+
+        contractDebugCall(request).andExpect(status().isNotImplemented());
+        verify(contractDebugService, never()).processTraceCall(any());
+        verify(throttleManager, never()).throttleTraceRequest();
+    }
+
+    @Test
+    void debugTraceCallTimeoutReturns408() throws Exception {
+        tracerProperties.setEnabled(true);
+        clearInvocations(throttleManager);
+        final var request = request();
+        request.setValue(0);
+        given(contractDebugService.processTraceCall(any())).willThrow(new TraceTimeoutException(TRACE_RESPONSE));
+
+        contractDebugCall(request)
+                .andExpect(status().isRequestTimeout())
+                .andExpect(content().string(convert(TRACE_RESPONSE)));
+    }
+
+    @Test
+    void debugTraceCallRejectsStateOverridesWhenDisabled() throws Exception {
+        tracerProperties.setEnabled(true);
+        web3Properties.setEnableStateOverrides(false);
+        final var request = request();
+        request.setValue(0);
+        final var override = new StateOverride();
+        override.setAddress("00000000000000000000000000000000000004e4");
+        request.setStateOverrides(List.of(override));
+
+        contractDebugCall(request).andExpect(status().isBadRequest());
+        verify(contractDebugService, never()).processTraceCall(any());
+    }
+
+    @Test
+    void debugTraceCallRejectsInvalidTimeout() throws Exception {
+        tracerProperties.setEnabled(true);
+        final var request = request();
+        request.setValue(0);
+        request.setTracerConfig(TracerConfig.builder().timeout("not-a-duration").build());
+
+        contractDebugCall(request).andExpect(status().isBadRequest());
+        verify(contractDebugService, never()).processTraceCall(any());
+        verify(throttleManager, never()).throttleTraceRequest();
+    }
+
+    @Test
+    void debugTraceCallAcceptsAliases() throws Exception {
+        tracerProperties.setEnabled(true);
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSE);
+        final var json = """
+                {
+                  "to": "0x00000000000000000000000000000000000004e4",
+                  "from": "0x00000000000000000000000000000000000004e2",
+                  "data": "0x1079023a",
+                  "value": 0,
+                  "gas": 10000000,
+                  "tracer_config": {
+                    "tracer": "callTracer",
+                    "only_top_call": true,
+                    "timeout": "30s"
+                  }
+                }
+                """;
+
+        mockMvc.perform(post(DEBUG_CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isOk());
+
+        verify(contractDebugService)
+                .processTraceCall(argThat(traceRequest ->
+                        traceRequest.isOnlyTopCall() && Duration.ofSeconds(30).equals(traceRequest.getTimeout())));
+    }
+
+    @Test
+    void debugTraceCallNotImplementedWhenDisabled() throws Exception {
+        final var request = request();
+        request.setValue(0);
+
+        contractDebugCall(request).andExpect(status().isNotImplemented());
         verify(contractDebugService, never()).processTraceCall(any());
         verify(throttleManager, never()).throttleTraceRequest();
     }

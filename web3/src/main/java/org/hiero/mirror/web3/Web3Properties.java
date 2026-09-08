@@ -47,6 +47,7 @@ public class Web3Properties {
 
     public enum ApiEndpointName {
         CALL,
+        TRACE,
         OPCODES
     }
 }

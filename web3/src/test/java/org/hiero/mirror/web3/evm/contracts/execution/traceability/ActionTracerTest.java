@@ -6,11 +6,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_EXECUTING;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_SUSPENDED;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.COMPLETED_SUCCESS;
+import static org.hyperledger.besu.evm.frame.MessageFrame.Type.CONTRACT_CREATION;
 import static org.hyperledger.besu.evm.frame.MessageFrame.Type.MESSAGE_CALL;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.hedera.node.app.service.contract.impl.utils.OpcodeUtils;
 import java.util.Deque;
@@ -19,10 +23,11 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.utils.HexUtils;
 import org.hiero.mirror.web3.viewmodel.TracerConfig;
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.EVM;
-import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.AbstractOperation;
 import org.hyperledger.besu.evm.operation.Operation;
@@ -54,6 +59,13 @@ class ActionTracerTest {
     private static final Bytes NESTED_OUTPUT = Bytes.of("nestedOutput".getBytes());
     private static final Operation CALL_OPERATION =
             new AbstractOperation(OpcodeUtils.OP_CODE_CALL, "CALL", 7, 1, null) {
+                @Override
+                public OperationResult execute(final MessageFrame frame, final EVM evm) {
+                    return new OperationResult(0, null);
+                }
+            };
+    private static final Operation CREATE2_OPERATION =
+            new AbstractOperation(OpcodeUtils.OP_CODE_CREATE2, "CREATE2", 4, 1, null) {
                 @Override
                 public OperationResult execute(final MessageFrame frame, final EVM evm) {
                     return new OperationResult(0, null);
@@ -140,6 +152,61 @@ class ActionTracerTest {
     }
 
     @Test
+    void recordsTopLevelCreateEvenWhenCurrentOpcodeIsNotCreate() {
+        givenOriginFrameData();
+        given(messageFrame.getType()).willReturn(CONTRACT_CREATION);
+
+        actionTracer.traceOriginAction(messageFrame);
+
+        assertThat(actionContext.getActions()).hasSize(1);
+        assertThat(actionContext.getActions().getFirst().getType()).isEqualTo(TypeEnum.CREATE);
+    }
+
+    @Test
+    void recordsNestedCreate2FromParentOpcode() {
+        givenOriginFrameData();
+        actionTracer.traceOriginAction(messageFrame);
+        givenSuspendedParentWithChild();
+        given(messageFrame.getCurrentOperation()).willReturn(CREATE2_OPERATION);
+
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        assertThat(actionContext.getActions().getFirst().getCalls()).hasSize(1);
+        assertThat(actionContext.getActions().getFirst().getCalls().getFirst().getType())
+                .isEqualTo(TypeEnum.CREATE2);
+    }
+
+    @Test
+    void recordsUnknownTypeForUnrecognizedParentOpcode() {
+        final var pushOperation = new AbstractOperation(0x60, "PUSH1", 0, 1, null) {
+            @Override
+            public OperationResult execute(final MessageFrame frame, final EVM evm) {
+                return new OperationResult(0, null);
+            }
+        };
+        givenOriginFrameData();
+        actionTracer.traceOriginAction(messageFrame);
+        givenSuspendedParentWithChild();
+        given(messageFrame.getCurrentOperation()).willReturn(pushOperation);
+
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        assertThat(actionContext.getActions().getFirst().getCalls().getFirst().getType())
+                .isEqualTo(TypeEnum.UNKNOWN);
+    }
+
+    @Test
+    void recordsNonZeroValueAsShortHex() {
+        givenOriginFrameData();
+        given(messageFrame.getValue()).willReturn(Wei.of(255));
+
+        actionTracer.traceOriginAction(messageFrame);
+
+        assertThat(actionContext.getActions().getFirst().getValue())
+                .isEqualTo(HexUtils.convertValueToHexString(Wei.of(255)));
+    }
+
+    @Test
     void doesNotRecordActionWhileCodeExecuting() {
         // Given
         given(messageFrame.getState()).willReturn(CODE_EXECUTING);
@@ -162,7 +229,7 @@ class ActionTracerTest {
         actionTracer.tracePostExecution(messageFrame, operationResult);
 
         // Then
-        assertThat(actionContext.getActions()).hasSize(1);
+        assertThat(actionContext.getActions()).hasSize(2);
         final var topLevel = actionContext.getActions().getFirst();
         assertThat(topLevel.getCalls()).hasSize(1);
         assertNestedAction(topLevel.getCalls().getFirst(), false);
@@ -215,7 +282,7 @@ class ActionTracerTest {
         actionTracer.tracePostExecution(nestedFrame, operationResult);
 
         // Then
-        assertThat(actionContext.getActions()).hasSize(1);
+        assertThat(actionContext.getActions()).hasSize(2);
         final var topLevel = actionContext.getActions().getFirst();
         assertThat(topLevel.getCalls()).hasSize(1);
         assertNestedAction(topLevel.getCalls().getFirst(), true);
@@ -328,6 +395,69 @@ class ActionTracerTest {
     }
 
     @Test
+    void haltsFrameWhenTimeoutExceeded() {
+        // Given
+        lenient().when(contractCallContext.isDeadlineExceeded()).thenReturn(true);
+        givenOriginFrameData();
+        actionTracer.traceOriginAction(messageFrame);
+
+        given(messageFrame.getRemainingGas()).willReturn(REMAINING_GAS);
+        given(messageFrame.getOutputData()).willReturn(OUTPUT);
+        given(messageFrame.getRevertReason()).willReturn(Optional.empty());
+        given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.of(ActionTracer.TIMEOUT_HALT_REASON));
+
+        // When
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        // Then
+        verify(messageFrame, org.mockito.Mockito.atLeastOnce()).setState(MessageFrame.State.EXCEPTIONAL_HALT);
+        verify(messageFrame, org.mockito.Mockito.atLeastOnce())
+                .setExceptionalHaltReason(Optional.of(ActionTracer.TIMEOUT_HALT_REASON));
+        assertThat(actionContext.isTimedOut()).isTrue();
+        assertThat(actionContext.getActions()).hasSize(1);
+    }
+
+    @Test
+    void doesNotHaltWhenTimeoutNotExceeded() {
+        // Given
+        lenient().when(contractCallContext.isDeadlineExceeded()).thenReturn(false);
+        given(messageFrame.getState()).willReturn(CODE_EXECUTING);
+
+        // When
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        // Then — should behave like CODE_EXECUTING (no action recorded)
+        verify(messageFrame, never()).setState(any());
+        assertThat(actionContext.getActions()).isEmpty();
+    }
+
+    @Test
+    void doesNotHaltWhenNoTimeoutConfigured() {
+        // Given — no timeout set (null)
+        actionContext.setTracerConfig(TracerConfig.builder().build());
+        given(messageFrame.getState()).willReturn(CODE_EXECUTING);
+
+        // When
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        // Then — normal CODE_EXECUTING early return, no halt
+        verify(messageFrame, never()).setState(any());
+        assertThat(actionContext.getActions()).isEmpty();
+    }
+
+    @Test
+    void haltsOnContextEnterWhenDeadlineExceeded() {
+        lenient().when(contractCallContext.isDeadlineExceeded()).thenReturn(true);
+        given(messageFrame.getRemainingGas()).willReturn(REMAINING_GAS);
+
+        actionTracer.traceContextEnter(messageFrame);
+
+        verify(messageFrame).setState(MessageFrame.State.EXCEPTIONAL_HALT);
+        assertThat(actionContext.isTimedOut()).isTrue();
+        assertThat(actionContext.getGasRemaining()).isEqualTo(REMAINING_GAS);
+    }
+
+    @Test
     void contractActionsIsEmpty() {
         // When
         final var result = actionTracer.contractActions();
@@ -343,6 +473,7 @@ class ActionTracerTest {
         given(messageFrame.getSenderAddress()).willReturn(SENDER);
         given(messageFrame.getRecipientAddress()).willReturn(RECIPIENT);
         given(messageFrame.getInputData()).willReturn(INPUT);
+        given(messageFrame.getValue()).willReturn(Wei.ZERO);
     }
 
     private void givenSuspendedParentWithChild() {
@@ -355,6 +486,7 @@ class ActionTracerTest {
         given(nestedFrame.getRecipientAddress()).willReturn(NESTED_RECIPIENT);
         given(nestedFrame.getRemainingGas()).willReturn(NESTED_GAS);
         given(nestedFrame.getInputData()).willReturn(NESTED_INPUT);
+        given(nestedFrame.getValue()).willReturn(Wei.ZERO);
     }
 
     private void givenCompletedFrameData(final MessageFrame frame, final long remainingGas, final Bytes output) {
@@ -370,16 +502,13 @@ class ActionTracerTest {
         assertThat(action.getTo()).isEqualTo(RECIPIENT.toHexString());
         assertThat(action.getInput()).isEqualTo(INPUT.toHexString());
         assertThat(action.getType()).isEqualTo(TypeEnum.CALL);
-        assertThat(action.getGas())
-                .isEqualTo(Bytes.wrap(String.valueOf(INITIAL_GAS).getBytes()).toHexString());
+        assertThat(action.getGas()).isEqualTo(HexUtils.convertLongToHexString(INITIAL_GAS));
+        assertThat(action.getValue()).isEqualTo(HexUtils.convertValueToHexString(Wei.ZERO));
         if (finalized) {
             assertThat(action.getOutput()).isEqualTo(OUTPUT.toHexString());
-            assertThat(action.getError()).isEqualTo(ExceptionalHaltReason.NONE.toString());
-            assertThat(action.getRevertReason()).isEqualTo(Bytes.EMPTY.toHexString());
-            assertThat(action.getGasUsed())
-                    .isEqualTo(Bytes.wrap(
-                                    String.valueOf(INITIAL_GAS - REMAINING_GAS).getBytes())
-                            .toHexString());
+            assertThat(action.getError()).isNull();
+            assertThat(action.getRevertReason()).isNull();
+            assertThat(action.getGasUsed()).isEqualTo(HexUtils.convertLongToHexString(INITIAL_GAS - REMAINING_GAS));
         }
     }
 
@@ -388,16 +517,14 @@ class ActionTracerTest {
         assertThat(action.getTo()).isEqualTo(NESTED_RECIPIENT.toHexString());
         assertThat(action.getInput()).isEqualTo(NESTED_INPUT.toHexString());
         assertThat(action.getType()).isEqualTo(TypeEnum.CALL);
-        assertThat(action.getGas())
-                .isEqualTo(Bytes.wrap(String.valueOf(NESTED_GAS).getBytes()).toHexString());
+        assertThat(action.getGas()).isEqualTo(HexUtils.convertLongToHexString(NESTED_GAS));
+        assertThat(action.getValue()).isEqualTo(HexUtils.convertValueToHexString(Wei.ZERO));
         if (finalized) {
             assertThat(action.getOutput()).isEqualTo(NESTED_OUTPUT.toHexString());
-            assertThat(action.getError()).isEqualTo(ExceptionalHaltReason.NONE.toString());
-            assertThat(action.getRevertReason()).isEqualTo(Bytes.EMPTY.toHexString());
+            assertThat(action.getError()).isNull();
+            assertThat(action.getRevertReason()).isNull();
             assertThat(action.getGasUsed())
-                    .isEqualTo(Bytes.wrap(String.valueOf(NESTED_GAS - NESTED_REMAINING_GAS)
-                                    .getBytes())
-                            .toHexString());
+                    .isEqualTo(HexUtils.convertLongToHexString(NESTED_GAS - NESTED_REMAINING_GAS));
         }
     }
 }

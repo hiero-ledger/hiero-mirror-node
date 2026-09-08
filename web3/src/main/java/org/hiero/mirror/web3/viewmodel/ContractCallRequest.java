@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -60,6 +61,7 @@ public class ContractCallRequest {
 
     @Valid
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonAlias("tracer_config")
     private TracerConfig tracerConfig;
 
     @AssertTrue(message = "must not be empty")

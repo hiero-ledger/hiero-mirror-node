@@ -14,6 +14,7 @@ import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_ACCEPTABLE;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
+import static org.springframework.http.HttpStatus.REQUEST_TIMEOUT;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST;
@@ -28,6 +29,7 @@ import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidInputException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
+import org.hiero.mirror.web3.exception.TraceTimeoutException;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse.ErrorMessage;
 import org.jspecify.annotations.Nullable;
@@ -119,6 +121,15 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     @ExceptionHandler
     private ResponseEntity<?> queryTimeoutException(final QueryTimeoutException e, WebRequest request) {
         return handleExceptionInternal(e, null, null, SERVICE_UNAVAILABLE, request);
+    }
+
+    @ExceptionHandler
+    private ResponseEntity<?> traceTimeoutException(final TraceTimeoutException e, final WebRequest request) {
+        request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, e, SCOPE_REQUEST);
+        if (e.getTracerResponse() != null) {
+            return new ResponseEntity<>(e.getTracerResponse(), REQUEST_TIMEOUT);
+        }
+        return handleExceptionInternal(e, null, null, REQUEST_TIMEOUT, request);
     }
 
     /**

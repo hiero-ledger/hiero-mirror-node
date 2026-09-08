@@ -514,6 +514,30 @@ class TransactionExecutionServiceTest {
         assertThat(capturedOutput.getOut()).doesNotContain("childTransactionErrors");
     }
 
+    @Test
+    void executeReturnsFailedResultWhenCollectingActionTrace() {
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+
+        when(transactionReceipt.status()).thenReturn(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(transactionRecord.contractCallResult()).thenReturn(contractFunctionResult);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord));
+
+        ContractCallContext.get().setActionContext(ActionContext.builder().build());
+
+        var result =
+                transactionExecutionService.execute(buildServiceParams(false, HEX_PREFIX, Address.ZERO), DEFAULT_GAS);
+
+        assertThat(result).isNotNull();
+        assertThat(result.responseCodeEnum()).isEqualTo(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED);
+    }
+
     @SuppressWarnings("unused")
     @Test
     void testExecuteContractCallFailureOnPreChecks() {

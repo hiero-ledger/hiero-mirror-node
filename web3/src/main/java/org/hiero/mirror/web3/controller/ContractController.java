@@ -8,10 +8,12 @@ import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import jakarta.validation.Valid;
+import java.time.Duration;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.TracerResponse;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.ContractDebugService;
@@ -19,12 +21,15 @@ import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.TraceRequest;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
+import org.hiero.mirror.web3.utils.GzipEncoding;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hyperledger.besu.datatypes.Address;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -51,37 +56,68 @@ class ContractController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
         }
 
-        throttleManager.throttle(request);
+        throttleManager.throttleTraceRequest();
+
+        final var result = contractExecutionService.processCall(params);
+        return new ContractCallResponse(result);
+    }
+
+    @PostMapping(value = "/call/debug")
+    TracerResponse trace(
+            @RequestBody @Valid ContractCallRequest request,
+            @RequestHeader(value = HttpHeaders.ACCEPT_ENCODING, required = false) String acceptEncoding) {
+        if (!tracerProperties.isEnabled()) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
+        }
+
+        GzipEncoding.require(acceptEncoding);
+        final var timeout = validateTraceRequest(request);
+        validateContractMaxGasLimit(request);
+
+        if (!request.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
+        }
+
+        throttleManager.throttleTraceRequest();
+
         try {
-            final var result = contractExecutionService.processCall(params);
-            return new ContractCallResponse(result);
-        } catch (IllegalArgumentException | InvalidParametersException e) {
-            // Processing did not complete, so restore the consumed tokens.
+            final var params = constructServiceParameters(request);
+            final var tracerConfig = request.getTracerConfig();
+            final var onlyTopCall = tracerConfig != null && tracerConfig.onlyTopCall();
+            final var traceRequest = new TraceRequest(params, onlyTopCall, timeout);
+
+            return contractDebugService.processTraceCall(traceRequest);
+        } catch (InvalidParametersException e) {
+            // The validation failed, but no processing occurred so restore the consumed tokens.
             throttleManager.restore(request.getGas());
             throw e;
         }
     }
 
-    @PostMapping(value = "/call/debug")
-    TracerResponse trace(@RequestBody @Valid ContractCallRequest request, HttpServletResponse response) {
-        if (tracerProperties.isEnabled()) {
-            try {
-                throttleManager.throttleTraceRequest();
-
-                final var params = constructServiceParameters(request);
-                final var tracerConfig = request.getTracerConfig();
-                final var onlyTopCall = tracerConfig != null && tracerConfig.isOnlyTopCall();
-                final var traceRequest = new TraceRequest(params, onlyTopCall);
-
-                return contractDebugService.processTraceCall(traceRequest);
-            } catch (InvalidParametersException e) {
-                // The validation failed, but no processing occurred so restore the consumed tokens.
-                throttleManager.restore(request.getGas());
-                throw e;
-            }
+    private Duration validateTraceRequest(final ContractCallRequest request) {
+        if (request.isEstimate()) {
+            throw new InvalidParametersException("estimate is not supported for debug trace calls");
         }
-
-        throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        final var tracerConfig = request.getTracerConfig();
+        if (tracerConfig == null) {
+            return null;
+        }
+        if (tracerConfig.effectiveTracerType() != TracerType.ACTION) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Tracer is not implemented");
+        }
+        if (tracerConfig.code()
+                || tracerConfig.diff()
+                || tracerConfig.memory()
+                || tracerConfig.stack()
+                || tracerConfig.storage()) {
+            throw new InvalidParametersException(
+                    "code, diff, memory, stack, and storage are not applicable to callTracer");
+        }
+        try {
+            return tracerConfig.parsedTimeout();
+        } catch (IllegalArgumentException e) {
+            throw new InvalidParametersException("Invalid timeout: " + tracerConfig.timeout());
+        }
     }
 
     private ContractExecutionParameters constructServiceParameters(ContractCallRequest request) {

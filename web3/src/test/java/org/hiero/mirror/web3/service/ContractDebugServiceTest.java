@@ -115,7 +115,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result = contractDebugService.processTraceCall(new TraceRequest(params, false));
+        final var result = contractDebugService.processTraceCall(new TraceRequest(params, false, null));
 
         // Then
         assertThat(result.getActions()).isNotNull();
@@ -131,7 +131,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result = contractDebugService.processTraceCall(new TraceRequest(params, true));
+        final var result = contractDebugService.processTraceCall(new TraceRequest(params, true, null));
 
         // Then
         assertThat(result.getActions()).isNotNull();
@@ -140,14 +140,14 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     @Test
-    void processTraceCallIntegrationReturnsActions() throws Exception {
+    void processTraceCallIntegrationReturnsActions() {
         // Given
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var functionCall = contract.call_multiplySimpleNumbers();
         final var params = getContractExecutionParameters(functionCall, contract);
 
         // When
-        final var result = contractDebugService.processTraceCall(new TraceRequest(params, false));
+        final var result = contractDebugService.processTraceCall(new TraceRequest(params, false, null));
 
         // Then
         assertThat(result.getActions()).isNotNull();
@@ -157,18 +157,18 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     @Test
-    void processTraceCallIntegrationOnlyTopCall() throws Exception {
+    void processTraceCallIntegrationOnlyTopCall() {
         // Given
         final var contract = testWeb3jService.deploy(InternalCaller::deploy);
         final var functionCall = contract.call_callNonExisting(contract.getContractAddress());
         final var params = getContractExecutionParameters(functionCall, contract);
 
         // When
-        final var allActions = contractDebugService.processTraceCall(new TraceRequest(params, false));
-        final var topCallOnly = contractDebugService.processTraceCall(new TraceRequest(params, true));
+        final var allActions = contractDebugService.processTraceCall(new TraceRequest(params, false, null));
+        final var topCallOnly = contractDebugService.processTraceCall(new TraceRequest(params, true, null));
 
         // Then
-        assertThat(allActions.getActions().getCalls()).hasSize(1);
+        assertThat(allActions.getActions().getCalls()).hasSize(2);
         assertThat(topCallOnly.getActions().getCalls()).hasSize(1);
         assertThat(allActions.getActions().getCalls().getFirst().getCalls()).isNotEmpty();
         assertThat(topCallOnly.getActions().getCalls().getFirst().getCalls()).isNullOrEmpty();
