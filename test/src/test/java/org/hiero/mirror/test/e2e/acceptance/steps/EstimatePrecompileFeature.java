@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.FUNGIBLE;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.FUNGIBLE_KYC_UNFROZEN;
-import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.NFT;
+import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.NFT_FOR_ESTIMATE_PRECOMPILE;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.NFT_KYC_UNFROZEN;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ERC;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ESTIMATE_PRECOMPILE;
@@ -241,7 +241,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         nonFungibleKycUnfrozenTokenId = tokenClient.getToken(NFT_KYC_UNFROZEN).tokenId();
         nonFungibleKycUnfrozenAddressString =
                 asAddress(nonFungibleKycUnfrozenTokenId).toString();
-        nonFungibleTokenId = tokenClient.getToken(NFT).tokenId();
+        nonFungibleTokenId = tokenClient.getToken(NFT_FOR_ESTIMATE_PRECOMPILE).tokenId();
         nonFungibleTokenAddressString = asAddress(nonFungibleTokenId).toString();
     }
 
