@@ -51,6 +51,7 @@ import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.hiero.mirror.importer.repository.AddressBookRepository;
 import org.hiero.mirror.importer.repository.FileDataRepository;
 import org.hiero.mirror.importer.repository.NodeStakeRepository;
+import org.hiero.mirror.importer.util.Utility;
 import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -465,8 +466,16 @@ public class AddressBookServiceImpl implements AddressBookService {
                 .serviceEndpoints(Set.of())
                 .stake(nodeAddressProto.getStake());
 
-        if (!nodeAddressProto.getNodeCertHash().isEmpty()) {
-            builder.nodeCertHash(nodeAddressProto.getNodeCertHash().toByteArray());
+        final var nodeCertHash = nodeAddressProto.getNodeCertHash();
+        if (!nodeCertHash.isEmpty()) {
+            if (nodeCertHash.isValidUtf8()) {
+                builder.nodeCertHash(nodeCertHash.toByteArray());
+            } else {
+                Utility.handleRecoverableError(
+                        "Discarding malformed nodeCertHash for node {} at consensus timestamp {}: not valid UTF-8",
+                        nodeIds.getLeft(),
+                        consensusTimestamp);
+            }
         }
 
         if (!nodeAddressProto.getMemo().isEmpty()) {

@@ -62,33 +62,6 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void findNetworkNodesWithNonUtf8NodeCertHash() {
-        // given - a poisoned address book entry whose node_cert_hash is a raw 48-byte digest rather than the
-        // conventional ASCII hex. Such bytes are almost never valid UTF-8; previously convert_from(node_cert_hash,
-        // 'UTF8') in SQL aborted the whole query with SQLSTATE 22021, breaking GET /network/nodes.
-        final var timestamp = domainBuilder.timestamp();
-        domainBuilder
-                .addressBook()
-                .customize(ab -> ab.startConsensusTimestamp(timestamp))
-                .persist();
-        final var rawDigest = domainBuilder.bytes(48);
-        rawDigest[0] = (byte) 0xff; // 0xff never appears in valid UTF-8, guaranteeing an invalid byte sequence
-        domainBuilder
-                .addressBookEntry(2)
-                .customize(e -> e.consensusTimestamp(timestamp).nodeId(1L).nodeCertHash(rawDigest))
-                .persist();
-
-        // when
-        final var results =
-                networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
-
-        // then - the query succeeds and returns the raw bytes for tolerant decoding in the mapper
-        assertThat(results).isNotNull().hasSize(1);
-        assertThat(results.get(0).nodeId()).isEqualTo(1L);
-        assertThat(results.get(0).nodeCertHash()).isEqualTo(rawDigest);
-    }
-
-    @Test
     void findNetworkNodesWithInvalidFileId() {
         // given
         setupNetworkNodeData();

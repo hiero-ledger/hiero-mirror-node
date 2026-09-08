@@ -10,10 +10,6 @@ import org.jspecify.annotations.NullUnmarked;
  * "0x" prefixes, JSON conversion) to produce ready-to-use values.
  *
  * <p>Parameter order matches the SQL SELECT clause order (alphabetically sorted by alias name).
- *
- * <p>{@code nodeCertHash} is the raw {@code bytea} from the address book; it is decoded tolerantly and "0x"-prefixed in
- * the mapper. Decoding is intentionally kept out of SQL because the bytes are chain-controlled and not guaranteed to be
- * valid UTF-8.
  */
 @NullUnmarked
 public record NetworkNodeDto(
@@ -28,7 +24,7 @@ public record NetworkNodeDto(
         String memo,
         Long minStake,
         Long nodeAccountId,
-        byte[] nodeCertHash,
+        String nodeCertHash,
         Long nodeId,
         String publicKey,
         Long rewardRateStart,
