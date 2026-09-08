@@ -4,7 +4,6 @@ package org.hiero.mirror.restjava.service;
 
 import static java.lang.Long.MAX_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -58,27 +57,6 @@ final class HookServiceTest {
     }
 
     @Test
-    void getHookStorageWhenHookMissingThrows() {
-        var request = HookStorageRequest.builder()
-                .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_NUM)))
-                .hookId(1L)
-                .keys(List.of())
-                .keyLowerBound(KEY_MIN_BYTES)
-                .keyUpperBound(KEY_MAX_BYTES)
-                .limit(25)
-                .order(Direction.ASC)
-                .timestamp(Bound.EMPTY)
-                .build();
-
-        when(entityService.lookup(any())).thenReturn(ownerId);
-        when(hookRepository.existsById(new Hook.Id(1L, OWNER_NUM))).thenReturn(false);
-
-        assertThatThrownBy(() -> hookService.getHookStorage(request))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Hook not found");
-    }
-
-    @Test
     void getHookStorageReturnsRepositoryRows() {
         var slot = new HookStorageSlot(1L, KEY_MIN_BYTES, new byte[] {1, 2, 3});
         var request = HookStorageRequest.builder()
@@ -93,7 +71,6 @@ final class HookServiceTest {
                 .build();
 
         when(entityService.lookup(any())).thenReturn(ownerId);
-        when(hookRepository.existsById(new Hook.Id(1L, OWNER_NUM))).thenReturn(true);
         when(hookRepository.findHookStorage(eq(request), eq(OWNER_NUM))).thenReturn(List.of(slot));
 
         var result = hookService.getHookStorage(request);

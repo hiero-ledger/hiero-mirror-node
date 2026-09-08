@@ -436,26 +436,9 @@ final class HooksControllerTest extends ControllerTest {
 
         @Override
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
-            final var defaultOwner = EntityId.of(0, 0, OWNER_ID);
-            persistAccount(defaultOwner, ALIAS, EVM_ADDRESS);
-            persistHook(defaultOwner, HOOK_ID);
-            persistHookStorage(defaultOwner, HOOK_ID);
+            persistHookStorage(EntityId.of(OWNER_ID), HOOK_ID);
 
             return uriSpec.uri("", OWNER_ID, HOOK_ID);
-        }
-
-        private Hook persistHook(EntityId ownerId, long hookId) {
-            return domainBuilder
-                    .hook()
-                    .customize(h -> h.ownerId(ownerId.getId()).hookId(hookId))
-                    .persist();
-        }
-
-        /** Same {@link #persistAccount(EntityId, String, String)} row shape but distinct alias (alias must be unique). */
-        private void persistDefaultOwnerAndHook() {
-            final var defaultOwner = EntityId.of(0, 0, OWNER_ID);
-            persistAccount(defaultOwner, ALIAS, EVM_ADDRESS);
-            persistHook(defaultOwner, HOOK_ID);
         }
 
         @ParameterizedTest
@@ -488,7 +471,6 @@ final class HooksControllerTest extends ControllerTest {
             final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
 
             persistAccount(ownerId, ALIAS, EVM_ADDRESS);
-            persistHook(ownerId, HOOK_ID);
 
             final var hookStorage1 = persistHookStorage(ownerId, HOOK_ID, KEY1);
             final var hookStorage2 = persistHookStorage(ownerId, HOOK_ID, incrementHex(KEY1, 1));
@@ -511,7 +493,6 @@ final class HooksControllerTest extends ControllerTest {
 
         @Test
         void noHookStorageFound() {
-            persistDefaultOwnerAndHook();
             // given
             final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
             final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
@@ -535,7 +516,6 @@ final class HooksControllerTest extends ControllerTest {
         @ParameterizedTest
         @ValueSource(strings = {"asc", "desc"})
         void limitAndNextLink(String order) {
-            persistDefaultOwnerAndHook();
             // given
             final int limit = 2;
 
@@ -590,7 +570,6 @@ final class HooksControllerTest extends ControllerTest {
             "desc, lte:" + TIMESTAMP4
         })
         void limitAndNextLinkWithTimestamp(String order, String timestampFilter) {
-            persistDefaultOwnerAndHook();
             // given
             final int limit = 2;
 
@@ -689,8 +668,8 @@ final class HooksControllerTest extends ControllerTest {
         void historicalStorageReturnsLatestValuePerKey() {
             // given — the importer appends one hook_storage_change row per change, so a single key has
             // multiple rows in the queried window; the endpoint must collapse them to the latest value
-            persistDefaultOwnerAndHook();
-            final var ownerId = EntityId.of(0, 0, OWNER_ID);
+            final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
+            final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
             final byte[] key = HexFormat.of().parseHex(KEY1.replace("0x", ""));
 
             persistHookStorageChangeWithValue(
@@ -776,7 +755,6 @@ final class HooksControllerTest extends ControllerTest {
         @ParameterizedTest
         @MethodSource("provideKeyQueries")
         void hookStorageKeyBounds(String parameters, List<Integer> expectedIndices) {
-            persistDefaultOwnerAndHook();
             // given
             final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
             final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
@@ -916,7 +894,6 @@ final class HooksControllerTest extends ControllerTest {
         @ParameterizedTest
         @MethodSource("provideKeyTimestampQueries")
         void timestampAndKeyBounds(String parameters, List<Integer> expectedIndices) {
-            persistDefaultOwnerAndHook();
             // given
             final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
             final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
@@ -963,7 +940,6 @@ final class HooksControllerTest extends ControllerTest {
 
         @Test
         void invalidLimitTooLow() {
-            persistDefaultOwnerAndHook();
             validateError(
                     () -> restClient
                             .get()
@@ -976,7 +952,6 @@ final class HooksControllerTest extends ControllerTest {
 
         @Test
         void invalidLimitTooHigh() {
-            persistDefaultOwnerAndHook();
             validateError(
                     () -> restClient
                             .get()
@@ -989,7 +964,6 @@ final class HooksControllerTest extends ControllerTest {
 
         @Test
         void invalidLimitFormat() {
-            persistDefaultOwnerAndHook();
             validateError(
                     () -> restClient
                             .get()
@@ -1002,7 +976,6 @@ final class HooksControllerTest extends ControllerTest {
 
         @Test
         void invalidOrder() {
-            persistDefaultOwnerAndHook();
             validateError(
                     () -> restClient
                             .get()
@@ -1023,7 +996,6 @@ final class HooksControllerTest extends ControllerTest {
                     "?key=gte::" + KEY1 // double colon
                 })
         void invalidKeyFormat(String queryString) {
-            persistDefaultOwnerAndHook();
             validateError(
                     () -> restClient
                             .get()
@@ -1047,7 +1019,6 @@ final class HooksControllerTest extends ControllerTest {
                     "9999999999999999999999999" // overflow
                 })
         void invalidAccountIdFormat(String invalidAccountId) {
-            persistDefaultOwnerAndHook();
             validateError(
                     () -> restClient
                             .get()
@@ -1070,7 +1041,6 @@ final class HooksControllerTest extends ControllerTest {
                     "9999999999999999999999999" // overflow
                 })
         void invalidHookIdFormat(String invalidHookId) {
-            persistDefaultOwnerAndHook();
             validateError(
                     () -> restClient
                             .get()
@@ -1083,7 +1053,6 @@ final class HooksControllerTest extends ControllerTest {
 
         @Test
         void negativeHookId() {
-            persistDefaultOwnerAndHook();
             validateError(
                     () -> restClient.get().uri("", OWNER_ID, -1).retrieve().toEntity(String.class),
                     HttpClientErrorException.BadRequest.class,
