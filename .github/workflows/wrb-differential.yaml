@@ -35,7 +35,7 @@ jobs:
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      SOLO_VERSION: v0.88.0
+      SOLO_VERSION: v0.88.1
     if: github.event_name == 'push' || github.event_name == 'schedule' || github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       pull-requests: read
@@ -73,10 +73,7 @@ jobs:
           verify-signature: true
 
       - name: Install Solo CLI via npm
-        run: |
-          npm install -g @hiero-ledger/solo@${SOLO_VERSION}
-          # workaround solo issue #5892, remove when bumping up to solo > v0.88.0
-          sed -i '314,316d' $(npm root -g)/@hiero-ledger/solo/dist/src/commands/mirror-node.js
+        run: npm install -g @hiero-ledger/solo@${SOLO_VERSION}
 
       - name: Determine base and tag
         timeout-minutes: 15
