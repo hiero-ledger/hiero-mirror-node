@@ -12,6 +12,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Range;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -275,6 +276,72 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(
                         entityHistory.getId(), entityHistory.getCreatedTimestamp()))
+                .isEmpty();
+    }
+
+    @Test
+    void findActiveByIdsAndTimestampReturnsRequestedCurrentEntities() {
+        final var entity1 = persistEntity();
+        final var entity2 = persistEntity();
+        persistEntity();
+        final long blockTimestamp = Math.max(entity1.getTimestampLower(), entity2.getTimestampLower()) + 1;
+
+        assertThat(entityRepository.findActiveByIdsAndTimestamp(
+                        List.of(entity1.getId(), entity2.getId()), blockTimestamp))
+                .containsExactlyInAnyOrder(entity1, entity2);
+    }
+
+    @Test
+    void findActiveByIdsAndTimestampRangeEqualToBlockTimestampAndDeletedIsFalseCall() {
+        final var entity = persistEntity();
+
+        assertThat(entityRepository.findActiveByIdsAndTimestamp(List.of(entity.getId()), entity.getTimestampLower()))
+                .containsExactly(entity);
+    }
+
+    @Test
+    void findActiveByIdsAndTimestampRangeGreaterThanBlockTimestampAndDeletedIsFalseCall() {
+        final var entity = persistEntity();
+
+        assertThat(entityRepository.findActiveByIdsAndTimestamp(
+                        List.of(entity.getId()), entity.getTimestampLower() - 1))
+                .isEmpty();
+    }
+
+    @Test
+    void findActiveByIdsAndTimestampRangeAndDeletedTrueCall() {
+        final var entity = persistEntityDeleted();
+
+        assertThat(entityRepository.findActiveByIdsAndTimestamp(List.of(entity.getId()), entity.getTimestampLower()))
+                .isEmpty();
+    }
+
+    @Test
+    void findHistoricalEntitiesByIdsAndTimestampRangeEqualToBlockTimestampAndDeletedIsFalseCall() {
+        final var entityHistory = persistEntityHistory();
+
+        assertThat(entityRepository.findActiveByIdsAndTimestamp(
+                        List.of(entityHistory.getId()), entityHistory.getTimestampLower()))
+                .singleElement()
+                .usingRecursiveComparison()
+                .isEqualTo(entityHistory);
+    }
+
+    @Test
+    void findHistoricalEntitiesByIdsAndTimestampRangeGreaterThanBlockTimestampAndDeletedIsFalseCall() {
+        final var entityHistory = persistEntityHistory();
+
+        assertThat(entityRepository.findActiveByIdsAndTimestamp(
+                        List.of(entityHistory.getId()), entityHistory.getTimestampLower() - 1))
+                .isEmpty();
+    }
+
+    @Test
+    void findHistoricalEntitiesByIdsAndTimestampRangeAndDeletedTrueCall() {
+        final var entityHistory = persistEntityHistoryWithDeleted();
+
+        assertThat(entityRepository.findActiveByIdsAndTimestamp(
+                        List.of(entityHistory.getId()), entityHistory.getCreatedTimestamp()))
                 .isEmpty();
     }
 

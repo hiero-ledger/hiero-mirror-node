@@ -327,9 +327,10 @@ class OpcodesControllerTest extends Web3IntegrationTest {
     @ParameterizedTest
     @MethodSource("serverResponseCodes")
     void serverErrorStatusesDoNotLeakErrorDetailsToClient(final ResponseCodeEnum responseCode) throws Exception {
-        final TransactionIdOrHashParameter transactionIdOrHash = setUp(TransactionProviderEnum.CONTRACT_CALL);
+        final TransactionIdOrHashParameter transactionIdOrHash =
+                persistTransaction(TransactionProviderEnum.CONTRACT_CALL);
 
-        reset(contractDebugService);
+        org.mockito.Mockito.reset(contractDebugService);
         when(contractDebugService.processOpcodeCall(
                         callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
                 .thenThrow(new MirrorEvmTransactionException(responseCode, "internal detail", "0xdeadbeef"));
@@ -418,8 +419,7 @@ class OpcodesControllerTest extends Web3IntegrationTest {
 
         if (providerEnum.hasEthTransaction()) {
             transactionIdOrHash = new TransactionHashParameter(Bytes.of(providerEnum.getHash()));
-            expectedError =
-                    new GenericErrorResponse(message, "Contract transaction hash not found: " + transactionIdOrHash);
+            expectedError = new GenericErrorResponse(message, "Contract transaction hash not found.");
         } else {
             final var transaction = providerEnum.getTransaction().get();
             transactionIdOrHash =

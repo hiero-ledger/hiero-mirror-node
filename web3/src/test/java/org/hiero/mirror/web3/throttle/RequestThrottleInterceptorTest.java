@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-class RequestThrottleInterceptorTest {
+final class RequestThrottleInterceptorTest {
 
     private RequestThrottleInterceptor interceptor;
     private MockHttpServletRequest request;

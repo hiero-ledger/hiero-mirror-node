@@ -27,9 +27,6 @@ public class Web3Properties {
     @Positive
     private int maxPayloadLogSize = 300;
 
-    @Positive
-    private int maxTouchedAccounts = 1000;
-
     public @NonNull ApiProperties getApi(@NonNull ApiEndpointName name) {
         return api.getOrDefault(name, API_PROPERTIES);
     }

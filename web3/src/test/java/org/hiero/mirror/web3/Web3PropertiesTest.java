@@ -94,19 +94,4 @@ class Web3PropertiesTest {
         assertThat(ApiEndpointName.fromPath("/unknown")).isNull();
         assertThat(ApiEndpointName.fromPath(null)).isNull();
     }
-
-    @Test
-    void maxTouchedAccountsHasDefaultValue() {
-        var properties = new Web3Properties();
-
-        assertThat(properties.getMaxTouchedAccounts()).isEqualTo(1000);
-    }
-
-    @Test
-    void maxTouchedAccountsCanBeConfigured() {
-        var properties = new Web3Properties();
-        properties.setMaxTouchedAccounts(500);
-
-        assertThat(properties.getMaxTouchedAccounts()).isEqualTo(500);
-    }
 }

@@ -120,8 +120,7 @@ public class OpcodeServiceImpl implements OpcodeService {
             case TransactionHashParameter transactionHash -> {
                 ContractTransactionHash contractTransactionHash = contractTransactionHashRepository
                         .findByHash(transactionHash.hash().toArray())
-                        .orElseThrow(() ->
-                                new EntityNotFoundException("Contract transaction hash not found: " + transactionHash));
+                        .orElseThrow(() -> new EntityNotFoundException("Contract transaction hash not found."));
 
                 transaction = null;
                 consensusTimestamp = contractTransactionHash.getConsensusTimestamp();

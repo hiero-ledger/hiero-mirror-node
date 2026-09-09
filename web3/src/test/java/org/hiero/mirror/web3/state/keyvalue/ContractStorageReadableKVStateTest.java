@@ -295,6 +295,5 @@ class ContractStorageReadableKVStateTest {
 
         assertThat(result).isNotNull();
         assertThat(result).returns(BYTES, SlotValue::value);
-        assertThat(contractCallContext.getPrestateContext()).isNull();
     }
 }

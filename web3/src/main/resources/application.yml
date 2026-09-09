@@ -21,7 +21,7 @@ hiero:
           request:
             throttle: 10
           response:
-            timeout: 10s
+            timeout: 4s
             headers:
               "Access-Control-Allow-Origin": "*"
               "Cache-Control": "public, max-age=600"

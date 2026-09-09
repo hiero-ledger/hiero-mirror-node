@@ -49,7 +49,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.util.StringUtils;
 
 @AutoConfigureMockMvc
-class PrestateControllerTest extends Web3IntegrationTest {
+final class PrestateControllerTest extends Web3IntegrationTest {
 
     private static final String PRESTATE_URI = "/api/v1/contracts/results/{transactionIdOrHash}/prestate";
 

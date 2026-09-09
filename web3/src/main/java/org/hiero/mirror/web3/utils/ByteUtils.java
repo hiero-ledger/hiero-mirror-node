@@ -10,7 +10,7 @@ public class ByteUtils {
 
     private static final String HEX_PREFIX = "0x";
     private static final int WORD_SIZE_BYTES = 32;
-    private static final int WORD_SIZE_HEX_CHARS = WORD_SIZE_BYTES * 2;
+    public static final int WORD_SIZE_HEX_CHARS = WORD_SIZE_BYTES * 2;
 
     /**
      * Converts a byte array to a hex string with "0x" prefix, zero-padded to 32 bytes (64 hex characters).

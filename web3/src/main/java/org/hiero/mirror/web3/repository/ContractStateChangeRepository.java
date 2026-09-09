@@ -15,18 +15,10 @@ public interface ContractStateChangeRepository extends CrudRepository<ContractSt
             select *
             from contract_state_change
             where consensus_timestamp = ?1
-              and contract_id in (
-                  select distinct contract_id
-                  from contract_state_change
-                  where consensus_timestamp = ?1
-                  order by contract_id
-                  limit ?2
-              )
             order by contract_id, slot
-            limit ?3 offset ?4
+            limit ?2 offset ?3
             """, nativeQuery = true)
-    List<ContractStateChange> findByConsensusTimestamp(
-            long consensusTimestamp, int accountLimit, int limit, int offset);
+    List<ContractStateChange> findByConsensusTimestamp(long consensusTimestamp, int limit, int offset);
 
     /**
      * Finds state changes where the value was actually modified (value_written differs from value_read).
@@ -36,17 +28,8 @@ public interface ContractStateChangeRepository extends CrudRepository<ContractSt
             select * from contract_state_change
             where consensus_timestamp = ?1
               and value_written is distinct from value_read
-              and contract_id in (
-                  select distinct contract_id
-                  from contract_state_change
-                  where consensus_timestamp = ?1
-                    and value_written is distinct from value_read
-                  order by contract_id
-                  limit ?2
-              )
             order by contract_id, slot
-            limit ?3 offset ?4
+            limit ?2 offset ?3
             """, nativeQuery = true)
-    List<ContractStateChange> findModifiedByConsensusTimestamp(
-            long consensusTimestamp, int accountLimit, int limit, int offset);
+    List<ContractStateChange> findModifiedByConsensusTimestamp(long consensusTimestamp, int limit, int offset);
 }

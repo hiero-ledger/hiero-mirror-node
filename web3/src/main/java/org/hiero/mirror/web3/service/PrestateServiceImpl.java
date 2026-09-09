@@ -9,7 +9,7 @@ import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
-import static org.hiero.mirror.web3.utils.ByteUtils.wrapToWordSize;
+import static org.hiero.mirror.web3.utils.ByteUtils.WORD_SIZE_HEX_CHARS;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import jakarta.inject.Named;
@@ -21,10 +21,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractStateChange;
@@ -32,10 +32,10 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.PrestateAccountTrace;
 import org.hiero.mirror.rest.model.PrestateResponse;
-import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
+import org.hiero.mirror.web3.controller.PrestateProperties;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
@@ -45,13 +45,15 @@ import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
+import org.hiero.mirror.web3.utils.ByteUtils;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @Named
 @CustomLog
 @RequiredArgsConstructor
 @NullMarked
-public final class PrestateServiceImpl implements PrestateService {
+final class PrestateServiceImpl implements PrestateService {
 
     public static final long MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS = 35 * 60 * NANOS_PER_SECOND;
 
@@ -63,14 +65,12 @@ public final class PrestateServiceImpl implements PrestateService {
     private final EntityRepository entityRepository;
     private final TransactionRepository transactionRepository;
     private final SystemEntity systemEntity;
-    private final Web3Properties web3Properties;
+    private final PrestateProperties prestateProperties;
 
     private static final int RESULT_REVERT = 12;
     private static final int RESULT_ERROR = 13;
     private static final int OP_DELEGATECALL = 3;
     private static final int OP_STATICCALL = 4;
-    private static final int STATE_CHANGE_PAGE_SIZE = 5000;
-    private static final int STATE_CHANGE_MAX_PAGES = 10;
     private static final Comparator<PrestateAccountTrace> ACCOUNT_TRACE_COMPARATOR =
             Comparator.comparing(PrestateAccountTrace::getAddress);
 
@@ -106,8 +106,7 @@ public final class PrestateServiceImpl implements PrestateService {
                 : Map.<Long, Entity>of();
 
         final var preBalances = loadBalances(accounts, timestampBeforeTransaction);
-        final var balanceTransfers =
-                diffMode ? calculateBalanceTransfers(prestateContext.getActions()) : Map.<Long, Long>of();
+        final var balanceTransfers = prestateContext.getBalanceTransfers();
 
         final var preBytecodes = prestateContext.getPrestateRequest().code()
                 ? loadBytecodes(accounts, timestampBeforeTransaction)
@@ -183,10 +182,13 @@ public final class PrestateServiceImpl implements PrestateService {
         preAccountTraces.sort(ACCOUNT_TRACE_COMPARATOR);
         final var response = new PrestateResponse();
         response.setPre(preAccountTraces);
+        response.setPost(List.of());
+
         if (diffMode) {
             postAccountTraces.sort(ACCOUNT_TRACE_COMPARATOR);
             response.setPost(postAccountTraces);
         }
+
         return response;
     }
 
@@ -230,7 +232,11 @@ public final class PrestateServiceImpl implements PrestateService {
         if (entity.getType() == CONTRACT) {
             final var bytecode = bytecodes.get(entityId);
             if (bytecode != null) {
-                accountTrace.setCode(wrapToWordSize(bytecode));
+                if (bytecode.length <= WORD_SIZE_HEX_CHARS) {
+                    accountTrace.setCode(ByteUtils.wrapToWordSize(bytecode));
+                } else {
+                    accountTrace.setCode(Bytes.wrap(bytecode).toHexString());
+                }
             }
             accountTrace.setStorage(storage);
         }
@@ -270,48 +276,6 @@ public final class PrestateServiceImpl implements PrestateService {
         return balances;
     }
 
-    private Map<Long, Long> calculateBalanceTransfers(final List<ContractAction> actions) {
-        final var transfers = new HashMap<Long, Long>();
-        for (final var action : actions) {
-            final int resultType = action.getResultDataType();
-            if (resultType == RESULT_REVERT || resultType == RESULT_ERROR) {
-                continue;
-            }
-
-            final int opType = action.getCallOperationType();
-            if (opType == OP_DELEGATECALL || opType == OP_STATICCALL) {
-                continue;
-            }
-
-            final long value = action.getValue();
-            if (value == 0) {
-                continue;
-            }
-
-            final Long callerId =
-                    action.getCaller() != null ? action.getCaller().getId() : null;
-            final Long recipientId = getRecipientId(action).orElse(null);
-
-            if (callerId != null) {
-                transfers.merge(callerId, -value, Long::sum);
-            }
-            if (recipientId != null) {
-                transfers.merge(recipientId, value, Long::sum);
-            }
-        }
-        return transfers;
-    }
-
-    private Optional<Long> getRecipientId(final ContractAction action) {
-        if (action.getRecipientAccount() != null) {
-            return Optional.of(action.getRecipientAccount().getId());
-        }
-        if (action.getRecipientContract() != null) {
-            return Optional.of(action.getRecipientContract().getId());
-        }
-        return Optional.empty();
-    }
-
     private void markTouchedAccounts(final PrestateContext prestateContext) {
         final var consensusTimestamp = prestateContext.getConsensusTimestamp();
         populateTouchedEntitiesFromActions(prestateContext, consensusTimestamp);
@@ -321,13 +285,63 @@ public final class PrestateServiceImpl implements PrestateService {
     private void populateTouchedEntitiesFromActions(
             final PrestateContext prestateContext, final long consensusTimestamp) {
         final var actions = contractActionRepository.findByConsensusTimestamp(consensusTimestamp);
-        prestateContext.setActions(actions);
+        final int accountLimit = prestateProperties.getMaxTouchedAccounts();
+        final boolean diffMode = prestateContext.getPrestateRequest().diffMode();
 
         for (final var action : actions) {
-            prestateContext.addAccount(action.getCaller());
-            prestateContext.addAccount(action.getRecipientAccount());
-            prestateContext.addAccount(action.getRecipientContract());
+            addTouchedAccount(prestateContext, action.getCaller(), accountLimit);
+            addTouchedAccount(prestateContext, action.getRecipientAccount(), accountLimit);
+            addTouchedAccount(prestateContext, action.getRecipientContract(), accountLimit);
+            if (diffMode) {
+                applyBalanceTransfer(prestateContext, action);
+            }
         }
+    }
+
+    private void applyBalanceTransfer(final PrestateContext prestateContext, final ContractAction action) {
+        final int resultType = action.getResultDataType();
+        if (resultType == RESULT_REVERT || resultType == RESULT_ERROR) {
+            return;
+        }
+
+        final int opType = action.getCallOperationType();
+        if (opType == OP_DELEGATECALL || opType == OP_STATICCALL) {
+            return;
+        }
+
+        final long value = action.getValue();
+        if (value == 0) {
+            return;
+        }
+
+        addBalanceTransfer(prestateContext, action.getCaller(), -value);
+        addBalanceTransfer(prestateContext, getRecipient(action), value);
+    }
+
+    private void addBalanceTransfer(
+            final PrestateContext prestateContext, final @Nullable EntityId accountId, final long value) {
+        if (accountId == null || EntityId.isEmpty(accountId)) {
+            return;
+        }
+        prestateContext.addBalanceTransfer(accountId.getId(), value);
+    }
+
+    private @Nullable EntityId getRecipient(final ContractAction action) {
+        if (!EntityId.isEmpty(action.getRecipientAccount())) {
+            return action.getRecipientAccount();
+        }
+        if (!EntityId.isEmpty(action.getRecipientContract())) {
+            return action.getRecipientContract();
+        }
+        return null;
+    }
+
+    private void addTouchedAccount(
+            final PrestateContext prestateContext, final @Nullable EntityId accountId, final int accountLimit) {
+        if (prestateContext.getAccounts().size() >= accountLimit) {
+            return;
+        }
+        prestateContext.addAccount(accountId);
     }
 
     private void populateTouchedEntitiesFromStateChanges(
@@ -338,27 +352,23 @@ public final class PrestateServiceImpl implements PrestateService {
             return;
         }
 
-        final var accountLimit = web3Properties.getMaxTouchedAccounts()
-                - prestateContext.getAccounts().size();
-        if (accountLimit <= 0) {
-            return;
-        }
-
         final var diffMode = prestateContext.getPrestateRequest().diffMode();
 
         final StateChangePageQuery query = diffMode
                 ? (limit, offset) -> contractStateChangeRepository.findModifiedByConsensusTimestamp(
-                        consensusTimestamp, accountLimit, limit, offset)
-                : (limit, offset) -> contractStateChangeRepository.findByConsensusTimestamp(
-                        consensusTimestamp, accountLimit, limit, offset);
+                        consensusTimestamp, limit, offset)
+                : (limit, offset) ->
+                        contractStateChangeRepository.findByConsensusTimestamp(consensusTimestamp, limit, offset);
         populateStateChanges(prestateContext, query);
     }
 
     private void populateStateChanges(
             final PrestateContext prestateContext, final StateChangePageQuery stateChangePageQuery) {
-        for (int page = 0; page < STATE_CHANGE_MAX_PAGES; page++) {
-            final int offset = page * STATE_CHANGE_PAGE_SIZE;
-            final var stateChanges = stateChangePageQuery.find(STATE_CHANGE_PAGE_SIZE, offset);
+        final int maxPages = prestateProperties.getStateChangeMaxPages();
+        final int pageSize = prestateProperties.getStateChangePageSize();
+        for (int page = 0; page < maxPages; page++) {
+            final int offset = page * pageSize;
+            final var stateChanges = stateChangePageQuery.find(pageSize, offset);
 
             for (final var stateChange : stateChanges) {
                 final var contractId = stateChange.getContractId();
@@ -385,8 +395,7 @@ public final class PrestateServiceImpl implements PrestateService {
             case TransactionHashParameter transactionHash ->
                 contractTransactionHashRepository
                         .findByHash(transactionHash.hash().toArrayUnsafe())
-                        .orElseThrow(() ->
-                                new EntityNotFoundException("Contract transaction hash not found: " + transactionHash))
+                        .orElseThrow(() -> new EntityNotFoundException("Contract transaction hash not found."))
                         .getConsensusTimestamp();
             case TransactionIdParameter transactionId -> {
                 final var validStartNs = convertToNanosMax(transactionId.validStart());

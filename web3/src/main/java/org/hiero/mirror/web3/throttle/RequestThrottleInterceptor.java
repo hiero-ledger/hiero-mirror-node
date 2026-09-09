@@ -44,7 +44,7 @@ public final class RequestThrottleInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        final var key = new ThrottleKey(endpoint, rateLimit);
+        final var key = new ThrottleKey(endpoint);
         final var bucket = buckets.computeIfAbsent(key, ignored -> createBucket(rateLimit));
         if (!bucket.tryConsume(1)) {
             throw new ThrottleException(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
@@ -61,5 +61,5 @@ public final class RequestThrottleInterceptor implements HandlerInterceptor {
         return Bucket.builder().addLimit(limit).build();
     }
 
-    private record ThrottleKey(ApiEndpointName endpoint, long rateLimit) {}
+    private record ThrottleKey(ApiEndpointName endpoint) {}
 }

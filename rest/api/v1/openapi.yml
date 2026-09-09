@@ -1938,12 +1938,15 @@ components:
         address:
           description: the address of the account
           type: string
+          format: binary
         balance:
           description: The account balance as a hex-encoded quantity in weibars
           type: string
+          format: binary
         code:
           description: the bytecode of the account
           type: string
+          format: binary
         nonce:
           description: the nonce of the account
           type: integer

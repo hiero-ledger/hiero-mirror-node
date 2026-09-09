@@ -17,7 +17,6 @@ public enum ApiEndpointName {
 
     private static final Map<String, ApiEndpointName> PATHS = EnumSet.allOf(ApiEndpointName.class).stream()
             .collect(Collectors.toMap(ApiEndpointName::getPath, Function.identity()));
-    ;
 
     @Getter
     private final String path;

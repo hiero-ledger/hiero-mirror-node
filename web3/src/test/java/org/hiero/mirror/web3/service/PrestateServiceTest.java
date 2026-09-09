@@ -15,8 +15,8 @@ import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
-import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
+import org.hiero.mirror.web3.controller.PrestateProperties;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
 import org.junit.jupiter.api.AfterEach;
@@ -37,11 +37,11 @@ final class PrestateServiceTest extends Web3IntegrationTest {
     private final PrestateService prestateService;
 
     @Resource
-    private Web3Properties web3Properties;
+    private PrestateProperties prestateProperties;
 
     @AfterEach
     void tearDown() {
-        web3Properties.setMaxTouchedAccounts(DEFAULT_MAX_TOUCHED_ACCOUNTS);
+        prestateProperties.setMaxTouchedAccounts(DEFAULT_MAX_TOUCHED_ACCOUNTS);
     }
 
     @Test
@@ -327,7 +327,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
     @Test
     void callReturnsAllAccountsWhenBelowMaxLimit() {
-        web3Properties.setMaxTouchedAccounts(10);
+        prestateProperties.setMaxTouchedAccounts(10);
         final var fixture = persistMultipleAccountsFixture(5);
 
         final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, false, false));
@@ -337,12 +337,22 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
     @Test
     void callReturnsAllAccountsWhenExactlyAtMaxLimit() {
-        web3Properties.setMaxTouchedAccounts(5);
+        prestateProperties.setMaxTouchedAccounts(5);
         final var fixture = persistMultipleAccountsFixture(5);
 
         final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, false, false));
 
         assertThat(response.getPre()).hasSize(5);
+    }
+
+    @Test
+    void callLimitsAccountsWhenAboveMaxLimit() {
+        prestateProperties.setMaxTouchedAccounts(3);
+        final var fixture = persistMultipleAccountsFixture(5);
+
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, false, false));
+
+        assertThat(response.getPre()).hasSize(3);
     }
 
     private PrestateRequest createRequest(
@@ -490,10 +500,10 @@ final class PrestateServiceTest extends Web3IntegrationTest {
             domainBuilder
                     .contractAction()
                     .customize(a -> a.consensusTimestamp(consensusTimestamp)
-                            .caller(contractId)
+                            .caller(accountId)
                             .callerType(EntityType.CONTRACT)
                             .recipientAccount(null)
-                            .recipientContract(accountId)
+                            .recipientContract(null)
                             .value(0L)
                             .index(index))
                     .persist();
