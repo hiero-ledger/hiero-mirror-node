@@ -57,10 +57,7 @@ public abstract class AbstractNodeTransactionHandler extends AbstractTransaction
                     e.getMessage());
         }
 
-        return ServiceEndpoint.builder()
-                .domainName(proto.getDomainName())
-                .ipAddressV4(ipAddress)
-                .port(proto.getPort())
-                .build();
+        final var domainName = DomainUtils.sanitize(proto.getDomainName());
+        return new ServiceEndpoint(domainName, ipAddress, proto.getPort());
     }
 }

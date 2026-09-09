@@ -77,7 +77,7 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
                     }
                 }
             }
-            case DOMAIN_NAME -> builder.domainName(proto.getDomainName());
+            case DOMAIN_NAME -> builder.domainName(DomainUtils.sanitize(proto.getDomainName()));
             default -> Utility.handleRecoverableError("Invalid addressCase: {}", proto.getAddressCase());
         }
 
