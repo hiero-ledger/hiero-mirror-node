@@ -66,7 +66,7 @@ jobs:
         env:
           BINARY: yq_linux_amd64
           TARGET: /home/runner/.local/bin
-          VERSION: v4.53.3
+          VERSION: v4.53.6
         run: |
           mkdir -p "${TARGET}"
           cd "${TARGET}"
