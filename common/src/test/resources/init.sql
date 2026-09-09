@@ -15,6 +15,10 @@ create user mirror_web3 with login password 'mirror_web3_pass' in role readonly;
 alter user mirror_node with createrole;
 grant readwrite to mirror_node;
 
+-- Allow importer user and owner user to use reserved connection slots
+grant pg_use_reserved_connections to mirror_importer;
+grant pg_use_reserved_connections to mirror_node;
+
 -- Grant temp schema admin privileges
 grant temporary_admin to mirror_node;
 grant temporary_admin to mirror_importer;

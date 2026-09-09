@@ -85,6 +85,10 @@ create user :restJavaUsername with login password :'restJavaPassword' in role re
 create user :rosettaUsername with login password :'rosettaPassword' in role readonly;
 create user :web3Username with login password :'web3Password' in role readonly;
 
+-- Allow importer user and owner user to use reserved connection slots
+grant pg_use_reserved_connections to :importerUsername;
+grant pg_use_reserved_connections to :ownerUsername;
+
 -- Grant temp schema admin privileges
 grant temporary_admin to :ownerUsername;
 grant temporary_admin to :importerUsername;
