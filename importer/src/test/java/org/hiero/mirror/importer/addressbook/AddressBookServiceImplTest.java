@@ -596,6 +596,35 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .returns(0, AddressBookServiceEndpoint::getPort);
     }
 
+    @Test
+    @Transactional
+    void verifyAddressBookWithMalformedNodeCertHash() {
+        // Given - a node cert hash whose bytes are not valid UTF-8
+        final var nodeAccountId = domainBuilder.entityId();
+        final var malformedCertHash = ByteString.copyFrom(new byte[] {(byte) 0xff, (byte) 0xfe, (byte) 0xfd});
+        final var nodeAddressBook = NodeAddressBook.newBuilder()
+                .addNodeAddress(NodeAddress.newBuilder()
+                        .setIpAddress(ByteString.copyFromUtf8("127.0.0.1"))
+                        .setNodeAccountId(nodeAccountId.toAccountID())
+                        .setNodeCertHash(malformedCertHash))
+                .build();
+        final byte[] addressBookBytes = nodeAddressBook.toByteArray();
+        final long consensusTimeStamp = 5L;
+
+        // When
+        update(addressBookBytes, consensusTimeStamp - 1, true);
+
+        // Then - the entry is persisted with a null cert hash
+        assertAddressBookData(addressBookBytes, consensusTimeStamp);
+        softly.assertThat(addressBookService.getCurrent())
+                .isNotNull()
+                .extracting(AddressBook::getEntries, InstanceOfAssertFactories.list(AddressBookEntry.class))
+                .hasSize(nodeAddressBook.getNodeAddressCount())
+                .first()
+                .returns(nodeAccountId, AddressBookEntry::getNodeAccountId)
+                .returns(null, AddressBookEntry::getNodeCertHash);
+    }
+
     @SuppressWarnings("deprecation")
     @Test
     @Transactional
