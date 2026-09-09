@@ -12,29 +12,30 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * Bounds how many {@code /opcodes} trace requests may be in flight at once. The permit is released in
- * {@link #afterCompletion} rather than a try/finally around the handler, so it stays held while a slow client is
- * still downloading the response.
+ * Bounds aggregate heap held by in-flight {@code /opcodes} traces, weighted by each request's capture size.
+ * Released in {@link #afterCompletion} so it stays held while a slow client downloads the response.
  */
 @RequiredArgsConstructor
 final class OpcodesConcurrencyInterceptor implements HandlerInterceptor {
 
-    private static final String PERMIT_ACQUIRED_ATTRIBUTE = OpcodesConcurrencyInterceptor.class.getName() + ".permit";
+    private static final String TRACE_WEIGHT_ATTRIBUTE = OpcodesConcurrencyInterceptor.class.getName() + ".weight";
 
     static final String CONCURRENT_TRACE_LIMIT_EXCEEDED_MESSAGE =
             "Too many concurrent opcode trace requests, please retry later";
 
-    private final Semaphore concurrentTraceLimiter;
+    private final Semaphore traceMemoryBudget;
+    private final TraceWeightEstimator weightEstimator;
 
     @Override
     public boolean preHandle(
             @NonNull final HttpServletRequest request,
             @NonNull final HttpServletResponse response,
             @NonNull final Object handler) {
-        if (!concurrentTraceLimiter.tryAcquire()) {
+        final var weight = weightEstimator.estimate(request);
+        if (!traceMemoryBudget.tryAcquire(weight)) {
             throw new ThrottleException(CONCURRENT_TRACE_LIMIT_EXCEEDED_MESSAGE);
         }
-        request.setAttribute(PERMIT_ACQUIRED_ATTRIBUTE, Boolean.TRUE);
+        request.setAttribute(TRACE_WEIGHT_ATTRIBUTE, weight);
         return true;
     }
 
@@ -44,8 +45,9 @@ final class OpcodesConcurrencyInterceptor implements HandlerInterceptor {
             @NonNull final HttpServletResponse response,
             @NonNull final Object handler,
             @Nullable final Exception exception) {
-        if (Boolean.TRUE.equals(request.getAttribute(PERMIT_ACQUIRED_ATTRIBUTE))) {
-            concurrentTraceLimiter.release();
+        final var weight = (Integer) request.getAttribute(TRACE_WEIGHT_ATTRIBUTE);
+        if (weight != null) {
+            traceMemoryBudget.release(weight);
         }
     }
 }

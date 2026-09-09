@@ -13,9 +13,8 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * Registers {@link OpcodesConcurrencyInterceptor} for the opcodes endpoint only. Uses {@link ObjectProvider} rather
- * than {@link OpcodesProperties} directly so unrelated {@code @WebMvcTest} slices - which auto-detect every
- * {@link WebMvcConfigurer} bean - don't fail to start without one.
+ * Registers {@link OpcodesConcurrencyInterceptor} for the opcodes endpoint only. Uses {@link ObjectProvider} so
+ * unrelated {@code @WebMvcTest} slices don't need an {@link OpcodesProperties} bean.
  */
 @Configuration(proxyBeanMethods = false)
 @RequiredArgsConstructor
@@ -25,10 +24,10 @@ final class OpcodesWebMvcConfiguration implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(@NonNull final InterceptorRegistry registry) {
-        final var maxConcurrentTraces =
-                propertiesProvider.getIfAvailable(OpcodesProperties::new).getMaxConcurrentTraces();
-        final var concurrentTraceLimiter = new Semaphore(maxConcurrentTraces);
-        registry.addInterceptor(new OpcodesConcurrencyInterceptor(concurrentTraceLimiter))
+        final var properties = propertiesProvider.getIfAvailable(OpcodesProperties::new);
+        final var traceMemoryBudget = new Semaphore(properties.getMaxConcurrentTraceBytes());
+        registry.addInterceptor(
+                        new OpcodesConcurrencyInterceptor(traceMemoryBudget, TraceWeightEstimator.of(properties)))
                 .addPathPatterns(OPCODES_URI);
     }
 }

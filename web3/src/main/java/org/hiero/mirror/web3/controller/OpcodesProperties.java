@@ -48,11 +48,7 @@ public class OpcodesProperties {
     @Positive
     private int maxStorage = 100_000;
 
-    /**
-     * Maximum number of opcode trace requests allowed to execute concurrently, including while a slow client is
-     * still downloading the response. Independent of {@code throttle.opcodeRequestsPerSecond}, which only limits
-     * how fast requests are admitted, not how many stay in flight at once.
-     */
+    /** Aggregate heap, in bytes, shared by all in-flight opcode traces; each request reserves its worst-case size. */
     @Positive
-    private int maxConcurrentTraces = 3;
+    private int maxConcurrentTraceBytes = 1_000_000_000;
 }
