@@ -30,7 +30,7 @@ runs:
           echo "SOLO_NAMESPACE=mirror"
           echo "SOLO_CLUSTER_SETUP_NAMESPACE=solo"
           echo "SOLO_DEPLOYMENT=solo-deployment"
-          echo "SOLO_VERSION=v0.88.0"
+          echo "SOLO_VERSION=v0.88.1"
         } >> "$GITHUB_ENV"
 
     - name: Setup Node
@@ -59,10 +59,7 @@ runs:
 
     - name: Install Solo CLI via npm
       shell: bash
-      run: |
-        npm install -g @hiero-ledger/solo@${SOLO_VERSION}
-        # workaround solo issue #5892, remove when bumping up to solo > v0.88.0
-        sed -i '314,316d' $(npm root -g)/@hiero-ledger/solo/dist/src/commands/mirror-node.js
+      run: npm install -g @hiero-ledger/solo@${SOLO_VERSION}
 
     - name: Determine tag
       shell: bash
