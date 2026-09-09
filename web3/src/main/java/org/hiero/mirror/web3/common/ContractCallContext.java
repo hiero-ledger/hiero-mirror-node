@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.common;
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -15,8 +16,10 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.Web3Properties.ApiEndpointName;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 
@@ -36,6 +39,9 @@ public class ContractCallContext {
     @Getter(AccessLevel.NONE)
     private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
 
+    @Setter
+    private ActionContext actionContext = null;
+
     /**
      * Optional API endpoint used to resolve a per-endpoint request timeout.
      */
@@ -44,6 +50,12 @@ public class ContractCallContext {
 
     @Setter
     private OpcodeContext opcodeContext = null;
+
+    /**
+     * Absolute epoch-millis deadline for this request. {@code 0} means fall back to the per-endpoint request timeout.
+     */
+    @Setter
+    private long deadlineMillis;
 
     @Setter
     private CallServiceParameters callServiceParameters;
@@ -157,5 +169,20 @@ public class ContractCallContext {
 
     public RecordFile getRecordFile() {
         return blockSupplier.get();
+    }
+
+    public boolean isDeadlineExceeded() {
+        return deadlineMillis > 0 && System.currentTimeMillis() >= deadlineMillis;
+    }
+
+    public void applyStateOverrides(final List<StateOverride> overrides) {
+        if (overrides == null || overrides.isEmpty()) {
+            return;
+        }
+        final var addressToAccounts = new HashMap<Bytes, StateOverride>(overrides.size());
+        for (final var stateOverride : overrides) {
+            addressToAccounts.put(Bytes.wrap(Utils.parseHex(stateOverride.getAddress())), stateOverride);
+        }
+        this.stateOverrides = addressToAccounts;
     }
 }

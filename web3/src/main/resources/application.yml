@@ -4,6 +4,9 @@ hiero:
   mirror:
     web3:
       api:
+        trace:
+          request:
+            timeout: 4s
         opcodes:
           request:
             timeout: 10s

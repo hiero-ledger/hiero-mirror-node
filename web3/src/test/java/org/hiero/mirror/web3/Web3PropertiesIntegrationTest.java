@@ -16,7 +16,7 @@ class Web3PropertiesIntegrationTest extends Web3IntegrationTest {
     private final Web3Properties properties;
 
     @ParameterizedTest
-    @CsvSource({"CALL, 60", "OPCODES, 10"})
+    @CsvSource({"CALL, 60", "TRACE, 4", "OPCODES, 10"})
     void loadsRequestTimeoutFromApplicationYml(ApiEndpointName name, long expectedSeconds) {
         assertThat(properties.getRequestTimeout(name)).isEqualTo(Duration.ofSeconds(expectedSeconds));
     }

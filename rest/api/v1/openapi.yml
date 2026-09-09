@@ -516,6 +516,63 @@ paths:
                 $ref: "#/components/schemas/Error"
       tags:
         - contracts
+  /api/v1/contracts/call/debug:
+    post:
+      summary: Trace a simulated contract call
+      description: "Simulates a contract call and returns a callTracer execution tree. Requires Accept-Encoding gzip. The estimate field is not supported. Unimplemented tracers return 501. A client timeout that elapses returns 408 with any actions collected so far."
+      operationId: contractDebugCall
+      parameters:
+        - name: Accept-Encoding
+          in: header
+          required: true
+          schema:
+            type: string
+            example: gzip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContractCallRequest"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TracerResponse"
+        400:
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        406:
+          description: "Accept-Encoding gzip header is required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        408:
+          description: Trace execution exceeded the configured timeout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TracerResponse"
+        429:
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        501:
+          description: Debug endpoint or requested tracer is not implemented
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - contracts
   /api/v1/contracts:
     get:
       summary: List contract entities on network
@@ -2290,6 +2347,66 @@ components:
       items:
         type: string
       type: array
+    TracerResponse:
+      type: object
+      properties:
+        actions:
+          description: The list of all contract actions related to the transaction execution traced by callTracer
+          type: object
+          properties:
+            calls:
+              description: The list of all contract actions related to the transaction execution
+              items:
+                $ref: "#/components/schemas/ActionResponse"
+              type: array
+        opcodes:
+          description: List of opcodes traced by opcodeLogger
+          $ref: "#/components/schemas/OpcodesResponse"
+        preimage:
+          description: List of keccak256 hashes and memory slices traced by keccak256PreimageTracer
+        prestate:
+          description: List of basic information about accounts and contracts touched during transaction execution traced by prestateTracer
+    ActionResponse:
+      type: object
+      properties:
+        calls:
+          description: The list of all nested contract actions related to the top-level execution
+          items:
+            $ref: "#/components/schemas/ActionResponse"
+          type: array
+        error:
+          description: The error message for the call action
+          type: [string, "null"]
+        from:
+          description: The sender address for the call action
+          type: string
+        gas:
+          description: Hexadecimal value of the gas sent for the execution
+          type: string
+        gas_used:
+          description: Hexadecimal value of the actually used gas
+          type: string
+        input:
+          description: The input for the call action
+          type: [string, "null"]
+        output:
+          description: The output for the given call action
+          type: [string, "null"]
+        revert_reason:
+          description: The reason for the call action revert, if available
+          type: [string, "null"]
+        to:
+          description: The recipient address for the call action
+          type: string
+        type:
+          description: The type of the call operation
+          enum:
+            [CALL, CALLCODE, CREATE, CREATE2, DELEGATECALL, STATICCALL, UNKNOWN]
+          example: CALL
+          type: string
+        value:
+          description: The hexadecimal value passed for the contract action in tinybars
+          type: string
     ContractAction:
       type: object
       properties:
@@ -2810,6 +2927,15 @@ components:
           format: int64
           minimum: 0
           type: [integer, "null"]
+        state_overrides:
+          description: Optional per-address state overrides for the simulation. Rejected unless state overrides are enabled on the node.
+          type: array
+          maxItems: 10
+          items:
+            type: object
+        tracerConfig:
+          description: Tracer options for `/contracts/call/debug`.
+          $ref: "#/components/schemas/TracerConfig"
       required:
         - to
     ContractCallResponse:
@@ -4233,6 +4359,36 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/TopicMessage"
+    TracerConfig:
+      type: object
+      properties:
+        code:
+          description: Whether to include contract bytecode in the response. Applicable only for prestateTracer
+          type: boolean
+        diff:
+          description: Whether to include additional array in the response with account changes reflecting state after call execution. Applicable only for prestateTracer
+          type: boolean
+        memory:
+          description: Whether to include EVM memory information in the response. Applicable only for opcodeLogger
+          type: boolean
+        onlyTopCall:
+          description: Whether to include only call action information about the root message frame in the response. Applicable only for callTracer.
+          type: boolean
+        stack:
+          description: Whether to include EVM stack information in the response. Applicable only for opcodeLogger
+          type: boolean
+        storage:
+          description: Whether to include contract storage information in the response. Applicable for prestateTracer and opcodeLogger
+          type: boolean
+        timeout:
+          description: Maximum duration allowed for transaction tracing before execution is terminated. Uses ISO-8601 duration format or shorthand (e.g. "PT5S" or "5s").
+          example: PT5S
+          type: string
+        tracer:
+          type: string
+          enum:
+            [callTracer, prestateTracer, keccak256PreimageTracer, opcodeLogger]
+          default: opcodeLogger
     Transaction:
       type: object
       properties:
