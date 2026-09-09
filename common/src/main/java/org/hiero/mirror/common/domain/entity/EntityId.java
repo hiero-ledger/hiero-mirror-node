@@ -29,6 +29,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 public final class EntityId implements Comparable<EntityId> {
 
     public static final EntityId EMPTY = new EntityId(0L);
+    public static final EntityId ZERO = new EntityId(0L);
     public static final String INVALID_ENTITY_EXCEPTION_PROPERTY = "HIERO_MIRROR_COMMON_INVALIDENTITYEXCEPTION";
 
     static final int NUM_BITS = 38;

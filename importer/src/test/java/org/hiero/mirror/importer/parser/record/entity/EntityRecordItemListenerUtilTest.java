@@ -17,6 +17,7 @@ import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.Prng;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.repository.PrngRepository;
@@ -70,7 +71,7 @@ class EntityRecordItemListenerUtilTest extends AbstractEntityRecordItemListenerT
     }
 
     @Test
-    void outOfRangePayerAccountIdIsSkippedWithoutHaltingFile() {
+    void outOfRangePayerAccountIdIsProcessedWithoutHaltingFile() {
         final var valid = recordItemBuilder.cryptoTransfer().build();
         final var invalid = recordItemBuilder
                 .cryptoTransfer()
@@ -81,9 +82,11 @@ class EntityRecordItemListenerUtilTest extends AbstractEntityRecordItemListenerT
         parseRecordItemsAndCommit(List.of(invalid, valid));
 
         assertAll(
-                () -> assertEquals(1, transactionRepository.count()),
+                () -> assertEquals(2, transactionRepository.count()),
                 () -> assertThat(transactionRepository.findById(invalid.getConsensusTimestamp()))
-                        .isEmpty(),
+                        .get()
+                        .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getPayerAccountId)
+                        .isEqualTo(EntityId.EMPTY),
                 () -> assertThat(transactionRepository.findById(valid.getConsensusTimestamp()))
                         .get()
                         .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getPayerAccountId)

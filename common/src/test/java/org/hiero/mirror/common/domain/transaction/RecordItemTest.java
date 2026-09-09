@@ -313,7 +313,7 @@ class RecordItemTest {
                 .transactionRecord(TRANSACTION_RECORD)
                 .build();
 
-        assertThat(recordItem.getPayerAccountId()).isEqualTo(EntityId.EMPTY);
+        assertThat(recordItem.getPayerAccountId()).isSameAs(EntityId.ZERO);
         assertThat(recordItem.getTransactionBody()).isEqualTo(txBody);
         assertThat(output.getAll()).contains(DomainUtils.RECOVERABLE_ERROR);
     }
