@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 
@@ -39,5 +40,19 @@ class TransactionRepositoryTest extends ImporterIntegrationTest {
         transactionRepository.save(t2);
         var actual = transactionRepository.findById(t2.getConsensusTimestamp());
         assertThat(actual).contains(t2);
+    }
+
+    @Test
+    void saveOutOfRangeTypeAndResult() {
+        var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.type(Short.MAX_VALUE + 1).result(Integer.MAX_VALUE))
+                .persist();
+        assertThat(transaction.getType()).isEqualTo((int) Short.MAX_VALUE);
+        assertThat(transaction.getResult()).isEqualTo((int) Short.MAX_VALUE);
+        assertThat(transactionRepository.findById(transaction.getConsensusTimestamp()))
+                .get()
+                .returns((int) Short.MAX_VALUE, Transaction::getType)
+                .returns((int) Short.MAX_VALUE, Transaction::getResult);
     }
 }

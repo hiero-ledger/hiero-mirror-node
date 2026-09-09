@@ -2,8 +2,11 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_77_0;
+
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.converter.WeiBarTinyBarConverter;
@@ -24,6 +27,8 @@ import org.hiero.mirror.importer.util.Utility;
 @Named
 @RequiredArgsConstructor
 final class EthereumTransactionHandler extends AbstractTransactionHandler {
+
+    private static final int EIP_7702_TYPE_BYTE = 4;
 
     private final ContractBytecodeService contractBytecodeService;
     private final EntityListener entityListener;
@@ -108,6 +113,10 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
         var ethereumDataBytes = DomainUtils.toBytes(body.getEthereumData());
         try {
             var ethereumTransaction = ethereumTransactionParser.decode(ethereumDataBytes);
+            // Remove the version check once Pectra is released on consensus node.
+            if (!isPectraEthereumTransactionSupported(recordItem, ethereumTransaction)) {
+                return;
+            }
 
             // update ethereumTransaction with body values
             if (body.hasCallData()) {
@@ -142,6 +151,16 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
             Utility.handleRecoverableError(
                     "Error decoding Ethereum transaction data at {}", recordItem.getConsensusTimestamp(), e);
         }
+    }
+
+    /**
+     * Type 4 (EIP-7702) transactions are only valid once consensus HAPI is 0.77.0. Skip persisting them — including
+     * failed submissions — until then so no Pectra data is written while consensus still rejects the type.
+     */
+    private static boolean isPectraEthereumTransactionSupported(
+            RecordItem recordItem, EthereumTransaction ethereumTransaction) {
+        return !Objects.equals(ethereumTransaction.getType(), EIP_7702_TYPE_BYTE)
+                || !recordItem.getHapiVersion().isLessThan(HAPI_VERSION_0_77_0);
     }
 
     private void updateAccountNonce(RecordItem recordItem, EthereumTransaction ethereumTransaction) {

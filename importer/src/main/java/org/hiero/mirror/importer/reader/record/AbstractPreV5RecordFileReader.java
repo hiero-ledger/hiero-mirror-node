@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.reader.record;
 
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
@@ -108,9 +109,9 @@ public abstract class AbstractPreV5RecordFileReader implements RecordFileReader 
             RecordItem recordItem = RecordItem.builder()
                     .hapiVersion(recordFile.getHapiVersion())
                     .previous(lastRecordItem)
-                    .transactionRecord(TransactionRecord.parseFrom(recordBytes))
+                    .transactionRecord(parseProtobuf(recordBytes, TransactionRecord::parseFrom))
                     .transactionIndex(count)
-                    .transaction(Transaction.parseFrom(transactionBytes))
+                    .transaction(parseProtobuf(transactionBytes, Transaction::parseFrom))
                     .build();
             items.add(recordItem);
 

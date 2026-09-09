@@ -79,7 +79,7 @@ public final class Eip1559EthereumTransactionParser extends AbstractEthereumTran
                         ethereumTransaction.getToAddress(),
                         getValue(ethereumTransaction),
                         ethereumTransaction.getCallData(),
-                        List.of(/*accessList*/ ),
+                        encodeAccessList(ethereumTransaction.getAccessList()),
                         Integers.toBytes(ethereumTransaction.getRecoveryId()),
                         ethereumTransaction.getSignatureR(),
                         ethereumTransaction.getSignatureS()));

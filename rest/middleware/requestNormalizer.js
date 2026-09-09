@@ -3,7 +3,6 @@
 import {getOpenApiMap} from './openapiHandler.js';
 import {filterKeys} from '../constants.js';
 import isEmpty from 'lodash/isEmpty';
-import * as querystring from 'node:querystring';
 
 const openApiMap = getOpenApiMap();
 
@@ -35,14 +34,14 @@ const NON_SORTED_PARAMS = COLLAPSABLE_PARAMS.concat([filterKeys.BLOCK_NUMBER, fi
 const normalizeRequestQueryParams = (openApiRoute, path, query) => {
   const openApiParameters = openApiMap.get(openApiRoute);
   if (isEmpty(openApiParameters)) {
-    return isEmpty(query) ? path : path + '?' + querystring.stringify(query);
+    return toNormalizedPath(path, query);
   }
 
-  let normalizedQuery = '';
+  const normalizedQuery = {};
   for (const param of openApiParameters) {
     const name = param.parameterName;
     const value = query[name];
-    let normalizedValue = '';
+    let normalizedValue;
     if (value !== undefined) {
       normalizedValue = Array.isArray(value) ? getNormalizedArrayValue(name, value) : value;
     } else if (param?.defaultValue !== undefined) {
@@ -51,15 +50,25 @@ const normalizeRequestQueryParams = (openApiRoute, path, query) => {
     }
 
     if (!isEmpty(normalizedValue)) {
-      normalizedQuery = appendToQuery(normalizedQuery, name + '=' + normalizedValue);
+      normalizedQuery[name] = normalizedValue;
     }
   }
 
-  return isEmpty(normalizedQuery) ? path : path + '?' + normalizedQuery;
+  return toNormalizedPath(path, normalizedQuery);
 };
 
-const appendToQuery = (queryString, queryValue) => {
-  return queryString + getQueryPrefix(queryString) + queryValue;
+const stringifyQuery = (query) => {
+  return Object.entries(query)
+    .flatMap(([name, value]) => {
+      const encodedName = encodeURIComponent(name);
+      const values = Array.isArray(value) ? value : [value];
+      return values.map((v) => `${encodedName}=${encodeURIComponent(v)}`);
+    })
+    .join('&');
+};
+
+const toNormalizedPath = (path, query) => {
+  return isEmpty(query) ? path : path + '?' + stringifyQuery(query);
 };
 
 const getNormalizedArrayValue = (name, valueArray) => {
@@ -75,11 +84,7 @@ const getNormalizedArrayValue = (name, valueArray) => {
     valueArray = valueArray.slice(valueArray.length - 1);
   }
 
-  return valueArray.join('&' + name + '=');
-};
-
-const getQueryPrefix = (queryString) => {
-  return queryString.length > 0 ? '&' : '';
+  return valueArray;
 };
 
 export {normalizeRequestQueryParams};

@@ -23,18 +23,18 @@ runs:
         {
           echo "LC_ALL=C.UTF-8"
           echo "IMAGE_REGISTRY=ghcr.io/hiero-ledger/hiero-mirror-node"
-          echo "BLOCK_NODE_VERSION=v0.38.1"
-          echo "CONSENSUS_NODE_VERSION=v0.76.1"
+          echo "BLOCK_NODE_VERSION=v0.41.0"
+          echo "CONSENSUS_NODE_VERSION=v0.77.0-rc.11"
           echo "HELM_RELEASE_NAME=mirror-1"
           echo "SOLO_CLUSTER_NAME=test"
           echo "SOLO_NAMESPACE=mirror"
           echo "SOLO_CLUSTER_SETUP_NAMESPACE=solo"
           echo "SOLO_DEPLOYMENT=solo-deployment"
-          echo "SOLO_VERSION=v0.77.0"
+          echo "SOLO_VERSION=v0.88.0"
         } >> "$GITHUB_ENV"
 
     - name: Setup Node
-      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: 24
 
@@ -52,14 +52,17 @@ runs:
         version: v0.32.0
 
     - name: Install JDK
-      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
       with:
         java-version-file: .sdkmanrc
         verify-signature: true
 
     - name: Install Solo CLI via npm
       shell: bash
-      run: npm install -g @hiero-ledger/solo@${SOLO_VERSION}
+      run: |
+        npm install -g @hiero-ledger/solo@${SOLO_VERSION}
+        # workaround solo issue #5892, remove when bumping up to solo > v0.88.0
+        sed -i '314,316d' $(npm root -g)/@hiero-ledger/solo/dist/src/commands/mirror-node.js
 
     - name: Determine tag
       shell: bash
@@ -215,7 +218,7 @@ runs:
           cat $(which solo | xargs dirname)/../lib/node_modules/@hiero-ledger/solo/resources/templates/application.properties \
             > application.properties
           cat <<EOF >> application.properties
-        blockStream.writerMode=FILE_AND_GRPC
+        blockStream.writerMode=GRPC
         blockStream.streamWrappedRecordBlocks=false
 
         tss.hintsEnabled=true
@@ -225,7 +228,7 @@ runs:
         EOF
           APPLICATION_PROPERTIES_FLAG=(--application-properties application.properties)
           solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
-            --chart-version "${BLOCK_NODE_VERSION}" --release-tag "${CONSENSUS_NODE_VERSION}"
+            --block-node-version "${BLOCK_NODE_VERSION}" --consensus-node-version "${CONSENSUS_NODE_VERSION}"
         fi
 
         if [[ "${IMAGE_SOURCE}" == "native" ]]; then
@@ -235,9 +238,9 @@ runs:
         fi
 
         solo keys consensus generate --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1
-        solo consensus network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_NODE_VERSION}" \
+        solo consensus network deploy --deployment "${SOLO_DEPLOYMENT}" --consensus-node-version "${CONSENSUS_NODE_VERSION}" \
           "${APPLICATION_PROPERTIES_FLAG[@]}"
-        solo consensus node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 --release-tag "${CONSENSUS_NODE_VERSION}"
+        solo consensus node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 --consensus-node-version "${CONSENSUS_NODE_VERSION}"
         solo consensus node start --deployment "${SOLO_DEPLOYMENT}" -i node1
 
         helm dependency update charts/hedera-mirror
@@ -245,7 +248,9 @@ runs:
           -f mirror.yaml --mirror-node-chart-dir ./charts --pinger --enable-ingress
         APP_VERSION=$(helm ls -n "${SOLO_NAMESPACE}" -o json \
           | jq -r '.[] | select (.chart | test("hedera-mirror-.*")) | .app_version')
-        echo "Installed hedera-mirror chart version $APP_VERSION"
+        IMPORTER_IMAGE_TAG=$(kubectl get -n "${SOLO_NAMESPACE}" deployment "${HELM_RELEASE_NAME}-importer" -o yaml | \
+          yq .spec.template.spec.containers[0].image | cut -d':' -f2)
+        echo "Installed hedera-mirror chart version $APP_VERSION, importer image tag ${IMPORTER_IMAGE_TAG}"
 
     - name: Run REST monitor test
       shell: bash
@@ -257,10 +262,11 @@ runs:
       shell: bash
       run: |
         set -o pipefail
+        mkdir -p logs/acceptance-tests
         helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
-          --timeout 20m 2>&1 | tr -d '\000' | tee output_log.txt
+          --timeout 20m 2>&1 | tr -d '\000' | tee logs/acceptance-tests/output.log
 
-    - name: Show Pod Logs on Failure
+    - name: Collect Pod Logs on Failure
       continue-on-error: true
       if: ${{ failure() }}
       shell: bash
@@ -269,13 +275,24 @@ runs:
         echo "Workflow failed. Collecting logs for debugging..."
         echo "--------------------------------------------------"
 
-        echo "--- Describing all pods in namespace ${SOLO_NAMESPACE} ---"
-        kubectl describe pods -n "${SOLO_NAMESPACE}" || echo "Could not describe pods"
+        mkdir -p logs/pods
 
-        echo "--- Fetching logs for all pods in namespace ${SOLO_NAMESPACE} ---"
+        kubectl describe pods -n "${SOLO_NAMESPACE}" > logs/pods/describe-pods.txt \
+          || echo "Could not describe pods"
+
         for pod in $(kubectl get pods -n "${SOLO_NAMESPACE}" -o name); do
           if [ -n "$pod" ]; then
-            echo "--- Logs for pod: $pod ---"
-            kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=10000 || echo "Could not get logs for pod $pod"
+            pod_name="${pod#pod/}"
+            kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true > "logs/pods/${pod_name}.log" \
+              || echo "Could not get logs for pod $pod"
           fi
         done
+
+    - name: Upload Logs on Failure
+      continue-on-error: true
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: logs-${{ inputs.stream-type }}
+        path: logs
+        retention-days: 7

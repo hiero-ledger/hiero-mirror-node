@@ -249,30 +249,30 @@ func TestLoadNodeMapFromEnvError(t *testing.T) {
 }
 
 func TestNodeMapDecodeHookFunc(t *testing.T) {
-	nodeMapTye := reflect.TypeOf(NodeMap{})
+	nodeMapTye := reflect.TypeFor[NodeMap]()
 	tests := []struct {
 		name        string
 		from        reflect.Type
-		data        interface{}
+		data        any
 		expected    NodeMap
 		expectError bool
 	}{
 		{
 			name:     "valid data",
-			from:     reflect.TypeOf(map[string]interface{}{}),
-			data:     map[string]interface{}{serviceEndpoint: "0.0.3"},
+			from:     reflect.TypeFor[map[string]any](),
+			data:     map[string]any{serviceEndpoint: "0.0.3"},
 			expected: NodeMap{serviceEndpoint: hiero.AccountID{Account: 3}},
 		},
 		{
 			name:        "invalid data type",
-			from:        reflect.TypeOf(map[int]string{}),
-			data:        map[int]interface{}{1: "0.0.3"},
+			from:        reflect.TypeFor[map[int]string](),
+			data:        map[int]any{1: "0.0.3"},
 			expectError: true,
 		},
 		{
 			name:        "invalid node account id",
-			from:        reflect.TypeOf(map[string]interface{}{}),
-			data:        map[string]interface{}{serviceEndpoint: "3"},
+			from:        reflect.TypeFor[map[string]any](),
+			data:        map[string]any{serviceEndpoint: "3"},
 			expectError: true,
 		},
 	}

@@ -15,6 +15,7 @@ import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.junit.jupiter.api.AfterAll;
@@ -44,6 +45,9 @@ class AliasesReadableKVStateTest {
 
     @Spy
     private AliasedAccountCacheManager aliasedAccountCacheManager;
+
+    @Spy
+    private EvmProperties evmProperties;
 
     private static final ProtoBytes EVM_ADDRESS_BYTES =
             new ProtoBytes(Bytes.wrap("67d8d32e9bf1a9968a5ff53b87d777aa8ebbee69".getBytes()));

@@ -56,6 +56,7 @@ var (
 	expectedGenesisBlock = &types.Block{
 		ConsensusStartNanos: 91,
 		ConsensusEndNanos:   109,
+		Count:               5,
 		Hash:                "genesis_record_file_hash",
 		Index:               genesisBlockIndex,
 		ParentHash:          "genesis_record_file_hash",
@@ -64,6 +65,7 @@ var (
 	expectedSecondBlock = &types.Block{
 		ConsensusStartNanos: 110,
 		ConsensusEndNanos:   129,
+		Count:               8,
 		Hash:                "second_record_file_hash",
 		Index:               genesisBlockIndex + 1,
 		ParentHash:          "genesis_record_file_hash",
@@ -72,6 +74,7 @@ var (
 	expectedThirdBlock = &types.Block{
 		ConsensusStartNanos: 130,
 		ConsensusEndNanos:   145,
+		Count:               3,
 		Hash:                "third_record_file_hash",
 		Index:               genesisBlockIndex + 2,
 		ParentHash:          "second_record_file_hash",
@@ -82,6 +85,7 @@ var (
 		{
 			ConsensusStart: 80,
 			ConsensusEnd:   100,
+			Count:          5,
 			Hash:           "genesis_record_file_hash",
 			Index:          genesisBlockIndex,
 			Name:           "genesis_record_file",
@@ -90,6 +94,7 @@ var (
 		{
 			ConsensusStart: 110,
 			ConsensusEnd:   120,
+			Count:          8,
 			Hash:           "second_record_file_hash",
 			Index:          genesisBlockIndex + 1,
 			Name:           "second_record_file",
@@ -98,6 +103,7 @@ var (
 		{
 			ConsensusStart: 130,
 			ConsensusEnd:   145,
+			Count:          3,
 			Hash:           "third_record_file_hash",
 			Index:          genesisBlockIndex + 2,
 			Name:           "third_record_file",
@@ -108,6 +114,7 @@ var (
 	recordFileBeforeGenesis = &domain.RecordFile{
 		ConsensusStart: 50,
 		ConsensusEnd:   79,
+		Count:          2,
 		Hash:           "previous_record_file_hash",
 		Index:          genesisBlockIndex - 1,
 		Name:           "previous_record_file",
@@ -687,6 +694,7 @@ func TestRecordFileToBlock(t *testing.T) {
 			recordBlock{
 				ConsensusStart: 100,
 				ConsensusEnd:   200,
+				Count:          5,
 				Hash:           "hash",
 				Index:          genesisBlockIndex,
 				PrevHash:       "prev_hash",
@@ -698,6 +706,7 @@ func TestRecordFileToBlock(t *testing.T) {
 				ParentHash:          "hash",
 				ConsensusStartNanos: genesisBlock.ConsensusStart,
 				ConsensusEndNanos:   200,
+				Count:               5,
 			},
 		},
 		{
@@ -705,6 +714,7 @@ func TestRecordFileToBlock(t *testing.T) {
 			recordBlock{
 				ConsensusStart: 201,
 				ConsensusEnd:   300,
+				Count:          8,
 				Hash:           "hash",
 				Index:          8,
 				PrevHash:       "prev_hash",
@@ -716,6 +726,7 @@ func TestRecordFileToBlock(t *testing.T) {
 				ParentHash:          "prev_hash",
 				ConsensusStartNanos: 201,
 				ConsensusEndNanos:   300,
+				Count:               8,
 			},
 		},
 	}

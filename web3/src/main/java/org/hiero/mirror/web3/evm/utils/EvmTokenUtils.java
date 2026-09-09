@@ -15,12 +15,12 @@ import org.hyperledger.besu.datatypes.Address;
 public class EvmTokenUtils {
 
     public static Long entityIdNumFromEvmAddress(final Address address) {
-        final var id = fromEvmAddress(address.toArrayUnsafe());
+        final var id = fromEvmAddress(address.getBytes().toArrayUnsafe());
         return id != null ? id.getId() : 0;
     }
 
     public static EntityId entityIdFromEvmAddress(final Address address) {
-        return fromEvmAddress(address.toArrayUnsafe());
+        return fromEvmAddress(address.getBytes().toArrayUnsafe());
     }
 
     public static Address toAddress(final long encodedId) {

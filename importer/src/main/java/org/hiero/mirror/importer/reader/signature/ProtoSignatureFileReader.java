@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.reader.signature;
 
 import static java.lang.String.format;
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 
 import com.hedera.services.stream.proto.SignatureFile;
 import jakarta.inject.Named;
@@ -53,7 +54,7 @@ public class ProtoSignatureFileReader implements SignatureFileReader {
                 throw new InvalidStreamFileException(message);
             }
 
-            var signatureFile = SignatureFile.parseFrom(dataInputStream);
+            final var signatureFile = parseProtobuf(dataInputStream, SignatureFile::parseFrom);
             if (!signatureFile.hasFileSignature()) {
                 throw new InvalidStreamFileException(format("The file %s does not have a file signature", filename));
             }

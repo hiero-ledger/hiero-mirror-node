@@ -298,7 +298,82 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
     }
 
     @Test
-    void wrongNonceEthereumTransactionDoesNotConsumeEvmIndex() {
+    void twoRootsEachWithChildrenGetDistinctSharedIndices() {
+        // given
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        final long timestamp = ++count;
+        final var firstRoot = contractCall(contractFunctionResult(1000L, new byte[] {1}), timestamp, 0);
+        final var firstChild = contractCreateChild(
+                contractFunctionResult(2000L, new byte[] {2}), timestamp + 1, timestamp, 1, firstRoot);
+        final var secondRoot = contractCall(contractFunctionResult(3000L, new byte[] {3}), timestamp + 2, 0);
+        final var secondChild = contractCreateChild(
+                contractFunctionResult(4000L, new byte[] {4}), timestamp + 3, timestamp + 2, 1, secondRoot);
+        final var secondChild2 = contractCreateChild(
+                contractFunctionResult(5000L, new byte[] {5}), timestamp + 4, timestamp + 2, 2, secondChild);
+
+        final var items = List.of(firstRoot, firstChild, secondRoot, secondChild, secondChild2);
+        final var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
+                () -> assertThat(firstRoot.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(firstChild.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(secondRoot.getEvmTransactionIndex()).isEqualTo(1),
+                () -> assertThat(secondChild.getEvmTransactionIndex()).isEqualTo(1),
+                () -> assertThat(secondChild2.getEvmTransactionIndex()).isEqualTo(1));
+    }
+
+    @Test
+    void precompileDispatchedChildrenOfDifferentTypesInheritRootIndex() {
+        // given
+        // Mirrors a real mainnet transaction: root CONTRACTCALL nonce 0 dispatches precompile-triggered
+        // TOKENASSOCIATE/TOKENMINT/CRYPTOTRANSFER children at nonce 1-3, each with its own embedded contract result
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        final long timestamp = ++count;
+        final var root = contractCall(contractFunctionResult(1000L, new byte[] {1}), timestamp, 0);
+        final var tokenAssociateChild = precompileChild(
+                recordItemBuilder.tokenAssociate(),
+                contractFunctionResult(500L, new byte[] {2}),
+                timestamp + 1,
+                timestamp,
+                1,
+                root);
+        final var tokenMintChild = precompileChild(
+                recordItemBuilder.tokenMint(),
+                contractFunctionResult(600L, new byte[] {3}),
+                timestamp + 2,
+                timestamp,
+                2,
+                tokenAssociateChild);
+        final var cryptoTransferChild = precompileChild(
+                recordItemBuilder.cryptoTransfer(),
+                contractFunctionResult(700L, new byte[] {4}),
+                timestamp + 3,
+                timestamp,
+                3,
+                tokenMintChild);
+
+        final var items = List.of(root, tokenAssociateChild, tokenMintChild, cryptoTransferChild);
+        final var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
+                () -> assertThat(root.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(tokenAssociateChild.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(tokenMintChild.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(cryptoTransferChild.getEvmTransactionIndex()).isZero());
+    }
+
+    @Test
+    void positiveGasUsedConsumesEvmIndexRegardlessOfStatus() {
         // given
         when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
 
@@ -322,7 +397,104 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
 
         // then
         assertAll(
+                () -> assertThat(wrongNonceItem.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(contractCallItem.getEvmTransactionIndex()).isEqualTo(1));
+    }
+
+    @Test
+    void zeroGasUsedDoesNotConsumeEvmIndex() {
+        // given
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        final long timestamp = ++count;
+        final var contractFunctionResult = contractFunctionResult(0L, new byte[] {1});
+        final var wrongNonceItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .record(builder -> builder.setContractCallResult(contractFunctionResult)
+                        .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp))
+                        .setReceipt(TransactionReceipt.newBuilder()
+                                .setStatus(ResponseCodeEnum.WRONG_NONCE)
+                                .build()))
+                .build();
+        final var contractCallItem = contractCall(contractFunctionResult(2000L, new byte[] {2}), timestamp + 1, 0);
+
+        final var items = List.of(wrongNonceItem, contractCallItem);
+        final var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
                 () -> assertThat(wrongNonceItem.getEvmTransactionIndex()).isNull(),
+                () -> assertThat(contractCallItem.getEvmTransactionIndex()).isZero());
+    }
+
+    @Test
+    void precompileEmbeddedContractResultOnNonEvmTypeConsumesEvmIndex() {
+        // given
+        // e.g. an HTS TokenMint whose record embeds a ContractFunctionResult from a triggered precompile call
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        final long timestamp = ++count;
+        final var precompileItem = precompileRecordItem(contractFunctionResult(1000L, new byte[] {1}), timestamp);
+        final var contractCallItem = contractCall(contractFunctionResult(2000L, new byte[] {2}), timestamp + 1, 0);
+
+        final var items = List.of(precompileItem, contractCallItem);
+        final var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
+                () -> assertThat(precompileItem.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(contractCallItem.getEvmTransactionIndex()).isEqualTo(1));
+    }
+
+    @Test
+    void precompileEmbeddedZeroGasContractResultOnNonEvmTypeDoesNotConsumeEvmIndex() {
+        // given
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        final long timestamp = ++count;
+        final var precompileItem = precompileRecordItem(contractFunctionResult(0L, new byte[] {1}), timestamp);
+        final var contractCallItem = contractCall(contractFunctionResult(2000L, new byte[] {2}), timestamp + 1, 0);
+
+        final var items = List.of(precompileItem, contractCallItem);
+        final var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
+                () -> assertThat(precompileItem.getEvmTransactionIndex()).isNull(),
+                () -> assertThat(contractCallItem.getEvmTransactionIndex()).isZero());
+    }
+
+    @Test
+    void noContractFunctionResultDoesNotConsumeEvmIndex() {
+        // given
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        final long timestamp = ++count;
+        final var noResultItem = recordItemBuilder
+                .contractCall()
+                .record(builder -> builder.clearContractCallResult()
+                        .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp)))
+                .build();
+        final var contractCallItem = contractCall(contractFunctionResult(2000L, new byte[] {2}), timestamp + 1, 0);
+
+        final var items = List.of(noResultItem, contractCallItem);
+        final var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
+                () -> assertThat(noResultItem.getEvmTransactionIndex()).isNull(),
                 () -> assertThat(contractCallItem.getEvmTransactionIndex()).isZero());
     }
 
@@ -336,6 +508,23 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
                 .contractCall(contractId)
                 .record(builder -> builder.setConsensusTimestamp(
                                 Timestamp.newBuilder().setNanos((int) timestamp))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder().setNanos((int) parentTimestamp))
+                        .setTransactionID(TransactionID.newBuilder()
+                                .setNonce(transactionIdNonce)
+                                .build()))
+                .recordItem(r -> r.previous(previous))
+                .build();
+    }
+
+    private RecordItem precompileChild(
+            RecordItemBuilder.Builder<?> builder,
+            ContractFunctionResult contractFunctionResult,
+            long timestamp,
+            long parentTimestamp,
+            int transactionIdNonce,
+            RecordItem previous) {
+        return builder.record(record -> record.setContractCallResult(contractFunctionResult)
+                        .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp))
                         .setParentConsensusTimestamp(Timestamp.newBuilder().setNanos((int) parentTimestamp))
                         .setTransactionID(TransactionID.newBuilder()
                                 .setNonce(transactionIdNonce)
@@ -575,6 +764,24 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
                 .build();
     }
 
+    private RecordItem contractCreateChild(
+            ContractFunctionResult contractFunctionResult,
+            long timestamp,
+            long parentTimestamp,
+            int transactionIdNonce,
+            RecordItem previous) {
+        return recordItemBuilder
+                .contractCreate()
+                .record(builder -> builder.setContractCreateResult(contractFunctionResult)
+                        .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder().setNanos((int) parentTimestamp))
+                        .setTransactionID(TransactionID.newBuilder()
+                                .setNonce(transactionIdNonce)
+                                .build()))
+                .recordItem(r -> r.previous(previous))
+                .build();
+    }
+
     private ContractFunctionResult contractFunctionResult(long gasUsed, byte[] logBloom) {
         return ContractFunctionResult.newBuilder()
                 .setGasUsed(gasUsed)
@@ -589,6 +796,28 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
                 TransactionBody.newBuilder().setCryptoTransfer(cryptoTransfer).build();
         TransactionRecord transactionRecord = TransactionRecord.newBuilder()
                 .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp))
+                .build();
+        SignedTransaction signedTransaction = SignedTransaction.newBuilder()
+                .setBodyBytes(transactionBody.toByteString())
+                .setSigMap(SignatureMap.newBuilder().build())
+                .build();
+        Transaction transaction = Transaction.newBuilder()
+                .setSignedTransactionBytes(signedTransaction.toByteString())
+                .build();
+        return RecordItem.builder()
+                .transactionRecord(transactionRecord)
+                .transaction(transaction)
+                .build();
+    }
+
+    private RecordItem precompileRecordItem(ContractFunctionResult contractFunctionResult, long timestamp) {
+        CryptoTransferTransactionBody cryptoTransfer =
+                CryptoTransferTransactionBody.newBuilder().build();
+        TransactionBody transactionBody =
+                TransactionBody.newBuilder().setCryptoTransfer(cryptoTransfer).build();
+        TransactionRecord transactionRecord = TransactionRecord.newBuilder()
+                .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp))
+                .setContractCallResult(contractFunctionResult)
                 .build();
         SignedTransaction signedTransaction = SignedTransaction.newBuilder()
                 .setBodyBytes(transactionBody.toByteString())

@@ -121,12 +121,13 @@ public final class EntityId implements Comparable<EntityId> {
     }
 
     public static EntityId of(String entityId) {
-        List<Long> parts = SPLITTER.splitToStream(Objects.requireNonNullElse(entityId, ""))
+        final var raw = Objects.requireNonNullElse(entityId, "");
+        List<Long> parts = SPLITTER.splitToStream(raw)
                 .map(Long::valueOf)
                 .filter(n -> n >= 0)
                 .toList();
 
-        if (parts.size() != 3) {
+        if (parts.size() != 3 || parts.size() != StringUtils.countMatches(raw, DOT) + 1) {
             throw new IllegalArgumentException("Invalid entity ID: " + entityId);
         }
 

@@ -6,6 +6,7 @@ import static org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.converter.WeiBarTinyBarConverter.WEIBARS_TO_TINYBARS;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_77_0;
 import static org.hiero.mirror.common.util.CommonUtils.nextBytes;
 import static org.hiero.mirror.importer.util.Utility.HALT_ON_ERROR_PROPERTY;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -62,6 +63,7 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
     private static final ByteString ETHEREUM_HASH = DomainUtils.fromBytes(nextBytes(32));
 
     private static final Version HAPI_VERSION_0_46_0 = new Version(0, 46, 0);
+    private static final int EIP_7702_TYPE_BYTE = 4;
 
     @Mock
     private ContractBytecodeService contractBytecodeService;
@@ -578,6 +580,81 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
         verify(entityListener, never()).onEthereumTransaction(any());
         verify(ethereumTransactionParser, never()).decode(any());
         assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
+    }
+
+    @Test
+    void updateTransactionSkipsFailedType4BeforePectra() {
+        var ethereumTransaction = domainBuilder
+                .ethereumTransaction(true)
+                .customize(e -> e.type(EIP_7702_TYPE_BYTE))
+                .get();
+        doReturn(ethereumTransaction).when(ethereumTransactionParser).decode(any());
+
+        var recordItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .record(x -> x.clearContractCreateResult().clearContractCallResult())
+                .status(ResponseCodeEnum.CONSENSUS_GAS_EXHAUSTED)
+                .build();
+        var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(recordItem.getConsensusTimestamp()))
+                .get();
+
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        verify(entityListener, never()).onEthereumTransaction(any());
+        verify(entityListener, never()).onEntity(any());
+        assertThat(recordItem.getEthereumTransaction()).isNull();
+    }
+
+    @Test
+    void updateTransactionPersistsType4OnPectra() {
+        var ethereumTransaction = domainBuilder
+                .ethereumTransaction(true)
+                .customize(e -> e.type(EIP_7702_TYPE_BYTE))
+                .get();
+        doReturn(ethereumTransaction).when(ethereumTransactionParser).decode(any());
+
+        var recordItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .recordItem(r -> r.hapiVersion(HAPI_VERSION_0_77_0))
+                .build();
+        var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(recordItem.getConsensusTimestamp()))
+                .get();
+
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        verify(entityListener).onEthereumTransaction(ethereumTransaction);
+        assertThat(recordItem.getEthereumTransaction()).isSameAs(ethereumTransaction);
+    }
+
+    @Test
+    void updateTransactionPersistsFailedType4OnPectra() {
+        var ethereumTransaction = domainBuilder
+                .ethereumTransaction(true)
+                .customize(e -> e.type(EIP_7702_TYPE_BYTE))
+                .get();
+        doReturn(ethereumTransaction).when(ethereumTransactionParser).decode(any());
+
+        var recordItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .record(x -> x.clearContractCreateResult().clearContractCallResult())
+                .recordItem(r -> r.hapiVersion(HAPI_VERSION_0_77_0))
+                .status(ResponseCodeEnum.CONSENSUS_GAS_EXHAUSTED)
+                .build();
+        var transaction = domainBuilder
+                .transaction()
+                .customize(t ->
+                        t.consensusTimestamp(recordItem.getConsensusTimestamp()).entityId(null))
+                .get();
+
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        verify(entityListener).onEthereumTransaction(ethereumTransaction);
+        verify(entityListener, never()).onEntity(any());
+        assertThat(recordItem.getEthereumTransaction()).isSameAs(ethereumTransaction);
     }
 
     @SuppressWarnings("java:S2699")

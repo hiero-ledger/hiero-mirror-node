@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static java.time.ZoneOffset.UTC;
+import static org.hiero.mirror.common.util.DomainUtils.logRecoverableError;
 
 import jakarta.inject.Named;
 import java.time.Instant;
@@ -18,7 +19,7 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
 @Named
 @RequiredArgsConstructor
-class FreezeTransactionHandler extends AbstractTransactionHandler {
+final class FreezeTransactionHandler extends AbstractTransactionHandler {
 
     private final EntityListener entityListener;
 
@@ -39,35 +40,56 @@ class FreezeTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        long startTime;
+        long consensusTimeStamp = recordItem.getConsensusTimestamp();
+        long startTime = 0L;
         Long endTime = null;
-        var body = recordItem.getTransactionBody().getFreeze();
-        var fileId = body.hasUpdateFile() ? EntityId.of(body.getUpdateFile()) : null;
+        final var body = recordItem.getTransactionBody().getFreeze();
 
         if (body.hasStartTime()) {
             startTime = DomainUtils.timestampInNanosMax(body.getStartTime());
         } else {
-            var consensusTime = Instant.ofEpochSecond(0L, recordItem.getConsensusTimestamp());
-            var startOfDay = LocalDate.ofInstant(consensusTime, UTC).atStartOfDay();
+            final var consensusTime = Instant.ofEpochSecond(0L, consensusTimeStamp);
+            final var startOfDay = LocalDate.ofInstant(consensusTime, UTC).atStartOfDay();
 
-            var startDateTime = startOfDay.withHour(body.getStartHour()).withMinute(body.getStartMin());
-            startTime = DomainUtils.convertToNanosMax(startDateTime.toInstant(UTC));
+            int startHour = body.getStartHour();
+            int startMinute = body.getStartMin();
+            int endHour = body.getEndHour();
+            int endMinute = body.getEndMin();
 
-            var endDateTime = startOfDay.withHour(body.getEndHour()).withMinute(body.getEndMin());
-
-            // The freeze starts in one day, but ends in another
-            if (body.getStartHour() > body.getEndHour()) {
-                endDateTime = endDateTime.plusDays(1);
+            if (startHour >= 0 && startHour <= 23 && startMinute >= 0 && startMinute <= 59) {
+                final var startDateTime = startOfDay.withHour(startHour).withMinute(startMinute);
+                startTime = DomainUtils.convertToNanosMax(startDateTime.toInstant(UTC));
+            } else {
+                logRecoverableError(
+                        "Freeze transaction {} contains an invalid start time {}:{}",
+                        consensusTimeStamp,
+                        startHour,
+                        startMinute);
             }
 
-            endTime = DomainUtils.convertToNanosMax(endDateTime.toInstant(UTC));
+            if (endHour >= 0 && endHour <= 23 && endMinute >= 0 && endMinute <= 59) {
+                var endDateTime = startOfDay.withHour(endHour).withMinute(endMinute);
+
+                // The freeze starts in one day, but ends in another
+                if (startTime > 0 && startHour > endHour) {
+                    endDateTime = endDateTime.plusDays(1);
+                }
+
+                endTime = DomainUtils.convertToNanosMax(endDateTime.toInstant(UTC));
+            } else {
+                logRecoverableError(
+                        "Freeze transaction {} contains an invalid end time {}:{}",
+                        consensusTimeStamp,
+                        endHour,
+                        endMinute);
+            }
         }
 
-        var networkFreeze = new NetworkFreeze();
-        networkFreeze.setConsensusTimestamp(recordItem.getConsensusTimestamp());
+        final var networkFreeze = new NetworkFreeze();
+        networkFreeze.setConsensusTimestamp(consensusTimeStamp);
         networkFreeze.setEndTime(endTime);
         networkFreeze.setFileHash(DomainUtils.toBytes(body.getFileHash()));
-        networkFreeze.setFileId(fileId);
+        networkFreeze.setFileId(transaction.getEntityId());
         networkFreeze.setPayerAccountId(recordItem.getPayerAccountId());
         networkFreeze.setStartTime(startTime);
         networkFreeze.setType(body.getFreezeTypeValue());

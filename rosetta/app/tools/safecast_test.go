@@ -3,6 +3,7 @@
 package tools
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -80,4 +81,23 @@ func TestCastToUint64(t *testing.T) {
 func TestCastToUint64OutOfRange(t *testing.T) {
 	_, err := CastToUint64(-1)
 	assert.Error(t, err)
+}
+
+func FuzzCastRoundTrip(f *testing.F) {
+	for _, seed := range []uint64{0, 1, math.MaxInt64, math.MaxInt64 + 1, math.MaxUint64} {
+		f.Add(seed)
+	}
+
+	f.Fuzz(func(t *testing.T, value uint64) {
+		casted, err := CastToInt64(value)
+		if value > math.MaxInt64 {
+			assert.Error(t, err)
+			return
+		}
+
+		assert.NoError(t, err)
+		roundTrip, err := CastToUint64(casted)
+		assert.NoError(t, err)
+		assert.Equal(t, value, roundTrip)
+	})
 }

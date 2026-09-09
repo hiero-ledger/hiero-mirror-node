@@ -15,9 +15,9 @@ import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_RESULT;
 import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOCK_NUMBER;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
@@ -185,67 +185,63 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
     private void readSignedTransactions(final ReaderContext context) {
         BlockItem protoBlockItem;
         SignedTransactionInfo signedTransactionInfo;
-        try {
-            while ((signedTransactionInfo = context.getSignedTransaction()) != null) {
-                final var signedTransaction = SignedTransaction.parseFrom(signedTransactionInfo.signedTransaction());
-                final var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
-                final var transactionResultProtoBlockItem = context.readBlockItemFor(TRANSACTION_RESULT);
-                if (transactionResultProtoBlockItem == null) {
-                    if (signedTransactionInfo.userTransactionInBatch()) {
-                        // #12313 - when a user transaction in an atomic batch fails, any subsequent user transaction
-                        // in the same batch will not execute thus won't have a TransactionResult block item
-                        context.resetBatchTransaction();
-                    }
 
-                    // System transactions won't have transactionResult either, continue to next block item
-                    continue;
+        while ((signedTransactionInfo = context.getSignedTransaction()) != null) {
+            final var signedTransaction =
+                    parseProtobuf(signedTransactionInfo.signedTransaction(), SignedTransaction::parseFrom);
+            final var transactionBody = parseProtobuf(signedTransaction.getBodyBytes(), TransactionBody::parseFrom);
+            final var transactionResultProtoBlockItem = context.readBlockItemFor(TRANSACTION_RESULT);
+            if (transactionResultProtoBlockItem == null) {
+                if (signedTransactionInfo.userTransactionInBatch()) {
+                    // #12313 - when a user transaction in an atomic batch fails, any subsequent user transaction
+                    // in the same batch will not execute thus won't have a TransactionResult block item
+                    context.resetBatchTransaction();
                 }
 
-                final var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
-                while ((protoBlockItem = context.readBlockItemFor(TRANSACTION_OUTPUT)) != null) {
-                    final var transactionOutput = protoBlockItem.getTransactionOutput();
-                    transactionOutputs.put(transactionOutput.getTransactionCase(), transactionOutput);
-                }
-
-                final var traceDataList = new ArrayList<TraceData>();
-                while ((protoBlockItem = context.readBlockItemFor(TRACE_DATA)) != null) {
-                    traceDataList.add(protoBlockItem.getTraceData());
-                }
-
-                final var stateChangesList = new ArrayList<StateChanges>();
-                final var transactionResult = transactionResultProtoBlockItem.getTransactionResult();
-                while ((protoBlockItem = context.readBlockItemFor(STATE_CHANGES)) != null) {
-                    final var stateChanges = protoBlockItem.getStateChanges();
-                    if (!Objects.equals(
-                            transactionResult.getConsensusTimestamp(), stateChanges.getConsensusTimestamp())) {
-                        break;
-                    }
-
-                    stateChangesList.add(stateChanges);
-                }
-
-                final var blockTransaction = BlockTransaction.builder()
-                        .previous(context.getLastBlockTransaction())
-                        .signedTransaction(signedTransaction)
-                        .signedTransactionBytes(signedTransactionInfo.signedTransaction())
-                        .stateChanges(Collections.unmodifiableList(stateChangesList))
-                        .traceData(Collections.unmodifiableList(traceDataList))
-                        .transactionBody(transactionBody)
-                        .transactionResult(transactionResult)
-                        .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
-                        .build();
-                context.setLastBlockTransaction(blockTransaction, signedTransactionInfo.userTransactionInBatch());
-
-                final var blockFileBuilder = context.getBlockFile();
-                blockFileBuilder.item(blockTransaction);
-                context.getConsensusTimestampTracker().track(blockTransaction.getConsensusTimestamp());
-                if (blockTransaction.getTransactionBody().hasLedgerIdPublication() && blockTransaction.isSuccessful()) {
-                    blockFileBuilder.lastLedgerIdPublicationTransaction(blockTransaction);
-                }
+                // System transactions won't have transactionResult either, continue to next block item
+                continue;
             }
-        } catch (InvalidProtocolBufferException e) {
-            throw new InvalidStreamFileException(
-                    "Failed to deserialize Transaction from block " + context.getFilename(), e);
+
+            final var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
+            while ((protoBlockItem = context.readBlockItemFor(TRANSACTION_OUTPUT)) != null) {
+                final var transactionOutput = protoBlockItem.getTransactionOutput();
+                transactionOutputs.put(transactionOutput.getTransactionCase(), transactionOutput);
+            }
+
+            final var traceDataList = new ArrayList<TraceData>();
+            while ((protoBlockItem = context.readBlockItemFor(TRACE_DATA)) != null) {
+                traceDataList.add(protoBlockItem.getTraceData());
+            }
+
+            final var stateChangesList = new ArrayList<StateChanges>();
+            final var transactionResult = transactionResultProtoBlockItem.getTransactionResult();
+            while ((protoBlockItem = context.readBlockItemFor(STATE_CHANGES)) != null) {
+                final var stateChanges = protoBlockItem.getStateChanges();
+                if (!Objects.equals(transactionResult.getConsensusTimestamp(), stateChanges.getConsensusTimestamp())) {
+                    break;
+                }
+
+                stateChangesList.add(stateChanges);
+            }
+
+            final var blockTransaction = BlockTransaction.builder()
+                    .previous(context.getLastBlockTransaction())
+                    .signedTransaction(signedTransaction)
+                    .signedTransactionBytes(signedTransactionInfo.signedTransaction())
+                    .stateChanges(Collections.unmodifiableList(stateChangesList))
+                    .traceData(Collections.unmodifiableList(traceDataList))
+                    .transactionBody(transactionBody)
+                    .transactionResult(transactionResult)
+                    .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
+                    .build();
+            context.setLastBlockTransaction(blockTransaction, signedTransactionInfo.userTransactionInBatch());
+
+            final var blockFileBuilder = context.getBlockFile();
+            blockFileBuilder.item(blockTransaction);
+            context.getConsensusTimestampTracker().track(blockTransaction.getConsensusTimestamp());
+            if (blockTransaction.getTransactionBody().hasLedgerIdPublication() && blockTransaction.isSuccessful()) {
+                blockFileBuilder.lastLedgerIdPublicationTransaction(blockTransaction);
+            }
         }
     }
 

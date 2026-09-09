@@ -107,6 +107,10 @@ final class ContractResultServiceImpl implements ContractResultService {
         }
 
         var ethereumTransaction = recordItem.getEthereumTransaction();
+        if (ethereumTransaction == null) {
+            return;
+        }
+
         var functionParameters = ethereumTransaction.getCallData() != null
                 ? ethereumTransaction.getCallData()
                 : DomainUtils.EMPTY_BYTE_ARRAY;

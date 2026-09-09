@@ -41,15 +41,15 @@ on:
         type: string
       target_cluster_location:
         type: string
-        default: "us-central1"
+        default: "us-east1"
         required: true
       target_cluster_name:
         type: string
-        default: "mainnet-staging-na"
+        default: "mainnet-staging"
         required: true
       target_default_pool:
         type: string
-        default: "mainnet-staging-na"
+        default: "mainnet-staging"
         required: true
       target_project:
         type: string
@@ -114,15 +114,15 @@ on:
         required: false
         type: string
       target_cluster_location:
-        default: "us-central1"
+        default: "us-east1"
         description: "Target: GKE location (zone or region)"
         required: true
       target_cluster_name:
-        default: "mainnet-staging-na"
+        default: "mainnet-staging"
         description: "Target: GKE cluster name"
         required: true
       target_default_pool:
-        default: "mainnet-staging-na"
+        default: "mainnet-staging"
         description: "Target: default pool name"
         required: true
       target_project:
@@ -177,7 +177,7 @@ jobs:
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: audit
 
@@ -269,7 +269,7 @@ jobs:
           version: v2.3.0
 
       - name: Setup Flux CLI
-        uses: fluxcd/flux2/action@889be9d6cc8afa8ed639e1e1ba4ab678e3b38d8c # v2.9.4
+        uses: fluxcd/flux2/action@dd233c4fadef306a62b7893204f8e3817fecc2b2 # v2.9.5
         with:
           version: v2.3.0
 

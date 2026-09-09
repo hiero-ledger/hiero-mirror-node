@@ -24,6 +24,7 @@ import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.NftTransfer;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.domain.Persistable;
 
@@ -136,6 +137,14 @@ public class Transaction implements Persistable<Long> {
         return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
     }
 
+    public void setResult(Integer result) {
+        this.result = DomainUtils.toSmallint(result);
+    }
+
+    public void setType(Integer type) {
+        this.type = DomainUtils.toSmallint(type);
+    }
+
     public void addInnerTransaction(Transaction transaction) {
         if (this.type != TransactionType.ATOMIC_BATCH.getProtoId()) {
             throw new IllegalStateException("Inner transactions can only be added to atomic batch transaction");
@@ -155,5 +164,17 @@ public class Transaction implements Persistable<Long> {
                 .hash(transactionHash)
                 .payerAccountId(payerAccountId.getId())
                 .build();
+    }
+
+    public static class TransactionBuilder {
+        public TransactionBuilder result(Integer result) {
+            this.result = DomainUtils.toSmallint(result);
+            return this;
+        }
+
+        public TransactionBuilder type(Integer type) {
+            this.type = DomainUtils.toSmallint(type);
+            return this;
+        }
     }
 }
