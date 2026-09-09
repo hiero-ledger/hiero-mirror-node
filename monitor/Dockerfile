@@ -15,9 +15,11 @@ COPY --chown=1000:1000 --from=builder /app/extracted/spring-boot-loader/ ./
 COPY --chown=1000:1000 --from=builder /app/extracted/application/ ./
 COPY --chown=1000:1000 --from=builder /app/extracted/application/BOOT-INF/lib/common-*.jar ./healthcheck.jar
 
+# install OS updates, and remove pebble due to vulnerability
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*    # install OS updates
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /usr/bin/pebble && rm -rf /var/lib/pebble
 USER 1000:1000
 
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
