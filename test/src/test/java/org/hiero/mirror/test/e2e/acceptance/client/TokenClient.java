@@ -1042,13 +1042,6 @@ public class TokenClient extends AbstractNetworkClient {
                 TokenFreezeStatus.Unfrozen,
                 false,
                 false),
-        NFT_FOR_ESTIMATE_PRECOMPILE(
-                "non_fungible_estimate",
-                TokenType.NON_FUNGIBLE_UNIQUE,
-                TokenKycStatus.KycNotApplicable,
-                TokenFreezeStatus.Unfrozen,
-                false,
-                false),
         FUNGIBLE_FOR_CUSTOM_FEE(
                 "fungible_for_custom_fee",
                 TokenType.FUNGIBLE_COMMON,
