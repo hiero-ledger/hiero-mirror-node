@@ -289,6 +289,7 @@ stackgres:
       max_wal_size: "24GB"
       password_encryption: "scram-sha-256"
       random_page_cost: "1.1"
+      reserved_connections: "4"  # Connection slots reserved for both the importer user and the owner user
       shared_buffers: "7GB"
       timezone: "UTC"
       wal_init_zero: "off"  # Not needed with ZFS
@@ -360,6 +361,7 @@ stackgres:
       max_wal_size: "24GB"
       password_encryption: "scram-sha-256"
       random_page_cost: "1.1"
+      reserved_connections: "12"  # There are 16 shards. This provides 2 sets of ceil(16/3) = 6 connections for full-shard queries.
       shared_buffers: "12GB"
       timezone: "UTC"
       wal_init_zero: "off"  # Not needed with ZFS

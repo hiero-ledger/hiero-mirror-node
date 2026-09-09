@@ -64,7 +64,7 @@ class ImporterConfiguration {
         flywayHikariConfig.setMinimumIdle(0);
         flywayHikariConfig.setMaximumPoolSize(10);
         flywayHikariConfig.setPassword(dbProperties.getOwnerPassword());
-        flywayHikariConfig.setPoolName(hikariConfig.getPoolName() + "_flyway");
+        flywayHikariConfig.setPoolName("flyway");
         flywayHikariConfig.setUsername(dbProperties.getOwner());
         flywayHikariConfig.setInitializationFailTimeout(-1);
 
