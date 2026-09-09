@@ -18,7 +18,7 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.41.0")
-    set("consensusNodeVersion", "0.77.0-rc.11")
+    set("consensusNodeVersion", "0.77.0")
     set("jackson-bom.version", "3.2.2") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.2") // Temporary until next Spring Boot
     set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
@@ -69,7 +69,6 @@ dependencies {
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
-        api("org.bouncycastle:bcpkix-jdk18on:1.85") // Temporary until next hedera-app
         api("org.bouncycastle:bcprov-jdk18on:1.85.2")
         api("org.gaul:s3proxy:4.1.0")
         api("org.graalvm.nativeimage:svm:25.0.4.1")
