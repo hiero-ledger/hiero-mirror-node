@@ -2193,7 +2193,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         SET_APPROVAL_FOR_ALL("setApprovalForAllExternal", 729608, MUTABLE),
         SYMBOL("symbol", 29003, VIEW),
         SYMBOL_NFT("symbolIERC721", 29002, VIEW),
-        TOTAL_SUPPLY("totalSupply", 29955, VIEW),
+        TOTAL_SUPPLY("totalSupply", 28229, VIEW),
         TOTAL_SUPPLY_NFT("totalSupplyIERC721", 29933, VIEW),
         TOKEN_URI("tokenURI", 30923, VIEW),
         TRANSFER_ERC("transfer", 42138, MUTABLE),
