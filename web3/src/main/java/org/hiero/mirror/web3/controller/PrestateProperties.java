@@ -11,6 +11,7 @@ import org.springframework.validation.annotation.Validated;
 @Data
 @Validated
 public class PrestateProperties {
+
     private boolean enabled = false;
 
     @Positive

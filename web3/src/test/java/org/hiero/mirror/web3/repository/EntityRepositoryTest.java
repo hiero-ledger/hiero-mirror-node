@@ -346,6 +346,55 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findActiveByIdsAndTimestampReturnsNewestRowWhenBothEntityAndHistoryExist() {
+        // Persist an entity_history row followed by a current entity row for the same id. The query must return
+        // one row per id (the newest active version), i.e. the current entity — not the older history record.
+        final var entityId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var midTimestamp = createdTimestamp + 50;
+
+        domainBuilder
+                .entityHistory(entityId, createdTimestamp)
+                .customize(e -> e.deleted(false).timestampRange(Range.closedOpen(createdTimestamp, midTimestamp)))
+                .persist();
+        final var current = domainBuilder
+                .entity(entityId, createdTimestamp)
+                .customize(e -> e.deleted(false).timestampRange(Range.atLeast(midTimestamp)))
+                .persist();
+
+        assertThat(entityRepository.findActiveByIdsAndTimestamp(List.of(entityId.getId()), midTimestamp + 100))
+                .singleElement()
+                .usingRecursiveComparison()
+                .isEqualTo(current);
+    }
+
+    @Test
+    void findActiveByIdsAndTimestampReturnsAtMostOneRowPerIdAcrossMultipleHistories() {
+        // Multiple history rows plus a current row all matching the requested block timestamp must collapse to
+        // a single (newest) result per id.
+        final var entityId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var midTimestamp1 = createdTimestamp + 25;
+        final var midTimestamp2 = createdTimestamp + 50;
+
+        domainBuilder
+                .entityHistory(entityId, createdTimestamp)
+                .customize(e -> e.deleted(false).timestampRange(Range.closedOpen(createdTimestamp, midTimestamp1)))
+                .persist();
+        domainBuilder
+                .entityHistory(entityId, createdTimestamp)
+                .customize(e -> e.deleted(false).timestampRange(Range.closedOpen(midTimestamp1, midTimestamp2)))
+                .persist();
+        domainBuilder
+                .entity(entityId, createdTimestamp)
+                .customize(e -> e.deleted(false).timestampRange(Range.atLeast(midTimestamp2)))
+                .persist();
+
+        assertThat(entityRepository.findActiveByIdsAndTimestamp(List.of(entityId.getId()), midTimestamp2 + 10))
+                .hasSize(1);
+    }
+
+    @Test
     void findByEvmAddressOrAliasSuccessWithAlias() {
         final var alias = domainBuilder.key();
         final var entity = domainBuilder.entity().customize(e -> e.alias(alias)).persist();

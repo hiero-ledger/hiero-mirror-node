@@ -4,10 +4,10 @@ package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCREATEINSTANCE;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
-import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.ApiEndpointName.OPCODES;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.utils.Constants.MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
@@ -58,7 +58,6 @@ public class OpcodeServiceImpl implements OpcodeService {
     static final String STACK_METRIC = "hiero.mirror.web3.opcodes.stack";
     static final String STORAGE_METRIC = "hiero.mirror.web3.opcodes.storage";
 
-    public static final long MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS = 35 * 60 * NANOS_PER_SECOND;
     private static final Address EMPTY_ADDRESS = Address.ZERO;
     private static final BigInteger ZERO = BigInteger.ZERO;
 

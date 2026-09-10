@@ -5,11 +5,10 @@ package org.hiero.mirror.web3.service;
 import static org.hiero.mirror.common.converter.WeiBarTinyBarConverter.WEIBARS_TO_TINYBARS_BIGINT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
-import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
-import static org.hiero.mirror.web3.utils.ByteUtils.WORD_SIZE_HEX_CHARS;
+import static org.hiero.mirror.web3.utils.Constants.MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import jakarta.inject.Named;
@@ -45,7 +44,6 @@ import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
-import org.hiero.mirror.web3.utils.ByteUtils;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -54,8 +52,6 @@ import org.jspecify.annotations.Nullable;
 @RequiredArgsConstructor
 @NullMarked
 final class PrestateServiceImpl implements PrestateService {
-
-    public static final long MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS = 35 * 60 * NANOS_PER_SECOND;
 
     private final AccountBalanceRepository accountBalanceRepository;
     private final ContractActionRepository contractActionRepository;
@@ -154,16 +150,22 @@ final class PrestateServiceImpl implements PrestateService {
                 }
 
                 final var hasBalanceChange = transfer != 0;
-                final var hasStorageChange = postStorageByContract.containsKey(accountId);
+                final var hasStorageChange =
+                        preStorageByContract.containsKey(accountId) || postStorageByContract.containsKey(accountId);
                 final var hasBytecodeChange =
                         prestateContext.getPrestateRequest().code()
                                 && !Arrays.equals(preBytecodes.get(accountId), postBytecodes.get(accountId));
+                final var hasNonceChange = postEntity != null && nonce(preEntity) != nonce(postEntity);
 
-                if (hasBalanceChange || hasStorageChange || hasBytecodeChange) {
+                if (hasBalanceChange || hasStorageChange || hasBytecodeChange || hasNonceChange) {
+                    final var postEntityForTrace = postEntity != null ? postEntity : preEntity;
                     final var preAccountTrace = buildAccountTrace(
                             preEntity, preBalance, preBytecodes, takeStorage(preStorageByContract, accountId));
                     final var postAccountTrace = buildAccountTrace(
-                            preEntity, postBalance, postBytecodes, takeStorage(postStorageByContract, accountId));
+                            postEntityForTrace,
+                            postBalance,
+                            postBytecodes,
+                            takeStorage(postStorageByContract, accountId));
                     if (!Objects.equals(preAccountTrace, postAccountTrace)) {
                         preAccountTraces.add(preAccountTrace);
                         postAccountTraces.add(postAccountTrace);
@@ -226,22 +228,22 @@ final class PrestateServiceImpl implements PrestateService {
                         .multiply(WEIBARS_TO_TINYBARS_BIGINT)
                         .toString(16));
 
-        final var nonce = entity.getEthereumNonce();
-        accountTrace.setNonce(nonce != null ? nonce : 0L);
+        accountTrace.setNonce(nonce(entity));
 
         if (entity.getType() == CONTRACT) {
             final var bytecode = bytecodes.get(entityId);
-            if (bytecode != null) {
-                if (bytecode.length <= WORD_SIZE_HEX_CHARS) {
-                    accountTrace.setCode(ByteUtils.wrapToWordSize(bytecode));
-                } else {
-                    accountTrace.setCode(Bytes.wrap(bytecode).toHexString());
-                }
+            if (bytecode != null && bytecode.length > 0) {
+                accountTrace.setCode(Bytes.wrap(bytecode).toHexString());
             }
             accountTrace.setStorage(storage);
         }
 
         return accountTrace;
+    }
+
+    private static long nonce(final Entity entity) {
+        final var nonce = entity.getEthereumNonce();
+        return nonce != null ? nonce : 0L;
     }
 
     private Map<Long, byte[]> loadBytecodes(final Set<Long> entityIds, final long timestamp) {
@@ -284,14 +286,17 @@ final class PrestateServiceImpl implements PrestateService {
 
     private void populateTouchedEntitiesFromActions(
             final PrestateContext prestateContext, final long consensusTimestamp) {
-        final var actions = contractActionRepository.findByConsensusTimestamp(consensusTimestamp);
-        final int accountLimit = prestateProperties.getMaxTouchedAccounts();
+        final var actions = contractActionRepository.findByConsensusTimestampOrderByIndexAsc(consensusTimestamp);
         final boolean diffMode = prestateContext.getPrestateRequest().diffMode();
+        final int maxTouchedAccounts = prestateProperties.getMaxTouchedAccounts();
 
         for (final var action : actions) {
-            addTouchedAccount(prestateContext, action.getCaller(), accountLimit);
-            addTouchedAccount(prestateContext, action.getRecipientAccount(), accountLimit);
-            addTouchedAccount(prestateContext, action.getRecipientContract(), accountLimit);
+            if (prestateContext.getAccounts().size() >= maxTouchedAccounts) {
+                break;
+            }
+            prestateContext.addAccount(action.getCaller());
+            prestateContext.addAccount(action.getRecipientAccount());
+            prestateContext.addAccount(action.getRecipientContract());
             if (diffMode) {
                 applyBalanceTransfer(prestateContext, action);
             }
@@ -334,14 +339,6 @@ final class PrestateServiceImpl implements PrestateService {
             return action.getRecipientContract();
         }
         return null;
-    }
-
-    private void addTouchedAccount(
-            final PrestateContext prestateContext, final @Nullable EntityId accountId, final int accountLimit) {
-        if (prestateContext.getAccounts().size() >= accountLimit) {
-            return;
-        }
-        prestateContext.addAccount(accountId);
     }
 
     private void populateTouchedEntitiesFromStateChanges(
@@ -387,7 +384,7 @@ final class PrestateServiceImpl implements PrestateService {
         if (alias != null && alias.length == EVM_ADDRESS_LENGTH) {
             return HEX_PREFIX + bytesToHex(alias);
         }
-        return HEX_PREFIX + bytesToHex(toEvmAddress(EntityId.of(entity.getId())));
+        return HEX_PREFIX + bytesToHex(toEvmAddress(entity.toEntityId()));
     }
 
     private long resolveConsensusTimestamp(final TransactionIdOrHashParameter transactionIdOrHash) {

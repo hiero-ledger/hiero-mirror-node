@@ -46,4 +46,30 @@ class ContractActionRepositoryTest extends Web3IntegrationTest {
                 .doesNotContain(successSystemAction)
                 .doesNotContainAnyElementsOf(otherActions);
     }
+
+    @Test
+    void findByConsensusTimestampOrderByIndexAscReturnsActionsSortedByIndex() {
+        final var timestamp = domainBuilder.timestamp();
+        // Persist out of order on purpose so the ordering must come from the query.
+        final var action2 = domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(timestamp).index(2))
+                .persist();
+        final var action0 = domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(timestamp).index(0))
+                .persist();
+        final var action1 = domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(timestamp).index(1))
+                .persist();
+        // Unrelated action at a different timestamp must be excluded.
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(timestamp + 1).index(0))
+                .persist();
+
+        assertThat(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(timestamp))
+                .containsExactly(action0, action1, action2);
+    }
 }

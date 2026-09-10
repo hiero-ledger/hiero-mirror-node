@@ -11,6 +11,7 @@ import static org.hiero.mirror.web3.utils.ByteUtils.wrapToWordSize;
 import com.google.common.collect.Range;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -90,7 +91,32 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, true, false));
 
         assertThat(response.getPre()).hasSize(1);
-        assertThat(response.getPre().getFirst().getCode()).isEqualTo(wrapToWordSize(RUNTIME_BYTECODE));
+        assertThat(response.getPre().getFirst().getCode()).isEqualTo(rawHex(RUNTIME_BYTECODE));
+    }
+
+    @Test
+    void callWithCodeEnabledOmitsCodeForEmptyBytecode() {
+        // Empty runtime bytecode should NOT be emitted as a padded word of zeros (Geth returns raw bytecode).
+        final var fixture = persistContractFixture(new byte[0]);
+
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, true, false));
+
+        assertThat(response.getPre()).hasSize(1);
+        assertThat(response.getPre().getFirst().getCode()).isNull();
+    }
+
+    @Test
+    void callWithCodeEnabledReturnsFullBytecodeForLongContract() {
+        final var longBytecode = new byte[128];
+        for (int i = 0; i < longBytecode.length; i++) {
+            longBytecode[i] = (byte) (i + 1);
+        }
+        final var fixture = persistContractFixture(longBytecode);
+
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, true, false));
+
+        assertThat(response.getPre()).hasSize(1);
+        assertThat(response.getPre().getFirst().getCode()).isEqualTo(rawHex(longBytecode));
     }
 
     @Test
@@ -134,6 +160,31 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                 .containsEntry(wrapToWordSize(STORAGE_SLOT), wrapToWordSize(VALUE_READ));
         assertThat(response.getPost().getFirst().getStorage())
                 .containsEntry(wrapToWordSize(STORAGE_SLOT), wrapToWordSize(VALUE_WRITTEN));
+    }
+
+    @Test
+    void callWithDiffAndStorageDetectsClearedSlotWhenValueWrittenIsNull() {
+        final var fixture = persistContractFixture(null);
+        persistTreasuryBalance(fixture.createdTimestamp());
+        persistAccountBalance(fixture.contractId(), fixture.createdTimestamp(), 50L);
+        // Slot was cleared during the transaction (value_read is set, value_written is null)
+        domainBuilder
+                .contractStateChange()
+                .customize(c -> c.consensusTimestamp(fixture.consensusTimestamp())
+                        .contractId(fixture.contractId().getId())
+                        .slot(STORAGE_SLOT)
+                        .valueRead(VALUE_READ)
+                        .valueWritten(null))
+                .persist();
+
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), true, false, true));
+
+        assertThat(response.getPre()).hasSize(1);
+        assertThat(response.getPost()).hasSize(1);
+        assertThat(response.getPre().getFirst().getStorage())
+                .containsEntry(wrapToWordSize(STORAGE_SLOT), wrapToWordSize(VALUE_READ));
+        // Post storage should not contain the cleared slot
+        assertThat(response.getPost().getFirst().getStorage()).isNullOrEmpty();
     }
 
     @Test
@@ -191,6 +242,118 @@ final class PrestateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
+    void callWithDiffEnabledDetectsOnlyNonceChange() {
+        final var payerId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var accountId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        // Historical entity: nonce = 3 valid over [createdTimestamp, consensusTimestamp)
+        domainBuilder
+                .entityHistory(accountId, createdTimestamp)
+                .customize(e -> e.type(EntityType.ACCOUNT)
+                        .ethereumNonce(3L)
+                        .evmAddress(null)
+                        .alias(null)
+                        .deleted(false)
+                        .timestampRange(Range.closedOpen(createdTimestamp, consensusTimestamp)))
+                .persist();
+        // Current entity: nonce bumped to 4 as of consensusTimestamp
+        domainBuilder
+                .entity(accountId, createdTimestamp)
+                .customize(e -> e.type(EntityType.ACCOUNT)
+                        .ethereumNonce(4L)
+                        .evmAddress(null)
+                        .alias(null)
+                        .deleted(false)
+                        .timestampRange(Range.atLeast(consensusTimestamp)))
+                .persist();
+
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(accountId, createdTimestamp, 100L);
+
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(accountId)
+                        .callerType(EntityType.ACCOUNT)
+                        .recipientContract(contractId)
+                        .value(0L)
+                        .index(0))
+                .persist();
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        assertThat(response.getPre()).hasSize(1);
+        assertThat(response.getPost()).hasSize(1);
+        assertThat(response.getPre().getFirst().getNonce()).isEqualTo(3L);
+        assertThat(response.getPost().getFirst().getNonce()).isEqualTo(4L);
+    }
+
+    @Test
+    void callResolvesLatestEntityWhenBothCurrentAndHistoryExist() {
+        final var payerId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var accountId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var midTimestamp = createdTimestamp + 50;
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        // Multiple historical versions plus a current one; the newest version at query time has nonce 42
+        domainBuilder
+                .entityHistory(accountId, createdTimestamp)
+                .customize(e -> e.type(EntityType.ACCOUNT)
+                        .ethereumNonce(1L)
+                        .evmAddress(null)
+                        .alias(null)
+                        .deleted(false)
+                        .timestampRange(Range.closedOpen(createdTimestamp, midTimestamp)))
+                .persist();
+        domainBuilder
+                .entityHistory(accountId, createdTimestamp)
+                .customize(e -> e.type(EntityType.ACCOUNT)
+                        .ethereumNonce(7L)
+                        .evmAddress(null)
+                        .alias(null)
+                        .deleted(false)
+                        .timestampRange(Range.closedOpen(midTimestamp, consensusTimestamp - 1)))
+                .persist();
+        domainBuilder
+                .entity(accountId, createdTimestamp)
+                .customize(e -> e.type(EntityType.ACCOUNT)
+                        .ethereumNonce(42L)
+                        .evmAddress(null)
+                        .alias(null)
+                        .deleted(false)
+                        .timestampRange(Range.atLeast(consensusTimestamp - 1)))
+                .persist();
+
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(accountId, createdTimestamp, 100L);
+
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(accountId)
+                        .callerType(EntityType.ACCOUNT)
+                        .recipientContract(contractId)
+                        .value(0L)
+                        .index(0))
+                .persist();
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, false, false, false));
+
+        assertThat(response.getPre()).hasSize(1);
+        // Pre state should reflect the newest active version at consensusTimestamp - 1 (nonce = 42)
+        assertThat(response.getPre().getFirst().getNonce()).isEqualTo(42L);
+    }
+
+    @Test
     void callWithoutCodeStillIncludesContractWithBalanceAndNonce() {
         final var fixture = persistContractFixture(null);
         persistTreasuryBalance(fixture.createdTimestamp());
@@ -214,7 +377,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPre().getFirst().getAddress()).isEqualTo(toLongZeroAddress(fixture.contractId()));
-        assertThat(response.getPre().getFirst().getCode()).isEqualTo(wrapToWordSize(RUNTIME_BYTECODE));
+        assertThat(response.getPre().getFirst().getCode()).isEqualTo(rawHex(RUNTIME_BYTECODE));
     }
 
     @Test
@@ -226,9 +389,9 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), true, true, false));
 
         assertThat(response.getPre()).hasSize(1);
-        assertThat(response.getPre().getFirst().getCode()).isEqualTo(wrapToWordSize(RUNTIME_BYTECODE));
+        assertThat(response.getPre().getFirst().getCode()).isEqualTo(rawHex(RUNTIME_BYTECODE));
         assertThat(response.getPost()).hasSize(1);
-        assertThat(response.getPost().getFirst().getCode()).isEqualTo(wrapToWordSize(RUNTIME_BYTECODE));
+        assertThat(response.getPost().getFirst().getCode()).isEqualTo(rawHex(RUNTIME_BYTECODE));
     }
 
     @Test
@@ -250,7 +413,6 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         persistBareEntity(newlyCreatedAccount, EntityType.ACCOUNT, 0L, consensusTimestamp);
 
         persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
-        // Action with existing account that receives a transfer
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
@@ -260,7 +422,6 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                         .value(50L)
                         .index(0))
                 .persist();
-        // Action with newly created account
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
@@ -355,10 +516,64 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         assertThat(response.getPre()).hasSize(3);
     }
 
+    @Test
+    void callSkipsSubsequentActionsOnceAccountCapReached() {
+        // Two actions where each contributes 3 distinct entities (caller + recipientAccount + recipientContract).
+        // The cap is expressed in accounts, so once the first action's 3 accounts are added and the size hits the
+        // cap, the second action must NOT be processed at all.
+        prestateProperties.setMaxTouchedAccounts(3);
+
+        final var payerId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var caller1 = domainBuilder.entityId();
+        final var recipientAccount1 = domainBuilder.entityId();
+        final var recipientContract1 = domainBuilder.entityId();
+        final var caller2 = domainBuilder.entityId();
+        final var recipientAccount2 = domainBuilder.entityId();
+        final var recipientContract2 = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        persistTreasuryBalance(createdTimestamp);
+        persistBareEntity(caller1, EntityType.CONTRACT, 0L, createdTimestamp);
+        persistBareEntity(recipientAccount1, EntityType.ACCOUNT, 0L, createdTimestamp);
+        persistBareEntity(recipientContract1, EntityType.CONTRACT, 0L, createdTimestamp);
+        persistBareEntity(caller2, EntityType.CONTRACT, 0L, createdTimestamp);
+        persistBareEntity(recipientAccount2, EntityType.ACCOUNT, 0L, createdTimestamp);
+        persistBareEntity(recipientContract2, EntityType.CONTRACT, 0L, createdTimestamp);
+
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(caller1)
+                        .callerType(EntityType.CONTRACT)
+                        .recipientAccount(recipientAccount1)
+                        .recipientContract(recipientContract1)
+                        .value(0L)
+                        .index(0))
+                .persist();
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(caller2)
+                        .callerType(EntityType.CONTRACT)
+                        .recipientAccount(recipientAccount2)
+                        .recipientContract(recipientContract2)
+                        .value(0L)
+                        .index(1))
+                .persist();
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, false, false, false));
+
+        // Only action 1's 3 accounts should be included; action 2 is skipped once size >= cap.
+        assertThat(response.getPre()).hasSize(3);
+    }
+
     private PrestateRequest createRequest(
             final byte[] hash, final boolean diff, final boolean code, final boolean storage) {
-        return new PrestateRequest(
-                new TransactionHashParameter(org.apache.tuweni.bytes.Bytes.of(hash)), diff, code, storage);
+        return new PrestateRequest(new TransactionHashParameter(Bytes.of(hash)), diff, code, storage);
     }
 
     private Fixture persistTransferFixture(final boolean nonceChange, final long transferValue) {
@@ -514,6 +729,10 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
     private String toLongZeroAddress(final EntityId entityId) {
         return "0x" + bytesToHex(toEvmAddress(entityId));
+    }
+
+    private static String rawHex(final byte[] bytes) {
+        return Bytes.wrap(bytes).toHexString();
     }
 
     private record Fixture(

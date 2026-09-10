@@ -158,22 +158,33 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     """, nativeQuery = true)
     Optional<Entity> findActiveByIdAndTimestamp(long id, long blockTimestamp);
 
+    /**
+     * Retrieves the most recent state of each requested entity by ID up to a given block timestamp.
+     * Returns at most one row per ID (the newest non-deleted version active at or before the block timestamp),
+     * consolidating the current {@code entity} row and any matching {@code entity_history} rows.
+     *
+     * @param ids            the entity IDs to look up.
+     * @param blockTimestamp the block timestamp used to filter results.
+     * @return the list of active entities (at most one per requested ID); IDs with no active version are omitted.
+     */
     @Query(value = """
-                    (
-                        select *
-                        from entity
-                        where id in ?1 and lower(timestamp_range) <= ?2
-                        and deleted is not true
-                    )
-                    union all
-                    (
-                        select *
-                        from entity_history
-                        where id in ?1 and lower(timestamp_range) <= ?2
-                        and deleted is not true
-                        order by lower(timestamp_range) desc
-                    )
-                    order by timestamp_range desc
+                    select distinct on (id) *
+                    from (
+                        (
+                            select *
+                            from entity
+                            where id in ?1 and lower(timestamp_range) <= ?2
+                            and deleted is not true
+                        )
+                        union all
+                        (
+                            select *
+                            from entity_history
+                            where id in ?1 and lower(timestamp_range) <= ?2
+                            and deleted is not true
+                        )
+                    ) as merged
+                    order by id, lower(timestamp_range) desc
                     """, nativeQuery = true)
     List<Entity> findActiveByIdsAndTimestamp(Collection<Long> ids, long blockTimestamp);
 

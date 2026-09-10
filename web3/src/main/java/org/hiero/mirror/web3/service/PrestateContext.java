@@ -13,6 +13,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Properties for tracing prestate
@@ -30,7 +31,7 @@ final class PrestateContext {
     private final Map<Long, Map<String, String>> preStorageByContract = new TreeMap<>();
     private final Map<Long, Map<String, String>> postStorageByContract = new TreeMap<>();
 
-    public void addAccount(final EntityId accountId) {
+    public void addAccount(@Nullable final EntityId accountId) {
         if (!EntityId.isEmpty(accountId)) {
             accounts.add(accountId.getId());
         }
@@ -40,7 +41,7 @@ final class PrestateContext {
         balanceTransfers.merge(accountId, value, Long::sum);
     }
 
-    public void addPreStorageSlot(final long contractId, final byte[] slot, final byte[] value) {
+    public void addPreStorageSlot(final long contractId, final byte[] slot, final byte @Nullable [] value) {
         if (value == null) {
             return;
         }
@@ -49,7 +50,7 @@ final class PrestateContext {
                 .put(wrapToWordSize(slot), wrapToWordSize(value));
     }
 
-    public void addPostStorageSlot(final long contractId, final byte[] slot, final byte[] value) {
+    public void addPostStorageSlot(final long contractId, final byte[] slot, final byte @Nullable [] value) {
         if (value == null) {
             return;
         }

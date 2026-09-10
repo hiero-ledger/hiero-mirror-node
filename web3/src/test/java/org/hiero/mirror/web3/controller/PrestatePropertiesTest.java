@@ -9,6 +9,14 @@ import org.junit.jupiter.api.Test;
 class PrestatePropertiesTest {
 
     @Test
+    void enabledCanBeConfigured() {
+        final var properties = new PrestateProperties();
+        properties.setEnabled(true);
+
+        assertThat(properties.isEnabled()).isTrue();
+    }
+
+    @Test
     void maxTouchedAccountsHasDefaultValue() {
         final var properties = new PrestateProperties();
 
@@ -21,5 +29,21 @@ class PrestatePropertiesTest {
         properties.setMaxTouchedAccounts(500);
 
         assertThat(properties.getMaxTouchedAccounts()).isEqualTo(500);
+    }
+
+    @Test
+    void stateChangeMaxPagesCanBeConfigured() {
+        final var properties = new PrestateProperties();
+        properties.setStateChangeMaxPages(25);
+
+        assertThat(properties.getStateChangeMaxPages()).isEqualTo(25);
+    }
+
+    @Test
+    void stateChangePageSizeCanBeConfigured() {
+        final var properties = new PrestateProperties();
+        properties.setStateChangePageSize(1000);
+
+        assertThat(properties.getStateChangePageSize()).isEqualTo(1000);
     }
 }

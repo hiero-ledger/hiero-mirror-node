@@ -37,7 +37,7 @@ class ByteUtilsTest {
     }
 
     @Test
-    void wrapToWordSizeNosPaddingForExactly32Bytes() {
+    void wrapToWordSizeNoPaddingForExactly32Bytes() {
         var bytes = new byte[32];
         bytes[0] = 0x01;
         bytes[31] = (byte) 0xff;
