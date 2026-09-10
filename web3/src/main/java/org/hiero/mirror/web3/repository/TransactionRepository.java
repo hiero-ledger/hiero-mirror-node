@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.repository;
 
+import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.springframework.data.jpa.repository.Query;
@@ -35,4 +36,19 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
             @Param("validStartNs") long validStartNs,
             @Param("consensusTimestampStart") long consensusTimestampStart,
             @Param("consensusTimestampEnd") long consensusTimestampEnd);
+
+    /**
+     * Entity IDs created by successful child {@code CryptoCreateAccount} transactions of the given parent,
+     * including preceding hollow-account creates.
+     */
+    @Query(value = """
+            select entity_id
+            from transaction
+            where parent_consensus_timestamp = :parentConsensusTimestamp
+              and type = 11
+              and result = 22
+              and entity_id is not null
+            """, nativeQuery = true)
+    List<Long> findSuccessfulCryptoCreateChildEntityIds(
+            @Param("parentConsensusTimestamp") long parentConsensusTimestamp);
 }

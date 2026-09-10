@@ -4,22 +4,41 @@ package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.CRYPTOCREATEACCOUNT;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.common.util.SignatureUtils.EC_DOMAIN_PARAMETERS;
 import static org.hiero.mirror.web3.utils.ByteUtils.wrapToWordSize;
 
 import com.google.common.collect.Range;
+import com.google.protobuf.Int64Value;
+import com.hedera.node.app.hapi.utils.ethereum.CodeDelegation;
+import com.hedera.services.stream.proto.CallOperationType;
+import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.ContractNonceInfo;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.annotation.Resource;
+import java.math.BigInteger;
+import java.util.HexFormat;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
+import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.transaction.Authorization;
+import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.controller.PrestateProperties;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
+import org.hyperledger.besu.crypto.KeyPair;
+import org.hyperledger.besu.crypto.SECP256K1;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -28,6 +47,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 @RequiredArgsConstructor
 final class PrestateServiceTest extends Web3IntegrationTest {
 
+    private static final SECP256K1 SECP256K1 = new SECP256K1();
     private static final byte[] RUNTIME_BYTECODE = new byte[] {0x60, 0x40};
     private static final byte[] STORAGE_SLOT =
             new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
@@ -57,7 +77,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         assertThat(response.getPost()).hasSize(1);
         assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0xe8d4a51000");
         assertThat(response.getPost().getFirst().getBalance()).isEqualTo("0x15d3ef79800");
-        assertThat(response.getPost().getFirst().getNonce()).isEqualTo(2L);
+        assertThat(response.getPost().getFirst().getNonce()).isEqualTo(0L);
     }
 
     @Test
@@ -243,47 +263,26 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
     @Test
     void callWithDiffEnabledDetectsOnlyNonceChange() {
-        final var payerId = domainBuilder.entityId();
+        final var senderId = domainBuilder.entityId();
         final var contractId = domainBuilder.entityId();
-        final var accountId = domainBuilder.entityId();
         final var createdTimestamp = domainBuilder.timestamp();
         final var consensusTimestamp = createdTimestamp + 100;
         final var hash = domainBuilder.bytes(32);
 
-        // Historical entity: nonce = 3 valid over [createdTimestamp, consensusTimestamp)
-        domainBuilder
-                .entityHistory(accountId, createdTimestamp)
-                .customize(e -> e.type(EntityType.ACCOUNT)
-                        .ethereumNonce(3L)
-                        .evmAddress(null)
-                        .alias(null)
-                        .deleted(false)
-                        .timestampRange(Range.closedOpen(createdTimestamp, consensusTimestamp)))
-                .persist();
-        // Current entity: nonce bumped to 4 as of consensusTimestamp
-        domainBuilder
-                .entity(accountId, createdTimestamp)
-                .customize(e -> e.type(EntityType.ACCOUNT)
-                        .ethereumNonce(4L)
-                        .evmAddress(null)
-                        .alias(null)
-                        .deleted(false)
-                        .timestampRange(Range.atLeast(consensusTimestamp)))
-                .persist();
-
+        persistBareEntity(senderId, EntityType.ACCOUNT, 4L, createdTimestamp);
         persistTreasuryBalance(createdTimestamp);
-        persistAccountBalance(accountId, createdTimestamp, 100L);
-
-        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
-        domainBuilder
-                .contractAction()
-                .customize(a -> a.consensusTimestamp(consensusTimestamp)
-                        .caller(accountId)
-                        .callerType(EntityType.ACCOUNT)
-                        .recipientContract(contractId)
-                        .value(0L)
-                        .index(0))
-                .persist();
+        persistAccountBalance(senderId, createdTimestamp, 100L);
+        persistEthereumCall(
+                hash,
+                consensusTimestamp,
+                senderId,
+                senderId,
+                contractId,
+                3L,
+                signerNonceFunctionResult(senderId, 4L),
+                List.of());
+        persistCallAction(
+                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
 
@@ -291,6 +290,401 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         assertThat(response.getPost()).hasSize(1);
         assertThat(response.getPre().getFirst().getNonce()).isEqualTo(3L);
         assertThat(response.getPost().getFirst().getNonce()).isEqualTo(4L);
+    }
+
+    @Test
+    void callWithDiffEnabledDetectsEthereumSenderNonceWithoutSignerNonce() {
+        final var senderId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        persistBareEntity(senderId, EntityType.ACCOUNT, 10L, createdTimestamp);
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(senderId, createdTimestamp, 100L);
+        persistEthereumCall(hash, consensusTimestamp, senderId, senderId, contractId, 9L, new byte[0], List.of());
+        persistCallAction(
+                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        assertThat(response.getPre())
+                .singleElement()
+                .extracting(t -> t.getNonce())
+                .isEqualTo(9L);
+        assertThat(response.getPost())
+                .singleElement()
+                .extracting(t -> t.getNonce())
+                .isEqualTo(10L);
+    }
+
+    @Test
+    void callWithoutDiffUsesReconstructedPreNonceForEthereumSender() {
+        final var senderId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        persistBareEntity(senderId, EntityType.ACCOUNT, 4L, createdTimestamp);
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(senderId, createdTimestamp, 100L);
+        persistEthereumCall(
+                hash,
+                consensusTimestamp,
+                senderId,
+                senderId,
+                contractId,
+                3L,
+                signerNonceFunctionResult(senderId, 4L),
+                List.of());
+        persistCallAction(
+                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, false, false, false));
+
+        assertThat(response.getPre())
+                .singleElement()
+                .extracting(t -> t.getNonce())
+                .isEqualTo(3L);
+        assertThat(response.getPost()).isNullOrEmpty();
+    }
+
+    @Test
+    void callWithDiffEnabledOmitsHapiSenderWithoutNonceChange() {
+        final var senderId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        persistBareEntity(senderId, EntityType.ACCOUNT, 10L, createdTimestamp);
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(senderId, createdTimestamp, 100L);
+        persistContractTransactionHash(hash, consensusTimestamp, senderId, contractId);
+        domainBuilder
+                .contractResult()
+                .customize(c -> c.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(senderId)
+                        .senderId(senderId)
+                        .contractId(contractId.getId())
+                        .createdContractIds(List.of())
+                        .functionResult(new byte[0])
+                        .amount(0L))
+                .persist();
+        persistCallAction(
+                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        assertThat(response.getPre()).isEmpty();
+        assertThat(response.getPost()).isEmpty();
+    }
+
+    @Test
+    void callWithDiffEnabledDoesNotInferInnerCreateNonceFromEntity() {
+        final var callerId = domainBuilder.entityId();
+        final var createdContractId = domainBuilder.entityId();
+        final var payerId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        persistBareEntity(callerId, EntityType.CONTRACT, 8L, createdTimestamp);
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(callerId, createdTimestamp, 100L);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, callerId);
+        persistCallAction(
+                consensusTimestamp,
+                callerId,
+                EntityType.CONTRACT,
+                createdContractId,
+                0L,
+                CallOperationType.OP_CREATE,
+                1);
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        assertThat(response.getPre()).isEmpty();
+        assertThat(response.getPost()).isEmpty();
+    }
+
+    @Test
+    void callWithDiffEnabledUsesCreatedContractNonceFromFunctionResult() {
+        final var callerId = domainBuilder.entityId();
+        final var createdContractId = domainBuilder.entityId();
+        final var payerId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        persistBareEntity(callerId, EntityType.CONTRACT, 2L, createdTimestamp);
+        persistBareEntity(createdContractId, EntityType.CONTRACT, 1L, consensusTimestamp);
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(callerId, createdTimestamp, 100L);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, callerId);
+        domainBuilder
+                .contractResult()
+                .customize(c -> c.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
+                        .senderId(payerId)
+                        .contractId(callerId.getId())
+                        .createdContractIds(List.of(createdContractId.getId()))
+                        .functionResult(createdContractNonceFunctionResult(createdContractId, 1L))
+                        .amount(0L))
+                .persist();
+        persistCallAction(
+                consensusTimestamp,
+                callerId,
+                EntityType.CONTRACT,
+                createdContractId,
+                0L,
+                CallOperationType.OP_CREATE,
+                1);
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        final var createdAddress = toLongZeroAddress(createdContractId);
+        final var createdPre = response.getPre().stream()
+                .filter(t -> createdAddress.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        final var createdPost = response.getPost().stream()
+                .filter(t -> createdAddress.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(createdPre.getNonce()).isNull();
+        assertThat(createdPost.getNonce()).isEqualTo(1L);
+    }
+
+    @Test
+    void callWithDiffEnabledDetectsEip7702AuthorityNonce() {
+        final var senderId = domainBuilder.entityId();
+        final var authorityId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+        final var keyPair = SECP256K1.generateKeyPair();
+        final var authorityAddress = evmAddressFromKeyPair(keyPair);
+        final var target = domainBuilder.bytes(20);
+        final var authorization = signedAuthorization(keyPair, target, 4L);
+
+        persistBareEntity(senderId, EntityType.ACCOUNT, 10L, createdTimestamp);
+        persistBareEntity(authorityId, EntityType.ACCOUNT, 99L, createdTimestamp, authorityAddress);
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(senderId, createdTimestamp, 100L);
+        persistAccountBalance(authorityId, createdTimestamp, 50L);
+        persistEthereumCall(
+                hash, consensusTimestamp, senderId, senderId, contractId, 9L, new byte[0], List.of(authorization));
+        persistCallAction(
+                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        final var authorityHex = "0x" + bytesToHex(authorityAddress);
+        final var authorityPre = response.getPre().stream()
+                .filter(t -> authorityHex.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        final var authorityPost = response.getPost().stream()
+                .filter(t -> authorityHex.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(authorityPre.getNonce()).isEqualTo(4L);
+        assertThat(authorityPost.getNonce()).isEqualTo(5L);
+    }
+
+    @Test
+    void callWithDiffEnabledDetectsEip7702AuthorityNonceResolvedByAlias() {
+        final var senderId = domainBuilder.entityId();
+        final var authorityId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+        final var keyPair = SECP256K1.generateKeyPair();
+        final var authorityAddress = evmAddressFromKeyPair(keyPair);
+        final var authorization = signedAuthorization(keyPair, domainBuilder.bytes(20), 4L);
+
+        persistBareEntity(senderId, EntityType.ACCOUNT, 10L, createdTimestamp);
+        persistBareEntity(authorityId, EntityType.ACCOUNT, 99L, createdTimestamp, null, authorityAddress);
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(senderId, createdTimestamp, 100L);
+        persistAccountBalance(authorityId, createdTimestamp, 50L);
+        persistEthereumCall(
+                hash, consensusTimestamp, senderId, senderId, contractId, 9L, new byte[0], List.of(authorization));
+        persistCallAction(
+                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        final var authorityHex = "0x" + bytesToHex(authorityAddress);
+        final var authorityPre = response.getPre().stream()
+                .filter(t -> authorityHex.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        final var authorityPost = response.getPost().stream()
+                .filter(t -> authorityHex.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(authorityPre.getNonce()).isEqualTo(4L);
+        assertThat(authorityPost.getNonce()).isEqualTo(5L);
+    }
+
+    @Test
+    void callWithDiffEnabledDetectsSelfSponsoredEip7702Nonce() {
+        final var senderId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+        final var keyPair = SECP256K1.generateKeyPair();
+        final var senderAddress = evmAddressFromKeyPair(keyPair);
+        final var authorization = signedAuthorization(keyPair, domainBuilder.bytes(20), 11L);
+
+        persistBareEntity(senderId, EntityType.ACCOUNT, 999L, createdTimestamp, senderAddress);
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(senderId, createdTimestamp, 100L);
+        persistEthereumCall(
+                hash,
+                consensusTimestamp,
+                senderId,
+                senderId,
+                contractId,
+                10L,
+                signerNonceFunctionResult(senderId, 12L),
+                List.of(authorization));
+        persistCallAction(
+                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        assertThat(response.getPre())
+                .singleElement()
+                .extracting(t -> t.getNonce())
+                .isEqualTo(10L);
+        assertThat(response.getPost())
+                .singleElement()
+                .extracting(t -> t.getNonce())
+                .isEqualTo(12L);
+    }
+
+    @Test
+    void callWithDiffEnabledDetectsMultipleEip7702AuthorityNonces() {
+        final var senderId = domainBuilder.entityId();
+        final var firstAuthorityId = domainBuilder.entityId();
+        final var secondAuthorityId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+        final var firstKeyPair = SECP256K1.generateKeyPair();
+        final var secondKeyPair = SECP256K1.generateKeyPair();
+        final var firstAuthorityAddress = evmAddressFromKeyPair(firstKeyPair);
+        final var secondAuthorityAddress = evmAddressFromKeyPair(secondKeyPair);
+        final var firstAuthorization = signedAuthorization(firstKeyPair, domainBuilder.bytes(20), 4L);
+        final var secondAuthorization = signedAuthorization(secondKeyPair, domainBuilder.bytes(20), 7L);
+
+        persistBareEntity(senderId, EntityType.ACCOUNT, 10L, createdTimestamp);
+        persistBareEntity(firstAuthorityId, EntityType.ACCOUNT, 99L, createdTimestamp, firstAuthorityAddress);
+        persistBareEntity(secondAuthorityId, EntityType.ACCOUNT, 99L, createdTimestamp, secondAuthorityAddress);
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(senderId, createdTimestamp, 100L);
+        persistAccountBalance(firstAuthorityId, createdTimestamp, 50L);
+        persistAccountBalance(secondAuthorityId, createdTimestamp, 25L);
+        persistEthereumCall(
+                hash,
+                consensusTimestamp,
+                senderId,
+                senderId,
+                contractId,
+                9L,
+                new byte[0],
+                List.of(firstAuthorization, secondAuthorization));
+        persistCallAction(
+                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        final var firstAuthorityHex = "0x" + bytesToHex(firstAuthorityAddress);
+        final var secondAuthorityHex = "0x" + bytesToHex(secondAuthorityAddress);
+        final var firstAuthorityPre = response.getPre().stream()
+                .filter(t -> firstAuthorityHex.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        final var firstAuthorityPost = response.getPost().stream()
+                .filter(t -> firstAuthorityHex.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        final var secondAuthorityPre = response.getPre().stream()
+                .filter(t -> secondAuthorityHex.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        final var secondAuthorityPost = response.getPost().stream()
+                .filter(t -> secondAuthorityHex.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(firstAuthorityPre.getNonce()).isEqualTo(4L);
+        assertThat(firstAuthorityPost.getNonce()).isEqualTo(5L);
+        assertThat(secondAuthorityPre.getNonce()).isEqualTo(7L);
+        assertThat(secondAuthorityPost.getNonce()).isEqualTo(8L);
+    }
+
+    @Test
+    void callWithDiffEnabledSkipsUnresolvedEip7702Authorities() {
+        final var senderId = domainBuilder.entityId();
+        final var authorityId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+        final var knownKeyPair = SECP256K1.generateKeyPair();
+        final var unknownKeyPair = SECP256K1.generateKeyPair();
+        final var authorityAddress = evmAddressFromKeyPair(knownKeyPair);
+        final var knownAuthorization = signedAuthorization(knownKeyPair, domainBuilder.bytes(20), 4L);
+        final var unknownAuthorization = signedAuthorization(unknownKeyPair, domainBuilder.bytes(20), 1L);
+        final var invalidAuthorization = Authorization.builder()
+                .address("0x" + bytesToHex(domainBuilder.bytes(20)))
+                .chainId("0x0")
+                .build();
+
+        persistBareEntity(senderId, EntityType.ACCOUNT, 10L, createdTimestamp);
+        persistBareEntity(authorityId, EntityType.ACCOUNT, 99L, createdTimestamp, authorityAddress);
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(senderId, createdTimestamp, 100L);
+        persistAccountBalance(authorityId, createdTimestamp, 50L);
+        persistEthereumCall(
+                hash,
+                consensusTimestamp,
+                senderId,
+                senderId,
+                contractId,
+                9L,
+                new byte[0],
+                List.of(invalidAuthorization, unknownAuthorization, knownAuthorization));
+        persistCallAction(
+                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        final var authorityHex = "0x" + bytesToHex(authorityAddress);
+        final var unknownAuthorityHex = "0x" + bytesToHex(evmAddressFromKeyPair(unknownKeyPair));
+        assertThat(response.getPre())
+                .extracting(t -> t.getAddress())
+                .contains(authorityHex)
+                .doesNotContain(unknownAuthorityHex);
+        final var authorityPre = response.getPre().stream()
+                .filter(t -> authorityHex.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        final var authorityPost = response.getPost().stream()
+                .filter(t -> authorityHex.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(authorityPre.getNonce()).isEqualTo(4L);
+        assertThat(authorityPost.getNonce()).isEqualTo(5L);
     }
 
     @Test
@@ -349,8 +743,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         final var response = prestateService.processPrestateCall(createRequest(hash, false, false, false));
 
         assertThat(response.getPre()).hasSize(1);
-        // Pre state should reflect the newest active version at consensusTimestamp - 1 (nonce = 42)
-        assertThat(response.getPre().getFirst().getNonce()).isEqualTo(42L);
+        assertThat(response.getPre().getFirst().getNonce()).isEqualTo(0L);
     }
 
     @Test
@@ -364,7 +757,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPre().getFirst().getAddress()).isEqualTo(toLongZeroAddress(fixture.contractId()));
         assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0x746a528800");
-        assertThat(response.getPre().getFirst().getNonce()).isEqualTo(3L);
+        assertThat(response.getPre().getFirst().getNonce()).isEqualTo(0L);
         assertThat(response.getPre().getFirst().getCode()).isNull();
         assertThat(response.getPre().getFirst().getStorage()).isNullOrEmpty();
     }
@@ -411,6 +804,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
         // Newly created account - created during the transaction (timestamp = consensusTimestamp)
         persistBareEntity(newlyCreatedAccount, EntityType.ACCOUNT, 0L, consensusTimestamp);
+        persistSuccessfulCryptoCreateChild(newlyCreatedAccount, consensusTimestamp, consensusTimestamp - 1L);
 
         persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
         domainBuilder
@@ -458,6 +852,85 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         assertThat(newAccountPost).isNotNull();
         assertThat(newAccountPost.getBalance()).isEqualTo("0x3a35294400"); // 25 tinybars in weibars
         assertThat(newAccountPost.getNonce()).isEqualTo(0L);
+    }
+
+    @Test
+    void callWithDiffTreatsPrecedingHollowCreateAsBornInThisTransaction() {
+        final var payerId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var hollowAccount = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hollowCreateTimestamp = consensusTimestamp - 1L;
+        final var hash = domainBuilder.bytes(32);
+
+        persistBareEntity(hollowAccount, EntityType.ACCOUNT, 7L, hollowCreateTimestamp);
+        persistTreasuryBalance(createdTimestamp);
+        persistSuccessfulCryptoCreateChild(hollowAccount, consensusTimestamp, hollowCreateTimestamp);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(contractId)
+                        .callerType(EntityType.CONTRACT)
+                        .recipientAccount(hollowAccount)
+                        .value(25L)
+                        .index(0))
+                .persist();
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        final var hollowAddress = toLongZeroAddress(hollowAccount);
+        final var hollowPre = response.getPre().stream()
+                .filter(t -> hollowAddress.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        final var hollowPost = response.getPost().stream()
+                .filter(t -> hollowAddress.equals(t.getAddress()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(hollowPre.getBalance()).isNull();
+        assertThat(hollowPre.getNonce()).isNull();
+        assertThat(hollowPost.getNonce()).isEqualTo(0L);
+        assertThat(hollowPost.getBalance()).isEqualTo("0x3a35294400");
+    }
+
+    @Test
+    void callWithDiffSkipsFailedCryptoCreateChildren() {
+        final var payerId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var failedAccount = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        persistBareEntity(failedAccount, EntityType.ACCOUNT, 0L, consensusTimestamp);
+        persistTreasuryBalance(createdTimestamp);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
+        domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(consensusTimestamp - 1L)
+                        .parentConsensusTimestamp(consensusTimestamp)
+                        .entityId(failedAccount)
+                        .nonce(1)
+                        .type(CRYPTOCREATEACCOUNT.getProtoId())
+                        .result(ResponseCodeEnum.INVALID_SIGNATURE.getNumber()))
+                .persist();
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(contractId)
+                        .callerType(EntityType.CONTRACT)
+                        .recipientAccount(failedAccount)
+                        .value(25L)
+                        .index(0))
+                .persist();
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        final var failedAddress = toLongZeroAddress(failedAccount);
+        assertThat(response.getPre()).extracting(t -> t.getAddress()).doesNotContain(failedAddress);
+        assertThat(response.getPost()).extracting(t -> t.getAddress()).doesNotContain(failedAddress);
     }
 
     @ParameterizedTest
@@ -670,15 +1143,151 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
     private void persistBareEntity(
             final EntityId entityId, final EntityType type, final long nonce, final long createdTimestamp) {
+        persistBareEntity(entityId, type, nonce, createdTimestamp, null, null);
+    }
+
+    private void persistBareEntity(
+            final EntityId entityId,
+            final EntityType type,
+            final long nonce,
+            final long createdTimestamp,
+            final byte[] evmAddress) {
+        persistBareEntity(entityId, type, nonce, createdTimestamp, evmAddress, evmAddress);
+    }
+
+    private void persistBareEntity(
+            final EntityId entityId,
+            final EntityType type,
+            final long nonce,
+            final long createdTimestamp,
+            final byte[] evmAddress,
+            final byte[] alias) {
         domainBuilder
                 .entity(entityId, createdTimestamp)
                 .customize(e -> e.type(type)
                         .ethereumNonce(nonce)
-                        .evmAddress(null)
-                        .alias(null)
+                        .evmAddress(evmAddress)
+                        .alias(alias)
                         .deleted(false)
                         .timestampRange(Range.atLeast(createdTimestamp)))
                 .persist();
+    }
+
+    private void persistSuccessfulCryptoCreateChild(
+            final EntityId entityId, final long parentConsensusTimestamp, final long childConsensusTimestamp) {
+        domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(childConsensusTimestamp)
+                        .parentConsensusTimestamp(parentConsensusTimestamp)
+                        .entityId(entityId)
+                        .nonce(1)
+                        .type(CRYPTOCREATEACCOUNT.getProtoId())
+                        .result(ResponseCodeEnum.SUCCESS.getNumber()))
+                .persist();
+    }
+
+    private void persistCallAction(
+            final long consensusTimestamp,
+            final EntityId caller,
+            final EntityType callerType,
+            final EntityId recipientContract,
+            final long value,
+            final CallOperationType operationType,
+            final int callDepth) {
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(caller)
+                        .callerType(callerType)
+                        .callOperationType(operationType.getNumber())
+                        .callDepth(callDepth)
+                        .recipientAccount(null)
+                        .recipientContract(recipientContract)
+                        .value(value)
+                        .index(0))
+                .persist();
+    }
+
+    private void persistEthereumCall(
+            final byte[] hash,
+            final long consensusTimestamp,
+            final EntityId payerId,
+            final EntityId senderId,
+            final EntityId contractId,
+            final long ethereumNonce,
+            final byte[] functionResult,
+            final List<Authorization> authorizations) {
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
+        domainBuilder
+                .contractResult()
+                .customize(c -> c.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
+                        .senderId(senderId)
+                        .contractId(contractId.getId())
+                        .createdContractIds(List.of())
+                        .functionResult(functionResult)
+                        .amount(0L))
+                .persist();
+        domainBuilder
+                .ethereumTransaction(true)
+                .customize(e -> e.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
+                        .nonce(ethereumNonce)
+                        .hash(hash)
+                        .authorizationList(authorizations)
+                        .toAddress(toEvmAddress(contractId)))
+                .persist();
+    }
+
+    private static byte[] signerNonceFunctionResult(final EntityId senderId, final long signerNonce) {
+        return ContractFunctionResult.newBuilder()
+                .setSenderId(AccountID.newBuilder()
+                        .setShardNum(senderId.getShard())
+                        .setRealmNum(senderId.getRealm())
+                        .setAccountNum(senderId.getNum()))
+                .setSignerNonce(Int64Value.of(signerNonce))
+                .build()
+                .toByteArray();
+    }
+
+    private static byte[] createdContractNonceFunctionResult(final EntityId contractId, final long nonce) {
+        return ContractFunctionResult.newBuilder()
+                .addContractNonces(ContractNonceInfo.newBuilder()
+                        .setContractId(ContractID.newBuilder()
+                                .setShardNum(contractId.getShard())
+                                .setRealmNum(contractId.getRealm())
+                                .setContractNum(contractId.getNum()))
+                        .setNonce(nonce))
+                .build()
+                .toByteArray();
+    }
+
+    private static Authorization signedAuthorization(final KeyPair keyPair, final byte[] target, final long nonce) {
+        final var unsigned = new CodeDelegation(new byte[] {0}, target, nonce, 0, new byte[] {1}, new byte[] {1});
+        final var message = unsigned.calculateSignableMessage();
+        final var hash = Bytes32.wrap(new Keccak.Digest256().digest(message));
+        final var signature = SECP256K1.sign(hash, keyPair);
+        final var hex = HexFormat.of();
+        return Authorization.builder()
+                .chainId("0x0")
+                .address("0x" + hex.formatHex(target))
+                .nonce(nonce)
+                .yParity(signature.getRecId() == 0 ? "0x0" : "0x1")
+                .r("0x" + hex.formatHex(toUnsigned32(signature.getR())))
+                .s("0x" + hex.formatHex(toUnsigned32(signature.getS())))
+                .build();
+    }
+
+    private static byte[] evmAddressFromKeyPair(final KeyPair keyPair) {
+        final var compressed =
+                keyPair.getPublicKey().asEcPoint(EC_DOMAIN_PARAMETERS).getEncoded(true);
+        return SignatureUtils.recoverAddressFromPubKey(compressed);
+    }
+
+    private static byte[] toUnsigned32(final BigInteger value) {
+        final var hex = value.toString(16);
+        final var padded = hex.length() >= 64 ? hex.substring(hex.length() - 64) : "0".repeat(64 - hex.length()) + hex;
+        return HexFormat.of().parseHex(padded);
     }
 
     private void persistTreasuryBalance(final long timestamp) {

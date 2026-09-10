@@ -7,6 +7,7 @@ import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRAC
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CRYPTOCREATEACCOUNT;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.ETHEREUMTRANSACTION;
 
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.web3.Web3IntegrationTest;
@@ -94,5 +95,45 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
         assertThat(transactionRepository.findByTransactionId(
                         senderEntityId.getId(), validStartNs, validStartNs, consensusTimestamp + 10))
                 .isEmpty();
+    }
+
+    @Test
+    void findSuccessfulCryptoCreateChildEntityIdsReturnsSuccessfulChildren() {
+        final var parentConsensusTimestamp = domainBuilder.timestamp();
+        final var hollowAccountId = domainBuilder.entityId();
+        final var failedAccountId = domainBuilder.entityId();
+        final var otherParentAccountId = domainBuilder.entityId();
+
+        domainBuilder
+                .transaction()
+                .customize(transaction -> transaction
+                        .consensusTimestamp(parentConsensusTimestamp - 1L)
+                        .parentConsensusTimestamp(parentConsensusTimestamp)
+                        .entityId(hollowAccountId)
+                        .nonce(1)
+                        .type(CRYPTOCREATEACCOUNT.getProtoId()))
+                .persist();
+        domainBuilder
+                .transaction()
+                .customize(transaction -> transaction
+                        .consensusTimestamp(parentConsensusTimestamp - 2L)
+                        .parentConsensusTimestamp(parentConsensusTimestamp)
+                        .entityId(failedAccountId)
+                        .nonce(2)
+                        .type(CRYPTOCREATEACCOUNT.getProtoId())
+                        .result(ResponseCodeEnum.INVALID_SIGNATURE.getNumber()))
+                .persist();
+        domainBuilder
+                .transaction()
+                .customize(transaction -> transaction
+                        .consensusTimestamp(parentConsensusTimestamp + 1L)
+                        .parentConsensusTimestamp(parentConsensusTimestamp + 100L)
+                        .entityId(otherParentAccountId)
+                        .nonce(1)
+                        .type(CRYPTOCREATEACCOUNT.getProtoId()))
+                .persist();
+
+        assertThat(transactionRepository.findSuccessfulCryptoCreateChildEntityIds(parentConsensusTimestamp))
+                .containsExactly(hollowAccountId.getId());
     }
 }

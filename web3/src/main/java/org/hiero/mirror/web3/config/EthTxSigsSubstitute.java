@@ -6,11 +6,13 @@ import static org.hiero.mirror.common.util.SignatureUtils.EC_DOMAIN_PARAMETERS;
 import static org.hiero.mirror.common.util.SignatureUtils.recoverAddressFromPubKey;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.hedera.node.app.hapi.utils.ethereum.CodeDelegation;
 import com.hedera.node.app.hapi.utils.ethereum.EthTxData;
 import com.hedera.node.app.hapi.utils.ethereum.EthTxSigs;
 import com.oracle.svm.core.annotate.Substitute;
 import com.oracle.svm.core.annotate.TargetClass;
 import java.math.BigInteger;
+import java.util.Optional;
 import lombok.experimental.UtilityClass;
 import org.apache.tuweni.bytes.Bytes32;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
@@ -44,6 +46,17 @@ final class EthTxSigsSubstitute {
         public static EthTxSigs extractSignatures(EthTxData ethTx) {
             final var message = EthTxSigs.calculateSignableMessage(ethTx);
             return recoverPublicKey(ethTx.recId(), ethTx.r(), ethTx.s(), message);
+        }
+
+        @Substitute
+        public static Optional<EthTxSigs> extractAuthoritySignature(final CodeDelegation codeDelegation) {
+            try {
+                final var message = codeDelegation.calculateSignableMessage();
+                return Optional.of(recoverPublicKey(
+                        Math.floorMod(codeDelegation.yParity(), 2), codeDelegation.r(), codeDelegation.s(), message));
+            } catch (RuntimeException e) {
+                return Optional.empty();
+            }
         }
     }
 }

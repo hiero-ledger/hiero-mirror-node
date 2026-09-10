@@ -125,6 +125,45 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
     Optional<Entity> findActiveByEvmAddressOrAliasAndTimestamp(byte[] alias, long blockTimestamp);
 
     /**
+     * Retrieves the most recent state of each entity matching any of the given evm addresses or aliases up to a given
+     * block timestamp. Address resolution uses the current {@code entity} row (the same source as
+     * {@link #findActiveByEvmAddressOrAliasAndTimestamp(byte[], long)}), then the newest non-deleted version active at
+     * or before the block timestamp is taken from {@code entity} or {@code entity_history}.
+     *
+     * @param addresses      the evm addresses or aliases to look up.
+     * @param blockTimestamp the block timestamp used to filter the results.
+     * @return the list of active entities (at most one per resolved entity ID); addresses with no active version are
+     *     omitted.
+     */
+    @Query(value = """
+            with entity_cte as (
+                select id
+                from entity
+                where created_timestamp <= ?2 and (evm_address in ?1 or alias in ?1)
+            )
+            select distinct on (id) *
+            from (
+                (
+                    select *
+                    from entity
+                    where id in (select id from entity_cte)
+                    and deleted is not true
+                    and lower(timestamp_range) <= ?2
+                )
+                union all
+                (
+                    select *
+                    from entity_history
+                    where id in (select id from entity_cte)
+                    and deleted is not true
+                    and lower(timestamp_range) <= ?2
+                )
+            ) as merged
+            order by id, lower(timestamp_range) desc
+            """, nativeQuery = true)
+    List<Entity> findActiveByEvmAddressesOrAliasesAndTimestamp(Collection<byte[]> addresses, long blockTimestamp);
+
+    /**
      * Retrieves the most recent state of an entity by its ID up to a given block timestamp.
      * The method considers both the current state of the entity and its historical states
      * and returns the one that was valid just before or equal to the provided block timestamp.

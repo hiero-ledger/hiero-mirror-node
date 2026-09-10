@@ -395,6 +395,142 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findActiveByEvmAddressesOrAliasesAndTimestampReturnsRequestedCurrentEntities() {
+        final var entityByEvmAddress = persistEntity();
+        final var entityByAlias = persistEntity();
+        persistEntity();
+        final long blockTimestamp =
+                Math.max(entityByEvmAddress.getTimestampLower(), entityByAlias.getTimestampLower()) + 1;
+
+        assertThat(entityRepository.findActiveByEvmAddressesOrAliasesAndTimestamp(
+                        List.of(entityByEvmAddress.getEvmAddress(), entityByAlias.getAlias()), blockTimestamp))
+                .containsExactlyInAnyOrder(entityByEvmAddress, entityByAlias);
+    }
+
+    @Test
+    void findActiveByEvmAddressesOrAliasesAndTimestampRangeEqualToBlockTimestamp() {
+        final var entity = persistEntity();
+
+        assertThat(entityRepository.findActiveByEvmAddressesOrAliasesAndTimestamp(
+                        List.of(entity.getEvmAddress()), entity.getTimestampLower()))
+                .containsExactly(entity);
+    }
+
+    @Test
+    void findActiveByEvmAddressesOrAliasesAndTimestampRangeGreaterThanBlockTimestamp() {
+        final var entity = persistEntity();
+
+        assertThat(entityRepository.findActiveByEvmAddressesOrAliasesAndTimestamp(
+                        List.of(entity.getEvmAddress(), entity.getAlias()), entity.getTimestampLower() - 1))
+                .isEmpty();
+    }
+
+    @Test
+    void findActiveByEvmAddressesOrAliasesAndTimestampOmitsDeletedAndUnknownAddresses() {
+        final var active = persistEntity();
+        final var deleted = persistEntityDeleted();
+
+        assertThat(entityRepository.findActiveByEvmAddressesOrAliasesAndTimestamp(
+                        List.of(active.getEvmAddress(), deleted.getAlias(), domainBuilder.evmAddress()),
+                        Math.max(active.getTimestampLower(), deleted.getTimestampLower()) + 1))
+                .containsExactly(active);
+    }
+
+    @Test
+    void findActiveByEvmAddressesOrAliasesAndTimestampReturnsHistoricalEntity() {
+        final var entity = persistEntity();
+        final var entityHistory = persistEntityHistoryWithId(entity.getId());
+
+        assertThat(entityRepository.findActiveByEvmAddressesOrAliasesAndTimestamp(
+                        List.of(entity.getAlias()), entityHistory.getTimestampLower()))
+                .singleElement()
+                .usingRecursiveComparison()
+                .isEqualTo(entityHistory);
+    }
+
+    @Test
+    void findActiveByEvmAddressesOrAliasesAndTimestampReturnsNewestRowWhenBothEntityAndHistoryExist() {
+        final var entityId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var midTimestamp = createdTimestamp + 50;
+        final var evmAddress = domainBuilder.evmAddress();
+
+        domainBuilder
+                .entityHistory(entityId, createdTimestamp)
+                .customize(e -> e.deleted(false)
+                        .evmAddress(evmAddress)
+                        .timestampRange(Range.closedOpen(createdTimestamp, midTimestamp)))
+                .persist();
+        final var current = domainBuilder
+                .entity(entityId, createdTimestamp)
+                .customize(e -> e.deleted(false).evmAddress(evmAddress).timestampRange(Range.atLeast(midTimestamp)))
+                .persist();
+
+        assertThat(entityRepository.findActiveByEvmAddressesOrAliasesAndTimestamp(
+                        List.of(evmAddress), midTimestamp + 100))
+                .singleElement()
+                .usingRecursiveComparison()
+                .isEqualTo(current);
+    }
+
+    @Test
+    void findActiveByEvmAddressesOrAliasesAndTimestampReturnsAtMostOneRowPerId() {
+        final var entityId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var midTimestamp1 = createdTimestamp + 25;
+        final var midTimestamp2 = createdTimestamp + 50;
+        final var evmAddress = domainBuilder.evmAddress();
+
+        domainBuilder
+                .entityHistory(entityId, createdTimestamp)
+                .customize(e -> e.deleted(false)
+                        .evmAddress(evmAddress)
+                        .timestampRange(Range.closedOpen(createdTimestamp, midTimestamp1)))
+                .persist();
+        domainBuilder
+                .entityHistory(entityId, createdTimestamp)
+                .customize(e -> e.deleted(false)
+                        .evmAddress(evmAddress)
+                        .timestampRange(Range.closedOpen(midTimestamp1, midTimestamp2)))
+                .persist();
+        domainBuilder
+                .entity(entityId, createdTimestamp)
+                .customize(e -> e.deleted(false).evmAddress(evmAddress).timestampRange(Range.atLeast(midTimestamp2)))
+                .persist();
+
+        assertThat(entityRepository.findActiveByEvmAddressesOrAliasesAndTimestamp(
+                        List.of(evmAddress), midTimestamp2 + 10))
+                .hasSize(1);
+    }
+
+    @Test
+    void findActiveByEvmAddressesOrAliasesAndTimestampDeduplicatesAliasAndEvmAddress() {
+        final var entity = persistEntity();
+
+        assertThat(entityRepository.findActiveByEvmAddressesOrAliasesAndTimestamp(
+                        List.of(entity.getEvmAddress(), entity.getAlias()), entity.getTimestampLower() + 1))
+                .containsExactly(entity);
+    }
+
+    @Test
+    void findActiveByEvmAddressesOrAliasesAndTimestampOmitsDeletedHistory() {
+        final var entityHistory = persistEntityHistoryWithDeleted();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(entityHistory.getId())
+                        .alias(entityHistory.getAlias())
+                        .createdTimestamp(entityHistory.getCreatedTimestamp())
+                        .deleted(true)
+                        .evmAddress(entityHistory.getEvmAddress())
+                        .timestampRange(Range.atLeast(entityHistory.getTimestampUpper())))
+                .persist();
+
+        assertThat(entityRepository.findActiveByEvmAddressesOrAliasesAndTimestamp(
+                        List.of(entityHistory.getAlias()), entityHistory.getTimestampLower()))
+                .isEmpty();
+    }
+
+    @Test
     void findByEvmAddressOrAliasSuccessWithAlias() {
         final var alias = domainBuilder.key();
         final var entity = domainBuilder.entity().customize(e -> e.alias(alias)).persist();

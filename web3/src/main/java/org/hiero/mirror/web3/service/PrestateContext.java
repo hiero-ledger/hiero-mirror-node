@@ -23,7 +23,10 @@ import org.jspecify.annotations.Nullable;
 final class PrestateContext {
 
     private final Set<Long> accounts = new HashSet<>();
+    private final Set<Long> createdIds = new HashSet<>();
     private final Map<Long, Long> balanceTransfers = new HashMap<>();
+    private final Map<Long, Long> nonceDeltas = new HashMap<>();
+    private final Map<Long, Long> postNonces = new HashMap<>();
 
     private final long consensusTimestamp;
 
@@ -37,8 +40,28 @@ final class PrestateContext {
         }
     }
 
+    public void addCreatedAccount(final long accountId) {
+        if (accountId == 0L) {
+            return;
+        }
+        accounts.add(accountId);
+        createdIds.add(accountId);
+    }
+
     public void addBalanceTransfer(final long accountId, final long value) {
         balanceTransfers.merge(accountId, value, Long::sum);
+    }
+
+    public void addNonceDelta(final long accountId, final long delta) {
+        nonceDeltas.merge(accountId, delta, Long::sum);
+    }
+
+    public void putPostNonce(final long accountId, final long nonce) {
+        postNonces.put(accountId, nonce);
+    }
+
+    public void mergePostNonce(final long accountId, final long nonce) {
+        postNonces.merge(accountId, nonce, Long::max);
     }
 
     public void addPreStorageSlot(final long contractId, final byte[] slot, final byte @Nullable [] value) {
