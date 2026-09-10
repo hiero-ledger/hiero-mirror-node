@@ -2152,7 +2152,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         GET_TOKEN_KEY("getTokenKeyExternal", 29002, MUTABLE),
         GET_TOKEN_TYPE("getType", 27991, MUTABLE),
         GRANT_KYC("grantTokenKycExternal", 39311, MUTABLE),
-        IS_APPROVED_FOR_ALL("isApprovedForAllExternal", 28860, MUTABLE),
+        IS_APPROVED_FOR_ALL("isApprovedForAllExternal", 27256, MUTABLE),
         IS_APPROVED_FOR_ALL_ERC("isApprovedForAll", 30763, VIEW),
         IS_FROZEN("isTokenFrozen", 28575, MUTABLE),
         IS_KYC("isKycGranted", 28542, MUTABLE),
