@@ -75,13 +75,15 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             )
             union all
             (
-                select *
-                from entity_history eh
-                where eh.timestamp_range @> ?2
-                and eh.deleted is not true
-                and eh.id = (select id from entity_cte)
-                order by lower(eh.timestamp_range) desc
-                limit 1
+                select * from (
+                    select *
+                    from entity_history eh
+                    where eh.id = (select id from entity_cte)
+                    and lower(eh.timestamp_range) <= ?2
+                    order by lower(eh.timestamp_range) desc
+                    limit 1
+                ) latest_history
+                where deleted is not true and timestamp_range @> ?2
             )
             order by timestamp_range desc
             limit 1
@@ -115,13 +117,15 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             )
             union all
             (
-                select *
-                from entity_history eh
-                where eh.timestamp_range @> ?2
-                and eh.deleted is not true
-                and eh.id = (select id from entity_cte)
-                order by lower(eh.timestamp_range) desc
-                limit 1
+                select * from (
+                    select *
+                    from entity_history eh
+                    where eh.id = (select id from entity_cte)
+                    and lower(eh.timestamp_range) <= ?2
+                    order by lower(eh.timestamp_range) desc
+                    limit 1
+                ) latest_history
+                where deleted is not true and timestamp_range @> ?2
             )
             order by timestamp_range desc
             limit 1
@@ -149,12 +153,14 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     )
                     union all
                     (
-                        select *
-                        from entity_history
-                        where id = ?1 and timestamp_range @> ?2
-                        and deleted is not true
-                        order by lower(timestamp_range) desc
-                        limit 1
+                        select * from (
+                            select *
+                            from entity_history
+                            where id = ?1 and lower(timestamp_range) <= ?2
+                            order by lower(timestamp_range) desc
+                            limit 1
+                        ) latest_history
+                        where deleted is not true and timestamp_range @> ?2
                     )
                     order by timestamp_range desc
                     limit 1
