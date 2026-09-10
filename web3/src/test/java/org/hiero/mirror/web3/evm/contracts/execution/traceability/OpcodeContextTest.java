@@ -116,6 +116,52 @@ final class OpcodeContextTest {
     }
 
     @Test
+    void truncatesWhenSharedBudgetIsExhaustedEvenWithinItsOwnBudget() {
+        // Plenty of local headroom (maxMemoryWords=1000), but a tiny shared budget shared with other requests.
+        final var properties = new OpcodesProperties();
+        properties.setMaxMemoryWords(1000);
+        properties.setMaxConcurrentTraceBytes(1);
+        final var traceMemoryBudget = new TraceMemoryBudget(properties);
+        final var context = new OpcodeContext(request(), 0, properties, traceMemoryBudget);
+
+        context.addOpcodes(opcode(1, 0, 0));
+
+        assertThat(context.getOpcodes()).hasSize(1);
+        assertThat(context.getOpcodes().getFirst().getOp()).isEqualTo(OpcodeContext.TRUNCATED_OP);
+        assertThat(context.isTruncated()).isTrue();
+        assertThat(context.getCapturedMemoryWords()).isZero();
+    }
+
+    @Test
+    void releaseReservedBudgetReturnsReservedBytesToSharedBudget() {
+        final var properties = new OpcodesProperties();
+        properties.setMaxConcurrentTraceBytes(117); // exactly one 32-byte memory word's hex-string heap cost
+        final var traceMemoryBudget = new TraceMemoryBudget(properties);
+        final var context = new OpcodeContext(request(), 0, properties, traceMemoryBudget);
+        context.addOpcodes(opcode(1, 0, 0));
+        assertThat(context.isTruncated()).isFalse();
+
+        context.releaseReservedBudget();
+
+        // The budget is free again, so a second, independent context can reserve the same bytes.
+        final var secondContext = new OpcodeContext(request(), 0, properties, traceMemoryBudget);
+        secondContext.addOpcodes(opcode(1, 0, 0));
+        assertThat(secondContext.isTruncated()).isFalse();
+    }
+
+    @Test
+    void unlimitedSharedBudgetNeverTruncatesDueToCrossRequestPressure() {
+        final var context = new OpcodeContext(request(), 0, new OpcodesProperties());
+
+        for (int i = 0; i < 5; i++) {
+            context.addOpcodes(opcode(1, 0, 0));
+        }
+
+        assertThat(context.isTruncated()).isFalse();
+        assertThat(context.getOpcodes()).hasSize(5);
+    }
+
+    @Test
     void addOpcodesRetainsAllOpcodesUpToTheReservedCap() {
         final int maxOpcodes = 5;
         final var context = new OpcodeContext(request(), 0, propertiesWithMaxOpcodes(maxOpcodes));

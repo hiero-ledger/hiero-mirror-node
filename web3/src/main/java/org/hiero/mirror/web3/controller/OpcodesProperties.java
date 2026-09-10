@@ -14,12 +14,12 @@ public class OpcodesProperties {
     private boolean enabled = true;
 
     /**
-     * Maximum number of opcodes recorded per trace request. Once reached the trace is truncated with a single marker
-     * opcode and the remaining opcodes are dropped. This bounds the base opcode list (pc/op/gas/…) independently of the
-     * memory/stack/storage budgets below, which is the only thing limiting a trace when those captures are disabled.
+     * Shared byte budget across all in-flight opcode traces. Each trace reserves the actual heap its captured
+     * memory/stack/storage retains (not a worst-case estimate) as it captures it, truncating early once the budget
+     * runs out, and releases the reservation when the trace completes.
      */
     @Positive
-    private int maxOpcodes = 20_000;
+    private int maxConcurrentTraceBytes = 1_000_000_000;
 
     /**
      * Maximum total number of 32-byte EVM memory words captured across all opcodes of a single trace. Each captured
@@ -31,13 +31,20 @@ public class OpcodesProperties {
     private int maxMemoryWords = 750_000;
 
     /**
-     * Maximum total number of stack items captured across all opcodes of a single trace, at the same ~117 bytes/item
-     * heap cost as {@link #maxMemoryWords}. The default of 250,000 (~29 MB) keeps the original 1:3 ratio to
-     * {@link #maxMemoryWords}. Once the running total reaches this limit the trace is truncated and the remaining
-     * opcodes are dropped.
+     * Maximum number of opcodes recorded per trace request. Once reached the trace is truncated with a single marker
+     * opcode and the remaining opcodes are dropped. This bounds the base opcode list (pc/op/gas/…) independently of the
+     * memory/stack/storage budgets below, which is the only thing limiting a trace when those captures are disabled.
      */
     @Positive
-    private int maxStack = 250_000;
+    private int maxOpcodes = 20_000;
+
+    /**
+     * Maximum total number of stack items captured across all opcodes of a single trace, at the same ~117 bytes/item
+     * heap cost as {@link #maxMemoryWords}. Once the running total reaches this limit the trace is truncated and the
+     * remaining opcodes are dropped.
+     */
+    @Positive
+    private int maxStack = 400_000;
 
     /**
      * Maximum total number of storage entries captured across all opcodes of a single trace. Storage capture reflects
@@ -47,8 +54,4 @@ public class OpcodesProperties {
      */
     @Positive
     private int maxStorage = 100_000;
-
-    /** Aggregate heap, in bytes, shared by all in-flight opcode traces; each request reserves its worst-case size. */
-    @Positive
-    private int maxConcurrentTraceBytes = 1_000_000_000;
 }
