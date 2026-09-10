@@ -3,19 +3,19 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Entity
+@Table
 @NoArgsConstructor
 public class LiveHash implements Persistable<Long> {
 
@@ -34,6 +34,6 @@ public class LiveHash implements Persistable<Long> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 }

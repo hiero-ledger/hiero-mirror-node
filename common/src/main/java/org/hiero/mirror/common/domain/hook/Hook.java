@@ -5,9 +5,10 @@ package org.hiero.mirror.common.domain.hook;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@jakarta.persistence.Entity
+@Table
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 public class Hook extends AbstractHook {

@@ -108,7 +108,7 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
 
   ```java
   @Data
-  @Entity
+  @Table
   public class RegisteredNode extends AbstractRegisteredNode {}
   ```
 

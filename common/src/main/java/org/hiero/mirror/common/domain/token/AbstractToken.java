@@ -3,62 +3,52 @@
 package org.hiero.mirror.common.domain.token;
 
 import com.google.common.collect.Range;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 @Data
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true, skipPartialUpdate = true)
-public class AbstractToken implements History {
+public abstract class AbstractToken implements History {
 
-    @Column(updatable = false)
+    @InsertOnlyProperty
     private Long createdTimestamp;
 
-    @Column(updatable = false)
+    @InsertOnlyProperty
     private Integer decimals;
 
     @ToString.Exclude
     private byte[] feeScheduleKey;
 
-    @Column(updatable = false)
+    @InsertOnlyProperty
     private Boolean freezeDefault;
 
     @ToString.Exclude
     private byte[] freezeKey;
 
-    @Enumerated(EnumType.ORDINAL)
-    @Column(updatable = false)
+    @InsertOnlyProperty
     private TokenFreezeStatusEnum freezeStatus;
 
-    @Column(updatable = false)
+    @InsertOnlyProperty
     private Long initialSupply;
 
     @ToString.Exclude
     private byte[] kycKey;
 
-    @Enumerated(EnumType.ORDINAL)
-    @Column(updatable = false)
+    @InsertOnlyProperty
     private TokenKycStatusEnum kycStatus;
 
-    @Column(updatable = false)
+    @InsertOnlyProperty
     private long maxSupply;
 
     @ToString.Exclude
@@ -72,16 +62,12 @@ public class AbstractToken implements History {
     @ToString.Exclude
     private byte[] pauseKey;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private TokenPauseStatusEnum pauseStatus;
 
     @ToString.Exclude
     private byte[] supplyKey;
 
-    @Column(updatable = false)
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @InsertOnlyProperty
     private TokenSupplyTypeEnum supplyType;
 
     private String symbol;
@@ -94,12 +80,9 @@ public class AbstractToken implements History {
     @UpsertColumn(coalesce = "case when {0} >= 0 then {0} else e_{0} + coalesce({0}, {1}) end")
     private Long totalSupply; // Increment with initialSupply and mint amounts, decrement with burn amount
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId treasuryAccountId;
 
-    @Column(updatable = false)
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @InsertOnlyProperty
     private TokenTypeEnum type;
 
     @ToString.Exclude

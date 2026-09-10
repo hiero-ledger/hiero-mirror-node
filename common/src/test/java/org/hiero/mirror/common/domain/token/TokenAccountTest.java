@@ -2,7 +2,9 @@
 
 package org.hiero.mirror.common.domain.token;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.junit.jupiter.api.Test;

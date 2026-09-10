@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.sql.DataSource;
 import lombok.SneakyThrows;
 import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.configuration.Configuration;
@@ -32,8 +33,6 @@ import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityRecordItemListener;
 import org.hiero.mirror.importer.reader.ValidatedDataInputStream;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
-import org.hiero.mirror.importer.repository.TokenTransferRepository;
-import org.hiero.mirror.importer.repository.TransactionRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
@@ -41,8 +40,10 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionOperations;
 
 /**
@@ -63,14 +64,12 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
 
     private final ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider;
     private final BlockStreamResolver blockStreamResolver;
+    private final ObjectProvider<DataSource> dataSourceProvider;
     private final ObjectProvider<EntityRecordItemListener> entityRecordItemListenerProvider;
     private final EntityProperties entityProperties;
-    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final ImporterProperties importerProperties;
     private final ObjectProvider<RecordStreamFileListener> recordStreamFileListenerProvider;
-    private final ObjectProvider<TokenTransferRepository> tokenTransferRepositoryProvider;
     private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
-    private final ObjectProvider<TransactionRepository> transactionRepositoryProvider;
     private final Set<Long> timestamps = new HashSet<>();
     private final boolean v2;
 
@@ -78,27 +77,29 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
     ErrataMigration(
             ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider,
             BlockStreamResolver blockStreamResolver,
+            ObjectProvider<DataSource> dataSourceProvider,
             ObjectProvider<EntityRecordItemListener> entityRecordItemListenerProvider,
             EntityProperties entityProperties,
             Environment environment,
-            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties,
             ObjectProvider<RecordStreamFileListener> recordStreamFileListenerProvider,
-            ObjectProvider<TokenTransferRepository> tokenTransferRepositoryProvider,
-            ObjectProvider<TransactionOperations> transactionOperationsProvider,
-            ObjectProvider<TransactionRepository> transactionRepositoryProvider) {
+            ObjectProvider<TransactionOperations> transactionOperationsProvider) {
         super(importerProperties.getMigration());
         this.accountBalanceFileRepositoryProvider = accountBalanceFileRepositoryProvider;
         this.blockStreamResolver = blockStreamResolver;
+        this.dataSourceProvider = dataSourceProvider;
         this.entityRecordItemListenerProvider = entityRecordItemListenerProvider;
         this.entityProperties = entityProperties;
-        this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.importerProperties = importerProperties;
         this.recordStreamFileListenerProvider = recordStreamFileListenerProvider;
-        this.tokenTransferRepositoryProvider = tokenTransferRepositoryProvider;
         this.transactionOperationsProvider = transactionOperationsProvider;
-        this.transactionRepositoryProvider = transactionRepositoryProvider;
         v2 = environment.acceptsProfiles(Profiles.of("v2"));
+    }
+
+    // Built on the DataSource directly since this runs inside flyway, where resolving the NamedParameterJdbcTemplate
+    // bean would deadlock on the database initialization ordering (the template depends on flywayInitializer)
+    private NamedParameterJdbcOperations jdbcOperations() {
+        return new NamedParameterJdbcTemplate(dataSourceProvider.getObject());
     }
 
     @Override
@@ -162,7 +163,7 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
     }
 
     private void balanceFileAdjustment() {
-        final var jdbcOperations = jdbcOperationsProvider.getObject();
+        final var jdbcOperations = jdbcOperations();
         // Adjusts the balance file's consensus timestamp by -1 for use when querying transfers.
         String sql = """
                         update account_balance_file set time_offset = -1
@@ -210,7 +211,7 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
                         from spurious_transfer st
                         where ct.consensus_timestamp = st.consensus_timestamp and ct.amount = st.amount * -1
                         """;
-        int count = jdbcOperationsProvider.getObject().getJdbcOperations().update(sql);
+        int count = jdbcOperations().getJdbcOperations().update(sql);
         log.info("Updated {} spurious transfers", count * 2);
     }
 
@@ -241,11 +242,7 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
                 long timestamp = recordItem.getConsensusTimestamp();
                 boolean inRange = dateRangeFilter.filter(timestamp);
 
-                if (transactionRepositoryProvider
-                                .getObject()
-                                .findById(timestamp)
-                                .isEmpty()
-                        && inRange) {
+                if (!transactionExists(timestamp) && inRange) {
                     entityRecordItemListenerProvider.getObject().onItem(recordItem);
                     consensusTimestamps.add(timestamp);
                     log.info("Processed errata {} successfully", name);
@@ -266,7 +263,7 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
 
         recordStreamFileListenerProvider.getObject().onEnd(null);
         var ids = new MapSqlParameterSource("ids", consensusTimestamps);
-        final var jdbcOperations = jdbcOperationsProvider.getObject();
+        final var jdbcOperations = jdbcOperations();
         jdbcOperations.update("update crypto_transfer set errata = 'INSERT' where consensus_timestamp in (:ids)", ids);
         jdbcOperations.update("update transaction set errata = 'INSERT' where consensus_timestamp in (:ids)", ids);
 
@@ -286,13 +283,8 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
                 var accountId = EntityId.of(aa.getAccountID());
                 var id = new TokenTransfer.Id(recordItem.getConsensusTimestamp(), tokenId, accountId);
 
-                if (tokenTransferRepositoryProvider.getObject().findById(id).isEmpty()) {
-                    TokenTransfer tokenTransfer = new TokenTransfer();
-                    tokenTransfer.setAmount(aa.getAmount());
-                    tokenTransfer.setId(id);
-                    tokenTransfer.setIsApproval(false);
-                    tokenTransfer.setPayerAccountId(recordItem.getPayerAccountId());
-                    tokenTransferRepositoryProvider.getObject().save(tokenTransfer);
+                if (!tokenTransferExists(id)) {
+                    insertTokenTransfer(recordItem, id, aa.getAmount());
                     count.incrementAndGet();
                 }
             });
@@ -338,5 +330,37 @@ final class ErrataMigration extends RepeatableMigration implements BalanceStream
     private boolean shouldApplyFixedTimeOffset(long consensusTimestamp) {
         return consensusTimestamp >= FIRST_ACCOUNT_BALANCE_FILE_TIMESTAMP
                 && consensusTimestamp <= LAST_ACCOUNT_BALANCE_FILE_TIMESTAMP;
+    }
+
+    private boolean transactionExists(long consensusTimestamp) {
+        final JdbcOperations jdbcOperations = jdbcOperations().getJdbcOperations();
+        Boolean exists = jdbcOperations.queryForObject(
+                "select exists(select 1 from transaction where consensus_timestamp = ?)",
+                Boolean.class,
+                consensusTimestamp);
+        return Boolean.TRUE.equals(exists);
+    }
+
+    private boolean tokenTransferExists(TokenTransfer.Id id) {
+        final JdbcOperations jdbcOperations = jdbcOperations().getJdbcOperations();
+        Boolean exists = jdbcOperations.queryForObject(
+                "select exists(select 1 from token_transfer where consensus_timestamp = ? and token_id = ? and account_id = ?)",
+                Boolean.class,
+                id.getConsensusTimestamp(),
+                id.getTokenId().getId(),
+                id.getAccountId().getId());
+        return Boolean.TRUE.equals(exists);
+    }
+
+    private void insertTokenTransfer(RecordItem recordItem, TokenTransfer.Id id, long amount) {
+        final JdbcOperations jdbcOperations = jdbcOperations().getJdbcOperations();
+        jdbcOperations.update(
+                "insert into token_transfer (account_id, amount, consensus_timestamp, is_approval, payer_account_id, token_id) values (?, ?, ?, ?, ?, ?)",
+                id.getAccountId().getId(),
+                amount,
+                id.getConsensusTimestamp(),
+                false,
+                recordItem.getPayerAccountId().getId(),
+                id.getTokenId().getId());
     }
 }

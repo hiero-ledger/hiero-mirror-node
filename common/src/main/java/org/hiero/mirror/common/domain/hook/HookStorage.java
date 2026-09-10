@@ -3,10 +3,9 @@
 package org.hiero.mirror.common.domain.hook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,12 +14,16 @@ import lombok.ToString;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Entity
-@IdClass(HookStorage.Id.class)
+@Table
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor
+@Builder(toBuilder = true)
 @Upsertable
 public class HookStorage {
     private static final String CREATED_TS_COALESCE = """
@@ -35,51 +38,56 @@ public class HookStorage {
     @UpsertColumn(coalesce = CREATED_TS_COALESCE)
     private long createdTimestamp;
 
-    @jakarta.persistence.Id
-    private long hookId;
-
     private boolean deleted;
 
-    @jakarta.persistence.Id
-    @ToString.Exclude
-    private byte[] key;
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
+    private Id id;
 
     private Long modifiedTimestamp;
-
-    @jakarta.persistence.Id
-    private long ownerId;
 
     @ToString.Exclude
     private byte[] value;
 
-    @Builder(toBuilder = true)
-    private HookStorage(
-            long createdTimestamp, long hookId, byte[] key, Long modifiedTimestamp, long ownerId, byte[] value) {
-        this.createdTimestamp = createdTimestamp;
-        this.hookId = hookId;
-        this.key = DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH);
-        this.modifiedTimestamp = modifiedTimestamp;
-        this.ownerId = ownerId;
-        this.value = DomainUtils.trim(value);
-        this.deleted = ArrayUtils.isEmpty(this.value);
+    public long getHookId() {
+        return id != null ? id.getHookId() : 0L;
     }
 
-    @JsonIgnore
-    public HookStorage.Id getId() {
-        HookStorage.Id id = new HookStorage.Id();
-        id.setHookId(hookId);
-        id.setKey(key);
-        id.setOwnerId(ownerId);
-        return id;
+    public void setHookId(long hookId) {
+        id().setHookId(hookId);
+    }
+
+    public byte[] getKey() {
+        return id != null ? id.getKey() : null;
     }
 
     public void setKey(byte[] key) {
-        this.key = DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH);
+        id().setKey(DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH));
+    }
+
+    public EntityId getOwnerId() {
+        return id != null ? id.getOwnerId() : null;
+    }
+
+    public void setOwnerId(EntityId ownerId) {
+        id().setOwnerId(ownerId);
+    }
+
+    public void setOwnerId(long ownerId) {
+        setOwnerId(EntityId.of(ownerId));
     }
 
     public void setValue(byte[] value) {
         this.value = DomainUtils.trim(value);
         this.deleted = ArrayUtils.isEmpty(this.value);
+    }
+
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
     }
 
     @Data
@@ -90,7 +98,43 @@ public class HookStorage {
         private static final long serialVersionUID = 4567832945612847391L;
 
         private long hookId;
+
+        @ToString.Exclude
         private byte[] key;
-        private long ownerId;
+
+        private EntityId ownerId;
+    }
+
+    public static class HookStorageBuilder {
+
+        private Id ensureId() {
+            this.id = this.id == null ? new Id() : new Id(this.id.getHookId(), this.id.getKey(), this.id.getOwnerId());
+            return this.id;
+        }
+
+        public HookStorageBuilder hookId(long hookId) {
+            ensureId().setHookId(hookId);
+            return this;
+        }
+
+        public HookStorageBuilder key(byte[] key) {
+            ensureId().setKey(DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH));
+            return this;
+        }
+
+        public HookStorageBuilder ownerId(EntityId ownerId) {
+            ensureId().setOwnerId(ownerId);
+            return this;
+        }
+
+        public HookStorageBuilder ownerId(long ownerId) {
+            return ownerId(EntityId.of(ownerId));
+        }
+
+        public HookStorageBuilder value(byte[] value) {
+            this.value = DomainUtils.trim(value);
+            this.deleted = ArrayUtils.isEmpty(this.value);
+            return this;
+        }
     }
 }

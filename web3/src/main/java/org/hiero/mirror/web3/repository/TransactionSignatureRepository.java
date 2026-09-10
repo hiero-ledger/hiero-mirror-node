@@ -5,9 +5,12 @@ package org.hiero.mirror.web3.repository;
 import java.util.List;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface TransactionSignatureRepository extends CrudRepository<TransactionSignature, TransactionSignature.Id> {
+
+    @Query("select * from transaction_signature where entity_id = :entityId")
     List<TransactionSignature> findByEntityId(EntityId entityId);
 
     /**
@@ -19,6 +22,10 @@ public interface TransactionSignatureRepository extends CrudRepository<Transacti
      * @return a list of `TransactionSignature` entities for the specified entity ID,
      *         filtered by the consensus timestamp.
      */
+    @Query("""
+            select * from transaction_signature
+            where entity_id = :entityId and consensus_timestamp <= :consensusTimestamp
+            """)
     List<TransactionSignature> findByEntityIdAndConsensusTimestampLessThanEqual(
             EntityId entityId, long consensusTimestamp);
 }

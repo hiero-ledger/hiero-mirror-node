@@ -200,7 +200,8 @@ class FixAirdropTokenAssociationMigrationTest extends ImporterIntegrationTest {
                             .tokenId(tokenId))
                     .persist();
         } else {
-            // Assume the token claim aidrop implicitly creates the association
+            // Assume the token claim aidrop implicitly creates the association. The migration creates the association
+            // without a freeze or kyc status, so clear the domain builder defaults.
             var timestampRange =
                     timestampUpper == null ? Range.atLeast(timestamp) : Range.closedOpen(timestamp, timestampUpper);
             return domainBuilder
@@ -209,6 +210,8 @@ class FixAirdropTokenAssociationMigrationTest extends ImporterIntegrationTest {
                             .balance(amount)
                             .balanceTimestamp(timestamp)
                             .createdTimestamp(timestamp)
+                            .freezeStatus(null)
+                            .kycStatus(null)
                             .timestampRange(timestampRange)
                             .tokenId(tokenId))
                     .get();

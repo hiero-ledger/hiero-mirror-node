@@ -54,7 +54,7 @@ public class ReactiveDomainBuilder {
     }
 
     public Mono<Entity> entity(Consumer<Entity.EntityBuilder<?, ?>> customizer) {
-        Entity entity = domainBuilder
+        var entity = domainBuilder
                 .entity()
                 .customize(e -> e.id(TOPIC_ID.getId())
                         .num(TOPIC_ID.getNum())
@@ -62,8 +62,8 @@ public class ReactiveDomainBuilder {
                         .shard(TOPIC_ID.getShard())
                         .type(EntityType.TOPIC))
                 .customize(customizer)
-                .get();
-        return insert(entity).thenReturn(entity);
+                .persist();
+        return Mono.just(entity);
     }
 
     public Mono<TopicMessage> topicMessage() {

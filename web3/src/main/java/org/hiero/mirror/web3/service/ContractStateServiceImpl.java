@@ -17,6 +17,7 @@ import lombok.Value;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.repository.ContractStateRepository;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
+import org.hiero.mirror.web3.state.ContractSlotValue;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -75,7 +76,9 @@ final class ContractStateServiceImpl implements ContractStateService {
     @Override
     public Optional<byte[]> findStorageByBlockTimestamp(
             final EntityId entityId, final byte[] slotKeyByteArray, final long blockTimestamp) {
-        return contractStateRepository.findStorageByBlockTimestamp(entityId.getId(), slotKeyByteArray, blockTimestamp);
+        return contractStateRepository
+                .findStorageByBlockTimestamp(entityId.getId(), slotKeyByteArray, blockTimestamp)
+                .map(ContractSlotValue::getValue);
     }
 
     /**
@@ -85,6 +88,7 @@ final class ContractStateServiceImpl implements ContractStateService {
     private Optional<byte[]> findStorageSingle(final EntityId contractId, final byte[] key, final SlotKey cacheKey) {
         return toOptional(contractStateCache.get(cacheKey, () -> contractStateRepository
                 .findStorage(contractId.getId(), key)
+                .map(ContractSlotValue::getValue)
                 .orElse(EMPTY_VALUE)));
     }
 
@@ -124,7 +128,8 @@ final class ContractStateServiceImpl implements ContractStateService {
         }
 
         final var minimalSlots = slots.length == size ? slots : Arrays.copyOf(slots, size);
-        final var contractSlotValues = contractStateRepository.findStorageBatch(contractId.getId(), minimalSlots);
+        final var contractSlotValues =
+                contractStateRepository.findStorageBatch(contractId.getId(), Arrays.asList(minimalSlots));
         final var foundSlots = HashSet.<Bytes>newHashSet(contractSlotValues.size());
         byte[] value = null;
 

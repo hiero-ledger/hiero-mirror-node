@@ -6,6 +6,7 @@ import com.hederahashgraph.api.proto.java.HookCall;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.jspecify.annotations.NullMarked;
 
@@ -39,7 +40,7 @@ record HookExecutionCollector(
      */
     void addAllowExecHook(HookCall hookCall, long ownerId) {
         if (hookCall.hasHookId()) {
-            allowExecHookIds.add(new AbstractHook.Id(hookCall.getHookId(), ownerId));
+            allowExecHookIds.add(new AbstractHook.Id(hookCall.getHookId(), EntityId.of(ownerId)));
         }
     }
 
@@ -51,7 +52,7 @@ record HookExecutionCollector(
      */
     void addPrePostExecHook(HookCall hookCall, long ownerId) {
         if (hookCall.hasHookId()) {
-            final var hookId = new AbstractHook.Id(hookCall.getHookId(), ownerId);
+            final var hookId = new AbstractHook.Id(hookCall.getHookId(), EntityId.of(ownerId));
             allowPreExecHookIds.add(hookId);
             allowPostExecHookIds.add(hookId);
         }

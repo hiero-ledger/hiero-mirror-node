@@ -8,10 +8,7 @@ import static org.hiero.mirror.importer.TestUtils.getResource;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Range;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import jakarta.annotation.Resource;
-import jakarta.persistence.Id;
-import jakarta.persistence.IdClass;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
@@ -26,7 +23,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
@@ -39,11 +35,11 @@ import org.flywaydb.core.Flyway;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.config.CommonIntegrationTest;
 import org.hiero.mirror.common.config.RedisTestConfiguration;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.tableusage.EndpointContext;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.converter.JsonbToListConverter;
@@ -59,6 +55,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.convert.support.DefaultConversionService;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -119,9 +117,8 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
         defaultConversionService.addConverter(
                 PGobject.class, ServiceEndpoint.class, s -> convertJsonb(s, ServiceEndpoint.class));
         defaultConversionService.addConverter(
-                PGobject.class, Range.class, source -> PostgreSQLGuavaRangeType.longRange(source.getValue()));
-        defaultConversionService.addConverter(
-                Long.class, EntityId.class, EntityIdConverter.INSTANCE::convertToEntityAttribute);
+                PGobject.class, Range.class, source -> RangeUtils.rangeLong(source.getValue()));
+        defaultConversionService.addConverter(Long.class, EntityId.class, EntityId::of);
         defaultConversionService.addConverter(PgArray.class, List.class, array -> {
             try {
                 return Arrays.asList((Object[]) array.getArray());
@@ -203,21 +200,24 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
     }
 
     private String getDefaultIdColumns(Class<?> entityClass) {
-        Stream<Field> idFields;
-        var idClassAnnotation = AnnotationUtils.findAnnotation(entityClass, IdClass.class);
-        if (idClassAnnotation != null) {
-            var idClass = idClassAnnotation.value();
-            idFields = Arrays.stream(idClass.getDeclaredFields()).filter(f -> !Modifier.isStatic(f.getModifiers()));
-        } else {
-            idFields = Arrays.stream(FieldUtils.getAllFields(entityClass))
-                    .filter(f -> AnnotationUtils.findAnnotation(f, Id.class) != null);
+        var idField = Arrays.stream(FieldUtils.getAllFields(entityClass))
+                .filter(f -> AnnotationUtils.findAnnotation(f, Id.class) != null)
+                .findFirst()
+                .orElse(null);
+
+        if (idField == null) {
+            return "id";
         }
 
-        var idColumns = idFields.map(Field::getName)
-                .map(name -> CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, name))
-                .collect(Collectors.joining(","));
+        if (AnnotationUtils.findAnnotation(idField, Embedded.class) != null) {
+            return Arrays.stream(idField.getType().getDeclaredFields())
+                    .filter(f -> !Modifier.isStatic(f.getModifiers()))
+                    .map(Field::getName)
+                    .map(name -> CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, name))
+                    .collect(Collectors.joining(","));
+        }
 
-        return !idColumns.isEmpty() ? idColumns : "id";
+        return CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, idField.getName());
     }
 
     private class RequiredRepeatableMigrationExecutor {

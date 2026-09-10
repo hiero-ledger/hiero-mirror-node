@@ -14,7 +14,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.Nft;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
@@ -258,7 +257,7 @@ class AddNftHistoryMigrationTest extends ImporterIntegrationTest {
 
         public static MigrationNft fromDomainNft(Nft nft) {
             return MigrationNft.builder()
-                    .accountId(EntityIdConverter.INSTANCE.convertToDatabaseColumn(nft.getAccountId()))
+                    .accountId(nft.getAccountId() != null ? nft.getAccountId().getId() : null)
                     .createdTimestamp(nft.getCreatedTimestamp())
                     .deleted(nft.getDeleted())
                     .delegatingSpender(nft.getDelegatingSpender())

@@ -14,12 +14,15 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.TokenAirdrop;
+import org.hiero.mirror.common.domain.token.TokenAirdropStateEnum;
+import org.hiero.mirror.restjava.converter.LongRangeConverter;
 import org.hiero.mirror.restjava.dto.TokenAirdropRequest;
 import org.hiero.mirror.restjava.dto.TokenAirdropRequest.AirdropRequestType;
 import org.hiero.mirror.restjava.jooq.domain.enums.AirdropState;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.Field;
+import org.jooq.Record;
 import org.jooq.SortField;
 import org.springframework.data.domain.Sort.Direction;
 
@@ -68,7 +71,21 @@ final class TokenAirdropRepositoryCustomImpl implements TokenAirdropRepositoryCu
                 .where(condition)
                 .orderBy(order)
                 .limit(request.getLimit())
-                .fetchInto(TokenAirdrop.class);
+                .fetch(TokenAirdropRepositoryCustomImpl::mapRecord);
+    }
+
+    private static TokenAirdrop mapRecord(Record r) {
+        var jooqState = r.get(TOKEN_AIRDROP.STATE);
+        var domainState = TokenAirdropStateEnum.valueOf(jooqState.name());
+        return TokenAirdrop.builder()
+                .amount(r.get(TOKEN_AIRDROP.AMOUNT))
+                .receiverAccountId(r.get(TOKEN_AIRDROP.RECEIVER_ACCOUNT_ID))
+                .senderAccountId(r.get(TOKEN_AIRDROP.SENDER_ACCOUNT_ID))
+                .serialNumber(r.get(TOKEN_AIRDROP.SERIAL_NUMBER))
+                .tokenId(r.get(TOKEN_AIRDROP.TOKEN_ID))
+                .state(domainState)
+                .timestampRange(LongRangeConverter.INSTANCE.convert(r.get(TOKEN_AIRDROP.TIMESTAMP_RANGE)))
+                .build();
     }
 
     private Condition getBaseCondition(EntityId accountId, Field<Long> baseField) {

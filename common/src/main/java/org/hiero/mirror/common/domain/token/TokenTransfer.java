@@ -3,11 +3,6 @@
 package org.hiero.mirror.common.domain.token;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonUnwrapped;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Embeddable;
-import jakarta.persistence.EmbeddedId;
-import jakarta.persistence.Entity;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
@@ -15,42 +10,78 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
-@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
+@Builder(toBuilder = true)
 @Data
-@Entity
+@Table
 @NoArgsConstructor
 public class TokenTransfer implements Persistable<TokenTransfer.Id> {
 
-    @EmbeddedId
-    @JsonUnwrapped
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
     private Id id;
 
     private long amount;
 
     private Boolean isApproval;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
     public TokenTransfer(long consensusTimestamp, long amount, EntityId tokenId, EntityId accountId) {
-        id = new TokenTransfer.Id(consensusTimestamp, tokenId, accountId);
+        this.id = new Id(consensusTimestamp, tokenId, accountId);
         this.amount = amount;
+    }
+
+    public static class TokenTransferBuilder {
+
+        private Id ensureId() {
+            this.id = this.id == null
+                    ? new Id()
+                    : new Id(this.id.getConsensusTimestamp(), this.id.getTokenId(), this.id.getAccountId());
+            return this.id;
+        }
+
+        public TokenTransferBuilder consensusTimestamp(long consensusTimestamp) {
+            ensureId().setConsensusTimestamp(consensusTimestamp);
+            return this;
+        }
+
+        public TokenTransferBuilder tokenId(EntityId tokenId) {
+            ensureId().setTokenId(tokenId);
+            return this;
+        }
+
+        public TokenTransferBuilder accountId(EntityId accountId) {
+            ensureId().setAccountId(accountId);
+            return this;
+        }
+    }
+
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public EntityId getTokenId() {
+        return id != null ? id.getTokenId() : null;
+    }
+
+    public EntityId getAccountId() {
+        return id != null ? id.getAccountId() : null;
     }
 
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
-    @Builder(toBuilder = true)
     @Data
-    @Embeddable
     @AllArgsConstructor
     @NoArgsConstructor
     public static class Id implements Serializable {
@@ -60,10 +91,8 @@ public class TokenTransfer implements Persistable<TokenTransfer.Id> {
 
         private long consensusTimestamp;
 
-        @Convert(converter = EntityIdConverter.class)
         private EntityId tokenId;
 
-        @Convert(converter = EntityIdConverter.class)
         private EntityId accountId;
     }
 }

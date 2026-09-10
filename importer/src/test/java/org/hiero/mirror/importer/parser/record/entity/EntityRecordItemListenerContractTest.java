@@ -245,7 +245,7 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
                 () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
                 () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
                 () -> assertEquals(HookType.EVM, dbHook.getType()),
-                () -> assertEquals(EntityId.of(ownerId).getId(), dbHook.getOwnerId()),
+                () -> assertEquals(EntityId.of(ownerId), dbHook.getOwnerId()),
                 () -> assertEquals(contractUpdateWithHookDetails.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
                 () -> assertFalse(dbHook.getDeleted()));
 
@@ -1183,7 +1183,7 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
                 () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
                 () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
                 () -> assertEquals(HookType.EVM, dbHook.getType()),
-                () -> assertEquals(EntityId.of(ownerId).getId(), dbHook.getOwnerId()),
+                () -> assertEquals(EntityId.of(ownerId), dbHook.getOwnerId()),
                 () -> assertEquals(recordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
                 () -> assertFalse(dbHook.getDeleted()));
     }

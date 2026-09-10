@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalance.Id;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.common.domain.token.TokenTransfer;
@@ -68,7 +67,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
         var treasuryAccountId = systemEntity.treasuryAccount();
         var accountBalance = domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(domainBuilder.timestamp(), treasuryAccountId)))
+                .customize(ab -> ab.id(new Id(domainBuilder.timestamp(), treasuryAccountId)))
                 .persist();
         var tokenBalance1 = domainBuilder
                 .tokenBalance()
@@ -94,7 +93,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
         var treasuryAccountId = systemEntity.treasuryAccount();
         var accountBalance = domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(domainBuilder.timestamp(), treasuryAccountId)))
+                .customize(ab -> ab.id(new Id(domainBuilder.timestamp(), treasuryAccountId)))
                 .persist();
         var tokenBalance1 = domainBuilder
                 .tokenBalance()
@@ -123,7 +122,7 @@ class TokenBalanceRepositoryTest extends Web3IntegrationTest {
         var treasuryAccountId = systemEntity.treasuryAccount();
         var accountBalance = domainBuilder
                 .accountBalance()
-                .customize(ab -> ab.id(new AccountBalance.Id(domainBuilder.timestamp(), treasuryAccountId)))
+                .customize(ab -> ab.id(new Id(domainBuilder.timestamp(), treasuryAccountId)))
                 .persist();
         var tokenBalance1 = domainBuilder
                 .tokenBalance()

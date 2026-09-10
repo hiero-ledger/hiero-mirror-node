@@ -294,7 +294,7 @@ class NestNftTransferMigrationTest extends ImporterIntegrationTest {
                 .map(MigrationTransaction::toDomainTransaction)
                 .toList();
         assertThat(actualTransactions)
-                .usingRecursiveFieldByFieldElementComparatorOnFields("consensusTimestamp", "nftTransfer")
+                .usingRecursiveFieldByFieldElementComparatorOnFields("consensusTimestamp", "nftTransferColumn")
                 .containsExactlyInAnyOrder(transactions);
     }
 

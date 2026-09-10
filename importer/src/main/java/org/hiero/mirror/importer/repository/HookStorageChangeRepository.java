@@ -3,8 +3,8 @@
 package org.hiero.mirror.importer.repository;
 
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Modifying;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface HookStorageChangeRepository
@@ -12,6 +12,6 @@ public interface HookStorageChangeRepository
 
     @Modifying
     @Override
-    @Query("delete from HookStorageChange where consensusTimestamp <= ?1")
+    @Query("delete from hook_storage_change where consensus_timestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }
