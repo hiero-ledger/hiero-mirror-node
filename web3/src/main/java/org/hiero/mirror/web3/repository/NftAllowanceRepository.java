@@ -29,32 +29,21 @@ public interface NftAllowanceRepository extends CrudRepository<NftAllowance, Id>
      * @return List containing the nft allowances at the specified timestamp.
      */
     @Query(value = """
-                    with nft_allowances as (
+                    (
                         select *
-                        from (
-                            select *,
-                                row_number() over (
-                                    partition by spender, token_id
-                                    order by lower(timestamp_range) desc
-                                ) as row_number
-                            from (
-                                select *
-                                from nft_allowance
-                                where owner = :owner
-                                    and approved_for_all = true
-                                    and lower(timestamp_range) <= :blockTimestamp
-                                union all
-                                select *
-                                from nft_allowance_history
-                                where owner = :owner
-                                    and approved_for_all = true
-                                    and timestamp_range @> :blockTimestamp
-                            ) as nft_allowance_history
-                        ) as row_numbered_data
-                        where row_number = 1
+                        from nft_allowance
+                        where owner = :owner
+                            and approved_for_all = true
+                            and lower(timestamp_range) <= :blockTimestamp
                     )
-                    select *
-                    from nft_allowances
+                    union all
+                    (
+                        select *
+                        from nft_allowance_history
+                        where owner = :owner
+                            and approved_for_all = true
+                            and timestamp_range @> :blockTimestamp
+                    )
                     order by timestamp_range desc
                     """, nativeQuery = true)
     List<NftAllowance> findByOwnerAndTimestampAndApprovedForAllIsTrue(long owner, long blockTimestamp);
