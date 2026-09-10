@@ -94,6 +94,7 @@ func newBlockchainOnlineRouter(
 		baseService,
 		mirrorConfig,
 		construction.NewTransactionConstructor(),
+		serverContext,
 	)
 	if err != nil {
 		return nil, err
@@ -135,6 +136,7 @@ func newBlockchainOfflineRouter(
 		baseService,
 		mirrorConfig,
 		construction.NewTransactionConstructor(),
+		context.Background(),
 	)
 	if err != nil {
 		return nil, err

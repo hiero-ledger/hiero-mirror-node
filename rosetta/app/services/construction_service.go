@@ -7,6 +7,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/hex"
+	stdErrors "errors"
 	"fmt"
 	"maps"
 	"math/big"
@@ -44,6 +45,7 @@ const (
 type constructionAPIService struct {
 	BaseService
 	accountRepo        interfaces.AccountRepository
+	nodeHealthMonitor  NodeHealthMonitor
 	sdkClient          *hiero.Client
 	systemShard        int64
 	systemRealm        int64
@@ -167,7 +169,7 @@ func (c *constructionAPIService) ConstructionMetadata(
 	}
 
 	// node account id
-	nodeAccountId, rErr := c.getRandomNodeAccountId()
+	nodeAccountId, rErr := c.getRandomNodeAccountId(ctx)
 	if rErr != nil {
 		return nil, rErr
 	}
@@ -358,6 +360,9 @@ func (c *constructionAPIService) ConstructionSubmit(
 
 	_, err = hiero.TransactionExecute(transaction, c.sdkClient)
 	if err != nil {
+		if c.nodeHealthMonitor != nil && len(transaction.GetNodeAccountIDs()) > 0 && isNodeError(err) {
+			c.nodeHealthMonitor.MarkUnhealthy(transaction.GetNodeAccountIDs()[0])
+		}
 		log.Errorf("Failed to execute transaction %s (hash %s): %s", transactionId, hash, err)
 		return nil, errors.AddErrorDetails(
 			errors.ErrTransactionSubmissionFailed,
@@ -512,7 +517,7 @@ func (c *constructionAPIService) getSdkPayerAccountId(payerAccountId types.Accou
 	return payer, nil
 }
 
-func (c *constructionAPIService) getRandomNodeAccountId() (hiero.AccountID, *rTypes.Error) {
+func (c *constructionAPIService) getRandomNodeAccountId(ctx context.Context) (hiero.AccountID, *rTypes.Error) {
 	// Create a transfer transaction and freeze it with the client to get the list of healthy nodes from SDK
 	transaction, err := hiero.NewTransferTransaction().
 		SetTransactionID(hiero.TransactionIDGenerate(hiero.AccountID{Account: 2})).
@@ -522,7 +527,16 @@ func (c *constructionAPIService) getRandomNodeAccountId() (hiero.AccountID, *rTy
 	}
 
 	nodeAccountIds := transaction.GetNodeAccountIDs()
-	if len(nodeAccountIds) == 0 {
+	if c.nodeHealthMonitor != nil {
+		candidates := nodeAccountIds
+		nodeAccountIds = c.nodeHealthMonitor.FilterHealthy(nodeAccountIds)
+		if len(nodeAccountIds) == 0 {
+			if recovered, ok := c.nodeHealthMonitor.Probe(ctx, candidates); ok {
+				return recovered, nil
+			}
+			return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
+		}
+	} else if len(nodeAccountIds) == 0 {
 		return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
 	}
 
@@ -598,6 +612,7 @@ func NewConstructionAPIService(
 	baseService BaseService,
 	config *config.Mirror,
 	transactionConstructor construction.TransactionConstructor,
+	serverContext context.Context,
 ) (server.ConstructionAPIServicer, error) {
 	var err error
 	var sdkClient *hiero.Client
@@ -634,14 +649,52 @@ func NewConstructionAPIService(
 	// disable SDK auto retry
 	sdkClient.SetMaxAttempts(1)
 
+	var nodeHealthMonitor NodeHealthMonitor
+	if baseService.IsOnline() {
+		if config.Rosetta.NodeHealth.MinReadmitPeriod > 0 {
+			sdkClient.SetNodeMinReadmitPeriod(config.Rosetta.NodeHealth.MinReadmitPeriod)
+		}
+		if config.Rosetta.NodeHealth.MaxReadmitPeriod > 0 {
+			sdkClient.SetNodeMaxReadmitPeriod(config.Rosetta.NodeHealth.MaxReadmitPeriod)
+		}
+
+		if config.Rosetta.NodeHealth.Enabled {
+			nodeHealthMonitor = NewNodeHealthMonitor(sdkClient, config.Rosetta.NodeHealth)
+			if serverContext != nil {
+				nodeHealthMonitor.Start(serverContext)
+			}
+		}
+	}
+
 	return &constructionAPIService{
 		accountRepo:        accountRepo,
 		BaseService:        baseService,
+		nodeHealthMonitor:  nodeHealthMonitor,
 		sdkClient:          sdkClient,
 		systemShard:        config.Common.Shard,
 		systemRealm:        config.Common.Realm,
 		transactionHandler: transactionConstructor,
 	}, nil
+}
+
+func isNodeError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if preCheckErr, ok := stdErrors.AsType[hiero.ErrHederaPreCheckStatus](err); ok {
+		switch preCheckErr.Status {
+		case hiero.StatusPlatformTransactionNotCreated,
+			hiero.StatusPlatformNotActive,
+			hiero.StatusBusy,
+			hiero.StatusInvalidNodeAccount:
+			return true
+		default:
+			return false
+		}
+	}
+
+	return true
 }
 
 func getFrozenTransactionBodyBytes(transaction hiero.TransactionInterface) ([]byte, *rTypes.Error) {

@@ -23,6 +23,7 @@ type Config struct {
 	Http                Http
 	Log                 Log
 	Network             string
+	NodeHealth          NodeHealth    `yaml:"nodeHealth"`
 	NodeRefreshInterval time.Duration `yaml:"nodeRefreshInterval"`
 	NodeVersion         string        `yaml:"nodeVersion"`
 	Nodes               NodeMap
@@ -30,6 +31,14 @@ type Config struct {
 	Port                uint16
 	Response            Response
 	ShutdownTimeout     time.Duration `yaml:"shutdownTimeout"`
+}
+
+type NodeHealth struct {
+	Enabled          bool          `yaml:"enabled"`
+	Frequency        time.Duration `yaml:"frequency"`
+	MaxReadmitPeriod time.Duration `yaml:"maxReadmitPeriod"`
+	MinReadmitPeriod time.Duration `yaml:"minReadmitPeriod"`
+	Timeout          time.Duration `yaml:"timeout"`
 }
 
 type Cache struct {

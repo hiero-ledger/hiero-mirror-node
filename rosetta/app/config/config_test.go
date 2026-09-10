@@ -55,6 +55,11 @@ func TestLoadDefaultConfig(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, getDefaultConfig(), config)
+	assert.True(t, config.Rosetta.NodeHealth.Enabled)
+	assert.Equal(t, 30*time.Second, config.Rosetta.NodeHealth.Frequency)
+	assert.Equal(t, time.Hour, config.Rosetta.NodeHealth.MaxReadmitPeriod)
+	assert.Equal(t, 2*time.Minute, config.Rosetta.NodeHealth.MinReadmitPeriod)
+	assert.Equal(t, 2*time.Second, config.Rosetta.NodeHealth.Timeout)
 }
 
 func TestLoadDefaultConfigInvalidYamlString(t *testing.T) {

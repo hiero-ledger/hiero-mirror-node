@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coinbase/rosetta-sdk-go/server"
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/config"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
@@ -221,6 +222,15 @@ func payloadsRequestOperationAmount(amount *rTypes.Amount) func(*rTypes.Construc
 	}
 }
 
+func newTestConstructionAPIService(
+	accountRepo interfaces.AccountRepository,
+	baseService BaseService,
+	config *config.Mirror,
+	transactionConstructor construction.TransactionConstructor,
+) (server.ConstructionAPIServicer, error) {
+	return NewConstructionAPIService(accountRepo, baseService, config, transactionConstructor, defaultContext)
+}
+
 func TestConstructionCombine(t *testing.T) {
 	// given:
 	expectedConstructionCombineResponse := &rTypes.ConstructionCombineResponse{
@@ -228,7 +238,7 @@ func TestConstructionCombine(t *testing.T) {
 	}
 	mirrorConfig := *defaultConfig
 	mirrorConfig.Rosetta.Nodes = nil
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, &mirrorConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, &mirrorConfig, nil)
 
 	// when:
 	res, e := service.ConstructionCombine(nil, getConstructionCombineRequest())
@@ -242,7 +252,7 @@ func TestConstructionCombineThrowsWithNoSignature(t *testing.T) {
 	// given
 	request := getConstructionCombineRequest()
 	request.Signatures = []*rTypes.Signature{}
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 
 	// when
 	res, e := service.ConstructionCombine(nil, request)
@@ -256,7 +266,7 @@ func TestConstructionCombineThrowsWithInvalidSignatureType(t *testing.T) {
 	// given
 	request := getConstructionCombineRequest()
 	request.Signatures[0].SignatureType = rTypes.Schnorr1
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 
 	// when
 	res, e := service.ConstructionCombine(defaultContext, request)
@@ -272,7 +282,7 @@ func TestConstructionCombineThrowsWhenDecodeStringFails(t *testing.T) {
 	request.UnsignedTransaction = invalidTransaction
 
 	// when:
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 	res, e := service.ConstructionCombine(defaultContext, request)
 
 	// then:
@@ -286,7 +296,7 @@ func TestConstructionCombineThrowsWhenUnmarshallFails(t *testing.T) {
 	request.UnsignedTransaction = corruptedTransaction
 
 	// when:
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 	res, e := service.ConstructionCombine(defaultContext, request)
 
 	// then:
@@ -300,7 +310,7 @@ func TestConstructionCombineThrowsWithInvalidPublicKey(t *testing.T) {
 	request.Signatures[0].PublicKey = &rTypes.PublicKey{}
 
 	// when:
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 	res, e := service.ConstructionCombine(defaultContext, request)
 
 	// then:
@@ -331,7 +341,7 @@ func TestConstructionCombineThrowsWithInvalidSignature(t *testing.T) {
 	request.Signatures[0].Bytes = []byte("bad signature")
 
 	// when:
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 	res, e := service.ConstructionCombine(defaultContext, request)
 
 	// then:
@@ -345,7 +355,7 @@ func TestConstructionCombineThrowsWithInvalidTransactionType(t *testing.T) {
 	request.UnsignedTransaction = invalidTypeTransaction
 
 	// when:
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 	res, e := service.ConstructionCombine(defaultContext, request)
 
 	// then:
@@ -396,7 +406,7 @@ func TestConstructionDerive(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
-			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+			service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 			request := &rTypes.ConstructionDeriveRequest{
 				NetworkIdentifier: networkIdentifier(),
 				PublicKey:         &tt.publicKey,
@@ -426,7 +436,7 @@ func TestConstructionHash(t *testing.T) {
 	}
 
 	// when:
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 	res, e := service.ConstructionHash(defaultContext, request)
 
 	// then:
@@ -439,7 +449,7 @@ func TestConstructionHashThrowsWhenDecodeStringFails(t *testing.T) {
 	request := getConstructionHashRequest(invalidTransaction)
 
 	// when:
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 	res, e := service.ConstructionHash(defaultContext, request)
 
 	// then:
@@ -485,7 +495,7 @@ func TestConstructionMetadataOnline(t *testing.T) {
 	}
 
 	// when
-	service, _ := NewConstructionAPIService(
+	service, _ := newTestConstructionAPIService(
 		mockAccountRepo,
 		onlineBaseService,
 		mirrorConfig,
@@ -544,7 +554,7 @@ func TestConstructionMetadataOffline(t *testing.T) {
 	}
 
 	// when
-	service, _ := NewConstructionAPIService(
+	service, _ := newTestConstructionAPIService(
 		nil,
 		offlineBaseService,
 		singleNodeConfig,
@@ -577,7 +587,7 @@ func TestConstructionMetadataOfflineAccountAliasesFail(t *testing.T) {
 	}
 
 	// when
-	service, _ := NewConstructionAPIService(nil, offlineBaseService, defaultConfig, mockTransactionConstructor)
+	service, _ := newTestConstructionAPIService(nil, offlineBaseService, defaultConfig, mockTransactionConstructor)
 	response, err := service.ConstructionMetadata(defaultContext, request)
 
 	// then
@@ -642,7 +652,7 @@ func TestConstructionMetadataFailsWhenInvalidOptions(t *testing.T) {
 				Return(types.HbarAmount{Value: 100}, mocks.NilError)
 
 			// when
-			service, _ := NewConstructionAPIService(
+			service, _ := newTestConstructionAPIService(
 				mockAccountRepo,
 				onlineBaseService,
 				defaultConfig,
@@ -675,7 +685,7 @@ func TestConstructionMetadataFailsWhenAccountRepoFails(t *testing.T) {
 			optionKeyOperationType:  types.OperationTypeCryptoTransfer,
 		},
 	}
-	service, _ := NewConstructionAPIService(
+	service, _ := newTestConstructionAPIService(
 		mockAccountRepo,
 		onlineBaseService,
 		defaultConfig,
@@ -703,7 +713,7 @@ func TestConstructionMetadataFailsWhenTransactionConstructorFails(t *testing.T) 
 		NetworkIdentifier: networkIdentifier(),
 		Options:           map[string]any{optionKeyOperationType: types.OperationTypeCryptoTransfer},
 	}
-	service, _ := NewConstructionAPIService(
+	service, _ := newTestConstructionAPIService(
 		mockAccountRepo,
 		onlineBaseService,
 		defaultConfig,
@@ -768,7 +778,7 @@ func TestConstructionParse(t *testing.T) {
 				Metadata:                 tt.metadata,
 			}
 
-			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor())
+			service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor())
 
 			// when:
 			actual, e := service.ConstructionParse(defaultContext, tt.request)
@@ -788,7 +798,7 @@ func TestConstructionParseThrowsWhenConstructorParseFails(t *testing.T) {
 	mockConstructor.
 		On("Parse", defaultContext, mock.IsType(hiero.TransferTransaction{})).
 		Return(mocks.NilOperations, mocks.NilSigners, errors.ErrInternalServerError)
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
 
 	// when
 	res, e := service.ConstructionParse(defaultContext, getConstructionParseRequest(validSignedTransaction, false))
@@ -802,7 +812,7 @@ func TestConstructionParseThrowsWhenConstructorParseFails(t *testing.T) {
 func TestConstructionParseThrowsWhenDecodeStringFails(t *testing.T) {
 	// given
 	mockConstructor := &mocks.MockTransactionConstructor{}
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
 
 	// when
 	res, e := service.ConstructionParse(defaultContext, getConstructionParseRequest(invalidTransaction, false))
@@ -816,7 +826,7 @@ func TestConstructionParseThrowsWhenDecodeStringFails(t *testing.T) {
 func TestConstructionParseThrowsWhenUnmarshallFails(t *testing.T) {
 	// given
 	mockConstructor := &mocks.MockTransactionConstructor{}
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
 
 	// when
 	res, e := service.ConstructionParse(defaultContext, getConstructionParseRequest(corruptedTransaction, false))
@@ -914,7 +924,7 @@ func TestConstructionPayloads(t *testing.T) {
 				Return(hiero.NewTransferTransaction(), []types.AccountId{tt.payerAccountId}, mocks.NilError)
 			metadata := addDefaultConstructionPayloadsMetadata(tt.metadata)
 			request := getPayloadsRequest(operations, payloadsRequestMetadata(metadata))
-			service, _ := NewConstructionAPIService(nil, onlineBaseService, singleNodeConfig, mockConstructor)
+			service, _ := newTestConstructionAPIService(nil, onlineBaseService, singleNodeConfig, mockConstructor)
 
 			// when
 			actual, err := service.ConstructionPayloads(defaultContext, request)
@@ -953,7 +963,7 @@ func TestConstructionPayloadValidDuration(t *testing.T) {
 		metadataKeyValidDurationSeconds: "60",
 	})
 	request := getPayloadsRequest(operations, payloadsRequestMetadata(metadata))
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, singleNodeConfig, mockConstructor)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, singleNodeConfig, mockConstructor)
 
 	// when
 	actual, e := service.ConstructionPayloads(defaultContext, request)
@@ -1000,7 +1010,7 @@ func TestConstructionPayloadsAliasError(t *testing.T) {
 				On("Construct", defaultContext, mock.IsType(types.OperationSlice{})).
 				Return(hiero.NewTransferTransaction(), []types.AccountId{aliasAccount}, mocks.NilError)
 			request := getPayloadsRequest(operations, payloadsRequestMetadata(tt.metadata))
-			service, _ := NewConstructionAPIService(nil, onlineBaseService, singleNodeConfig, mockConstructor)
+			service, _ := newTestConstructionAPIService(nil, onlineBaseService, singleNodeConfig, mockConstructor)
 
 			// when
 			actual, err := service.ConstructionPayloads(defaultContext, request)
@@ -1054,7 +1064,7 @@ func TestConstructionPayloadsInvalidOperation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
 			mockConstructor := &mocks.MockTransactionConstructor{}
-			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
+			service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
 
 			// when
 			actual, e := service.ConstructionPayloads(defaultContext, &rTypes.ConstructionPayloadsRequest{
@@ -1154,7 +1164,7 @@ func TestConstructionPayloadsInvalidRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
 			request := getPayloadsRequest(operations, tt.customize)
-			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor())
+			service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor())
 
 			// when
 			response, err := service.ConstructionPayloads(defaultContext, request)
@@ -1180,7 +1190,7 @@ func TestConstructionPayloadsThrowsWithConstructorConstructFailure(t *testing.T)
 			mock.IsType(types.OperationSlice{}),
 		).
 		Return(mocks.NilHederaTransaction, mocks.NilSigners, errors.ErrInternalServerError)
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
 
 	// when
 	actual, err := service.ConstructionPayloads(
@@ -1201,7 +1211,7 @@ func TestConstructionPreprocessOperationsNotImplemented(t *testing.T) {
 	}
 
 	// when:
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 	res, e := service.ConstructionPreprocessOperations(defaultContext, request)
 
 	// then:
@@ -1217,7 +1227,7 @@ func TestConstructionSubmitThrowsWhenDecodeStringFails(t *testing.T) {
 	}
 
 	// when:
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 	res, e := service.ConstructionSubmit(defaultContext, request)
 
 	// then:
@@ -1235,7 +1245,7 @@ func TestConstructionSubmitThrowsWhenUnmarshalBinaryFails(t *testing.T) {
 	}
 
 	// when:
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 	res, e := service.ConstructionSubmit(defaultContext, request)
 
 	// then:
@@ -1250,7 +1260,7 @@ func TestConstructionSubmitOffline(t *testing.T) {
 		SignedTransaction: "0xfc2267c53ef8a27e2ab65f0a6b5e5607ba33b9c8c8f7304d8cb4a77aee19107d",
 	}
 
-	service, _ := NewConstructionAPIService(nil, offlineBaseService, &config.Mirror{Rosetta: config.Config{Network: defaultNetwork}}, nil)
+	service, _ := newTestConstructionAPIService(nil, offlineBaseService, &config.Mirror{Rosetta: config.Config{Network: defaultNetwork}}, nil)
 
 	// when
 	res, e := service.ConstructionSubmit(defaultContext, request)
@@ -1258,6 +1268,33 @@ func TestConstructionSubmitOffline(t *testing.T) {
 	// then
 	assert.Equal(t, errors.ErrEndpointNotSupportedInOfflineMode, e)
 	assert.Nil(t, res)
+}
+
+func TestConstructionSubmitExecutionFailureMarksNodeUnhealthy(t *testing.T) {
+	// given
+	request := &rTypes.ConstructionSubmitRequest{
+		NetworkIdentifier: networkIdentifier(),
+		SignedTransaction: validSignedTransaction,
+	}
+
+	service, err := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil, defaultContext)
+	assert.NoError(t, err)
+	cs := service.(*constructionAPIService)
+
+	monitor := newTestNodeHealthMonitor(cs.sdkClient, config.NodeHealth{}, nil, nil)
+	cs.nodeHealthMonitor = monitor
+
+	// when
+	res, e := cs.ConstructionSubmit(defaultContext, request)
+
+	// then
+	assert.Nil(t, res)
+	assert.NotNil(t, e)
+	assert.Equal(t, errors.ErrTransactionSubmissionFailed.Code, e.Code)
+
+	// Node 0.0.4 should now be marked unhealthy
+	filtered := monitor.FilterHealthy([]hiero.AccountID{{Account: 4}})
+	assert.Empty(t, filtered)
 }
 
 func TestConstructionPreprocess(t *testing.T) {
@@ -1297,7 +1334,7 @@ func TestConstructionPreprocess(t *testing.T) {
 			mockConstructor.
 				On("Preprocess", defaultContext, mock.IsType(types.OperationSlice{})).
 				Return(tt.signers, mocks.NilError)
-			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
+			service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
 
 			// when:
 			actual, err := service.ConstructionPreprocess(defaultContext, getConstructionPreprocessRequest(true, tt.metadata))
@@ -1351,7 +1388,7 @@ func TestConstructionPreprocessInvalidOperation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
 			mockConstructor := &mocks.MockTransactionConstructor{}
-			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
+			service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
 
 			// when
 			actual, e := service.ConstructionPreprocess(defaultContext, &rTypes.ConstructionPreprocessRequest{
@@ -1373,7 +1410,7 @@ func TestConstructionPreprocessThrowsWithConstructorPreprocessFailure(t *testing
 	mockConstructor.
 		On("Preprocess", defaultContext, mock.IsType(types.OperationSlice{})).
 		Return(mocks.NilSigners, errors.ErrInternalServerError)
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, mockConstructor)
 
 	// when
 	actual, e := service.ConstructionPreprocess(defaultContext, getConstructionPreprocessRequest(false, nil))
@@ -1404,7 +1441,7 @@ func TestGetFrozenTransactionBodyBytes(t *testing.T) {
 }
 
 func TestNewConstructionAPIServiceThrowsWithUnrecognizedNetwork(t *testing.T) {
-	client, err := NewConstructionAPIService(nil, onlineBaseService, &config.Mirror{Rosetta: config.Config{Network: "unknown"}}, nil)
+	client, err := newTestConstructionAPIService(nil, onlineBaseService, &config.Mirror{Rosetta: config.Config{Network: "unknown"}}, nil)
 	assert.Error(t, err)
 	assert.Nil(t, client)
 }
@@ -1414,7 +1451,7 @@ func TestNewConstructionAPIServiceThrowsWithMixedShardAndRealm(t *testing.T) {
 		"10.0.0.1:50211": hiero.AccountID{Account: 3, Realm: 1},
 		"10.0.0.2:50211": hiero.AccountID{Account: 4, Realm: 2, Shard: 1},
 	}
-	client, err := NewConstructionAPIService(nil, onlineBaseService, &config.Mirror{Rosetta: config.Config{Nodes: nodes}}, nil)
+	client, err := newTestConstructionAPIService(nil, onlineBaseService, &config.Mirror{Rosetta: config.Config{Nodes: nodes}}, nil)
 	assert.Error(t, err)
 	assert.Nil(t, client)
 }
@@ -1617,4 +1654,152 @@ func createTransactionHexString(transaction hiero.TransactionInterface, signed b
 	}
 	bytes, _ := hiero.TransactionToBytes(transaction)
 	return tools.SafeAddHexPrefix(hex.EncodeToString(bytes))
+}
+
+func TestGetRandomNodeAccountIdFiltersUnhealthy(t *testing.T) {
+	node3 := hiero.AccountID{Account: 3}
+	node4 := hiero.AccountID{Account: 4}
+	mirrorConfig := &config.Mirror{Rosetta: config.Config{
+		Network: defaultNetwork,
+		Nodes: config.NodeMap{
+			"10.0.0.1:50211": node3,
+			"10.0.0.2:50211": node4,
+		},
+	}}
+
+	service, err := NewConstructionAPIService(nil, onlineBaseService, mirrorConfig, nil, defaultContext)
+	assert.NoError(t, err)
+	cs := service.(*constructionAPIService)
+
+	// Create and attach mock monitor where node 4 is unhealthy
+	monitor := newTestNodeHealthMonitor(cs.sdkClient, config.NodeHealth{}, nil, nil)
+	monitor.MarkUnhealthy(node4)
+	cs.nodeHealthMonitor = monitor
+
+	picked, rErr := cs.getRandomNodeAccountId(defaultContext)
+	assert.Nil(t, rErr)
+	assert.Equal(t, node3, picked)
+}
+
+func TestGetRandomNodeAccountIdAllUnhealthyProbeSucceeds(t *testing.T) {
+	node3 := hiero.AccountID{Account: 3}
+	mirrorConfig := &config.Mirror{Rosetta: config.Config{
+		Network: defaultNetwork,
+		Nodes: config.NodeMap{
+			"10.0.0.1:50211": node3,
+		},
+	}}
+
+	service, err := NewConstructionAPIService(nil, onlineBaseService, mirrorConfig, nil, defaultContext)
+	assert.NoError(t, err)
+	cs := service.(*constructionAPIService)
+
+	// Node 3 is unhealthy, but probe succeeds
+	pingMock := func(_ hiero.AccountID) error {
+		return nil
+	}
+	monitor := newTestNodeHealthMonitor(cs.sdkClient, config.NodeHealth{Timeout: 500 * time.Millisecond}, pingMock, nil)
+	monitor.MarkUnhealthy(node3)
+	cs.nodeHealthMonitor = monitor
+
+	picked, rErr := cs.getRandomNodeAccountId(defaultContext)
+	assert.Nil(t, rErr)
+	assert.Equal(t, node3, picked)
+}
+
+func TestGetRandomNodeAccountIdAllUnhealthyProbeFails(t *testing.T) {
+	node3 := hiero.AccountID{Account: 3}
+	mirrorConfig := &config.Mirror{Rosetta: config.Config{
+		Network: defaultNetwork,
+		Nodes: config.NodeMap{
+			"10.0.0.1:50211": node3,
+		},
+	}}
+
+	service, err := NewConstructionAPIService(nil, onlineBaseService, mirrorConfig, nil, defaultContext)
+	assert.NoError(t, err)
+	cs := service.(*constructionAPIService)
+
+	// Node 3 is unhealthy and probe fails
+	pingMock := func(_ hiero.AccountID) error {
+		return fmt.Errorf("down")
+	}
+	monitor := newTestNodeHealthMonitor(cs.sdkClient, config.NodeHealth{Timeout: 100 * time.Millisecond}, pingMock, nil)
+	monitor.MarkUnhealthy(node3)
+	cs.nodeHealthMonitor = monitor
+
+	picked, rErr := cs.getRandomNodeAccountId(defaultContext)
+	assert.Equal(t, errors.ErrNodeAccountIdsEmpty, rErr)
+	assert.Equal(t, hiero.AccountID{}, picked)
+}
+
+func TestNewConstructionAPIServiceConfiguresReadmitPeriodsAndMonitor(t *testing.T) {
+	mirrorConfig := &config.Mirror{Rosetta: config.Config{
+		Network: defaultNetwork,
+		Nodes:   defaultNodes,
+		NodeHealth: config.NodeHealth{
+			Enabled:          true,
+			Frequency:        50 * time.Millisecond,
+			MaxReadmitPeriod: 2 * time.Hour,
+			MinReadmitPeriod: 5 * time.Minute,
+			Timeout:          1 * time.Second,
+		},
+	}}
+
+	ctx := t.Context()
+
+	service, err := NewConstructionAPIService(nil, onlineBaseService, mirrorConfig, nil, ctx)
+	assert.NoError(t, err)
+	cs := service.(*constructionAPIService)
+
+	assert.NotNil(t, cs.nodeHealthMonitor)
+	assert.Equal(t, 5*time.Minute, cs.sdkClient.GetNodeMinReadmitPeriod())
+	assert.Equal(t, 2*time.Hour, cs.sdkClient.GetNodeMaxReadmitPeriod())
+}
+
+func TestNewConstructionAPIServiceOfflineNoMonitor(t *testing.T) {
+	mirrorConfig := &config.Mirror{Rosetta: config.Config{
+		Network: defaultNetwork,
+		Nodes:   defaultNodes,
+		NodeHealth: config.NodeHealth{
+			Enabled:          true,
+			Frequency:        50 * time.Millisecond,
+			MaxReadmitPeriod: 2 * time.Hour,
+			MinReadmitPeriod: 5 * time.Minute,
+		},
+	}}
+
+	service, err := NewConstructionAPIService(nil, offlineBaseService, mirrorConfig, nil, defaultContext)
+	assert.NoError(t, err)
+	cs := service.(*constructionAPIService)
+
+	assert.Nil(t, cs.nodeHealthMonitor)
+}
+
+func TestIsNodeError(t *testing.T) {
+	assert.False(t, isNodeError(nil))
+
+	// Precheck user errors
+	precheckUserErr := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInsufficientPayerBalance}
+	assert.False(t, isNodeError(precheckUserErr))
+
+	precheckInvalidSig := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInvalidSignature}
+	assert.False(t, isNodeError(precheckInvalidSig))
+
+	// Precheck node errors
+	precheckBusy := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusBusy}
+	assert.True(t, isNodeError(precheckBusy))
+
+	precheckNotActive := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusPlatformNotActive}
+	assert.True(t, isNodeError(precheckNotActive))
+
+	precheckNotCreated := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusPlatformTransactionNotCreated}
+	assert.True(t, isNodeError(precheckNotCreated))
+
+	precheckInvalidNode := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInvalidNodeAccount}
+	assert.True(t, isNodeError(precheckInvalidNode))
+
+	// Generic transport or wrapped errors
+	assert.True(t, isNodeError(fmt.Errorf("connection refused")))
+	assert.True(t, isNodeError(fmt.Errorf("context deadline exceeded")))
 }
