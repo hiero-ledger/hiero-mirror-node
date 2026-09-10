@@ -1,7 +1,10 @@
 FROM gcr.io/cloud-marketplace-tools/k8s/deployer_helm
 
 # Marketplace image still depends upon Helm 3
-ENV HELM_VERSION=4.2.0
+# Use helm 4.3.0-rc.1 temporarility to address vulnerability
+# Use kubectl v1.37.0 to address the same vulnerability until the next marketplace deploy_helm image release
+ENV HELM_VERSION=4.3.0-rc.1
+ENV KUBECTL_VERSION=v1.37.0
 ENV YQ_VERSION=v4.53.2
 
 # Install yq
@@ -12,6 +15,12 @@ RUN wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linu
 # Install Helm
 RUN wget -q https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz -O - | \
     tar -C /usr/local/bin --strip-components=1 -zxv linux-amd64/helm
+
+# Install kubectl
+RUN rm -rf /opt/kubectl && \
+    mkdir -p /opt/kubectl/default && \
+    wget -q -O /opt/kubectl/default/kubectl https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl && \
+    chmod 755 /opt/kubectl/default/kubectl
 
 # Pull in charts
 WORKDIR /app

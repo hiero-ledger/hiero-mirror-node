@@ -42,7 +42,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @ExtendWith(MockitoExtension.class)
-class HistoricalBalanceServiceTest {
+final class HistoricalBalanceServiceTest {
 
     private AccountBalanceFileRepository accountBalanceFileRepository;
     private AccountBalanceRepository accountBalanceRepository;
@@ -213,5 +213,61 @@ class HistoricalBalanceServiceTest {
                 .existsById(systemEntity.treasuryAccount().getId());
         verify(entityRepository, times(2)).save(any());
         assertTrue(service.getTreasuryExists().get());
+    }
+
+    @Test
+    void shouldGenerateUsesCachedTimestampAfterSuccessfulGeneration() {
+        when(entityRepository.existsById(systemEntity.treasuryAccount().getId()))
+                .thenReturn(true);
+        when(timePartitionService.getOverlappingTimePartitions(anyString(), anyLong(), anyLong()))
+                .thenReturn(List.of(TimePartition.builder()
+                        .timestampRange(Range.closedOpen(0L, Long.MAX_VALUE))
+                        .build()));
+        when(accountBalanceRepository.getMaxConsensusTimestampInRange(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.empty());
+
+        long lastBalanceTimestamp = 100L;
+        when(accountBalanceFileRepository.findLatest())
+                .thenReturn(Optional.of(AccountBalanceFile.builder()
+                        .consensusTimestamp(lastBalanceTimestamp)
+                        .build()));
+
+        long consensusEnd1 = lastBalanceTimestamp + properties.getMinFrequency().toNanos();
+        long consensusEnd2 = consensusEnd1 + properties.getMinFrequency().toNanos();
+        when(recordFileRepository.findLatest())
+                .thenReturn(Optional.of(
+                        RecordFile.builder().consensusEnd(consensusEnd1).build()))
+                .thenReturn(Optional.of(
+                        RecordFile.builder().consensusEnd(consensusEnd2).build()));
+
+        // first generation is a cache miss, so it queries accountBalanceFileRepository
+        service.onRecordFileParsed(new RecordFileParsedEvent(this, consensusEnd1));
+        verify(accountBalanceFileRepository).findLatest();
+
+        // second generation reuses the timestamp cached from the first generation instead of querying again
+        service.onRecordFileParsed(new RecordFileParsedEvent(this, consensusEnd2));
+        verify(accountBalanceFileRepository).findLatest();
+    }
+
+    @Test
+    void shouldGenerateDoesNotCacheTimestampWhenGenerationFails() {
+        when(entityRepository.existsById(systemEntity.treasuryAccount().getId()))
+                .thenReturn(false);
+        when(entityRepository.save(any())).thenThrow(new RuntimeException("Simulated failure"));
+
+        long lastBalanceTimestamp = 100L;
+        when(accountBalanceFileRepository.findLatest())
+                .thenReturn(Optional.of(AccountBalanceFile.builder()
+                        .consensusTimestamp(lastBalanceTimestamp)
+                        .build()));
+
+        var event = new RecordFileParsedEvent(
+                this, lastBalanceTimestamp + properties.getMinFrequency().toNanos());
+
+        // both attempts fail in checkTreasuryAccount before the timestamp would be cached, so every attempt still
+        // queries accountBalanceFileRepository
+        service.onRecordFileParsed(event);
+        service.onRecordFileParsed(event);
+        verify(accountBalanceFileRepository, times(2)).findLatest();
     }
 }
