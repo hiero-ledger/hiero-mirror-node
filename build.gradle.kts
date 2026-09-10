@@ -48,7 +48,7 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.15.0")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.15.2")
         // Needs to use variable for compare workflow
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
@@ -57,8 +57,8 @@ dependencies {
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
-        api("io.cucumber:cucumber-bom:7.34.7")
-        api("io.fabric8:kubernetes-client-bom:7.8.0")
+        api("io.cucumber:cucumber-bom:7.34.8")
+        api("io.fabric8:kubernetes-client-bom:7.9.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.5")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
@@ -82,7 +82,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.54.7")
+        api("software.amazon.awssdk:bom:2.54.13")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
