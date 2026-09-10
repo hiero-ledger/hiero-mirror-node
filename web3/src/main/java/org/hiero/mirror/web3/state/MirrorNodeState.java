@@ -5,22 +5,35 @@ package org.hiero.mirror.web3.state;
 import static com.hedera.node.app.history.schemas.V071HistorySchema.LEDGER_ID_STATE_ID;
 import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema.EVM_HOOK_STATES_STATE_ID;
 import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema.EVM_HOOK_STORAGE_STATE_ID;
+import static com.hedera.node.app.service.entityid.impl.schemas.V0590EntityIdSchema.ENTITY_COUNTS_STATE_ID;
 import static com.hedera.node.app.service.entityid.impl.schemas.V0730EntityIdSchema.HIGHEST_NODE_ID_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_COUNTS_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_USAGES_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.STAKING_NETWORK_REWARDS_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema.NODE_REWARDS_STATE_ID;
+import static com.hedera.node.app.service.token.impl.schemas.V0700TokenSchema.NODE_PAYMENTS_STATE_ID;
 import static com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSchema.TRANSACTION_RECEIPTS_STATE_ID;
+import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema.CONGESTION_LEVEL_STARTS_STATE_ID;
+import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema.THROTTLE_USAGE_SNAPSHOTS_STATE_ID;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
+import com.hedera.hapi.node.state.congestion.CongestionLevelStarts;
+import com.hedera.hapi.node.state.entity.EntityCounts;
+import com.hedera.hapi.node.state.primitives.ProtoBytes;
+import com.hedera.hapi.node.state.throttles.ThrottleUsageSnapshots;
+import com.hedera.hapi.node.state.token.NetworkStakingRewards;
+import com.hedera.hapi.node.state.token.NodePayments;
+import com.hedera.hapi.node.state.token.NodeRewards;
+import com.hedera.hapi.platform.state.NodeId;
 import com.hedera.node.app.history.HistoryService;
 import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.node.app.service.entityid.EntityIdService;
 import com.hedera.node.app.service.schedule.ScheduleService;
 import com.hedera.node.app.service.token.TokenService;
 import com.hedera.node.app.state.recordcache.RecordCacheService;
+import com.hedera.node.app.throttle.CongestionThrottleService;
 import com.swirlds.state.State;
 import com.swirlds.state.spi.EmptyWritableStates;
 import com.swirlds.state.spi.ReadableKVState;
@@ -175,10 +188,17 @@ public class MirrorNodeState implements State {
     }
 
     private void initSingletonStates(final List<SingletonState<?>> singletonStates) {
-        singletonStates.add(new DefaultSingleton(EntityIdService.NAME, HIGHEST_NODE_ID_STATE_ID));
-        singletonStates.add(new DefaultSingleton(TokenService.NAME, STAKING_NETWORK_REWARDS_STATE_ID));
-        singletonStates.add(new DefaultSingleton(TokenService.NAME, NODE_REWARDS_STATE_ID));
-        singletonStates.add(new DefaultSingleton(HistoryService.NAME, LEDGER_ID_STATE_ID));
+        singletonStates.add(new DefaultSingleton(
+                CongestionThrottleService.NAME, CONGESTION_LEVEL_STARTS_STATE_ID, CongestionLevelStarts.DEFAULT));
+        singletonStates.add(new DefaultSingleton(
+                CongestionThrottleService.NAME, THROTTLE_USAGE_SNAPSHOTS_STATE_ID, ThrottleUsageSnapshots.DEFAULT));
+        singletonStates.add(new DefaultSingleton(EntityIdService.NAME, ENTITY_COUNTS_STATE_ID, EntityCounts.DEFAULT));
+        singletonStates.add(new DefaultSingleton(EntityIdService.NAME, HIGHEST_NODE_ID_STATE_ID, NodeId.DEFAULT));
+        singletonStates.add(new DefaultSingleton(HistoryService.NAME, LEDGER_ID_STATE_ID, ProtoBytes.DEFAULT));
+        singletonStates.add(new DefaultSingleton(TokenService.NAME, NODE_PAYMENTS_STATE_ID, NodePayments.DEFAULT));
+        singletonStates.add(new DefaultSingleton(TokenService.NAME, NODE_REWARDS_STATE_ID, NodeRewards.DEFAULT));
+        singletonStates.add(new DefaultSingleton(
+                TokenService.NAME, STAKING_NETWORK_REWARDS_STATE_ID, NetworkStakingRewards.DEFAULT));
         singletonStates.forEach(
                 singletonState -> states.computeIfAbsent(singletonState.getServiceName(), k -> new HashMap<>())
                         .put(singletonState.getStateId(), singletonState));
