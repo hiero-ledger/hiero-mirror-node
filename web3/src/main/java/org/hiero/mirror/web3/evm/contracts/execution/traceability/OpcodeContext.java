@@ -10,7 +10,9 @@ import java.util.List;
 import java.util.Map;
 import lombok.AccessLevel;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Setter;
+import lombok.ToString;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
@@ -49,6 +51,11 @@ public final class OpcodeContext {
             .storage(Map.of())
             .reason("Trace truncated after reaching the configured maxOpcodes limit");
 
+    // Measured heap cost (JDK 25 compact strings) of one captured memory word or stack item, and one storage
+    // key+value pair, used to charge the shared TraceMemoryBudget for what a capture actually retains.
+    private static final int HEX_STRING_BYTES_PER_ITEM = 117;
+    private static final int STORAGE_ENTRY_BYTES = 234;
+
     /**
      * Actions pre-grouped by call depth and sorted by index within each depth.
      * Populated once via {@link #setActions(List)} to avoid repeated filtering and sorting.
@@ -86,6 +93,15 @@ public final class OpcodeContext {
 
     private final OpcodesProperties properties;
 
+    // Excluded from equals/hashCode/toString: a Semaphore-backed collaborator, not comparable request data.
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    private final TraceMemoryBudget traceMemoryBudget;
+
+    /** Total bytes reserved from {@link #traceMemoryBudget} so far. */
+    @Setter(AccessLevel.NONE)
+    private int reservedBytes;
+
     /**
      * Running total of memory words captured so far across all recorded opcodes.
      */
@@ -120,23 +136,33 @@ public final class OpcodeContext {
 
     public OpcodeContext(
             final OpcodeRequest opcodeRequest, final int initialOpcodesCapacity, final OpcodesProperties properties) {
+        this(opcodeRequest, initialOpcodesCapacity, properties, TraceMemoryBudget.unlimited());
+    }
+
+    public OpcodeContext(
+            final OpcodeRequest opcodeRequest,
+            final int initialOpcodesCapacity,
+            final OpcodesProperties properties,
+            final TraceMemoryBudget traceMemoryBudget) {
         this.stack = opcodeRequest.isStack();
         this.memory = opcodeRequest.isMemory();
         this.storage = opcodeRequest.isStorage();
         this.properties = properties;
+        this.traceMemoryBudget = traceMemoryBudget;
         this.opcodes = new ArrayList<>(Math.min(Math.max(initialOpcodesCapacity, 0), MAX_INITIAL_OPCODES_CAPACITY));
     }
 
     /**
      * Records an offered opcode. Every opcode is counted in {@link #executedOpcodes}. While within all budgets the opcode
      * is stored and its captured memory/stack/storage added to the running totals; once a budget would be exceeded (see
-     * {@link #isAtCapacity()} and {@link #exceedsCaptureBudget(Opcode)}) the opcode is dropped and a single
-     * {@link #TRUNCATED_OPCODE} marker is appended the first time truncation occurs so clients can detect it. Callers
-     * that already know the cap is reached may pass {@code null} to avoid building an opcode that would be dropped.
+     * {@link #isAtCapacity()}, {@link #exceedsCaptureBudget(Opcode)}, and the shared {@link #traceMemoryBudget}) the
+     * opcode is dropped and a single {@link #TRUNCATED_OPCODE} marker is appended the first time truncation occurs so
+     * clients can detect it. Callers that already know the cap is reached may pass {@code null} to avoid building an
+     * opcode that would be dropped.
      */
     public void addOpcodes(Opcode opcode) {
         executedOpcodes++;
-        if (isAtCapacity() || exceedsCaptureBudget(opcode)) {
+        if (isAtCapacity() || exceedsCaptureBudget(opcode) || !reserveSharedBudget(opcode)) {
             if (!truncated) {
                 truncated = true;
                 opcodes.add(TRUNCATED_OPCODE);
@@ -147,6 +173,27 @@ public final class OpcodeContext {
         capturedMemoryWords += size(opcode.getMemory());
         capturedStack += size(opcode.getStack());
         capturedStorage += size(opcode.getStorage());
+    }
+
+    /** Releases whatever this trace reserved from {@link #traceMemoryBudget}. Call once the trace completes. */
+    public void releaseReservedBudget() {
+        traceMemoryBudget.release(reservedBytes);
+        reservedBytes = 0;
+    }
+
+    /** Reserves this opcode's actual captured cost from {@link #traceMemoryBudget}, which spans all traces. */
+    private boolean reserveSharedBudget(final Opcode opcode) {
+        if (opcode == null) {
+            return true;
+        }
+        final var bytes = size(opcode.getMemory()) * HEX_STRING_BYTES_PER_ITEM
+                + size(opcode.getStack()) * HEX_STRING_BYTES_PER_ITEM
+                + size(opcode.getStorage()) * STORAGE_ENTRY_BYTES;
+        if (!traceMemoryBudget.tryReserve(bytes)) {
+            return false;
+        }
+        reservedBytes += bytes;
+        return true;
     }
 
     /**

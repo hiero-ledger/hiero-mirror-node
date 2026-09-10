@@ -26,7 +26,7 @@ public class ThrottleProperties {
     private long gasPerSecond = 7_500_000_000L;
 
     @Min(1)
-    private long opcodeRequestsPerSecond = 1;
+    private long opcodeRequestsPerSecond = 10;
 
     @NotNull
     private List<RequestProperties> request = List.of();
