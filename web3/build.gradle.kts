@@ -48,6 +48,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.hyperledger.besu.internal:besu-crypto-algorithms")
     runtimeOnly("org.postgresql:postgresql")
+    testImplementation("com.hedera.cryptography:libsecp256k1")
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("org.flywaydb:flyway-database-postgresql")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
@@ -199,6 +200,8 @@ tasks.withType<JavaCompile>().configureEach {
     options.compilerArgs.removeIf { it == "-Werror" }
 }
 
-tasks.withType<JavaExec>().configureEach { jvmArgs = listOf("--enable-preview") }
+tasks.withType<JavaExec>().configureEach {
+    jvmArgs("--enable-preview", "--enable-native-access=ALL-UNNAMED")
+}
 
-tasks.test { jvmArgs = listOf("--enable-preview") }
+tasks.test { jvmArgs("--enable-preview", "--enable-native-access=ALL-UNNAMED") }

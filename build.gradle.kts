@@ -16,9 +16,10 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("besuVersion", "25.2.2")
+    set("besuVersion", "26.2.0")
     set("blockNodeVersion", "0.41.0")
-    set("consensusNodeVersion", "0.77.0")
+    set("consensusNodeVersion", "0.78.0-rc.6")
+    set("hederaCryptographyVersion", "3.15.0")
     set("jackson-bom.version", "3.2.2") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.2") // Temporary until next Spring Boot
     set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
@@ -35,6 +36,7 @@ dependencies {
         val besuVersion = rootProject.extra["besuVersion"] as String
         val blockNodeVersion = rootProject.extra["blockNodeVersion"] as String
         val consensusNodeVersion = rootProject.extra["consensusNodeVersion"] as String
+        val hederaCryptographyVersion = rootProject.extra["hederaCryptographyVersion"] as String
         val mapStructVersion = rootProject.extra["mapStructVersion"] as String
         val tuweniVersion = rootProject.extra["tuweniVersion"] as String
 
@@ -48,7 +50,8 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.15.0")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:$hederaCryptographyVersion")
+        api("com.hedera.cryptography:libsecp256k1:$hederaCryptographyVersion")
         // Needs to use variable for compare workflow
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
@@ -69,13 +72,11 @@ dependencies {
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
-        api("org.bouncycastle:bcpkix-jdk18on:1.85") // Temporary until next hedera-app
         api("org.bouncycastle:bcprov-jdk18on:1.85.2")
         api("org.gaul:s3proxy:4.1.0")
         api("org.graalvm.nativeimage:svm:25.0.4.1")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu.internal:besu-crypto-algorithms:$besuVersion")
-        api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
         api("org.hyperledger.besu:evm:$besuVersion")
         api("org.mapstruct:mapstruct:$mapStructVersion")

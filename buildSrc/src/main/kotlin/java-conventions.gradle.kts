@@ -85,6 +85,7 @@ tasks.withType<Test>().configureEach {
         listOf(
             "-javaagent:${mockitoAgent.get().asPath}", // JDK 21+ restricts libs attaching agents
             "-XX:+EnableDynamicAgentLoading", // Allow byte buddy for Mockito
+            "--enable-native-access=ALL-UNNAMED", // hedera-app 0.78+ libsecp256k1 FFM
         )
     maxHeapSize = "4096m"
     minHeapSize = "1024m"
