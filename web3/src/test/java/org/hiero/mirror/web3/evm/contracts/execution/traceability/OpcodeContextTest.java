@@ -117,15 +117,17 @@ final class OpcodeContextTest {
 
     @Test
     void truncatesWhenSharedBudgetIsExhaustedEvenWithinItsOwnBudget() {
-        // Plenty of local headroom (maxMemoryWords=1000), but a tiny shared budget shared with other requests.
+        // Given
         final var properties = new OpcodesProperties();
         properties.setMaxMemoryWords(1000);
         properties.setMaxConcurrentTraceBytes(1);
         final var traceMemoryBudget = new TraceMemoryBudget(properties);
         final var context = new OpcodeContext(request(), 0, properties, traceMemoryBudget);
 
+        // When
         context.addOpcodes(opcode(1, 0, 0));
 
+        // Then
         assertThat(context.getOpcodes()).hasSize(1);
         assertThat(context.getOpcodes().getFirst().getOp()).isEqualTo(OpcodeContext.TRUNCATED_OP);
         assertThat(context.isTruncated()).isTrue();
@@ -134,6 +136,7 @@ final class OpcodeContextTest {
 
     @Test
     void releaseReservedBudgetReturnsReservedBytesToSharedBudget() {
+        // Given
         final var properties = new OpcodesProperties();
         properties.setMaxConcurrentTraceBytes(117); // exactly one 32-byte memory word's hex-string heap cost
         final var traceMemoryBudget = new TraceMemoryBudget(properties);
@@ -141,9 +144,10 @@ final class OpcodeContextTest {
         context.addOpcodes(opcode(1, 0, 0));
         assertThat(context.isTruncated()).isFalse();
 
+        // When
         context.releaseReservedBudget();
 
-        // The budget is free again, so a second, independent context can reserve the same bytes.
+        // Then
         final var secondContext = new OpcodeContext(request(), 0, properties, traceMemoryBudget);
         secondContext.addOpcodes(opcode(1, 0, 0));
         assertThat(secondContext.isTruncated()).isFalse();
@@ -151,12 +155,15 @@ final class OpcodeContextTest {
 
     @Test
     void unlimitedSharedBudgetNeverTruncatesDueToCrossRequestPressure() {
+        // Given
         final var context = new OpcodeContext(request(), 0, new OpcodesProperties());
 
+        // When
         for (int i = 0; i < 5; i++) {
             context.addOpcodes(opcode(1, 0, 0));
         }
 
+        // Then
         assertThat(context.isTruncated()).isFalse();
         assertThat(context.getOpcodes()).hasSize(5);
     }
