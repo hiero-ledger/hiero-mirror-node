@@ -49,7 +49,9 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
     Optional<Entity> findByEvmAddressOrAliasAndDeletedIsFalse(byte[] alias);
 
     /**
-     * Retrieves the most recent state of an entity by its evm address up to a given block timestamp.
+     * Retrieves the state of an entity by its evm address at a given block timestamp, selecting the row whose
+     * timestamp_range contains the block timestamp and returning it only if the entity was not deleted at that point in
+     * time. If the entity had already been deleted at or before the block timestamp, an empty Optional is returned.
      *
      * @param evmAddress      the evm address of the entity to be retrieved.
      * @param blockTimestamp  the block timestamp used to filter the results.
@@ -73,12 +75,15 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             )
             union all
             (
-                select *
-                from entity_history eh
-                where lower(eh.timestamp_range) <= ?2
-                and eh.id = (select id from entity_cte)
-                order by lower(eh.timestamp_range) desc
-                limit 1
+                select * from (
+                    select *
+                    from entity_history eh
+                    where eh.id = (select id from entity_cte)
+                    and lower(eh.timestamp_range) <= ?2
+                    order by lower(eh.timestamp_range) desc
+                    limit 1
+                ) latest_history
+                where deleted is not true and timestamp_range @> ?2
             )
             order by timestamp_range desc
             limit 1
@@ -86,7 +91,9 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
     Optional<Entity> findActiveByEvmAddressAndTimestamp(byte[] evmAddress, long blockTimestamp);
 
     /**
-     * Retrieves the most recent state of an entity by its alias up to a given block timestamp.
+     * Retrieves the state of an entity by its alias at a given block timestamp, selecting the row whose timestamp_range
+     * contains the block timestamp and returning it only if the entity was not deleted at that point in time. If the
+     * entity had already been deleted at or before the block timestamp, an empty Optional is returned.
      *
      * @param alias           the alias of the entity to be retrieved.
      * @param blockTimestamp  the block timestamp used to filter the results.
@@ -110,12 +117,15 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             )
             union all
             (
-                select *
-                from entity_history eh
-                where lower(eh.timestamp_range) <= ?2
-                and eh.id = (select id from entity_cte)
-                order by lower(eh.timestamp_range) desc
-                limit 1
+                select * from (
+                    select *
+                    from entity_history eh
+                    where eh.id = (select id from entity_cte)
+                    and lower(eh.timestamp_range) <= ?2
+                    order by lower(eh.timestamp_range) desc
+                    limit 1
+                ) latest_history
+                where deleted is not true and timestamp_range @> ?2
             )
             order by timestamp_range desc
             limit 1
@@ -123,12 +133,11 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
     Optional<Entity> findActiveByEvmAddressOrAliasAndTimestamp(byte[] alias, long blockTimestamp);
 
     /**
-     * Retrieves the most recent state of an entity by its ID up to a given block timestamp.
-     * The method considers both the current state of the entity and its historical states
-     * and returns the one that was valid just before or equal to the provided block timestamp.
-     * It performs a UNION operation between the 'entity' and 'entity_history' tables,
-     * filters the combined result set to get the records with a timestamp range
-     * less than or equal to the provided block timestamp and then returns the most recent record.
+     * Retrieves the state of an entity by its ID at a given block timestamp.
+     * The method considers both the current state of the entity and its historical states,
+     * selecting the row whose timestamp_range contains the block timestamp, and returns it only
+     * if the entity was not deleted at that point in time. If the entity had already been deleted
+     * at or before the block timestamp, an empty Optional is returned.
      *
      * @param id              the ID of the entity to be retrieved.
      * @param blockTimestamp  the block timestamp used to filter the results.
@@ -144,12 +153,14 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     )
                     union all
                     (
-                        select *
-                        from entity_history
-                        where id = ?1 and lower(timestamp_range) <= ?2
-                        and deleted is not true
-                        order by lower(timestamp_range) desc
-                        limit 1
+                        select * from (
+                            select *
+                            from entity_history
+                            where id = ?1 and lower(timestamp_range) <= ?2
+                            order by lower(timestamp_range) desc
+                            limit 1
+                        ) latest_history
+                        where deleted is not true and timestamp_range @> ?2
                     )
                     order by timestamp_range desc
                     limit 1
