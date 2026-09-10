@@ -51,7 +51,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(OutputCaptureExtension.class)
 @RequiredArgsConstructor
-class HistoricalBalanceServiceIntegrationTest extends ImporterIntegrationTest {
+final class HistoricalBalanceServiceIntegrationTest extends ImporterIntegrationTest {
 
     private static final String[] ACCOUNT_BALANCE_FILE_IGNORE_FIELDS = new String[] {"loadStart", "loadEnd", "name"};
 
@@ -143,6 +143,7 @@ class HistoricalBalanceServiceIntegrationTest extends ImporterIntegrationTest {
 
         // Reset the bean state
         historicalBalanceService.getTreasuryExists().set(false);
+        historicalBalanceService.setLastAccountBalanceTimestamp(HistoricalBalanceService.NO_CACHED_TIMESTAMP);
     }
 
     @AfterEach
