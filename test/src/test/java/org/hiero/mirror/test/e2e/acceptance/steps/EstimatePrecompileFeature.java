@@ -2129,7 +2129,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         CRYPTO_TRANSFER("cryptoTransferExternal", 47206, MUTABLE),
         CRYPTO_TRANSFER_HBARS("cryptoTransferExternal", 31819, MUTABLE),
         CRYPTO_TRANSFER_NFT("cryptoTransferExternal", 47372, MUTABLE),
-        DECIMALS("decimals", 29998, VIEW),
+        DECIMALS("decimals", 28271, VIEW),
         DELETE_TOKEN("deleteTokenExternal", 39095, MUTABLE),
         DISSOCIATE_AND_ASSOCIATE("dissociateAndAssociateTokenExternal", 1434814, MUTABLE),
         DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER("associateTokenDissociateFailTransfer", 1482987, MUTABLE),
