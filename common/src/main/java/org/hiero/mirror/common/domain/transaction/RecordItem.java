@@ -354,12 +354,9 @@ public class RecordItem implements StreamItem {
         }
 
         private EntityId parsePayerAccountId() {
-            final var accountId = transactionBody.getTransactionID().getAccountID();
-            final var payerAccountId = EntityId.tryOf(accountId);
-            if (EntityId.isEmpty(payerAccountId)
-                    && (accountId.getShardNum() != 0
-                            || accountId.getRealmNum() != 0
-                            || accountId.getAccountNum() != 0)) {
+            final var payerAccountId =
+                    EntityId.tryOf(transactionBody.getTransactionID().getAccountID());
+            if (EntityId.isEmpty(payerAccountId)) {
                 return EntityId.ZERO;
             }
             return payerAccountId;

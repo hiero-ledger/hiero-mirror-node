@@ -287,9 +287,10 @@ class RecordItemTest {
         assertThat(recordItem.isTopLevel()).isFalse();
     }
 
-    @CsvSource({"5000, 0, 1", "0, 0, -1"})
+    @CsvSource({"5000, 0, 1, true", "0, 0, -1, true", "0, 0, 0, false"})
     @ParameterizedTest
-    void outOfRangePayerAccountIdDoesNotThrow(long shard, long realm, long num, CapturedOutput output) {
+    void outOfRangePayerAccountIdDoesNotThrow(
+            long shard, long realm, long num, boolean expectError, CapturedOutput output) {
         final var payer = AccountID.newBuilder()
                 .setShardNum(shard)
                 .setRealmNum(realm)
@@ -315,7 +316,11 @@ class RecordItemTest {
 
         assertThat(recordItem.getPayerAccountId()).isSameAs(EntityId.ZERO);
         assertThat(recordItem.getTransactionBody()).isEqualTo(txBody);
-        assertThat(output.getAll()).contains(DomainUtils.RECOVERABLE_ERROR);
+        if (expectError) {
+            assertThat(output.getAll()).contains(DomainUtils.RECOVERABLE_ERROR);
+        } else {
+            assertThat(output.getAll()).doesNotContain(DomainUtils.RECOVERABLE_ERROR);
+        }
     }
 
     @Test
