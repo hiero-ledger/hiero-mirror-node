@@ -149,6 +149,33 @@ class TokenRelationshipReadableKVStateTest {
     }
 
     @Test
+    void getWithDissociatedTokenAccountReturnsNull() {
+        setUpTokenAccount();
+        tokenAccount.setAssociated(false);
+        final var entityIDPair = EntityIDPair.newBuilder()
+                .tokenId(TOKEN_ID)
+                .accountId(ACCOUNT_ID)
+                .build();
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(tokenAccountRepository.findById(any())).thenReturn(Optional.of(tokenAccount));
+        assertThat(tokenRelationshipReadableKVState.get(entityIDPair)).isNull();
+    }
+
+    @Test
+    void getWithDissociatedTokenAccountHistoricalReturnsNull() {
+        setUpTokenAccount();
+        tokenAccount.setAssociated(false);
+        final var entityIDPair = EntityIDPair.newBuilder()
+                .tokenId(TOKEN_ID)
+                .accountId(ACCOUNT_ID)
+                .build();
+        when(contractCallContext.getTimestamp()).thenReturn(timestamp);
+        when(tokenAccountRepository.findByIdAndTimestamp(anyLong(), anyLong(), anyLong()))
+                .thenReturn(Optional.of(tokenAccount));
+        assertThat(tokenRelationshipReadableKVState.get(entityIDPair)).isNull();
+    }
+
+    @Test
     void getWithFungibleTokenAccountBalance() {
         setUpTokenAccount();
         final var entityIDPair = EntityIDPair.newBuilder()

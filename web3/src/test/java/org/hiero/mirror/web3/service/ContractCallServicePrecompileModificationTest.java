@@ -442,6 +442,25 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
+    @ParameterizedTest(name = "isAssociated returns false for {0} token when the account was dissociated")
+    @MethodSource("tokenData")
+    void isAssociatedWhenDissociated(final String tokenType, final boolean isFungible) throws Exception {
+        final var token = persistToken(isFungible);
+        final var tokenAddress = getTokenAddress(token);
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contractEntityId = getEntityId(contract.getContractAddress());
+        // A dissociated relationship keeps its token_account row with associated = false in the mirror node,
+        // while consensus nodes remove the TokenRelation from state, so isAssociated must resolve to false.
+        tokenAccount(ta -> ta.tokenId(token.getTokenId())
+                .accountId(contractEntityId.getId())
+                .associated(false));
+        final var functionCall = contract.call_isAssociated(tokenAddress);
+
+        assertFalse(functionCall.send());
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
     @Test
     void mintFungibleToken() throws Exception {
         // Given
@@ -592,6 +611,43 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     }
 
     @Test
+    void burnNftFromDissociatedHolderFails() {
+        // Given
+        final var treasury = accountEntityPersist();
+        final var token = nonFungibleTokenPersistWithTreasury(treasury.toEntityId());
+        final var tokenId = token.getTokenId();
+
+        // The holder dissociated from the token: the row is retained with associated = false, which on a real
+        // network makes the burn fail with TOKEN_NOT_ASSOCIATED_TO_ACCOUNT rather than succeed.
+        tokenAccount(ta -> ta.tokenId(tokenId).accountId(treasury.getId()).associated(false));
+
+        tokenBalancePersist(treasury.toEntityId(), EntityId.of(tokenId), treasury.getBalanceTimestamp());
+
+        final var nft = domainBuilder
+                .nft()
+                .customize(n -> n.tokenId(tokenId).serialNumber(1L).accountId(treasury.toEntityId()))
+                .persist();
+
+        domainBuilder
+                .nftHistory()
+                .customize(n -> n.accountId(treasury.toEntityId())
+                        .createdTimestamp(treasury.getCreatedTimestamp())
+                        .serialNumber(nft.getSerialNumber())
+                        .timestampRange(treasury.getTimestampRange())
+                        .tokenId(tokenId))
+                .persist();
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        // When
+        final var functionCall = contract.call_burnTokenExternal(
+                toAddress(tokenId).toHexString(), BigInteger.ZERO, DEFAULT_SERIAL_NUMBERS_LIST);
+
+        // Then
+        assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
+    }
+
+    @Test
     void mintTokenNativePrecompileAndBurn() throws Exception {
         // Given
         final var treasury = accountEntityPersist();
@@ -650,6 +706,33 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     }
 
     @Test
+    void wipeFungibleTokenFromDissociatedAccountFails() {
+        // Given
+        final var owner = accountEntityWithEvmAddressPersist();
+
+        final var tokenEntity = tokenEntityPersist();
+        fungibleTokenPersist(tokenEntity, treasuryEntity);
+
+        // The account dissociated from the token: the row is retained with associated = false, which on a real
+        // network makes the wipe fail with TOKEN_NOT_ASSOCIATED_TO_ACCOUNT rather than succeed.
+        tokenAccount(
+                ta -> ta.tokenId(tokenEntity.getId()).accountId(owner.getId()).associated(false));
+
+        final var createdTimestamp = owner.getCreatedTimestamp();
+        tokenBalancePersist(owner.toEntityId(), tokenEntity.toEntityId(), createdTimestamp);
+        accountBalancePersist(treasuryEntity, createdTimestamp);
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        // When
+        final var functionCall = contract.call_wipeTokenAccountExternal(
+                getAddressFromEntity(tokenEntity), getAliasFromEntity(owner), BigInteger.valueOf(4));
+
+        // Then
+        assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
+    }
+
+    @Test
     void wipeNFT() throws Exception {
         // Given
         final var owner = accountEntityWithEvmAddressPersist();
@@ -669,6 +752,29 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
+    @Test
+    void wipeNftFromDissociatedAccountFails() {
+        // Given
+        final var owner = accountEntityWithEvmAddressPersist();
+        final var tokenTreasury = accountEntityPersist().toEntityId();
+        final var token = nonFungibleTokenPersistWithTreasury(tokenTreasury);
+        final var tokenId = token.getTokenId();
+
+        // The account dissociated from the token: the row is retained with associated = false, which on a real
+        // network makes the wipe fail with TOKEN_NOT_ASSOCIATED_TO_ACCOUNT rather than succeed.
+        tokenAccount(ta -> ta.tokenId(tokenId).accountId(owner.getId()).associated(false));
+        nftPersistCustomizable(n -> n.tokenId(tokenId).accountId(owner.toEntityId()));
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        // When
+        final var functionCall = contract.call_wipeTokenAccountNFTExternal(
+                toAddress(tokenId).toHexString(), getAliasFromEntity(owner), DEFAULT_SERIAL_NUMBERS_LIST);
+
+        // Then
+        assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
     }
 
     @Test
@@ -1284,6 +1390,40 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
     }
 
+    @Test
+    void transferTokenToDissociatedReceiverFails() {
+        // Given
+        final var tokenEntity = tokenEntityPersist();
+        final var treasuryAccount = accountEntityPersist();
+        fungibleTokenPersist(tokenEntity, treasuryAccount);
+
+        final var sender = accountEntityWithEvmAddressPersist();
+        final var receiver = accountEntityWithEvmAddressPersist();
+
+        final var tokenId = tokenEntity.getId();
+        tokenAccountPersist(tokenId, sender.getId());
+        // The receiver dissociated from the token: the row is retained with associated = false, which on a real
+        // network makes the transfer fail with TOKEN_NOT_ASSOCIATED_TO_ACCOUNT rather than succeed.
+        tokenAccount(ta -> ta.tokenId(tokenId).accountId(receiver.getId()).associated(false));
+
+        accountBalanceRecordsPersist(sender.toEntityId(), sender.getCreatedTimestamp(), sender.getBalance());
+        accountBalanceRecordsPersist(receiver.toEntityId(), receiver.getCreatedTimestamp(), receiver.getBalance());
+        tokenBalancePersist(sender.toEntityId(), tokenEntity.toEntityId(), sender.getBalanceTimestamp());
+        tokenBalancePersist(receiver.toEntityId(), tokenEntity.toEntityId(), receiver.getBalanceTimestamp());
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        // When
+        final var functionCall = contract.call_transferTokenExternal(
+                getAddressFromEntity(tokenEntity),
+                getAliasFromEntity(sender),
+                getAliasFromEntity(receiver),
+                BigInteger.valueOf(1L));
+
+        // Then
+        assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
+    }
+
     @ParameterizedTest
     @CsvSource({"single", "multiple"})
     void transferNft(final String type) throws Exception {
@@ -1329,6 +1469,42 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
+    }
+
+    @Test
+    void transferNftToDissociatedReceiverFails() {
+        // Given
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contractEntityId =
+                EvmTokenUtils.entityIdFromEvmAddress(Address.fromHexString(contract.getContractAddress()));
+
+        final var sender = accountEntityWithEvmAddressPersist();
+
+        final var treasuryAccount = accountEntityPersist().toEntityId();
+        final var token = nonFungibleTokenPersistWithTreasury(treasuryAccount);
+        final var tokenId = token.getTokenId();
+        accountBalanceRecordsPersist(sender);
+        nftPersistCustomizable(n -> n.tokenId(tokenId).accountId(sender.toEntityId()));
+        final var receiver = accountEntityWithEvmAddressPersist();
+
+        nftAllowancePersist(tokenId, contractEntityId.getId(), sender.toEntityId());
+
+        tokenAccountPersist(tokenId, sender.getId());
+        // The receiver dissociated from the token: the row is retained with associated = false, which on a real
+        // network makes the transfer fail with TOKEN_NOT_ASSOCIATED_TO_ACCOUNT rather than succeed.
+        tokenAccount(ta -> ta.tokenId(tokenId).accountId(receiver.getId()).associated(false));
+
+        // When
+        testWeb3jService.setSender(getAliasFromEntity(sender));
+
+        final var functionCall = contract.call_transferNFTExternal(
+                toAddress(tokenId).toHexString(),
+                getAliasFromEntity(sender),
+                getAliasFromEntity(receiver),
+                DEFAULT_SERIAL_NUMBER);
+
+        // Then
+        assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
     }
 
     @Test
