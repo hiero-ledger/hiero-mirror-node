@@ -1,11 +1,10 @@
 FROM gcr.io/cloud-marketplace-tools/k8s/deployer_helm
 
 # Marketplace image still depends upon Helm 3
-# Use helm 4.3.0-rc.1 temporarility to address vulnerability
 # Use kubectl v1.37.0 to address the same vulnerability until the next marketplace deploy_helm image release
-ENV HELM_VERSION=4.3.0-rc.1
+ENV HELM_VERSION=4.3.0
 ENV KUBECTL_VERSION=v1.37.0
-ENV YQ_VERSION=v4.53.2
+ENV YQ_VERSION=v4.53.6
 
 # Install yq
 RUN wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 && \
