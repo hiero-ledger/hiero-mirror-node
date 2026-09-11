@@ -2155,7 +2155,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         IS_APPROVED_FOR_ALL("isApprovedForAllExternal", 27256, MUTABLE),
         IS_APPROVED_FOR_ALL_ERC("isApprovedForAll", 29997, VIEW),
         IS_FROZEN("isTokenFrozen", 28575, MUTABLE),
-        IS_KYC("isKycGranted", 28542, MUTABLE),
+        IS_KYC("isKycGranted", 26961, MUTABLE),
         IS_TOKEN("isTokenExternal", 27450, MUTABLE),
         MINT_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("mintTokenGetTotalSupplyAndBalanceOfTreasury", 76875, MUTABLE),
         MINT_NFT("mintTokenExternal", 309748, MUTABLE),
