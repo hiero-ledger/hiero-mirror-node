@@ -80,6 +80,11 @@ public class EntityRecordItemListener implements RecordItemListener {
             return;
         }
 
+        if (EntityId.isEmpty(recordItem.getPayerAccountId())) {
+            DomainUtils.logRecoverableError(
+                    "Invalid payer account ID for consensusTimestamp {}", recordItem.getConsensusTimestamp());
+        }
+
         final var persistProperties = entityProperties.getPersist();
         recordItem.setEntityTransactionPredicate(persistProperties::shouldPersistEntityTransaction);
         recordItem.setEntityNftTransactionPredicate(persistProperties::shouldPersistEntityNftTransaction);
