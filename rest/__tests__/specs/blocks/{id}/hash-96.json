@@ -43,6 +43,7 @@
     "name": "2022-04-27T12_24_30.768994443Z.rcd",
     "number": 17,
     "previous_hash": "0xfbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1c",
+    "receipts_root": "0x56e91f271bcc54a6ff8345e692c0f86e5b48e21b936caed001722fb5e363b425",
     "size": 6,
     "timestamp": {
       "from": "1676540001.234500000",

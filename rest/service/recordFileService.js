@@ -65,7 +65,7 @@ class RecordFileService extends BaseService {
     ${RecordFile.COUNT}, ${RecordFile.HASH}, ${RecordFile.NAME}, ${RecordFile.PREV_HASH},
     ${RecordFile.HAPI_VERSION_MAJOR}, ${RecordFile.HAPI_VERSION_MINOR}, ${RecordFile.HAPI_VERSION_PATCH},
     ${RecordFile.INDEX}, ${RecordFile.CONSENSUS_START}, ${RecordFile.CONSENSUS_END}, ${RecordFile.GAS_USED},
-    ${RecordFile.LOGS_BLOOM}, coalesce(${RecordFile.SIZE}, length(${RecordFile.BYTES})) as size
+    ${RecordFile.LOGS_BLOOM}, ${RecordFile.RECEIPTS_ROOT}, coalesce(${RecordFile.SIZE}, length(${RecordFile.BYTES})) as size
     from ${RecordFile.tableName}
   `;
 
