@@ -2195,7 +2195,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         SYMBOL_NFT("symbolIERC721", 29002, VIEW),
         TOTAL_SUPPLY("totalSupply", 28229, VIEW),
         TOTAL_SUPPLY_NFT("totalSupplyIERC721", 28208, VIEW),
-        TOKEN_URI("tokenURI", 30923, VIEW),
+        TOKEN_URI("tokenURI", 29193, VIEW),
         TRANSFER_ERC("transfer", 42138, MUTABLE),
         TRANSFER_FROM("transferFromExternal", 41307, MUTABLE),
         TRANSFER_FROM_ERC("transferFrom", 42475, MUTABLE),
