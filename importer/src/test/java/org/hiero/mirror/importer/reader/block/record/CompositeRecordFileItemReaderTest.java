@@ -23,12 +23,14 @@ import com.hedera.services.stream.proto.RecordStreamItem;
 import com.hedera.services.stream.proto.SidecarMetadata;
 import com.hedera.services.stream.proto.SidecarType;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.SemanticVersion;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.time.Instant;
 import java.util.List;
@@ -39,6 +41,7 @@ import org.assertj.core.api.ThrowingConsumer;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.SidecarFile;
@@ -308,6 +311,27 @@ final class CompositeRecordFileItemReaderTest {
     }
 
     @Test
+    void readAmendmentWithOutOfRangePayerAccountId() {
+        final var timestamp1 = TestUtils.toTimestamp(1_000_000_000L);
+        final var timestamp2 = TestUtils.toTimestamp(2_000_000_000L);
+        final var outOfRangePayer =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        final var recordFileItem = createRecordFileItemWithAmendments(
+                List.of(recordStreamItem(timestamp1)), List.of(recordStreamItemWithPayer(timestamp2, outOfRangePayer)));
+
+        final var recordFile = reader.read(recordFileItem, 6);
+
+        assertThat(recordFile)
+                .returns(2L, RecordFile::getCount)
+                .extracting(RecordFile::getItems)
+                .asInstanceOf(InstanceOfAssertFactories.list(RecordItem.class))
+                .hasSize(2)
+                .last()
+                .extracting(RecordItem::getPayerAccountId)
+                .isEqualTo(EntityId.EMPTY);
+    }
+
+    @Test
     void readWithAmendmentReplacement() {
         // given - amendment replaces an existing item with a corrected transaction record
         final var timestamp1 = TestUtils.toTimestamp(1_000_000_000L);
@@ -530,6 +554,24 @@ final class CompositeRecordFileItemReaderTest {
 
     private static RecordStreamItem recordStreamItem(final Timestamp consensusTimestamp) {
         return recordStreamItemWithHash(consensusTimestamp, ByteString.EMPTY);
+    }
+
+    private static RecordStreamItem recordStreamItemWithPayer(
+            final Timestamp consensusTimestamp, final AccountID payer) {
+        final var transaction = Transaction.newBuilder()
+                .setSignedTransactionBytes(SignedTransaction.newBuilder()
+                        .setBodyBytes(TransactionBody.newBuilder()
+                                .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
+                                .setTransactionID(TransactionID.newBuilder().setAccountID(payer))
+                                .build()
+                                .toByteString())
+                        .build()
+                        .toByteString())
+                .build();
+        return RecordStreamItem.newBuilder()
+                .setTransaction(transaction)
+                .setRecord(TransactionRecord.newBuilder().setConsensusTimestamp(consensusTimestamp))
+                .build();
     }
 
     private static RecordStreamItem recordStreamItemWithHash(
