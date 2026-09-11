@@ -156,7 +156,7 @@ final class AuthorizationExtractorTest extends Web3IntegrationTest {
         persistAccount(authorityId, createdTimestamp, evmAddressFromKeyPair(keyPair), evmAddressFromKeyPair(keyPair));
         prestateProperties.setMaxTouchedAccounts(1);
         final var context = prestateContext(createdTimestamp + 100);
-        context.addCreatedAccount(domainBuilder.entityId().getId());
+        context.addAccount(domainBuilder.entityId());
 
         authorizationExtractor.extractSigners(
                 context, ethereumTransaction(List.of(signedAuthorization(keyPair, domainBuilder.bytes(20), 4L))));
@@ -166,13 +166,13 @@ final class AuthorizationExtractorTest extends Web3IntegrationTest {
         assertThat(context.getPostNonces()).isEmpty();
     }
 
-    private static PrestateContext prestateContext() {
+    private PrestateContext prestateContext() {
         return prestateContext(1L);
     }
 
-    private static PrestateContext prestateContext(final long consensusTimestamp) {
+    private PrestateContext prestateContext(final long consensusTimestamp) {
         return new PrestateContext(
-                new PrestateProperties(),
+                prestateProperties,
                 consensusTimestamp,
                 new PrestateRequest(new TransactionHashParameter(Bytes.repeat((byte) 1, 32)), true, false, false));
     }

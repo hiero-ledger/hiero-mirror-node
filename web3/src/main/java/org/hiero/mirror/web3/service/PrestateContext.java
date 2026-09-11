@@ -17,7 +17,7 @@ import org.hiero.mirror.web3.service.model.PrestateRequest;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Properties for tracing prestate
+ * Scratch state while collecting touched accounts and emitting a prestate trace.
  */
 @RequiredArgsConstructor
 @Getter
@@ -36,30 +36,33 @@ final class PrestateContext {
     private final Map<Long, Map<String, String>> preStorageByContract = new TreeMap<>();
     private final Map<Long, Map<String, String>> postStorageByContract = new TreeMap<>();
 
-    public void addAccount(@Nullable final EntityId accountId) {
-        final int maxTouchedAccounts = prestateProperties.getMaxTouchedAccounts();
-        if (accounts.size() >= maxTouchedAccounts) {
-            return;
-        }
-
-        if (!EntityId.isEmpty(accountId)) {
-            accounts.add(accountId.getId());
-        }
+    boolean isFull() {
+        return accounts.size() >= prestateProperties.getMaxTouchedAccounts();
     }
 
-    public void addCreatedAccount(final long accountId) {
+    public void addAccount(@Nullable final EntityId accountId) {
+        if (EntityId.isEmpty(accountId) || isFull()) {
+            return;
+        }
+        accounts.add(accountId.getId());
+    }
+
+    public void markCreated(final long accountId) {
         if (accountId == 0L) {
+            return;
+        }
+        if (!accounts.contains(accountId) && isFull()) {
             return;
         }
         accounts.add(accountId);
         createdIds.add(accountId);
+        postNonces.put(accountId, 0L);
     }
 
     public void addBalanceTransfer(final long accountId, final long value) {
         balanceTransfers.merge(accountId, value, Long::sum);
     }
 
-    // Denotes what value should be decremented from postAccountTrace nonce to get the proper preAccountTrace nonce
     public void addNonceDelta(final long accountId, final long delta) {
         nonceDeltas.merge(accountId, delta, Long::sum);
     }
@@ -68,20 +71,31 @@ final class PrestateContext {
         postNonces.put(accountId, nonce);
     }
 
+    long postNonce(final long accountId) {
+        return postNonces.getOrDefault(accountId, 0L);
+    }
+
+    long preNonce(final long accountId) {
+        return Math.max(0L, postNonce(accountId) - nonceDeltas.getOrDefault(accountId, 0L));
+    }
+
     public void addPreStorageSlot(final long contractId, final byte[] slot, final byte @Nullable [] value) {
-        if (isEmptyStorageValue(value)) {
-            return;
-        }
-        preStorageByContract
-                .computeIfAbsent(contractId, id -> new TreeMap<>())
-                .put(wrapToWordSize(slot), wrapToWordSize(value));
+        addStorageSlot(preStorageByContract, contractId, slot, value);
     }
 
     public void addPostStorageSlot(final long contractId, final byte[] slot, final byte @Nullable [] value) {
+        addStorageSlot(postStorageByContract, contractId, slot, value);
+    }
+
+    private static void addStorageSlot(
+            final Map<Long, Map<String, String>> storageByContract,
+            final long contractId,
+            final byte[] slot,
+            final byte @Nullable [] value) {
         if (isEmptyStorageValue(value)) {
             return;
         }
-        postStorageByContract
+        storageByContract
                 .computeIfAbsent(contractId, id -> new TreeMap<>())
                 .put(wrapToWordSize(slot), wrapToWordSize(value));
     }

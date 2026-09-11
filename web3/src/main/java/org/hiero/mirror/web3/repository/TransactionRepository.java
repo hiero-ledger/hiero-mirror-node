@@ -38,17 +38,32 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
             @Param("consensusTimestampEnd") long consensusTimestampEnd);
 
     /**
+     * Preceding hollow {@code CryptoCreateAccount} children use {@code parent - 1}, {@code parent - 2}, …
+     * Bounded so Postgres can use {@code transaction__type_consensus_timestamp} instead of scanning
+     * {@code parent_consensus_timestamp} (unindexed). Network default {@code maxPrecedingRecords} is 3.
+     */
+    long PRECEDING_CRYPTO_CREATE_WINDOW_NS = 10_000L;
+
+    /**
      * Entity IDs created by successful child {@code CryptoCreateAccount} transactions of the given parent,
      * including preceding hollow-account creates.
      */
+    default List<Long> findSuccessfulCryptoCreateChildEntityIds(final long parentConsensusTimestamp) {
+        return findSuccessfulCryptoCreateChildEntityIds(
+                parentConsensusTimestamp, parentConsensusTimestamp - PRECEDING_CRYPTO_CREATE_WINDOW_NS);
+    }
+
     @Query(value = """
             select entity_id
             from transaction
-            where parent_consensus_timestamp = :parentConsensusTimestamp
-              and type = 11
+            where type = 11
               and result = 22
+              and consensus_timestamp >= :consensusTimestampStart
+              and consensus_timestamp <= :parentConsensusTimestamp
+              and parent_consensus_timestamp = :parentConsensusTimestamp
               and entity_id is not null
             """, nativeQuery = true)
     List<Long> findSuccessfulCryptoCreateChildEntityIds(
-            @Param("parentConsensusTimestamp") long parentConsensusTimestamp);
+            @Param("parentConsensusTimestamp") long parentConsensusTimestamp,
+            @Param("consensusTimestampStart") long consensusTimestampStart);
 }

@@ -285,6 +285,51 @@ final class PrestateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
+    void callWithDiffOmitsTokenCallTargets() {
+        final var payerId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var tokenId = domainBuilder.entityId();
+        final var changedAccount = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        persistBareEntity(tokenId, EntityType.TOKEN, 0L, createdTimestamp);
+        persistBareEntity(changedAccount, EntityType.ACCOUNT, 1L, createdTimestamp);
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(changedAccount, createdTimestamp, 100L);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(contractId)
+                        .callerType(EntityType.CONTRACT)
+                        .recipientAccount(null)
+                        .recipientContract(tokenId)
+                        .value(25L)
+                        .index(0))
+                .persist();
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(contractId)
+                        .callerType(EntityType.CONTRACT)
+                        .recipientAccount(changedAccount)
+                        .value(50L)
+                        .index(1))
+                .persist();
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        final var tokenAddress = toLongZeroAddress(tokenId);
+        assertThat(response.getPre()).extracting(t -> t.getAddress()).doesNotContain(tokenAddress);
+        assertThat(response.getPost()).extracting(t -> t.getAddress()).doesNotContain(tokenAddress);
+        assertThat(response.getPre())
+                .extracting(t -> t.getAddress())
+                .containsExactly(toLongZeroAddress(changedAccount));
+    }
+
+    @Test
     void callWithDiffEnabledDetectsOnlyNonceChange() {
         final var senderId = domainBuilder.entityId();
         final var contractId = domainBuilder.entityId();

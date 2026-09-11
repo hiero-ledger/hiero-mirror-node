@@ -132,6 +132,17 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
                         .nonce(1)
                         .type(CRYPTOCREATEACCOUNT.getProtoId()))
                 .persist();
+        final var outsideWindowAccountId = domainBuilder.entityId();
+        domainBuilder
+                .transaction()
+                .customize(transaction -> transaction
+                        .consensusTimestamp(
+                                parentConsensusTimestamp - TransactionRepository.PRECEDING_CRYPTO_CREATE_WINDOW_NS - 1L)
+                        .parentConsensusTimestamp(parentConsensusTimestamp)
+                        .entityId(outsideWindowAccountId)
+                        .nonce(3)
+                        .type(CRYPTOCREATEACCOUNT.getProtoId()))
+                .persist();
 
         assertThat(transactionRepository.findSuccessfulCryptoCreateChildEntityIds(parentConsensusTimestamp))
                 .containsExactly(hollowAccountId.getId());

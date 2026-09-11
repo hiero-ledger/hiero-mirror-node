@@ -18,7 +18,6 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
-import org.hiero.mirror.web3.controller.PrestateProperties;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -31,7 +30,6 @@ final class AuthorizationExtractor {
     private static final HexFormat HEX_FORMAT = HexFormat.of();
 
     private final EntityRepository entityRepository;
-    private final PrestateProperties prestateProperties;
 
     void extractSigners(final PrestateContext prestateContext, final EthereumTransaction ethereumTransaction) {
         final var authorizations = ethereumTransaction.getAuthorizationList();
@@ -39,8 +37,7 @@ final class AuthorizationExtractor {
             return;
         }
 
-        final int maxTouchedAccounts = prestateProperties.getMaxTouchedAccounts();
-        if (prestateContext.getAccounts().size() >= maxTouchedAccounts) {
+        if (prestateContext.isFull()) {
             return;
         }
 
@@ -62,7 +59,7 @@ final class AuthorizationExtractor {
 
         final var entityByAddress = toEntityByAddress(entities);
         for (final var recoveredAuthorization : recoveredAuthorizations) {
-            if (prestateContext.getAccounts().size() >= maxTouchedAccounts) {
+            if (prestateContext.isFull()) {
                 break;
             }
             final var entity = entityByAddress.get(Bytes.wrap(recoveredAuthorization.address()));
