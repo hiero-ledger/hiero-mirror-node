@@ -85,9 +85,16 @@ create user :restJavaUsername with login password :'restJavaPassword' in role re
 create user :rosettaUsername with login password :'rosettaPassword' in role readonly;
 create user :web3Username with login password :'web3Password' in role readonly;
 
--- Allow importer user and owner user to use reserved connection slots
-grant pg_use_reserved_connections to :importerUsername;
-grant pg_use_reserved_connections to :ownerUsername;
+-- Allow importer user and owner user to use reserved connection slots. The pg_use_reserved_connections
+-- predefined role only exists in PostgreSQL 16 and later.
+select case
+    when exists(select from pg_roles where rolname = 'pg_use_reserved_connections') then 'true'
+    else 'false'
+  end as has_reserved_connections \gset
+\if :has_reserved_connections
+  grant pg_use_reserved_connections to :importerUsername;
+  grant pg_use_reserved_connections to :ownerUsername;
+\endif
 
 -- Grant temp schema admin privileges
 grant temporary_admin to :ownerUsername;

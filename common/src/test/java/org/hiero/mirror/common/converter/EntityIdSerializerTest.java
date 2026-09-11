@@ -36,6 +36,15 @@ class EntityIdSerializerTest {
     }
 
     @Test
+    void testZero() throws Exception {
+        // when
+        INSTANCE.serialize(EntityId.ZERO, jsonGenerator, null);
+
+        // then
+        Mockito.verify(jsonGenerator).writeNumber(0L);
+    }
+
+    @Test
     void testEntity() throws Exception {
         // when
         var entity = EntityId.of(10L, 20L, 30L);
