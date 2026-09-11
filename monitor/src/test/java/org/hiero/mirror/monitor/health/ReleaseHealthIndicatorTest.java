@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -200,6 +201,23 @@ final class ReleaseHealthIndicatorTest {
     void podNotFound() {
         // given
         server.expect().withPath(POD_REQUEST_PATH).andReturn(404, null).always();
+
+        // when
+        var health = healthIndicator.health().block();
+
+        // then
+        assertThat(health).returns(Status.UNKNOWN, Health::getStatus);
+    }
+
+    @Test
+    void timeout() {
+        // given: the pod response is slower than the configured timeout
+        properties.setTimeout(Duration.ofMillis(50));
+        server.expect()
+                .delay(500, TimeUnit.MILLISECONDS)
+                .withPath(POD_REQUEST_PATH)
+                .andReturn(200, pod(POD_LABELS))
+                .always();
 
         // when
         var health = healthIndicator.health().block();
