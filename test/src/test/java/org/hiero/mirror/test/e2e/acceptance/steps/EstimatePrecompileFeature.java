@@ -2166,7 +2166,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         NESTED_ASSOCIATE("nestedAssociateTokenExternal", 0, MUTABLE),
         NESTED_FREEZE_UNFREEZE("nestedFreezeUnfreezeTokenExternal", 54548, MUTABLE),
         NESTED_GRANT_REVOKE_KYC("nestedGrantAndRevokeTokenKYCExternal", 54516, MUTABLE),
-        OWNER_OF("getOwnerOf", 30266, VIEW),
+        OWNER_OF("getOwnerOf", 28530, VIEW),
         PAUSE_TOKEN("pauseTokenExternal", 39112, MUTABLE),
         PAUSE_UNPAUSE_GET_STATUS("pauseTokenGetPauseStatusUnpauseGetPauseStatus", 98345, MUTABLE),
         PAUSE_UNPAUSE_NESTED_TOKEN("nestedPauseUnpauseTokenExternal", 54237, MUTABLE),
