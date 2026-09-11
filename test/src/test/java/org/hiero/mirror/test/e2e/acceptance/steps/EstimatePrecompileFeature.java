@@ -2144,7 +2144,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         GET_APPROVED_ERC("getApproved", 28368, VIEW),
         GET_FUNGIBLE_TOKEN_INFO("getInformationForFungibleToken", 56456, VIEW),
         GET_NON_FUNGIBLE_TOKEN_INFO("getInformationForNonFungibleToken", 59159, MUTABLE),
-        GET_TOKEN_DEFAULT_FREEZE_STATUS("getTokenDefaultFreeze", 27980, MUTABLE),
+        GET_TOKEN_DEFAULT_FREEZE_STATUS("getTokenDefaultFreeze", 26368, MUTABLE),
         GET_TOKEN_DEFAULT_KYC_STATUS("getTokenDefaultKyc", 28011, MUTABLE),
         GET_TOKEN_EXPIRY_INFO("getTokenExpiryInfoExternal", 28080, MUTABLE),
         GET_TOKEN_INFO("getInformationForToken", 55815, MUTABLE),
