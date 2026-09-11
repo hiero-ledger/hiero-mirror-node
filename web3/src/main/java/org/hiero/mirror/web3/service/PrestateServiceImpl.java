@@ -12,8 +12,6 @@ import static org.hiero.mirror.web3.utils.Constants.MAX_TRANSACTION_CONSENSUS_TI
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.node.app.hapi.utils.ethereum.CodeDelegation;
-import com.hedera.node.app.hapi.utils.ethereum.EthTxSigs;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import jakarta.inject.Named;
 import java.math.BigInteger;
@@ -21,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -35,8 +32,6 @@ import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.contract.ContractStateChange;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.transaction.Authorization;
-import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.rest.model.PrestateAccountTrace;
 import org.hiero.mirror.rest.model.PrestateResponse;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
@@ -64,6 +59,7 @@ import org.jspecify.annotations.Nullable;
 final class PrestateServiceImpl implements PrestateService {
 
     private final AccountBalanceRepository accountBalanceRepository;
+    private final AuthorizationExtractor authorizationExtractor;
     private final ContractActionRepository contractActionRepository;
     private final ContractRepository contractRepository;
     private final ContractResultRepository contractResultRepository;
@@ -81,7 +77,6 @@ final class PrestateServiceImpl implements PrestateService {
     private static final int OP_STATICCALL = 4;
     private static final int OP_CREATE = 5;
     private static final int OP_CREATE2 = 6;
-    private static final HexFormat HEX_FORMAT = HexFormat.of();
     private static final Comparator<PrestateAccountTrace> ACCOUNT_TRACE_COMPARATOR =
             Comparator.comparing(PrestateAccountTrace::getAddress);
 
@@ -93,7 +88,7 @@ final class PrestateServiceImpl implements PrestateService {
     @Override
     public PrestateResponse processPrestateCall(final PrestateRequest prestateRequest) {
         final var consensusTimestamp = resolveConsensusTimestamp(prestateRequest.transactionIdOrHashParameter());
-        final var prestateContext = new PrestateContext(consensusTimestamp, prestateRequest);
+        final var prestateContext = new PrestateContext(prestateProperties, consensusTimestamp, prestateRequest);
         markTouchedAccounts(prestateContext);
         return loadAccountTraces(prestateContext);
     }
@@ -113,7 +108,7 @@ final class PrestateServiceImpl implements PrestateService {
         final var createdIds = prestateContext.getCreatedIds();
         final var preEntityById =
                 toEntityById(entityRepository.findActiveByIdsAndTimestamp(accounts, timestampBeforeTransaction));
-        final var createdEntityById = loadCreatedEntities(createdIds);
+        final var currentEntityById = loadEntitiesById(accounts);
 
         final var preBalances = loadBalances(accounts, timestampBeforeTransaction);
         final var balanceTransfers = prestateContext.getBalanceTransfers();
@@ -135,7 +130,7 @@ final class PrestateServiceImpl implements PrestateService {
 
         for (final var accountId : accounts) {
             final boolean createdThisTx = createdIds.contains(accountId);
-            final var createdEntity = createdThisTx ? createdEntityById.get(accountId) : null;
+            final var currentEntity = currentEntityById.get(accountId);
             final var preEntity = createdThisTx ? null : preEntityById.get(accountId);
             final var preBalance = preBalances.getOrDefault(accountId, 0L);
             final long postNonce = resolvePostNonce(prestateContext, accountId);
@@ -153,22 +148,28 @@ final class PrestateServiceImpl implements PrestateService {
 
             final var transfer = balanceTransfers.getOrDefault(accountId, 0L);
             final var postBalance = preBalance + transfer;
+            final boolean deletedThisTx = isDeletedThisTransaction(currentEntity, consensusTimestamp);
 
             if (createdThisTx) {
-                if (createdEntity == null) {
+                if (currentEntity == null || deletedThisTx) {
                     continue;
                 }
-                final var postAccountTrace = buildAccountTrace(
-                        createdEntity,
+                postAccountTraces.add(buildAccountTrace(
+                        currentEntity,
                         postBalance,
                         postBytecodes,
                         takeStorage(postStorageByContract, accountId),
-                        postNonce);
-                postAccountTraces.add(postAccountTrace);
+                        postNonce));
                 continue;
             }
 
             if (preEntity == null) {
+                continue;
+            }
+
+            if (deletedThisTx) {
+                preAccountTraces.add(buildAccountTrace(
+                        preEntity, preBalance, preBytecodes, takeStorage(preStorageByContract, accountId), preNonce));
                 continue;
             }
 
@@ -229,23 +230,31 @@ final class PrestateServiceImpl implements PrestateService {
             return Map.of();
         }
 
-        final var entityById = new HashMap<Long, Entity>(entities.size());
+        final var entityById = HashMap.<Long, Entity>newHashMap(entities.size());
         for (final var entity : entities) {
             entityById.put(entity.getId(), entity);
         }
         return entityById;
     }
 
-    private Map<Long, Entity> loadCreatedEntities(final Set<Long> createdIds) {
-        if (createdIds.isEmpty()) {
+    private Map<Long, Entity> loadEntitiesById(final Set<Long> entityIds) {
+        if (entityIds.isEmpty()) {
             return Map.of();
         }
 
-        final var entityById = new HashMap<Long, Entity>(createdIds.size());
-        for (final var entity : entityRepository.findAllById(createdIds)) {
+        final var entityById = HashMap.<Long, Entity>newHashMap(entityIds.size());
+        for (final var entity : entityRepository.findAllById(entityIds)) {
             entityById.put(entity.getId(), entity);
         }
         return entityById;
+    }
+
+    private static boolean isDeletedThisTransaction(final @Nullable Entity entity, final long consensusTimestamp) {
+        if (entity == null || !Boolean.TRUE.equals(entity.getDeleted())) {
+            return false;
+        }
+        final var deletedAt = entity.getTimestampLower();
+        return deletedAt != null && deletedAt == consensusTimestamp;
     }
 
     private PrestateAccountTrace buildAccountTrace(
@@ -281,7 +290,7 @@ final class PrestateServiceImpl implements PrestateService {
         }
 
         final var contracts = contractRepository.findByIdsAndConsensusTimestamp(entityIds, timestamp);
-        final var bytecodes = new HashMap<Long, byte[]>(contracts.size());
+        final var bytecodes = HashMap.<Long, byte[]>newHashMap(contracts.size());
         for (final var contract : contracts) {
             final var runtimeBytecode = contract.getRuntimeBytecode();
             if (runtimeBytecode != null) {
@@ -296,7 +305,7 @@ final class PrestateServiceImpl implements PrestateService {
             return Map.of();
         }
 
-        final var balances = new HashMap<Long, Long>(accountIds.size());
+        final var balances = HashMap.<Long, Long>newHashMap(accountIds.size());
         final long treasuryAccountId = systemEntity.treasuryAccount().getId();
         for (final long accountId : accountIds) {
             final long balance = accountBalanceRepository
@@ -316,7 +325,8 @@ final class PrestateServiceImpl implements PrestateService {
 
     private void populateTouchedEntitiesFromNonceSources(
             final PrestateContext prestateContext, final long consensusTimestamp) {
-        addHollowCreatedAccounts(prestateContext, consensusTimestamp);
+        final var hollowIds = transactionRepository.findSuccessfulCryptoCreateChildEntityIds(consensusTimestamp);
+        populateCreatedAccountsWithNonce(prestateContext, hollowIds);
 
         final var contractResult =
                 contractResultRepository.findById(consensusTimestamp).orElse(null);
@@ -324,12 +334,12 @@ final class PrestateServiceImpl implements PrestateService {
             return;
         }
 
-        addCreatedContractIds(prestateContext, contractResult);
         prestateContext.addAccount(contractResult.getSenderId());
+        populateCreatedAccountsWithNonce(prestateContext, contractResult.getCreatedContractIds());
         applyFunctionResultNonces(prestateContext, contractResult);
 
         final var payerAccountId = contractResult.getPayerAccountId();
-        if (payerAccountId == null) {
+        if (EntityId.isEmpty(payerAccountId)) {
             return;
         }
 
@@ -342,12 +352,16 @@ final class PrestateServiceImpl implements PrestateService {
 
         if (!EntityId.isEmpty(contractResult.getSenderId())) {
             final long senderId = contractResult.getSenderId().getId();
+            // ethereumTransaction.getNonce() has the nonce before the transaction execution and we increment
+            // this nonce by 1 for the postAccountTrace tracking, so we should add a delta of 1 to decrement, to get
+            // the proper preAccountTrace tracking
             prestateContext.addNonceDelta(senderId, 1L);
             if (ethereumTransaction.getNonce() != null) {
-                prestateContext.mergePostNonce(senderId, ethereumTransaction.getNonce() + 1L);
+                prestateContext.putPostNonce(senderId, ethereumTransaction.getNonce() + 1);
             }
         }
-        applyAuthorizationList(prestateContext, ethereumTransaction);
+
+        authorizationExtractor.extractSigners(prestateContext, ethereumTransaction);
     }
 
     private void applyFunctionResultNonces(final PrestateContext prestateContext, final ContractResult contractResult) {
@@ -364,12 +378,6 @@ final class PrestateServiceImpl implements PrestateService {
             return;
         }
 
-        if (functionResult.hasSignerNonce() && !EntityId.isEmpty(contractResult.getSenderId())) {
-            prestateContext.putPostNonce(
-                    contractResult.getSenderId().getId(),
-                    functionResult.getSignerNonce().getValue());
-        }
-
         final var contractNonces = functionResult.getContractNoncesList();
         for (final var nonceInfo : contractNonces) {
             final var contractId = EntityId.of(nonceInfo.getContractId());
@@ -381,175 +389,21 @@ final class PrestateServiceImpl implements PrestateService {
         }
     }
 
-    private void addCreatedContractIds(final PrestateContext prestateContext, final ContractResult contractResult) {
-        final var createdContractIds = contractResult.getCreatedContractIds();
-        if (createdContractIds == null || createdContractIds.isEmpty()) {
+    private void populateCreatedAccountsWithNonce(final PrestateContext prestateContext, final List<Long> accountIds) {
+        if (accountIds.isEmpty()) {
             return;
         }
 
         final int maxTouchedAccounts = prestateProperties.getMaxTouchedAccounts();
-        for (final var createdContractId : createdContractIds) {
+        for (final var accountId : accountIds) {
             if (prestateContext.getAccounts().size() >= maxTouchedAccounts) {
                 return;
             }
-            if (createdContractId != null) {
-                prestateContext.addCreatedAccount(createdContractId);
+            if (accountId != null) {
+                prestateContext.addCreatedAccount(accountId);
+                prestateContext.putPostNonce(accountId, 0L);
             }
         }
-    }
-
-    private void addHollowCreatedAccounts(final PrestateContext prestateContext, final long consensusTimestamp) {
-        final var hollowIds = transactionRepository.findSuccessfulCryptoCreateChildEntityIds(consensusTimestamp);
-        if (hollowIds.isEmpty()) {
-            return;
-        }
-
-        final int maxTouchedAccounts = prestateProperties.getMaxTouchedAccounts();
-        for (final var hollowId : hollowIds) {
-            if (prestateContext.getAccounts().size() >= maxTouchedAccounts) {
-                return;
-            }
-            if (hollowId != null) {
-                prestateContext.addCreatedAccount(hollowId);
-            }
-        }
-    }
-
-    private void applyAuthorizationList(
-            final PrestateContext prestateContext, final EthereumTransaction ethereumTransaction) {
-        final var authorizations = ethereumTransaction.getAuthorizationList();
-        if (authorizations == null || authorizations.isEmpty()) {
-            return;
-        }
-
-        final int maxTouchedAccounts = prestateProperties.getMaxTouchedAccounts();
-        if (prestateContext.getAccounts().size() >= maxTouchedAccounts) {
-            return;
-        }
-
-        final var recoveredAuthorizations = recoverAuthorizations(authorizations);
-        if (recoveredAuthorizations.isEmpty()) {
-            return;
-        }
-
-        final var recoveredAddresses = new ArrayList<byte[]>(recoveredAuthorizations.size());
-        for (final var recovered : recoveredAuthorizations) {
-            recoveredAddresses.add(recovered.address());
-        }
-
-        final var entities = entityRepository.findActiveByEvmAddressesOrAliasesAndTimestamp(
-                recoveredAddresses, prestateContext.getConsensusTimestamp());
-        if (entities.isEmpty()) {
-            return;
-        }
-
-        final var entityByAddress = toEntityByAddress(entities);
-        for (final var recoveredAuthorization : recoveredAuthorizations) {
-            if (prestateContext.getAccounts().size() >= maxTouchedAccounts) {
-                break;
-            }
-            final var entity = entityByAddress.get(Bytes.wrap(recoveredAuthorization.address()));
-            if (entity == null) {
-                continue;
-            }
-            final long authorityId = entity.getId();
-            prestateContext.addAccount(entity.toEntityId());
-            prestateContext.addNonceDelta(authorityId, 1L);
-            prestateContext.mergePostNonce(authorityId, recoveredAuthorization.nonce() + 1L);
-        }
-    }
-
-    private List<RecoveredAuthorization> recoverAuthorizations(final List<Authorization> authorizations) {
-        final var recovered = new ArrayList<RecoveredAuthorization>(authorizations.size());
-        for (final var authorization : authorizations) {
-            final var recoveredAuthorization = recoverAuthorization(authorization);
-            if (recoveredAuthorization != null) {
-                recovered.add(recoveredAuthorization);
-            }
-        }
-        return recovered;
-    }
-
-    private @Nullable RecoveredAuthorization recoverAuthorization(final Authorization authorization) {
-        final var nonce = authorization.getNonce();
-        if (nonce == null) {
-            return null;
-        }
-
-        final var codeDelegation = toCodeDelegation(authorization);
-        if (codeDelegation == null) {
-            return null;
-        }
-
-        final var recovered = EthTxSigs.extractAuthoritySignature(codeDelegation);
-        if (recovered.isEmpty()) {
-            return null;
-        }
-
-        final var address = recovered.get().address();
-        if (address == null || address.length != EVM_ADDRESS_LENGTH) {
-            return null;
-        }
-        return new RecoveredAuthorization(address, nonce);
-    }
-
-    private record RecoveredAuthorization(byte[] address, long nonce) {}
-
-    private Map<Bytes, Entity> toEntityByAddress(final List<Entity> entities) {
-        final var entityByAddress = new HashMap<Bytes, Entity>(entities.size() * 2);
-        for (final var entity : entities) {
-            final var evmAddress = entity.getEvmAddress();
-            if (evmAddress != null) {
-                entityByAddress.put(Bytes.wrap(evmAddress), entity);
-            }
-            final var alias = entity.getAlias();
-            if (alias != null) {
-                entityByAddress.put(Bytes.wrap(alias), entity);
-            }
-        }
-        return entityByAddress;
-    }
-
-    private static @Nullable CodeDelegation toCodeDelegation(final Authorization authorization) {
-        if (authorization.getNonce() == null) {
-            return null;
-        }
-        try {
-            return new CodeDelegation(
-                    parseHex(authorization.getChainId()),
-                    parseHex(authorization.getAddress()),
-                    authorization.getNonce(),
-                    parseYParity(authorization.getYParity()),
-                    parseHex(authorization.getR()),
-                    parseHex(authorization.getS()));
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    private static byte[] parseHex(final @Nullable String hex) {
-        if (hex == null || hex.isEmpty()) {
-            return new byte[0];
-        }
-        var stripped = hex;
-        if (stripped.startsWith(HEX_PREFIX) || stripped.startsWith("0X")) {
-            stripped = stripped.substring(HEX_PREFIX.length());
-        }
-        if (stripped.isEmpty()) {
-            return new byte[0];
-        }
-        if ((stripped.length() & 1) == 1) {
-            stripped = "0" + stripped;
-        }
-        return HEX_FORMAT.parseHex(stripped);
-    }
-
-    private static int parseYParity(final @Nullable String yParity) {
-        final var bytes = parseHex(yParity);
-        if (bytes.length == 0) {
-            return 0;
-        }
-        return bytes[bytes.length - 1] & 0x01;
     }
 
     private long resolvePostNonce(final PrestateContext prestateContext, final long accountId) {
@@ -641,7 +495,7 @@ final class PrestateServiceImpl implements PrestateService {
 
         final var diffMode = prestateContext.getPrestateRequest().diffMode();
 
-        final StateChangePageQuery query = diffMode
+        final PrestateServiceImpl.StateChangePageQuery query = diffMode
                 ? (limit, offset) -> contractStateChangeRepository.findModifiedByConsensusTimestamp(
                         consensusTimestamp, limit, offset)
                 : (limit, offset) ->

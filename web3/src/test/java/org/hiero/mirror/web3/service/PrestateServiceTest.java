@@ -208,6 +208,29 @@ final class PrestateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
+    void callWithDiffAndStorageOmitsEmptyPreSlotForNewValue() {
+        final var fixture = persistContractFixture(null);
+        persistTreasuryBalance(fixture.createdTimestamp());
+        persistAccountBalance(fixture.contractId(), fixture.createdTimestamp(), 50L);
+        domainBuilder
+                .contractStateChange()
+                .customize(c -> c.consensusTimestamp(fixture.consensusTimestamp())
+                        .contractId(fixture.contractId().getId())
+                        .slot(STORAGE_SLOT)
+                        .valueRead(new byte[0])
+                        .valueWritten(VALUE_WRITTEN))
+                .persist();
+
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), true, false, true));
+
+        assertThat(response.getPre()).hasSize(1);
+        assertThat(response.getPost()).hasSize(1);
+        assertThat(response.getPre().getFirst().getStorage()).isNullOrEmpty();
+        assertThat(response.getPost().getFirst().getStorage())
+                .containsEntry(wrapToWordSize(STORAGE_SLOT), wrapToWordSize(VALUE_WRITTEN));
+    }
+
+    @Test
     void callWithContractTransactionHashNotFound() {
         final var hash = domainBuilder.bytes(32);
         final var request = createRequest(hash, false, false, false);
@@ -446,16 +469,12 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
 
         final var createdAddress = toLongZeroAddress(createdContractId);
-        final var createdPre = response.getPre().stream()
-                .filter(t -> createdAddress.equals(t.getAddress()))
-                .findFirst()
-                .orElseThrow();
-        final var createdPost = response.getPost().stream()
-                .filter(t -> createdAddress.equals(t.getAddress()))
-                .findFirst()
-                .orElseThrow();
-        assertThat(createdPre.getNonce()).isNull();
-        assertThat(createdPost.getNonce()).isEqualTo(1L);
+        assertThat(response.getPre()).extracting(t -> t.getAddress()).doesNotContain(createdAddress);
+        assertThat(response.getPost())
+                .filteredOn(t -> createdAddress.equals(t.getAddress()))
+                .singleElement()
+                .extracting(t -> t.getNonce())
+                .isEqualTo(1L);
     }
 
     @Test
@@ -788,73 +807,6 @@ final class PrestateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
-    void callWithDiffIncludesNewlyCreatedAccountWithEmptyPreEntry() {
-        final var payerId = domainBuilder.entityId();
-        final var contractId = domainBuilder.entityId();
-        final var existingAccount = domainBuilder.entityId();
-        final var newlyCreatedAccount = domainBuilder.entityId();
-        final var createdTimestamp = domainBuilder.timestamp();
-        final var consensusTimestamp = createdTimestamp + 100;
-        final var hash = domainBuilder.bytes(32);
-
-        // Existing account - created before the transaction
-        persistBareEntity(existingAccount, EntityType.ACCOUNT, 1L, createdTimestamp);
-        persistTreasuryBalance(createdTimestamp);
-        persistAccountBalance(existingAccount, createdTimestamp, 100L);
-
-        // Newly created account - created during the transaction (timestamp = consensusTimestamp)
-        persistBareEntity(newlyCreatedAccount, EntityType.ACCOUNT, 0L, consensusTimestamp);
-        persistSuccessfulCryptoCreateChild(newlyCreatedAccount, consensusTimestamp, consensusTimestamp - 1L);
-
-        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
-        domainBuilder
-                .contractAction()
-                .customize(a -> a.consensusTimestamp(consensusTimestamp)
-                        .caller(contractId)
-                        .callerType(EntityType.CONTRACT)
-                        .recipientAccount(existingAccount)
-                        .value(50L)
-                        .index(0))
-                .persist();
-        domainBuilder
-                .contractAction()
-                .customize(a -> a.consensusTimestamp(consensusTimestamp)
-                        .caller(contractId)
-                        .callerType(EntityType.CONTRACT)
-                        .recipientAccount(newlyCreatedAccount)
-                        .value(25L)
-                        .index(1))
-                .persist();
-
-        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
-
-        // Should have 2 entries in both pre and post
-        assertThat(response.getPre()).hasSize(2);
-        assertThat(response.getPost()).hasSize(2);
-
-        // Find the newly created account in responses
-        final var newAccountAddress = toLongZeroAddress(newlyCreatedAccount);
-        final var newAccountPre = response.getPre().stream()
-                .filter(t -> newAccountAddress.equals(t.getAddress()))
-                .findFirst()
-                .orElse(null);
-        final var newAccountPost = response.getPost().stream()
-                .filter(t -> newAccountAddress.equals(t.getAddress()))
-                .findFirst()
-                .orElse(null);
-
-        // Pre entry for newly created account should be empty (no balance, no nonce)
-        assertThat(newAccountPre).isNotNull();
-        assertThat(newAccountPre.getBalance()).isNull();
-        assertThat(newAccountPre.getNonce()).isNull();
-
-        // Post entry for newly created account should have data
-        assertThat(newAccountPost).isNotNull();
-        assertThat(newAccountPost.getBalance()).isEqualTo("0x3a35294400"); // 25 tinybars in weibars
-        assertThat(newAccountPost.getNonce()).isEqualTo(0L);
-    }
-
-    @Test
     void callWithDiffTreatsPrecedingHollowCreateAsBornInThisTransaction() {
         final var payerId = domainBuilder.entityId();
         final var contractId = domainBuilder.entityId();
@@ -881,18 +833,14 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
 
         final var hollowAddress = toLongZeroAddress(hollowAccount);
-        final var hollowPre = response.getPre().stream()
-                .filter(t -> hollowAddress.equals(t.getAddress()))
-                .findFirst()
-                .orElseThrow();
-        final var hollowPost = response.getPost().stream()
-                .filter(t -> hollowAddress.equals(t.getAddress()))
-                .findFirst()
-                .orElseThrow();
-        assertThat(hollowPre.getBalance()).isNull();
-        assertThat(hollowPre.getNonce()).isNull();
-        assertThat(hollowPost.getNonce()).isEqualTo(0L);
-        assertThat(hollowPost.getBalance()).isEqualTo("0x3a35294400");
+        assertThat(response.getPre()).extracting(t -> t.getAddress()).doesNotContain(hollowAddress);
+        assertThat(response.getPost())
+                .filteredOn(t -> hollowAddress.equals(t.getAddress()))
+                .singleElement()
+                .satisfies(t -> {
+                    assertThat(t.getNonce()).isEqualTo(0L);
+                    assertThat(t.getBalance()).isEqualTo("0x3a35294400");
+                });
     }
 
     @Test
@@ -931,6 +879,56 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         final var failedAddress = toLongZeroAddress(failedAccount);
         assertThat(response.getPre()).extracting(t -> t.getAddress()).doesNotContain(failedAddress);
         assertThat(response.getPost()).extracting(t -> t.getAddress()).doesNotContain(failedAddress);
+    }
+
+    @Test
+    void callWithDiffEmitsDeletedAccountOnlyInPre() {
+        final var payerId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        domainBuilder
+                .entityHistory(contractId, createdTimestamp)
+                .customize(e -> e.type(EntityType.CONTRACT)
+                        .ethereumNonce(1L)
+                        .evmAddress(null)
+                        .alias(null)
+                        .deleted(false)
+                        .timestampRange(Range.closedOpen(createdTimestamp, consensusTimestamp)))
+                .persist();
+        domainBuilder
+                .entity(contractId, createdTimestamp)
+                .customize(e -> e.type(EntityType.CONTRACT)
+                        .ethereumNonce(1L)
+                        .evmAddress(null)
+                        .alias(null)
+                        .deleted(true)
+                        .timestampRange(Range.atLeast(consensusTimestamp)))
+                .persist();
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(contractId, createdTimestamp, 50L);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .caller(payerId)
+                        .callerType(EntityType.ACCOUNT)
+                        .recipientContract(contractId)
+                        .value(0L)
+                        .index(0))
+                .persist();
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        final var deletedAddress = toLongZeroAddress(contractId);
+        assertThat(response.getPre())
+                .filteredOn(t -> deletedAddress.equals(t.getAddress()))
+                .singleElement()
+                .extracting(t -> t.getBalance())
+                .isEqualTo("0x746a528800");
+        assertThat(response.getPost()).extracting(t -> t.getAddress()).doesNotContain(deletedAddress);
     }
 
     @ParameterizedTest

@@ -12,6 +12,7 @@ import java.util.TreeMap;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.web3.controller.PrestateProperties;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
 import org.jspecify.annotations.Nullable;
 
@@ -22,6 +23,7 @@ import org.jspecify.annotations.Nullable;
 @Getter
 final class PrestateContext {
 
+    private final PrestateProperties prestateProperties;
     private final Set<Long> accounts = new HashSet<>();
     private final Set<Long> createdIds = new HashSet<>();
     private final Map<Long, Long> balanceTransfers = new HashMap<>();
@@ -35,6 +37,11 @@ final class PrestateContext {
     private final Map<Long, Map<String, String>> postStorageByContract = new TreeMap<>();
 
     public void addAccount(@Nullable final EntityId accountId) {
+        final int maxTouchedAccounts = prestateProperties.getMaxTouchedAccounts();
+        if (accounts.size() >= maxTouchedAccounts) {
+            return;
+        }
+
         if (!EntityId.isEmpty(accountId)) {
             accounts.add(accountId.getId());
         }
@@ -52,6 +59,7 @@ final class PrestateContext {
         balanceTransfers.merge(accountId, value, Long::sum);
     }
 
+    // Denotes what value should be decremented from postAccountTrace nonce to get the proper preAccountTrace nonce
     public void addNonceDelta(final long accountId, final long delta) {
         nonceDeltas.merge(accountId, delta, Long::sum);
     }
@@ -60,12 +68,8 @@ final class PrestateContext {
         postNonces.put(accountId, nonce);
     }
 
-    public void mergePostNonce(final long accountId, final long nonce) {
-        postNonces.merge(accountId, nonce, Long::max);
-    }
-
     public void addPreStorageSlot(final long contractId, final byte[] slot, final byte @Nullable [] value) {
-        if (value == null) {
+        if (isEmptyStorageValue(value)) {
             return;
         }
         preStorageByContract
@@ -74,11 +78,23 @@ final class PrestateContext {
     }
 
     public void addPostStorageSlot(final long contractId, final byte[] slot, final byte @Nullable [] value) {
-        if (value == null) {
+        if (isEmptyStorageValue(value)) {
             return;
         }
         postStorageByContract
                 .computeIfAbsent(contractId, id -> new TreeMap<>())
                 .put(wrapToWordSize(slot), wrapToWordSize(value));
+    }
+
+    private static boolean isEmptyStorageValue(final byte @Nullable [] value) {
+        if (value == null || value.length == 0) {
+            return true;
+        }
+        for (final byte element : value) {
+            if (element != 0) {
+                return false;
+            }
+        }
+        return true;
     }
 }
