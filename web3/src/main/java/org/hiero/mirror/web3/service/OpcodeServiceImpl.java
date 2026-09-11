@@ -7,7 +7,6 @@ import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.ApiEndpointName.OPCODES;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
-import static org.hiero.mirror.web3.utils.Constants.MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
@@ -36,6 +35,7 @@ import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.TraceMemoryBudget;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
@@ -69,6 +69,7 @@ public class OpcodeServiceImpl implements OpcodeService {
     private final ContractResultRepository contractResultRepository;
     private final CommonEntityAccessor commonEntityAccessor;
     private final OpcodesProperties opcodesProperties;
+    private final TraceMemoryBudget traceMemoryBudget;
     private final MeterRegistry meterRegistry;
     private Counter opcodesCounter;
     private Counter memoryWordsCounter;
@@ -96,20 +97,26 @@ public class OpcodeServiceImpl implements OpcodeService {
         return ContractCallContext.run(ctx -> {
             ctx.setApi(OPCODES);
             final var params = buildCallServiceParameters(opcodeRequest.getTransactionIdOrHashParameter());
-            final var opcodeContext = new OpcodeContext(opcodeRequest, (int) params.getGas() / 3, opcodesProperties);
+            final var opcodeContext =
+                    new OpcodeContext(opcodeRequest, (int) params.getGas() / 3, opcodesProperties, traceMemoryBudget);
 
             ctx.setOpcodeContext(opcodeContext);
 
-            final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
-            opcodesCounter.increment(opcodeContext.getExecutedOpcodes());
-            memoryWordsCounter.increment(opcodeContext.getCapturedMemoryWords());
-            stackCounter.increment(opcodeContext.getCapturedStack());
-            storageCounter.increment(opcodeContext.getCapturedStorage());
-            return buildOpcodesResponse(result, params.getConsensusTimestamp());
+            try {
+                final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
+                return buildOpcodesResponse(result, params.getConsensusTimestamp());
+            } finally {
+                // Recorded regardless of outcome, so a failed trace's captured memory/stack/storage isn't missed.
+                opcodesCounter.increment(opcodeContext.getExecutedOpcodes());
+                memoryWordsCounter.increment(opcodeContext.getCapturedMemoryWords());
+                stackCounter.increment(opcodeContext.getCapturedStack());
+                storageCounter.increment(opcodeContext.getCapturedStorage());
+                opcodeContext.releaseReservedBudget();
+            }
         });
     }
 
-    protected ContractDebugParameters buildCallServiceParameters(
+    private ContractDebugParameters buildCallServiceParameters(
             @NonNull TransactionIdOrHashParameter transactionIdOrHash) {
         final Long consensusTimestamp;
         final Transaction transaction;
@@ -132,17 +139,19 @@ public class OpcodeServiceImpl implements OpcodeService {
                 final var validStartNs = convertToNanosMax(transactionId.validStart());
                 final var payerAccountId = transactionId.payerAccountId();
 
-                transaction = transactionRepository
-                        .findByTransactionId(
-                                payerAccountId.getId(),
-                                validStartNs,
-                                validStartNs,
-                                validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS)
-                        .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + transactionId));
+                final var transactionList =
+                        transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
+                                payerAccountId, validStartNs);
+                if (transactionList.isEmpty()) {
+                    throw new EntityNotFoundException("Transaction not found: " + transactionId);
+                }
 
-                consensusTimestamp = transaction.getConsensusTimestamp();
+                final var parentTransaction = transactionList.getFirst();
+                transaction = parentTransaction;
+                consensusTimestamp = parentTransaction.getConsensusTimestamp();
                 ethereumTransaction = ethereumTransactionRepository
-                        .findByConsensusTimestampAndPayerAccountId(consensusTimestamp, transaction.getPayerAccountId())
+                        .findByConsensusTimestampAndPayerAccountId(
+                                consensusTimestamp, parentTransaction.getPayerAccountId())
                         .orElse(null);
             }
         }

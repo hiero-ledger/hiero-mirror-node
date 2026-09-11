@@ -53,6 +53,7 @@ import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.TraceMemoryBudget;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.ContractDebugService;
@@ -104,6 +105,12 @@ class OpcodesControllerTest extends Web3IntegrationTest {
     @Resource
     private CommonEntityAccessor commonEntityAccessor;
 
+    @Resource
+    private OpcodesProperties opcodesProperties;
+
+    @Resource
+    private TraceMemoryBudget traceMemoryBudget;
+
     @MockitoBean
     private ContractDebugService contractDebugService;
 
@@ -120,23 +127,15 @@ class OpcodesControllerTest extends Web3IntegrationTest {
             new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH);
 
     static Stream<Arguments> transactionsWithDifferentTracerOptions() {
-        final List<OpcodeContext> tracerOptions = List.of(
-                new OpcodeContext(
-                        new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, true), 0, new OpcodesProperties()),
-                new OpcodeContext(
-                        new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, true), 0, new OpcodesProperties()),
-                new OpcodeContext(
-                        new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, true), 0, new OpcodesProperties()),
-                new OpcodeContext(
-                        new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, false), 0, new OpcodesProperties()),
-                new OpcodeContext(
-                        new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, true), 0, new OpcodesProperties()),
-                new OpcodeContext(
-                        new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, false), 0, new OpcodesProperties()),
-                new OpcodeContext(
-                        new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, false), 0, new OpcodesProperties()),
-                new OpcodeContext(
-                        new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, false), 0, new OpcodesProperties()));
+        final List<OpcodeRequest> tracerOptions = List.of(
+                new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, true),
+                new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, true),
+                new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, true),
+                new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, false),
+                new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, true),
+                new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, false),
+                new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, false),
+                new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, false));
         return Arrays.stream(TransactionProviderEnum.values())
                 .flatMap(providerEnum -> tracerOptions.stream().map(options -> Arguments.of(providerEnum, options)));
     }
@@ -369,9 +368,9 @@ class OpcodesControllerTest extends Web3IntegrationTest {
 
     @ParameterizedTest
     @MethodSource("transactionsWithDifferentTracerOptions")
-    void callWithDifferentCombinationsOfTracerOptions(final TransactionProviderEnum providerEnum, OpcodeContext options)
-            throws Exception {
-
+    void callWithDifferentCombinationsOfTracerOptions(
+            final TransactionProviderEnum providerEnum, final OpcodeRequest opcodeRequest) throws Exception {
+        final var options = new OpcodeContext(opcodeRequest, 0, opcodesProperties, traceMemoryBudget);
         final TransactionIdOrHashParameter transactionIdOrHash = persistTransaction(providerEnum);
 
         mockMvc.perform(opcodesRequest(transactionIdOrHash, options))
