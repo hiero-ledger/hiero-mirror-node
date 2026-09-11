@@ -90,6 +90,29 @@ abstract class AbstractStreamFileProviderTest {
         var node = node(3);
         var nodeFileCopier = createDefaultFileCopier();
         nodeFileCopier.copy();
+        var data = streamFileData(node, "2022-07-13T08_46_08.041986003Z.rcd.gz");
+        StepVerifier.create(streamFileProvider.get(data.getStreamFilename()))
+                .thenAwait(Duration.ofSeconds(2L))
+                .expectNext(data)
+                .expectComplete()
+                .verify(Duration.ofSeconds(4000L));
+
+        // Increase data2 1 byte beyond the max size
+        long maxSize = data.getBytes().length;
+        properties.setMaxSize(maxSize);
+        replaceContents(data, Arrays.append(data.getBytes(), (byte) 1));
+
+        StepVerifier.withVirtualTime(() -> streamFileProvider.get(data.getStreamFilename()))
+                .thenAwait(Duration.ofSeconds(10L))
+                .expectError(InvalidDatasetException.class)
+                .verify(Duration.ofSeconds(10L));
+    }
+
+    @Test
+    void getLargeSignatureFile() {
+        var node = node(3);
+        var nodeFileCopier = createDefaultFileCopier();
+        nodeFileCopier.copy();
         var data = streamFileData(node, "2022-07-13T08_46_08.041986003Z.rcd_sig");
         StepVerifier.create(streamFileProvider.get(data.getStreamFilename()))
                 .thenAwait(Duration.ofSeconds(2L))

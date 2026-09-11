@@ -104,11 +104,12 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
                 ? downloaderProperties.getBucketName()
                 : blockProperties.getBucketName();
         final var s3Key = streamFilename.getBucketFilePath();
+        final long maxSize = streamFilename.getFileType() == SIGNATURE ? 2 * 1024 : downloaderProperties.getMaxSize();
         final var request = GetObjectRequest.builder()
                 .bucket(bucketName)
                 .key(s3Key)
                 .requestPayer(RequestPayer.REQUESTER)
-                .range(RANGE_PREFIX + (downloaderProperties.getMaxSize() - 1))
+                .range(RANGE_PREFIX + (maxSize - 1))
                 .build();
         return Mono.fromFuture(s3Client.getObject(request, AsyncResponseTransformer.toBytes()))
                 .map(r -> toStreamFileData(streamFilename, r))

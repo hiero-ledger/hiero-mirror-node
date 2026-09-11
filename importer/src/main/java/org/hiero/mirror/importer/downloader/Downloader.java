@@ -219,7 +219,6 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
                             return streamFileSignature;
                         })
                         .onErrorContinue((e, s) -> log.error("Error downloading signature files for node {}", node, e)))
-                .timeout(downloaderProperties.getCommon().getTimeout())
                 .collect(this::getStreamFileSignatureMultiMap, (map, s) -> map.put(s.getFilename(), s))
                 .subscribeOn(Schedulers.parallel())
                 .block());

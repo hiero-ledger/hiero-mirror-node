@@ -1031,7 +1031,7 @@ public class BlockTransactionBuilder {
                 .setHighVolumePricingMultiplier(transactionRecord.getHighVolumePricingMultiplier())
                 .setTransferList(transactionRecord.getTransferList())
                 .setTransactionFeeCharged(transactionRecord.getTransactionFee())
-                .setStatus(transactionRecord.getReceipt().getStatus())
+                .setStatusValue(transactionRecord.getReceipt().getStatusValue())
                 .build();
     }
 
