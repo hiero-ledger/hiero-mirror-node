@@ -16,18 +16,18 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERRO
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
-import static org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1.CONTEXT;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
+import com.hedera.cryptography.libsecp256k1.ContextualLibsecp256k1;
+import com.hedera.cryptography.libsecp256k1.Libsecp256k1;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
-import com.sun.jna.ptr.IntByReference;
 import com.swirlds.state.State;
 import jakarta.annotation.Resource;
+import java.lang.foreign.MemorySegment;
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -71,7 +71,6 @@ import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.TestWeb3jService;
 import org.hiero.mirror.web3.web3j.TestWeb3jService.Web3jTestConfiguration;
 import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.context.annotation.Import;
@@ -138,21 +137,33 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @param privateKey  - private key used to sign the message
      */
     // Sign message with ECDSA private key
-    protected static byte[] signMessageECDSA(final byte[] messageHash, byte[] privateKey) {
-        final LibSecp256k1.secp256k1_ecdsa_recoverable_signature signature =
-                new LibSecp256k1.secp256k1_ecdsa_recoverable_signature();
-        LibSecp256k1.secp256k1_ecdsa_sign_recoverable(CONTEXT, signature, messageHash, privateKey, null, null);
+    protected static byte[] signMessageECDSA(final byte[] messageHash, final byte[] privateKey) {
+        final var lib = ContextualLibsecp256k1.getInstance();
+        final var secretKey = Numeric.toBytesPadded(new BigInteger(1, privateKey), Libsecp256k1.SECRET_KEY_BYTES);
+        final var signature = new byte[Libsecp256k1.RECOVERABLE_SIGNATURE_BYTES];
+        if (lib.secp256k1EcdsaSignRecoverable(
+                        MemorySegment.ofArray(signature),
+                        MemorySegment.ofArray(messageHash),
+                        MemorySegment.ofArray(secretKey),
+                        MemorySegment.NULL,
+                        MemorySegment.NULL)
+                != 1) {
+            throw new IllegalArgumentException("Could not sign message");
+        }
 
-        final ByteBuffer compactSig = ByteBuffer.allocate(64);
-        final IntByReference recId = new IntByReference(0);
-        LibSecp256k1.secp256k1_ecdsa_recoverable_signature_serialize_compact(
-                LibSecp256k1.CONTEXT, compactSig, recId, signature);
-        compactSig.flip();
-        final byte[] sig = compactSig.array();
+        final var compactSig = new byte[64];
+        final var recId = new int[1];
+        if (lib.secp256k1EcdsaRecoverableSignatureSerializeCompact(
+                        MemorySegment.ofArray(compactSig),
+                        MemorySegment.ofArray(recId),
+                        MemorySegment.ofArray(signature))
+                != 1) {
+            throw new IllegalArgumentException("Could not serialize signature");
+        }
 
-        final byte[] result = new byte[65];
-        System.arraycopy(sig, 0, result, 0, 64);
-        result[64] = (byte) (recId.getValue() + 27);
+        final var result = new byte[65];
+        System.arraycopy(compactSig, 0, result, 0, 64);
+        result[64] = (byte) (recId[0] + 27);
         return result;
     }
 
