@@ -82,4 +82,23 @@ final class CommonTransformerTest extends AbstractTransformerTest {
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).isEmpty());
     }
+
+    @Test
+    void unknownStatusValue() {
+        // given
+        final var expected = recordItemBuilder
+                .cryptoTransfer()
+                .receipt(r -> r.setStatusValue(Integer.MAX_VALUE))
+                .customize(this::finalize)
+                .build();
+        final var blockTransaction =
+                blockTransactionBuilder.defaultBlockItem(expected).build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expected));
+    }
 }

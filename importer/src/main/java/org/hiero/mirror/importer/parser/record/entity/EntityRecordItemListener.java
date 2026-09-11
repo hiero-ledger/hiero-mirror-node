@@ -6,7 +6,6 @@ import static org.hiero.mirror.common.domain.token.NftTransfer.WILDCARD_SERIAL_N
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.UnknownFieldSet;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -18,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -211,7 +209,7 @@ public class EntityRecordItemListener implements RecordItemListener {
                         : null);
         transaction.setType(recordItem.getTransactionType());
         transaction.setValidDurationSeconds(validDurationSeconds);
-        transaction.setValidStartNs(DomainUtils.timeStampInNanos(transactionId.getTransactionValidStart()));
+        transaction.setValidStartNs(DomainUtils.timestampInNanosMax(transactionId.getTransactionValidStart()));
 
         if (txRecord.hasParentConsensusTimestamp()) {
             transaction.setParentConsensusTimestamp(
@@ -665,25 +663,25 @@ public class EntityRecordItemListener implements RecordItemListener {
                     signature = signaturePair.getRSA3072();
                     break;
                 case SIGNATURE_NOT_SET:
-                    Map<Integer, UnknownFieldSet.Field> unknownFields =
-                            signaturePair.getUnknownFields().asMap();
+                    final var unknownFields = signaturePair.getUnknownFields().asMap();
 
                     // If we encounter a signature that our version of the protobuf does not yet support, it will
                     // return SIGNATURE_NOT_SET. Hence we should look in the unknown fields for the new signature.
                     // ByteStrings are stored as length-delimited on the wire, so we search the unknown fields for a
                     // field that has exactly one length-delimited value and assume it's our new signature bytes.
-                    for (Map.Entry<Integer, UnknownFieldSet.Field> entry : unknownFields.entrySet()) {
-                        UnknownFieldSet.Field field = entry.getValue();
-                        if (field.getLengthDelimitedList().size() == 1) {
+                    for (final var entry : unknownFields.entrySet()) {
+                        final var field = entry.getValue();
+                        final var key = entry.getKey();
+
+                        if (field.getLengthDelimitedList().size() == 1 && key != null && DomainUtils.isSmallint(key)) {
                             signature = field.getLengthDelimitedList().get(0);
-                            type = entry.getKey();
+                            type = DomainUtils.toSmallint(key);
                             break;
                         }
                     }
 
                     if (signature == null) {
-                        Utility.handleRecoverableError(
-                                "Unsupported signature at {}: {}", consensusTimestamp, unknownFields);
+                        Utility.handleRecoverableError("Unsupported signature at {}", consensusTimestamp);
                         continue;
                     }
                     break;
