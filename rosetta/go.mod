@@ -7,7 +7,7 @@ require (
 	github.com/coinbase/rosetta-sdk-go v0.12.0
 	github.com/coinbase/rosetta-sdk-go/types v1.7.2
 	github.com/cucumber/godog v0.16.0
-	github.com/go-playground/validator/v10 v10.30.3
+	github.com/go-playground/validator/v10 v10.30.4
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/hellofresh/health-go/v4 v4.7.0
 	github.com/hiero-ledger/hiero-sdk-go/v2 v2.84.0
@@ -52,7 +52,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
@@ -77,7 +77,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
