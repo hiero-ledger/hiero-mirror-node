@@ -8,6 +8,8 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_ALIAS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_EVM_ADDRESS;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.springframework.cache.annotation.Cacheable;
@@ -133,6 +135,45 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
     Optional<Entity> findActiveByEvmAddressOrAliasAndTimestamp(byte[] alias, long blockTimestamp);
 
     /**
+     * Retrieves the most recent state of each entity matching any of the given evm addresses or aliases up to a given
+     * block timestamp. Address resolution uses the current {@code entity} row (the same source as
+     * {@link #findActiveByEvmAddressOrAliasAndTimestamp(byte[], long)}), then the newest non-deleted version active at
+     * or before the block timestamp is taken from {@code entity} or {@code entity_history}.
+     *
+     * @param addresses      the evm addresses or aliases to look up.
+     * @param blockTimestamp the block timestamp used to filter the results.
+     * @return the list of active entities (at most one per resolved entity ID); addresses with no active version are
+     *     omitted.
+     */
+    @Query(value = """
+            with entity_cte as (
+                select id
+                from entity
+                where created_timestamp <= ?2 and (evm_address in ?1 or alias in ?1)
+            )
+            select distinct on (id) *
+            from (
+                (
+                    select *
+                    from entity
+                    where id in (select id from entity_cte)
+                    and deleted is not true
+                    and lower(timestamp_range) <= ?2
+                )
+                union all
+                (
+                    select *
+                    from entity_history
+                    where id in (select id from entity_cte)
+                    and deleted is not true
+                    and lower(timestamp_range) <= ?2
+                )
+            ) as merged
+            order by id, lower(timestamp_range) desc
+            """, nativeQuery = true)
+    List<Entity> findActiveByEvmAddressesOrAliasesAndTimestamp(Collection<byte[]> addresses, long blockTimestamp);
+
+    /**
      * Retrieves the state of an entity by its ID at a given block timestamp.
      * The method considers both the current state of the entity and its historical states,
      * selecting the row whose timestamp_range contains the block timestamp, and returns it only
@@ -166,6 +207,36 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     limit 1
                     """, nativeQuery = true)
     Optional<Entity> findActiveByIdAndTimestamp(long id, long blockTimestamp);
+
+    /**
+     * Retrieves the most recent state of each requested entity by ID up to a given block timestamp.
+     * Returns at most one row per ID (the newest non-deleted version active at or before the block timestamp),
+     * consolidating the current {@code entity} row and any matching {@code entity_history} rows.
+     *
+     * @param ids            the entity IDs to look up.
+     * @param blockTimestamp the block timestamp used to filter results.
+     * @return the list of active entities (at most one per requested ID); IDs with no active version are omitted.
+     */
+    @Query(value = """
+                    select distinct on (id) *
+                    from (
+                        (
+                            select *
+                            from entity
+                            where id in ?1 and lower(timestamp_range) <= ?2
+                            and deleted is not true
+                        )
+                        union all
+                        (
+                            select *
+                            from entity_history
+                            where id in ?1 and lower(timestamp_range) <= ?2
+                            and deleted is not true
+                        )
+                    ) as merged
+                    order by id, lower(timestamp_range) desc
+                    """, nativeQuery = true)
+    List<Entity> findActiveByIdsAndTimestamp(Collection<Long> ids, long blockTimestamp);
 
     @Query(value = """
                     select id

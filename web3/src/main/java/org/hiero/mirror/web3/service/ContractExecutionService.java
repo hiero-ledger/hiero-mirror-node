@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.service;
 
-import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.CALL;
+import static org.hiero.mirror.web3.ApiEndpointName.CALL;
 import static org.hiero.mirror.web3.state.Utils.parseHex;
 
 import com.google.common.base.Stopwatch;
