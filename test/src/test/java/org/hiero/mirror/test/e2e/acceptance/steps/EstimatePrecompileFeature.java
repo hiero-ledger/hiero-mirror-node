@@ -2209,7 +2209,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         UPDATE_TOKEN_EXPIRY("updateTokenExpiryInfoExternal", 39699, MUTABLE),
         UPDATE_TOKEN_INFO("updateTokenInfoExternal", 74920, MUTABLE),
         UPDATE_TOKEN_KEYS("updateTokenKeysExternal", 480_000, MUTABLE),
-        WIPE_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", 101170, MUTABLE),
+        WIPE_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", 94750, MUTABLE),
         WIPE_NFT_ACCOUNT("wipeTokenAccountNFTExternal", 40394, MUTABLE),
         WIPE_NFT_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", 101792, MUTABLE),
         WIPE_TOKEN_ACCOUNT("wipeTokenAccountExternal", 39496, MUTABLE);
