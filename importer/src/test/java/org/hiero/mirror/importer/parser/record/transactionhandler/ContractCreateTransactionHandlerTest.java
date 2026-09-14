@@ -298,6 +298,31 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    void updateTransactionInvalidProxyAccountId() {
+        var invalidProxy =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        var recordItem = recordItemBuilder
+                .contractCreate()
+                .transactionBody(b -> b.clearAutoRenewAccountId().setProxyAccountID(invalidProxy))
+                .build();
+        var contractId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getContractID());
+        var timestamp = recordItem.getConsensusTimestamp();
+        var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
+                .get();
+
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        verify(entityListener).onEntity(entityCaptor.capture());
+        assertThat(entityCaptor.getValue()).isNotNull().returns(null, Entity::getProxyAccountId);
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
     @Test
     void updateTransactionMissingKey() {
         // given
@@ -828,7 +853,7 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
                 transaction,
                 autoRenewAccountId,
                 EntityId.of(body.getFileID()),
-                EntityId.of(body.getProxyAccountID()),
+                EntityId.tryOf(body.getProxyAccountID()),
                 EntityId.of(body.getStakedAccountId()));
     }
 
