@@ -437,6 +437,19 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                         c -> assertThat(EntityId.isEmpty(c.getProxyAccountId())).isFalse()));
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    void updateTransactionInvalidProxyAccountId() {
+        var invalidProxy =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        var recordItem = recordItemBuilder
+                .contractUpdate()
+                .recordItem(r -> r.hapiVersion(new Version(0, 28, 0)))
+                .transactionBody(body -> body.setProxyAccountID(invalidProxy))
+                .build();
+        setupForContractUpdateTransactionTest(recordItem, t -> assertThat(t).returns(null, Entity::getProxyAccountId));
+    }
+
     @Test
     void updateTransactionSuccessfulWithNoUpdate() {
         var recordItem = recordItemBuilder
@@ -497,7 +510,7 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 transaction,
                 autoRenewAccountId,
                 EntityId.of(body.getStakedAccountId()),
-                EntityId.of(body.getProxyAccountID()));
+                EntityId.tryOf(body.getProxyAccountID()));
     }
 
     private void setupForContractUpdateTransactionTest(RecordItem recordItem, Consumer<Entity> extraAssertions) {

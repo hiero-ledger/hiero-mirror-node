@@ -786,6 +786,52 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                 .containsOnly(accountId1);
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    void cryptoCreateInvalidProxyAccountId() {
+        var invalidProxy =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        var recordItem = recordItemBuilder
+                .cryptoCreate()
+                .recordItem(r -> r.hapiVersion(RecordFile.HAPI_VERSION_0_27_0))
+                .transactionBody(b -> b.setProxyAccountID(invalidProxy))
+                .build();
+        var accountId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
+
+        parseRecordItemAndCommit(recordItem);
+
+        assertThat(transactionRepository.count()).isEqualTo(1L);
+        assertThat(entityRepository.findById(accountId.getId()))
+                .get()
+                .returns(null, Entity::getProxyAccountId)
+                .returns(EntityType.ACCOUNT, Entity::getType);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    void cryptoUpdateInvalidProxyAccountId() {
+        createAccount();
+
+        var invalidProxy =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        var transaction = cryptoUpdateTransaction(accountId1.toAccountID(), b -> b.setProxyAccountID(invalidProxy));
+        var transactionBody = getTransactionBody(transaction);
+        var txnRecord = transactionRecordSuccess(transactionBody);
+
+        parseRecordItemAndCommit(RecordItem.builder()
+                .hapiVersion(RecordFile.HAPI_VERSION_0_27_0)
+                .transactionRecord(txnRecord)
+                .transaction(transaction)
+                .build());
+
+        assertThat(transactionRepository.count()).isEqualTo(2L);
+        assertThat(entityRepository.findById(accountId1.getId()))
+                .get()
+                .returns("CryptoUpdateAccount memo", Entity::getMemo)
+                .returns(EntityId.of(PROXY), Entity::getProxyAccountId);
+    }
+
     // Transactions in production have proxyAccountID explicitly set to '0.0.0'. Test is to prevent code regression
     // in handling this weird case.
     @SuppressWarnings("deprecation")
