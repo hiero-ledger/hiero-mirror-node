@@ -2106,7 +2106,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Getter
     @RequiredArgsConstructor
     public enum ContractMethods implements ContractMethodInterface {
-        ALLOWANCE("allowanceExternal", 28778, MUTABLE),
+        ALLOWANCE("allowanceExternal", 27163, MUTABLE),
         ALLOWANCE_ERC("allowance", 28982, VIEW),
         APPROVE("approveExternal", 729571, MUTABLE),
         APPROVE_NFT("approveNFTExternal", 729569, MUTABLE),
@@ -2117,7 +2117,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         APPROVE_NFT_TOKEN_AND_TRANSFER_FROM("approveNftAndTransfer", 830000, MUTABLE),
         ASSOCIATE_TOKEN("associateTokenExternal", 729374, MUTABLE),
         ASSOCIATE_TOKENS("associateTokensExternal", 1336847, MUTABLE),
-        BALANCE_OF("balanceOf", 30277, VIEW),
+        BALANCE_OF("balanceOf", 28526, VIEW),
         BALANCE_OF_NFT("balanceOfIERC721", 27228, VIEW),
         BURN_TOKEN("burnTokenExternal", 40247, MUTABLE),
         BURN_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("burnTokenGetTotalSupplyAndBalanceOfTreasury", 71570, MUTABLE),
@@ -2139,7 +2139,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         EXCHANGE_RATE_TINYCENTS_TO_TINYBARS("tinycentsToTinybars", 24833, MUTABLE),
         EXCHANGE_RATE_TINYBARS_TO_TINYCENTS("tinybarsToTinycents", 24811, MUTABLE),
         FREEZE_TOKEN("freezeTokenExternal", 39339, MUTABLE),
-        FREEZE_UNFREEZE_GET_STATUS("freezeTokenGetFreezeStatusUnfreezeGetFreezeStatus", 65626, MUTABLE),
+        FREEZE_UNFREEZE_GET_STATUS("freezeTokenGetFreezeStatusUnfreezeGetFreezeStatus", 62214, MUTABLE),
         GET_APPROVED("getApprovedExternal", 27680, MUTABLE),
         GET_APPROVED_ERC("getApproved", 28368, VIEW),
         GET_FUNGIBLE_TOKEN_INFO("getInformationForFungibleToken", 56456, VIEW),
@@ -2170,7 +2170,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         PAUSE_TOKEN("pauseTokenExternal", 39112, MUTABLE),
         PAUSE_UNPAUSE_GET_STATUS("pauseTokenGetPauseStatusUnpauseGetPauseStatus", 98345, MUTABLE),
         PAUSE_UNPAUSE_NESTED_TOKEN("nestedPauseUnpauseTokenExternal", 54237, MUTABLE),
-        PSEUDO_RANDOM_NUMBER("getPseudorandomNumber", 40666, MUTABLE),
+        PSEUDO_RANDOM_NUMBER("getPseudorandomNumber", 38779, MUTABLE),
         PSEUDO_RANDOM_SEED("getPseudorandomSeed", 36270, MUTABLE),
         REVOKE_KYC("revokeTokenKycExternal", 39324, MUTABLE),
         REDIRECT_FOR_TOKEN_ALLOWANCE("allowanceRedirect", 33182, MUTABLE),
