@@ -2157,7 +2157,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         IS_FROZEN("isTokenFrozen", 26949, MUTABLE),
         IS_KYC("isKycGranted", 26961, MUTABLE),
         IS_TOKEN("isTokenExternal", 27450, MUTABLE),
-        MINT_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("mintTokenGetTotalSupplyAndBalanceOfTreasury", 76875, MUTABLE),
+        MINT_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("mintTokenGetTotalSupplyAndBalanceOfTreasury", 71969, MUTABLE),
         MINT_NFT("mintTokenExternal", 309748, MUTABLE),
         MINT_NFT_GET_TOTAL_SUPPLY_AND_BALANCE("mintTokenGetTotalSupplyAndBalanceOfTreasury", 335855, MUTABLE),
         MINT_TOKEN("mintTokenExternal", 40700, MUTABLE),
