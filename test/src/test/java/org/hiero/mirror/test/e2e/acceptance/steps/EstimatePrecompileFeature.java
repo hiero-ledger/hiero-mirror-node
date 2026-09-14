@@ -2120,7 +2120,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         BALANCE_OF("balanceOf", 30277, VIEW),
         BALANCE_OF_NFT("balanceOfIERC721", 27228, VIEW),
         BURN_TOKEN("burnTokenExternal", 40247, MUTABLE),
-        BURN_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("burnTokenGetTotalSupplyAndBalanceOfTreasury", 76413, MUTABLE),
+        BURN_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("burnTokenGetTotalSupplyAndBalanceOfTreasury", 71570, MUTABLE),
         BURN_NFT_GET_TOTAL_SUPPLY_AND_BALANCE("burnTokenGetTotalSupplyAndBalanceOfTreasury", 66886, MUTABLE),
         CREATE_FUNGIBLE_TOKEN("createFungibleTokenPublic", 192752, PAYABLE),
         CREATE_FUNGIBLE_TOKEN_WITH_CUSTOM_FEES("createFungibleTokenWithCustomFeesPublic", 176628, PAYABLE),
