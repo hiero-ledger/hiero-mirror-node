@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.throttle;
 
 import static org.hiero.mirror.web3.config.ThrottleConfiguration.GAS_LIMIT_BUCKET;
-import static org.hiero.mirror.web3.config.ThrottleConfiguration.OPCODE_RATE_LIMIT_BUCKET;
 import static org.hiero.mirror.web3.config.ThrottleConfiguration.RATE_LIMIT_BUCKET;
 
 import io.github.bucket4j.Bucket;
@@ -28,9 +27,6 @@ final class ThrottleManagerImpl implements ThrottleManager {
     @Qualifier(RATE_LIMIT_BUCKET)
     private final Bucket rateLimitBucket;
 
-    @Qualifier(OPCODE_RATE_LIMIT_BUCKET)
-    private final Bucket opcodeRateLimitBucket;
-
     private final ThrottleProperties throttleProperties;
 
     @Override
@@ -45,13 +41,6 @@ final class ThrottleManagerImpl implements ThrottleManager {
             if (requestFilter.test(request)) {
                 action(requestFilter, request);
             }
-        }
-    }
-
-    @Override
-    public void throttleOpcodeRequest() {
-        if (!opcodeRateLimitBucket.tryConsume(1)) {
-            throw new ThrottleException(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
         }
     }
 
