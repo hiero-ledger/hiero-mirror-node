@@ -537,8 +537,7 @@ class ContractController extends BaseController {
       conditions.push(`${ContractResult.getFullName(ContractResult.TRANSACTION_NONCE)} = 0`);
     }
 
-    const includeSynthetic =
-      config.query.syntheticContractResults && contractId === undefined && contractResultFromInValues.length === 0;
+    const includeSynthetic = config.query.syntheticContractResults && contractResultFromInValues.length === 0;
 
     return {
       conditions,
@@ -880,7 +879,10 @@ class ContractController extends BaseController {
     if (contractId == null) {
       return;
     }
-    const {conditions, params, order, limit, skip} = await this.extractContractResultsByIdQuery(filters, contractId);
+    const {conditions, includeSynthetic, params, order, limit, skip} = await this.extractContractResultsByIdQuery(
+      filters,
+      contractId
+    );
     if (skip) {
       return;
     }
@@ -888,7 +890,13 @@ class ContractController extends BaseController {
     conditions.push(nonEvmTransactionResultsCondition);
     conditions.push(nonNullTransactionIndexCondition);
 
-    const rows = await ContractService.getContractResultsByIdAndFilters(conditions, params, order, limit);
+    const rows = await ContractService.getContractResultsByIdAndFilters(
+      conditions,
+      params,
+      order,
+      limit,
+      includeSynthetic
+    );
     if (rows.length === 0) {
       return;
     }
