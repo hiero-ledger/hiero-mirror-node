@@ -43,6 +43,23 @@ hex_equal() {
   [[ "${a,,}" == "${b,,}" ]]
 }
 
+# True when eth_call replay matches the original contract result.
+# A consensus CONTRACT_REVERT_EXECUTED with a successful eth_call is not reproducible.
+is_reproducible_replay() {
+  local result_json="$1"
+  local http_code="$2"
+  local replay_body="$3"
+  local expected_result replay_result original_status
+
+  expected_result="$(jq -r '.call_result // empty' <<<"${result_json}")"
+  replay_result="$(jq -r '.result // empty' <<<"${replay_body}")"
+  original_status="$(jq -r '.result // empty' <<<"${result_json}")"
+
+  [[ "${http_code}" == "200" ]] \
+    && hex_equal "${expected_result}" "${replay_result}" \
+    && [[ "${original_status}" != "CONTRACT_REVERT_EXECUTED" ]]
+}
+
 # Sets http_code and body for a /contracts/call POST.
 post_contracts_call() {
   local request_body="$1"
@@ -256,12 +273,10 @@ check_result() {
     break
   done
 
-  local replay_request expected_result replay_result
+  local replay_request
   replay_request="$(jq -c '.estimate = false' <<<"${request}")"
   post_contracts_call "${replay_request}"
-  expected_result="$(jq -r '.call_result // empty' <<<"${result_json}")"
-  replay_result="$(jq -r '.result // empty' <<<"${body}")"
-  if [[ "${http_code}" != "200" ]] || ! hex_equal "${expected_result}" "${replay_result}"; then
+  if ! is_reproducible_replay "${result_json}" "${http_code}" "${body}"; then
     nonReproducable=$((nonReproducable + 1))
     return 0
   fi
