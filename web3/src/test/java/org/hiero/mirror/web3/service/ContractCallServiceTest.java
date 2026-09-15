@@ -10,6 +10,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_CONTRA
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.FILECREATE;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
@@ -35,10 +36,20 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Range;
+import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.state.token.Account;
+import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hedera.services.utils.EntityIdUtils;
+import com.hederahashgraph.api.proto.java.ExchangeRate;
+import com.hederahashgraph.api.proto.java.ExchangeRateSet;
+import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
@@ -46,7 +57,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.base.utility.CommonUtils;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -77,6 +90,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.web3j.abi.FunctionReturnDecoder;
@@ -1486,6 +1501,180 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             assertThat(capturedNonce.get()).isEqualTo(42L);
             assertThat(capturedNonce.get()).isNotEqualTo(account.getEthereumNonce());
             assertThat(result.gasUsed()).isPositive();
+        }
+    }
+
+    @Nested
+    class GasAccuracyEstimateWithProductionState {
+
+        private static final V0490FileSchema FILE_SCHEMA = new V0490FileSchema();
+        private static final JsonNode FIXTURE = loadFixture("f55420234f8c8ae7-testnet-state.json");
+
+        @Autowired
+        private JdbcTemplate jdbcTemplate;
+
+        @Test
+        void estimateGasForContractCreationWithValue() {
+            persistCreateState(FIXTURE);
+            final var request = FIXTURE.get("request");
+            final long gasUsed = FIXTURE.get("gas_used").asLong();
+            final var block = BlockType.of(request.get("block").asText());
+            final long estimated =
+                    longValueOf.applyAsLong(contractExecutionService.processCall(contractExecutionParametersBuilder(
+                                    block,
+                                    request.get("data").asText(),
+                                    Address.fromHexString(request.get("from").asText()),
+                                    Address.ZERO,
+                                    ETH_ESTIMATE_GAS,
+                                    request.path("value").asLong(0L))
+                            .gas(request.get("gas").asLong())
+                            .build()));
+
+            assertThat(gasUsed).isEqualTo(165_444L);
+            assertThat(estimated).isEqualTo(179_776L);
+        }
+
+        private void persistCreateState(final JsonNode fixture) {
+            final var block = fixture.get("block");
+            final long consensusStart =
+                    timestampToNanos(block.get("timestamp_from").asText());
+            final long consensusEnd = timestampToNanos(block.get("timestamp_to").asText());
+            final long stateTimestamp = consensusStart - 1L;
+
+            persistSystemFile(systemEntity.exchangeRateFile(), exchangeRateBytes(fixture.get("exchange_rate")), 1L);
+            persistSystemFile(
+                    systemEntity.feeScheduleFile(),
+                    FILE_SCHEMA
+                            .genesisFeeSchedules(evmProperties.getVersionedConfiguration())
+                            .toByteArray(),
+                    2L);
+            persistSystemFile(systemEntity.simpleFeeScheduleFile(), simpleFeeScheduleBytes(), 3L);
+            persistSystemFile(systemEntity.throttleDefinitionFile(), throttleDefinitionBytes(), 4L);
+
+            jdbcTemplate.update("""
+                    update entity
+                    set created_timestamp = ?, timestamp_range = int8range(cast(? as bigint), null)
+                    """, stateTimestamp, stateTimestamp);
+            persistAccountBalance(treasuryEntity.toEntityId(), treasuryEntity.getBalance(), stateTimestamp);
+
+            domainBuilder
+                    .recordFile()
+                    .customize(f -> f.index(block.get("number").asLong())
+                            .consensusStart(consensusStart)
+                            .consensusEnd(consensusEnd)
+                            .hash(block.get("hash").asText())
+                            .previousHash(block.get("previous_hash").asText()))
+                    .persist();
+
+            for (final var account : fixture.get("accounts")) {
+                persistAccount(account, stateTimestamp);
+                persistAccountBalance(
+                        EntityId.of(account.get("account").asText()),
+                        account.path("balance").asLong(0L),
+                        stateTimestamp);
+            }
+        }
+
+        private void persistAccount(final JsonNode account, final long createdTimestamp) {
+            final var entityId = EntityId.of(account.get("account").asText());
+            final var evmAddress = account.has("evm_address")
+                    ? decodeHex(account.get("evm_address").asText())
+                    : null;
+            final var rawKey = decodeHex(account.path("key").asText(""));
+            final byte[] key = rawKey.length == 33
+                    ? Key.newBuilder()
+                            .setECDSASecp256K1(ByteString.copyFrom(rawKey))
+                            .build()
+                            .toByteArray()
+                    : rawKey;
+            domainBuilder
+                    .entity(entityId)
+                    .customize(e -> e.type(EntityType.ACCOUNT)
+                            .alias(evmAddress)
+                            .evmAddress(evmAddress)
+                            .key(key)
+                            .balance(account.path("balance").asLong(0L))
+                            .createdTimestamp(createdTimestamp)
+                            .timestampRange(Range.atLeast(createdTimestamp))
+                            .deleted(false)
+                            .receiverSigRequired(false)
+                            .maxAutomaticTokenAssociations(-1))
+                    .persist();
+        }
+
+        private void persistAccountBalance(final EntityId entityId, final long balance, final long timestamp) {
+            domainBuilder
+                    .accountBalance()
+                    .customize(ab ->
+                            ab.id(new AccountBalance.Id(timestamp, entityId)).balance(balance))
+                    .persist();
+        }
+
+        private void persistSystemFile(final EntityId fileId, final byte[] contents, final long consensusTimestamp) {
+            domainBuilder
+                    .fileData()
+                    .customize(f -> f.entityId(fileId)
+                            .fileData(contents)
+                            .transactionType(FILECREATE.getProtoId())
+                            .consensusTimestamp(consensusTimestamp))
+                    .persist();
+        }
+
+        private static byte[] simpleFeeScheduleBytes() {
+            try (final var in = ContractCallServiceTest.class.getResourceAsStream(
+                    "/gas-estimate-accuracy/simpleFeesSchedules.json")) {
+                final var schedule = org.hiero.hapi.support.fees.FeeSchedule.JSON.parse(
+                        com.hedera.pbj.runtime.io.buffer.Bytes.wrap(in.readAllBytes()));
+                return org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF
+                        .toBytes(schedule)
+                        .toByteArray();
+            } catch (final Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        private static byte[] throttleDefinitionBytes() {
+            try (final var in = ContractCallServiceTest.class.getResourceAsStream(
+                    "/gas-estimate-accuracy/testnet-throttles.json")) {
+                return V0490FileSchema.parseThrottleDefinitions(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+            } catch (final Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        private static byte[] exchangeRateBytes(final JsonNode rates) {
+            return ExchangeRateSet.newBuilder()
+                    .setCurrentRate(toExchangeRate(rates.get("current_rate")))
+                    .setNextRate(toExchangeRate(rates.get("next_rate")))
+                    .build()
+                    .toByteArray();
+        }
+
+        private static ExchangeRate toExchangeRate(final JsonNode rate) {
+            return ExchangeRate.newBuilder()
+                    .setCentEquiv(rate.get("cent_equivalent").asInt())
+                    .setHbarEquiv(rate.get("hbar_equivalent").asInt())
+                    .setExpirationTime(TimestampSeconds.newBuilder()
+                            .setSeconds(rate.get("expiration_time").asLong()))
+                    .build();
+        }
+
+        private static JsonNode loadFixture(final String filename) {
+            try (final var in =
+                    ContractCallServiceTest.class.getResourceAsStream("/gas-estimate-accuracy/" + filename)) {
+                return new ObjectMapper().readTree(in);
+            } catch (final Exception e) {
+                throw new ExceptionInInitializerError(e);
+            }
+        }
+
+        private static byte[] decodeHex(final String hex) {
+            return Hex.decode(hex.startsWith(HEX_PREFIX) ? hex.substring(HEX_PREFIX.length()) : hex);
+        }
+
+        private static long timestampToNanos(final String timestamp) {
+            final var parts = timestamp.split("\\.");
+            return Long.parseLong(parts[0]) * 1_000_000_000L + Long.parseLong(parts[1]);
         }
     }
 }

@@ -47,6 +47,7 @@ import org.jspecify.annotations.NonNull;
 public class AccountReadableKVState extends AbstractAliasedAccountReadableKVState<AccountID, Account> {
 
     public static final int STATE_ID = ACCOUNTS_STATE_ID;
+    private static final long NON_EMPTY_SYSTEM_ACCOUNT_BALANCE = 1L;
 
     private final CommonEntityAccessor commonEntityAccessor;
     private final AliasedAccountCacheManager aliasedAccountCacheManager;
@@ -85,7 +86,11 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
     @Override
     protected Account readFromDataSource(@NonNull AccountID key) {
         if (!ContractCallContext.isBalanceCallSafe() && systemAccounts.contains(key)) {
-            return getDummySystemAccountIfApplicable(key).orElse(null);
+            return getDummySystemAccountIfApplicable(key)
+                    .map(account -> account.copyBuilder()
+                            .tinybarBalance(NON_EMPTY_SYSTEM_ACCOUNT_BALANCE)
+                            .build())
+                    .orElse(null);
         }
 
         final var context = ContractCallContext.get();
