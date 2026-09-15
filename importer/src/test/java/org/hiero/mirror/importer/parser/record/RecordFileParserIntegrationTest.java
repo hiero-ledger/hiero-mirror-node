@@ -5,7 +5,10 @@ package org.hiero.mirror.importer.parser.record;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.DEFAULT_GAS_USED;
 
+import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.TokenTransferList;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -16,6 +19,7 @@ import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
@@ -24,6 +28,7 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.domain.RecordFileBuilder;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
+import org.hiero.mirror.importer.repository.ContractResultRepository;
 import org.hiero.mirror.importer.repository.CryptoTransferRepository;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -34,10 +39,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.connection.ReactiveSubscription.Message;
 import org.springframework.data.redis.core.ReactiveRedisOperations;
+import org.springframework.data.util.Version;
 import reactor.test.StepVerifier;
 
 @RequiredArgsConstructor
 class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
+
+    private static final Version HAPI_0_70 = new Version(0, 70, 0);
+    private static final ContractID HOOK_CONTRACT_ID =
+            ContractID.newBuilder().setContractNum(RecordItem.HOOK_CONTRACT_NUM).build();
+    private static final ContractID HTS_PRECOMPILE_CONTRACT_ID =
+            ContractID.newBuilder().setContractNum(0x167).build();
 
     private final CryptoTransferRepository cryptoTransferRepository;
     private final EntityRepository entityRepository;
@@ -48,6 +60,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
     private final RecordFileRepository recordFileRepository;
     private final TransactionRepository transactionRepository;
     private final ContractLogRepository contractLogRepository;
+    private final ContractResultRepository contractResultRepository;
 
     @BeforeEach
     void setup() {
@@ -350,6 +363,46 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void parseHookDrivenTransferWithEmptyFileBloom() {
+        final var items = hookDrivenTransferItems();
+        final var recordFile = recordFileWithItems(items, null);
+
+        recordFileParser.parse(recordFile);
+
+        assertRecordFile(recordFile);
+        final var updatedRecordFile =
+                recordFileRepository.findById(recordFile.getConsensusEnd()).orElseThrow();
+        final var hookContractResult = contractResultRepository
+                .findById(items.get(1).getConsensusTimestamp())
+                .orElseThrow();
+
+        assertThat(contractLogRepository.findAll()).isNotEmpty();
+        assertThat(updatedRecordFile.getLogsBloom())
+                .hasSize(LogsBloomFilter.BYTE_SIZE)
+                .isNotEqualTo(new byte[LogsBloomFilter.BYTE_SIZE])
+                .isEqualTo(hookContractResult.getBloom());
+    }
+
+    @Test
+    void parseBatchLastFileHasNoTopLevelContractTransactions() {
+        final var firstFileItems = htsPrecompileChildUnderTopLevelContractCall();
+        final var firstFile = recordFileWithItems(firstFileItems, null);
+        final var lastFile = recordFileBuilder
+                .recordFile()
+                .previous(firstFile)
+                .recordItem(TransactionType.CRYPTOTRANSFER)
+                .build();
+
+        recordFileParser.parse(List.of(firstFile, lastFile));
+
+        assertThat(recordFileRepository.findAll()).hasSize(2);
+        assertThat(contractLogRepository.findAll()).isNotEmpty();
+        final var lastPersisted =
+                recordFileRepository.findById(lastFile.getConsensusEnd()).orElseThrow();
+        assertThat(lastPersisted.getLogsBloom()).hasSize(LogsBloomFilter.BYTE_SIZE);
+    }
+
+    @Test
     @EnabledIfV1
     void rollback() {
         // when
@@ -369,6 +422,65 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         // then
         assertRecordFile(recordFile1);
         assertThat(retryRecorder.getRetries(ParserException.class)).isEqualTo(2);
+    }
+
+    private List<RecordItem> hookDrivenTransferItems() {
+        final var topLevel = recordItemBuilder
+                .cryptoTransfer()
+                .recordItem(r -> r.hapiVersion(HAPI_0_70))
+                .build();
+        final var hookCall = recordItemBuilder
+                .contractCall(HOOK_CONTRACT_ID)
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(1))
+                        .setContractCallResult(
+                                ContractFunctionResult.newBuilder().setContractID(HOOK_CONTRACT_ID))
+                        .setParentConsensusTimestamp(
+                                topLevel.getTransactionRecord().getConsensusTimestamp()))
+                .recordItem(r -> r.previous(topLevel).hapiVersion(HAPI_0_70))
+                .build();
+        return List.of(topLevel, hookCall, htsPrecompileChild(topLevel, hookCall, 2));
+    }
+
+    private List<RecordItem> htsPrecompileChildUnderTopLevelContractCall() {
+        final var topLevel = recordItemBuilder
+                .contractCall()
+                .recordItem(r -> r.hapiVersion(HAPI_0_70))
+                .build();
+        return List.of(topLevel, htsPrecompileChild(topLevel, topLevel, 1));
+    }
+
+    private RecordItem htsPrecompileChild(final RecordItem topLevel, final RecordItem previous, final int nonce) {
+        final var tokenTransfers = TokenTransferList.newBuilder()
+                .setToken(recordItemBuilder.tokenId())
+                .addTransfers(recordItemBuilder.accountAmount(recordItemBuilder.accountId(), -100))
+                .addTransfers(recordItemBuilder.accountAmount(recordItemBuilder.accountId(), 100));
+        return recordItemBuilder
+                .contractCall(HTS_PRECOMPILE_CONTRACT_ID)
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(nonce))
+                        .setContractCallResult(
+                                ContractFunctionResult.newBuilder().setContractID(HTS_PRECOMPILE_CONTRACT_ID))
+                        .setParentConsensusTimestamp(
+                                topLevel.getTransactionRecord().getConsensusTimestamp())
+                        .addTokenTransferLists(tokenTransfers))
+                .recordItem(r -> r.previous(previous).hapiVersion(HAPI_0_70))
+                .build();
+    }
+
+    private RecordFile recordFileWithItems(final List<RecordItem> items, final RecordFile previous) {
+        return domainBuilder
+                .recordFile()
+                .customize(r -> {
+                    r.items(items)
+                            .consensusStart(items.getFirst().getConsensusTimestamp())
+                            .consensusEnd(items.getLast().getConsensusTimestamp())
+                            .count((long) items.size())
+                            .sidecarCount(0)
+                            .sidecars(List.of());
+                    if (previous != null) {
+                        r.index(previous.getIndex() + 1).previousHash(previous.getHash());
+                    }
+                })
+                .get();
     }
 
     private void assertRecordFile(RecordFile... recordFiles) {
