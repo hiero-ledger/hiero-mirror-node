@@ -20,6 +20,7 @@ skipped=0
 estimate_reverts=0
 api_errors=0
 page_fetch_failures=0
+nonReproducable=0
 
 log() {
   printf '%s\n' "$*"
@@ -33,6 +34,27 @@ fi
 hex_to_dec() {
   local hex="${1#0x}"
   printf '%d' "0x${hex}"
+}
+
+hex_equal() {
+  local a="${1#0x}" b="${2#0x}"
+  a="${a#0X}"
+  b="${b#0X}"
+  [[ "${a,,}" == "${b,,}" ]]
+}
+
+# Sets http_code and body for a /contracts/call POST.
+post_contracts_call() {
+  local request_body="$1"
+  local tmp
+  tmp="$(mktemp)"
+  http_code="$(curl -sS -o "${tmp}" -w '%{http_code}' \
+    -X POST "${BASE_URL}/api/v1/contracts/call" \
+    -H 'Accept: application/json' \
+    -H 'Content-Type: application/json' \
+    --data "${request_body}" || true)"
+  body="$(cat "${tmp}")"
+  rm -f "${tmp}"
 }
 
 within_tolerance() {
@@ -185,17 +207,9 @@ check_result() {
     return 0
   fi
 
-  local attempt estimated
+  local attempt estimated body http_code
   for attempt in 1 2; do
-    local body http_code response
-    response="$(mktemp)"
-    http_code="$(curl -sS -o "${response}" -w '%{http_code}' \
-      -X POST "${BASE_URL}/api/v1/contracts/call" \
-      -H 'Accept: application/json' \
-      -H 'Content-Type: application/json' \
-      --data "${request}" || true)"
-    body="$(cat "${response}")"
-    rm -f "${response}"
+    post_contracts_call "${request}"
 
     if [[ "${http_code}" != "200" ]]; then
       if ((attempt == 2)); then
@@ -241,6 +255,16 @@ check_result() {
     fi
     break
   done
+
+  local replay_request expected_result replay_result
+  replay_request="$(jq -c '.estimate = false' <<<"${request}")"
+  post_contracts_call "${replay_request}"
+  expected_result="$(jq -r '.call_result // empty' <<<"${result_json}")"
+  replay_result="$(jq -r '.result // empty' <<<"${body}")"
+  if [[ "${http_code}" != "200" ]] || ! hex_equal "${expected_result}" "${replay_result}"; then
+    nonReproducable=$((nonReproducable + 1))
+    return 0
+  fi
 
   failed=$((failed + 1))
   local pct
@@ -319,6 +343,7 @@ summary="$(cat <<EOF
   Executed validation request count: ${checked}
   Passed estimation count: ${passed}
   Out of tolerance estimation count: ${failed}
+  Non reproducable contract results: ${nonReproducable}
   Skipped request count: ${skipped}
   Reverted estimate request count: ${estimate_reverts}
   Errors count outside CONTRACT_REVERT_EXECUTED: ${api_errors}
