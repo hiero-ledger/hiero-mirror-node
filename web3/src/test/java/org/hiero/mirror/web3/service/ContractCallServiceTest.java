@@ -51,12 +51,16 @@ import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
@@ -1509,9 +1513,35 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
         private static final V0490FileSchema FILE_SCHEMA = new V0490FileSchema();
         private static final JsonNode FIXTURE = loadFixture("f55420234f8c8ae7-testnet-state.json");
+        private static final JsonNode DYNAMIC_TRANSFER_TO_STAKING_REWARDS_ACCOUNT =
+                loadFixture("transfer-to-staking-reward-account-previewnet-state.json");
+        private static final byte[] PREVIEWNET_SIMPLE_FEE_SCHEDULE =
+                simpleFeeScheduleBytes("previewnet-simpleFeesSchedules.json");
 
         @Autowired
         private JdbcTemplate jdbcTemplate;
+
+        @Test
+        void estimateGasForDynamicBytesEventWithHbarTransfer() {
+            persistPreviewnetState(DYNAMIC_TRANSFER_TO_STAKING_REWARDS_ACCOUNT);
+            final var request = DYNAMIC_TRANSFER_TO_STAKING_REWARDS_ACCOUNT.get("request");
+            final long gasUsed =
+                    DYNAMIC_TRANSFER_TO_STAKING_REWARDS_ACCOUNT.get("gas_used").asLong();
+            final var block = BlockType.of(request.get("block").asText());
+            final long estimated =
+                    longValueOf.applyAsLong(contractExecutionService.processCall(contractExecutionParametersBuilder(
+                                    block,
+                                    request.get("data").asText(),
+                                    Address.fromHexString(request.get("from").asText()),
+                                    Address.fromHexString(request.get("to").asText()),
+                                    ETH_ESTIMATE_GAS,
+                                    request.path("value").asLong(0L))
+                            .gas(request.get("gas").asLong())
+                            .build()));
+
+            assertThat(gasUsed).isEqualTo(34_187L);
+            assertThat(estimated).isEqualTo(36_073L);
+        }
 
         @Test
         void estimateGasForContractCreationWithValue() {
@@ -1534,7 +1564,21 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             assertThat(estimated).isEqualTo(179_776L);
         }
 
+        private void persistPreviewnetState(final JsonNode fixture) {
+            persistNetworkState(fixture, PREVIEWNET_SIMPLE_FEE_SCHEDULE);
+            final var block = fixture.get("block");
+            final long stateTimestamp =
+                    timestampToNanos(block.get("timestamp_from").asText()) - 1L;
+            for (final var contract : fixture.get("contracts")) {
+                persistContract(contract, stateTimestamp);
+            }
+        }
+
         private void persistCreateState(final JsonNode fixture) {
+            persistNetworkState(fixture, simpleFeeScheduleBytes());
+        }
+
+        private void persistNetworkState(final JsonNode fixture, final byte[] simpleFeeSchedule) {
             final var block = fixture.get("block");
             final long consensusStart =
                     timestampToNanos(block.get("timestamp_from").asText());
@@ -1548,7 +1592,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             .genesisFeeSchedules(evmProperties.getVersionedConfiguration())
                             .toByteArray(),
                     2L);
-            persistSystemFile(systemEntity.simpleFeeScheduleFile(), simpleFeeScheduleBytes(), 3L);
+            persistSystemFile(systemEntity.simpleFeeScheduleFile(), simpleFeeSchedule, 3L);
             persistSystemFile(systemEntity.throttleDefinitionFile(), throttleDefinitionBytes(), 4L);
 
             jdbcTemplate.update("""
@@ -1573,6 +1617,57 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                         account.path("balance").asLong(0L),
                         stateTimestamp);
             }
+        }
+
+        private void persistContract(final JsonNode contract, final long stateTimestamp) {
+            final var contractId = EntityId.of(contract.get("account").asText());
+            final var evmAddress = decodeHex(contract.get("evm_address").asText());
+            final long balance = contract.path("balance").asLong(0L);
+            domainBuilder
+                    .entity(contractId)
+                    .customize(e -> e.type(EntityType.CONTRACT)
+                            .alias(null)
+                            .evmAddress(evmAddress)
+                            .delegationAddress(null)
+                            .balance(balance)
+                            .ethereumNonce(contract.path("nonce").asLong(1L))
+                            .createdTimestamp(stateTimestamp)
+                            .timestampRange(Range.atLeast(stateTimestamp))
+                            .deleted(false)
+                            .receiverSigRequired(false)
+                            .maxAutomaticTokenAssociations(-1))
+                    .persist();
+            domainBuilder
+                    .contract()
+                    .customize(c -> c.id(contractId.getId())
+                            .runtimeBytecode(loadHexResource(
+                                    contract.get("runtime_bytecode_file").asText())))
+                    .persist();
+            persistAccountBalance(contractId, balance, stateTimestamp);
+            final var slots = new HashMap<String, String>();
+            copySlots(contract.get("slots"), slots);
+            persistHistoricalContractSlots(contractId, slots, stateTimestamp);
+        }
+
+        private void persistHistoricalContractSlots(
+                final EntityId contractId, final Map<String, String> slots, final long stateTimestamp) {
+            if (slots.isEmpty()) {
+                return;
+            }
+            final var rows = new ArrayList<Object[]>(slots.size());
+            for (final var slot : slots.entrySet()) {
+                final var key = Bytes32.wrap(decodeHex(slot.getKey()))
+                        .trimLeadingZeros()
+                        .toArrayUnsafe();
+                rows.add(new Object[] {
+                    stateTimestamp, contractId.getId(), key, decodeHex(slot.getValue()), contractId.getId()
+                });
+            }
+            jdbcTemplate.batchUpdate("""
+                    insert into contract_state_change
+                        (consensus_timestamp, contract_id, slot, value_read, payer_account_id)
+                    values (?, ?, ?, ?, ?)
+                    """, rows);
         }
 
         private void persistAccount(final JsonNode account, final long createdTimestamp) {
@@ -1621,8 +1716,12 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         }
 
         private static byte[] simpleFeeScheduleBytes() {
-            try (final var in = ContractCallServiceTest.class.getResourceAsStream(
-                    "/gas-estimate-accuracy/simpleFeesSchedules.json")) {
+            return simpleFeeScheduleBytes("simpleFeesSchedules.json");
+        }
+
+        private static byte[] simpleFeeScheduleBytes(final String filename) {
+            try (final var in =
+                    ContractCallServiceTest.class.getResourceAsStream("/gas-estimate-accuracy/" + filename)) {
                 final var schedule = org.hiero.hapi.support.fees.FeeSchedule.JSON.parse(
                         com.hedera.pbj.runtime.io.buffer.Bytes.wrap(in.readAllBytes()));
                 return org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF
@@ -1630,6 +1729,26 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                         .toByteArray();
             } catch (final Exception e) {
                 throw new IllegalStateException(e);
+            }
+        }
+
+        private static byte[] loadHexResource(final String filename) {
+            try (final var in =
+                    ContractCallServiceTest.class.getResourceAsStream("/gas-estimate-accuracy/" + filename)) {
+                return decodeHex(new String(in.readAllBytes()).strip());
+            } catch (final Exception e) {
+                throw new IllegalStateException("Failed to load hex resource " + filename, e);
+            }
+        }
+
+        private static void copySlots(final JsonNode node, final Map<String, String> slots) {
+            if (node == null || node.isMissingNode() || node.isNull()) {
+                return;
+            }
+            final var fields = node.fields();
+            while (fields.hasNext()) {
+                final var field = fields.next();
+                slots.put(field.getKey(), field.getValue().asText());
             }
         }
 
