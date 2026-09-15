@@ -54,6 +54,9 @@ class SubscriberHealthIndicatorTest {
     private ReleaseHealthProperties releaseHealthProperties;
 
     @Mock
+    private SubscriberHealthProperties subscriberHealthProperties;
+
+    @Mock
     private MeterRegistry meterRegistry;
 
     @InjectMocks
@@ -128,6 +131,60 @@ class SubscriberHealthIndicatorTest {
         assertThat(subscriberHealthIndicator.health().block())
                 .extracting(Health::getStatus)
                 .isEqualTo(Status.UNKNOWN);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void recoveryHysteresisHoldsDownUntilThresholdMet() {
+        when(subscriberHealthProperties.getRecoveryThreshold()).thenReturn(2);
+        when(transactionGenerator.scenarios()).thenReturn(Flux.just(publishScenario(1.0)));
+        when(mirrorSubscriber.getSubscriptions()).thenReturn(Flux.just(subscribeScenario(1.0)));
+        when(restApiClient.getNetworkStakeStatusCode())
+                .thenReturn(
+                        Mono.just(HttpStatusCode.valueOf(500)),
+                        Mono.just(HttpStatusCode.valueOf(200)),
+                        Mono.just(HttpStatusCode.valueOf(200)));
+
+        assertThat(subscriberHealthIndicator.health().block())
+                .extracting(Health::getStatus)
+                .isEqualTo(Status.DOWN);
+        assertThat(subscriberHealthIndicator.health().block())
+                .extracting(Health::getStatus)
+                .isEqualTo(Status.DOWN);
+        assertThat(subscriberHealthIndicator.health().block())
+                .extracting(Health::getStatus)
+                .isEqualTo(Status.UP);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void recoveryHysteresisResetsOnRepeatedDown() {
+        when(subscriberHealthProperties.getRecoveryThreshold()).thenReturn(2);
+        when(transactionGenerator.scenarios()).thenReturn(Flux.just(publishScenario(1.0)));
+        when(mirrorSubscriber.getSubscriptions()).thenReturn(Flux.just(subscribeScenario(1.0)));
+        when(restApiClient.getNetworkStakeStatusCode())
+                .thenReturn(
+                        Mono.just(HttpStatusCode.valueOf(500)),
+                        Mono.just(HttpStatusCode.valueOf(200)),
+                        Mono.just(HttpStatusCode.valueOf(500)),
+                        Mono.just(HttpStatusCode.valueOf(200)),
+                        Mono.just(HttpStatusCode.valueOf(200)));
+
+        assertThat(subscriberHealthIndicator.health().block())
+                .extracting(Health::getStatus)
+                .isEqualTo(Status.DOWN);
+        assertThat(subscriberHealthIndicator.health().block())
+                .extracting(Health::getStatus)
+                .isEqualTo(Status.DOWN);
+        assertThat(subscriberHealthIndicator.health().block())
+                .extracting(Health::getStatus)
+                .isEqualTo(Status.DOWN);
+        assertThat(subscriberHealthIndicator.health().block())
+                .extracting(Health::getStatus)
+                .isEqualTo(Status.DOWN);
+        assertThat(subscriberHealthIndicator.health().block())
+                .extracting(Health::getStatus)
+                .isEqualTo(Status.UP);
     }
 
     private PublishScenario publishScenario(double rate) {
