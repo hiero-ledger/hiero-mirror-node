@@ -1512,11 +1512,12 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
     class GasAccuracyEstimateWithProductionState {
 
         private static final V0490FileSchema FILE_SCHEMA = new V0490FileSchema();
-        private static final JsonNode FIXTURE = loadFixture("f55420234f8c8ae7-testnet-state.json");
         private static final JsonNode DYNAMIC_TRANSFER_TO_STAKING_REWARDS_ACCOUNT =
                 loadFixture("transfer-to-staking-reward-account-previewnet-state.json");
         private static final byte[] PREVIEWNET_SIMPLE_FEE_SCHEDULE =
                 simpleFeeScheduleBytes("previewnet-simpleFeesSchedules.json");
+        private static final JsonNode CONTRACT_CREATE_WITH_INITIAL_VALUE =
+                loadFixture("contract-create-with-value-testnet-state.json");
 
         @Autowired
         private JdbcTemplate jdbcTemplate;
@@ -1545,9 +1546,10 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
         @Test
         void estimateGasForContractCreationWithValue() {
-            persistCreateState(FIXTURE);
-            final var request = FIXTURE.get("request");
-            final long gasUsed = FIXTURE.get("gas_used").asLong();
+            persistCreateState(CONTRACT_CREATE_WITH_INITIAL_VALUE);
+            final var request = CONTRACT_CREATE_WITH_INITIAL_VALUE.get("request");
+            final long gasUsed =
+                    CONTRACT_CREATE_WITH_INITIAL_VALUE.get("gas_used").asLong();
             final var block = BlockType.of(request.get("block").asText());
             final long estimated =
                     longValueOf.applyAsLong(contractExecutionService.processCall(contractExecutionParametersBuilder(
