@@ -62,6 +62,37 @@ class ContractTransactionHashRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findByHashPrefersRealExecutionOverLaterFailedStub() {
+        final var hash = domainBuilder.bytes(32);
+        final long contractId = domainBuilder.entityId().getId();
+        final long executedTimestamp = domainBuilder.timestamp();
+        // transaction reverted but actually executed against a contract at T1, so it has a matching
+        // contract_transaction row.
+        final var executed = domainBuilder
+                .contractTransactionHash()
+                .customize(c -> c.hash(hash)
+                        .consensusTimestamp(executedTimestamp)
+                        .entityId(contractId)
+                        .transactionResult(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED_VALUE))
+                .persist();
+        domainBuilder
+                .contractTransaction()
+                .customize(c -> c.consensusTimestamp(executedTimestamp).entityId(contractId))
+                .persist();
+        // fails pre-execution, so only a default/stub hash row (without matching
+        // contract_transaction row) is produced later at T2 > T1.
+        domainBuilder
+                .contractTransactionHash()
+                .customize(c -> c.hash(hash)
+                        .consensusTimestamp(domainBuilder.timestamp())
+                        .entityId(0L)
+                        .transactionResult(ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE))
+                .persist();
+
+        assertThat(contractTransactionHashRepository.findByHash(hash)).contains(executed);
+    }
+
+    @Test
     void findByHashReturnsLatestNonSuccessWhenNoSuccessExists() {
         final var hash = domainBuilder.bytes(32);
         // With no SUCCESS row the ordering falls back to consensus_timestamp desc and returns the latest row
