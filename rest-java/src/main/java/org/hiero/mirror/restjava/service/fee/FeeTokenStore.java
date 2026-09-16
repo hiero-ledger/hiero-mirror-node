@@ -34,6 +34,7 @@ final class FeeTokenStore implements ReadableTokenStore {
     @SuppressWarnings("unchecked")
     public Token get(@NonNull final TokenID id) {
         if (!hasBeenRead(id)) {
+            FeeEstimationContext.get().checkLookupCapacity();
             markRead(id, load(id));
         }
         final var value = getReadCache().get(id);
@@ -60,10 +61,6 @@ final class FeeTokenStore implements ReadableTokenStore {
     }
 
     private void markRead(final TokenID id, @Nullable final Token value) {
-        if (FeeEstimationContext.get().readCount() >= FeeEstimationContext.MAX_LOOKUPS) {
-            throw new IllegalArgumentException("Fee estimation exceeded the maximum of %d entity lookups"
-                    .formatted(FeeEstimationContext.MAX_LOOKUPS));
-        }
         getReadCache().put(id, value == null ? MARKER : value);
     }
 
