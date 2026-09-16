@@ -20,6 +20,8 @@ import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
+import com.hederahashgraph.api.proto.java.TokenID;
+import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
@@ -722,6 +724,22 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         @Test
+        void stateModeTooManyTokenTransfers() {
+            seedFeeSchedule();
+            final var transaction = cryptoTransferWithTokenLists(12);
+
+            assertThatThrownBy(() -> restClient
+                            .post()
+                            .uri("?mode=STATE")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class))
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class)
+                    .hasMessageContaining("exceeds");
+        }
+
+        @Test
         void nullBody() {
             // when / then
             validateError(
@@ -986,6 +1004,26 @@ final class NetworkControllerTest extends ControllerTest {
                     CryptoTransferTransactionBody.newBuilder().build();
             final var transactionBody = TransactionBody.newBuilder()
                     .setMemo("test")
+                    .setCryptoTransfer(cryptoTransfer)
+                    .build()
+                    .toByteString();
+            final var signedTransaction = SignedTransaction.newBuilder()
+                    .setBodyBytes(transactionBody)
+                    .build()
+                    .toByteString();
+            return Transaction.newBuilder()
+                    .setSignedTransactionBytes(signedTransaction)
+                    .build()
+                    .toByteArray();
+        }
+
+        private byte[] cryptoTransferWithTokenLists(final int tokenCount) {
+            final var cryptoTransfer = CryptoTransferTransactionBody.newBuilder();
+            for (int i = 0; i < tokenCount; i++) {
+                cryptoTransfer.addTokenTransfers(TokenTransferList.newBuilder()
+                        .setToken(TokenID.newBuilder().setTokenNum(i + 1L)));
+            }
+            final var transactionBody = TransactionBody.newBuilder()
                     .setCryptoTransfer(cryptoTransfer)
                     .build()
                     .toByteString();

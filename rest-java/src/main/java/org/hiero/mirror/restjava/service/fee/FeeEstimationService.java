@@ -99,11 +99,12 @@ public class FeeEstimationService {
             final int throttleUtilization) {
         try {
             final var txContext = new TransactionFeeContext(transaction);
+            FeeTransactionLimits.validate(transaction, txContext.body(), txContext.numTxnSignatures());
             final var context = mode == FeeEstimateMode.STATE
                     ? txContext.withFeeContext(newFeeContext(txContext.body(), throttleUtilization))
                     : txContext;
             final SimpleFeeCalculator calculator = Objects.requireNonNull(feeManager.getSimpleFeeCalculator());
-            return calculator.calculateTxFee(context.body(), context);
+            return FeeEstimationContext.run(_ -> calculator.calculateTxFee(context.body(), context));
         } catch (ParseException e) {
             throw new IllegalArgumentException("Unable to parse transaction", e);
         } catch (NullPointerException e) {

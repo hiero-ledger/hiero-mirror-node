@@ -5,9 +5,13 @@ package org.hiero.mirror.restjava.service.fee;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.hedera.hapi.node.base.AccountAmount;
+import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.HederaFunctionality;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.base.SignaturePair;
+import com.hedera.hapi.node.base.TokenID;
+import com.hedera.hapi.node.base.TokenTransferList;
 import com.hedera.hapi.node.base.Transaction;
 import com.hedera.hapi.node.token.CryptoTransferTransactionBody;
 import com.hedera.hapi.node.transaction.SignedTransaction;
@@ -383,6 +387,28 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
+    void rejectsTooManyTokenTransfersBeforeCalculator() {
+        assertThatThrownBy(() -> service.estimateFees(cryptoTransferWithTokenLists(11), FeeEstimateMode.STATE, 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("token transfer lists")
+                .hasMessageContaining("exceeds the maximum of 10");
+    }
+
+    @Test
+    void acceptsMaxTokenTransferLists() {
+        assertThat(service.estimateFees(cryptoTransferWithTokenLists(10), FeeEstimateMode.STATE, 0)
+                        .totalTinycents())
+                .isGreaterThan(0);
+    }
+
+    @Test
+    void rejectsAboveMaxTokenTransfers() {
+        assertThatThrownBy(() -> service.estimateFees(cryptoTransferWithTokenLists(12), FeeEstimateMode.STATE, 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("exceeds");
+    }
+
+    @Test
     void estimatesFeesForAllKnownTransactionTypes() {
         for (final var type : TransactionType.values()) {
             final var supplier = recordItemBuilder.lookup(type);
@@ -398,7 +424,9 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                         .as("INTRINSIC fee for %s", type)
                         .isGreaterThanOrEqualTo(0);
             } catch (IllegalArgumentException e) {
-                assertThat(e).hasMessageContaining("Unknown transaction type");
+                assertThat(e.getMessage())
+                        .satisfiesAnyOf(m -> assertThat(m).contains("Unknown transaction type"), m -> assertThat(m)
+                                .contains("exceeds"));
             }
 
             // STATE mode may additionally throw for types whose congestion multiplier reads stores
@@ -411,7 +439,9 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
             } catch (UnsupportedOperationException e) {
                 assertThat(e).hasMessageContaining("Store not supported:");
             } catch (IllegalArgumentException e) {
-                assertThat(e).hasMessageContaining("Unknown transaction type");
+                assertThat(e.getMessage())
+                        .satisfiesAnyOf(m -> assertThat(m).contains("Unknown transaction type"), m -> assertThat(m)
+                                .contains("exceeds"));
             }
         }
     }
@@ -648,6 +678,30 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                                         .setAmount(100))))
                 .build()
                 .getTransaction());
+    }
+
+    private Transaction cryptoTransferWithTokenLists(final int tokenCount) {
+        final var lists = new ArrayList<TokenTransferList>(tokenCount);
+        for (int i = 0; i < tokenCount; i++) {
+            lists.add(TokenTransferList.newBuilder()
+                    .token(TokenID.newBuilder().tokenNum(i + 1L).build())
+                    .transfers(AccountAmount.newBuilder()
+                            .accountID(AccountID.newBuilder().accountNum(1).build())
+                            .amount(-1)
+                            .build())
+                    .build());
+        }
+        final var body = TransactionBody.newBuilder()
+                .cryptoTransfer(CryptoTransferTransactionBody.newBuilder()
+                        .tokenTransfers(lists)
+                        .build())
+                .build();
+        final var signedTransaction = SignedTransaction.newBuilder()
+                .bodyBytes(TransactionBody.PROTOBUF.toBytes(body))
+                .build();
+        return Transaction.newBuilder()
+                .signedTransactionBytes(SignedTransaction.PROTOBUF.toBytes(signedTransaction))
+                .build();
     }
 
     private Transaction cryptoTransfer(int signatureCount) {
