@@ -18,6 +18,7 @@ import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.service.NetworkService;
+import org.hiero.mirror.grpc.util.GrpcFlowControlSubscriber;
 import org.hiero.mirror.grpc.util.ProtoUtil;
 import org.springframework.grpc.server.service.GrpcService;
 import reactor.core.publisher.Mono;
@@ -31,14 +32,15 @@ final class NetworkController extends NetworkServiceGrpc.NetworkServiceImplBase 
 
     @Override
     public void getNodes(final AddressBookQuery request, final StreamObserver<NodeAddress> responseObserver) {
-        final var disposable = Mono.fromCallable(() -> toFilter(request))
+        final var flux = Mono.fromCallable(() -> toFilter(request))
                 .flatMapMany(networkService::getNodes)
                 .map(this::toNodeAddress)
-                .onErrorMap(ProtoUtil::toStatusRuntimeException)
-                .subscribe(responseObserver::onNext, responseObserver::onError, responseObserver::onCompleted);
+                .onErrorMap(ProtoUtil::toStatusRuntimeException);
 
-        if (responseObserver instanceof ServerCallStreamObserver serverCallStreamObserver) {
-            serverCallStreamObserver.setOnCancelHandler(disposable::dispose);
+        if (responseObserver instanceof ServerCallStreamObserver<NodeAddress> serverCallStreamObserver) {
+            flux.subscribe(new GrpcFlowControlSubscriber<>(serverCallStreamObserver));
+        } else {
+            flux.subscribe(responseObserver::onNext, responseObserver::onError, responseObserver::onCompleted);
         }
     }
 

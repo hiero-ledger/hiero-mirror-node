@@ -19,6 +19,7 @@ import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
 import org.hiero.mirror.grpc.service.TopicMessageService;
+import org.hiero.mirror.grpc.util.GrpcFlowControlSubscriber;
 import org.hiero.mirror.grpc.util.ProtoUtil;
 import org.springframework.grpc.server.service.GrpcService;
 import reactor.core.publisher.Mono;
@@ -41,14 +42,15 @@ final class ConsensusController extends ConsensusServiceGrpc.ConsensusServiceImp
 
     @Override
     public void subscribeTopic(ConsensusTopicQuery request, StreamObserver<ConsensusTopicResponse> responseObserver) {
-        final var disposable = Mono.fromCallable(() -> toFilter(request))
+        final var flux = Mono.fromCallable(() -> toFilter(request))
                 .flatMapMany(topicMessageService::subscribeTopic)
                 .map(this::toResponse)
-                .onErrorMap(ProtoUtil::toStatusRuntimeException)
-                .subscribe(responseObserver::onNext, responseObserver::onError, responseObserver::onCompleted);
+                .onErrorMap(ProtoUtil::toStatusRuntimeException);
 
-        if (responseObserver instanceof ServerCallStreamObserver serverCallStreamObserver) {
-            serverCallStreamObserver.setOnCancelHandler(disposable::dispose);
+        if (responseObserver instanceof ServerCallStreamObserver<ConsensusTopicResponse> serverCallStreamObserver) {
+            flux.subscribe(new GrpcFlowControlSubscriber<>(serverCallStreamObserver));
+        } else {
+            flux.subscribe(responseObserver::onNext, responseObserver::onError, responseObserver::onCompleted);
         }
     }
 
