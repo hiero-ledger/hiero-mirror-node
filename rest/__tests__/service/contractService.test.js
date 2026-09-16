@@ -2202,7 +2202,7 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
   const contractRevertResult = TransactionResult.getProtoId('CONTRACT_REVERT_EXECUTED');
   const insufficientPayerBalanceResult = TransactionResult.getProtoId('INSUFFICIENT_PAYER_BALANCE');
 
-  // Transaction reverted while executing against a contract at T1, so it has a matching contract_transaction row.
+  // Transaction reverted while executing against a contract at T1, so it resolves to a non-zero entity id.
   const executedResult = {
     consensus_timestamp: 1,
     contract_id: entityId1.num,
@@ -2215,7 +2215,7 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
     gasLimit: 1000,
   };
 
-  // Fails pre-execution, so only a stub result, without a matching contract_transaction row is produced later at T2
+  // Fails pre-execution, so only a stub result with entity 0 is produced later at T2 > T1.
   const stubResult = {
     consensus_timestamp: 2,
     contract_id: entityId0.num,
@@ -2230,8 +2230,6 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
 
   beforeEach(async () => {
     await integrationDomainOps.loadContractResults([executedResult, stubResult]);
-    // Only the real execution gets a contract_transaction row, the stub result doesn't
-    await integrationDomainOps.loadContractTransactions(null, [executedResult], null);
   });
 
   test('Prefers the real execution over a later pre-execution stub sharing the hash', async () => {

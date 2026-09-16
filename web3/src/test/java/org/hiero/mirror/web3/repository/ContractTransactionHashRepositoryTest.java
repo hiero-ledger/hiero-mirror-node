@@ -65,22 +65,15 @@ class ContractTransactionHashRepositoryTest extends Web3IntegrationTest {
     void findByHashPrefersRealExecutionOverLaterFailedStub() {
         final var hash = domainBuilder.bytes(32);
         final long contractId = domainBuilder.entityId().getId();
-        final long executedTimestamp = domainBuilder.timestamp();
-        // transaction reverted but actually executed against a contract at T1, so it has a matching
-        // contract_transaction row.
+        // Transaction reverted while executing against a contract at T1, so it resolves to a non-zero entity id.
         final var executed = domainBuilder
                 .contractTransactionHash()
                 .customize(c -> c.hash(hash)
-                        .consensusTimestamp(executedTimestamp)
+                        .consensusTimestamp(domainBuilder.timestamp())
                         .entityId(contractId)
                         .transactionResult(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED_VALUE))
                 .persist();
-        domainBuilder
-                .contractTransaction()
-                .customize(c -> c.consensusTimestamp(executedTimestamp).entityId(contractId))
-                .persist();
-        // fails pre-execution, so only a default/stub hash row (without matching
-        // contract_transaction row) is produced later at T2 > T1.
+        // Fails pre-execution, so only a default/stub hash row with entity 0 is produced later at T2 > T1.
         domainBuilder
                 .contractTransactionHash()
                 .customize(c -> c.hash(hash)

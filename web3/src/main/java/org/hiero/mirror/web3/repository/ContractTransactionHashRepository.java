@@ -12,11 +12,9 @@ import org.springframework.stereotype.Repository;
 public interface ContractTransactionHashRepository extends CrudRepository<ContractTransactionHash, byte[]> {
 
     @Query(
-            value = "select cth.* from contract_transaction_hash cth where cth.hash = ?1 "
-                    + "order by (cth.transaction_result = 22) desc, "
-                    + "exists (select 1 from contract_transaction ct "
-                    + "where ct.consensus_timestamp = cth.consensus_timestamp and ct.entity_id = cth.entity_id) desc, "
-                    + "cth.consensus_timestamp desc limit 1",
+            value =
+                    "select * from contract_transaction_hash where hash = ?1 "
+                            + "order by (transaction_result = 22) desc, (entity_id <> 0) desc, consensus_timestamp desc limit 1",
             nativeQuery = true)
     Optional<ContractTransactionHash> findByHash(byte[] hash);
 }
