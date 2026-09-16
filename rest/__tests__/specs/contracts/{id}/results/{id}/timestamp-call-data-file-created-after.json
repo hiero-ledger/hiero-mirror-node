@@ -1,11 +1,10 @@
 {
-  "description": "Contract results by contract id and timestamp reconstruct empty function_parameters from call-data file state at the transaction timestamp, ignoring later FileUpdate/FileAppend",
+  "description": "Contract results by contract id and timestamp do not use call-data file contents created after the transaction",
   "setup": {
     "contracts": [
       {
         "created_timestamp": "987654999123200",
         "evm_address": "1d8bfdc5d46dc4f61d6b6115972536ebe6a8854c",
-        "file_id": "5001",
         "key": [1, 1, 1],
         "num": "8001",
         "timestamp_range": "[987654999123200, 987654999123299]"
@@ -13,7 +12,6 @@
       {
         "created_timestamp": "987654999123200",
         "evm_address": "70f2b2914a2a4b783faefb75f459a580616fcb5e",
-        "file_id": "5001",
         "key": [1, 1, 1],
         "num": "5001",
         "timestamp_range": "[987654999123300,)"
@@ -28,17 +26,17 @@
         "contract_id": 5001,
         "created_contract_ids": [7001],
         "error_message": "",
+        "function_parameters": [],
         "function_result": [8, 8],
-        "gas_consumed": null,
-        "gas_limit": 15000,
+        "gas_consumed": 120,
+        "gas_limit": 1000000,
         "gas_used": 123,
         "payer_account_id": 8001,
         "sender_id": 8001,
-        "function_parameters": [],
-        "transaction_hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
         "transaction_result": 22,
+        "transaction_hash": "0x981202030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
         "transaction_index": 1,
-        "transaction_nonce": 1
+        "transaction_nonce": 0
       }
     ],
     "contractlogs": [
@@ -72,64 +70,22 @@
       },
       {
         "consensus_timestamp": "167654000123456",
-        "contract_id": 5002,
+        "contract_id": 5001,
+        "migration": true,
         "slot": [0],
         "value_read": [0],
         "value_written": []
       },
       {
         "consensus_timestamp": "167654000123456",
-        "contract_id": 5003,
+        "contract_id": 5002,
         "slot": [3, 3],
         "value_read": [1, 1],
         "value_written": [1, 1]
       }
     ],
-    "recordFiles": [
-      {
-        "gas_used": 50000000,
-        "index": 16,
-        "consensus_start": 167654000123439,
-        "consensus_end": 167654000123449,
-        "hash": "f292e5624f6f4cf8c134c9",
-        "entity_id": "5001",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null
-      },
-      {
-        "gas_used": 50000000,
-        "index": 17,
-        "consensus_start": 167654000123450,
-        "consensus_end": 167654000123460,
-        "hash": "6ceecd8bb224da491",
-        "entity_id": "5001",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null
-      },
-      {
-        "gas_used": 50000000,
-        "index": 18,
-        "consensus_start": 167654000123461,
-        "consensus_end": 167654000123470,
-        "hash": "e19f4a235bee1e6bb19258b",
-        "entity_id": "5002",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null
-      }
-    ],
-    "transactions": [
-      {
-        "consensus_timestamp": 167654000123456,
-        "nonce": 1,
-        "payerAccountId": "8001",
-        "transaction_hash": "519a008fabde4d",
-        "type": 50,
-        "valid_start_timestamp": 167654000123400
-      }
-    ],
     "ethereumtransactions": [
       {
-        "_value_description": "2000000000 tinybars = 20000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00",
         "access_list": [
           {
             "address": "0xa02457e5dfd32bda5fc7e1f1b008aa5979568150",
@@ -138,54 +94,52 @@
             ]
           }
         ],
-        "call_data": null,
-        "call_data_id": "5001",
-        "chain_id": "0x127",
+        "call_data_id": 5001,
         "consensus_timestamp": 167654000123456,
-        "gas_limit": 15000,
-        "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
-        "max_fee_per_gas": "0xBA43B7400",
-        "max_priority_fee_per_gas": "0x2540BE4000",
-        "payer_account_id": 8001,
-        "signature_r": "0xd693b532a80fed6392b428604171fb32fdbf953728a3a7ecc7d4062b1652c043",
-        "signature_s": "0x24e9c602ac800b983b035700a14b23f78a253ab762deab5dc27e3555a750b355",
-        "value": "0x0001158e460913d00000"
+        "hash": "981202030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "payer_account_id": "8001",
+        "value": "0x0001158e460913d00000",
+        "_value_description": "2000000000 tinybars = 20000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00"
+      }
+    ],
+    "transactions": [
+      {
+        "consensus_timestamp": 167654000123456,
+        "payerAccountId": "8001",
+        "transaction_hash": "519a008fabde4d",
+        "type": 50,
+        "valid_start_timestamp": 167654000123400
       }
     ],
     "filedata": [
       {
-        "_description": "FileCreate with call data D1 before the ethereum transaction",
-        "file_data": [12, 11, 10, 9, 8, 7, 255],
-        "consensus_timestamp": "167654000123000",
-        "entity_id": "5001",
+        "_description": "FileCreate after the ethereum transaction must not be used as historical call data",
+        "file_data": [48, 120, 97, 98, 100, 128],
+        "consensus_timestamp": "167654000123500",
+        "entity_id": 5001,
         "high_volume": false,
         "high_volume_pricing_multiplier": null,
         "transaction_type": 17
+      }
+    ],
+    "recordFiles": [
+      {
+        "index": 16,
+        "consensus_start": 167654000123439,
+        "consensus_end": 167654000123449,
+        "hash": "f292e5624f6f4cf8c134c9"
       },
       {
-        "file_data": [16, 28],
-        "consensus_timestamp": "167654000123005",
-        "entity_id": "5002",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null
+        "index": 17,
+        "consensus_start": 167654000123450,
+        "consensus_end": 167654000123460,
+        "hash": "6ceecd8bb224da491"
       },
       {
-        "_description": "FileAppend to D1 before the ethereum transaction",
-        "file_data": [128],
-        "consensus_timestamp": "167654000123010",
-        "entity_id": "5001",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null,
-        "transaction_type": 16
-      },
-      {
-        "_description": "FileUpdate after the ethereum transaction must not change historical function_parameters",
-        "file_data": [1, 2, 3, 4],
-        "consensus_timestamp": "167654000123500",
-        "entity_id": "5001",
-        "high_volume": false,
-        "high_volume_pricing_multiplier": null,
-        "transaction_type": 19
+        "index": 18,
+        "consensus_start": 167654000123461,
+        "consensus_end": 167654000123470,
+        "hash": "e19f4a235bee1e6bb19258b"
       }
     ]
   },
@@ -210,24 +164,24 @@
     ],
     "amount": 2000000000,
     "authorization_list": [],
-    "block_gas_used": 50000000,
+    "block_gas_used": 0,
     "block_hash": "0x6ceecd8bb224da491",
     "block_number": 17,
     "bloom": "0x0505",
     "call_result": "0x0606",
-    "chain_id": "0x127",
+    "chain_id": "0x",
     "contract_id": "0.0.5001",
     "created_contract_ids": ["0.0.7001"],
     "error_message": null,
     "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
     "failed_initcode": null,
     "from": "0x0000000000000000000000000000000000001f41",
-    "function_parameters": "0x0c0b0a090807ff80",
-    "gas_consumed": null,
-    "gas_limit": 15000,
+    "function_parameters": "0x",
+    "gas_consumed": 120,
+    "gas_limit": 1000000,
     "gas_price": "0x4a817c80",
     "gas_used": 123,
-    "hash": "0x4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
+    "hash": "0x981202030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
     "logs": [
       {
         "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
@@ -254,12 +208,12 @@
         ]
       }
     ],
-    "max_fee_per_gas": "0x5",
-    "max_priority_fee_per_gas": "0x10",
+    "max_fee_per_gas": "0x",
+    "max_priority_fee_per_gas": "0x",
     "nonce": 1,
-    "r": "0xd693b532a80fed6392b428604171fb32fdbf953728a3a7ecc7d4062b1652c043",
+    "r": "0xd693b532a80fed6392b428604171fb32fdbf953728a3a7ecc7d4062b1652c042",
     "result": "SUCCESS",
-    "s": "0x24e9c602ac800b983b035700a14b23f78a253ab762deab5dc27e3555a750b355",
+    "s": "0x24e9c602ac800b983b035700a14b23f78a253ab762deab5dc27e3555a750b354",
     "state_changes": [
       {
         "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
@@ -269,15 +223,15 @@
         "value_written": null
       },
       {
-        "address": "0x000000000000000000000000000000000000138a",
-        "contract_id": "0.0.5002",
+        "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
+        "contract_id": "0.0.5001",
         "slot": "0x0000000000000000000000000000000000000000000000000000000000000000",
         "value_read": "0x0000000000000000000000000000000000000000000000000000000000000000",
         "value_written": "0x0000000000000000000000000000000000000000000000000000000000000000"
       },
       {
-        "address": "0x000000000000000000000000000000000000138b",
-        "contract_id": "0.0.5003",
+        "address": "0x000000000000000000000000000000000000138a",
+        "contract_id": "0.0.5002",
         "slot": "0x0000000000000000000000000000000000000000000000000000000000000303",
         "value_read": "0x0000000000000000000000000000000000000000000000000000000000000101",
         "value_written": "0x0000000000000000000000000000000000000000000000000000000000000101"
