@@ -185,12 +185,9 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
 
     private void verifyOpcodeOptionsMatch(final OpcodeContext options) {
         final var actual = contextCaptor.getOpcodeContext();
-        assertThat(actual.getTracerConfig().isStack())
-                .isEqualTo(options.getTracerConfig().isStack());
-        assertThat(actual.getTracerConfig().isMemory())
-                .isEqualTo(options.getTracerConfig().isMemory());
-        assertThat(actual.getTracerConfig().isStorage())
-                .isEqualTo(options.getTracerConfig().isStorage());
+        assertThat(actual.isStack()).isEqualTo(options.isStack());
+        assertThat(actual.isMemory()).isEqualTo(options.isMemory());
+        assertThat(actual.isStorage()).isEqualTo(options.isStorage());
     }
 
     private OpcodesResponse expectedOpcodesResponse(

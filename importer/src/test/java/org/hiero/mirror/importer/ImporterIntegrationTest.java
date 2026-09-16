@@ -44,6 +44,7 @@ import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.tableusage.EndpointContext;
+import org.hiero.mirror.importer.config.ActuatorHttpServer;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.converter.JsonbToListConverter;
@@ -63,6 +64,7 @@ import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @ExtendWith(SoftAssertionsExtension.class)
 @Import(RedisTestConfiguration.class)
@@ -72,6 +74,10 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
     protected static final DomainBuilder DOMAIN_BUILDER = new DomainBuilder();
 
     private static final Map<Class<?>, String> DEFAULT_DOMAIN_CLASS_IDS = new ConcurrentHashMap<>();
+
+    // Disable HTTP server during tests
+    @MockitoBean
+    private ActuatorHttpServer actuatorHttpServer;
 
     @Resource
     protected Flyway flyway;

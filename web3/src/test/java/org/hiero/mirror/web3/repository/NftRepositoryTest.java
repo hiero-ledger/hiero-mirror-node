@@ -326,6 +326,43 @@ class NftRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findActiveByIdAndTimestampBurnedAfterBlockNotResurrected() {
+        final long aliveStart = domainBuilder.timestamp();
+        final long burnTimestamp = aliveStart + 100L;
+        final long tokenId = domainBuilder.entityId().getId();
+        final long serialNumber = domainBuilder.number();
+
+        // The NFT was owned in the past and then burned (current row deleted) at burnTimestamp.
+        final var nftHistory = domainBuilder
+                .nftHistory()
+                .customize(n -> n.tokenId(tokenId)
+                        .serialNumber(serialNumber)
+                        .deleted(false)
+                        .timestampRange(Range.closedOpen(aliveStart, burnTimestamp)))
+                .persist();
+        domainBuilder
+                .nft()
+                .customize(n -> n.tokenId(tokenId)
+                        .serialNumber(serialNumber)
+                        .deleted(true)
+                        .timestampRange(Range.atLeast(burnTimestamp)))
+                .persist();
+        domainBuilder.entity().customize(e -> e.id(tokenId)).persist();
+
+        // Before the burn the NFT resolves to its pre-burn (alive) state.
+        assertThat(nftRepository.findActiveByIdAndTimestamp(tokenId, serialNumber, aliveStart))
+                .get()
+                .usingRecursiveComparison()
+                .isEqualTo(nftHistory);
+
+        // At and after the burn the NFT must not be resurrected from the stale pre-burn history row.
+        assertThat(nftRepository.findActiveByIdAndTimestamp(tokenId, serialNumber, burnTimestamp))
+                .isEmpty();
+        assertThat(nftRepository.findActiveByIdAndTimestamp(tokenId, serialNumber, burnTimestamp + 50L))
+                .isEmpty();
+    }
+
+    @Test
     void countByAccountIdAndTimestampNotDeletedLessThanBlock() {
         var nft = domainBuilder.nft().persist();
         var nft2 = domainBuilder
@@ -364,6 +401,44 @@ class NftRepositoryTest extends Web3IntegrationTest {
 
         assertThat(nftRepository.countByAccountIdAndTimestampNotDeleted(
                         nft.getAccountId().getId(), nft.getTimestampLower() - 1))
+                .isZero();
+    }
+
+    @Test
+    void countByAccountIdAndTimestampBurnedAfterBlockNotResurrected() {
+        final long aliveStart = domainBuilder.timestamp();
+        final long burnTimestamp = aliveStart + 100L;
+        final long tokenId = domainBuilder.entityId().getId();
+        final long serialNumber = domainBuilder.number();
+        final var accountId = domainBuilder.entityId();
+
+        // The NFT was owned in the past and then burned (current row deleted) at burnTimestamp.
+        domainBuilder
+                .nftHistory()
+                .customize(n -> n.accountId(accountId)
+                        .tokenId(tokenId)
+                        .serialNumber(serialNumber)
+                        .deleted(false)
+                        .timestampRange(Range.closedOpen(aliveStart, burnTimestamp)))
+                .persist();
+        domainBuilder
+                .nft()
+                .customize(n -> n.accountId(accountId)
+                        .tokenId(tokenId)
+                        .serialNumber(serialNumber)
+                        .deleted(true)
+                        .timestampRange(Range.atLeast(burnTimestamp)))
+                .persist();
+        domainBuilder.entity().customize(e -> e.id(tokenId)).persist();
+
+        // Before the burn the NFT is counted.
+        assertThat(nftRepository.countByAccountIdAndTimestampNotDeleted(accountId.getId(), aliveStart))
+                .isEqualTo(1L);
+
+        // At and after the burn it must not be resurrected from the stale pre-burn history row.
+        assertThat(nftRepository.countByAccountIdAndTimestampNotDeleted(accountId.getId(), burnTimestamp))
+                .isZero();
+        assertThat(nftRepository.countByAccountIdAndTimestampNotDeleted(accountId.getId(), burnTimestamp + 50L))
                 .isZero();
     }
 

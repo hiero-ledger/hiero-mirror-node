@@ -10,11 +10,13 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
+import lombok.Setter;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
@@ -40,7 +42,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @CustomLog
 @Named
-public class HistoricalBalanceService {
+class HistoricalBalanceService {
+
+    static final long NO_CACHED_TIMESTAMP = -1L;
+
     private static final String ACCOUNT_BALANCE_TABLE_NAME = "account_balance";
 
     @Getter(AccessLevel.PACKAGE)
@@ -61,18 +66,21 @@ public class HistoricalBalanceService {
     private final Timer generateDurationMetricFailure;
     private final Timer generateDurationMetricSuccess;
 
+    @Setter(AccessLevel.PACKAGE)
+    private volatile long lastAccountBalanceTimestamp = NO_CACHED_TIMESTAMP;
+
     @SuppressWarnings("java:S107")
-    public HistoricalBalanceService(
-            AccountBalanceFileRepository accountBalanceFileRepository,
-            AccountBalanceRepository accountBalanceRepository,
-            MeterRegistry meterRegistry,
-            PlatformTransactionManager platformTransactionManager,
-            HistoricalBalanceProperties properties,
-            RecordFileRepository recordFileRepository,
-            SystemEntity systemEntity,
-            TimePartitionService timePartitionService,
-            TokenBalanceRepository tokenBalanceRepository,
-            EntityRepository entityRepository) {
+    HistoricalBalanceService(
+            final AccountBalanceFileRepository accountBalanceFileRepository,
+            final AccountBalanceRepository accountBalanceRepository,
+            final MeterRegistry meterRegistry,
+            final PlatformTransactionManager platformTransactionManager,
+            final HistoricalBalanceProperties properties,
+            final RecordFileRepository recordFileRepository,
+            final SystemEntity systemEntity,
+            final TimePartitionService timePartitionService,
+            final TokenBalanceRepository tokenBalanceRepository,
+            final EntityRepository entityRepository) {
         this.accountBalanceFileRepository = accountBalanceFileRepository;
         this.accountBalanceRepository = accountBalanceRepository;
         this.properties = properties;
@@ -90,7 +98,7 @@ public class HistoricalBalanceService {
                 (int) properties.getTransactionTimeout().toSeconds());
 
         // metrics
-        var timer = Timer.builder(STREAM_PARSE_DURATION_METRIC_NAME).tag("type", StreamType.BALANCE.toString());
+        final var timer = Timer.builder(STREAM_PARSE_DURATION_METRIC_NAME).tag("type", StreamType.BALANCE.toString());
         generateDurationMetricFailure = timer.tag("success", "false").register(meterRegistry);
         generateDurationMetricSuccess = timer.tag("success", "true").register(meterRegistry);
     }
@@ -102,7 +110,7 @@ public class HistoricalBalanceService {
      */
     @Async
     @TransactionalEventListener
-    public void onRecordFileParsed(RecordFileParsedEvent event) {
+    public void onRecordFileParsed(final RecordFileParsedEvent event) {
         if (!properties.isEnabled()) {
             return;
         }
@@ -111,11 +119,11 @@ public class HistoricalBalanceService {
             return;
         }
 
-        var stopwatch = Stopwatch.createStarted();
+        final var stopwatch = Stopwatch.createStarted();
         Timer timer = null;
 
         try {
-            long consensusEnd = event.getConsensusEnd();
+            final long consensusEnd = event.getConsensusEnd();
             if (!shouldGenerate(consensusEnd)) {
                 return;
             }
@@ -124,18 +132,18 @@ public class HistoricalBalanceService {
             checkTreasuryAccount();
 
             log.info("Generating historical balances after processing record file with consensusEnd {}", consensusEnd);
-            transactionTemplate.executeWithoutResult(t -> {
-                long loadStart = System.currentTimeMillis();
-                long timestamp = recordFileRepository
+            final var generatedTimestamp = transactionTemplate.execute(_ -> {
+                final long loadStart = System.currentTimeMillis();
+                final long timestamp = recordFileRepository
                         .findLatest()
                         .map(RecordFile::getConsensusEnd)
                         // This should never happen since the function is triggered after a record file is parsed
                         .orElseThrow(() -> new ParserException("Record file table is empty"));
 
-                var maxConsensusTimestamp = getMaxConsensusTimestamp(timestamp);
-                boolean full = maxConsensusTimestamp.isEmpty();
-                int accountBalancesCount;
-                int tokenBalancesCount;
+                final var maxConsensusTimestamp = getMaxConsensusTimestamp(timestamp);
+                final boolean full = maxConsensusTimestamp.isEmpty();
+                final int accountBalancesCount;
+                final int tokenBalancesCount;
                 if (full) {
                     // get a full snapshot
                     accountBalancesCount = accountBalanceRepository.balanceSnapshot(timestamp, treasuryAccountId);
@@ -152,10 +160,10 @@ public class HistoricalBalanceService {
                             : 0;
                 }
 
-                long loadEnd = System.currentTimeMillis();
-                String filename = StreamFilename.getFilename(
+                final long loadEnd = System.currentTimeMillis();
+                final var filename = StreamFilename.getFilename(
                         StreamType.BALANCE, FileType.DATA, Instant.ofEpochSecond(0, timestamp));
-                var accountBalanceFile = AccountBalanceFile.builder()
+                final var accountBalanceFile = AccountBalanceFile.builder()
                         .consensusTimestamp(timestamp)
                         .count((long) accountBalancesCount)
                         .loadStart(loadStart)
@@ -172,10 +180,12 @@ public class HistoricalBalanceService {
                         accountBalancesCount,
                         tokenBalancesCount,
                         stopwatch);
+                return timestamp;
             });
 
+            lastAccountBalanceTimestamp = Objects.requireNonNull(generatedTimestamp);
             timer = generateDurationMetricSuccess;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             log.error("Failed to generate historical balances in {}", stopwatch, e);
             timer = generateDurationMetricFailure;
         } finally {
@@ -187,52 +197,61 @@ public class HistoricalBalanceService {
         }
     }
 
-    private Optional<Long> getMaxConsensusTimestamp(long timestamp) {
-        var partitions =
+    private Optional<Long> getMaxConsensusTimestamp(final long timestamp) {
+        final var partitions =
                 timePartitionService.getOverlappingTimePartitions(ACCOUNT_BALANCE_TABLE_NAME, timestamp, timestamp);
         if (partitions.isEmpty()) {
             throw new InvalidDatasetException(
                     String.format("No account_balance partition found for timestamp %s", timestamp));
         }
 
-        long treasuryAccountId = systemEntity.treasuryAccount().getId();
-        var partitionRange = partitions.getFirst().getTimestampRange();
+        final long treasuryAccountId = systemEntity.treasuryAccount().getId();
+        final var partitionRange = partitions.getFirst().getTimestampRange();
         return accountBalanceRepository.getMaxConsensusTimestampInRange(
                 partitionRange.lowerEndpoint(), partitionRange.upperEndpoint(), treasuryAccountId);
     }
 
-    private boolean shouldGenerate(long consensusEnd) {
-        return properties.isEnabled()
-                && accountBalanceFileRepository
-                        .findLatest()
-                        .map(AccountBalanceFile::getConsensusTimestamp)
-                        .or(() -> recordFileRepository
-                                .findFirst()
-                                .map(RecordFile::getConsensusEnd)
-                                .map(timestamp ->
-                                        timestamp + properties.getInitialDelay().toNanos()))
-                        .filter(lastTimestamp -> consensusEnd - lastTimestamp
-                                >= properties.getMinFrequency().toNanos())
-                        .isPresent();
+    private boolean shouldGenerate(final long consensusEnd) {
+        final long lastTimestamp;
+        if (lastAccountBalanceTimestamp != NO_CACHED_TIMESTAMP) {
+            lastTimestamp = lastAccountBalanceTimestamp;
+        } else {
+            // Only query database to find the last timestamp to compare to when not cached yet
+            final var timestamp = accountBalanceFileRepository
+                    .findLatest()
+                    .map(AccountBalanceFile::getConsensusTimestamp)
+                    .or(() -> recordFileRepository
+                            .findFirst()
+                            .map(RecordFile::getConsensusEnd)
+                            .map(t -> t + properties.getInitialDelay().toNanos()));
+            if (timestamp.isEmpty()) {
+                return false;
+            }
+
+            lastTimestamp = timestamp.get();
+        }
+
+        return consensusEnd - lastTimestamp >= properties.getMinFrequency().toNanos();
     }
 
     private void checkTreasuryAccount() {
         if (treasuryExists.compareAndSet(false, true)) {
-            var treasuryAccountEntityId = systemEntity.treasuryAccount();
+            final var treasuryAccountEntityId = systemEntity.treasuryAccount();
             try {
                 if (!entityRepository.existsById(treasuryAccountEntityId.getId())) {
-                    var savedTreasuryAccount = entityRepository.save(treasuryAccountEntityId.toEntity().toBuilder()
-                            .balance(0L)
-                            .createdTimestamp(0L)
-                            .declineReward(true)
-                            .deleted(false)
-                            .memo("Mirror node created synthetic treasury account")
-                            .type(EntityType.ACCOUNT)
-                            .timestampRange(Range.atLeast(0L))
-                            .build());
+                    final var savedTreasuryAccount =
+                            entityRepository.save(treasuryAccountEntityId.toEntity().toBuilder()
+                                    .balance(0L)
+                                    .createdTimestamp(0L)
+                                    .declineReward(true)
+                                    .deleted(false)
+                                    .memo("Mirror node created synthetic treasury account")
+                                    .type(EntityType.ACCOUNT)
+                                    .timestampRange(Range.atLeast(0L))
+                                    .build());
                     log.info("Created sentinel treasury account: {}", savedTreasuryAccount);
                 }
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 log.error("Failed to auto create treasury account {}", treasuryAccountEntityId);
                 treasuryExists.set(false);
                 throw e;

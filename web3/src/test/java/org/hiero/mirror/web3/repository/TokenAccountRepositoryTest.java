@@ -304,6 +304,49 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void countByAccountIdAndTimestampDisassociatedAfterBlockNotResurrected() {
+        final long accId = domainBuilder.entityId().getId();
+        final long tokenId = domainBuilder.entityId().getId();
+        final long associatedStart = domainBuilder.timestamp();
+        final long disassociateTimestamp = associatedStart + 100L;
+
+        // The token account was associated in the past and then disassociated (current row associated=false).
+        domainBuilder
+                .tokenAccountHistory()
+                .customize(ta -> ta.accountId(accId)
+                        .tokenId(tokenId)
+                        .associated(true)
+                        .balance(10)
+                        .timestampRange(Range.closedOpen(associatedStart, disassociateTimestamp)))
+                .persist();
+        domainBuilder
+                .tokenAccount()
+                .customize(ta -> ta.accountId(accId)
+                        .tokenId(tokenId)
+                        .associated(false)
+                        .balance(0)
+                        .timestampRange(Range.atLeast(disassociateTimestamp)))
+                .persist();
+
+        // Before the disassociation the token account is counted as associated.
+        assertThat(repository.countByAccountIdAndTimestampAndAssociatedGroupedByBalanceIsPositive(
+                        accId, associatedStart))
+                .hasSize(1)
+                .extracting(
+                        TokenAccountAssociationsCount::getIsPositiveBalance,
+                        TokenAccountAssociationsCount::getTokenCount)
+                .containsExactlyInAnyOrder(tuple(true, 1));
+
+        // At and after the disassociation it must not be resurrected from the stale associated history row.
+        assertThat(repository.countByAccountIdAndTimestampAndAssociatedGroupedByBalanceIsPositive(
+                        accId, disassociateTimestamp))
+                .isEmpty();
+        assertThat(repository.countByAccountIdAndTimestampAndAssociatedGroupedByBalanceIsPositive(
+                        accId, disassociateTimestamp + 50L))
+                .isEmpty();
+    }
+
+    @Test
     void countByAccountIdAndTimestampLessThanBlock() {
         final var tokenAccount = domainBuilder.tokenAccount().persist();
 

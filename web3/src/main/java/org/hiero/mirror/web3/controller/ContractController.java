@@ -80,18 +80,12 @@ class ContractController {
 
         throttleManager.throttleTraceRequest();
 
-        try {
-            final var params = constructServiceParameters(request);
-            final var tracerConfig = request.getTracerConfig();
-            final var onlyTopCall = tracerConfig != null && tracerConfig.onlyTopCall();
-            final var traceRequest = new TraceRequest(params, onlyTopCall, timeout);
+        final var params = constructServiceParameters(request);
+        final var tracerConfig = request.getTracerConfig();
+        final var onlyTopCall = tracerConfig != null && tracerConfig.onlyTopCall();
+        final var traceRequest = new TraceRequest(params, onlyTopCall, timeout);
 
-            return contractDebugService.processTraceCall(traceRequest);
-        } catch (InvalidParametersException e) {
-            // The validation failed, but no processing occurred so restore the consumed tokens.
-            throttleManager.restore(request.getGas());
-            throw e;
-        }
+        return contractDebugService.processTraceCall(traceRequest);
     }
 
     private Duration validateTraceRequest(final ContractCallRequest request) {

@@ -331,7 +331,7 @@ public class RecordItem implements StreamItem {
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
             this.parent = parseParent();
             this.hookParent = parsePossiblyHookContractRelatedParent();
-            this.payerAccountId = EntityId.of(transactionBody.getTransactionID().getAccountID());
+            this.payerAccountId = parsePayerAccountId();
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
             return buildInternal();
@@ -351,6 +351,15 @@ public class RecordItem implements StreamItem {
             }
 
             return transactionRecordBuilder;
+        }
+
+        private EntityId parsePayerAccountId() {
+            final var payerAccountId =
+                    EntityId.tryOf(transactionBody.getTransactionID().getAccountID());
+            if (EntityId.isEmpty(payerAccountId)) {
+                return EntityId.ZERO;
+            }
+            return payerAccountId;
         }
 
         private RecordItem parseParent() {

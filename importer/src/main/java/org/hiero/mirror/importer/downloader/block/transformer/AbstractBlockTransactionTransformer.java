@@ -52,7 +52,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         final var recordItemBuilder = blockTransactionTransformation
                 .recordItemBuilder()
                 .congestionPricingMultiplier(transactionResult.getCongestionPricingMultiplier());
-        final var receiptBuilder = TransactionReceipt.newBuilder().setStatus(transactionResult.getStatus());
+        final var receiptBuilder = TransactionReceipt.newBuilder().setStatusValue(transactionResult.getStatusValue());
         var recordBuilder = recordItemBuilder
                 .transactionRecordBuilder()
                 .addAllAssessedCustomFees(transactionResult.getAssessedCustomFeesList())

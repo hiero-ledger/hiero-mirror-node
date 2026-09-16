@@ -177,6 +177,30 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    void updateTransactionInvalidProxyAccountId() {
+        var invalidProxy =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        var recordItem = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(b -> b.setProxyAccountID(invalidProxy))
+                .build();
+        var transaction = transaction(recordItem);
+        var accountId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
+
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        verify(entityListener).onEntity(entityCaptor.capture());
+        assertThat(entityCaptor.getValue())
+                .isNotNull()
+                .returns(accountId.getId(), Entity::getId)
+                .returns(null, Entity::getProxyAccountId);
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
     @Test
     void doNotUpdateTransactionStakedAccountIdBeforeConsensusStaking() {
         // given
@@ -440,7 +464,10 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
     private Map<Long, EntityTransaction> getExpectedEntityTransactions(RecordItem recordItem, Transaction transaction) {
         var body = recordItem.getTransactionBody().getCryptoCreateAccount();
         return getExpectedEntityTransactions(
-                recordItem, transaction, EntityId.of(body.getStakedAccountId()), EntityId.of(body.getProxyAccountID()));
+                recordItem,
+                transaction,
+                EntityId.of(body.getStakedAccountId()),
+                EntityId.tryOf(body.getProxyAccountID()));
     }
 
     private Transaction transaction(RecordItem recordItem) {

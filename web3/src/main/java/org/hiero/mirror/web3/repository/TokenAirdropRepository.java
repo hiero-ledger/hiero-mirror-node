@@ -27,9 +27,11 @@ public interface TokenAirdropRepository extends CrudRepository<TokenAirdrop, Abs
     Optional<TokenAirdrop> findById(long senderId, long receiverId, long tokenId, long serialNumber);
 
     /**
-     * Retrieves the most recent state of a token airdrop by its ID up to a given block timestamp.
-     * The method considers both the current state of the token airdrop and its historical states
-     * and returns the one that was valid just before or equal to the provided block timestamp.
+     * Retrieves the state of a token airdrop by its ID at a given block timestamp.
+     * The method considers both the current state of the token airdrop and its historical states,
+     * selecting the row whose timestamp_range contains the block timestamp, and returns it only if the
+     * airdrop was still pending at that point in time. If the airdrop had already been claimed or
+     * cancelled at or before the block timestamp, an empty Optional is returned.
      *
      * @param senderId the ID of the sender account
      * @param receiverId the ID of the receiver account
@@ -60,7 +62,7 @@ public interface TokenAirdropRepository extends CrudRepository<TokenAirdrop, Abs
                             and token_id = :tokenId
                             and serial_number = :serialNumber
                             and state = 'PENDING'
-                            and lower(timestamp_range) <= :blockTimestamp
+                            and timestamp_range @> :blockTimestamp
                         order by lower(timestamp_range) desc
                         limit 1
                             )

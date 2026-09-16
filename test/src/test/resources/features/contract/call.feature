@@ -1,6 +1,7 @@
 @contractbase @fullsuite @acceptance @web3 @call @ethcall
 Feature: eth_call Contract Base Coverage Feature
 
+  @shared-contract-tokens
   Scenario Outline: Validate eth_call
     Given I successfully create ERC contract
     Given I successfully create Precompile contract

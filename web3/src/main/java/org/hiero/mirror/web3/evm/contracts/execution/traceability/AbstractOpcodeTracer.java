@@ -37,7 +37,7 @@ public abstract class AbstractOpcodeTracer {
             .build(Bytes::toHexString);
 
     protected final List<String> captureMemory(final MessageFrame frame, final OpcodeContext options) {
-        if (!options.getTracerConfig().memory()) {
+        if (!options.isMemory()) {
             return Collections.emptyList();
         }
         var size = frame.memoryWordSize();
@@ -57,7 +57,7 @@ public abstract class AbstractOpcodeTracer {
     }
 
     protected final List<String> captureStack(final MessageFrame frame, final OpcodeContext options) {
-        if (!options.getTracerConfig().stack()) {
+        if (!options.isStack()) {
             return Collections.emptyList();
         }
 
@@ -73,7 +73,7 @@ public abstract class AbstractOpcodeTracer {
 
     protected Map<String, String> captureStorage(
             final MessageFrame frame, final OpcodeContext options, final ContractCallContext context) {
-        if (!options.getTracerConfig().storage()) {
+        if (!options.isStorage()) {
             return Collections.emptyMap();
         }
 

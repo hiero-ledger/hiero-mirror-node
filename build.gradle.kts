@@ -18,7 +18,7 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.41.0")
-    set("consensusNodeVersion", "0.77.0-rc.11")
+    set("consensusNodeVersion", "0.77.0")
     set("jackson-bom.version", "3.2.2") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.2") // Temporary until next Spring Boot
     set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
@@ -57,8 +57,8 @@ dependencies {
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
-        api("io.cucumber:cucumber-bom:7.34.7")
-        api("io.fabric8:kubernetes-client-bom:7.8.0")
+        api("io.cucumber:cucumber-bom:7.34.8")
+        api("io.fabric8:kubernetes-client-bom:7.9.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.5")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
@@ -70,7 +70,7 @@ dependencies {
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.bouncycastle:bcpkix-jdk18on:1.85") // Temporary until next hedera-app
-        api("org.bouncycastle:bcprov-jdk18on:1.85.2")
+        api("org.bouncycastle:bcprov-jdk18on:1.86")
         api("org.gaul:s3proxy:4.1.0")
         api("org.graalvm.nativeimage:svm:25.0.4.1")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
@@ -82,7 +82,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.54.7")
+        api("software.amazon.awssdk:bom:2.54.15")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

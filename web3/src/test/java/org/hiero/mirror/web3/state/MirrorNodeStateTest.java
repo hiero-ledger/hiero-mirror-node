@@ -3,7 +3,7 @@
 package org.hiero.mirror.web3.state;
 
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_STATE_ID;
-import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.STAKING_NETWORK_REWARDS_STATE_ID;
+import static com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema.NODE_REWARDS_STATE_ID;
 import static com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSchema.TRANSACTION_RECEIPTS_STATE_ID;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
@@ -34,7 +34,7 @@ final class MirrorNodeStateTest {
     @Test
     void getReadableStatesWithSingleton() {
         final var tokenStates = mirrorNodeState.getReadableStates(TokenService.NAME);
-        var state = tokenStates.getSingleton(STAKING_NETWORK_REWARDS_STATE_ID);
+        var state = tokenStates.getSingleton(NODE_REWARDS_STATE_ID);
         assertThat(state).isInstanceOf(ReadableSingletonState.class);
     }
 
@@ -60,7 +60,7 @@ final class MirrorNodeStateTest {
     @Test
     void getWritableStatesWithSingleton() {
         final var tokenStates = mirrorNodeState.getWritableStates(TokenService.NAME);
-        var state = tokenStates.getSingleton(STAKING_NETWORK_REWARDS_STATE_ID);
+        var state = tokenStates.getSingleton(NODE_REWARDS_STATE_ID);
         assertThat(state).isInstanceOf(WritableSingletonState.class);
     }
 

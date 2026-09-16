@@ -221,6 +221,53 @@ describe('FileDataService.getExchangeRate tests', () => {
   });
 });
 
+describe('FileDataService.getFileData tests', () => {
+  const fileId = EntityId.parseString('5001').getEncodedId();
+  const files = [
+    {
+      consensus_timestamp: 100,
+      entity_id: '5001',
+      file_data: Buffer.from([1, 2, 3]),
+      transaction_type: 17,
+    },
+    {
+      consensus_timestamp: 200,
+      entity_id: '5001',
+      file_data: Buffer.from([4]),
+      transaction_type: 16,
+    },
+    {
+      consensus_timestamp: 300,
+      entity_id: '5001',
+      file_data: Buffer.from([9, 9]),
+      transaction_type: 19,
+    },
+  ];
+
+  test('returns null when no file data exists at or before timestamp', async () => {
+    await integrationDomainOps.loadFileData(files);
+    await expect(FileDataService.getFileData(fileId, 50)).resolves.toBeNull();
+  });
+
+  test('returns create contents and ignores later update', async () => {
+    await integrationDomainOps.loadFileData(files);
+    const actual = await FileDataService.getFileData(fileId, 150);
+    expect(Buffer.from(actual)).toEqual(Buffer.from([1, 2, 3]));
+  });
+
+  test('includes appends up to timestamp', async () => {
+    await integrationDomainOps.loadFileData(files);
+    const actual = await FileDataService.getFileData(fileId, 200);
+    expect(Buffer.from(actual)).toEqual(Buffer.from([1, 2, 3, 4]));
+  });
+
+  test('returns FileUpdate contents after the update timestamp', async () => {
+    await integrationDomainOps.loadFileData(files);
+    const actual = await FileDataService.getFileData(fileId, 300);
+    expect(Buffer.from(actual)).toEqual(Buffer.from([9, 9]));
+  });
+});
+
 describe('FileDataService.getLatestFileDataContents tests', () => {
   test('FileDataService.getLatestFileDataContents - No match', async () => {
     await expect(FileDataService.getLatestFileDataContents(exchangeRateFileId, {whereQuery: []})).resolves.toBeNull();

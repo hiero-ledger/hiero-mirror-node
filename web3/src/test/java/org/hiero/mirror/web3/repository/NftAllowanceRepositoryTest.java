@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.collect.Range;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.AbstractNftAllowance;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
@@ -190,5 +191,43 @@ class NftAllowanceRepositoryTest extends Web3IntegrationTest {
 
         assertThat(actualAllowance).usingRecursiveComparison().isEqualTo(allowanceHistory2);
         assertThat(actualAllowance.getTimestampLower()).isEqualTo(latestTimestamp);
+    }
+
+    @Test
+    void findByOwnerAndTimestampApprovedForAllRevokedAfterBlockNotResurrected() {
+        final long owner = domainBuilder.entityId().getId();
+        final long spender = domainBuilder.entityId().getId();
+        final long tokenId = domainBuilder.entityId().getId();
+        final long grantedStart = domainBuilder.timestamp();
+        final long revokeTimestamp = grantedStart + 100L;
+
+        // approvedForAll was granted in the past and then revoked at revokeTimestamp.
+        final var allowanceHistory = domainBuilder
+                .nftAllowanceHistory()
+                .customize(a -> a.owner(owner)
+                        .spender(spender)
+                        .tokenId(tokenId)
+                        .approvedForAll(true)
+                        .timestampRange(Range.closedOpen(grantedStart, revokeTimestamp)))
+                .persist();
+        domainBuilder
+                .nftAllowance()
+                .customize(a -> a.owner(owner)
+                        .spender(spender)
+                        .tokenId(tokenId)
+                        .approvedForAll(false)
+                        .timestampRange(Range.atLeast(revokeTimestamp)))
+                .persist();
+
+        // Before the revocation the approval is reported.
+        final var before = allowanceRepository.findByOwnerAndTimestampAndApprovedForAllIsTrue(owner, grantedStart);
+        assertThat(before).hasSize(1);
+        assertThat(before.get(0)).usingRecursiveComparison().isEqualTo(allowanceHistory);
+
+        // At and after the revocation the approval must not be resurrected from the stale granted history row.
+        assertThat(allowanceRepository.findByOwnerAndTimestampAndApprovedForAllIsTrue(owner, revokeTimestamp))
+                .isEmpty();
+        assertThat(allowanceRepository.findByOwnerAndTimestampAndApprovedForAllIsTrue(owner, revokeTimestamp + 50L))
+                .isEmpty();
     }
 }

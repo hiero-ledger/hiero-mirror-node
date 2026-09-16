@@ -8,6 +8,7 @@ on:
       - "main"
       - "release/**"
     paths:
+      - ".github/actions/run-e2e/**"
       - ".github/workflows/acceptance.yaml"
       - "test/**"
   push:

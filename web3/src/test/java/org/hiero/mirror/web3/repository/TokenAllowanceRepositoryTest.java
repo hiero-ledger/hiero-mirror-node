@@ -77,6 +77,43 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findByOwnerAndTimestampRevokedAfterBlockNotResurrected() {
+        final long owner = domainBuilder.entityId().getId();
+        final long spender = domainBuilder.entityId().getId();
+        final long tokenId = domainBuilder.entityId().getId();
+        final long grantedStart = domainBuilder.timestamp();
+        final long revokeTimestamp = grantedStart + 100L;
+
+        // The allowance was granted in the past and then revoked (current row amountGranted=0) at revokeTimestamp.
+        domainBuilder
+                .tokenAllowanceHistory()
+                .customize(a -> a.owner(owner)
+                        .spender(spender)
+                        .tokenId(tokenId)
+                        .amount(100L)
+                        .amountGranted(100L)
+                        .timestampRange(Range.closedOpen(grantedStart, revokeTimestamp)))
+                .persist();
+        domainBuilder
+                .tokenAllowance()
+                .customize(a -> a.owner(owner)
+                        .spender(spender)
+                        .tokenId(tokenId)
+                        .amount(0L)
+                        .amountGranted(0L)
+                        .timestampRange(Range.atLeast(revokeTimestamp)))
+                .persist();
+
+        // Before the revocation the allowance is returned.
+        assertThat(repository.findByOwnerAndTimestamp(owner, grantedStart)).hasSize(1);
+
+        // At and after the revocation it must not be resurrected from the stale granted history row.
+        assertThat(repository.findByOwnerAndTimestamp(owner, revokeTimestamp)).isEmpty();
+        assertThat(repository.findByOwnerAndTimestamp(owner, revokeTimestamp + 50L))
+                .isEmpty();
+    }
+
+    @Test
     void findByOwnerAndTimestampHistoricalLessThanBlockTimestamp() {
         final var allowanceHistory = domainBuilder.tokenAllowanceHistory().persist();
 

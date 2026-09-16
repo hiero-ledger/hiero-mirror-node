@@ -89,7 +89,9 @@ spring:
         logUnclosedConnections: true
         reWriteBatchedInserts: true
         sslmode: ${hiero.mirror.importer.db.sslMode}
+      idleTimeout: 60000 # Use a short idle timeout to reclaim connections acquired for long-interval tasks, e.g., historical balance snapshotting
       maximumPoolSize: 20
+      minimumIdle: 0 # Only keep active connections
   flyway:
     baselineOnMigrate: true
     baselineVersion: 0

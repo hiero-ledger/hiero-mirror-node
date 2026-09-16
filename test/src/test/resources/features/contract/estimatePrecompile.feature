@@ -1,6 +1,7 @@
 @contractbase @fullsuite @estimateprecompile @web3 @acceptance
 Feature: EstimateGas Contract Base Coverage Feature
 
+  @shared-contract-tokens
   Scenario: Validate EstimateGas with precompile
     Given I create estimate precompile contract with 0 balance
     Given I create erc test contract with 0 balance

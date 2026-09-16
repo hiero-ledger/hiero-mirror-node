@@ -10,6 +10,7 @@ import org.hiero.mirror.common.domain.token.TokenAirdrop;
 import org.hiero.mirror.common.domain.token.TokenAirdropStateEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -313,5 +314,119 @@ class TokenAirdropRepositoryTest extends Web3IntegrationTest {
                                 senderId, receiverId, tokenId, serialNumber, timestampRange.lowerEndpoint())
                         .get())
                 .isEqualTo(expectedLatest);
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            FUNGIBLE_COMMON, CLAIMED
+            FUNGIBLE_COMMON, CANCELLED
+            NON_FUNGIBLE_UNIQUE, CLAIMED
+            NON_FUNGIBLE_UNIQUE, CANCELLED
+            """)
+    void findByIdAndTimestampClaimedOrCancelledAfterBlockNotResurrected(
+            final TokenTypeEnum tokenType, final TokenAirdropStateEnum state) {
+        final var senderId = domainBuilder.entityId().getId();
+        final var receiverId = domainBuilder.entityId().getId();
+        final var tokenId = domainBuilder.entityId().getId();
+        final long pendingStart = domainBuilder.timestamp();
+        final long transition = pendingStart + 100L;
+        final var pendingRange = Range.closedOpen(pendingStart, transition);
+        final var currentRange = Range.atLeast(transition);
+
+        long amount;
+        long serialNumber;
+        if (tokenType == TokenTypeEnum.FUNGIBLE_COMMON) {
+            amount = 1L;
+            serialNumber = 0L;
+        } else {
+            amount = 0L;
+            serialNumber = 123L;
+        }
+
+        // The airdrop was pending in the past and then claimed/cancelled at the transition timestamp.
+        domainBuilder
+                .tokenAirdropHistory(tokenType)
+                .customize(ta -> ta.senderAccountId(senderId)
+                        .receiverAccountId(receiverId)
+                        .tokenId(tokenId)
+                        .state(TokenAirdropStateEnum.PENDING)
+                        .amount(amount)
+                        .serialNumber(serialNumber)
+                        .timestampRange(pendingRange))
+                .persist();
+        domainBuilder
+                .tokenAirdrop(tokenType)
+                .customize(ta -> ta.senderAccountId(senderId)
+                        .receiverAccountId(receiverId)
+                        .tokenId(tokenId)
+                        .state(state)
+                        .amount(amount)
+                        .serialNumber(serialNumber)
+                        .timestampRange(currentRange))
+                .persist();
+
+        // Before the transition the airdrop is correctly reported as pending.
+        assertThat(tokenAirdropRepository.findByIdAndTimestamp(
+                        senderId, receiverId, tokenId, serialNumber, pendingStart))
+                .hasValueSatisfying(ta -> assertThat(ta.getState()).isEqualTo(TokenAirdropStateEnum.PENDING));
+
+        // At and after the transition the airdrop must not be resurrected from the stale pending history row.
+        assertThat(tokenAirdropRepository.findByIdAndTimestamp(senderId, receiverId, tokenId, serialNumber, transition))
+                .isEmpty();
+        assertThat(tokenAirdropRepository.findByIdAndTimestamp(
+                        senderId, receiverId, tokenId, serialNumber, transition + 50L))
+                .isEmpty();
+    }
+
+    @Test
+    void findByIdAndTimestampWalksClaimedTimeline() {
+        // Mirrors the manual reproduction: PENDING history [1000, 2000) followed by CLAIMED current [2000, inf).
+        final var senderId = domainBuilder.entityId().getId();
+        final var receiverId = domainBuilder.entityId().getId();
+        final var tokenId = domainBuilder.entityId().getId();
+        final long pendingStart = domainBuilder.timestamp();
+        final long claimTimestamp = pendingStart + 1000L;
+
+        final var pending = domainBuilder
+                .tokenAirdropHistory(TokenTypeEnum.FUNGIBLE_COMMON)
+                .customize(ta -> ta.senderAccountId(senderId)
+                        .receiverAccountId(receiverId)
+                        .tokenId(tokenId)
+                        .state(TokenAirdropStateEnum.PENDING)
+                        .amount(1L)
+                        .serialNumber(0L)
+                        .timestampRange(Range.closedOpen(pendingStart, claimTimestamp)))
+                .persist();
+        domainBuilder
+                .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
+                .customize(ta -> ta.senderAccountId(senderId)
+                        .receiverAccountId(receiverId)
+                        .tokenId(tokenId)
+                        .state(TokenAirdropStateEnum.CLAIMED)
+                        .amount(1L)
+                        .serialNumber(0L)
+                        .timestampRange(Range.atLeast(claimTimestamp)))
+                .persist();
+
+        // Before the airdrop existed -> absent.
+        assertThat(tokenAirdropRepository.findByIdAndTimestamp(senderId, receiverId, tokenId, 0L, pendingStart - 1))
+                .isEmpty();
+
+        // While pending (at the start and at the last pending instant) -> the pending history row.
+        assertThat(tokenAirdropRepository.findByIdAndTimestamp(senderId, receiverId, tokenId, 0L, pendingStart))
+                .get()
+                .usingRecursiveComparison()
+                .isEqualTo(pending);
+        assertThat(tokenAirdropRepository.findByIdAndTimestamp(senderId, receiverId, tokenId, 0L, claimTimestamp - 1))
+                .get()
+                .usingRecursiveComparison()
+                .isEqualTo(pending);
+
+        // At the claim and afterwards -> absent (not resurrected from the expired pending row).
+        assertThat(tokenAirdropRepository.findByIdAndTimestamp(senderId, receiverId, tokenId, 0L, claimTimestamp))
+                .isEmpty();
+        assertThat(tokenAirdropRepository.findByIdAndTimestamp(
+                        senderId, receiverId, tokenId, 0L, claimTimestamp + 1000))
+                .isEmpty();
     }
 }

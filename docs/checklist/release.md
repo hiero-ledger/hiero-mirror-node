@@ -39,7 +39,7 @@ Deployed automatically on every tag.
 
 ### Mainnet Staging
 
-- [ ] Create deploy branch PR to bump versions in `clusters/mainnet-staging-na/(common|mainnet-citus)/helmrelease.yaml`
+- [ ] Create deploy branch PR to bump versions in `clusters/mainnet-staging/(common|mainnet-citus)/helmrelease.yaml`
 - [ ] Deployed
 - [ ] Helm Controller logs show successful reconciliation check
 - [ ] Helm release status is healthy
