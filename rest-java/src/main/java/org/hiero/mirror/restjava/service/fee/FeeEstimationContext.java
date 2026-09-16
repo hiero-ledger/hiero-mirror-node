@@ -37,6 +37,13 @@ final class FeeEstimationContext {
         return readCache.computeIfAbsent(cacheEntityType, _ -> new HashMap<>());
     }
 
+    void checkLookupCapacity() {
+        if (readCount() >= MAX_LOOKUPS) {
+            throw new IllegalArgumentException(
+                    "Fee estimation exceeded the maximum of %d entity lookups".formatted(MAX_LOOKUPS));
+        }
+    }
+
     int readCount() {
         var count = 0;
         for (final var cache : readCache.values()) {

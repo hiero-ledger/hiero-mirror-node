@@ -32,6 +32,7 @@ final class FeeTopicStore implements ReadableTopicStore {
     @SuppressWarnings("unchecked")
     public Topic getTopic(@NonNull final TopicID id) {
         if (!hasBeenRead(id)) {
+            FeeEstimationContext.get().checkLookupCapacity();
             markRead(id, load(id));
         }
         final var value = getReadCache().get(id);
@@ -52,10 +53,6 @@ final class FeeTopicStore implements ReadableTopicStore {
     }
 
     private void markRead(final TopicID id, @Nullable final Topic value) {
-        if (FeeEstimationContext.get().readCount() >= FeeEstimationContext.MAX_LOOKUPS) {
-            throw new IllegalArgumentException("Fee estimation exceeded the maximum of %d entity lookups"
-                    .formatted(FeeEstimationContext.MAX_LOOKUPS));
-        }
         getReadCache().put(id, value == null ? MARKER : value);
     }
 
