@@ -454,8 +454,10 @@ class ContractService extends BaseService {
   }
 
   /**
-   * Exclude synthetic NFT treasury-change Transfer logs (topic0 = Transfer AND topic3 = 0xffffffffffffffff).
-   * NULL topic0 or topic3 is kept via IS DISTINCT FROM.
+   * Exclude importer-generated synthetic NFT treasury-change Transfer logs (synthetic = true AND topic0 = Transfer AND
+   * topic3 = 0xffffffffffffffff). The synthetic flag is the authoritative discriminator; without it genuine EVM logs
+   * whose indexed tokenId is 2^64-1 (stored as the same trimmed topic3) would be wrongly suppressed. NULL topic0 or
+   * topic3 is kept via IS DISTINCT FROM, and non-synthetic logs are kept via IS NOT TRUE.
    *
    * @param {*[]} params
    * @param {string[]} conditions
@@ -463,9 +465,11 @@ class ContractService extends BaseService {
   appendSyntheticNftTransferExclusion(params, conditions) {
     params.push(TRANSFER_EVENT_TOPIC0, SYNTHETIC_NFT_SERIAL_TOPIC3);
     conditions.push(
-      `(${ContractLog.getFullName(ContractLog.TOPIC0)} is distinct from $${
-        params.length - 1
-      } or ${ContractLog.getFullName(ContractLog.TOPIC3)} is distinct from $${params.length})`
+      `(${ContractLog.getFullName(ContractLog.SYNTHETIC)} is not true or ${ContractLog.getFullName(
+        ContractLog.TOPIC0
+      )} is distinct from $${params.length - 1} or ${ContractLog.getFullName(ContractLog.TOPIC3)} is distinct from $${
+        params.length
+      })`
     );
   }
 
