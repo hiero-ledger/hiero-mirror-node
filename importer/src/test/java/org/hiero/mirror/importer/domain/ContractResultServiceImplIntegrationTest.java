@@ -163,6 +163,27 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
                 .returns(transactionBody.getMemo(), Entity::getMemo);
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    void processContractCreateInvalidProxyAccountId() {
+        var invalidProxy =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        var childContractId = recordItemBuilder.contractId();
+        var recordItem = recordItemBuilder
+                .contractCreate()
+                .recordItem(r -> r.hapiVersion(new Version(0, 22, 0)))
+                .transactionBody(b -> b.setProxyAccountID(invalidProxy))
+                .record(r -> r.getContractCreateResultBuilder().addCreatedContractIDs(childContractId))
+                .build();
+
+        process(recordItem);
+
+        assertThat(entityRepository.findById(EntityId.of(childContractId).getId()))
+                .get()
+                .returns(null, Entity::getProxyAccountId)
+                .returns(CONTRACT, Entity::getType);
+    }
+
     @Test
     void processContractCreateNoChildren() {
         var recordItem = recordItemBuilder

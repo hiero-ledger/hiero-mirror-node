@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import com.hederahashgraph.api.proto.java.AccountID;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -46,6 +47,17 @@ abstract class AbstractEntityCrudTransactionHandler extends AbstractTransactionH
 
         entity.setTimestampLower(consensusTimestamp);
         doUpdateEntity(entity, recordItem);
+    }
+
+    protected void updateProxyAccountId(
+            final Entity entity, final RecordItem recordItem, final AccountID proxyAccountId) {
+        final var parsed = EntityId.tryOf(proxyAccountId);
+        if (EntityId.isEmpty(parsed)) {
+            return;
+        }
+
+        entity.setProxyAccountId(parsed);
+        recordItem.addEntityId(parsed);
     }
 
     protected abstract void doUpdateEntity(Entity entity, RecordItem recordItem);

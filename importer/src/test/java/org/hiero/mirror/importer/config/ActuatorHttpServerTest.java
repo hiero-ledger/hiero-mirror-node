@@ -34,10 +34,8 @@ final class ActuatorHttpServerTest {
     private int port;
 
     @BeforeEach
-    void setup() throws Exception {
-        actuatorHttpServer = new ActuatorHttpServer(healthResolver, prometheusMeterRegistry, new ObjectMapper());
-        // port 0 lets the OS pick a free port
-        actuatorHttpServer.setPort(0);
+    void setup() {
+        actuatorHttpServer = new ActuatorHttpServer(healthResolver, new ObjectMapper(), prometheusMeterRegistry, 0);
         actuatorHttpServer.afterPropertiesSet();
         port = actuatorHttpServer.getPort();
         httpClient = HttpClient.newHttpClient();

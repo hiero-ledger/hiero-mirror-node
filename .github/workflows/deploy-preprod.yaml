@@ -89,7 +89,7 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Auto-Commit
-        uses: step-security/git-auto-commit-action@749bc1cc775376092cc4227ba537137f445ca7c3 # v7.1.1
+        uses: step-security/git-auto-commit-action@ca31fda53dd20a6864523b29798308a4c5fa5cfa # v7.2.0
         with:
           commit_author: ${{ steps.gpg_importer.outputs.name }} <${{ steps.gpg_importer.outputs.email }}>
           commit_message: Deploy v${{ env.VERSION }} to ${{ env.ENVIRONMENT }}
