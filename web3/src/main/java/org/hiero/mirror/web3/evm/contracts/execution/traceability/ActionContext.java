@@ -15,7 +15,6 @@ import lombok.Setter;
 import lombok.ToString;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
-import org.hiero.mirror.web3.viewmodel.TracerConfig;
 
 @Data
 @Builder(toBuilder = true)
@@ -57,7 +56,10 @@ public class ActionContext {
 
     private boolean truncated;
 
-    private TracerConfig tracerConfig;
+    /**
+     * Include only the root message frame in the response.
+     */
+    private boolean onlyTopCall;
 
     /**
      * Records a new action at the given call depth. Depth {@code 0} actions are roots; deeper actions are appended to

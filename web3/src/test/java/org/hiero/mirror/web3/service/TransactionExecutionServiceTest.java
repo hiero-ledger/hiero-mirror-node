@@ -59,7 +59,6 @@ import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.hiero.mirror.web3.viewmodel.BlockType;
-import org.hiero.mirror.web3.viewmodel.TracerConfig;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
@@ -185,10 +184,7 @@ class TransactionExecutionServiceTest {
     @Test
     void testExecuteUsesActionTracerWhenActionContextPresent() {
         // Given
-        ContractCallContext.get()
-                .setActionContext(ActionContext.builder()
-                        .tracerConfig(TracerConfig.builder().build())
-                        .build());
+        ContractCallContext.get().setActionContext(ActionContext.builder().build());
 
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
         var transactionRecord = mock(TransactionRecord.class);

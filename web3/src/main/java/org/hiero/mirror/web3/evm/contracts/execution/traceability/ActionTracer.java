@@ -109,7 +109,7 @@ public class ActionTracer implements ActionSidecarContentTracer {
             return;
         }
 
-        final var onlyTopCall = onlyTopCall(actionContext);
+        final var onlyTopCall = actionContext.isOnlyTopCall();
         if (state == CODE_SUSPENDED) {
             if (onlyTopCall) {
                 return;
@@ -176,11 +176,6 @@ public class ActionTracer implements ActionSidecarContentTracer {
     private TypeEnum topLevelCallType(final MessageFrame frame) {
         // eth_call with an empty `to` is always CREATE. CREATE2 only appears as a nested opcode.
         return frame.getType() == CONTRACT_CREATION ? TypeEnum.CREATE : TypeEnum.CALL;
-    }
-
-    private boolean onlyTopCall(final ActionContext actionContext) {
-        final var tracerConfig = actionContext.getTracerConfig();
-        return tracerConfig != null && tracerConfig.onlyTopCall();
     }
 
     private boolean haltIfDeadlineExceeded(final MessageFrame frame) {

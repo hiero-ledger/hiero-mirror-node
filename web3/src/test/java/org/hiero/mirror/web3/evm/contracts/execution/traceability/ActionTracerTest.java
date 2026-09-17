@@ -24,7 +24,6 @@ import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.utils.HexUtils;
-import org.hiero.mirror.web3.viewmodel.TracerConfig;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.EVM;
@@ -105,10 +104,7 @@ class ActionTracerTest {
     @BeforeEach
     void setup() {
         actionTracer = new ActionTracer();
-        actionContext = ActionContext.builder()
-                .tracerConfig(TracerConfig.builder().build())
-                .gasRemaining(INITIAL_GAS)
-                .build();
+        actionContext = ActionContext.builder().gasRemaining(INITIAL_GAS).build();
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
         lenient().when(contractCallContext.getActionContext()).thenReturn(actionContext);
     }
@@ -238,7 +234,7 @@ class ActionTracerTest {
     @Test
     void skipsNestedActionWhenOnlyTopCallEnabled() {
         // Given
-        actionContext.setTracerConfig(TracerConfig.builder().onlyTopCall(true).build());
+        actionContext.setOnlyTopCall(true);
         givenOriginFrameData();
         actionTracer.traceOriginAction(messageFrame);
         given(messageFrame.getState()).willReturn(CODE_SUSPENDED);
@@ -363,7 +359,7 @@ class ActionTracerTest {
     @Test
     void recordsCompletedFrameEvenWhenOnlyTopCallEnabled() {
         // Given
-        actionContext.setTracerConfig(TracerConfig.builder().onlyTopCall(true).build());
+        actionContext.setOnlyTopCall(true);
         givenOriginFrameData();
         actionTracer.traceOriginAction(messageFrame);
         givenCompletedFrameData(messageFrame, REMAINING_GAS, OUTPUT);
@@ -380,7 +376,7 @@ class ActionTracerTest {
     @Test
     void doesNotFinalizeNestedFrameWhenOnlyTopCallEnabled() {
         // Given
-        actionContext.setTracerConfig(TracerConfig.builder().onlyTopCall(true).build());
+        actionContext.setOnlyTopCall(true);
         givenOriginFrameData();
         actionTracer.traceOriginAction(messageFrame);
         given(nestedFrame.getState()).willReturn(COMPLETED_SUCCESS);
@@ -434,7 +430,6 @@ class ActionTracerTest {
     @Test
     void doesNotHaltWhenNoTimeoutConfigured() {
         // Given — no timeout set (null)
-        actionContext.setTracerConfig(TracerConfig.builder().build());
         given(messageFrame.getState()).willReturn(CODE_EXECUTING);
 
         // When

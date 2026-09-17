@@ -16,10 +16,12 @@ import static org.mockito.Mockito.when;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.ActionResponse;
@@ -118,9 +120,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var result = contractDebugService.processTraceCall(new TraceRequest(params, false, null));
 
         // Then
-        assertThat(result.getActions()).isNotNull();
-        assertThat(result.getActions().getCalls()).containsExactly(topLevelAction);
-        assertThat(result.getActions().getCalls().getFirst().getCalls()).containsExactly(nestedAction);
+        assertThat(result.getCalls()).containsExactly(topLevelAction);
+        assertThat(result.getCalls().getFirst().getCalls()).containsExactly(nestedAction);
     }
 
     @Test
@@ -134,9 +135,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var result = contractDebugService.processTraceCall(new TraceRequest(params, true, null));
 
         // Then
-        assertThat(result.getActions()).isNotNull();
-        assertThat(result.getActions().getCalls()).containsExactly(topLevelAction);
-        assertThat(result.getActions().getCalls().getFirst().getCalls()).isNullOrEmpty();
+        assertThat(result.getCalls()).containsExactly(topLevelAction);
+        assertThat(result.getCalls().getFirst().getCalls()).isNullOrEmpty();
     }
 
     @Test
@@ -150,10 +150,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var result = contractDebugService.processTraceCall(new TraceRequest(params, false, null));
 
         // Then
-        assertThat(result.getActions()).isNotNull();
-        assertThat(result.getActions().getCalls()).isNotEmpty();
-        assertThat(result.getActions().getCalls().getFirst().getTo())
-                .isEqualToIgnoringCase(contract.getContractAddress());
+        assertThat(result.getCalls()).isNotEmpty();
+        assertThat(result.getCalls().getFirst().getTo()).isEqualToIgnoringCase(contract.getContractAddress());
     }
 
     @Test
@@ -168,12 +166,32 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var topCallOnly = contractDebugService.processTraceCall(new TraceRequest(params, true, null));
 
         // Then
-        assertThat(allActions.getActions().getCalls()).hasSize(2);
-        assertThat(topCallOnly.getActions().getCalls()).hasSize(1);
-        assertThat(allActions.getActions().getCalls().getFirst().getCalls()).isNotEmpty();
-        assertThat(topCallOnly.getActions().getCalls().getFirst().getCalls()).isNullOrEmpty();
-        assertThat(topCallOnly.getActions().getCalls().getFirst().getTo())
-                .isEqualTo(allActions.getActions().getCalls().getFirst().getTo());
+        assertThat(allActions.getCalls()).hasSize(2);
+        assertThat(topCallOnly.getCalls()).hasSize(1);
+        assertThat(allActions.getCalls().getFirst().getCalls()).isNotEmpty();
+        assertThat(topCallOnly.getCalls().getFirst().getCalls()).isNullOrEmpty();
+        assertThat(topCallOnly.getCalls().getFirst().getTo())
+                .isEqualTo(allActions.getCalls().getFirst().getTo());
+    }
+
+    @Test
+    void processTraceCallAppliesRequestedTimeout() {
+        final var deadlineWindow = new AtomicLong();
+        stubActionsAndCaptureDeadline(deadlineWindow, action("0x02", TypeEnum.CALL));
+
+        contractDebugService.processTraceCall(new TraceRequest(executionParameters(), false, Duration.ofSeconds(2)));
+
+        assertThat(deadlineWindow).hasValue(Duration.ofSeconds(2).toMillis());
+    }
+
+    @Test
+    void processTraceCallDoesNotApplyTimeoutWhenNull() {
+        final var deadlineWindow = new AtomicLong(-1);
+        stubActionsAndCaptureDeadline(deadlineWindow, action("0x02", TypeEnum.CALL));
+
+        contractDebugService.processTraceCall(new TraceRequest(executionParameters(), false, null));
+
+        assertThat(deadlineWindow).hasValue(0);
     }
 
     /**
@@ -251,10 +269,18 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     private void stubActions(final ActionResponse... actions) {
+        stubActionsAndCaptureDeadline(null, actions);
+    }
+
+    private void stubActionsAndCaptureDeadline(final AtomicLong deadlineWindow, final ActionResponse... actions) {
         doAnswer(invocation -> {
-                    final var actionContext = ContractCallContext.get().getActionContext();
+                    final var ctx = ContractCallContext.get();
+                    if (deadlineWindow != null) {
+                        final var deadlineMillis = ctx.getDeadlineMillis();
+                        deadlineWindow.set(deadlineMillis == 0 ? 0 : deadlineMillis - ctx.getStartTime());
+                    }
+                    final var actionContext = ctx.getActionContext();
                     assertThat(actionContext).isNotNull();
-                    assertThat(actionContext.getTracerConfig()).isNotNull();
                     for (final var action : actions) {
                         actionContext.addAction(action, 0);
                     }

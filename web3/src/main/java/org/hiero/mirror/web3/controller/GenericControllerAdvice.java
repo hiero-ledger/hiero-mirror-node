@@ -126,8 +126,8 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     @ExceptionHandler
     private ResponseEntity<?> traceTimeoutException(final TraceTimeoutException e, final WebRequest request) {
         request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, e, SCOPE_REQUEST);
-        if (e.getTracerResponse() != null) {
-            return new ResponseEntity<>(e.getTracerResponse(), REQUEST_TIMEOUT);
+        if (e.getActionResponse() != null) {
+            return new ResponseEntity<>(e.getActionResponse(), REQUEST_TIMEOUT);
         }
         return handleExceptionInternal(e, null, null, REQUEST_TIMEOUT, request);
     }
