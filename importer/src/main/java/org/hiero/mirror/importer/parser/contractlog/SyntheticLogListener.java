@@ -96,22 +96,38 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
         }
 
         final var aggregatedBloom = aggregateRecordFileBloom(recordFile, contractResults);
-
-        if (aggregatedBloom.length == LogsBloomFilter.BYTE_SIZE) {
+        if (aggregatedBloom != null) {
             recordFile.setLogsBloom(aggregatedBloom);
         }
     }
 
     private byte[] aggregateRecordFileBloom(
             final RecordFile recordFile, final Collection<ContractResult> contractResults) {
-        var aggregatedBloom =
-                recordFile.getLogsBloom() != null ? recordFile.getLogsBloom() : new byte[LogsBloomFilter.BYTE_SIZE];
+        var aggregatedBloom = initializeFileBloom(recordFile.getLogsBloom());
+        boolean merged = false;
 
         for (final var contractResult : contractResults) {
-            aggregatedBloom = LogsBloomFilter.or(contractResult.getBloom(), aggregatedBloom);
+            final var source = contractResult.getBloom();
+            if (source == null || source.length != LogsBloomFilter.BYTE_SIZE) {
+                continue;
+            }
+            aggregatedBloom = LogsBloomFilter.or(source, aggregatedBloom);
+            merged = true;
         }
 
-        return aggregatedBloom;
+        return merged ? aggregatedBloom : null;
+    }
+
+    /**
+     * RecordFileParser assigns {@link LogsBloomFilter#EMPTY} when a file has no top-level contract
+     * results. Synthetic logs can still link to non-top-level results (e.g. hook executions), so the
+     * merge target must be a 256-byte buffer before those blooms are OR-ed in.
+     */
+    private byte[] initializeFileBloom(final byte[] logsBloom) {
+        if (logsBloom != null && logsBloom.length == LogsBloomFilter.BYTE_SIZE) {
+            return logsBloom;
+        }
+        return new byte[LogsBloomFilter.BYTE_SIZE];
     }
 
     @Override
