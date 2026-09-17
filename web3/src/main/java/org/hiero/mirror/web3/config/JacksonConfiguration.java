@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.config;
 
-import static org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext.MAX_DEPTH;
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.DATA_MAX_LENGTH;
 
 import com.fasterxml.jackson.core.StreamReadConstraints;
@@ -37,7 +36,9 @@ class JacksonConfiguration {
                     .maxTokenCount(100)
                     .build();
             var streamWriteConstraints = StreamWriteConstraints.builder()
-                    .maxNestingDepth(2 * MAX_DEPTH + 8)
+                    // Might cause issue for simulation a transaction on api/v1/contracts/call/actions with 1024 nested
+                    // frames, however reaching this limit is practically unlikely to happen
+                    .maxNestingDepth(100)
                     .build();
             var factory = new MappingJsonFactory();
             factory.setStreamReadConstraints(streamReadConstraints);
