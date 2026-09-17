@@ -72,6 +72,7 @@ public class ContractDebugService extends ContractCallService {
             ctx.setDeadlineMillis(ctx.getStartTime() + timeout.toMillis());
             ctx.applyStateOverrides(
                     traceRequest.getContractExecutionParameters().getStateOverrides());
+            ctx.applyBlockOverride(traceRequest.getBlockOverride());
 
             final var actionContext = ActionContext.builder()
                     .onlyTopCall(traceRequest.isOnlyTopCall())

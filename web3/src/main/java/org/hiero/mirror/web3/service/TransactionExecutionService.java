@@ -207,10 +207,12 @@ public class TransactionExecutionService {
     }
 
     private Instant getConsensusTimeFromContext() {
-        return ContractCallContext.get()
-                .getTimestamp()
-                .map(Utils::convertToInstant)
-                .orElseGet(Instant::now);
+        final var ctx = ContractCallContext.get();
+        final var overrideNanos = ctx.getBlockOverrideTimeNanos();
+        if (overrideNanos != null) {
+            return Utils.convertToInstant(overrideNanos);
+        }
+        return ctx.getTimestamp().map(Utils::convertToInstant).orElseGet(Instant::now);
     }
 
     private TransactionBody buildEthereumTransactionBody(

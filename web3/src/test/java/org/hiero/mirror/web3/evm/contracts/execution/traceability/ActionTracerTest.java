@@ -434,9 +434,11 @@ class ActionTracerTest {
         given(messageFrame.getState()).willReturn(CODE_EXECUTING);
 
         // When
-        actionTracer.tracePostExecution(messageFrame, operationResult);
+        for (int i = 0; i < ActionContext.DEADLINE_CHECK_INTERVAL; i++) {
+            actionTracer.tracePostExecution(messageFrame, operationResult);
+        }
 
-        // Then — should behave like CODE_EXECUTING (no action recorded)
+        // Then — deadline is sampled but not exceeded
         verify(messageFrame, never()).setState(any());
         assertThat(actionContext.getActions()).isEmpty();
     }
@@ -452,6 +454,22 @@ class ActionTracerTest {
         // Then — normal CODE_EXECUTING early return, no halt
         verify(messageFrame, never()).setState(any());
         assertThat(actionContext.getActions()).isEmpty();
+    }
+
+    @Test
+    void checksDeadlineEveryIntervalOpcodesWhileCodeExecuting() {
+        given(messageFrame.getState()).willReturn(CODE_EXECUTING);
+        lenient().when(contractCallContext.isDeadlineExceeded()).thenReturn(true);
+
+        for (int i = 1; i < ActionContext.DEADLINE_CHECK_INTERVAL; i++) {
+            actionTracer.tracePostExecution(messageFrame, operationResult);
+        }
+        verify(messageFrame, never()).setState(any());
+
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        verify(messageFrame).setState(MessageFrame.State.EXCEPTIONAL_HALT);
+        assertThat(actionContext.isTimedOut()).isTrue();
     }
 
     @Test

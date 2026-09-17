@@ -35,6 +35,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -58,6 +59,7 @@ import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.GzipEncoding;
 import org.hiero.mirror.web3.viewmodel.AccessListEntry;
 import org.hiero.mirror.web3.viewmodel.ActionTraceRequest;
+import org.hiero.mirror.web3.viewmodel.AuthorizationListEntry;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
@@ -436,7 +438,7 @@ final class ContractControllerTest {
         request.setValue(0);
         final var override = new BlockOverride();
         override.setNumber("0x100");
-        override.setTime("0x1");
+        override.setTime("0x65f9e0c0");
         request.setBlockOverride(override);
 
         contractActionsCall(request).andExpect(status().isBadRequest());
@@ -454,7 +456,118 @@ final class ContractControllerTest {
         given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSE);
 
         contractActionsCall(request).andExpect(status().isOk());
-        verify(contractDebugService).processTraceCall(any());
+        verify(contractDebugService)
+                .processTraceCall(argThat(traceRequest -> traceRequest.getBlockOverride() != null
+                        && "0x100".equals(traceRequest.getBlockOverride().getNumber())
+                        && traceRequest.getBlockOverride().getTime() == null));
+    }
+
+    @Test
+    void actionsCallAcceptsBlockOverrideTime() throws Exception {
+        enableActionsApi();
+        final var request = request();
+        request.setValue(0);
+        final var override = new BlockOverride();
+        override.setTime("0x65f9e0c0");
+        request.setBlockOverride(override);
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSE);
+
+        contractActionsCall(request).andExpect(status().isOk());
+        verify(contractDebugService)
+                .processTraceCall(argThat(traceRequest -> traceRequest.getBlockOverride() != null
+                        && "0x65f9e0c0".equals(traceRequest.getBlockOverride().getTime())
+                        && traceRequest.getBlockOverride().getNumber() == null));
+    }
+
+    @Test
+    void actionsCallSerializesDeeplyNestedCalls() throws Exception {
+        enableActionsApi();
+        final var request = request();
+        request.setValue(0);
+        var nested = new ActionResponse().from("0x1");
+        for (int i = 0; i < 120; i++) {
+            nested = new ActionResponse().from("0x1").calls(List.of(nested));
+        }
+        given(contractDebugService.processTraceCall(any())).willReturn(new ActionResponse().calls(List.of(nested)));
+
+        contractActionsCall(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void callAcceptsGasPriceSnakeCaseAlias() throws Exception {
+        given(service.processCall(any())).willReturn("0x0");
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"to":"0x00000000000000000000000000000000000004e4","gas_price":100}
+                                """))
+                .andExpect(status().isOk());
+        verify(service).processCall(argThat(params -> params.getGasPrice() == 100L));
+    }
+
+    @Test
+    void actionsCallRejectsAccessListEntryWithoutAddress() throws Exception {
+        enableActionsApi();
+        mockMvc.perform(post(ACTIONS_CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"to":"0x00000000000000000000000000000000000004e4","value":0,\
+                                "access_list":[{"storage_keys":[]}]}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("address")));
+        verify(contractDebugService, never()).processTraceCall(any());
+    }
+
+    @Test
+    void actionsCallRejectsOversizedAccessList() throws Exception {
+        enableActionsApi();
+        final var request = request();
+        request.setValue(0);
+        final var entry = new AccessListEntry();
+        entry.setAddress("0x00000000000000000000000000000000000004e4");
+        request.setAccessList(Collections.nCopies(1_001, entry));
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("accessList field size must be between 0 and 1000")));
+        verify(contractDebugService, never()).processTraceCall(any());
+    }
+
+    @Test
+    void actionsCallRejectsOversizedAuthorizationList() throws Exception {
+        enableActionsApi();
+        final var request = request();
+        request.setValue(0);
+        final var entry = new AuthorizationListEntry();
+        entry.setAddress("0x00000000000000000000000000000000000004e4");
+        request.setAuthorizationList(Collections.nCopies(1_001, entry));
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("authorizationList field size must be between 0 and 1000")));
+        verify(contractDebugService, never()).processTraceCall(any());
+    }
+
+    @Test
+    void actionsCallRejectsOversizedStorageKeys() throws Exception {
+        enableActionsApi();
+        final var request = request();
+        request.setValue(0);
+        final var entry = new AccessListEntry();
+        entry.setAddress("0x00000000000000000000000000000000000004e4");
+        entry.setStorageKeys(
+                Collections.nCopies(10_001, "0x0000000000000000000000000000000000000000000000000000000000000001"));
+        request.setAccessList(List.of(entry));
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("storageKeys field size must be between 0 and 10000")));
+        verify(contractDebugService, never()).processTraceCall(any());
     }
 
     @Test

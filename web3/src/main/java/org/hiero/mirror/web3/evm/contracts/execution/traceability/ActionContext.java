@@ -14,7 +14,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import org.hiero.mirror.rest.model.ActionResponse;
-import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -35,6 +34,12 @@ public class ActionContext {
      */
     public static final int MAX_ACTIONS = 10_000;
 
+    /**
+     * Check the execution deadline every N opcodes while a frame is {@code CODE_EXECUTING}, so a 15M-gas loop cannot
+     * ignore {@code api.actions.request.timeout}. Must be a power of two.
+     */
+    public static final int DEADLINE_CHECK_INTERVAL = 64;
+
     static final String TRUNCATED_ERROR = "Trace truncated after reaching the configured limit";
 
     /**
@@ -53,6 +58,15 @@ public class ActionContext {
     @Setter(AccessLevel.NONE)
     private int totalActionCount = 0;
 
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private int executedOpcodes = 0;
+
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private @Nullable ActionResponse lastAction;
+
     private boolean timedOut;
 
     private boolean truncated;
@@ -68,7 +82,7 @@ public class ActionContext {
      * {@link #MAX_DEPTH} are dropped and a truncation marker is recorded.
      */
     public void addAction(final ActionResponse actionResponse, final int depth) {
-        if (totalActionCount >= MAX_ACTIONS || depth < 0 || depth >= MAX_DEPTH) {
+        if (truncated || totalActionCount >= MAX_ACTIONS || depth < 0 || depth >= MAX_DEPTH) {
             markTruncated();
             return;
         }
@@ -84,7 +98,15 @@ public class ActionContext {
             parents.getLast().addCallsItem(actionResponse);
         }
         totalActionCount++;
+        lastAction = actionResponse;
         getActionsByDepth(depth).add(actionResponse);
+    }
+
+    /**
+     * {@code true} every {@link #DEADLINE_CHECK_INTERVAL} opcodes so the tracer can halt a tight loop.
+     */
+    public boolean shouldCheckDeadline() {
+        return (++executedOpcodes & (DEADLINE_CHECK_INTERVAL - 1)) == 0;
     }
 
     /**
@@ -99,6 +121,10 @@ public class ActionContext {
             final @Nullable String revertReason) {
         final var action = getCurrentAction(depth);
         if (action == null) {
+            return;
+        }
+        if (TRUNCATED_ERROR.equals(action.getError())) {
+            action.gasUsed(gasUsed).output(output).revertReason(revertReason);
             return;
         }
         action.error(error).gasUsed(gasUsed).output(output).revertReason(revertReason);
@@ -151,10 +177,8 @@ public class ActionContext {
             return;
         }
         truncated = true;
-        getActionsByDepth(0)
-                .add(new ActionResponse()
-                        .error(TRUNCATED_ERROR)
-                        .type(TypeEnum.UNKNOWN)
-                        .calls(new ArrayList<>()));
+        if (lastAction != null) {
+            lastAction.error(TRUNCATED_ERROR);
+        }
     }
 }

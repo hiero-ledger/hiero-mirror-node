@@ -22,8 +22,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
 import org.hiero.mirror.rest.model.Opcode;
@@ -38,6 +41,8 @@ import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.service.model.TraceRequest;
+import org.hiero.mirror.web3.utils.HexUtils;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
 import org.hiero.mirror.web3.web3j.generated.EvmCodes;
@@ -120,7 +125,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result = contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT));
+        final var result =
+                contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT, null));
 
         // Then
         assertThat(result.getCalls()).containsExactly(topLevelAction);
@@ -135,7 +141,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result = contractDebugService.processTraceCall(new TraceRequest(params, true, DEFAULT_TIMEOUT));
+        final var result = contractDebugService.processTraceCall(new TraceRequest(params, true, DEFAULT_TIMEOUT, null));
 
         // Then
         assertThat(result.getCalls()).containsExactly(topLevelAction);
@@ -150,7 +156,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var params = getContractExecutionParameters(functionCall, contract);
 
         // When
-        final var result = contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT));
+        final var result =
+                contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT, null));
 
         // Then
         assertThat(result.getCalls()).isNotEmpty();
@@ -166,9 +173,9 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var allActions =
-                contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT));
+                contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT, null));
         final var topCallOnly =
-                contractDebugService.processTraceCall(new TraceRequest(params, true, INTEGRATION_TIMEOUT));
+                contractDebugService.processTraceCall(new TraceRequest(params, true, INTEGRATION_TIMEOUT, null));
 
         // Then
         assertThat(allActions.getCalls()).hasSize(1);
@@ -184,7 +191,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var deadlineWindow = new AtomicLong();
         stubActionsAndCaptureDeadline(deadlineWindow, action("0x02", TypeEnum.CALL));
 
-        contractDebugService.processTraceCall(new TraceRequest(executionParameters(), false, Duration.ofSeconds(2)));
+        contractDebugService.processTraceCall(
+                new TraceRequest(executionParameters(), false, Duration.ofSeconds(2), null));
 
         assertThat(deadlineWindow).hasValue(Duration.ofSeconds(2).toMillis());
     }
@@ -195,12 +203,40 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var functionCall = contract.call_calculateSHA256();
         final var params = getContractExecutionParameters(functionCall, contract);
 
-        final var result = contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT));
+        final var result =
+                contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT, null));
 
         assertThat(result.getCalls()).isNotEmpty();
         assertThat(result.getCalls().getFirst().getCalls())
                 .extracting(ActionResponse::getTo)
                 .anyMatch(to -> Address.SHA256.toHexString().equalsIgnoreCase(to));
+    }
+
+    @Test
+    void processTraceCallAppliesBlockOverrideNumber() {
+        final var captured = new AtomicReference<Long>();
+        stubActionsAndCaptureContext(ctx -> captured.set(ctx.getBlockOverrideNumber()), action("0x02", TypeEnum.CALL));
+        final var override = new BlockOverride();
+        override.setNumber("0x100");
+
+        contractDebugService.processTraceCall(
+                new TraceRequest(executionParameters(), false, DEFAULT_TIMEOUT, override));
+
+        assertThat(captured).hasValue(256L);
+    }
+
+    @Test
+    void processTraceCallAppliesBlockOverrideTime() {
+        final var captured = new AtomicReference<Long>();
+        stubActionsAndCaptureContext(
+                ctx -> captured.set(ctx.getBlockOverrideTimeNanos()), action("0x02", TypeEnum.CALL));
+        final var override = new BlockOverride();
+        override.setTime("0x65f9e0c0");
+
+        contractDebugService.processTraceCall(
+                new TraceRequest(executionParameters(), false, DEFAULT_TIMEOUT, override));
+
+        assertThat(captured).hasValue(DomainUtils.convertToNanosMax(HexUtils.parseValue("0x65f9e0c0"), 0));
     }
 
     /**
@@ -278,15 +314,24 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     private void stubActions(final ActionResponse... actions) {
-        stubActionsAndCaptureDeadline(null, actions);
+        stubActionsAndCaptureContext(null, actions);
     }
 
     private void stubActionsAndCaptureDeadline(final AtomicLong deadlineWindow, final ActionResponse... actions) {
+        stubActionsAndCaptureContext(
+                ctx -> {
+                    final var deadlineMillis = ctx.getDeadlineMillis();
+                    deadlineWindow.set(deadlineMillis == 0 ? 0 : deadlineMillis - ctx.getStartTime());
+                },
+                actions);
+    }
+
+    private void stubActionsAndCaptureContext(
+            final Consumer<ContractCallContext> onExecute, final ActionResponse... actions) {
         doAnswer(invocation -> {
                     final var ctx = ContractCallContext.get();
-                    if (deadlineWindow != null) {
-                        final var deadlineMillis = ctx.getDeadlineMillis();
-                        deadlineWindow.set(deadlineMillis == 0 ? 0 : deadlineMillis - ctx.getStartTime());
+                    if (onExecute != null) {
+                        onExecute.accept(ctx);
                     }
                     final var actionContext = ctx.getActionContext();
                     assertThat(actionContext).isNotNull();

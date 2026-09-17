@@ -2135,6 +2135,8 @@ components:
         $ref: "#/components/schemas/AccountInfo"
     AccessList:
       type: object
+      required:
+        - address
       properties:
         address:
           description: The hex encoded address of the accessed contract
@@ -2144,6 +2146,7 @@ components:
         storage_keys:
           description: The list of accessed hex encoded storage keys
           type: array
+          maxItems: 10000
           items:
             format: binary
             type: string
@@ -2949,11 +2952,13 @@ components:
         access_list:
           description: Optional EIP-2930 access list. Omitted or null if not provided.
           type: [array, "null"]
+          maxItems: 1000
           items:
             $ref: "#/components/schemas/AccessList"
         authorization_list:
           description: Optional EIP-7702 authorization list. Omitted or null if not provided.
           type: [array, "null"]
+          maxItems: 1000
           items:
             $ref: "#/components/schemas/AuthorizationList"
       required:

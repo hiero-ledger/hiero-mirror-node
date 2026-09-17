@@ -91,7 +91,7 @@ class ContractController {
         try {
             final var params = constructServiceParameters(request);
             return contractDebugService.processTraceCall(
-                    new TraceRequest(params, request.isOnlyTopCall(), resolvedTimeout));
+                    new TraceRequest(params, request.isOnlyTopCall(), resolvedTimeout, request.getBlockOverride()));
         } catch (IllegalArgumentException | InvalidParametersException e) {
             throttleManager.restore(request.getGas());
             throw e;

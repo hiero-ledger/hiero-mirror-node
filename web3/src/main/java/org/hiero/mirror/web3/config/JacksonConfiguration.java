@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.config;
 
+import static org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext.MAX_DEPTH;
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.DATA_MAX_LENGTH;
 
 import com.fasterxml.jackson.core.StreamReadConstraints;
@@ -16,7 +17,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 class JacksonConfiguration {
 
-    // Configure JSON parsing limits to reject malicious input
+    // Configure JSON parsing limits to reject malicious input. Write nesting must cover recursive
+    // ActionResponse.calls: two JSON levels per EVM depth (0..1023) plus the response envelope.
     @Bean
     @SuppressWarnings("removal")
     Jackson2ObjectMapperBuilderCustomizer jacksonCustomizer(EvmProperties properties) {
@@ -34,8 +36,9 @@ class JacksonConfiguration {
                     .maxStringLength(maxSize)
                     .maxTokenCount(100)
                     .build();
-            var streamWriteConstraints =
-                    StreamWriteConstraints.builder().maxNestingDepth(100).build();
+            var streamWriteConstraints = StreamWriteConstraints.builder()
+                    .maxNestingDepth(2 * MAX_DEPTH + 8)
+                    .build();
             var factory = new MappingJsonFactory();
             factory.setStreamReadConstraints(streamReadConstraints);
             factory.setStreamWriteConstraints(streamWriteConstraints);

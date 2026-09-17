@@ -109,6 +109,9 @@ public class ActionTracer implements ActionSidecarContentTracer {
 
         final var state = frame.getState();
         if (state == CODE_EXECUTING) {
+            if (actionContext.shouldCheckDeadline()) {
+                haltIfDeadlineExceeded(frame);
+            }
             return;
         }
         if (actionContext.isOnlyTopCall() && (state == CODE_SUSPENDED || frame.getDepth() > 0)) {

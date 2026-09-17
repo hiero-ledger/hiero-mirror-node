@@ -20,9 +20,10 @@ class ActionContextTest {
         context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xoverflow"), 0);
 
         assertThat(context.isTruncated()).isTrue();
-        assertThat(context.getActions()).hasSize(ActionContext.MAX_ACTIONS + 1);
+        assertThat(context.getActions()).hasSize(ActionContext.MAX_ACTIONS);
         assertThat(context.getActions().getLast().getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
-        assertThat(context.getActions().getLast().getType()).isEqualTo(TypeEnum.UNKNOWN);
+        assertThat(context.getActions().getLast().getType()).isEqualTo(TypeEnum.CALL);
+        assertThat(context.getActions().getLast().getFrom()).isEqualTo("0x" + (ActionContext.MAX_ACTIONS - 1));
     }
 
     @Test
@@ -33,8 +34,9 @@ class ActionContextTest {
         context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xdeep"), ActionContext.MAX_DEPTH);
 
         assertThat(context.isTruncated()).isTrue();
-        assertThat(context.getActions()).hasSize(2);
-        assertThat(context.getActions().getLast().getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+        assertThat(context.getActions()).hasSize(1);
+        assertThat(context.getActions().getFirst().getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+        assertThat(context.getActions().getFirst().getFrom()).isEqualTo("0x0");
     }
 
     @Test
@@ -117,9 +119,35 @@ class ActionContextTest {
         context.addAction(new ActionResponse().from("0xorphan"), 1);
 
         assertThat(context.isTruncated()).isTrue();
-        assertThat(context.getActions()).hasSize(1);
-        assertThat(context.getActions().getLast().getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+        assertThat(context.getActions()).isEmpty();
         assertThat(context.getActionsByDepth(1)).isEmpty();
+    }
+
+    @Test
+    void finalizeActionPreservesTruncationError() {
+        final var context = new ActionContext();
+        final var root = new ActionResponse().from("0x0").type(TypeEnum.CALL);
+        context.addAction(root, 0);
+        for (int i = 1; i < ActionContext.MAX_ACTIONS; i++) {
+            context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0x" + i), 0);
+        }
+        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xoverflow"), 0);
+
+        context.finalizeAction(0, null, "0xa", "0xbb", null);
+
+        assertThat(context.getActions().getLast().getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+        assertThat(context.getActions().getLast().getGasUsed()).isEqualTo("0xa");
+        assertThat(context.getActions().getLast().getOutput()).isEqualTo("0xbb");
+    }
+
+    @Test
+    void shouldCheckDeadlineEveryIntervalOpcodes() {
+        final var context = new ActionContext();
+        for (int i = 1; i < ActionContext.DEADLINE_CHECK_INTERVAL; i++) {
+            assertThat(context.shouldCheckDeadline()).isFalse();
+        }
+        assertThat(context.shouldCheckDeadline()).isTrue();
+        assertThat(context.shouldCheckDeadline()).isFalse();
     }
 
     @Test

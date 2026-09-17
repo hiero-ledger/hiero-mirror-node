@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
@@ -27,6 +28,8 @@ public class ContractCallRequest {
 
     public static final int ADDRESS_LENGTH = 40;
     public static final long DATA_MAX_LENGTH = 300_000L;
+    public static final int ACCESS_LIST_MAX_SIZE = 1_000;
+    public static final int AUTHORIZATION_LIST_MAX_SIZE = 1_000;
 
     @JsonSerialize(using = BlockTypeSerializer.class)
     @JsonSetter(nulls = Nulls.SKIP)
@@ -44,6 +47,7 @@ public class ContractCallRequest {
     @Min(21_000)
     private long gas = 15_000_000L;
 
+    @JsonAlias("gas_price")
     @Min(0)
     private long gasPrice;
 
@@ -57,11 +61,13 @@ public class ContractCallRequest {
 
     @JsonProperty("access_list")
     @Nullable
+    @Size(max = ACCESS_LIST_MAX_SIZE)
     @Valid
     private List<@Valid AccessListEntry> accessList;
 
     @JsonProperty("authorization_list")
     @Nullable
+    @Size(max = AUTHORIZATION_LIST_MAX_SIZE)
     @Valid
     private List<@Valid AuthorizationListEntry> authorizationList;
 

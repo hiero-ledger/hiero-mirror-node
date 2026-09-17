@@ -7,6 +7,8 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
+import org.jspecify.annotations.Nullable;
 
 @Value
 @RequiredArgsConstructor
@@ -19,4 +21,7 @@ public class TraceRequest {
 
     @NotNull
     Duration timeout;
+
+    @Nullable
+    BlockOverride blockOverride;
 }

@@ -43,4 +43,15 @@ public class HexUtils {
         }
         return Long.parseUnsignedLong(value, 16);
     }
+
+    /**
+     * Parses an unsigned quantity. {@code 0x}-prefixed values are hex; otherwise decimal.
+     */
+    public static long parseValue(final String value) {
+        final var trimmed = value.trim();
+        if (trimmed.startsWith("0x") || trimmed.startsWith("0X")) {
+            return parseHexLong(trimmed);
+        }
+        return Long.parseUnsignedLong(trimmed, 10);
+    }
 }

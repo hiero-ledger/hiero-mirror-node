@@ -78,4 +78,10 @@ class HexUtilsTest {
     void parseHexLongReturnsZeroForNull() {
         assertThat(HexUtils.parseHexLong(null)).isEqualTo(0L);
     }
+
+    @CsvSource({"'0x0',0", "'0x100',256", "'0X65f9e0c0',1710874816", "'256',256", "' 16 ',16"})
+    @ParameterizedTest
+    void parseValue(String value, long expected) {
+        assertThat(HexUtils.parseValue(value)).isEqualTo(expected);
+    }
 }
