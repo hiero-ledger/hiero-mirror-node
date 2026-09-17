@@ -1053,11 +1053,7 @@ class ContractController extends BaseController {
     }
 
     const ethTransaction = ethTransactions[0];
-
-    let fileData = null;
-    if (utils.isValidUserFileId(ethTransaction?.callDataId)) {
-      fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
-    }
+    const fileData = await this.getCallDataFileAtTimestamp(ethTransaction, contractResults[0].consensusTimestamp);
 
     if (isNil(contractResults[0].callResult)) {
       // set 206 partial response
@@ -1241,12 +1237,7 @@ class ContractController extends BaseController {
 
     const contractResult = contractResults[0];
     const ethTransaction = ethTransactions[0];
-
-    let fileData = null;
-
-    if (utils.isValidUserFileId(ethTransaction?.callDataId)) {
-      fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
-    }
+    const fileData = await this.getCallDataFileAtTimestamp(ethTransaction, contractResult.consensusTimestamp);
 
     let gasPrice = null;
     if (ethTransaction == null) {
@@ -1358,6 +1349,23 @@ class ContractController extends BaseController {
         next: nextLink,
       },
     };
+  };
+
+  /**
+   * Reconstructs offloaded ethereum call data from the call-data file as of the transaction's consensus timestamp.
+   * Hedera files are mutable, so current file contents must not be used for historical results.
+   *
+   * @param {object|null|undefined} ethTransaction
+   * @param {string|number|bigint} consensusTimestamp
+   * @returns {Promise<{file_data: Buffer|string}|null>}
+   */
+  getCallDataFileAtTimestamp = async (ethTransaction, consensusTimestamp) => {
+    if (!utils.isValidUserFileId(ethTransaction?.callDataId)) {
+      return null;
+    }
+
+    const fileContents = await FileDataService.getFileData(ethTransaction.callDataId, consensusTimestamp);
+    return isNil(fileContents) ? null : {file_data: fileContents};
   };
 
   setContractResultsResponse = (
