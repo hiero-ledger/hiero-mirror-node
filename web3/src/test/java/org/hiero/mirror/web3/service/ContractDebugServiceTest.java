@@ -40,6 +40,7 @@ import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.service.model.TraceRequest;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
+import org.hiero.mirror.web3.web3j.generated.EvmCodes;
 import org.hiero.mirror.web3.web3j.generated.InternalCaller;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
+    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(4);
+    private static final Duration INTEGRATION_TIMEOUT = Duration.ofSeconds(10);
     private static final int NUM_DEPTHS = 4;
     private static final int ACTIONS_PER_DEPTH = 2;
 
@@ -117,7 +120,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result = contractDebugService.processTraceCall(new TraceRequest(params, false, null));
+        final var result = contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT));
 
         // Then
         assertThat(result.getCalls()).containsExactly(topLevelAction);
@@ -132,7 +135,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result = contractDebugService.processTraceCall(new TraceRequest(params, true, null));
+        final var result = contractDebugService.processTraceCall(new TraceRequest(params, true, DEFAULT_TIMEOUT));
 
         // Then
         assertThat(result.getCalls()).containsExactly(topLevelAction);
@@ -147,7 +150,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var params = getContractExecutionParameters(functionCall, contract);
 
         // When
-        final var result = contractDebugService.processTraceCall(new TraceRequest(params, false, null));
+        final var result = contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT));
 
         // Then
         assertThat(result.getCalls()).isNotEmpty();
@@ -162,11 +165,13 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var params = getContractExecutionParameters(functionCall, contract);
 
         // When
-        final var allActions = contractDebugService.processTraceCall(new TraceRequest(params, false, null));
-        final var topCallOnly = contractDebugService.processTraceCall(new TraceRequest(params, true, null));
+        final var allActions =
+                contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT));
+        final var topCallOnly =
+                contractDebugService.processTraceCall(new TraceRequest(params, true, INTEGRATION_TIMEOUT));
 
         // Then
-        assertThat(allActions.getCalls()).hasSize(2);
+        assertThat(allActions.getCalls()).hasSize(1);
         assertThat(topCallOnly.getCalls()).hasSize(1);
         assertThat(allActions.getCalls().getFirst().getCalls()).isNotEmpty();
         assertThat(topCallOnly.getCalls().getFirst().getCalls()).isNullOrEmpty();
@@ -185,13 +190,17 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     @Test
-    void processTraceCallDoesNotApplyTimeoutWhenNull() {
-        final var deadlineWindow = new AtomicLong(-1);
-        stubActionsAndCaptureDeadline(deadlineWindow, action("0x02", TypeEnum.CALL));
+    void processTraceCallIncludesSha256Precompile() {
+        final var contract = testWeb3jService.deploy(EvmCodes::deploy);
+        final var functionCall = contract.call_calculateSHA256();
+        final var params = getContractExecutionParameters(functionCall, contract);
 
-        contractDebugService.processTraceCall(new TraceRequest(executionParameters(), false, null));
+        final var result = contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT));
 
-        assertThat(deadlineWindow).hasValue(0);
+        assertThat(result.getCalls()).isNotEmpty();
+        assertThat(result.getCalls().getFirst().getCalls())
+                .extracting(ActionResponse::getTo)
+                .anyMatch(to -> Address.SHA256.toHexString().equalsIgnoreCase(to));
     }
 
     /**

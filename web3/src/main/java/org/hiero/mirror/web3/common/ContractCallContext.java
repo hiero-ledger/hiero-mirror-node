@@ -172,7 +172,16 @@ public class ContractCallContext {
     }
 
     public boolean isDeadlineExceeded() {
-        return deadlineMillis > 0 && System.currentTimeMillis() >= deadlineMillis;
+        return deadlineMillis > 0 && remainingMillis(0L) <= 0L;
+    }
+
+    /**
+     * Milliseconds remaining until this request should stop work. Uses {@link #deadlineMillis} when set; otherwise
+     * {@code startTime + fallbackTimeoutMillis}.
+     */
+    public long remainingMillis(final long fallbackTimeoutMillis) {
+        final long deadline = deadlineMillis > 0 ? deadlineMillis : startTime + fallbackTimeoutMillis;
+        return deadline - System.currentTimeMillis();
     }
 
     public void applyStateOverrides(final List<StateOverride> overrides) {

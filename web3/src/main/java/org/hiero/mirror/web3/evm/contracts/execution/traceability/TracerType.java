@@ -7,11 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public enum TracerType {
     @JsonProperty("callTracer")
     ACTION,
-    @JsonProperty("keccak256PreimageTracer")
-    KECCAK256_PREIMAGE,
     @JsonProperty("opcodeLogger")
     OPCODE,
-    OPERATION,
-    @JsonProperty("prestateTracer")
-    PRESTATE
+    OPERATION
 }

@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import static org.hiero.mirror.web3.utils.HexUtils.convertLongToHexString;
 import static org.hiero.mirror.web3.utils.HexUtils.convertValueToHexString;
+import static org.hiero.mirror.web3.utils.HexUtils.parseHexLong;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_EXECUTING;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_SUSPENDED;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.EXCEPTIONAL_HALT;
@@ -15,10 +16,9 @@ import com.hedera.hapi.streams.ContractActionType;
 import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.utils.OpcodeUtils;
 import jakarta.inject.Named;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import lombok.CustomLog;
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
@@ -28,10 +28,11 @@ import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @Named
-@CustomLog
-@RequiredArgsConstructor
+@NullMarked
 public class ActionTracer implements ActionSidecarContentTracer {
 
     private static final String OPCODE_PREFIX = "OP_";
@@ -55,36 +56,43 @@ public class ActionTracer implements ActionSidecarContentTracer {
 
     @Override
     public void traceContextEnter(@NonNull final MessageFrame frame) {
-        // Starting processing a newly created nested MessageFrame, we should set the remainingGas to match the newly
-        // allocated gas for the new frame
         haltIfDeadlineExceeded(frame);
-        ContractCallContext.get().getActionContext().setGasRemaining(frame.getRemainingGas());
     }
 
     @Override
     public void traceContextReEnter(@NonNull final MessageFrame frame) {
-        // Returning to the parent MessageFrame, we should reset the gas to reflect the existing remaining gas of
-        // the parent frame
         haltIfDeadlineExceeded(frame);
-        ContractCallContext.get().getActionContext().setGasRemaining(frame.getRemainingGas());
     }
 
     @Override
-    public void traceOriginAction(@NonNull MessageFrame frame) {
+    public void traceOriginAction(@NonNull final MessageFrame frame) {
+        final var actionContext = actionContext();
+        if (actionContext == null) {
+            return;
+        }
         haltIfDeadlineExceeded(frame);
-        final var actionContext = ContractCallContext.get().getActionContext();
-        actionContext.setGasRemaining(frame.getRemainingGas());
         actionContext.addAction(buildActionResponse(frame, topLevelCallType(frame)), frame.getDepth());
     }
 
     @Override
-    public void sanitizeTracedActions(@NonNull MessageFrame frame) {
+    public void sanitizeTracedActions(@NonNull final MessageFrame frame) {
         // NO-OP
     }
 
     @Override
-    public void tracePrecompileResult(@NonNull MessageFrame frame, @NonNull ContractActionType type) {
+    public void tracePrecompileResult(@NonNull final MessageFrame frame, @NonNull final ContractActionType type) {
+        final var actionContext = actionContext();
+        if (actionContext == null) {
+            return;
+        }
         haltIfDeadlineExceeded(frame);
+        if (actionContext.isOnlyTopCall() && frame.getDepth() > 0) {
+            return;
+        }
+        if (!actionContext.hasActionAt(frame.getDepth())) {
+            actionContext.addAction(buildActionResponse(frame, typeEnumFrom(type)), frame.getDepth());
+        }
+        finalizeCurrentAction(actionContext, frame);
     }
 
     @Override
@@ -93,14 +101,9 @@ public class ActionTracer implements ActionSidecarContentTracer {
     }
 
     @Override
-    public void tracePostExecution(MessageFrame frame, OperationResult operationResult) {
-        final var actionContext = ContractCallContext.get().getActionContext();
+    public void tracePostExecution(final MessageFrame frame, final OperationResult operationResult) {
+        final var actionContext = actionContext();
         if (actionContext == null) {
-            return;
-        }
-
-        if (haltIfDeadlineExceeded(frame)) {
-            finalizeCurrentAction(actionContext, frame);
             return;
         }
 
@@ -108,49 +111,50 @@ public class ActionTracer implements ActionSidecarContentTracer {
         if (state == CODE_EXECUTING) {
             return;
         }
-
-        final var onlyTopCall = actionContext.isOnlyTopCall();
+        if (actionContext.isOnlyTopCall() && (state == CODE_SUSPENDED || frame.getDepth() > 0)) {
+            return;
+        }
         if (state == CODE_SUSPENDED) {
-            if (onlyTopCall) {
-                return;
-            }
-            final var child = frame.getMessageFrameStack().peek();
-            if (child == null) {
-                return;
-            }
-            // Nested call starts here: record the child under its parent using the child's depth.
-            actionContext.addAction(buildActionResponse(child, callTypeFromParent(frame)), child.getDepth());
+            recordNestedCall(actionContext, frame);
             return;
         }
-
-        // Skip finalizing nested frames when only the top-level call should be traced.
-        if (onlyTopCall && frame.getDepth() > 0) {
-            return;
-        }
-
         finalizeCurrentAction(actionContext, frame);
     }
 
     @Override
-    public void tracePerOpcode(MessageFrame frame, long gas, ExceptionalHaltReason halt, Operation op) {
+    public void tracePerOpcode(
+            final MessageFrame frame, final long gas, final ExceptionalHaltReason halt, final Operation op) {
         // NO-OP
     }
 
     @Override
-    public void traceSuspended(MessageFrame parent, MessageFrame child, CallOperationType opCall) {
+    public void traceSuspended(final MessageFrame parent, final MessageFrame child, final CallOperationType opCall) {
         // NO-OP
     }
 
     @Override
-    public void traceNotExecuting(MessageFrame child) {
+    public void traceNotExecuting(final MessageFrame child) {
         // NO-OP
+    }
+
+    private void recordNestedCall(final ActionContext actionContext, final MessageFrame frame) {
+        final var child = frame.getMessageFrameStack().peek();
+        if (child == null) {
+            return;
+        }
+        actionContext.addAction(buildActionResponse(child, callTypeFromParent(frame)), child.getDepth());
     }
 
     private void finalizeCurrentAction(final ActionContext actionContext, final MessageFrame frame) {
+        final var action = actionContext.getCurrentAction(frame.getDepth());
+        if (action == null) {
+            return;
+        }
+        final var gasUsed = Math.max(0L, parseHexLong(action.getGas()) - frame.getRemainingGas());
         actionContext.finalizeAction(
                 frame.getDepth(),
                 haltError(frame),
-                convertLongToHexString(actionContext.getGasRemaining() - frame.getRemainingGas()),
+                convertLongToHexString(gasUsed),
                 frame.getOutputData().toHexString(),
                 revertReason(frame));
     }
@@ -162,7 +166,8 @@ public class ActionTracer implements ActionSidecarContentTracer {
                 .input(frame.getInputData().toHexString())
                 .to(frame.getRecipientAddress().toHexString())
                 .type(type)
-                .value(convertValueToHexString(frame.getValue()));
+                .value(convertValueToHexString(frame.getValue()))
+                .calls(new ArrayList<>());
     }
 
     private TypeEnum callTypeFromParent(final MessageFrame parent) {
@@ -178,16 +183,23 @@ public class ActionTracer implements ActionSidecarContentTracer {
         return frame.getType() == CONTRACT_CREATION ? TypeEnum.CREATE : TypeEnum.CALL;
     }
 
-    private boolean haltIfDeadlineExceeded(final MessageFrame frame) {
+    private TypeEnum typeEnumFrom(final ContractActionType type) {
+        return type == ContractActionType.CREATE ? TypeEnum.CREATE : TypeEnum.CALL;
+    }
+
+    private void haltIfDeadlineExceeded(final MessageFrame frame) {
         final var ctx = ContractCallContext.get();
         final var actionContext = ctx.getActionContext();
         if (actionContext == null || !ctx.isDeadlineExceeded()) {
-            return false;
+            return;
         }
         actionContext.setTimedOut(true);
         frame.setState(EXCEPTIONAL_HALT);
         frame.setExceptionalHaltReason(Optional.of(TIMEOUT_HALT_REASON));
-        return true;
+    }
+
+    private @Nullable ActionContext actionContext() {
+        return ContractCallContext.get().getActionContext();
     }
 
     private TypeEnum toTypeEnum(final CallOperationType callOperationType) {
@@ -198,7 +210,7 @@ public class ActionTracer implements ActionSidecarContentTracer {
         }
     }
 
-    private String haltError(final MessageFrame frame) {
+    private @Nullable String haltError(final MessageFrame frame) {
         final var halt = frame.getExceptionalHaltReason().orElse(null);
         if (halt == null || halt == ExceptionalHaltReason.NONE) {
             return null;
@@ -206,7 +218,7 @@ public class ActionTracer implements ActionSidecarContentTracer {
         return halt.toString();
     }
 
-    private String revertReason(final MessageFrame frame) {
+    private @Nullable String revertReason(final MessageFrame frame) {
         final var reason = frame.getRevertReason().orElse(null);
         if (reason == null || reason.isEmpty()) {
             return null;

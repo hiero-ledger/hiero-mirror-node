@@ -19,6 +19,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.validation.Hex;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -53,6 +54,16 @@ public class ContractCallRequest {
     @NotNull
     @Size(max = 10)
     private List<@Valid StateOverride> stateOverrides = List.of();
+
+    @JsonProperty("access_list")
+    @Nullable
+    @Valid
+    private List<@Valid AccessListEntry> accessList;
+
+    @JsonProperty("authorization_list")
+    @Nullable
+    @Valid
+    private List<@Valid AuthorizationListEntry> authorizationList;
 
     @PositiveOrZero
     private long value;

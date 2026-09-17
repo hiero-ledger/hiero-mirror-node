@@ -528,26 +528,12 @@ paths:
           schema:
             type: string
             example: gzip
-        - name: only_top_call
-          in: query
-          required: false
-          description: Whether to include only the root message frame in the response
-          schema:
-            type: boolean
-            default: false
-        - name: timeout
-          in: query
-          required: false
-          description: Optional maximum duration allowed for transaction tracing before execution is terminated. When omitted, no client timeout is applied. Uses ISO-8601 duration format or shorthand (e.g. "PT5S" or "5s").
-          schema:
-            type: string
-            example: PT5S
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ContractCallRequest"
+              $ref: "#/components/schemas/ActionTraceRequest"
       responses:
         200:
           description: OK
@@ -2161,6 +2147,7 @@ components:
           items:
             format: binary
             type: string
+          default: []
           example:
             - "0x0000000000000000000000000000000000000000000000000000000000000081"
     AuthorizationList:
@@ -2194,6 +2181,18 @@ components:
           description: The hex encoded parity of the y-coordinate of the signature point
           example: "0x1"
           type: string
+    BlockOverride:
+      type: object
+      description: Optional EVM block context override. `number` and `time` cannot be populated simultaneously.
+      properties:
+        number:
+          description: Hexadecimal or decimal block number used as the EVM block.number
+          type: [string, "null"]
+          example: "0x100"
+        time:
+          description: Unix timestamp used as the EVM block.timestamp
+          type: [string, "null"]
+          example: "0x65f9e0c0"
     AccountBalance:
       type: object
       required:
@@ -2361,6 +2360,24 @@ components:
       items:
         type: string
       type: array
+    ActionTraceRequest:
+      allOf:
+        - $ref: "#/components/schemas/ContractCallRequest"
+        - type: object
+          properties:
+            block_override:
+              $ref: "#/components/schemas/BlockOverride"
+            only_top_call:
+              description: If true, the result contains only the root top-level call and omits nested actions
+              type: boolean
+              default: false
+            timeout:
+              description:
+                Optional maximum duration allowed for transaction tracing before execution is terminated. When omitted,
+                the server-side actions request timeout is used. Uses ISO-8601 duration format or shorthand (e.g. "PT5S"
+                or "5s").
+              type: [string, "null"]
+              example: 5s
     ActionResponse:
       type: object
       properties:
@@ -2369,6 +2386,7 @@ components:
           items:
             $ref: "#/components/schemas/ActionResponse"
           type: array
+          default: []
         error:
           description: The error message for the call action
           type: [string, "null"]
@@ -2928,6 +2946,16 @@ components:
           maxItems: 10
           items:
             type: object
+        access_list:
+          description: Optional EIP-2930 access list. Omitted or null if not provided.
+          type: [array, "null"]
+          items:
+            $ref: "#/components/schemas/AccessList"
+        authorization_list:
+          description: Optional EIP-7702 authorization list. Omitted or null if not provided.
+          type: [array, "null"]
+          items:
+            $ref: "#/components/schemas/AuthorizationList"
       required:
         - to
     ContractCallResponse:

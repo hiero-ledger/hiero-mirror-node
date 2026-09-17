@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.service;
 
-import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.TRACE;
+import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.ACTIONS;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
@@ -67,11 +67,9 @@ public class ContractDebugService extends ContractCallService {
 
     public ActionResponse processTraceCall(final @Valid TraceRequest traceRequest) {
         return ContractCallContext.run(ctx -> {
-            ctx.setApi(TRACE);
+            ctx.setApi(ACTIONS);
             final var timeout = traceRequest.getTimeout();
-            if (timeout != null) {
-                ctx.setDeadlineMillis(ctx.getStartTime() + timeout.toMillis());
-            }
+            ctx.setDeadlineMillis(ctx.getStartTime() + timeout.toMillis());
             ctx.applyStateOverrides(
                     traceRequest.getContractExecutionParameters().getStateOverrides());
 

@@ -4,7 +4,8 @@ hiero:
   mirror:
     web3:
       api:
-        trace:
+        actions:
+          enabled: false
           request:
             timeout: 4s
         opcodes:

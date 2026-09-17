@@ -3,10 +3,10 @@
 package org.hiero.mirror.web3.service.model;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.jspecify.annotations.Nullable;
 
 @Value
 @RequiredArgsConstructor
@@ -17,6 +17,6 @@ public class TraceRequest {
 
     boolean onlyTopCall;
 
-    @Nullable
+    @NotNull
     Duration timeout;
 }

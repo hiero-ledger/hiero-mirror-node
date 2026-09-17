@@ -4,6 +4,8 @@ package org.hiero.mirror.web3.controller;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.ACTIONS;
+import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.CALL;
 import static org.hiero.mirror.web3.utils.Constants.ACTIONS_CALL_URI;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
@@ -39,6 +41,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
 import org.hiero.mirror.rest.model.ActionResponse;
+import org.hiero.mirror.web3.ApiProperties;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
@@ -53,6 +56,9 @@ import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.GzipEncoding;
+import org.hiero.mirror.web3.viewmodel.AccessListEntry;
+import org.hiero.mirror.web3.viewmodel.ActionTraceRequest;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -134,7 +140,16 @@ final class ContractControllerTest {
 
     @AfterEach
     void tearDown() {
-        tracerProperties.setEnabled(false);
+        setApiEnabled(ACTIONS, false);
+        setApiEnabled(CALL, true);
+    }
+
+    private void enableActionsApi() {
+        setApiEnabled(ACTIONS, true);
+    }
+
+    private void setApiEnabled(final Web3Properties.ApiEndpointName name, final boolean enabled) {
+        web3Properties.getApi().computeIfAbsent(name, _ -> new ApiProperties()).setEnabled(enabled);
     }
 
     @SneakyThrows
@@ -151,30 +166,29 @@ final class ContractControllerTest {
     }
 
     @SneakyThrows
-    private ResultActions contractActionsCall(ContractCallRequest request) {
+    private ResultActions contractActionsCall(ActionTraceRequest request) {
         return contractActionsCall(request, null, null);
     }
 
     @SneakyThrows
-    private ResultActions contractActionsCall(ContractCallRequest request, final Boolean onlyTopCall) {
+    private ResultActions contractActionsCall(ActionTraceRequest request, final Boolean onlyTopCall) {
         return contractActionsCall(request, onlyTopCall, null);
     }
 
     @SneakyThrows
     private ResultActions contractActionsCall(
-            ContractCallRequest request, final Boolean onlyTopCall, final String timeout) {
-        final var builder = post(ACTIONS_CALL_URI)
+            ActionTraceRequest request, final Boolean onlyTopCall, final String timeout) {
+        if (onlyTopCall != null) {
+            request.setOnlyTopCall(onlyTopCall);
+        }
+        if (timeout != null) {
+            request.setTimeout(timeout);
+        }
+        return mockMvc.perform(post(ACTIONS_CALL_URI)
                 .accept(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(convert(request));
-        if (onlyTopCall != null) {
-            builder.queryParam("only_top_call", String.valueOf(onlyTopCall));
-        }
-        if (timeout != null) {
-            builder.queryParam("timeout", timeout);
-        }
-        return mockMvc.perform(builder);
+                .content(convert(request)));
     }
 
     @ParameterizedTest
@@ -231,13 +245,13 @@ final class ContractControllerTest {
     @Test
     void exceedingRateLimit() throws Exception {
         var request = request();
-        doThrow(new ThrottleException("")).when(throttleManager).throttle(request);
+        doThrow(new ThrottleException("")).when(throttleManager).throttle(any(ContractCallRequest.class));
         contractCall(request).andExpect(status().isTooManyRequests());
     }
 
     @Test
     void actionsCallSuccess() throws Exception {
-        tracerProperties.setEnabled(true);
+        enableActionsApi();
         clearInvocations(throttleManager);
         final var request = request();
         request.setValue(0);
@@ -247,15 +261,15 @@ final class ContractControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(convert(TRACE_RESPONSE)));
 
-        verify(throttleManager).throttleTraceRequest();
+        verify(throttleManager).throttleTraceRequest(any());
         verify(contractDebugService)
-                .processTraceCall(
-                        argThat(traceRequest -> !traceRequest.isOnlyTopCall() && traceRequest.getTimeout() == null));
+                .processTraceCall(argThat(traceRequest ->
+                        !traceRequest.isOnlyTopCall() && Duration.ofSeconds(4).equals(traceRequest.getTimeout())));
     }
 
     @Test
     void actionsCallWithOnlyTopCall() throws Exception {
-        tracerProperties.setEnabled(true);
+        enableActionsApi();
         clearInvocations(throttleManager);
         final var request = request();
         request.setValue(0);
@@ -263,16 +277,16 @@ final class ContractControllerTest {
 
         contractActionsCall(request, true).andExpect(status().isOk());
 
-        verify(throttleManager).throttleTraceRequest();
+        verify(throttleManager).throttleTraceRequest(any());
         verify(contractDebugService)
-                .processTraceCall(
-                        argThat(traceRequest -> traceRequest.isOnlyTopCall() && traceRequest.getTimeout() == null));
+                .processTraceCall(argThat(traceRequest ->
+                        traceRequest.isOnlyTopCall() && Duration.ofSeconds(4).equals(traceRequest.getTimeout())));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"", " "})
     void actionsCallOmitsTimeoutWhenBlank(final String timeout) throws Exception {
-        tracerProperties.setEnabled(true);
+        enableActionsApi();
         clearInvocations(throttleManager);
         final var request = request();
         request.setValue(0);
@@ -280,29 +294,30 @@ final class ContractControllerTest {
 
         contractActionsCall(request, null, timeout).andExpect(status().isOk());
 
-        verify(throttleManager).throttleTraceRequest();
-        verify(contractDebugService).processTraceCall(argThat(traceRequest -> traceRequest.getTimeout() == null));
+        verify(throttleManager).throttleTraceRequest(any());
+        verify(contractDebugService)
+                .processTraceCall(argThat(traceRequest -> Duration.ofSeconds(4).equals(traceRequest.getTimeout())));
     }
 
     @Test
     void actionsCallWithTimeout() throws Exception {
-        tracerProperties.setEnabled(true);
+        enableActionsApi();
         clearInvocations(throttleManager);
         final var request = request();
         request.setValue(0);
         given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSE);
 
-        contractActionsCall(request, null, "5s").andExpect(status().isOk());
+        contractActionsCall(request, null, "1s").andExpect(status().isOk());
 
-        verify(throttleManager).throttleTraceRequest();
+        verify(throttleManager).throttleTraceRequest(any());
         verify(contractDebugService)
-                .processTraceCall(argThat(traceRequest -> Duration.ofSeconds(5).equals(traceRequest.getTimeout())));
+                .processTraceCall(argThat(traceRequest -> Duration.ofSeconds(1).equals(traceRequest.getTimeout())));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"30s", "PT30S"})
     void actionsCallCapsTimeoutAtMax(final String timeout) throws Exception {
-        tracerProperties.setEnabled(true);
+        enableActionsApi();
         clearInvocations(throttleManager);
         final var request = request();
         request.setValue(0);
@@ -310,29 +325,28 @@ final class ContractControllerTest {
 
         contractActionsCall(request, null, timeout).andExpect(status().isOk());
 
-        verify(throttleManager).throttleTraceRequest();
+        verify(throttleManager).throttleTraceRequest(any());
         verify(contractDebugService)
-                .processTraceCall(
-                        argThat(traceRequest -> tracerProperties.getMaxTimeout().equals(traceRequest.getTimeout())));
+                .processTraceCall(argThat(traceRequest -> Duration.ofSeconds(4).equals(traceRequest.getTimeout())));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"0s", "-1s", "not-a-duration"})
     void actionsCallRejectsInvalidTimeout(final String timeout) throws Exception {
-        tracerProperties.setEnabled(true);
+        enableActionsApi();
         final var request = request();
         request.setValue(0);
 
         contractActionsCall(request, null, timeout).andExpect(status().isBadRequest());
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(throttleManager, never()).throttleTraceRequest();
+        verify(throttleManager, never()).throttleTraceRequest(any());
     }
 
     @Test
     void actionsCallExceedingRateLimit() throws Exception {
-        tracerProperties.setEnabled(true);
+        enableActionsApi();
         final var request = request();
-        doThrow(new ThrottleException("")).when(throttleManager).throttleTraceRequest();
+        doThrow(new ThrottleException("")).when(throttleManager).throttleTraceRequest(any());
 
         contractActionsCall(request).andExpect(status().isTooManyRequests());
         verify(contractDebugService, never()).processTraceCall(any());
@@ -340,18 +354,19 @@ final class ContractControllerTest {
 
     @Test
     void actionsCallRestoresThrottleOnInvalidParameters() throws Exception {
-        tracerProperties.setEnabled(true);
+        enableActionsApi();
         final var request = request();
         request.setValue(0);
         given(contractDebugService.processTraceCall(any())).willThrow(new InvalidParametersException("invalid"));
 
         contractActionsCall(request).andExpect(status().isBadRequest());
         verify(contractDebugService).processTraceCall(any());
+        verify(throttleManager).restore(request.getGas());
     }
 
     @Test
     void actionsCallRequiresGzip() throws Exception {
-        tracerProperties.setEnabled(true);
+        enableActionsApi();
         final var request = request();
         request.setValue(0);
 
@@ -363,24 +378,24 @@ final class ContractControllerTest {
                 .andExpect(content().string(new StringContains(NOT_ACCEPTABLE.getReasonPhrase())))
                 .andExpect(content().string(new StringContains(GzipEncoding.MISSING_GZIP_HEADER_MESSAGE)));
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(throttleManager, never()).throttleTraceRequest();
+        verify(throttleManager, never()).throttleTraceRequest(any());
     }
 
     @Test
     void actionsCallRejectsEstimate() throws Exception {
-        tracerProperties.setEnabled(true);
+        enableActionsApi();
         final var request = request();
         request.setEstimate(true);
         request.setValue(0);
 
         contractActionsCall(request).andExpect(status().isBadRequest());
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(throttleManager, never()).throttleTraceRequest();
+        verify(throttleManager, never()).throttleTraceRequest(any());
     }
 
     @Test
     void actionsCallTimeoutReturns408() throws Exception {
-        tracerProperties.setEnabled(true);
+        enableActionsApi();
         clearInvocations(throttleManager);
         final var request = request();
         request.setValue(0);
@@ -393,7 +408,7 @@ final class ContractControllerTest {
 
     @Test
     void actionsCallRejectsStateOverridesWhenDisabled() throws Exception {
-        tracerProperties.setEnabled(true);
+        enableActionsApi();
         web3Properties.setEnableStateOverrides(false);
         final var request = request();
         request.setValue(0);
@@ -408,11 +423,57 @@ final class ContractControllerTest {
     @Test
     void actionsCallNotImplementedWhenDisabled() throws Exception {
         final var request = request();
-        request.setValue(0);
 
         contractActionsCall(request).andExpect(status().isNotImplemented());
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(throttleManager, never()).throttleTraceRequest();
+        verify(throttleManager, never()).throttleTraceRequest(any());
+    }
+
+    @Test
+    void actionsCallRejectsBlockOverrideWithNumberAndTime() throws Exception {
+        enableActionsApi();
+        final var request = request();
+        request.setValue(0);
+        final var override = new BlockOverride();
+        override.setNumber("0x100");
+        override.setTime("0x1");
+        request.setBlockOverride(override);
+
+        contractActionsCall(request).andExpect(status().isBadRequest());
+        verify(contractDebugService, never()).processTraceCall(any());
+    }
+
+    @Test
+    void actionsCallAcceptsBlockOverrideNumber() throws Exception {
+        enableActionsApi();
+        final var request = request();
+        request.setValue(0);
+        final var override = new BlockOverride();
+        override.setNumber("0x100");
+        request.setBlockOverride(override);
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSE);
+
+        contractActionsCall(request).andExpect(status().isOk());
+        verify(contractDebugService).processTraceCall(any());
+    }
+
+    @Test
+    void actionsCallAcceptsNullableAccessAndAuthorizationLists() throws Exception {
+        enableActionsApi();
+        final var request = request();
+        request.setValue(0);
+        request.setAccessList(null);
+        request.setAuthorizationList(null);
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSE);
+
+        contractActionsCall(request).andExpect(status().isOk());
+
+        request.setAccessList(List.of());
+        request.setAuthorizationList(List.of());
+        final var access = new AccessListEntry();
+        access.setAddress("0x00000000000000000000000000000000000004e4");
+        request.setAccessList(List.of(access));
+        contractActionsCall(request).andExpect(status().isOk());
     }
 
     @ValueSource(
@@ -980,8 +1041,8 @@ final class ContractControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    private ContractCallRequest request() {
-        final var request = new ContractCallRequest();
+    private ActionTraceRequest request() {
+        final var request = new ActionTraceRequest();
         request.setBlock(BlockType.LATEST);
         request.setData("0x1079023a");
         request.setFrom("0x00000000000000000000000000000000000004e2");

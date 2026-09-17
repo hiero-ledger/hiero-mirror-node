@@ -63,7 +63,19 @@ class HexUtilsTest {
 
     @Test
     void convertLongToHexStringHandlesNegativeNumber() {
-        // Long.toHexString treats the long as unsigned, so -1 becomes all f's
+        // HexFormat.toHexDigits treats the long as 16 unsigned hex digits, so -1 becomes all f's
         assertThat(HexUtils.convertLongToHexString(-1)).isEqualTo("0xffffffffffffffff");
+    }
+
+    @CsvSource({"'0x0',0", "'0x1',1", "'0xa',10", "'0xff',255", "'0x100',256", "'ff',255", "'0X10',16", "'0x',0", "'',0"
+    })
+    @ParameterizedTest
+    void parseHexLong(String hex, long expected) {
+        assertThat(HexUtils.parseHexLong(hex)).isEqualTo(expected);
+    }
+
+    @Test
+    void parseHexLongReturnsZeroForNull() {
+        assertThat(HexUtils.parseHexLong(null)).isEqualTo(0L);
     }
 }

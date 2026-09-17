@@ -26,11 +26,11 @@ class ActionContextTest {
     }
 
     @Test
-    void dropsActionsBeyondMaxDepth() {
+    void dropsActionsAtDepth1024() {
         final var context = new ActionContext();
         context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0x0"), 0);
 
-        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xdeep"), ActionContext.MAX_DEPTH + 1);
+        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xdeep"), ActionContext.MAX_DEPTH);
 
         assertThat(context.isTruncated()).isTrue();
         assertThat(context.getActions()).hasSize(2);
@@ -38,7 +38,23 @@ class ActionContextTest {
     }
 
     @Test
-    void attachesNestedAndSiblingCalls() {
+    void acceptsDepthJustBelowMax() {
+        final var context = new ActionContext();
+        var parent = new ActionResponse().type(TypeEnum.CALL).from("0x0");
+        context.addAction(parent, 0);
+        for (int depth = 1; depth < ActionContext.MAX_DEPTH; depth++) {
+            final var child = new ActionResponse().type(TypeEnum.CALL).from("0x" + depth);
+            context.addAction(child, depth);
+            parent = child;
+        }
+
+        assertThat(context.isTruncated()).isFalse();
+        assertThat(context.getActions()).hasSize(1);
+        assertThat(context.getActionsByDepth(ActionContext.MAX_DEPTH - 1)).hasSize(1);
+    }
+
+    @Test
+    void attachesNestedAndSiblingCallsWithoutDuplicatingInGetActions() {
         final var context = new ActionContext();
         final var root = new ActionResponse().from("0x0");
         final var child = new ActionResponse().from("0x1");
@@ -49,8 +65,10 @@ class ActionContextTest {
         context.finalizeAction(1, null, "0x1", "0x", null);
         context.addAction(sibling, 1);
 
-        assertThat(context.getActions()).containsExactly(root, child, sibling);
         assertThat(root.getCalls()).containsExactly(child, sibling);
+        assertThat(context.getActions()).containsExactly(root);
+        assertThat(context.getActions()).doesNotContain(child, sibling);
+        assertThat(context.getActions()).hasSize(1);
     }
 
     @Test
@@ -58,6 +76,8 @@ class ActionContextTest {
         final var context = new ActionContext();
         final var root = new ActionResponse().from("0x0");
         context.addAction(root, 0);
+
+        assertThat(root.getCalls()).isEmpty();
 
         context.finalizeAction(0, null, "0xa", "0xbb", null);
 
@@ -81,7 +101,7 @@ class ActionContextTest {
         context.finalizeAction(1, null, "0x2", "0x", null);
         context.addAction(sibling, 1);
 
-        assertThat(context.getActions()).containsExactly(root, child, sibling, grandchild);
+        assertThat(context.getActions()).containsExactly(root);
         assertThat(context.getActionsByDepth(0)).containsExactly(root);
         assertThat(context.getActionsByDepth(1)).containsExactly(child, sibling);
         assertThat(context.getActionsByDepth(2)).containsExactly(grandchild);

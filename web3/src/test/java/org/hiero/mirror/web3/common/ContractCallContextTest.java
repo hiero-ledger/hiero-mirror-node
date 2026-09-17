@@ -101,4 +101,30 @@ class ContractCallContextTest {
 
         assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(consensusEnd + 1));
     }
+
+    @Test
+    void remainingMillisUsesDeadlineWhenSet() {
+        var context = ContractCallContext.get();
+        context.setDeadlineMillis(context.getStartTime() + 1_000);
+
+        assertThat(context.remainingMillis(4_000)).isBetween(0L, 1_000L);
+        assertThat(context.isDeadlineExceeded()).isFalse();
+    }
+
+    @Test
+    void remainingMillisFallsBackWhenDeadlineUnset() {
+        var context = ContractCallContext.get();
+
+        assertThat(context.remainingMillis(4_000)).isBetween(0L, 4_000L);
+        assertThat(context.isDeadlineExceeded()).isFalse();
+    }
+
+    @Test
+    void remainingMillisNegativeWhenDeadlinePassed() {
+        var context = ContractCallContext.get();
+        context.setDeadlineMillis(context.getStartTime() - 1);
+
+        assertThat(context.remainingMillis(4_000)).isNegative();
+        assertThat(context.isDeadlineExceeded()).isTrue();
+    }
 }

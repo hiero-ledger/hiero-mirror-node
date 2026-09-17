@@ -60,9 +60,11 @@ final class ThrottleManagerImpl implements ThrottleManager {
     }
 
     @Override
-    public void throttleTraceRequest() {
+    public void throttleTraceRequest(final ContractCallRequest request) {
         if (!traceRateLimitBucket.tryConsume(1)) {
             throw new ThrottleException(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
+        } else if (!gasLimitBucket.tryConsume(throttleProperties.scaleGas(request.getGas()))) {
+            throw new ThrottleException(GAS_PER_SECOND_LIMIT_EXCEEDED);
         }
     }
 

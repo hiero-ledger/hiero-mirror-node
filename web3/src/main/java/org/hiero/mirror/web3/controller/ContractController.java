@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.controller;
 
+import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.ACTIONS;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
@@ -21,6 +22,7 @@ import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.TraceRequest;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.utils.GzipEncoding;
+import org.hiero.mirror.web3.viewmodel.ActionTraceRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hyperledger.besu.datatypes.Address;
@@ -32,7 +34,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -71,46 +72,51 @@ class ContractController {
 
     @PostMapping(value = "/call/actions")
     ActionResponse actions(
-            @RequestBody @Valid ContractCallRequest request,
-            @RequestParam(name = "only_top_call", defaultValue = "false") final boolean onlyTopCall,
-            @RequestParam(name = "timeout", required = false) final @Nullable String timeout,
+            @RequestBody @Valid ActionTraceRequest request,
             @RequestHeader(value = HttpHeaders.ACCEPT_ENCODING, required = false) final String acceptEncoding) {
-        if (!tracerProperties.isEnabled()) {
+        if (!web3Properties.isApiEnabled(ACTIONS)) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
         }
 
         GzipEncoding.require(acceptEncoding);
         validateActionsRequest(request);
-        final var resolvedTimeout = resolveTimeout(timeout);
+        final var resolvedTimeout = resolveTimeout(request.getTimeout());
         validateContractMaxGasLimit(request);
 
         if (!request.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
         }
 
-        throttleManager.throttleTraceRequest();
-
-        final var params = constructServiceParameters(request);
-        return contractDebugService.processTraceCall(new TraceRequest(params, onlyTopCall, resolvedTimeout));
+        throttleManager.throttleTraceRequest(request);
+        try {
+            final var params = constructServiceParameters(request);
+            return contractDebugService.processTraceCall(
+                    new TraceRequest(params, request.isOnlyTopCall(), resolvedTimeout));
+        } catch (IllegalArgumentException | InvalidParametersException e) {
+            throttleManager.restore(request.getGas());
+            throw e;
+        }
     }
 
-    private void validateActionsRequest(final ContractCallRequest request) {
+    private void validateActionsRequest(final ActionTraceRequest request) {
         if (request.isEstimate()) {
             throw new InvalidParametersException("estimate is not supported for action trace calls");
         }
     }
 
-    private @Nullable Duration resolveTimeout(final @Nullable String timeout) {
+    private Duration resolveTimeout(final @Nullable String timeout) {
+        final var apiTimeout = web3Properties.getRequestTimeout(ACTIONS);
+        final var maxTimeout = tracerProperties.getMaxTimeout();
+        var effective = apiTimeout.compareTo(maxTimeout) > 0 ? maxTimeout : apiTimeout;
         if (timeout == null || timeout.isBlank()) {
-            return null;
+            return effective;
         }
         try {
             final var parsed = DurationStyle.detectAndParse(timeout.trim());
             if (parsed.isNegative() || parsed.isZero()) {
                 throw new InvalidParametersException("Invalid timeout: " + timeout);
             }
-            final var maxTimeout = tracerProperties.getMaxTimeout();
-            return parsed.compareTo(maxTimeout) > 0 ? maxTimeout : parsed;
+            return parsed.compareTo(effective) < 0 ? parsed : effective;
         } catch (IllegalArgumentException e) {
             throw new InvalidParametersException("Invalid timeout: " + timeout);
         }

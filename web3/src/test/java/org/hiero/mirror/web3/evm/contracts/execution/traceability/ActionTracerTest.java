@@ -104,33 +104,28 @@ class ActionTracerTest {
     @BeforeEach
     void setup() {
         actionTracer = new ActionTracer();
-        actionContext = ActionContext.builder().gasRemaining(INITIAL_GAS).build();
+        actionContext = ActionContext.builder().build();
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
         lenient().when(contractCallContext.getActionContext()).thenReturn(actionContext);
     }
 
     @Test
-    void traceContextEnterUpdatesGasRemaining() {
-        // Given
-        given(messageFrame.getRemainingGas()).willReturn(REMAINING_GAS);
+    void traceContextEnterHaltsWhenDeadlineExceeded() {
+        lenient().when(contractCallContext.isDeadlineExceeded()).thenReturn(true);
 
-        // When
         actionTracer.traceContextEnter(messageFrame);
 
-        // Then
-        assertThat(actionContext.getGasRemaining()).isEqualTo(REMAINING_GAS);
+        verify(messageFrame).setState(MessageFrame.State.EXCEPTIONAL_HALT);
+        assertThat(actionContext.isTimedOut()).isTrue();
     }
 
     @Test
-    void traceContextReEnterUpdatesGasRemaining() {
-        // Given
-        given(messageFrame.getRemainingGas()).willReturn(REMAINING_GAS);
+    void traceContextEnterIsNoOpWhenActionContextMissing() {
+        lenient().when(contractCallContext.getActionContext()).thenReturn(null);
 
-        // When
-        actionTracer.traceContextReEnter(messageFrame);
+        actionTracer.traceContextEnter(messageFrame);
 
-        // Then
-        assertThat(actionContext.getGasRemaining()).isEqualTo(REMAINING_GAS);
+        verify(messageFrame, never()).setState(any());
     }
 
     @Test
@@ -142,7 +137,6 @@ class ActionTracerTest {
         actionTracer.traceOriginAction(messageFrame);
 
         // Then
-        assertThat(actionContext.getGasRemaining()).isEqualTo(INITIAL_GAS);
         assertThat(actionContext.getActions()).hasSize(1);
         assertTopLevelAction(actionContext.getActions().getFirst(), false);
     }
@@ -225,7 +219,7 @@ class ActionTracerTest {
         actionTracer.tracePostExecution(messageFrame, operationResult);
 
         // Then
-        assertThat(actionContext.getActions()).hasSize(2);
+        assertThat(actionContext.getActions()).hasSize(1);
         final var topLevel = actionContext.getActions().getFirst();
         assertThat(topLevel.getCalls()).hasSize(1);
         assertNestedAction(topLevel.getCalls().getFirst(), false);
@@ -269,8 +263,6 @@ class ActionTracerTest {
         actionTracer.traceOriginAction(messageFrame);
         givenSuspendedParentWithChild();
         actionTracer.tracePostExecution(messageFrame, operationResult);
-
-        actionContext.setGasRemaining(NESTED_GAS);
         givenCompletedFrameData(nestedFrame, NESTED_REMAINING_GAS, NESTED_OUTPUT);
         given(nestedFrame.getDepth()).willReturn(1);
 
@@ -278,10 +270,33 @@ class ActionTracerTest {
         actionTracer.tracePostExecution(nestedFrame, operationResult);
 
         // Then
-        assertThat(actionContext.getActions()).hasSize(2);
+        assertThat(actionContext.getActions()).hasSize(1);
         final var topLevel = actionContext.getActions().getFirst();
         assertThat(topLevel.getCalls()).hasSize(1);
         assertNestedAction(topLevel.getCalls().getFirst(), true);
+    }
+
+    @Test
+    void parentGasUsedIncludesNestedConsumption() {
+        givenOriginFrameData();
+        actionTracer.traceOriginAction(messageFrame);
+        givenSuspendedParentWithChild();
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        givenCompletedFrameData(nestedFrame, NESTED_REMAINING_GAS, NESTED_OUTPUT);
+        given(nestedFrame.getDepth()).willReturn(1);
+        actionTracer.tracePostExecution(nestedFrame, operationResult);
+
+        final long parentRemainingAfterNested = 800L;
+        givenCompletedFrameData(messageFrame, parentRemainingAfterNested, OUTPUT);
+        given(messageFrame.getDepth()).willReturn(0);
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        final var topLevel = actionContext.getActions().getFirst();
+        assertThat(topLevel.getGasUsed())
+                .isEqualTo(HexUtils.convertLongToHexString(INITIAL_GAS - parentRemainingAfterNested));
+        assertThat(topLevel.getCalls().getFirst().getGasUsed())
+                .isEqualTo(HexUtils.convertLongToHexString(NESTED_GAS - NESTED_REMAINING_GAS));
     }
 
     @Test
@@ -292,7 +307,6 @@ class ActionTracerTest {
 
         givenSuspendedParentWithChild();
         actionTracer.tracePostExecution(messageFrame, operationResult);
-        actionContext.setGasRemaining(NESTED_GAS);
         givenCompletedFrameData(nestedFrame, NESTED_REMAINING_GAS, NESTED_OUTPUT);
         given(nestedFrame.getDepth()).willReturn(1);
         actionTracer.tracePostExecution(nestedFrame, operationResult);
@@ -443,13 +457,35 @@ class ActionTracerTest {
     @Test
     void haltsOnContextEnterWhenDeadlineExceeded() {
         lenient().when(contractCallContext.isDeadlineExceeded()).thenReturn(true);
-        given(messageFrame.getRemainingGas()).willReturn(REMAINING_GAS);
 
         actionTracer.traceContextEnter(messageFrame);
 
         verify(messageFrame).setState(MessageFrame.State.EXCEPTIONAL_HALT);
         assertThat(actionContext.isTimedOut()).isTrue();
-        assertThat(actionContext.getGasRemaining()).isEqualTo(REMAINING_GAS);
+    }
+
+    @Test
+    void recordsPrecompileAsNestedAction() {
+        givenOriginFrameData();
+        actionTracer.traceOriginAction(messageFrame);
+
+        given(nestedFrame.getDepth()).willReturn(1);
+        given(nestedFrame.getSenderAddress()).willReturn(NESTED_SENDER);
+        given(nestedFrame.getRecipientAddress()).willReturn(Address.SHA256);
+        given(nestedFrame.getRemainingGas()).willReturn(NESTED_GAS);
+        given(nestedFrame.getInputData()).willReturn(NESTED_INPUT);
+        given(nestedFrame.getValue()).willReturn(Wei.ZERO);
+        given(nestedFrame.getOutputData()).willReturn(NESTED_OUTPUT);
+        given(nestedFrame.getExceptionalHaltReason()).willReturn(Optional.empty());
+        given(nestedFrame.getRevertReason()).willReturn(Optional.empty());
+
+        actionTracer.tracePrecompileResult(nestedFrame, com.hedera.hapi.streams.ContractActionType.PRECOMPILE);
+
+        assertThat(actionContext.getActions()).hasSize(1);
+        final var nested = actionContext.getActions().getFirst().getCalls();
+        assertThat(nested).hasSize(1);
+        assertThat(nested.getFirst().getTo()).isEqualTo(Address.SHA256.toHexString());
+        assertThat(nested.getFirst().getType()).isEqualTo(TypeEnum.CALL);
     }
 
     @Test
