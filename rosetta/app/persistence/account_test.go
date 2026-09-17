@@ -494,7 +494,11 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockPartitionLookupEr
 	suite.Require().NoError(
 		db.Exec("alter view mirror_node_time_partitions rename to mirror_node_time_partitions_bak").Error,
 	)
-	defer db.Exec("alter view mirror_node_time_partitions_bak rename to mirror_node_time_partitions")
+	suite.T().Cleanup(func() {
+		suite.Require().NoError(
+			db.Exec("alter view mirror_node_time_partitions_bak rename to mirror_node_time_partitions").Error,
+		)
+	})
 
 	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
