@@ -79,7 +79,11 @@ func (c *constructionAPIService) ConstructionCombine(
 			return nil, errors.ErrInvalidPublicKey
 		}
 
-		if !ed25519.Verify(pubKey.Bytes(), frozenBodyBytes, signature.Bytes) {
+		if len(pubKey.Bytes()) != ed25519.PublicKeySize {
+			return nil, errors.ErrInvalidPublicKey
+		}
+
+		if !pubKey.VerifySignedMessage(frozenBodyBytes, signature.Bytes) {
 			return nil, errors.ErrInvalidSignatureVerification
 		}
 
