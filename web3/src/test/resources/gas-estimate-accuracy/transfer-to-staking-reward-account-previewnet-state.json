@@ -1,0 +1,55 @@
+{
+  "hash": "0xc92df83d6e8f8f789f8520d93b3fc1a26e18b5a9932ec1a211072f6475be35d0",
+  "corrected_estimated": 36073,
+  "gas_used": 34187,
+  "request": {
+    "estimate": true,
+    "data": "0xc78345de0000000000000000000000000000000000000000000000000000000000000320000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000084865792c204d6121000000000000000000000000000000000000000000000000",
+    "from": "0x0000000000000000000000000000000000000caf",
+    "gas": 1000000,
+    "value": 0,
+    "block": "1694069",
+    "to": "0x0000000000000000000000000000000000000cb4"
+  },
+  "block": {
+    "number": 1694069,
+    "timestamp_from": "1788279930.098622104",
+    "timestamp_to": "1788279931.300777325",
+    "hash": "5263846ec9a9ddacac47d1494dec033d6d3cfe5d0f30db0697dc6e5008403bbf0e69033b36efa61f1c69059bbde40f0d",
+    "previous_hash": "4ab41dd798ea900479491d84773544bf4460c3b26815cd7c98399a956fb3143bc5a220db52388c7b43337bfa6c6a85db"
+  },
+  "exchange_rate": {
+    "current_rate": {
+      "cent_equivalent": 12,
+      "expiration_time": 4102444800,
+      "hbar_equivalent": 1
+    },
+    "next_rate": {
+      "cent_equivalent": 15,
+      "expiration_time": 4102444800,
+      "hbar_equivalent": 1
+    }
+  },
+  "accounts": [
+    {
+      "account": "0.0.3247",
+      "key": "18d631185da2d15744a7c494535ea1248a819f5847c7ea83d2a0ecc88ba1e4f1",
+      "balance": 2500000000
+    }
+  ],
+  "contracts": [
+    {
+      "account": "0.0.3252",
+      "evm_address": "0x0000000000000000000000000000000000000cb4",
+      "nonce": 1,
+      "balance": 1,
+      "runtime_bytecode_file": "bytecode/previewnet-0-0-3252.hex",
+      "slots": {
+        "0000000000000000000000000000000000000000000000000000000000000000": "000000000000000000000000000000000000000000000000000000000000002a"
+      }
+    }
+  ],
+  "tokens": [],
+  "token_accounts": [],
+  "token_allowances": []
+}
