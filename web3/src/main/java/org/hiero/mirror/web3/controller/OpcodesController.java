@@ -28,7 +28,6 @@ import org.springframework.web.server.ResponseStatusException;
 class OpcodesController {
 
     private final OpcodeService opcodeService;
-    private final OpcodesProperties properties;
     private final Web3Properties web3Properties;
 
     /**

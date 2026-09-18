@@ -87,6 +87,9 @@ final class PrestateContext {
         return postNonces.getOrDefault(accountId, 0L);
     }
 
+    // We have track only for the nonce values based on the transaction result related information in DB (e.g. ontract
+    // result, ethereum transaction, authorization lists). These values are used as a starting point and we deduct the
+    // nonce backwards to the pre-transaction values based on the account actions during the transaction replay
     long preNonce(final long accountId) {
         return Math.max(0L, postNonce(accountId) - nonceDeltas.getOrDefault(accountId, 0L));
     }

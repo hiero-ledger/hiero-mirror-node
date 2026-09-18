@@ -28,7 +28,6 @@ import org.springframework.web.server.ResponseStatusException;
 final class PrestateController {
 
     private final PrestateService prestateService;
-    private final PrestateProperties prestateProperties;
     private final Web3Properties web3Properties;
 
     /**

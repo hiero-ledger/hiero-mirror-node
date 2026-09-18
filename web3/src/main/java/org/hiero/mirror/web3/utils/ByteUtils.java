@@ -13,7 +13,7 @@ public class ByteUtils {
 
     private static final HexFormat HEX_FORMAT = HexFormat.of();
     private static final int WORD_SIZE_BYTES = 32;
-    public static final int WORD_SIZE_HEX_CHARS = WORD_SIZE_BYTES * 2;
+    private static final int WORD_SIZE_HEX_CHARS = WORD_SIZE_BYTES * 2;
     public static final String ZERO_WORD = HEX_PREFIX + "0".repeat(WORD_SIZE_HEX_CHARS);
 
     /**

@@ -37,7 +37,6 @@ import org.hiero.mirror.web3.controller.PrestateProperties;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractStateChangeRepository;
-import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
@@ -75,9 +74,6 @@ final class TouchedAccountCollectorTest {
 
     @Mock
     private ContractStateChangeRepository contractStateChangeRepository;
-
-    @Mock
-    private EntityRepository entityRepository;
 
     @Mock
     private EthereumTransactionRepository ethereumTransactionRepository;

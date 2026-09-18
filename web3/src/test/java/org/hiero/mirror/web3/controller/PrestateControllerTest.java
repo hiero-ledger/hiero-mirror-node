@@ -64,9 +64,6 @@ final class PrestateControllerTest extends Web3IntegrationTest {
     private ObjectMapper objectMapper;
 
     @Resource
-    private PrestateProperties prestateProperties;
-
-    @Resource
     private Web3Properties web3Properties;
 
     @MockitoBean

@@ -9,8 +9,6 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface ContractStateChangeRepository extends CrudRepository<ContractStateChange, ContractStateChange.Id> {
 
-    List<ContractStateChange> findByConsensusTimestamp(long consensusTimestamp);
-
     @Query(value = """
             select *
             from contract_state_change
