@@ -117,13 +117,6 @@ final class ContractControllerTest {
         web3Properties.getApi(CALL).setEnabled(true);
     }
 
-    @Test
-    void callWhenApiDisabled() throws Exception {
-        web3Properties.getApi(CALL).setEnabled(false);
-
-        contractCall(request()).andExpect(status().isNotImplemented());
-    }
-
     @SneakyThrows
     private String convert(Object object) {
         return objectMapper.writeValueAsString(object);

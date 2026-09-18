@@ -76,7 +76,7 @@ final class PrestateServiceImpl implements PrestateService {
             Map<Long, Entity> currentEntities,
             Map<Long, Long> preBalances,
             Map<Long, byte[]> preBytecodes,
-            Map<Long, byte[]> postBytecodes,
+            Map<Long, byte[]> createdBytecodes,
             Map<Long, Map<String, String>> preStorage,
             Map<Long, Map<String, String>> postStorage) {}
 
@@ -137,7 +137,7 @@ final class PrestateServiceImpl implements PrestateService {
                     postAccountTraces.add(buildAccountTrace(
                             Objects.requireNonNull(currentEntity),
                             postBalance,
-                            snapshot.postBytecodes(),
+                            snapshot.createdBytecodes(),
                             storage(snapshot.postStorage(), accountId),
                             postNonce));
                 case MODIFIED ->
@@ -153,7 +153,7 @@ final class PrestateServiceImpl implements PrestateService {
                             buildAccountTrace(
                                     preEntity,
                                     postBalance,
-                                    snapshot.postBytecodes(),
+                                    snapshot.preBytecodes(),
                                     storage(snapshot.postStorage(), accountId),
                                     postNonce));
                 case SKIP -> {
@@ -179,8 +179,9 @@ final class PrestateServiceImpl implements PrestateService {
         final var preBytecodes = request.code()
                 ? loadBytecodes(prestateContext, accounts, timestampBeforeTransaction)
                 : Map.<Long, byte[]>of();
-        final var postBytecodes = diffMode && request.code()
-                ? loadBytecodes(prestateContext, accounts, consensusTimestamp)
+        final var createdIds = prestateContext.getCreatedIds();
+        final var createdBytecodes = diffMode && request.code() && !createdIds.isEmpty()
+                ? loadBytecodes(prestateContext, createdIds, consensusTimestamp)
                 : Map.<Long, byte[]>of();
         final var preStorage =
                 request.storage() ? prestateContext.getPreStorageByContract() : Map.<Long, Map<String, String>>of();
@@ -188,7 +189,7 @@ final class PrestateServiceImpl implements PrestateService {
                 ? prestateContext.getPostStorageByContract()
                 : Map.<Long, Map<String, String>>of();
         return new AccountSnapshot(
-                preEntities, currentEntities, preBalances, preBytecodes, postBytecodes, preStorage, postStorage);
+                preEntities, currentEntities, preBalances, preBytecodes, createdBytecodes, preStorage, postStorage);
     }
 
     private static DiffRole resolveDiffRole(

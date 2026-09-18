@@ -528,6 +528,54 @@ final class PrestateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
+    void callWithDiffAndCodeLoadsBytecodeOnlyForCreatedContract() {
+        final var callerId = domainBuilder.entityId();
+        final var createdContractId = domainBuilder.entityId();
+        final var payerId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+
+        persistBareEntity(callerId, EntityType.CONTRACT, 2L, createdTimestamp);
+        persistBareEntity(createdContractId, EntityType.CONTRACT, 1L, consensusTimestamp);
+        domainBuilder
+                .contract()
+                .customize(c -> c.id(createdContractId.getId()).runtimeBytecode(RUNTIME_BYTECODE))
+                .persist();
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(callerId, createdTimestamp, 100L);
+        persistContractTransactionHash(hash, consensusTimestamp, payerId, callerId);
+        domainBuilder
+                .contractResult()
+                .customize(c -> c.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
+                        .senderId(payerId)
+                        .contractId(callerId.getId())
+                        .createdContractIds(List.of(createdContractId.getId()))
+                        .functionResult(createdContractNonceFunctionResult(createdContractId, 1L))
+                        .amount(0L))
+                .persist();
+        persistCallAction(
+                consensusTimestamp,
+                callerId,
+                EntityType.CONTRACT,
+                createdContractId,
+                0L,
+                CallOperationType.OP_CREATE,
+                1);
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, true, false));
+
+        final var createdAddress = toLongZeroAddress(createdContractId);
+        assertThat(response.getPre()).extracting(t -> t.getAddress()).doesNotContain(createdAddress);
+        assertThat(response.getPost())
+                .filteredOn(t -> createdAddress.equals(t.getAddress()))
+                .singleElement()
+                .extracting(t -> t.getCode())
+                .isEqualTo(rawHex(RUNTIME_BYTECODE));
+    }
+
+    @Test
     void callWithDiffEnabledDetectsEip7702AuthorityNonce() {
         final var senderId = domainBuilder.entityId();
         final var authorityId = domainBuilder.entityId();
