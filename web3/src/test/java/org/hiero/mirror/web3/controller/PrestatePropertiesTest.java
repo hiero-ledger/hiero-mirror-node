@@ -9,18 +9,10 @@ import org.junit.jupiter.api.Test;
 class PrestatePropertiesTest {
 
     @Test
-    void enabledCanBeConfigured() {
-        final var properties = new PrestateProperties();
-        properties.setEnabled(true);
-
-        assertThat(properties.isEnabled()).isTrue();
-    }
-
-    @Test
-    void maxTouchedAccountsHasDefaultValue() {
+    void maxBytecodeBytesHasDefaultValue() {
         final var properties = new PrestateProperties();
 
-        assertThat(properties.getMaxTouchedAccounts()).isEqualTo(1000);
+        assertThat(properties.getMaxBytecodeBytes()).isEqualTo(10_000_000);
     }
 
     @Test

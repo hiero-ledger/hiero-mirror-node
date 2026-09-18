@@ -395,6 +395,32 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findActiveByIdsAndTimestampDeletedAfterBlockNotResurrected() {
+        final long aliveStart = domainBuilder.timestamp();
+        final long deleteTimestamp = aliveStart + 100L;
+        final long id = domainBuilder.entityId().getId();
+
+        final var entityHistory = domainBuilder
+                .entityHistory()
+                .customize(e -> e.id(id).deleted(false).timestampRange(Range.closedOpen(aliveStart, deleteTimestamp)))
+                .persist();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(id).deleted(true).timestampRange(Range.atLeast(deleteTimestamp)))
+                .persist();
+
+        assertThat(entityRepository.findActiveByIdsAndTimestamp(List.of(id), aliveStart))
+                .singleElement()
+                .usingRecursiveComparison()
+                .isEqualTo(entityHistory);
+
+        assertThat(entityRepository.findActiveByIdsAndTimestamp(List.of(id), deleteTimestamp))
+                .isEmpty();
+        assertThat(entityRepository.findActiveByIdsAndTimestamp(List.of(id), deleteTimestamp + 50L))
+                .isEmpty();
+    }
+
+    @Test
     void findActiveByEvmAddressesOrAliasesAndTimestampReturnsRequestedCurrentEntities() {
         final var entityByEvmAddress = persistEntity();
         final var entityByAlias = persistEntity();

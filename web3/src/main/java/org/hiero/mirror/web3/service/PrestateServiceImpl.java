@@ -9,6 +9,8 @@ import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.web3.ApiEndpointName.PRESTATE;
+import static org.hiero.mirror.web3.utils.ByteUtils.ZERO_WORD;
 import static org.hiero.mirror.web3.utils.Constants.MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
@@ -21,17 +23,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.rest.model.PrestateAccountTrace;
 import org.hiero.mirror.rest.model.PrestateResponse;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.controller.PrestateProperties;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
+import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.ContractRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
@@ -77,10 +82,13 @@ final class PrestateServiceImpl implements PrestateService {
 
     @Override
     public PrestateResponse processPrestateCall(final PrestateRequest prestateRequest) {
-        final var consensusTimestamp = resolveConsensusTimestamp(prestateRequest.transactionIdOrHashParameter());
-        final var prestateContext = new PrestateContext(prestateProperties, consensusTimestamp, prestateRequest);
-        touchedAccountCollector.collect(prestateContext);
-        return loadAccountTraces(prestateContext);
+        return ContractCallContext.run(ctx -> {
+            ctx.setApi(PRESTATE);
+            final var consensusTimestamp = resolveConsensusTimestamp(prestateRequest.transactionIdOrHashParameter());
+            final var prestateContext = new PrestateContext(prestateProperties, consensusTimestamp, prestateRequest);
+            touchedAccountCollector.collect(prestateContext);
+            return loadAccountTraces(prestateContext);
+        });
     }
 
     private PrestateResponse loadAccountTraces(final PrestateContext prestateContext) {
@@ -168,10 +176,12 @@ final class PrestateServiceImpl implements PrestateService {
                 indexById(entityRepository.findActiveByIdsAndTimestamp(accounts, timestampBeforeTransaction));
         final var currentEntities = indexById(entityRepository.findAllById(accounts));
         final var preBalances = loadBalances(accounts, timestampBeforeTransaction);
-        final var preBytecodes =
-                request.code() ? loadBytecodes(accounts, timestampBeforeTransaction) : Map.<Long, byte[]>of();
-        final var postBytecodes =
-                diffMode && request.code() ? loadBytecodes(accounts, consensusTimestamp) : Map.<Long, byte[]>of();
+        final var preBytecodes = request.code()
+                ? loadBytecodes(prestateContext, accounts, timestampBeforeTransaction)
+                : Map.<Long, byte[]>of();
+        final var postBytecodes = diffMode && request.code()
+                ? loadBytecodes(prestateContext, accounts, consensusTimestamp)
+                : Map.<Long, byte[]>of();
         final var preStorage =
                 request.storage() ? prestateContext.getPreStorageByContract() : Map.<Long, Map<String, String>>of();
         final var postStorage = diffMode && request.storage()
@@ -204,10 +214,61 @@ final class PrestateServiceImpl implements PrestateService {
             final List<PrestateAccountTrace> postAccountTraces,
             final PrestateAccountTrace preAccountTrace,
             final PrestateAccountTrace postAccountTrace) {
-        if (!Objects.equals(preAccountTrace, postAccountTrace)) {
-            preAccountTraces.add(preAccountTrace);
-            postAccountTraces.add(postAccountTrace);
+        final var sparsePost = sparsePostTrace(preAccountTrace, postAccountTrace);
+        if (sparsePost == null) {
+            return;
         }
+        preAccountTraces.add(preAccountTrace);
+        postAccountTraces.add(sparsePost);
+    }
+
+    private static @Nullable PrestateAccountTrace sparsePostTrace(
+            final PrestateAccountTrace preAccountTrace, final PrestateAccountTrace postAccountTrace) {
+        final boolean balanceChanged = !Objects.equals(preAccountTrace.getBalance(), postAccountTrace.getBalance());
+        final boolean nonceChanged = !Objects.equals(preAccountTrace.getNonce(), postAccountTrace.getNonce());
+        final boolean codeChanged = !Objects.equals(preAccountTrace.getCode(), postAccountTrace.getCode());
+        final var storageDiff = storageDiff(preAccountTrace.getStorage(), postAccountTrace.getStorage());
+        if (!balanceChanged && !nonceChanged && !codeChanged && storageDiff.isEmpty()) {
+            return null;
+        }
+
+        final var sparse = new PrestateAccountTrace();
+        sparse.setAddress(postAccountTrace.getAddress());
+        if (balanceChanged) {
+            sparse.setBalance(postAccountTrace.getBalance());
+        }
+        if (nonceChanged) {
+            sparse.setNonce(postAccountTrace.getNonce());
+        }
+        if (codeChanged) {
+            sparse.setCode(postAccountTrace.getCode());
+        }
+        if (!storageDiff.isEmpty()) {
+            sparse.setStorage(storageDiff);
+        }
+        return sparse;
+    }
+
+    private static Map<String, String> storageDiff(
+            final @Nullable Map<String, String> preStorage, final @Nullable Map<String, String> postStorage) {
+        final var pre = preStorage != null ? preStorage : Map.<String, String>of();
+        final var post = postStorage != null ? postStorage : Map.<String, String>of();
+        if (pre.isEmpty() && post.isEmpty()) {
+            return Map.of();
+        }
+
+        final var diff = new TreeMap<String, String>();
+        for (final var entry : post.entrySet()) {
+            if (!Objects.equals(pre.get(entry.getKey()), entry.getValue())) {
+                diff.put(entry.getKey(), entry.getValue());
+            }
+        }
+        for (final var entry : pre.entrySet()) {
+            if (!post.containsKey(entry.getKey())) {
+                diff.put(entry.getKey(), ZERO_WORD);
+            }
+        }
+        return diff;
     }
 
     private static PrestateResponse buildResponse(
@@ -282,18 +343,27 @@ final class PrestateServiceImpl implements PrestateService {
                         .toString(16);
     }
 
-    private Map<Long, byte[]> loadBytecodes(final Set<Long> entityIds, final long timestamp) {
+    private Map<Long, byte[]> loadBytecodes(
+            final PrestateContext prestateContext, final Set<Long> entityIds, final long timestamp) {
         if (entityIds.isEmpty()) {
             return Map.of();
         }
 
         final var contracts = contractRepository.findByIdsAndConsensusTimestamp(entityIds, timestamp);
         final var bytecodes = HashMap.<Long, byte[]>newHashMap(contracts.size());
+        final int maxBytecodeBytes = prestateContext.getPrestateProperties().getMaxBytecodeBytes();
+        long totalBytes = 0L;
         for (final var contract : contracts) {
             final var runtimeBytecode = contract.getRuntimeBytecode();
-            if (runtimeBytecode != null) {
-                bytecodes.put(contract.getId(), runtimeBytecode);
+            if (runtimeBytecode == null) {
+                continue;
             }
+            if (runtimeBytecode.length > maxBytecodeBytes || totalBytes + runtimeBytecode.length > maxBytecodeBytes) {
+                throw new InvalidParametersException(
+                        "Prestate bytecode exceeds hiero.mirror.web3.prestate.maxBytecodeBytes");
+            }
+            bytecodes.put(contract.getId(), runtimeBytecode);
+            totalBytes += runtimeBytecode.length;
         }
         return bytecodes;
     }
@@ -303,13 +373,16 @@ final class PrestateServiceImpl implements PrestateService {
             return Map.of();
         }
 
-        final var balances = HashMap.<Long, Long>newHashMap(accountIds.size());
         final long treasuryAccountId = systemEntity.treasuryAccount().getId();
-        for (final long accountId : accountIds) {
-            final long balance = accountBalanceRepository
-                    .findHistoricalAccountBalanceUpToTimestamp(accountId, blockTimestamp, treasuryAccountId)
-                    .orElse(0L);
-            balances.put(accountId, balance);
+        final var rows = accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(
+                accountIds, blockTimestamp, treasuryAccountId);
+        if (rows.isEmpty()) {
+            return Map.of();
+        }
+
+        final var balances = HashMap.<Long, Long>newHashMap(rows.size());
+        for (final var row : rows) {
+            balances.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
         }
         return balances;
     }

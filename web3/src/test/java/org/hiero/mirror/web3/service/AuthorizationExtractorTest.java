@@ -64,7 +64,7 @@ final class AuthorizationExtractorTest extends Web3IntegrationTest {
         final var createdTimestamp = domainBuilder.timestamp();
         final var keyPair = SECP256K1.generateKeyPair();
         final var authorityAddress = evmAddressFromKeyPair(keyPair);
-        persistAccount(authorityId, createdTimestamp, authorityAddress, authorityAddress);
+        persistAccount(authorityId, createdTimestamp, authorityAddress, authorityAddress, 4L);
         final var authorization = signedAuthorization(keyPair, domainBuilder.bytes(20), 4L);
         final var context = prestateContext(createdTimestamp + 100);
 
@@ -81,7 +81,7 @@ final class AuthorizationExtractorTest extends Web3IntegrationTest {
         final var createdTimestamp = domainBuilder.timestamp();
         final var keyPair = SECP256K1.generateKeyPair();
         final var authorityAddress = evmAddressFromKeyPair(keyPair);
-        persistAccount(authorityId, createdTimestamp, null, authorityAddress);
+        persistAccount(authorityId, createdTimestamp, null, authorityAddress, 7L);
         final var authorization = signedAuthorization(keyPair, domainBuilder.bytes(20), 7L);
         final var context = prestateContext(createdTimestamp + 100);
 
@@ -100,9 +100,9 @@ final class AuthorizationExtractorTest extends Web3IntegrationTest {
         final var firstKeyPair = SECP256K1.generateKeyPair();
         final var secondKeyPair = SECP256K1.generateKeyPair();
         final var firstAuthorityAddress = evmAddressFromKeyPair(firstKeyPair);
-        persistAccount(firstAuthorityId, createdTimestamp, firstAuthorityAddress, firstAuthorityAddress);
+        persistAccount(firstAuthorityId, createdTimestamp, firstAuthorityAddress, firstAuthorityAddress, 4L);
         final var secondAuthorityAddress = evmAddressFromKeyPair(secondKeyPair);
-        persistAccount(secondAuthorityId, createdTimestamp, secondAuthorityAddress, secondAuthorityAddress);
+        persistAccount(secondAuthorityId, createdTimestamp, secondAuthorityAddress, secondAuthorityAddress, 7L);
         final var context = prestateContext(createdTimestamp + 100);
 
         authorizationExtractor.extractSigners(
@@ -129,7 +129,8 @@ final class AuthorizationExtractorTest extends Web3IntegrationTest {
                 authorityId,
                 createdTimestamp,
                 evmAddressFromKeyPair(knownKeyPair),
-                evmAddressFromKeyPair(knownKeyPair));
+                evmAddressFromKeyPair(knownKeyPair),
+                4L);
         final var invalidAuthorization = Authorization.builder()
                 .address("0x" + bytesToHex(domainBuilder.bytes(20)))
                 .chainId("0x0")
@@ -153,7 +154,8 @@ final class AuthorizationExtractorTest extends Web3IntegrationTest {
         final var authorityId = domainBuilder.entityId();
         final var createdTimestamp = domainBuilder.timestamp();
         final var keyPair = SECP256K1.generateKeyPair();
-        persistAccount(authorityId, createdTimestamp, evmAddressFromKeyPair(keyPair), evmAddressFromKeyPair(keyPair));
+        persistAccount(
+                authorityId, createdTimestamp, evmAddressFromKeyPair(keyPair), evmAddressFromKeyPair(keyPair), 4L);
         prestateProperties.setMaxTouchedAccounts(1);
         final var context = prestateContext(createdTimestamp + 100);
         context.addAccount(domainBuilder.entityId());
@@ -164,6 +166,59 @@ final class AuthorizationExtractorTest extends Web3IntegrationTest {
         assertThat(context.getAccounts()).doesNotContain(authorityId.getId());
         assertThat(context.getNonceDeltas()).isEmpty();
         assertThat(context.getPostNonces()).isEmpty();
+    }
+
+    @Test
+    void extractSignersSkipsAuthorizationWhenNonceDoesNotMatch() {
+        final var authorityId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var keyPair = SECP256K1.generateKeyPair();
+        final var authorityAddress = evmAddressFromKeyPair(keyPair);
+        persistAccount(authorityId, createdTimestamp, authorityAddress, authorityAddress, 99L);
+        final var context = prestateContext(createdTimestamp + 100);
+
+        authorizationExtractor.extractSigners(
+                context, ethereumTransaction(List.of(signedAuthorization(keyPair, domainBuilder.bytes(20), 4L))));
+
+        assertThat(context.getAccounts()).isEmpty();
+        assertThat(context.getNonceDeltas()).isEmpty();
+        assertThat(context.getPostNonces()).isEmpty();
+    }
+
+    @Test
+    void extractSignersSkipsAuthorizationWhenChainIdDoesNotMatch() {
+        final var authorityId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var keyPair = SECP256K1.generateKeyPair();
+        final var authorityAddress = evmAddressFromKeyPair(keyPair);
+        persistAccount(authorityId, createdTimestamp, authorityAddress, authorityAddress, 4L);
+        final var context = prestateContext(createdTimestamp + 100);
+        final var authorization = signedAuthorization(keyPair, domainBuilder.bytes(20), 4L, new byte[] {1}, "0x1");
+
+        authorizationExtractor.extractSigners(context, ethereumTransaction(List.of(authorization), new byte[] {2}));
+
+        assertThat(context.getAccounts()).isEmpty();
+        assertThat(context.getNonceDeltas()).isEmpty();
+        assertThat(context.getPostNonces()).isEmpty();
+    }
+
+    @Test
+    void extractSignersAppliesSequentialAuthorizationsFromSameAuthority() {
+        final var authorityId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var keyPair = SECP256K1.generateKeyPair();
+        final var authorityAddress = evmAddressFromKeyPair(keyPair);
+        persistAccount(authorityId, createdTimestamp, authorityAddress, authorityAddress, 4L);
+        final var context = prestateContext(createdTimestamp + 100);
+
+        authorizationExtractor.extractSigners(
+                context,
+                ethereumTransaction(List.of(
+                        signedAuthorization(keyPair, domainBuilder.bytes(20), 4L),
+                        signedAuthorization(keyPair, domainBuilder.bytes(20), 5L))));
+
+        assertThat(context.getNonceDeltas()).containsEntry(authorityId.getId(), 2L);
+        assertThat(context.getPostNonces()).containsEntry(authorityId.getId(), 6L);
     }
 
     private PrestateContext prestateContext() {
@@ -178,15 +233,27 @@ final class AuthorizationExtractorTest extends Web3IntegrationTest {
     }
 
     private static EthereumTransaction ethereumTransaction(final List<Authorization> authorizations) {
-        return EthereumTransaction.builder().authorizationList(authorizations).build();
+        return ethereumTransaction(authorizations, null);
+    }
+
+    private static EthereumTransaction ethereumTransaction(
+            final List<Authorization> authorizations, final byte[] chainId) {
+        return EthereumTransaction.builder()
+                .authorizationList(authorizations)
+                .chainId(chainId)
+                .build();
     }
 
     private void persistAccount(
-            final EntityId entityId, final long createdTimestamp, final byte[] evmAddress, final byte[] alias) {
+            final EntityId entityId,
+            final long createdTimestamp,
+            final byte[] evmAddress,
+            final byte[] alias,
+            final long ethereumNonce) {
         domainBuilder
                 .entity(entityId, createdTimestamp)
                 .customize(e -> e.type(EntityType.ACCOUNT)
-                        .ethereumNonce(99L)
+                        .ethereumNonce(ethereumNonce)
                         .evmAddress(evmAddress)
                         .alias(alias)
                         .deleted(false)
@@ -195,13 +262,22 @@ final class AuthorizationExtractorTest extends Web3IntegrationTest {
     }
 
     private static Authorization signedAuthorization(final KeyPair keyPair, final byte[] target, final long nonce) {
-        final var unsigned = new CodeDelegation(new byte[] {0}, target, nonce, 0, new byte[] {1}, new byte[] {1});
+        return signedAuthorization(keyPair, target, nonce, new byte[] {0}, "0x0");
+    }
+
+    private static Authorization signedAuthorization(
+            final KeyPair keyPair,
+            final byte[] target,
+            final long nonce,
+            final byte[] chainId,
+            final String chainIdHex) {
+        final var unsigned = new CodeDelegation(chainId, target, nonce, 0, new byte[] {1}, new byte[] {1});
         final var message = unsigned.calculateSignableMessage();
         final var hash = Bytes32.wrap(new Keccak.Digest256().digest(message));
         final var signature = SECP256K1.sign(hash, keyPair);
         final var hex = HexFormat.of();
         return Authorization.builder()
-                .chainId("0x0")
+                .chainId(chainIdHex)
                 .address("0x" + hex.formatHex(target))
                 .nonce(nonce)
                 .yParity(signature.getRecId() == 0 ? "0x0" : "0x1")

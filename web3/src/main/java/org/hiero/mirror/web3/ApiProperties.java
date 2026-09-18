@@ -16,6 +16,11 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class ApiProperties {
 
+    /**
+     * Whether this API endpoint is enabled. Disabled endpoints return HTTP 501.
+     */
+    private boolean enabled = true;
+
     @NotNull
     @Valid
     private RequestProperties request = new RequestProperties();

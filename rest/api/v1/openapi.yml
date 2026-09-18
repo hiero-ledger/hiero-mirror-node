@@ -760,12 +760,19 @@ paths:
         Inspects contract result related data for a transaction and returns a response containing detailed information
         for the accounts needed for the transaction execution with some basic fields about them.
 
+        The `Accept-Encoding` request header must include `gzip`. Responses can be large (especially with `code` or
+        `storage`), and compression is required to keep the payload size bounded.
+
+        When `diff=true`, each `post` entry always includes `address` and only the fields that changed relative to the
+        matching `pre` entry. Unchanged storage keys are omitted; slots cleared during the transaction are reported as
+        a 32-byte zero word.
       operationId: getContractPrestate
       parameters:
         - $ref: "#/components/parameters/transactionIdOrEthHashPathParam"
         - $ref: "#/components/parameters/diff"
         - $ref: "#/components/parameters/code"
         - $ref: "#/components/parameters/storage"
+        - $ref: "#/components/parameters/acceptEncodingGzip"
       responses:
         200:
           description: OK
@@ -781,6 +788,12 @@ paths:
                 $ref: "#/components/schemas/Error"
         404:
           description: Transaction or record file not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        406:
+          description: Accept-Encoding must include gzip
           content:
             application/json:
               schema:
@@ -1940,7 +1953,10 @@ components:
           items:
             $ref: "#/components/schemas/PrestateAccountTrace"
         post:
-          description: The accounts/contracts which state is touched during transaction execution with their applied changes
+          description: |
+            Account traces after execution, present only in diff mode. Each entry always includes `address` and only
+            the fields that changed relative to the matching pre entry. Unchanged storage keys are omitted; cleared
+            slots are a 32-byte zero word.
           type: array
           items:
             $ref: "#/components/schemas/PrestateAccountTrace"
@@ -4674,6 +4690,14 @@ components:
               messages:
                 - message: Require at least 1/3 signature files to prove consensus, got 1 out of 4 for file 2019-10-11T13_33_25.526889Z.rcd_sig
   parameters:
+    acceptEncodingGzip:
+      name: Accept-Encoding
+      in: header
+      required: true
+      description: gzip is required because the response can be large
+      schema:
+        type: string
+        example: gzip
     accountIdOrAliasOrEvmAddressPathParam:
       name: idOrAliasOrEvmAddress
       in: path

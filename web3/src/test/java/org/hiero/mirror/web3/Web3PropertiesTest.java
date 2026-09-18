@@ -53,6 +53,15 @@ class Web3PropertiesTest {
     }
 
     @Test
+    void getApiEnabledDefaultsToTrue() {
+        var properties = new Web3Properties();
+
+        assertThat(properties.getApi(CALL).isEnabled()).isTrue();
+        assertThat(properties.getApi(OPCODES).isEnabled()).isTrue();
+        assertThat(properties.getApi(PRESTATE).isEnabled()).isFalse();
+    }
+
+    @Test
     void getApiResponseHeadersUsesConfiguredOverride() {
         var properties = new Web3Properties();
 

@@ -4,11 +4,13 @@ package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX_CAPITAL;
 
 import com.hedera.node.app.hapi.utils.ethereum.CodeDelegation;
 import com.hedera.node.app.hapi.utils.ethereum.EthTxSigs;
 import jakarta.inject.Named;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
@@ -52,25 +54,42 @@ final class AuthorizationExtractor {
         }
 
         final var entities = entityRepository.findActiveByEvmAddressesOrAliasesAndTimestamp(
-                recoveredAddresses, prestateContext.getConsensusTimestamp());
+                recoveredAddresses, prestateContext.getConsensusTimestamp() - 1);
         if (entities.isEmpty()) {
             return;
         }
 
         final var entityByAddress = toEntityByAddress(entities);
+        final var transactionChainId = ethereumTransaction.getChainId();
         for (final var recoveredAuthorization : recoveredAuthorizations) {
             if (prestateContext.isFull()) {
                 break;
+            }
+            if (!isAcceptedChainId(recoveredAuthorization.chainId(), transactionChainId)) {
+                continue;
             }
             final var entity = entityByAddress.get(Bytes.wrap(recoveredAuthorization.address()));
             if (entity == null) {
                 continue;
             }
             final long authorityId = entity.getId();
-            prestateContext.addAccount(entity.toEntityId());
+            final long currentNonce = currentNonce(prestateContext, entity);
+            if (recoveredAuthorization.nonce() != currentNonce) {
+                continue;
+            }
+            prestateContext.addAccount(authorityId);
             prestateContext.addNonceDelta(authorityId, 1L);
-            prestateContext.putPostNonce(authorityId, recoveredAuthorization.nonce() + 1L);
+            prestateContext.putPostNonce(authorityId, currentNonce + 1L);
         }
+    }
+
+    private static long currentNonce(final PrestateContext prestateContext, final Entity entity) {
+        final long id = entity.getId();
+        if (prestateContext.getPostNonces().containsKey(id)) {
+            return prestateContext.postNonce(id);
+        }
+        final long entityNonce = entity.getEthereumNonce() != null ? entity.getEthereumNonce() : 0L;
+        return entityNonce + prestateContext.getNonceDeltas().getOrDefault(id, 0L);
     }
 
     private List<RecoveredAuthorization> recoverAuthorizations(final List<Authorization> authorizations) {
@@ -104,10 +123,10 @@ final class AuthorizationExtractor {
         if (address == null || address.length != EVM_ADDRESS_LENGTH) {
             return null;
         }
-        return new RecoveredAuthorization(address, nonce);
+        return new RecoveredAuthorization(address, nonce, parseHex(authorization.getChainId()));
     }
 
-    private record RecoveredAuthorization(byte[] address, long nonce) {}
+    private record RecoveredAuthorization(byte[] address, long nonce, byte[] chainId) {}
 
     private Map<Bytes, Entity> toEntityByAddress(final List<Entity> entities) {
         final var entityByAddress = HashMap.<Bytes, Entity>newHashMap(entities.size() * 2);
@@ -141,12 +160,43 @@ final class AuthorizationExtractor {
         }
     }
 
+    private static boolean isAcceptedChainId(
+            final byte[] authorizationChainId, final byte @Nullable [] transactionChainId) {
+        if (isZero(authorizationChainId)) {
+            return true;
+        }
+        if (transactionChainId == null) {
+            return false;
+        }
+        return Arrays.equals(stripLeadingZeros(authorizationChainId), stripLeadingZeros(transactionChainId));
+    }
+
+    private static boolean isZero(final byte[] bytes) {
+        if (bytes.length == 0) {
+            return true;
+        }
+        for (final byte element : bytes) {
+            if (element != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static byte[] stripLeadingZeros(final byte[] bytes) {
+        int index = 0;
+        while (index < bytes.length - 1 && bytes[index] == 0) {
+            index++;
+        }
+        return index == 0 ? bytes : Arrays.copyOfRange(bytes, index, bytes.length);
+    }
+
     private static byte[] parseHex(final @Nullable String hex) {
         if (hex == null || hex.isEmpty()) {
             return new byte[0];
         }
         var stripped = hex;
-        if (stripped.startsWith(HEX_PREFIX) || stripped.startsWith("0X")) {
+        if (stripped.startsWith(HEX_PREFIX) || stripped.startsWith(HEX_PREFIX_CAPITAL)) {
             stripped = stripped.substring(HEX_PREFIX.length());
         }
         if (stripped.isEmpty()) {

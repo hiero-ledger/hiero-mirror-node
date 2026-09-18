@@ -158,7 +158,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     from entity
                     where id in (select id from entity_cte)
                     and deleted is not true
-                    and lower(timestamp_range) <= ?2
+                    and timestamp_range @> ?2
                 )
                 union all
                 (
@@ -166,7 +166,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     from entity_history
                     where id in (select id from entity_cte)
                     and deleted is not true
-                    and lower(timestamp_range) <= ?2
+                    and timestamp_range @> ?2
                 )
             ) as merged
             order by id, lower(timestamp_range) desc
@@ -210,8 +210,8 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
 
     /**
      * Retrieves the most recent state of each requested entity by ID up to a given block timestamp.
-     * Returns at most one row per ID (the newest non-deleted version active at or before the block timestamp),
-     * consolidating the current {@code entity} row and any matching {@code entity_history} rows.
+     * Returns at most one row per ID (the newest non-deleted version whose {@code timestamp_range} contains the
+     * block timestamp), consolidating the current {@code entity} row and any matching {@code entity_history} rows.
      *
      * @param ids            the entity IDs to look up.
      * @param blockTimestamp the block timestamp used to filter results.
@@ -223,15 +223,17 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                         (
                             select *
                             from entity
-                            where id in ?1 and lower(timestamp_range) <= ?2
-                            and deleted is not true
+                            where id in ?1
+                              and timestamp_range @> ?2
+                              and deleted is not true
                         )
                         union all
                         (
                             select *
                             from entity_history
-                            where id in ?1 and lower(timestamp_range) <= ?2
-                            and deleted is not true
+                            where id in ?1
+                              and timestamp_range @> ?2
+                              and deleted is not true
                         )
                     ) as merged
                     order by id, lower(timestamp_range) desc

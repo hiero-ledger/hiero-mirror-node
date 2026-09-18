@@ -50,16 +50,15 @@ class ByteUtilsTest {
     }
 
     @Test
-    void wrapToWordSizeNoPaddingForMoreThan32Bytes() {
+    void wrapToWordSizeTruncatesMoreThan32Bytes() {
         var bytes = new byte[33];
         bytes[0] = 0x01;
         bytes[32] = (byte) 0xab;
 
         var result = ByteUtils.wrapToWordSize(bytes);
 
-        assertThat(result).startsWith("0x01");
-        assertThat(result).endsWith("ab");
-        assertThat(result).hasSize(68); // 0x + 66 hex chars
+        assertThat(result).isEqualTo("0x" + "0".repeat(62) + "ab");
+        assertThat(result).hasSize(66);
     }
 
     @ParameterizedTest

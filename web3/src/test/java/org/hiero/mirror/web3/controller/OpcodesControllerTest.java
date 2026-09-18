@@ -5,7 +5,7 @@ package org.hiero.mirror.web3.controller;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.CommonUtils.instant;
-import static org.hiero.mirror.web3.controller.OpcodesController.MISSING_GZIP_HEADER_MESSAGE;
+import static org.hiero.mirror.web3.controller.GzipEncoding.MISSING_GZIP_HEADER_MESSAGE;
 import static org.hiero.mirror.web3.utils.Constants.OPCODES_URI;
 import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
 import static org.mockito.ArgumentMatchers.any;
@@ -47,7 +47,9 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.rest.model.OpcodesResponse;
+import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
@@ -110,6 +112,9 @@ class OpcodesControllerTest extends Web3IntegrationTest {
 
     @Resource
     private TraceMemoryBudget traceMemoryBudget;
+
+    @Resource
+    private Web3Properties web3Properties;
 
     @MockitoBean
     private ContractDebugService contractDebugService;
@@ -240,6 +245,15 @@ class OpcodesControllerTest extends Web3IntegrationTest {
                     opcodesResultCaptor.set(result);
                     return result;
                 });
+        web3Properties.getApi(ApiEndpointName.OPCODES).setEnabled(true);
+    }
+
+    @Test
+    void callWhenApiDisabled() throws Exception {
+        web3Properties.getApi(ApiEndpointName.OPCODES).setEnabled(false);
+        final var transactionIdOrHash = persistTransaction(TransactionProviderEnum.CONTRACT_CALL);
+
+        mockMvc.perform(opcodesRequest(transactionIdOrHash)).andExpect(status().isNotImplemented());
     }
 
     TransactionIdOrHashParameter persistTransaction(final TransactionProviderEnum provider) {

@@ -4,10 +4,12 @@ package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CRYPTOCREATEACCOUNT;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.common.util.SignatureUtils.EC_DOMAIN_PARAMETERS;
+import static org.hiero.mirror.web3.utils.ByteUtils.ZERO_WORD;
 import static org.hiero.mirror.web3.utils.ByteUtils.wrapToWordSize;
 
 import com.google.common.collect.Range;
@@ -36,6 +38,7 @@ import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.controller.PrestateProperties;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
+import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
 import org.hyperledger.besu.crypto.KeyPair;
 import org.hyperledger.besu.crypto.SECP256K1;
@@ -54,6 +57,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
     private static final byte[] VALUE_READ = new byte[] {0x14};
     private static final byte[] VALUE_WRITTEN = new byte[] {0x28};
     private static final int DEFAULT_MAX_TOUCHED_ACCOUNTS = 1000;
+    private static final int DEFAULT_MAX_BYTECODE_BYTES = 10_000_000;
 
     private final PrestateService prestateService;
 
@@ -63,6 +67,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
     @AfterEach
     void tearDown() {
         prestateProperties.setMaxTouchedAccounts(DEFAULT_MAX_TOUCHED_ACCOUNTS);
+        prestateProperties.setMaxBytecodeBytes(DEFAULT_MAX_BYTECODE_BYTES);
     }
 
     @Test
@@ -77,7 +82,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         assertThat(response.getPost()).hasSize(1);
         assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0xe8d4a51000");
         assertThat(response.getPost().getFirst().getBalance()).isEqualTo("0x15d3ef79800");
-        assertThat(response.getPost().getFirst().getNonce()).isEqualTo(0L);
+        assertThat(response.getPost().getFirst().getNonce()).isNull();
     }
 
     @Test
@@ -203,8 +208,8 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         assertThat(response.getPost()).hasSize(1);
         assertThat(response.getPre().getFirst().getStorage())
                 .containsEntry(wrapToWordSize(STORAGE_SLOT), wrapToWordSize(VALUE_READ));
-        // Post storage should not contain the cleared slot
-        assertThat(response.getPost().getFirst().getStorage()).isNullOrEmpty();
+        assertThat(response.getPost().getFirst().getStorage())
+                .containsExactly(entry(wrapToWordSize(STORAGE_SLOT), ZERO_WORD));
     }
 
     @Test
@@ -536,7 +541,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         final var authorization = signedAuthorization(keyPair, target, 4L);
 
         persistBareEntity(senderId, EntityType.ACCOUNT, 10L, createdTimestamp);
-        persistBareEntity(authorityId, EntityType.ACCOUNT, 99L, createdTimestamp, authorityAddress);
+        persistBareEntity(authorityId, EntityType.ACCOUNT, 4L, createdTimestamp, authorityAddress);
         persistTreasuryBalance(createdTimestamp);
         persistAccountBalance(senderId, createdTimestamp, 100L);
         persistAccountBalance(authorityId, createdTimestamp, 50L);
@@ -573,7 +578,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         final var authorization = signedAuthorization(keyPair, domainBuilder.bytes(20), 4L);
 
         persistBareEntity(senderId, EntityType.ACCOUNT, 10L, createdTimestamp);
-        persistBareEntity(authorityId, EntityType.ACCOUNT, 99L, createdTimestamp, null, authorityAddress);
+        persistBareEntity(authorityId, EntityType.ACCOUNT, 4L, createdTimestamp, null, authorityAddress);
         persistTreasuryBalance(createdTimestamp);
         persistAccountBalance(senderId, createdTimestamp, 100L);
         persistAccountBalance(authorityId, createdTimestamp, 50L);
@@ -652,8 +657,8 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         final var secondAuthorization = signedAuthorization(secondKeyPair, domainBuilder.bytes(20), 7L);
 
         persistBareEntity(senderId, EntityType.ACCOUNT, 10L, createdTimestamp);
-        persistBareEntity(firstAuthorityId, EntityType.ACCOUNT, 99L, createdTimestamp, firstAuthorityAddress);
-        persistBareEntity(secondAuthorityId, EntityType.ACCOUNT, 99L, createdTimestamp, secondAuthorityAddress);
+        persistBareEntity(firstAuthorityId, EntityType.ACCOUNT, 4L, createdTimestamp, firstAuthorityAddress);
+        persistBareEntity(secondAuthorityId, EntityType.ACCOUNT, 7L, createdTimestamp, secondAuthorityAddress);
         persistTreasuryBalance(createdTimestamp);
         persistAccountBalance(senderId, createdTimestamp, 100L);
         persistAccountBalance(firstAuthorityId, createdTimestamp, 50L);
@@ -715,7 +720,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                 .build();
 
         persistBareEntity(senderId, EntityType.ACCOUNT, 10L, createdTimestamp);
-        persistBareEntity(authorityId, EntityType.ACCOUNT, 99L, createdTimestamp, authorityAddress);
+        persistBareEntity(authorityId, EntityType.ACCOUNT, 4L, createdTimestamp, authorityAddress);
         persistTreasuryBalance(createdTimestamp);
         persistAccountBalance(senderId, createdTimestamp, 100L);
         persistAccountBalance(authorityId, createdTimestamp, 50L);
@@ -848,7 +853,8 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPre().getFirst().getCode()).isEqualTo(rawHex(RUNTIME_BYTECODE));
         assertThat(response.getPost()).hasSize(1);
-        assertThat(response.getPost().getFirst().getCode()).isEqualTo(rawHex(RUNTIME_BYTECODE));
+        assertThat(response.getPost().getFirst().getCode()).isNull();
+        assertThat(response.getPost().getFirst().getBalance()).isEqualTo("0x8bb2c97000");
     }
 
     @Test
@@ -1085,6 +1091,45 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
         // Only action 1's 3 accounts should be included; action 2 is skipped once size >= cap.
         assertThat(response.getPre()).hasSize(3);
+    }
+
+    @Test
+    void callWithCodeEnabledFailsWhenBytecodeExceedsCap() {
+        prestateProperties.setMaxBytecodeBytes(1);
+        final var fixture = persistContractFixture(RUNTIME_BYTECODE);
+
+        assertThatThrownBy(() -> prestateService.processPrestateCall(createRequest(fixture.hash(), false, true, false)))
+                .isInstanceOf(InvalidParametersException.class)
+                .hasMessageContaining("hiero.mirror.web3.prestate.maxBytecodeBytes");
+    }
+
+    @Test
+    void callWithDiffEnabledSkipsUnacceptedEip7702AuthorizationNonce() {
+        final var senderId = domainBuilder.entityId();
+        final var authorityId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var createdTimestamp = domainBuilder.timestamp();
+        final var consensusTimestamp = createdTimestamp + 100;
+        final var hash = domainBuilder.bytes(32);
+        final var keyPair = SECP256K1.generateKeyPair();
+        final var authorityAddress = evmAddressFromKeyPair(keyPair);
+        final var authorization = signedAuthorization(keyPair, domainBuilder.bytes(20), 4L);
+
+        persistBareEntity(senderId, EntityType.ACCOUNT, 10L, createdTimestamp);
+        persistBareEntity(authorityId, EntityType.ACCOUNT, 99L, createdTimestamp, authorityAddress);
+        persistTreasuryBalance(createdTimestamp);
+        persistAccountBalance(senderId, createdTimestamp, 100L);
+        persistAccountBalance(authorityId, createdTimestamp, 50L);
+        persistEthereumCall(
+                hash, consensusTimestamp, senderId, senderId, contractId, 9L, new byte[0], List.of(authorization));
+        persistCallAction(
+                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+
+        final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
+
+        assertThat(response.getPre())
+                .extracting(t -> t.getAddress())
+                .doesNotContain("0x" + bytesToHex(authorityAddress));
     }
 
     private PrestateRequest createRequest(

@@ -3,9 +3,11 @@
 package org.hiero.mirror.web3.controller;
 
 import static org.hiero.mirror.common.util.CommonUtils.instant;
+import static org.hiero.mirror.web3.controller.GzipEncoding.MISSING_GZIP_HEADER_MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
+import static org.springframework.http.HttpStatus.NOT_ACCEPTABLE;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -33,6 +35,7 @@ import org.hiero.mirror.web3.service.PrestateService;
 import org.hiero.mirror.web3.throttle.RequestThrottleInterceptor;
 import org.hiero.mirror.web3.utils.TransactionProviderEnum;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -40,6 +43,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -74,14 +78,20 @@ final class PrestateControllerTest extends Web3IntegrationTest {
     @BeforeEach
     void setUp() throws Exception {
         when(requestThrottleInterceptor.preHandle(any(), any(), any())).thenReturn(true);
-        prestateProperties.setEnabled(true);
 
         final var response = new ResponseProperties();
         response.getHeaders().put("Access-Control-Allow-Origin", "*");
         response.getHeaders().put("Cache-Control", "public, max-age=600");
         final var api = new ApiProperties();
+        api.setEnabled(true);
         api.setResponse(response);
         web3Properties.getApi().put(ApiEndpointName.PRESTATE, api);
+        web3Properties.getApi(ApiEndpointName.PRESTATE).setEnabled(true);
+    }
+
+    @AfterEach
+    void tearDown() {
+        web3Properties.getApi(ApiEndpointName.PRESTATE).setEnabled(true);
     }
 
     TransactionIdOrHashParameter persistTransaction(final TransactionProviderEnum provider) {
@@ -191,10 +201,39 @@ final class PrestateControllerTest extends Web3IntegrationTest {
 
     @Test
     void callWhenTracerDisabled() throws Exception {
-        prestateProperties.setEnabled(false);
+        web3Properties.getApi(ApiEndpointName.PRESTATE).setEnabled(false);
         final var transactionIdOrHash = persistTransaction(TransactionProviderEnum.CONTRACT_CALL);
 
         mockMvc.perform(prestateRequest(transactionIdOrHash)).andExpect(status().isNotImplemented());
+    }
+
+    @Test
+    void callWhenApiDisabled() throws Exception {
+        web3Properties.getApi(ApiEndpointName.PRESTATE).setEnabled(false);
+        final var transactionIdOrHash = persistTransaction(TransactionProviderEnum.CONTRACT_CALL);
+
+        mockMvc.perform(prestateRequest(transactionIdOrHash)).andExpect(status().isNotImplemented());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"deflate", "identity", "br", ""})
+    void rejectsWhenAcceptEncodingIsNotGzip(final String acceptEncoding) throws Exception {
+        final var transactionIdOrHash = persistTransaction(TransactionProviderEnum.CONTRACT_CALL);
+        final String param =
+                switch (transactionIdOrHash) {
+                    case TransactionHashParameter hashParameter ->
+                        hashParameter.hash().toHexString();
+                    case TransactionIdParameter transactionIdParameter ->
+                        transactionIdString(
+                                transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
+                };
+
+        mockMvc.perform(get(PRESTATE_URI, param)
+                        .header(HttpHeaders.ACCEPT_ENCODING, acceptEncoding)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotAcceptable())
+                .andExpect(responseBody(
+                        new GenericErrorResponse(NOT_ACCEPTABLE.getReasonPhrase(), MISSING_GZIP_HEADER_MESSAGE)));
     }
 
     @ParameterizedTest
@@ -282,6 +321,7 @@ final class PrestateControllerTest extends Web3IntegrationTest {
     private MockHttpServletRequestBuilder prestateRequest(final String transactionIdOrHash) {
         return get(PRESTATE_URI, transactionIdOrHash)
                 .accept(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
                 .contentType(MediaType.APPLICATION_JSON);
     }
 

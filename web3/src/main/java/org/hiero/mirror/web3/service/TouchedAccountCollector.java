@@ -138,8 +138,13 @@ final class TouchedAccountCollector {
 
             for (final var stateChange : stateChanges) {
                 final long contractId = stateChange.getContractId();
+                prestateContext.addAccount(contractId);
                 prestateContext.addPreStorageSlot(contractId, stateChange.getSlot(), stateChange.getValueRead());
                 prestateContext.addPostStorageSlot(contractId, stateChange.getSlot(), stateChange.getValueWritten());
+            }
+
+            if (stateChanges.size() < pageSize) {
+                return;
             }
         }
     }

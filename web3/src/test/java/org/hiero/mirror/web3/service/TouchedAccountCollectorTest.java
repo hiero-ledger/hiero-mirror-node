@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -36,6 +37,7 @@ import org.hiero.mirror.web3.controller.PrestateProperties;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractStateChangeRepository;
+import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
@@ -73,6 +75,9 @@ final class TouchedAccountCollectorTest {
 
     @Mock
     private ContractStateChangeRepository contractStateChangeRepository;
+
+    @Mock
+    private EntityRepository entityRepository;
 
     @Mock
     private EthereumTransactionRepository ethereumTransactionRepository;
@@ -309,6 +314,7 @@ final class TouchedAccountCollectorTest {
                 .containsEntry(wrapToWordSize(STORAGE_SLOT), wrapToWordSize(VALUE_READ));
         assertThat(context.getPostStorageByContract().get(RECIPIENT_CONTRACT.getId()))
                 .containsEntry(wrapToWordSize(STORAGE_SLOT), wrapToWordSize(VALUE_WRITTEN));
+        assertThat(context.getAccounts()).contains(RECIPIENT_CONTRACT.getId());
         verify(contractStateChangeRepository, never()).findModifiedByConsensusTimestamp(anyLong(), anyInt(), anyInt());
     }
 
@@ -368,6 +374,25 @@ final class TouchedAccountCollectorTest {
         collector.collect(context);
 
         assertThat(context.getPreStorageByContract()).containsKeys(RECIPIENT_CONTRACT.getId(), CALLER.getId());
+    }
+
+    @Test
+    void collectStopsStateChangePaginationWhenPageIsShort() {
+        stubNoActions();
+        stubNoNonceSources();
+        final var properties = new PrestateProperties();
+        properties.setStateChangeMaxPages(5);
+        properties.setStateChangePageSize(2);
+        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(CONSENSUS_TIMESTAMP, 2, 0))
+                .thenReturn(List.of(stateChange(VALUE_READ, VALUE_WRITTEN), stateChange(VALUE_READ, VALUE_WRITTEN)));
+        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(CONSENSUS_TIMESTAMP, 2, 2))
+                .thenReturn(List.of(stateChange(VALUE_READ, VALUE_WRITTEN)));
+
+        final var context = context(properties, true, true);
+        collector.collect(context);
+
+        verify(contractStateChangeRepository, times(2))
+                .findModifiedByConsensusTimestamp(eq(CONSENSUS_TIMESTAMP), eq(2), anyInt());
     }
 
     @Test

@@ -2,15 +2,20 @@
 
 package org.hiero.mirror.web3.controller;
 
+import static org.hiero.mirror.web3.ApiEndpointName.PRESTATE;
+
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.PrestateResponse;
+import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.service.PrestateService;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,6 +29,7 @@ final class PrestateController {
 
     private final PrestateService prestateService;
     private final PrestateProperties prestateProperties;
+    private final Web3Properties web3Properties;
 
     /**
      * <p>
@@ -43,12 +49,14 @@ final class PrestateController {
             @PathVariable TransactionIdOrHashParameter transactionIdOrHash,
             @RequestParam(required = false, defaultValue = "false") boolean diff,
             @RequestParam(required = false, defaultValue = "false") boolean code,
-            @RequestParam(required = false, defaultValue = "false") boolean storage) {
-        if (prestateProperties.isEnabled()) {
-            final var request = new PrestateRequest(transactionIdOrHash, diff, code, storage);
-            return prestateService.processPrestateCall(request);
+            @RequestParam(required = false, defaultValue = "false") boolean storage,
+            @RequestHeader(value = HttpHeaders.ACCEPT_ENCODING) String acceptEncoding) {
+        if (!web3Properties.getApi(PRESTATE).isEnabled()) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
         }
 
-        throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
+        GzipEncoding.validate(acceptEncoding);
+        final var request = new PrestateRequest(transactionIdOrHash, diff, code, storage);
+        return prestateService.processPrestateCall(request);
     }
 }

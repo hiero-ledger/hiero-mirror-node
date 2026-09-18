@@ -5,11 +5,13 @@ hiero:
     web3:
       api:
         call:
+          enabled: true
           response:
             timeout: 4s
             headers:
               "Access-Control-Allow-Origin": "*"
         opcodes:
+          enabled: true
           request:
             throttle: 1
           response:
@@ -18,6 +20,7 @@ hiero:
               "Access-Control-Allow-Origin": "*"
               "Cache-Control": "public, max-age=600"
         prestate:
+          enabled: false
           request:
             throttle: 10
           response:

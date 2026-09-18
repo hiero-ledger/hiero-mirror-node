@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.controller.PrestateProperties;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -21,6 +22,7 @@ import org.jspecify.annotations.Nullable;
  */
 @RequiredArgsConstructor
 @Getter
+@NullMarked
 final class PrestateContext {
 
     private final PrestateProperties prestateProperties;
@@ -41,10 +43,20 @@ final class PrestateContext {
     }
 
     public void addAccount(@Nullable final EntityId accountId) {
-        if (EntityId.isEmpty(accountId) || isFull()) {
+        if (accountId == null || EntityId.isEmpty(accountId)) {
             return;
         }
-        accounts.add(accountId.getId());
+        addAccount(accountId.getId());
+    }
+
+    public void addAccount(final long accountId) {
+        if (accountId == 0L || accounts.contains(accountId)) {
+            return;
+        }
+        if (isFull()) {
+            return;
+        }
+        accounts.add(accountId);
     }
 
     public void markCreated(final long accountId) {
