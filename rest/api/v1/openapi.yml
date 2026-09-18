@@ -516,6 +516,74 @@ paths:
                 $ref: "#/components/schemas/Error"
       tags:
         - contracts
+  /api/v1/contracts/call/actions:
+    post:
+      summary: Trace simulated contract calls
+      description:
+        "Simulates one or more contract calls and returns a list of call action execution trees. A single-element
+        request list maps to debug_traceCall; multiple elements map to debug_traceCallMany. Requires Accept-Encoding
+        gzip. The estimate field is not supported. A client timeout that elapses returns 408 with any actions collected
+        so far."
+      operationId: contractActionsCall
+      parameters:
+        - name: Accept-Encoding
+          in: header
+          required: true
+          schema:
+            type: string
+            example: gzip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              minItems: 1
+              items:
+                $ref: "#/components/schemas/ActionTraceRequest"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActionResponse"
+        400:
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        406:
+          description: "Accept-Encoding gzip header is required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        408:
+          description: Trace execution exceeded the configured timeout
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActionResponse"
+        429:
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        501:
+          description: Actions endpoint is not implemented
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - contracts
   /api/v1/contracts:
     get:
       summary: List contract entities on network
@@ -2078,6 +2146,8 @@ components:
         $ref: "#/components/schemas/AccountInfo"
     AccessList:
       type: object
+      required:
+        - address
       properties:
         address:
           description: The hex encoded address of the accessed contract
@@ -2087,9 +2157,11 @@ components:
         storage_keys:
           description: The list of accessed hex encoded storage keys
           type: array
+          maxItems: 10000
           items:
             format: binary
             type: string
+          default: []
           example:
             - "0x0000000000000000000000000000000000000000000000000000000000000081"
     AuthorizationList:
@@ -2123,6 +2195,18 @@ components:
           description: The hex encoded parity of the y-coordinate of the signature point
           example: "0x1"
           type: string
+    BlockOverride:
+      type: object
+      description: Optional EVM block context override. `number` and `time` cannot be populated simultaneously.
+      properties:
+        number:
+          description: Hexadecimal or decimal block number used as the EVM block.number
+          type: [string, "null"]
+          example: "0x100"
+        time:
+          description: Unix timestamp used as the EVM block.timestamp
+          type: [string, "null"]
+          example: "0x65f9e0c0"
     AccountBalance:
       type: object
       required:
@@ -2290,6 +2374,66 @@ components:
       items:
         type: string
       type: array
+    ActionTraceRequest:
+      allOf:
+        - $ref: "#/components/schemas/ContractCallRequest"
+        - type: object
+          properties:
+            block_override:
+              $ref: "#/components/schemas/BlockOverride"
+            only_top_call:
+              description: If true, the result contains only the root top-level call and omits nested actions
+              type: boolean
+              default: false
+            timeout:
+              description:
+                Optional maximum duration allowed for transaction tracing before execution is terminated. When omitted,
+                the server-side actions request timeout is used. Uses ISO-8601 duration format or shorthand (e.g. "PT5S"
+                or "5s").
+              type: [string, "null"]
+              example: 5s
+    ActionResponse:
+      type: object
+      properties:
+        calls:
+          description: The list of all nested contract actions related to the top-level execution
+          items:
+            $ref: "#/components/schemas/ActionResponse"
+          type: array
+          default: []
+        error:
+          description: The error message for the call action
+          type: [string, "null"]
+        from:
+          description: The sender address for the call action
+          type: string
+        gas:
+          description: Hexadecimal value of the gas sent for the execution
+          type: string
+        gas_used:
+          description: Hexadecimal value of the actually used gas
+          type: string
+        input:
+          description: The input for the call action
+          type: [string, "null"]
+        output:
+          description: The output for the given call action
+          type: [string, "null"]
+        revert_reason:
+          description: The reason for the call action revert, if available
+          type: [string, "null"]
+        to:
+          description: The recipient address for the call action
+          type: string
+        type:
+          description: The type of the call operation
+          enum:
+            [CALL, CALLCODE, CREATE, CREATE2, DELEGATECALL, STATICCALL, UNKNOWN]
+          example: CALL
+          type: string
+        value:
+          description: The hexadecimal value passed for the contract action in tinybars
+          type: string
     ContractAction:
       type: object
       properties:
@@ -2810,6 +2954,24 @@ components:
           format: int64
           minimum: 0
           type: [integer, "null"]
+        state_overrides:
+          description: Optional per-address state overrides for the simulation. Rejected unless state overrides are enabled on the node.
+          type: array
+          maxItems: 10
+          items:
+            type: object
+        access_list:
+          description: Optional EIP-2930 access list. Omitted or null if not provided.
+          type: [array, "null"]
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/AccessList"
+        authorization_list:
+          description: Optional EIP-7702 authorization list. Omitted or null if not provided.
+          type: [array, "null"]
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/AuthorizationList"
       required:
         - to
     ContractCallResponse:

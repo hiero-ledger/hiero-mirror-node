@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.utils;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 
 public class Suppliers {
     private Suppliers() {}
@@ -46,7 +47,8 @@ public class Suppliers {
      * @param supplier2 the second supplier to compare
      * @return true if both suppliers produce equal values, or if both are null; false otherwise
      */
-    public static <T> boolean areSuppliersEqual(final Supplier<T> supplier1, final Supplier<T> supplier2) {
+    public static <T> boolean areSuppliersEqual(
+            final @Nullable Supplier<T> supplier1, final @Nullable Supplier<T> supplier2) {
         if (supplier1 == null && supplier2 == null) {
             return true;
         }
