@@ -454,10 +454,10 @@ class ContractService extends BaseService {
   }
 
   /**
-   * "Keep" predicate matching every log except an importer-generated synthetic NFT treasury-change Transfer
-   * (topic0 = Transfer AND topic3 = 0xffffffffffffffff). NULL topic0 or topic3 is kept via IS DISTINCT FROM. Pushes the
-   * two topic params and returns the predicate (without the synthetic guard) so callers can compose their own synthetic
-   * handling.
+   * "Keep" predicate matching every log except an NFT wildcard-transfer log (topic0 = Transfer AND
+   * topic3 = 0xffffffffffffffff), regardless of whether it is stream-ingested or importer-generated synthetic. NULL
+   * topic0 or topic3 is kept via IS DISTINCT FROM. Pushes the two topic params and returns the predicate without any
+   * synthetic guard, so callers can compose their own synthetic handling (see appendSyntheticNftTransferExclusion).
    *
    * @param {*[]} params
    * @return {string}
