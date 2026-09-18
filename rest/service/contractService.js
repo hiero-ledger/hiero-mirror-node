@@ -235,15 +235,16 @@ class ContractService extends BaseService {
     const contractResultAlias = `${ContractResult.tableAlias}.`;
     const clAlias = `${ContractLog.tableAlias}.`;
 
+    const logContractIdExpression = `coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID})`;
+
     const allConditions = whereConditions
       .filter((condition) => {
-        // synthetic logs have no nonce; callers with sender_id/contract_id use includeSynthetic=false
+        // synthetic logs have no nonce or sender_id; callers filtering on those use includeSynthetic=false
         if (condition.includes(ContractResult.TRANSACTION_NONCE)) {
           return false;
         }
         if (
           condition.includes(ContractResult.SENDER_ID) ||
-          condition.includes(`${contractResultAlias}${ContractResult.CONTRACT_ID}`) ||
           condition.includes(`${contractResultAlias}${ContractResult.TRANSACTION_RESULT}`)
         ) {
           return false;
@@ -263,10 +264,14 @@ class ContractService extends BaseService {
             `${clAlias}${ContractLog.TRANSACTION_INDEX}`
           );
         }
+        if (condition.includes(`${contractResultAlias}${ContractResult.CONTRACT_ID}`)) {
+          return condition.replaceAll(`${contractResultAlias}${ContractResult.CONTRACT_ID}`, logContractIdExpression);
+        }
         return condition;
       });
 
     allConditions.push(`${clAlias}${ContractLog.SYNTHETIC} is true`);
+    this.appendSyntheticNftTransferExclusion(params, allConditions);
 
     const whereClause = `where ${allConditions.join(' and ')}`;
     params.push(limit);
