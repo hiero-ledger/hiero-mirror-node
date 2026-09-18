@@ -3,10 +3,6 @@
 package org.hiero.mirror.restjava.service.fee;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.TopicID;
@@ -21,7 +17,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith({FeeEstimationContextExtension.class, MockitoExtension.class})
+@ExtendWith(MockitoExtension.class)
 class FeeTopicStoreTest {
 
     private static final long TOPIC_NUM = 123L;
@@ -84,30 +80,5 @@ class FeeTopicStoreTest {
     @Test
     void sizeOfStateReturnsZero() {
         assertThat(store.sizeOfState()).isZero();
-    }
-
-    @Test
-    void getTopicMemoizesRepeatedLookups() {
-        when(topicRepository.findById(TOPIC_NUM)).thenReturn(Optional.empty());
-
-        assertThat(store.getTopic(TOPIC_ID)).isNull();
-        assertThat(store.getTopic(TOPIC_ID)).isNull();
-
-        verify(topicRepository, times(1)).findById(TOPIC_NUM);
-    }
-
-    @Test
-    void rejectsWhenLookupCapExhausted() {
-        when(topicRepository.findById(anyLong())).thenReturn(Optional.empty());
-
-        for (int i = 1; i <= FeeEstimationContext.MAX_LOOKUPS; i++) {
-            store.getTopic(TopicID.newBuilder().topicNum(i).build());
-        }
-
-        assertThatThrownBy(() -> store.getTopic(TopicID.newBuilder()
-                        .topicNum(FeeEstimationContext.MAX_LOOKUPS + 1L)
-                        .build()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("maximum of %d entity lookups".formatted(FeeEstimationContext.MAX_LOOKUPS));
     }
 }

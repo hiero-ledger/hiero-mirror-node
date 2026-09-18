@@ -736,7 +736,7 @@ final class NetworkControllerTest extends ControllerTest {
                             .retrieve()
                             .body(FeeEstimateResponse.class))
                     .isInstanceOf(HttpClientErrorException.BadRequest.class)
-                    .hasMessageContaining("exceeds");
+                    .hasMessageContaining("TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED");
         }
 
         @Test

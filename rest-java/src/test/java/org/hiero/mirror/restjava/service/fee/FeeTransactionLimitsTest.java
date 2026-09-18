@@ -2,6 +2,11 @@
 
 package org.hiero.mirror.restjava.service.fee;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.BATCH_SIZE_LIMIT_EXCEEDED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PENDING_AIRDROP_ID_LIST_TOO_LONG;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSACTION_OVERSIZE;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSFER_LIST_SIZE_LIMIT_EXCEEDED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -58,8 +63,7 @@ final class FeeTransactionLimitsTest {
 
         assertThatThrownBy(() -> FeeTransactionLimits.validate(transaction, body, 0))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("token transfer lists")
-                .hasMessageContaining("exceeds the maximum of 10");
+                .hasMessage(TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED.protoName());
     }
 
     @Test
@@ -82,8 +86,7 @@ final class FeeTransactionLimitsTest {
 
         assertThatThrownBy(() -> FeeTransactionLimits.validate(transaction, body, 0))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("hbar transfers")
-                .hasMessageContaining("exceeds the maximum of 10");
+                .hasMessage(TRANSFER_LIST_SIZE_LIMIT_EXCEEDED.protoName());
     }
 
     @Test
@@ -108,8 +111,7 @@ final class FeeTransactionLimitsTest {
 
         assertThatThrownBy(() -> FeeTransactionLimits.validate(transaction, body, 0))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("nft transfers")
-                .hasMessageContaining("exceeds the maximum of 10");
+                .hasMessage(BATCH_SIZE_LIMIT_EXCEEDED.protoName());
     }
 
     @Test
@@ -123,8 +125,7 @@ final class FeeTransactionLimitsTest {
 
         assertThatThrownBy(() -> FeeTransactionLimits.validate(transaction, body, 0))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("airdrop token transfer lists")
-                .hasMessageContaining("exceeds the maximum of 10");
+                .hasMessage(TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED.protoName());
     }
 
     @Test
@@ -146,8 +147,7 @@ final class FeeTransactionLimitsTest {
 
         assertThatThrownBy(() -> FeeTransactionLimits.validate(transaction, body, 0))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("pending airdrops to claim")
-                .hasMessageContaining("exceeds the maximum of 10");
+                .hasMessage(PENDING_AIRDROP_ID_LIST_TOO_LONG.protoName());
     }
 
     @Test
@@ -166,8 +166,7 @@ final class FeeTransactionLimitsTest {
         assertThat(Transaction.PROTOBUF.measureRecord(transaction)).isGreaterThan(maxBytes);
         assertThatThrownBy(() -> FeeTransactionLimits.validate(transaction, body, 0))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Transaction size")
-                .hasMessageContaining("exceeds maximum");
+                .hasMessage(TRANSACTION_OVERSIZE.protoName());
     }
 
     @Test
@@ -191,8 +190,7 @@ final class FeeTransactionLimitsTest {
         assertThatThrownBy(() ->
                         FeeTransactionLimits.validate(transaction, body, FeeTransactionLimits.MAX_SIGNATURE_PAIRS + 1))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("signature pairs")
-                .hasMessageContaining("exceeds the maximum of " + FeeTransactionLimits.MAX_SIGNATURE_PAIRS);
+                .hasMessage(TRANSACTION_OVERSIZE.protoName());
     }
 
     @Test
@@ -207,7 +205,7 @@ final class FeeTransactionLimitsTest {
 
         assertThatThrownBy(() -> FeeTransactionLimits.validate(transaction, body, 0))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("exceeds");
+                .hasMessage(TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED.protoName());
     }
 
     private static TransactionBody cryptoTransferBody(final int tokenCount) {
