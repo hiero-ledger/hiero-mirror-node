@@ -518,8 +518,12 @@ paths:
         - contracts
   /api/v1/contracts/call/actions:
     post:
-      summary: Trace a simulated contract call
-      description: "Simulates a contract call and returns a call action execution tree. Requires Accept-Encoding gzip. The estimate field is not supported. A client timeout that elapses returns 408 with any actions collected so far."
+      summary: Trace simulated contract calls
+      description:
+        "Simulates one or more contract calls and returns a list of call action execution trees. A single-element
+        request list maps to debug_traceCall; multiple elements map to debug_traceCallMany. Requires Accept-Encoding
+        gzip. The estimate field is not supported. A client timeout that elapses returns 408 with any actions collected
+        so far."
       operationId: contractActionsCall
       parameters:
         - name: Accept-Encoding
@@ -533,14 +537,19 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ActionTraceRequest"
+              type: array
+              minItems: 1
+              items:
+                $ref: "#/components/schemas/ActionTraceRequest"
       responses:
         200:
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ActionResponse"
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActionResponse"
         400:
           description: Validation error
           content:
@@ -558,7 +567,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ActionResponse"
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActionResponse"
         429:
           description: Too many requests
           content:

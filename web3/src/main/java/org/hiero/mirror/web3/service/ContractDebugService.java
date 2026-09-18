@@ -7,6 +7,7 @@ import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.ACTIONS;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Optional;
 import lombok.CustomLog;
 import org.hiero.mirror.rest.model.ActionResponse;
@@ -15,6 +16,7 @@ import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.TraceTimeoutException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
@@ -65,40 +67,43 @@ public class ContractDebugService extends ContractCallService {
                 ethCallTxnResult, params.getReceiver(), ctx.getOpcodeContext().getOpcodes());
     }
 
-    public ActionResponse processTraceCall(final @Valid TraceRequest traceRequest) {
+    public List<ActionResponse> processTraceCall(final @Valid List<TraceRequest> traceRequests) {
+        if (traceRequests.isEmpty()) {
+            throw new InvalidParametersException("At least one action trace request is required");
+        }
         return ContractCallContext.run(ctx -> {
             ctx.setApi(ACTIONS);
-            final var timeout = traceRequest.getTimeout();
-            ctx.setDeadlineMillis(ctx.getStartTime() + timeout.toMillis());
-            ctx.applyStateOverrides(
-                    traceRequest.getContractExecutionParameters().getStateOverrides());
-            ctx.applyBlockOverride(traceRequest.getBlockOverride());
-
-            final var actionContext = ActionContext.builder()
-                    .onlyTopCall(traceRequest.isOnlyTopCall())
-                    .build();
+            final var first = traceRequests.getFirst();
+            ctx.setDeadlineMillis(ctx.getStartTime() + first.getTimeout().toMillis());
+            final var actionContext = ActionContext.builder().build();
             ctx.setActionContext(actionContext);
 
-            try {
-                callContract(traceRequest.getContractExecutionParameters(), ctx);
-            } catch (final QueryTimeoutException e) {
-                throw new TraceTimeoutException(actionResponse(ctx));
-            } catch (final MirrorEvmTransactionException e) {
+            for (final var traceRequest : traceRequests) {
+                actionContext.setOnlyTopCall(traceRequest.isOnlyTopCall());
+                actionContext.beginCall();
+                ctx.applyStateOverrides(
+                        traceRequest.getContractExecutionParameters().getStateOverrides());
+                ctx.applyBlockOverride(traceRequest.getBlockOverride());
+                try {
+                    callContract(traceRequest.getContractExecutionParameters(), ctx);
+                } catch (final QueryTimeoutException e) {
+                    throw new TraceTimeoutException(actionResponse(ctx));
+                } catch (final MirrorEvmTransactionException e) {
+                    if (actionContext.isTimedOut()) {
+                        throw new TraceTimeoutException(actionResponse(ctx));
+                    }
+                    throw e;
+                }
                 if (actionContext.isTimedOut()) {
                     throw new TraceTimeoutException(actionResponse(ctx));
                 }
-                throw e;
-            }
-
-            if (actionContext.isTimedOut()) {
-                throw new TraceTimeoutException(actionResponse(ctx));
             }
             return actionResponse(ctx);
         });
     }
 
-    private ActionResponse actionResponse(final ContractCallContext ctx) {
-        return new ActionResponse().calls(ctx.getActionContext().getActions());
+    private List<ActionResponse> actionResponse(final ContractCallContext ctx) {
+        return List.copyOf(ctx.getActionContext().getActions());
     }
 
     @Override

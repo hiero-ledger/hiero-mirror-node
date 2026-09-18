@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.exception;
 
 import java.io.Serial;
+import java.util.List;
 import lombok.Getter;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.jspecify.annotations.Nullable;
@@ -16,15 +17,14 @@ public class TraceTimeoutException extends Web3Exception {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Nullable
-    private final transient ActionResponse actionResponse;
-
-    public TraceTimeoutException() {
-        this(null);
-    }
+    private final transient List<ActionResponse> actionResponses;
 
     public TraceTimeoutException(@Nullable final ActionResponse actionResponse) {
+        this(actionResponse == null ? List.of() : List.of(actionResponse));
+    }
+
+    public TraceTimeoutException(final List<ActionResponse> actionResponses) {
         super(MESSAGE);
-        this.actionResponse = actionResponse;
+        this.actionResponses = List.copyOf(actionResponses);
     }
 }

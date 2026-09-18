@@ -21,6 +21,7 @@ import static org.springframework.web.context.request.RequestAttributes.SCOPE_RE
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
@@ -51,6 +52,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -126,8 +128,8 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     @ExceptionHandler
     private ResponseEntity<?> traceTimeoutException(final TraceTimeoutException e, final WebRequest request) {
         request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, e, SCOPE_REQUEST);
-        if (e.getActionResponse() != null) {
-            return new ResponseEntity<>(e.getActionResponse(), REQUEST_TIMEOUT);
+        if (!e.getActionResponses().isEmpty()) {
+            return new ResponseEntity<>(e.getActionResponses(), REQUEST_TIMEOUT);
         }
         return handleExceptionInternal(e, null, null, REQUEST_TIMEOUT, request);
     }
@@ -156,7 +158,29 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-        var messages = ex.getAllErrors().stream().map(this::formatErrorMessage).toList();
+        return validationErrorResponse(ex.getAllErrors(), headers, status, request, ex);
+    }
+
+    @Nullable
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(
+            HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        final var errors = ex.getBeanResults().stream()
+                .flatMap(result -> result.getAllErrors().stream())
+                .toList();
+        if (errors.isEmpty()) {
+            return handleExceptionInternal(ex, null, headers, status, request);
+        }
+        return validationErrorResponse(errors, headers, status, request, ex);
+    }
+
+    private ResponseEntity<Object> validationErrorResponse(
+            final List<? extends ObjectError> errors,
+            final HttpHeaders headers,
+            final HttpStatusCode status,
+            final WebRequest request,
+            final Exception ex) {
+        var messages = errors.stream().map(this::formatErrorMessage).toList();
         request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, ex, SCOPE_REQUEST);
         return new ResponseEntity<>(new GenericErrorResponse(messages), headers, status);
     }

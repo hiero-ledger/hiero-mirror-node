@@ -125,12 +125,12 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result =
-                contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT, null));
+        final var result = contractDebugService.processTraceCall(
+                List.of(new TraceRequest(params, false, INTEGRATION_TIMEOUT, null)));
 
         // Then
-        assertThat(result.getCalls()).containsExactly(topLevelAction);
-        assertThat(result.getCalls().getFirst().getCalls()).containsExactly(nestedAction);
+        assertThat(result).containsExactly(topLevelAction);
+        assertThat(result.getFirst().getCalls()).containsExactly(nestedAction);
     }
 
     @Test
@@ -141,11 +141,12 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result = contractDebugService.processTraceCall(new TraceRequest(params, true, DEFAULT_TIMEOUT, null));
+        final var result =
+                contractDebugService.processTraceCall(List.of(new TraceRequest(params, true, DEFAULT_TIMEOUT, null)));
 
         // Then
-        assertThat(result.getCalls()).containsExactly(topLevelAction);
-        assertThat(result.getCalls().getFirst().getCalls()).isNullOrEmpty();
+        assertThat(result).containsExactly(topLevelAction);
+        assertThat(result.getFirst().getCalls()).isNullOrEmpty();
     }
 
     @Test
@@ -156,12 +157,12 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var params = getContractExecutionParameters(functionCall, contract);
 
         // When
-        final var result =
-                contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT, null));
+        final var result = contractDebugService.processTraceCall(
+                List.of(new TraceRequest(params, false, INTEGRATION_TIMEOUT, null)));
 
         // Then
-        assertThat(result.getCalls()).isNotEmpty();
-        assertThat(result.getCalls().getFirst().getTo()).isEqualToIgnoringCase(contract.getContractAddress());
+        assertThat(result).isNotEmpty();
+        assertThat(result.getFirst().getTo()).isEqualToIgnoringCase(contract.getContractAddress());
     }
 
     @Test
@@ -172,18 +173,18 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var params = getContractExecutionParameters(functionCall, contract);
 
         // When
-        final var allActions =
-                contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT, null));
-        final var topCallOnly =
-                contractDebugService.processTraceCall(new TraceRequest(params, true, INTEGRATION_TIMEOUT, null));
+        final var allActions = contractDebugService.processTraceCall(
+                List.of(new TraceRequest(params, false, INTEGRATION_TIMEOUT, null)));
+        final var topCallOnly = contractDebugService.processTraceCall(
+                List.of(new TraceRequest(params, true, INTEGRATION_TIMEOUT, null)));
 
         // Then
-        assertThat(allActions.getCalls()).hasSize(1);
-        assertThat(topCallOnly.getCalls()).hasSize(1);
-        assertThat(allActions.getCalls().getFirst().getCalls()).isNotEmpty();
-        assertThat(topCallOnly.getCalls().getFirst().getCalls()).isNullOrEmpty();
-        assertThat(topCallOnly.getCalls().getFirst().getTo())
-                .isEqualTo(allActions.getCalls().getFirst().getTo());
+        assertThat(allActions).hasSize(1);
+        assertThat(topCallOnly).hasSize(1);
+        assertThat(allActions.getFirst().getCalls()).isNotEmpty();
+        assertThat(topCallOnly.getFirst().getCalls()).isNullOrEmpty();
+        assertThat(topCallOnly.getFirst().getTo())
+                .isEqualTo(allActions.getFirst().getTo());
     }
 
     @Test
@@ -192,7 +193,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         stubActionsAndCaptureDeadline(deadlineWindow, action("0x02", TypeEnum.CALL));
 
         contractDebugService.processTraceCall(
-                new TraceRequest(executionParameters(), false, Duration.ofSeconds(2), null));
+                List.of(new TraceRequest(executionParameters(), false, Duration.ofSeconds(2), null)));
 
         assertThat(deadlineWindow).hasValue(Duration.ofSeconds(2).toMillis());
     }
@@ -203,11 +204,11 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var functionCall = contract.call_calculateSHA256();
         final var params = getContractExecutionParameters(functionCall, contract);
 
-        final var result =
-                contractDebugService.processTraceCall(new TraceRequest(params, false, INTEGRATION_TIMEOUT, null));
+        final var result = contractDebugService.processTraceCall(
+                List.of(new TraceRequest(params, false, INTEGRATION_TIMEOUT, null)));
 
-        assertThat(result.getCalls()).isNotEmpty();
-        assertThat(result.getCalls().getFirst().getCalls())
+        assertThat(result).isNotEmpty();
+        assertThat(result.getFirst().getCalls())
                 .extracting(ActionResponse::getTo)
                 .anyMatch(to -> Address.SHA256.toHexString().equalsIgnoreCase(to));
     }
@@ -220,7 +221,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         override.setNumber("0x100");
 
         contractDebugService.processTraceCall(
-                new TraceRequest(executionParameters(), false, DEFAULT_TIMEOUT, override));
+                List.of(new TraceRequest(executionParameters(), false, DEFAULT_TIMEOUT, override)));
 
         assertThat(captured).hasValue(256L);
     }
@@ -234,9 +235,35 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         override.setTime("0x65f9e0c0");
 
         contractDebugService.processTraceCall(
-                new TraceRequest(executionParameters(), false, DEFAULT_TIMEOUT, override));
+                List.of(new TraceRequest(executionParameters(), false, DEFAULT_TIMEOUT, override)));
 
         assertThat(captured).hasValue(DomainUtils.convertToNanosMax(HexUtils.parseValue("0x65f9e0c0"), 0));
+    }
+
+    @Test
+    void processTraceCallManyReturnsOneActionPerRequest() {
+        final var first = action("0x01", TypeEnum.CALL);
+        final var second = action("0x02", TypeEnum.STATICCALL);
+        final var remaining = new ArrayList<>(List.of(first, second));
+        doAnswer(invocation -> {
+                    final var ctx = ContractCallContext.get();
+                    assertThat(ctx.getActionContext()).isNotNull();
+                    ctx.getActionContext().addAction(remaining.removeFirst(), 0);
+                    return new EvmTransactionResult(
+                            SUCCESS,
+                            ContractFunctionResult.newBuilder()
+                                    .gasUsed(TRANSACTION_GAS_LIMIT)
+                                    .build());
+                })
+                .when(transactionExecutionService)
+                .execute(any(), anyLong());
+
+        final var result = contractDebugService.processTraceCall(List.of(
+                new TraceRequest(executionParameters(), false, DEFAULT_TIMEOUT, null),
+                new TraceRequest(executionParameters(), true, DEFAULT_TIMEOUT, null)));
+
+        assertThat(result).containsExactly(first, second);
+        assertThat(remaining).isEmpty();
     }
 
     /**

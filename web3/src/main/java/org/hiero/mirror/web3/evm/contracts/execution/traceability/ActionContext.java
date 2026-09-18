@@ -43,8 +43,19 @@ public class ActionContext {
     static final String TRUNCATED_ERROR = "Trace truncated after reaching the configured limit";
 
     /**
-     * All actions organized by depth. Index {@code d} is every action at that depth in chronological order. The last
-     * entry at a depth is the current frame; roots are index {@code 0}.
+     * One top-level {@link ActionResponse} per request body. Nested frames are attached under each body's
+     * {@code calls} list.
+     */
+    @Builder.Default
+    @EqualsAndHashCode.Exclude
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @ToString.Exclude
+    private List<ActionResponse> actionResponses = new ArrayList<>();
+
+    /**
+     * All actions organized by depth for the current request body. Index {@code d} is every action at that depth in
+     * chronological order. The last entry at a depth is the current frame; the current body's root is index {@code 0}.
      */
     @Builder.Default
     @EqualsAndHashCode.Exclude
@@ -99,7 +110,19 @@ public class ActionContext {
         }
         totalActionCount++;
         lastAction = actionResponse;
+        if (depth == 0) {
+            actionResponses.add(actionResponse);
+        }
         getActionsByDepth(depth).add(actionResponse);
+    }
+
+    /**
+     * Starts a new request body. Resets the current call-tree index so the next depth-0 action is a new
+     * {@link #actionResponses} entry. Previously completed bodies are kept.
+     */
+    public void beginCall() {
+        actionsByDepth = new List[MAX_DEPTH];
+        lastAction = null;
     }
 
     /**
@@ -131,11 +154,10 @@ public class ActionContext {
     }
 
     /**
-     * Root actions only. Nested frames are already attached under each parent's {@code calls} list.
+     * Top-level action for each request body. Nested frames are already attached under each body's {@code calls} list.
      */
     public List<ActionResponse> getActions() {
-        final var roots = actionsByDepth[0];
-        return roots == null ? List.of() : roots;
+        return actionResponses;
     }
 
     /**

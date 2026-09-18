@@ -10,6 +10,8 @@ import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import jakarta.validation.Valid;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ActionResponse;
@@ -71,29 +73,41 @@ class ContractController {
     }
 
     @PostMapping(value = "/call/actions")
-    ActionResponse actions(
-            @RequestBody @Valid ActionTraceRequest request,
+    List<ActionResponse> actions(
+            @RequestBody @Valid List<ActionTraceRequest> requests,
             @RequestHeader(value = HttpHeaders.ACCEPT_ENCODING, required = false) final String acceptEncoding) {
         if (!web3Properties.isApiEnabled(ACTIONS)) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
         }
 
         GzipEncoding.require(acceptEncoding);
-        validateActionsRequest(request);
-        final var resolvedTimeout = resolveTimeout(request.getTimeout());
-        validateContractMaxGasLimit(request);
-
-        if (!request.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
+        if (requests == null || requests.isEmpty()) {
+            throw new InvalidParametersException("At least one action trace request is required");
         }
 
-        throttleManager.throttleTraceRequest(request);
+        final var traceRequests = new ArrayList<TraceRequest>(requests.size());
+        var totalGas = 0L;
+        for (final var request : requests) {
+            validateActionsRequest(request);
+            validateContractMaxGasLimit(request);
+            if (!request.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
+            }
+            totalGas += request.getGas();
+            traceRequests.add(new TraceRequest(
+                    constructServiceParameters(request),
+                    request.isOnlyTopCall(),
+                    resolveTimeout(request.getTimeout()),
+                    request.getBlockOverride()));
+        }
+        for (final var request : requests) {
+            throttleManager.throttleTraceRequest(request);
+        }
+
         try {
-            final var params = constructServiceParameters(request);
-            return contractDebugService.processTraceCall(
-                    new TraceRequest(params, request.isOnlyTopCall(), resolvedTimeout, request.getBlockOverride()));
+            return contractDebugService.processTraceCall(traceRequests);
         } catch (IllegalArgumentException | InvalidParametersException e) {
-            throttleManager.restore(request.getGas());
+            throttleManager.restore(totalGas);
             throw e;
         }
     }

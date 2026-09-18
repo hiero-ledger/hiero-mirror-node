@@ -151,6 +151,29 @@ class ActionContextTest {
     }
 
     @Test
+    void beginCallKeepsCompletedBodiesAndStartsANewTree() {
+        final var context = new ActionContext();
+        final var first = new ActionResponse().from("0x0");
+        final var firstChild = new ActionResponse().from("0x1");
+        context.addAction(first, 0);
+        context.addAction(firstChild, 1);
+
+        context.beginCall();
+
+        assertThat(context.getActions()).containsExactly(first);
+        assertThat(context.hasActionAt(0)).isFalse();
+        assertThat(context.getActionsByDepth(0)).isEmpty();
+        assertThat(first.getCalls()).containsExactly(firstChild);
+
+        final var second = new ActionResponse().from("0x2");
+        context.addAction(second, 0);
+
+        assertThat(context.getActions()).containsExactly(first, second);
+        assertThat(context.getActionsByDepth(0)).containsExactly(second);
+        assertThat(context.getCurrentAction(0)).isEqualTo(second);
+    }
+
+    @Test
     void finalizeActionIgnoresUnknownDepth() {
         final var context = new ActionContext();
         final var root = new ActionResponse().from("0x0");
