@@ -1265,7 +1265,11 @@ class ContractController extends BaseController {
 
   getDetailedContractResults = async (contractDetails, contractId = undefined) => {
     return Promise.all([
-      ContractService.getContractResultsByTimestamps(contractDetails.consensusTimestamp, contractDetails.contractIds),
+      ContractService.getContractResultsByTimestamps(
+        contractDetails.consensusTimestamp,
+        contractDetails.contractIds,
+        true
+      ),
       TransactionService.getEthTransactionByTimestampAndPayerId(
         contractDetails.consensusTimestamp,
         contractDetails.payerAccountId

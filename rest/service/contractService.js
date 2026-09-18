@@ -402,7 +402,7 @@ class ContractService extends BaseService {
     return rows.map((row) => new ContractState(row));
   }
 
-  async getContractResultsByTimestamps(timestamps, involvedContractIds = []) {
+  async getContractResultsByTimestamps(timestamps, involvedContractIds = [], includeSynthetic = false) {
     let params = [timestamps];
     let timestampsOpAndValue = '= $1';
     if (Array.isArray(timestamps)) {
@@ -425,10 +425,22 @@ class ContractService extends BaseService {
     ].join('\n');
 
     const rows = await super.getRows(query, params);
+    if (rows.length !== 0 || !includeSynthetic) {
+      return rows.map((row) => {
+        return {
+          ...new ContractResult(row),
+          evmAddress: row.evm_address,
+        };
+      });
+    }
 
-    return rows.map((row) => {
+    // No real contract_result exists at this timestamp - fall back to a synthetic result built from contract_log
+    const [syntheticQuery, syntheticParams] = this.getSyntheticContractResultsQuery(conditions, params, 'asc', 1);
+    const syntheticRows = await super.getRows(syntheticQuery, syntheticParams);
+    return syntheticRows.map((row) => {
       return {
         ...new ContractResult(row),
+        hash: row.hash,
         evmAddress: row.evm_address,
       };
     });
@@ -442,7 +454,32 @@ class ContractService extends BaseService {
    */
   async getContractTransactionDetailsByHash(hash) {
     const rows = await super.getRows(ContractService.ethereumTransactionsByHashQuery, [hash]);
-    return rows.map((row) => new ContractTransactionHash(row));
+    if (rows.length !== 0) {
+      return rows.map((row) => new ContractTransactionHash(row));
+    }
+
+    // No real contract_transaction_hash row exists (synthetic-only transaction) - fall back to contract_log,
+    // excluding wildcard NFT treasury-change transfers.
+    const clAlias = `${ContractLog.tableAlias}.`;
+    const params = [hash];
+    const conditions = [`${clAlias}${ContractLog.TRANSACTION_HASH} = $1`, `${clAlias}${ContractLog.SYNTHETIC} is true`];
+    this.appendSyntheticNftTransferExclusion(params, conditions);
+
+    const query = `
+      select
+        ${clAlias}${ContractLog.PAYER_ACCOUNT_ID} as ${ContractTransactionHash.PAYER_ACCOUNT_ID},
+        coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) as ${
+      ContractTransactionHash.ENTITY_ID
+    },
+        ${clAlias}${ContractLog.TRANSACTION_HASH} as ${ContractTransactionHash.HASH},
+        ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} as ${ContractTransactionHash.CONSENSUS_TIMESTAMP},
+        ${successTransactionResult} as ${ContractTransactionHash.TRANSACTION_RESULT}
+      from ${ContractLog.tableName} ${ContractLog.tableAlias}
+      where ${conditions.join(' and ')}
+      limit 1
+    `;
+    const syntheticRows = await super.getRows(query, params);
+    return syntheticRows.map((row) => new ContractTransactionHash(row));
   }
 
   async getInvolvedContractsByTimestampAndContractId(timestamp, contractId) {
@@ -450,7 +487,37 @@ class ContractService extends BaseService {
       return null;
     }
     const contractDetails = await super.getSingleRow(ContractService.involvedContractsQuery, [timestamp, contractId]);
-    return contractDetails === null ? null : new ContractTransaction(contractDetails);
+    if (contractDetails !== null) {
+      return new ContractTransaction(contractDetails);
+    }
+
+    // No real contract_transaction row exists (synthetic-only transaction) - fall back to contract_log, matching
+    // either the contract entity or the payer account id, excluding wildcard NFT treasury-change transfers.
+    const clAlias = `${ContractLog.tableAlias}.`;
+    const params = [timestamp, contractId];
+    const conditions = [
+      `${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} = $1`,
+      `${clAlias}${ContractLog.SYNTHETIC} is true`,
+      `(coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) = $2 or ${clAlias}${ContractLog.PAYER_ACCOUNT_ID} = $2)`,
+    ];
+    this.appendSyntheticNftTransferExclusion(params, conditions);
+
+    const query = `
+      select
+        ${clAlias}${ContractLog.PAYER_ACCOUNT_ID} as ${ContractTransaction.PAYER_ACCOUNT_ID},
+        coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) as ${
+      ContractTransaction.ENTITY_ID
+    },
+        array[coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID})] as ${
+      ContractTransaction.CONTRACT_IDS
+    },
+        ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} as ${ContractTransaction.CONSENSUS_TIMESTAMP}
+      from ${ContractLog.tableName} ${ContractLog.tableAlias}
+      where ${conditions.join(' and ')}
+      limit 1
+    `;
+    const syntheticDetails = await super.getSingleRow(query, params);
+    return syntheticDetails === null ? null : new ContractTransaction(syntheticDetails);
   }
 
   /**
