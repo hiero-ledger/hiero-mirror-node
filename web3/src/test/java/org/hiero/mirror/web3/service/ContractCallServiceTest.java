@@ -53,20 +53,18 @@ import java.nio.charset.StandardCharsets;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
-import org.bouncycastle.util.encoders.Hex;
 import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
@@ -1511,6 +1509,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
     @Nested
     class GasAccuracyEstimateWithProductionState {
 
+        private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
         private static final V0490FileSchema FILE_SCHEMA = new V0490FileSchema();
         private static final JsonNode DYNAMIC_TRANSFER_TO_STAKING_REWARDS_ACCOUNT =
                 loadFixture("transfer-to-staking-reward-account-previewnet-state.json");
@@ -1613,17 +1612,15 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .persist();
 
             for (final var account : fixture.get("accounts")) {
-                persistAccount(account, stateTimestamp);
-                persistAccountBalance(
-                        EntityId.of(account.get("account").asText()),
-                        account.path("balance").asLong(0L),
-                        stateTimestamp);
+                final var entityId = persistAccount(account, stateTimestamp);
+                persistAccountBalance(entityId, account.path("balance").asLong(0L), stateTimestamp);
             }
         }
 
         private void persistContract(final JsonNode contract, final long stateTimestamp) {
-            final var contractId = EntityId.of(contract.get("account").asText());
-            final var evmAddress = decodeHex(contract.get("evm_address").asText());
+            final var contractId = configuredEntityId(contract.get("account").asText());
+            final var evmAddress =
+                    BytesDecoder.hexToBytes(contract.get("evm_address").asText());
             final long balance = contract.path("balance").asLong(0L);
             domainBuilder
                     .entity(contractId)
@@ -1646,23 +1643,27 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                                     contract.get("runtime_bytecode_file").asText())))
                     .persist();
             persistAccountBalance(contractId, balance, stateTimestamp);
-            final var slots = new HashMap<String, String>();
-            copySlots(contract.get("slots"), slots);
-            persistHistoricalContractSlots(contractId, slots, stateTimestamp);
+            persistHistoricalContractSlots(contractId, contract.path("slots"), stateTimestamp);
         }
 
         private void persistHistoricalContractSlots(
-                final EntityId contractId, final Map<String, String> slots, final long stateTimestamp) {
-            if (slots.isEmpty()) {
+                final EntityId contractId, final JsonNode slots, final long stateTimestamp) {
+            if (slots == null || slots.isEmpty()) {
                 return;
             }
             final var rows = new ArrayList<Object[]>(slots.size());
-            for (final var slot : slots.entrySet()) {
-                final var key = Bytes32.wrap(decodeHex(slot.getKey()))
+            final var fields = slots.fields();
+            while (fields.hasNext()) {
+                final var slot = fields.next();
+                final var key = Bytes32.wrap(BytesDecoder.hexToBytes(slot.getKey()))
                         .trimLeadingZeros()
                         .toArrayUnsafe();
                 rows.add(new Object[] {
-                    stateTimestamp, contractId.getId(), key, decodeHex(slot.getValue()), contractId.getId()
+                    stateTimestamp,
+                    contractId.getId(),
+                    key,
+                    BytesDecoder.hexToBytes(slot.getValue().asText()),
+                    contractId.getId()
                 });
             }
             jdbcTemplate.batchUpdate("""
@@ -1672,12 +1673,12 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     """, rows);
         }
 
-        private void persistAccount(final JsonNode account, final long createdTimestamp) {
-            final var entityId = EntityId.of(account.get("account").asText());
+        private EntityId persistAccount(final JsonNode account, final long createdTimestamp) {
+            final var entityId = configuredEntityId(account.get("account").asText());
             final var evmAddress = account.has("evm_address")
-                    ? decodeHex(account.get("evm_address").asText())
+                    ? BytesDecoder.hexToBytes(account.get("evm_address").asText())
                     : null;
-            final var rawKey = decodeHex(account.path("key").asText(""));
+            final var rawKey = BytesDecoder.hexToBytes(account.path("key").asText(""));
             final byte[] key = rawKey.length == 33
                     ? Key.newBuilder()
                             .setECDSASecp256K1(ByteString.copyFrom(rawKey))
@@ -1697,6 +1698,11 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                             .receiverSigRequired(false)
                             .maxAutomaticTokenAssociations(-1))
                     .persist();
+            return entityId;
+        }
+
+        private EntityId configuredEntityId(final String entityId) {
+            return domainBuilder.entityNum(EntityId.of(entityId).getNum());
         }
 
         private void persistAccountBalance(final EntityId entityId, final long balance, final long timestamp) {
@@ -1737,20 +1743,9 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         private static byte[] loadHexResource(final String filename) {
             try (final var in =
                     ContractCallServiceTest.class.getResourceAsStream("/gas-estimate-accuracy/" + filename)) {
-                return decodeHex(new String(in.readAllBytes()).strip());
+                return BytesDecoder.hexToBytes(new String(in.readAllBytes()).strip());
             } catch (final Exception e) {
                 throw new IllegalStateException("Failed to load hex resource " + filename, e);
-            }
-        }
-
-        private static void copySlots(final JsonNode node, final Map<String, String> slots) {
-            if (node == null || node.isMissingNode() || node.isNull()) {
-                return;
-            }
-            final var fields = node.fields();
-            while (fields.hasNext()) {
-                final var field = fields.next();
-                slots.put(field.getKey(), field.getValue().asText());
             }
         }
 
@@ -1783,14 +1778,10 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         private static JsonNode loadFixture(final String filename) {
             try (final var in =
                     ContractCallServiceTest.class.getResourceAsStream("/gas-estimate-accuracy/" + filename)) {
-                return new ObjectMapper().readTree(in);
+                return OBJECT_MAPPER.readTree(in);
             } catch (final Exception e) {
                 throw new ExceptionInInitializerError(e);
             }
-        }
-
-        private static byte[] decodeHex(final String hex) {
-            return Hex.decode(hex.startsWith(HEX_PREFIX) ? hex.substring(HEX_PREFIX.length()) : hex);
         }
 
         private static long timestampToNanos(final String timestamp) {

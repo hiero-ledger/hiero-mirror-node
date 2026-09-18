@@ -88,6 +88,8 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
         if (!ContractCallContext.isBalanceCallSafe() && systemAccounts.contains(key)) {
             return getDummySystemAccountIfApplicable(key)
                     .map(account -> account.copyBuilder()
+                            // We need to add a minimal balance to have more accurate gas estimation. Using a zero
+                            // balance consumes more gas inside hedera-app for some scenarios
                             .tinybarBalance(NON_EMPTY_SYSTEM_ACCOUNT_BALANCE)
                             .build())
                     .orElse(null);

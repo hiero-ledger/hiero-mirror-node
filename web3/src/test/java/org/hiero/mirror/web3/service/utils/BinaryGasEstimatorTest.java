@@ -98,6 +98,24 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
                 .isLessThanOrEqualTo(properties.getMaxGasEstimateRetriesCount());
     }
 
+    @Test
+    void searchCapDoesNotExceedScriptUpperBound() {
+        // 1.20 * gasUsed is not an integer, so ceil() is strictly above the script bound.
+        final long gasUsed = 34187L;
+        final long high = 15_000_000L;
+        final double scriptUpperBound = gasUsed * 1.20;
+        final long ceilCap = (long) Math.ceil(scriptUpperBound);
+        final long floorCap = (long) Math.floor(scriptUpperBound);
+        assertThat(ceilCap).isGreaterThan((long) scriptUpperBound);
+
+        // Fail every probe so the search must return the 20% cap.
+        final long estimated =
+                binaryGasEstimator.search((_, _) -> {}, _ -> createTxnResult(gasUsed, false), gasUsed, high);
+
+        assertThat(estimated).isEqualTo(floorCap);
+        assertThat((double) estimated).isLessThanOrEqualTo(scriptUpperBound);
+    }
+
     private EvmTransactionResult createTxnResult(final long gasUsed, final boolean isSuccessful) {
         if (!isSuccessful) {
             return new EvmTransactionResult(

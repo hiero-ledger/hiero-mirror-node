@@ -36,11 +36,23 @@ hex_to_dec() {
   printf '%d' "0x${hex}"
 }
 
+# Canonical hex for equality: optional 0x, case-insensitive, odd nibble padded,
+# leading zeros stripped so 0x1, 0x01, and 0x001 compare equal (empty/0x/0x0 too).
+normalize_hex() {
+  local hex="${1:-}"
+  if [[ "${hex}" == [0][xX]* ]]; then
+    hex="${hex:2}"
+  fi
+  hex="$(tr '[:upper:]' '[:lower:]' <<<"${hex}")"
+  if ((${#hex} % 2 == 1)); then
+    hex="0${hex}"
+  fi
+  hex="${hex#"${hex%%[!0]*}"}"
+  printf '%s' "${hex:-0}"
+}
+
 hex_equal() {
-  local a="${1#0x}" b="${2#0x}"
-  a="${a#0X}"
-  b="${b#0X}"
-  [[ "${a,,}" == "${b,,}" ]]
+  [[ "$(normalize_hex "$1")" == "$(normalize_hex "$2")" ]]
 }
 
 # True when eth_call replay matches the original contract result.
@@ -253,9 +265,6 @@ check_result() {
     fi
 
     estimated="$(hex_to_dec "${result_hex}")"
-    if ((attempt == 1)); then
-      checked=$((checked + 1))
-    fi
 
     if within_tolerance "${estimated}" "${consumed}"; then
       passed=$((passed + 1))
@@ -280,6 +289,8 @@ check_result() {
     nonReproducable=$((nonReproducable + 1))
     return 0
   fi
+
+  checked=$((checked + 1))
 
   failed=$((failed + 1))
   local pct
