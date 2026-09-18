@@ -336,7 +336,7 @@ describe('extractContractResultsByIdQuery', () => {
   const defaultContractId = 1;
   const defaultExpected = {
     conditions: [primaryContractFilter, 'cr.transaction_nonce = 0'],
-    includeSynthetic: false,
+    includeSynthetic: true,
     params: [defaultContractId],
     order: constants.orderFilterValues.DESC,
     limit: defaultLimit,
@@ -407,6 +407,7 @@ describe('extractContractResultsByIdQuery', () => {
       expected: {
         ...defaultExpected,
         conditions: [primaryContractFilter, 'cr.sender_id > $2', 'cr.sender_id in ($3,$4)', 'cr.transaction_nonce = 0'],
+        includeSynthetic: false,
         params: [defaultContractId, '1000', '1001', '1002'],
       },
     },
@@ -445,7 +446,7 @@ describe('extractContractResultsByIdQuery', () => {
     },
   ];
 
-  // Global endpoint cases (no contractId → includeSynthetic: true)
+  // Global endpoint cases (no contractId)
   const globalSpecs = [
     {
       name: 'global endpoint - no contractId → includeSynthetic true',
