@@ -2,6 +2,13 @@
 
 package org.hiero.mirror.restjava.service.fee;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.BATCH_SIZE_LIMIT_EXCEEDED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PENDING_AIRDROP_ID_LIST_TOO_LONG;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSACTION_OVERSIZE;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSFER_LIST_SIZE_LIMIT_EXCEEDED;
+
+import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.base.TokenTransferList;
 import com.hedera.hapi.node.base.Transaction;
 import com.hedera.hapi.node.base.TransferList;
@@ -33,33 +40,28 @@ final class FeeTransactionLimits {
         final int size = Transaction.PROTOBUF.measureRecord(transaction);
         final int maxBytes = body.hasEthereumTransaction() ? jumbo.maxTxnSize() : hedera.transactionMaxBytes();
         if (size > maxBytes) {
-            throw new IllegalArgumentException(
-                    "Transaction size %d exceeds maximum %d bytes".formatted(size, maxBytes));
+            throw new IllegalArgumentException(TRANSACTION_OVERSIZE.protoName());
         }
 
-        requireAtMost(numSignatures, MAX_SIGNATURE_PAIRS, "signature pairs");
+        requireAtMost(numSignatures, MAX_SIGNATURE_PAIRS, TRANSACTION_OVERSIZE);
 
         if (body.hasCryptoTransfer()) {
             validateCryptoTransfer(body.cryptoTransferOrThrow(), ledger);
         }
         if (body.hasTokenAirdrop()) {
-            validateTokenTransferLists(
-                    body.tokenAirdropOrThrow().tokenTransfers(),
-                    tokens.maxAllowedAirdropTransfersPerTx(),
-                    ledger.nftTransfersMaxLen(),
-                    "airdrop token transfer lists");
+            validateTokenTransferLists(body.tokenAirdropOrThrow().tokenTransfers(), ledger);
         }
         if (body.hasTokenClaimAirdrop()) {
             requireAtMost(
                     body.tokenClaimAirdropOrThrow().pendingAirdrops().size(),
                     tokens.maxAllowedPendingAirdropsToClaim(),
-                    "pending airdrops to claim");
+                    PENDING_AIRDROP_ID_LIST_TOO_LONG);
         }
         if (body.hasTokenCancelAirdrop()) {
             requireAtMost(
                     body.tokenCancelAirdropOrThrow().pendingAirdrops().size(),
                     tokens.maxAllowedPendingAirdropsToCancel(),
-                    "pending airdrops to cancel");
+                    PENDING_AIRDROP_ID_LIST_TOO_LONG);
         }
     }
 
@@ -67,31 +69,23 @@ final class FeeTransactionLimits {
         requireAtMost(
                 op.transfersOrElse(TransferList.DEFAULT).accountAmounts().size(),
                 ledger.transfersMaxLen(),
-                "hbar transfers");
-        validateTokenTransferLists(
-                op.tokenTransfers(),
-                ledger.tokenTransfersMaxLen(),
-                ledger.nftTransfersMaxLen(),
-                "token transfer lists");
+                TRANSFER_LIST_SIZE_LIMIT_EXCEEDED);
+        validateTokenTransferLists(op.tokenTransfers(), ledger);
     }
 
     private static void validateTokenTransferLists(
-            final List<TokenTransferList> tokenTransfers,
-            final int maxLists,
-            final int maxNftTransfers,
-            final String listName) {
-        requireAtMost(tokenTransfers.size(), maxLists, listName);
-        var nftCount = 0;
+            final List<TokenTransferList> tokenTransfers, final LedgerConfig ledger) {
+        requireAtMost(tokenTransfers.size(), ledger.tokenTransfersMaxLen(), TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED);
+        int nftCount = 0;
         for (final var tokenTransfer : tokenTransfers) {
             nftCount += tokenTransfer.nftTransfers().size();
         }
-        requireAtMost(nftCount, maxNftTransfers, "nft transfers");
+        requireAtMost(nftCount, ledger.nftTransfersMaxLen(), BATCH_SIZE_LIMIT_EXCEEDED);
     }
 
-    private static void requireAtMost(final int actual, final int max, final String name) {
+    private static void requireAtMost(final int actual, final int max, final ResponseCodeEnum code) {
         if (actual > max) {
-            throw new IllegalArgumentException(
-                    "Transaction contains %d %s, which exceeds the maximum of %d".formatted(actual, name, max));
+            throw new IllegalArgumentException(code.protoName());
         }
     }
 }

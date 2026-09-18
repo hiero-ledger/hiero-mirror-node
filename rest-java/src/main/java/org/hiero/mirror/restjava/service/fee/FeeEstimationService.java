@@ -104,7 +104,7 @@ public class FeeEstimationService {
                     ? txContext.withFeeContext(newFeeContext(txContext.body(), throttleUtilization))
                     : txContext;
             final SimpleFeeCalculator calculator = Objects.requireNonNull(feeManager.getSimpleFeeCalculator());
-            return FeeEstimationContext.run(_ -> calculator.calculateTxFee(context.body(), context));
+            return calculator.calculateTxFee(context.body(), context);
         } catch (ParseException e) {
             throw new IllegalArgumentException("Unable to parse transaction", e);
         } catch (NullPointerException e) {

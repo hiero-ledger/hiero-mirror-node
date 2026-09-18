@@ -16,6 +16,7 @@ import com.hedera.hapi.node.state.contract.SlotValue;
 import com.hedera.hapi.node.state.file.File;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.state.token.Nft;
+import com.hedera.hapi.node.state.token.Token;
 import com.hedera.hapi.node.state.token.TokenRelation;
 import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.TransactionBody;
@@ -38,14 +39,13 @@ import com.hedera.node.app.spi.fees.SimpleFeeCalculator;
 import com.hedera.node.app.spi.store.ReadableStoreFactory;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.config.api.Configuration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.CommonProperties;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-@RequiredArgsConstructor
 final class FeeEstimationFeeContext implements FeeContext {
 
     private static final ConfigProviderImpl CONFIG_PROVIDER = new ConfigProviderImpl(
@@ -186,8 +186,19 @@ final class FeeEstimationFeeContext implements FeeContext {
 
     private final TransactionBody body;
     private final FeeTopicStore topicStore;
-    private final FeeTokenStore tokenStore;
     private final int throttleUtilization;
+    private final ReadableTokenStore cachedTokenStore;
+
+    FeeEstimationFeeContext(
+            final TransactionBody body,
+            final FeeTopicStore topicStore,
+            final FeeTokenStore tokenStore,
+            final int throttleUtilization) {
+        this.body = body;
+        this.topicStore = topicStore;
+        this.throttleUtilization = throttleUtilization;
+        this.cachedTokenStore = new CachedReadableTokenStore(tokenStore);
+    }
 
     @Override
     @SuppressWarnings("unchecked")
@@ -196,7 +207,7 @@ final class FeeEstimationFeeContext implements FeeContext {
             return (T) topicStore;
         }
         if (storeInterface == ReadableTokenStore.class) {
-            return (T) tokenStore;
+            return (T) cachedTokenStore;
         }
         if (storeInterface == ReadableAccountStore.class) {
             return (T) EMPTY_ACCOUNT_STORE;
@@ -297,5 +308,35 @@ final class FeeEstimationFeeContext implements FeeContext {
     @Override
     public int getHighVolumeThrottleUtilization(@NonNull final HederaFunctionality functionality) {
         return throttleUtilization;
+    }
+
+    private static final class CachedReadableTokenStore implements ReadableTokenStore {
+
+        private final ReadableTokenStore delegate;
+        private final Map<TokenID, Token> cache = new HashMap<>();
+
+        private CachedReadableTokenStore(final ReadableTokenStore delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        @Nullable
+        public Token get(@NonNull final TokenID id) {
+            if (!cache.containsKey(id)) {
+                cache.put(id, delegate.get(id));
+            }
+            return cache.get(id);
+        }
+
+        @Override
+        @Nullable
+        public TokenMetadata getTokenMeta(@NonNull final TokenID id) {
+            return delegate.getTokenMeta(id);
+        }
+
+        @Override
+        public long sizeOfState() {
+            return delegate.sizeOfState();
+        }
     }
 }

@@ -2,6 +2,11 @@
 
 package org.hiero.mirror.restjava.service.fee;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.BATCH_SIZE_LIMIT_EXCEEDED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PENDING_AIRDROP_ID_LIST_TOO_LONG;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSACTION_OVERSIZE;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSFER_LIST_SIZE_LIMIT_EXCEEDED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -390,8 +395,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     void rejectsTooManyTokenTransfersBeforeCalculator() {
         assertThatThrownBy(() -> service.estimateFees(cryptoTransferWithTokenLists(11), FeeEstimateMode.STATE, 0))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("token transfer lists")
-                .hasMessageContaining("exceeds the maximum of 10");
+                .hasMessage(TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED.protoName());
     }
 
     @Test
@@ -405,7 +409,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     void rejectsAboveMaxTokenTransfers() {
         assertThatThrownBy(() -> service.estimateFees(cryptoTransferWithTokenLists(12), FeeEstimateMode.STATE, 0))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("exceeds");
+                .hasMessage(TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED.protoName());
     }
 
     @Test
@@ -424,9 +428,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                         .as("INTRINSIC fee for %s", type)
                         .isGreaterThanOrEqualTo(0);
             } catch (IllegalArgumentException e) {
-                assertThat(e.getMessage())
-                        .satisfiesAnyOf(m -> assertThat(m).contains("Unknown transaction type"), m -> assertThat(m)
-                                .contains("exceeds"));
+                assertLimitOrUnknownType(e);
             }
 
             // STATE mode may additionally throw for types whose congestion multiplier reads stores
@@ -439,9 +441,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
             } catch (UnsupportedOperationException e) {
                 assertThat(e).hasMessageContaining("Store not supported:");
             } catch (IllegalArgumentException e) {
-                assertThat(e.getMessage())
-                        .satisfiesAnyOf(m -> assertThat(m).contains("Unknown transaction type"), m -> assertThat(m)
-                                .contains("exceeds"));
+                assertLimitOrUnknownType(e);
             }
         }
     }
@@ -678,6 +678,17 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                                         .setAmount(100))))
                 .build()
                 .getTransaction());
+    }
+
+    private static void assertLimitOrUnknownType(final IllegalArgumentException e) {
+        assertThat(e.getMessage())
+                .satisfiesAnyOf(
+                        m -> assertThat(m).contains("Unknown transaction type"),
+                        m -> assertThat(m).isEqualTo(TRANSACTION_OVERSIZE.protoName()),
+                        m -> assertThat(m).isEqualTo(TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED.protoName()),
+                        m -> assertThat(m).isEqualTo(TRANSFER_LIST_SIZE_LIMIT_EXCEEDED.protoName()),
+                        m -> assertThat(m).isEqualTo(BATCH_SIZE_LIMIT_EXCEEDED.protoName()),
+                        m -> assertThat(m).isEqualTo(PENDING_AIRDROP_ID_LIST_TOO_LONG.protoName()));
     }
 
     private Transaction cryptoTransferWithTokenLists(final int tokenCount) {
