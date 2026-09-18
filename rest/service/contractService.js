@@ -271,7 +271,7 @@ class ContractService extends BaseService {
       });
 
     allConditions.push(`${clAlias}${ContractLog.SYNTHETIC} is true`);
-    this.appendSyntheticNftTransferExclusion(params, allConditions);
+    allConditions.push(`(${this.syntheticNftWildcardTransferPredicate(params)})`);
 
     const whereClause = `where ${allConditions.join(' and ')}`;
     params.push(limit);
@@ -454,22 +454,35 @@ class ContractService extends BaseService {
   }
 
   /**
+   * "Keep" predicate matching every log except an importer-generated synthetic NFT treasury-change Transfer
+   * (topic0 = Transfer AND topic3 = 0xffffffffffffffff). NULL topic0 or topic3 is kept via IS DISTINCT FROM. Pushes the
+   * two topic params and returns the predicate (without the synthetic guard) so callers can compose their own synthetic
+   * handling.
+   *
+   * @param {*[]} params
+   * @return {string}
+   */
+  syntheticNftWildcardTransferPredicate(params) {
+    params.push(TRANSFER_EVENT_TOPIC0, SYNTHETIC_NFT_SERIAL_TOPIC3);
+    return `${ContractLog.getFullName(ContractLog.TOPIC0)} is distinct from $${
+      params.length - 1
+    } or ${ContractLog.getFullName(ContractLog.TOPIC3)} is distinct from $${params.length}`;
+  }
+
+  /**
    * Exclude importer-generated synthetic NFT treasury-change Transfer logs (synthetic = true AND topic0 = Transfer AND
-   * topic3 = 0xffffffffffffffff). The synthetic flag is the authoritative discriminator; without it genuine EVM logs
-   * whose indexed tokenId is 2^64-1 (stored as the same trimmed topic3) would be wrongly suppressed. NULL topic0 or
-   * topic3 is kept via IS DISTINCT FROM, and non-synthetic logs are kept via IS NOT TRUE.
+   * topic3 = 0xffffffffffffffff) from queries that return a mix of synthetic and genuine logs. The synthetic flag is the
+   * authoritative discriminator; without it genuine EVM logs whose indexed tokenId is 2^64-1 (stored as the same trimmed
+   * topic3) would be wrongly suppressed. Non-synthetic logs are kept via IS NOT TRUE.
    *
    * @param {*[]} params
    * @param {string[]} conditions
    */
   appendSyntheticNftTransferExclusion(params, conditions) {
-    params.push(TRANSFER_EVENT_TOPIC0, SYNTHETIC_NFT_SERIAL_TOPIC3);
     conditions.push(
-      `(${ContractLog.getFullName(ContractLog.SYNTHETIC)} is not true or ${ContractLog.getFullName(
-        ContractLog.TOPIC0
-      )} is distinct from $${params.length - 1} or ${ContractLog.getFullName(ContractLog.TOPIC3)} is distinct from $${
-        params.length
-      })`
+      `(${ContractLog.getFullName(ContractLog.SYNTHETIC)} is not true or ${this.syntheticNftWildcardTransferPredicate(
+        params
+      )})`
     );
   }
 
