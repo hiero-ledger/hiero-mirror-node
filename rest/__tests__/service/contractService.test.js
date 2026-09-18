@@ -2208,6 +2208,57 @@ describe('ContractService.getContractTransactionDetailsByHash negative tests', (
   });
 });
 
+describe('ContractService.getContractTransactionDetailsByHash real execution preferred over stub tests', () => {
+  const ethereumTxHash = '4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392';
+  const ethereumTxHashBuffer = Buffer.from(ethereumTxHash, 'hex');
+  const ethereumTxType = TransactionType.getProtoId('ETHEREUMTRANSACTION');
+  const contractRevertResult = TransactionResult.getProtoId('CONTRACT_REVERT_EXECUTED');
+  const insufficientPayerBalanceResult = TransactionResult.getProtoId('INSUFFICIENT_PAYER_BALANCE');
+
+  // Transaction reverted while executing against a contract at T1, so it resolves to a non-zero entity id.
+  const executedResult = {
+    consensus_timestamp: 1,
+    contract_id: entityId1.num,
+    payer_account_id: entityId10.num,
+    type: ethereumTxType,
+    transaction_result: contractRevertResult,
+    transaction_index: 1,
+    transaction_hash: ethereumTxHash,
+    transaction_nonce: 11,
+    gasLimit: 1000,
+  };
+
+  // Fails pre-execution, so only a stub result with entity 0 is produced later at T2 > T1.
+  const stubResult = {
+    consensus_timestamp: 2,
+    contract_id: entityId0.num,
+    payer_account_id: entityId9000.num,
+    type: ethereumTxType,
+    transaction_result: insufficientPayerBalanceResult,
+    transaction_index: 1,
+    transaction_hash: ethereumTxHash,
+    transaction_nonce: 0,
+    gasLimit: 1000,
+  };
+
+  beforeEach(async () => {
+    await integrationDomainOps.loadContractResults([executedResult, stubResult]);
+  });
+
+  test('Prefers the real execution over a later pre-execution stub sharing the hash', async () => {
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([
+      {
+        consensusTimestamp: 1,
+        entityId: entityId1.getEncodedId(),
+        hash: ethereumTxHashBuffer,
+        payerAccountId: entityId10.getEncodedId(),
+        transactionResult: Number.parseInt(contractRevertResult),
+      },
+    ]);
+  });
+});
+
 describe('ContractService.getInvolvedContractsByTimestampAndContractId tests', () => {
   const ethereumTxHash = '4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392';
   const ethereumTxType = TransactionType.getProtoId('ETHEREUMTRANSACTION');

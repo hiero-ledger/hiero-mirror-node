@@ -214,6 +214,7 @@ class ContractService extends BaseService {
   static ethereumTransactionsByHashQuery = `select * from ${ContractTransactionHash.tableName}
         where ${ContractTransactionHash.HASH} = $1
         order by (${ContractTransactionHash.TRANSACTION_RESULT} = ${successTransactionResult}) desc,
+                 (${ContractTransactionHash.ENTITY_ID} <> 0) desc,
                  ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc
         limit 1`;
 

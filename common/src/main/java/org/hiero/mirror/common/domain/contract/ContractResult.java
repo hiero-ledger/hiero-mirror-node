@@ -7,11 +7,13 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Transient;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
@@ -76,6 +78,19 @@ public class ContractResult implements Persistable<Long> {
     private int transactionNonce;
 
     private Integer transactionResult;
+
+    /**
+     * Whether this result should be indexed in contract_transaction_hash. Results for ethereum transactions
+     * that failed before execution set this to false: they have no matching contract_transaction row, so a hash
+     * mapping to them can never resolve and would only shadow the genuine execution sharing the same hash. Transient
+     * processing hint, never persisted.
+     */
+    @Builder.Default
+    @EqualsAndHashCode.Exclude
+    @JsonIgnore
+    @ToString.Exclude
+    @Transient
+    private boolean contractTransactionHashPersisted = true;
 
     @JsonIgnore
     @Override
