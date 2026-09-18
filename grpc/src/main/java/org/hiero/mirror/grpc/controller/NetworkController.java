@@ -7,6 +7,7 @@ import com.hedera.mirror.api.proto.AddressBookQuery;
 import com.hedera.mirror.api.proto.NetworkServiceGrpc;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
+import io.grpc.Status;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import java.net.InetAddress;
@@ -32,16 +33,17 @@ final class NetworkController extends NetworkServiceGrpc.NetworkServiceImplBase 
 
     @Override
     public void getNodes(final AddressBookQuery request, final StreamObserver<NodeAddress> responseObserver) {
-        final var flux = Mono.fromCallable(() -> toFilter(request))
+        if (!(responseObserver instanceof ServerCallStreamObserver<NodeAddress> serverCallStreamObserver)) {
+            log.warn("Expected a ServerCallStreamObserver but got {}", responseObserver.getClass());
+            responseObserver.onError(Status.INTERNAL.asRuntimeException());
+            return;
+        }
+
+        Mono.fromCallable(() -> toFilter(request))
                 .flatMapMany(networkService::getNodes)
                 .map(this::toNodeAddress)
-                .onErrorMap(ProtoUtil::toStatusRuntimeException);
-
-        if (responseObserver instanceof ServerCallStreamObserver<NodeAddress> serverCallStreamObserver) {
-            flux.subscribe(new GrpcFlowControlSubscriber<>(serverCallStreamObserver));
-        } else {
-            flux.subscribe(responseObserver::onNext, responseObserver::onError, responseObserver::onCompleted);
-        }
+                .onErrorMap(ProtoUtil::toStatusRuntimeException)
+                .subscribe(new GrpcFlowControlSubscriber<>(serverCallStreamObserver));
     }
 
     private AddressBookFilter toFilter(final AddressBookQuery query) {

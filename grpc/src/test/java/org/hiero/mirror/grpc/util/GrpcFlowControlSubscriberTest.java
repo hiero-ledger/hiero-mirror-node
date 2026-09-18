@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.reactivestreams.Subscription;
 
-class GrpcFlowControlSubscriberTest {
+final class GrpcFlowControlSubscriberTest {
 
     @SuppressWarnings("unchecked")
     private final ServerCallStreamObserver<String> responseObserver = mock(ServerCallStreamObserver.class);

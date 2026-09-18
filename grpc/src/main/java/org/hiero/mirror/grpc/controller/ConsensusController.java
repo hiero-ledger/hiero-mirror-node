@@ -9,6 +9,7 @@ import com.hedera.mirror.api.proto.ConsensusTopicResponse;
 import com.hederahashgraph.api.proto.java.ConsensusMessageChunkInfo;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionID;
+import io.grpc.Status;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import java.util.Objects;
@@ -42,16 +43,17 @@ final class ConsensusController extends ConsensusServiceGrpc.ConsensusServiceImp
 
     @Override
     public void subscribeTopic(ConsensusTopicQuery request, StreamObserver<ConsensusTopicResponse> responseObserver) {
-        final var flux = Mono.fromCallable(() -> toFilter(request))
+        if (!(responseObserver instanceof ServerCallStreamObserver<ConsensusTopicResponse> serverCallStreamObserver)) {
+            log.warn("Expected a ServerCallStreamObserver but got {}", responseObserver.getClass());
+            responseObserver.onError(Status.INTERNAL.asRuntimeException());
+            return;
+        }
+
+        Mono.fromCallable(() -> toFilter(request))
                 .flatMapMany(topicMessageService::subscribeTopic)
                 .map(this::toResponse)
-                .onErrorMap(ProtoUtil::toStatusRuntimeException);
-
-        if (responseObserver instanceof ServerCallStreamObserver<ConsensusTopicResponse> serverCallStreamObserver) {
-            flux.subscribe(new GrpcFlowControlSubscriber<>(serverCallStreamObserver));
-        } else {
-            flux.subscribe(responseObserver::onNext, responseObserver::onError, responseObserver::onCompleted);
-        }
+                .onErrorMap(ProtoUtil::toStatusRuntimeException)
+                .subscribe(new GrpcFlowControlSubscriber<>(serverCallStreamObserver));
     }
 
     private TopicMessageFilter toFilter(ConsensusTopicQuery query) {
