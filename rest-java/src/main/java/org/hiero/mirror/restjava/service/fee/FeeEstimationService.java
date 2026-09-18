@@ -99,6 +99,7 @@ public class FeeEstimationService {
             final int throttleUtilization) {
         try {
             final var txContext = new TransactionFeeContext(transaction);
+            FeeTransactionLimits.validate(transaction, txContext.body(), txContext.numTxnSignatures());
             final var context = mode == FeeEstimateMode.STATE
                     ? txContext.withFeeContext(newFeeContext(txContext.body(), throttleUtilization))
                     : txContext;

@@ -2,12 +2,21 @@
 
 package org.hiero.mirror.restjava.service.fee;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.BATCH_SIZE_LIMIT_EXCEEDED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PENDING_AIRDROP_ID_LIST_TOO_LONG;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSACTION_OVERSIZE;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSFER_LIST_SIZE_LIMIT_EXCEEDED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.hedera.hapi.node.base.AccountAmount;
+import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.HederaFunctionality;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.base.SignaturePair;
+import com.hedera.hapi.node.base.TokenID;
+import com.hedera.hapi.node.base.TokenTransferList;
 import com.hedera.hapi.node.base.Transaction;
 import com.hedera.hapi.node.token.CryptoTransferTransactionBody;
 import com.hedera.hapi.node.transaction.SignedTransaction;
@@ -383,6 +392,27 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
+    void rejectsTooManyTokenTransfersBeforeCalculator() {
+        assertThatThrownBy(() -> service.estimateFees(cryptoTransferWithTokenLists(11), FeeEstimateMode.STATE, 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED.protoName());
+    }
+
+    @Test
+    void acceptsMaxTokenTransferLists() {
+        assertThat(service.estimateFees(cryptoTransferWithTokenLists(10), FeeEstimateMode.STATE, 0)
+                        .totalTinycents())
+                .isGreaterThan(0);
+    }
+
+    @Test
+    void rejectsAboveMaxTokenTransfers() {
+        assertThatThrownBy(() -> service.estimateFees(cryptoTransferWithTokenLists(12), FeeEstimateMode.STATE, 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED.protoName());
+    }
+
+    @Test
     void estimatesFeesForAllKnownTransactionTypes() {
         for (final var type : TransactionType.values()) {
             final var supplier = recordItemBuilder.lookup(type);
@@ -398,7 +428,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                         .as("INTRINSIC fee for %s", type)
                         .isGreaterThanOrEqualTo(0);
             } catch (IllegalArgumentException e) {
-                assertThat(e).hasMessageContaining("Unknown transaction type");
+                assertLimitOrUnknownType(e);
             }
 
             // STATE mode may additionally throw for types whose congestion multiplier reads stores
@@ -411,7 +441,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
             } catch (UnsupportedOperationException e) {
                 assertThat(e).hasMessageContaining("Store not supported:");
             } catch (IllegalArgumentException e) {
-                assertThat(e).hasMessageContaining("Unknown transaction type");
+                assertLimitOrUnknownType(e);
             }
         }
     }
@@ -648,6 +678,41 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                                         .setAmount(100))))
                 .build()
                 .getTransaction());
+    }
+
+    private static void assertLimitOrUnknownType(final IllegalArgumentException e) {
+        assertThat(e.getMessage())
+                .satisfiesAnyOf(
+                        m -> assertThat(m).contains("Unknown transaction type"),
+                        m -> assertThat(m).isEqualTo(TRANSACTION_OVERSIZE.protoName()),
+                        m -> assertThat(m).isEqualTo(TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED.protoName()),
+                        m -> assertThat(m).isEqualTo(TRANSFER_LIST_SIZE_LIMIT_EXCEEDED.protoName()),
+                        m -> assertThat(m).isEqualTo(BATCH_SIZE_LIMIT_EXCEEDED.protoName()),
+                        m -> assertThat(m).isEqualTo(PENDING_AIRDROP_ID_LIST_TOO_LONG.protoName()));
+    }
+
+    private Transaction cryptoTransferWithTokenLists(final int tokenCount) {
+        final var lists = new ArrayList<TokenTransferList>(tokenCount);
+        for (int i = 0; i < tokenCount; i++) {
+            lists.add(TokenTransferList.newBuilder()
+                    .token(TokenID.newBuilder().tokenNum(i + 1L).build())
+                    .transfers(AccountAmount.newBuilder()
+                            .accountID(AccountID.newBuilder().accountNum(1).build())
+                            .amount(-1)
+                            .build())
+                    .build());
+        }
+        final var body = TransactionBody.newBuilder()
+                .cryptoTransfer(CryptoTransferTransactionBody.newBuilder()
+                        .tokenTransfers(lists)
+                        .build())
+                .build();
+        final var signedTransaction = SignedTransaction.newBuilder()
+                .bodyBytes(TransactionBody.PROTOBUF.toBytes(body))
+                .build();
+        return Transaction.newBuilder()
+                .signedTransactionBytes(SignedTransaction.PROTOBUF.toBytes(signedTransaction))
+                .build();
     }
 
     private Transaction cryptoTransfer(int signatureCount) {
