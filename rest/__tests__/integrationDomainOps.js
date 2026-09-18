@@ -1762,6 +1762,7 @@ const addRecordFile = async (recordFileInput) => {
     'logs_bloom',
     'name',
     'prev_hash',
+    'receipts_root',
     'size',
     'version',
   ];
@@ -1784,12 +1785,13 @@ const addRecordFile = async (recordFileInput) => {
     logs_bloom: Buffer.alloc(0),
     name: '2021-08-12T06_59_32.000852000Z.rcd',
     prev_hash: '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+    receipts_root: '56e91f271bcc54a6ff8345e692c0f86e5b48e21b936caed001722fb5e363b425',
     size: 6,
     version: 5,
     ...recordFileInput,
   };
 
-  convertByteaFields(['bytes', 'logs_bloom'], recordFile);
+  convertByteaFields(['bytes', 'logs_bloom', 'receipts_root'], recordFile);
   recordFile.size = recordFile.bytes !== null ? recordFile.bytes.length : recordFile.size;
 
   await insertDomainObject('record_file', insertFields, recordFile);
