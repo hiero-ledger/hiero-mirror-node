@@ -16,6 +16,7 @@ import {WEIBARS_TO_TINYBARS} from '../constants';
  * Contract result details view model
  */
 class ContractResultDetailsViewModel extends ContractResultViewModel {
+  static _HEX_QUANTITY_PATTERN = /^0x[0-9a-fA-F]+$/;
   static _LEGACY_TYPE = 0;
   static _SUCCESS_PROTO_IDS = TransactionResult.getSuccessProtoIds();
   static _SUCCESS_RESULT = '0x1';
@@ -164,7 +165,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
   static _toV(type, ethTransaction) {
     if (type === ContractResultDetailsViewModel._LEGACY_TYPE) {
       const signatureVHex = utils.toHexStringNonQuantity(ethTransaction.signatureV);
-      if (/^0x[0-9a-fA-F]+$/.test(signatureVHex)) {
+      if (ContractResultDetailsViewModel._HEX_QUANTITY_PATTERN.test(signatureVHex)) {
         return BigInt(signatureVHex);
       }
     }
