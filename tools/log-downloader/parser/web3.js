@@ -2,6 +2,8 @@
 
 import {unzipSync} from 'zlib';
 
+import {MAX_BODY_LENGTH} from '../constants.js';
+
 class Web3Parser {
   static #INPUT_LINE_REGEX = /^([\d\-TZ:.]+) .* POST (.*) in \d+ ms.*: .*- (.*)$/;
 
@@ -18,13 +20,13 @@ class Web3Parser {
 
     try {
       if (body[0] !== '{') {
-        body = unzipSync(Buffer.from(body, 'base64')).toString();
+        body = unzipSync(Buffer.from(body, 'base64'), {maxOutputLength: MAX_BODY_LENGTH}).toString();
       }
 
       if (body[body.length - 1] !== '}') {
         return null;
       }
-    } catch (err) {
+    } catch {
       return null;
     }
 
