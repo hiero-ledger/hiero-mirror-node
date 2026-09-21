@@ -1188,6 +1188,7 @@ class ContractController extends BaseController {
     const convertToHbar = utils.parseHbarParam(req.query.hbar);
 
     let transactionDetails;
+    let matchByPayerAccount = false;
 
     const {transactionIdOrHash} = req.params;
     if (utils.isValidEthHash(transactionIdOrHash)) {
@@ -1207,6 +1208,7 @@ class ContractController extends BaseController {
       transactionDetails = transactions[0];
       // want to look up involved contract parties using the payer account id
       transactionDetails.entityId = transactionDetails.payerAccountId;
+      matchByPayerAccount = true;
     }
 
     if (!transactionDetails) {
@@ -1215,7 +1217,8 @@ class ContractController extends BaseController {
 
     const contractDetails = await ContractService.getInvolvedContractsByTimestampAndContractId(
       transactionDetails.consensusTimestamp,
-      transactionDetails.entityId
+      transactionDetails.entityId,
+      matchByPayerAccount
     );
 
     if (!contractDetails) {

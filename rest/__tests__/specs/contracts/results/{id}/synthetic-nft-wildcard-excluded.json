@@ -11,6 +11,22 @@
         "timestamp_range": "[187654000123000,)"
       }
     ],
+    "transactions": [
+      {
+        "consensus_timestamp": 187654000123456,
+        "payerAccountId": "5000",
+        "transaction_hash": "0x185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "type": 17,
+        "valid_start_timestamp": 187654000123400
+      },
+      {
+        "consensus_timestamp": 187654000223456,
+        "payerAccountId": "5000",
+        "transaction_hash": "0x285602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "type": 17,
+        "valid_start_timestamp": 187654000223400
+      }
+    ],
     "contractlogs": [
       {
         "bloom": [1, 2, 3],
