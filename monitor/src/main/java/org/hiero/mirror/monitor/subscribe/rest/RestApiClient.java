@@ -66,7 +66,13 @@ public class RestApiClient {
                 .repeat(() -> StringUtils.isNotBlank(next.get()));
     }
 
-    public Mono<HttpStatusCode> getNetworkStakeStatusCode() {
-        return webClientRestJava.get().uri("/network/stake").exchangeToMono(r -> Mono.just(r.statusCode()));
+    // Unfiltered and sorted by consensus_timestamp rather than the transaction table's shard key
+    // (payer_account_id), so Citus must fan this query out to every shard to answer it - unlike
+    // /network/stake, which only ever hits the coordinator and stays "up" even if every shard is down.
+    public Mono<HttpStatusCode> getTransactionsStatusCode() {
+        return webClientRest
+                .get()
+                .uri("/transactions?limit=1&order=desc")
+                .exchangeToMono(r -> Mono.just(r.statusCode()));
     }
 }

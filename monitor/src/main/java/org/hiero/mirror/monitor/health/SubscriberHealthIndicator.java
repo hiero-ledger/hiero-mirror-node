@@ -66,7 +66,7 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
 
     @Override
     public Mono<Health> health() {
-        return restNetworkStakeHealth()
+        return restTransactionsHealth()
                 .flatMap(health ->
                         health.getStatus() == Status.UP ? publishing().switchIfEmpty(subscribing()) : Mono.just(health))
                 .map(this::applyRecoveryHysteresis)
@@ -126,9 +126,9 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
                 .switchIfEmpty(getHealthForZeroRate());
     }
 
-    private Mono<Health> restNetworkStakeHealth() {
+    private Mono<Health> restTransactionsHealth() {
         return restApiClient
-                .getNetworkStakeStatusCode()
+                .getTransactionsStatusCode()
                 .flatMap(statusCode -> {
                     if (statusCode.is2xxSuccessful()) {
                         return UP;
@@ -136,7 +136,7 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
 
                     var status = statusCode.is5xxServerError() ? Status.DOWN : Status.UNKNOWN;
                     var statusMessage =
-                            String.format("Network stake status is %s with status code %s", status, statusCode.value());
+                            String.format("Transactions status is %s with status code %s", status, statusCode.value());
                     log.error(statusMessage);
                     return health(status, statusMessage);
                 })
@@ -151,7 +151,7 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
                     }
 
                     var statusMessage =
-                            String.format("Network stake status is %s with error: %s", status, e.getMessage());
+                            String.format("Transactions status is %s with error: %s", status, e.getMessage());
                     log.error(statusMessage);
                     return health(status, statusMessage);
                 });

@@ -68,28 +68,32 @@ class SubscriberHealthIndicatorTest {
         "0.0, 1.0, 200, UNKNOWN, false", // publishing inactive
         "1.0, 0.0, 200, UNKNOWN, false", // subscribing inactive
         "0.0, 0.0, 200, UNKNOWN, false", // publishing and subscribing inactive
-        "1.0, 1.0, 400, UNKNOWN, false", // unknown network stake
-        "1.0, 1.0, 500, DOWN, false", // network stake down
-        "0.0, 0.0, 500, DOWN, false", // publishing and subscribing inactive and network stake down
-        "0.0, 1.0, 500, DOWN, false", // network stake down and publishing inactive
-        "1.0, 0.0, 500, DOWN, false", // network stake down and subscribing inactive
+        "1.0, 1.0, 400, UNKNOWN, false", // unknown transactions status
+        "1.0, 1.0, 500, DOWN, false", // transactions down
+        "0.0, 0.0, 500, DOWN, false", // publishing and subscribing inactive and transactions down
+        "0.0, 1.0, 500, DOWN, false", // transactions down and publishing inactive
+        "1.0, 0.0, 500, DOWN, false", // transactions down and subscribing inactive
         "1.0, 1.0, 200, UP, true", // healthy
         "0.0, 1.0, 500, DOWN, true", // publishing inactive
         "1.0, 0.0, 500, DOWN, true", // subscribing inactive
         "0.0, 0.0, 500, DOWN, true", // publishing and subscribing inactive
-        "1.0, 1.0, 400, UNKNOWN, true", // unknown network stake
-        "1.0, 1.0, 500, DOWN, true", // network stake down
-        "0.0, 0.0, 500, DOWN, true", // publishing and subscribing inactive and network stake down
-        "0.0, 1.0, 500, DOWN, true", // network stake down and publishing inactive
-        "1.0, 0.0, 500, DOWN, true", // network stake down and subscribing inactive
+        "1.0, 1.0, 400, UNKNOWN, true", // unknown transactions status
+        "1.0, 1.0, 500, DOWN, true", // transactions down
+        "0.0, 0.0, 500, DOWN, true", // publishing and subscribing inactive and transactions down
+        "0.0, 1.0, 500, DOWN, true", // transactions down and publishing inactive
+        "1.0, 0.0, 500, DOWN, true", // transactions down and subscribing inactive
     })
     void health(
-            double publishRate, double subscribeRate, int networkStatusCode, Status status, boolean failWhenInactive) {
+            double publishRate,
+            double subscribeRate,
+            int transactionsStatusCode,
+            Status status,
+            boolean failWhenInactive) {
         when(releaseHealthProperties.isFailWhenInactive()).thenReturn(failWhenInactive);
         when(transactionGenerator.scenarios()).thenReturn(Flux.just(publishScenario(publishRate)));
         when(mirrorSubscriber.getSubscriptions()).thenReturn(Flux.just(subscribeScenario(subscribeRate)));
-        when(restApiClient.getNetworkStakeStatusCode())
-                .thenReturn(Mono.just(HttpStatusCode.valueOf(networkStatusCode)));
+        when(restApiClient.getTransactionsStatusCode())
+                .thenReturn(Mono.just(HttpStatusCode.valueOf(transactionsStatusCode)));
         assertThat(subscriberHealthIndicator.health().block())
                 .extracting(Health::getStatus)
                 .isEqualTo(status);
@@ -97,13 +101,13 @@ class SubscriberHealthIndicatorTest {
 
     @SneakyThrows
     @Test
-    void restNetworkStakeConnectException() {
+    void restTransactionsConnectException() {
         var exception = new WebClientRequestException(
                 new ConnectException("Connection refused"),
                 HttpMethod.GET,
-                new URI("http://localhost/api/v1/network/stake"),
+                new URI("http://localhost/api/v1/transactions"),
                 HttpHeaders.EMPTY);
-        when(restApiClient.getNetworkStakeStatusCode()).thenReturn(Mono.error(exception));
+        when(restApiClient.getTransactionsStatusCode()).thenReturn(Mono.error(exception));
         assertThat(subscriberHealthIndicator.health().block())
                 .extracting(Health::getStatus)
                 .isEqualTo(Status.DOWN);
@@ -111,10 +115,10 @@ class SubscriberHealthIndicatorTest {
 
     @SneakyThrows
     @Test
-    void restNetworkStakeTimeoutException() {
+    void restTransactionsTimeoutException() {
         when(transactionGenerator.scenarios()).thenReturn(Flux.just(publishScenario(1.0)));
         when(mirrorSubscriber.getSubscriptions()).thenReturn(Flux.just(subscribeScenario(1.0)));
-        when(restApiClient.getNetworkStakeStatusCode())
+        when(restApiClient.getTransactionsStatusCode())
                 .thenReturn(Mono.delay(Duration.ofSeconds(6L)).thenReturn(HttpStatusCode.valueOf(200)));
 
         StepVerifier.withVirtualTime(() -> subscriberHealthIndicator.health())
@@ -126,8 +130,8 @@ class SubscriberHealthIndicatorTest {
     }
 
     @Test
-    void restNetworkStakeError() {
-        when(restApiClient.getNetworkStakeStatusCode()).thenReturn(Mono.error(new RuntimeException("Test exception")));
+    void restTransactionsError() {
+        when(restApiClient.getTransactionsStatusCode()).thenReturn(Mono.error(new RuntimeException("Test exception")));
         assertThat(subscriberHealthIndicator.health().block())
                 .extracting(Health::getStatus)
                 .isEqualTo(Status.UNKNOWN);
@@ -139,7 +143,7 @@ class SubscriberHealthIndicatorTest {
         when(subscriberHealthProperties.getRecoveryThreshold()).thenReturn(2);
         when(transactionGenerator.scenarios()).thenReturn(Flux.just(publishScenario(1.0)));
         when(mirrorSubscriber.getSubscriptions()).thenReturn(Flux.just(subscribeScenario(1.0)));
-        when(restApiClient.getNetworkStakeStatusCode())
+        when(restApiClient.getTransactionsStatusCode())
                 .thenReturn(
                         Mono.just(HttpStatusCode.valueOf(500)),
                         Mono.just(HttpStatusCode.valueOf(200)),
@@ -162,7 +166,7 @@ class SubscriberHealthIndicatorTest {
         when(subscriberHealthProperties.getRecoveryThreshold()).thenReturn(2);
         when(transactionGenerator.scenarios()).thenReturn(Flux.just(publishScenario(1.0)));
         when(mirrorSubscriber.getSubscriptions()).thenReturn(Flux.just(subscribeScenario(1.0)));
-        when(restApiClient.getNetworkStakeStatusCode())
+        when(restApiClient.getTransactionsStatusCode())
                 .thenReturn(
                         Mono.just(HttpStatusCode.valueOf(500)),
                         Mono.just(HttpStatusCode.valueOf(200)),
