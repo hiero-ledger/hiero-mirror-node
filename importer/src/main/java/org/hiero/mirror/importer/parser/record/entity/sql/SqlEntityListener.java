@@ -124,7 +124,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     @Override
     public void onContractResult(ContractResult contractResult) throws ImporterException {
         context.add(contractResult, contractResult.getConsensusTimestamp());
-        if (contractResult.isContractTransactionHashPersisted()
+        if (!contractResult.isContractTransactionHashSkipped()
                 && entityProperties.getPersist().isContractTransactionHash()) {
             context.add(contractResult.toContractTransactionHash());
         }

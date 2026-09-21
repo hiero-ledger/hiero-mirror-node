@@ -80,17 +80,17 @@ public class ContractResult implements Persistable<Long> {
     private Integer transactionResult;
 
     /**
-     * Whether this result should be indexed in contract_transaction_hash. Results for ethereum transactions
-     * that failed before execution set this to false: they have no matching contract_transaction row, so a hash
-     * mapping to them can never resolve and would only shadow the genuine execution sharing the same hash. Transient
+     * Whether this result should be skipped when indexing contract_transaction_hash. Results for ethereum
+     * transactions that failed before execution set this to true: they have no matching contract_transaction row, so a
+     * hash mapping to them can never resolve and would only shadow the genuine execution sharing the same hash. The
+     * default {@code false} keeps indexing enabled for both the builder and {@code new ContractResult()}. Transient
      * processing hint, never persisted.
      */
-    @Builder.Default
     @EqualsAndHashCode.Exclude
     @JsonIgnore
     @ToString.Exclude
     @Transient
-    private boolean contractTransactionHashPersisted = true;
+    private boolean contractTransactionHashSkipped;
 
     @JsonIgnore
     @Override
