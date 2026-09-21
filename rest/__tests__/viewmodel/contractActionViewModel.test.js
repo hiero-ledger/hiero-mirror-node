@@ -74,6 +74,21 @@ describe('ContractActionViewModel', () => {
     });
   });
 
+  test('null caller', () => {
+    expect(
+      new ContractActionViewModel({
+        ...defaultContractAction,
+        caller: null,
+        callerType: null,
+      })
+    ).toEqual({
+      ...defaultExpected,
+      caller: null,
+      caller_type: null,
+      from: null,
+    });
+  });
+
   test('null fields', () => {
     expect(
       new ContractActionViewModel({

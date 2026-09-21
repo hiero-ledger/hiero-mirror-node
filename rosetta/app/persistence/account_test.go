@@ -487,6 +487,35 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockDbConnectionError
 	assert.Nil(suite.T(), actualAmounts)
 }
 
+func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockPartitionLookupError() {
+	// given
+	// Make selectPreviousPartitionLowerBound fail so we abort instead of scanning from timestamp 0
+	db := dbClient.GetDb()
+	suite.Require().NoError(
+		db.Exec("alter view mirror_node_time_partitions rename to mirror_node_time_partitions_bak").Error,
+	)
+	suite.T().Cleanup(func() {
+		suite.Require().NoError(
+			db.Exec("alter view mirror_node_time_partitions_bak rename to mirror_node_time_partitions").Error,
+		)
+	})
+
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
+
+	// when
+	actualAmounts, accountIdString, publicKey, err := repo.RetrieveBalanceAtBlock(
+		defaultContext,
+		suite.accountId,
+		consensusTimestamp,
+	)
+
+	// then
+	assert.Equal(suite.T(), errors.ErrDatabaseError, err)
+	assert.Empty(suite.T(), accountIdString)
+	assert.Empty(suite.T(), publicKey)
+	assert.Nil(suite.T(), actualAmounts)
+}
+
 func sum(amounts []int64) int64 {
 	var value int64
 	for _, amount := range amounts {

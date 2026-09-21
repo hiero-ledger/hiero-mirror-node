@@ -15,12 +15,18 @@ import com.hederahashgraph.api.proto.java.ConsensusMessageChunkInfo;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TopicID;
 import com.hederahashgraph.api.proto.java.TransactionID;
+import io.grpc.CallOptions;
+import io.grpc.ClientCall;
+import io.grpc.Metadata;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -316,6 +322,50 @@ final class ConsensusControllerTest extends GrpcIntegrationTest {
         final var stopwatch2 = Stopwatch.createStarted();
         assertThat(blockingService.subscribeTopic(overflowQuery)).toIterable().hasSize(maxPageSize + 1);
         assertThat(stopwatch2.elapsed()).isGreaterThanOrEqualTo(retrieverProperties.getPollingFrequency());
+    }
+
+    @Test
+    void subscribeTopicRespectsClientBackpressure() throws InterruptedException {
+        final int messageCount = 500;
+        domainBuilder.topicMessages(messageCount, 1L).blockLast();
+
+        final var query = ConsensusTopicQuery.newBuilder()
+                .setLimit(messageCount)
+                .setConsensusStartTime(Timestamp.newBuilder().setSeconds(0).build())
+                .setTopicID(TOPIC_ID.toTopicID())
+                .build();
+
+        final var receivedMessageCount = new AtomicInteger();
+        final var closeLatch = new CountDownLatch(1);
+        final var call = blockingService
+                .getChannel()
+                .newCall(ConsensusServiceGrpc.getSubscribeTopicMethod(), CallOptions.DEFAULT);
+
+        call.start(
+                new ClientCall.Listener<ConsensusTopicResponse>() {
+                    @Override
+                    public void onMessage(ConsensusTopicResponse message) {
+                        receivedMessageCount.incrementAndGet();
+                        // Deliberately never call call.request() again to simulate a stalled/slow-reading client.
+                    }
+
+                    @Override
+                    public void onClose(Status status, Metadata trailers) {
+                        closeLatch.countDown();
+                    }
+                },
+                new Metadata());
+
+        call.request(1);
+        call.sendMessage(query);
+        call.halfClose();
+
+        // Window for a buggy, unbounded-demand implementation to fetch and push the entire history anyway.
+        Thread.sleep(1000L);
+        call.cancel("test complete", null);
+        assertThat(closeLatch.await(5L, TimeUnit.SECONDS)).isTrue();
+
+        assertThat(receivedMessageCount).hasValue(1);
     }
 
     @SneakyThrows
