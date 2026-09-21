@@ -32,6 +32,12 @@ COPY --from=builder --chown=node:node /dist/buildDist ./
 COPY --from=builder /usr/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2
 COPY --from=builder /etc/ld.so.preload /etc/ld.so.preload
 
+# Temporarily install latest OS updates until next Node.js
+RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
 USER node
 
 ENTRYPOINT ["node", "server.js"]
