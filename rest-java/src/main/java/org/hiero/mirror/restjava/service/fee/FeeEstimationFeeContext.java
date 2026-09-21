@@ -42,6 +42,7 @@ import com.swirlds.config.api.Configuration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.CommonProperties;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -310,22 +311,20 @@ final class FeeEstimationFeeContext implements FeeContext {
         return throttleUtilization;
     }
 
+    @RequiredArgsConstructor
     private static final class CachedReadableTokenStore implements ReadableTokenStore {
 
         private final ReadableTokenStore delegate;
         private final Map<TokenID, Token> cache = new HashMap<>();
 
-        private CachedReadableTokenStore(final ReadableTokenStore delegate) {
-            this.delegate = delegate;
-        }
-
         @Override
         @Nullable
         public Token get(@NonNull final TokenID id) {
-            if (!cache.containsKey(id)) {
-                cache.put(id, delegate.get(id));
-            }
-            return cache.get(id);
+            final var result = cache.computeIfAbsent(id, tokenID -> {
+                final var t = delegate.get(tokenID);
+                return t != null ? t : Token.DEFAULT;
+            });
+            return result == Token.DEFAULT ? null : result;
         }
 
         @Override
