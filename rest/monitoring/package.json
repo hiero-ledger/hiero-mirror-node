@@ -6,7 +6,7 @@
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">=24.20.0 <25"
+    "node": ">=24.21.0 <25"
   },
   "scripts": {
     "dev": "nodemon --import=extensionless/register server.js",
@@ -22,7 +22,7 @@
     "extend": "3.0.2",
     "extensionless": "2.0.6",
     "lodash-es": "4.18.1",
-    "parse-duration": "2.1.8",
+    "parse-duration": "2.1.9",
     "pretty-ms": "9.3.1"
   },
   "devDependencies": {

@@ -14,7 +14,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@google-cloud/logging": "12.1.0",
-    "parse-duration": "2.1.8",
+    "parse-duration": "2.1.9",
     "yargs": "18.1.0"
   },
   "peerDependencies": {

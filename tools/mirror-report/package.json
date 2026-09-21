@@ -19,7 +19,7 @@
     "jest": "30.5.1"
   },
   "engines": {
-    "node": ">=24.20.0 <25"
+    "node": ">=24.21.0 <25"
   },
   "homepage": "https://github.com/hiero-ledger/hiero-mirror-node/tree/main/tools/mirror-report",
   "jest": {
@@ -38,7 +38,7 @@
   "overrides": {
     "brace-expansion": "5.0.9",
     "glob": "13.0.6",
-    "js-yaml": "5.4.1"
+    "js-yaml": "5.4.2"
   },
   "repository": {
     "type": "git",
