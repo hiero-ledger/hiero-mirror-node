@@ -38,7 +38,7 @@ class ContractActionViewModel {
    * @param {ContractAction} contractAction
    */
   constructor(contractAction) {
-    const callerId = EntityId.parse(contractAction.caller);
+    const callerId = EntityId.parse(contractAction.caller, {isNullable: true});
     const callOperationType = contractAction.callOperationType || 0;
     const recipientId = contractAction.recipientAccount || contractAction.recipientContract;
     const recipient = EntityId.parse(recipientId, {isNullable: true});
