@@ -20,7 +20,7 @@ skipped=0
 estimate_reverts=0
 api_errors=0
 page_fetch_failures=0
-nonReproducable=0
+nonReproducible=0
 
 log() {
   printf '%s\n' "$*"
@@ -286,7 +286,7 @@ check_result() {
   replay_request="$(jq -c '.estimate = false' <<<"${request}")"
   post_contracts_call "${replay_request}"
   if ! is_reproducible_replay "${result_json}" "${http_code}" "${body}"; then
-    nonReproducable=$((nonReproducable + 1))
+    nonReproducible=$((nonReproducible + 1))
     return 0
   fi
 
@@ -369,7 +369,7 @@ summary="$(cat <<EOF
   Executed validation request count: ${checked}
   Passed estimation count: ${passed}
   Out of tolerance estimation count: ${failed}
-  Non reproducable contract results: ${nonReproducable}
+  Non reproducible contract results: ${nonReproducible}
   Skipped request count: ${skipped}
   Reverted estimate request count: ${estimate_reverts}
   Errors count outside CONTRACT_REVERT_EXECUTED: ${api_errors}
