@@ -56,8 +56,8 @@ final class ImporterLagHealthIndicator implements HealthIndicator {
             final var resp = prometheusClient.query(query);
             return evaluate(resp);
         } catch (final Exception e) {
-            log.warn("Importer lag health check failed; returning UP: {}", e.getMessage());
-            return up();
+            log.warn("Importer lag health check failed; returning UNKNOWN: {}", e.getMessage());
+            return unknown();
         }
     }
 
@@ -70,8 +70,8 @@ final class ImporterLagHealthIndicator implements HealthIndicator {
         final var threshold = properties.getThresholdSeconds();
 
         if (resp == null || resp.getSeries().isEmpty()) {
-            log.info("Importer lag for {}: no data available, threshold={}s, result=UP", localCluster, threshold);
-            return up();
+            log.info("Importer lag for {}: no data available, threshold={}s, result=UNKNOWN", localCluster, threshold);
+            return unknown();
         }
 
         final var lagByCluster = parseLagByCluster(resp.getSeries());
@@ -86,8 +86,6 @@ final class ImporterLagHealthIndicator implements HealthIndicator {
         final var bestOther = bestOtherLag(lagByCluster);
 
         if (bestOther.isEmpty()) {
-            // No peer data is not the same as a peer confirming it's also fine - don't let it drag the group
-            // DOWN, but don't silently report UP either.
             log.info(
                     "Importer lag for {}: lag={}s exceeds threshold={}s but no peer data to compare against, result=UNKNOWN",
                     localCluster,

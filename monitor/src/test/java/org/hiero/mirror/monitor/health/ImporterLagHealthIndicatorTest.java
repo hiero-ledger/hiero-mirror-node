@@ -59,7 +59,7 @@ class ImporterLagHealthIndicatorTest {
     }
 
     @Test
-    void upOnClientError() {
+    void unknownOnClientError() {
         final var props = props(p -> {});
         final var client = mock(PrometheusApiClient.class);
         when(client.query(anyString())).thenThrow(new RuntimeException("boom"));
@@ -68,7 +68,7 @@ class ImporterLagHealthIndicatorTest {
 
         final var health = indicator.health();
 
-        assertThat(health.getStatus()).isEqualTo(Status.UP);
+        assertThat(health.getStatus()).isEqualTo(Status.UNKNOWN);
         verify(client).query(anyString());
     }
 
@@ -179,7 +179,7 @@ class ImporterLagHealthIndicatorTest {
     }
 
     @Test
-    void upWhenResultSeriesEmpty() {
+    void unknownWhenResultSeriesEmpty() {
         final var props = props(p -> {});
         final var client = mock(PrometheusApiClient.class);
 
@@ -190,7 +190,7 @@ class ImporterLagHealthIndicatorTest {
         final var health = indicator.health();
 
         assertThat(health).isNotNull();
-        assertThat(health.getStatus()).isEqualTo(Status.UP);
+        assertThat(health.getStatus()).isEqualTo(Status.UNKNOWN);
     }
 
     @Test
@@ -256,7 +256,7 @@ class ImporterLagHealthIndicatorTest {
     }
 
     @Test
-    void upWhenPrometheusStatusNotSuccess() {
+    void unknownWhenPrometheusStatusNotSuccess() {
         final var props = props(p -> {});
         final var client = mock(PrometheusApiClient.class);
         when(client.query(anyString())).thenReturn(new PrometheusApiClient.PrometheusQueryResponse("error", null));
@@ -265,7 +265,7 @@ class ImporterLagHealthIndicatorTest {
 
         final var health = indicator.health();
 
-        assertThat(health.getStatus()).isEqualTo(Status.UP);
+        assertThat(health.getStatus()).isEqualTo(Status.UNKNOWN);
     }
 
     private static ImporterLagHealthProperties props(final Consumer<ImporterLagHealthProperties> customize) {

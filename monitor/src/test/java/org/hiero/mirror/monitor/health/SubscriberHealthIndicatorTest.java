@@ -191,6 +191,34 @@ class SubscriberHealthIndicatorTest {
                 .isEqualTo(Status.UP);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void recoveryHysteresisUnknownDoesNotCountAsRecovery() {
+        when(subscriberHealthProperties.getRecoveryThreshold()).thenReturn(2);
+        when(transactionGenerator.scenarios()).thenReturn(Flux.just(publishScenario(1.0)));
+        when(mirrorSubscriber.getSubscriptions()).thenReturn(Flux.just(subscribeScenario(1.0)));
+        when(restApiClient.getTransactionsStatusCode())
+                .thenReturn(
+                        Mono.just(HttpStatusCode.valueOf(500)),
+                        Mono.just(HttpStatusCode.valueOf(400)),
+                        Mono.just(HttpStatusCode.valueOf(200)),
+                        Mono.just(HttpStatusCode.valueOf(200)));
+
+        assertThat(subscriberHealthIndicator.health().block())
+                .extracting(Health::getStatus)
+                .isEqualTo(Status.DOWN);
+        // an UNKNOWN result while recovering isn't confirmation of health, so it must not advance the count
+        assertThat(subscriberHealthIndicator.health().block())
+                .extracting(Health::getStatus)
+                .isEqualTo(Status.DOWN);
+        assertThat(subscriberHealthIndicator.health().block())
+                .extracting(Health::getStatus)
+                .isEqualTo(Status.DOWN);
+        assertThat(subscriberHealthIndicator.health().block())
+                .extracting(Health::getStatus)
+                .isEqualTo(Status.UP);
+    }
+
     private PublishScenario publishScenario(double rate) {
         return new TestPublishScenario(rate);
     }
