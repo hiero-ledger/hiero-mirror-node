@@ -25,7 +25,7 @@ require (
 	github.com/weaveworks/common v0.0.0-20230728070032-dd9e68f319d5
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v2 v2.4.0
-	gorm.io/driver/postgres v1.6.2
+	gorm.io/driver/postgres v1.6.3
 	gorm.io/gorm v1.31.2
 )
 

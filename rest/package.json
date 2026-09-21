@@ -20,7 +20,7 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@bufbuild/protobuf": "2.14.1",
+    "@bufbuild/protobuf": "2.15.0",
     "@godaddy/terminus": "4.12.1",
     "@opentelemetry/api": "1.9.1",
     "@opentelemetry/exporter-prometheus": "0.222.0",
@@ -50,8 +50,8 @@
     "tsscmp": "1.0.6"
   },
   "devDependencies": {
-    "@bufbuild/buf": "1.72.0",
-    "@bufbuild/protoc-gen-es": "2.14.1",
+    "@bufbuild/buf": "1.73.0",
+    "@bufbuild/protoc-gen-es": "2.15.0",
     "@testcontainers/postgresql": "12.1.0",
     "cross-env": "10.1.0",
     "crypto-random-string": "6.0.0",
