@@ -159,6 +159,7 @@ final class FixNftTreasuryChangeAllowanceMigration extends RepeatableMigration {
                 ) as p
                 where t.token_id = :tokenId
                   and t.serial_number = p.serial_number
+                  and lower(t.timestamp_range) = :timestamp
                 """.formatted(table);
     }
 
