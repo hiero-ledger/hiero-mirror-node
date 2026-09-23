@@ -72,7 +72,7 @@ public final class EntityId implements Comparable<EntityId> {
      */
     private static long encode(long shard, long realm, long num, boolean canThrow) {
         if (shard > SHARD_MASK || shard < 0 || realm > REALM_MASK || realm < 0 || num > NUM_MASK || num < 0) {
-            boolean throwError = Boolean.parseBoolean(System.getProperty(INVALID_ENTITY_EXCEPTION_PROPERTY, "false"));
+            boolean throwError = Boolean.parseBoolean(System.getProperty(INVALID_ENTITY_EXCEPTION_PROPERTY, "true"));
 
             if (canThrow && throwError) {
                 throw new InvalidEntityException("Invalid entity ID: " + shard + "." + realm + "." + num);

@@ -221,7 +221,7 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
     void lookupContractNumInvalid() {
         var contractId =
                 ContractID.newBuilder().setContractNum(1514739994982350848L).build();
-        assertThat(entityIdService.lookup(contractId)).get().isEqualTo(EntityId.EMPTY);
+        assertThat(entityIdService.lookup(contractId)).isEmpty();
     }
 
     @MethodSource("shardAndRealmData")
