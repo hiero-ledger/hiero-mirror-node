@@ -13,6 +13,9 @@ dependencies {
         add("implementation", "tools.jackson.core:jackson-databind") {
             version { require("3.2.2") }
         }
+        add("implementation", "org.apache.ant:ant") {
+            version { require("1.10.18") }
+        }
     }
 
     val dockerJavaVersion = "3.7.1"
