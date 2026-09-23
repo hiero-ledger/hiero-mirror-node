@@ -691,6 +691,18 @@ class AccountReadableKVStateTest {
     }
 
     @Test
+    void returnsNonEmptyDummyAccountForRewardAccount() {
+        final var rewardAccount = EntityIdUtils.toAccountId(systemEntity.stakingRewardAccount());
+
+        assertThat(accountReadableKVState.readFromDataSource(rewardAccount)).satisfies(account -> assertThat(account)
+                .isNotNull()
+                .returns(rewardAccount, Account::accountId)
+                .returns(1L, Account::tinybarBalance)
+                .returns(EMPTY_KEY_LIST, Account::key));
+        verify(commonEntityAccessor, never()).get(eq(rewardAccount), any());
+    }
+
+    @Test
     void dummySystemAccountDoesNotThrowNPEOnKeyOrThrow() {
         final var systemAccount = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 50L));
         when(commonEntityAccessor.get(systemAccount, Optional.empty())).thenReturn(Optional.empty());
