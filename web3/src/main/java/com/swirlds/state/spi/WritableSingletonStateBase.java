@@ -4,15 +4,20 @@ package com.swirlds.state.spi;
 
 import static java.util.Objects.requireNonNull;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import org.hiero.mirror.web3.common.ContractCallContext;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A convenient base class for mutable singletons.
- * Copy of the class from hedera-app. The difference is that the get() method is modified not to return null values.
+ * Copy of the class from hedera-app. Differences: get() does not return null values, and the modification buffer is
+ * stored in the per-request {@link ContractCallContext} rather than on this process-wide instance.
  * @param <T> The type
  */
+@SuppressWarnings("unchecked")
 public abstract class WritableSingletonStateBase<T> extends ReadableSingletonStateBase<T>
         implements WritableSingletonState<T> {
 
@@ -21,8 +26,8 @@ public abstract class WritableSingletonStateBase<T> extends ReadableSingletonSta
      */
     private static final Object NULL_VALUE = new Object();
 
-    /** Modified value buffered in this mutable state */
-    private Object value;
+    /** Sentinel key for the singleton entry in the request-scoped write cache. */
+    private static final Object SINGLETON_KEY = new Object();
 
     /** A list of listeners to be notified of changes to the state */
     private final List<SingletonChangeListener<T>> listeners = new ArrayList<>();
@@ -51,6 +56,7 @@ public abstract class WritableSingletonStateBase<T> extends ReadableSingletonSta
     }
 
     @Override
+    @Nullable
     public T get() {
         // If there is a modification, then we've already done a "put" or "remove"
         // and should return based on the modification
@@ -59,25 +65,29 @@ public abstract class WritableSingletonStateBase<T> extends ReadableSingletonSta
             // as they cause NullPointerExceptions in some various places in the code.
             final var currentValue = currentValue();
             return currentValue != null ? currentValue : super.get();
-        } else {
-            return super.get();
         }
+        return super.get();
     }
 
     @Override
-    public void put(T value) {
-        this.value = value == null ? NULL_VALUE : value;
+    public void put(@Nullable final T value) {
+        getWriteCacheState().put(SINGLETON_KEY, value == null ? NULL_VALUE : value);
     }
 
     @Override
     public boolean isModified() {
-        return value != null;
+        return getWriteCacheState().containsKey(SINGLETON_KEY);
     }
 
     /**
      * Flushes all changes into the underlying data store. This method should <strong>ONLY</strong>
      * be called by the code that created the {@link WritableSingletonStateBase} instance or owns
      * it. Don't cast and commit unless you own the instance!
+     *
+     * <p>Does not {@link #reset()} the request-scoped write cache. Hedera savepoint wrappers
+     * ({@code WrappedWritableSingletonState}) share this cache by {@code stateId}; clearing on
+     * commit would drop increments (e.g. entity IDs) needed by nested contract creates. Rollback
+     * is {@link #reset()} or {@link ContractCallContext#reset()}.
      */
     public void commit() {
         if (isModified()) {
@@ -89,12 +99,12 @@ public abstract class WritableSingletonStateBase<T> extends ReadableSingletonSta
                 removeFromDataSource();
             }
         }
-        reset();
     }
 
-    @SuppressWarnings("unchecked")
+    @Nullable
     private T currentValue() {
-        return value == NULL_VALUE ? null : (T) value;
+        final var cached = getWriteCacheState().get(SINGLETON_KEY);
+        return cached == NULL_VALUE ? null : (T) cached;
     }
 
     /**
@@ -104,7 +114,7 @@ public abstract class WritableSingletonStateBase<T> extends ReadableSingletonSta
      */
     @Override
     public void reset() {
-        this.value = null;
+        getWriteCacheState().clear();
         super.reset();
     }
 
@@ -119,4 +129,8 @@ public abstract class WritableSingletonStateBase<T> extends ReadableSingletonSta
      * Removes the value related to this singleton from the underlying data source.
      */
     protected abstract void removeFromDataSource();
+
+    private Map<Object, Object> getWriteCacheState() {
+        return ContractCallContext.get().getWriteCacheState(getStateId());
+    }
 }
