@@ -27,6 +27,15 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 @ExtendWith(OutputCaptureExtension.class)
 final class EntityIdTest {
 
+    @Test
+    void isEmpty() {
+        assertThat(EntityId.isEmpty(null)).isTrue();
+        assertThat(EntityId.isEmpty(EntityId.EMPTY)).isTrue();
+        assertThat(EntityId.isEmpty(EntityId.ZERO)).isTrue();
+        assertThat(EntityId.isEmpty(EntityId.of(0L))).isTrue();
+        assertThat(EntityId.isEmpty(EntityId.of(1L))).isFalse();
+    }
+
     @ParameterizedTest
     @CsvSource({
         "0, 0, 0, 0",
@@ -43,12 +52,14 @@ final class EntityIdTest {
 
     @Test
     void throwsExceptionEncoding() {
+        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "true");
         assertThatThrownBy(() -> EntityId.of(1L << SHARD_BITS, 0, 0)).isInstanceOf(InvalidEntityException.class);
         assertThatThrownBy(() -> EntityId.of(0, 1L << REALM_BITS, 0)).isInstanceOf(InvalidEntityException.class);
         assertThatThrownBy(() -> EntityId.of(0, 0, 1L << NUM_BITS)).isInstanceOf(InvalidEntityException.class);
         assertThatThrownBy(() -> EntityId.of(-1, 0, 0)).isInstanceOf(InvalidEntityException.class);
         assertThatThrownBy(() -> EntityId.of(0, -1, 0)).isInstanceOf(InvalidEntityException.class);
         assertThatThrownBy(() -> EntityId.of(0, 0, -1)).isInstanceOf(InvalidEntityException.class);
+        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "false");
     }
 
     @Test
@@ -114,6 +125,7 @@ final class EntityIdTest {
 
     @Test
     void ofAccountId(CapturedOutput output) {
+        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "true");
         final var accountId = AccountID.newBuilder()
                 .setShardNum(1)
                 .setRealmNum(2)
@@ -134,7 +146,6 @@ final class EntityIdTest {
         System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "false");
         assertThat(EntityId.of(accountIdBad)).isEqualTo(EntityId.EMPTY);
         assertThat(output.getAll()).contains(DomainUtils.RECOVERABLE_ERROR);
-        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "true");
     }
 
     @Test
@@ -150,6 +161,7 @@ final class EntityIdTest {
 
     @Test
     void ofTokenId(CapturedOutput output) {
+        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "true");
         final var tokenId = TokenID.newBuilder()
                 .setShardNum(1)
                 .setRealmNum(2)
@@ -170,7 +182,6 @@ final class EntityIdTest {
         System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "false");
         assertThat(EntityId.of(tokenIdBad)).isEqualTo(EntityId.EMPTY);
         assertThat(output.getAll()).contains(DomainUtils.RECOVERABLE_ERROR);
-        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "true");
     }
 
     @Test

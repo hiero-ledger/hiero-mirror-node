@@ -16,15 +16,15 @@ import org.springframework.data.util.Version;
 
 @Named
 @RequiredArgsConstructor
-public class SyntheticContractLogServiceImpl implements SyntheticContractLogService {
+final class SyntheticContractLogServiceImpl implements SyntheticContractLogService {
 
-    protected static final Version HAPI_SYNTHETIC_LOG_VERSION = new Version(0, 71, 0);
+    static final byte[] CONTRACT_LOG_MARKER = Bytes.of(1).toArray();
+    static final Version HAPI_SYNTHETIC_LOG_VERSION = new Version(0, 71, 0);
+    private static final byte[] EMPTY = Bytes.of(0).toArray();
 
     private final ParserContext parserContext;
     private final EntityListener entityListener;
     private final EntityProperties entityProperties;
-    private final byte[] empty = Bytes.of(0).toArray();
-    protected static final byte[] CONTRACT_LOG_MARKER = Bytes.of(1).toArray();
 
     @Override
     public void create(SyntheticContractLog log) {
@@ -32,12 +32,11 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
             return;
         }
 
-        var recordItem = log.getRecordItem();
-        var contractRelatedParentRecordItem = recordItem.getContractRelatedParent();
+        final var recordItem = log.getRecordItem();
+        final var contractRelatedParentRecordItem = recordItem.getContractRelatedParent();
 
         // We will either backfill any EVM-related fungible token transfers that don't have synthetic events produced by
-        // CN
-        // or create synthetic logs for HAPI-related transfer events
+        // CN or create synthetic logs for HAPI-related transfer events
         if (shouldSkipLogCreation(log)) {
             return;
         }
@@ -48,6 +47,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         EntityId contractId;
         EntityId rootContractId;
         byte[] transactionHash;
+
         if (contractRelatedParentRecordItem != null) {
             consensusTimestamp = contractRelatedParentRecordItem.getConsensusTimestamp();
             logIndex = contractRelatedParentRecordItem.getAndIncrementLogIndex();
@@ -55,14 +55,8 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
             transactionHash = contractRelatedParentRecordItem.getTransactionHash();
 
             final var parentTransactionRecord = contractRelatedParentRecordItem.getTransactionRecord();
-            if (parentTransactionRecord.hasContractCallResult()) {
-                contractId = EntityId.of(
-                        parentTransactionRecord.getContractCallResult().getContractID());
-            } else {
-                contractId = EntityId.of(
-                        parentTransactionRecord.getContractCreateResult().getContractID());
-            }
-
+            contractId = EntityId.tryOf(
+                    contractRelatedParentRecordItem.getContractResult().getContractID());
             rootContractId = EntityId.of(parentTransactionRecord.getReceipt().getContractID());
         } else {
             consensusTimestamp = recordItem.getConsensusTimestamp();
@@ -73,12 +67,11 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
             rootContractId = log.getEntityId();
         }
 
-        ContractLog contractLog = new ContractLog();
-
-        contractLog.setBloom(isContract(recordItem) ? CONTRACT_LOG_MARKER : empty);
+        final var contractLog = new ContractLog();
+        contractLog.setBloom(isContract(recordItem) ? CONTRACT_LOG_MARKER : EMPTY);
         contractLog.setConsensusTimestamp(consensusTimestamp);
         contractLog.setContractId(contractId);
-        contractLog.setData(log.getData() != null ? log.getData() : empty);
+        contractLog.setData(log.getData() != null ? log.getData() : EMPTY);
         contractLog.setIndex(logIndex);
         contractLog.setRootContractId(rootContractId);
         contractLog.setPayerAccountId(recordItem.getPayerAccountId());
@@ -92,7 +85,6 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
 
         // The current recordItem should always be set, so that we know which RecordItem/ContractResult bloom to update.
         // This field is set to be only used to calculate bloom aggregation for the RecordItem/ContractResult.
-
         if (contractRelatedParentRecordItem != null) {
             final var contractResult =
                     parserContext.get(ContractResult.class, contractRelatedParentRecordItem.getConsensusTimestamp());

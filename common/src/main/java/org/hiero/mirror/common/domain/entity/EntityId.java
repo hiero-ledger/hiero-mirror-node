@@ -72,7 +72,7 @@ public final class EntityId implements Comparable<EntityId> {
      */
     private static long encode(long shard, long realm, long num, boolean canThrow) {
         if (shard > SHARD_MASK || shard < 0 || realm > REALM_MASK || realm < 0 || num > NUM_MASK || num < 0) {
-            boolean throwError = Boolean.parseBoolean(System.getProperty(INVALID_ENTITY_EXCEPTION_PROPERTY, "true"));
+            boolean throwError = Boolean.parseBoolean(System.getProperty(INVALID_ENTITY_EXCEPTION_PROPERTY, "false"));
 
             if (canThrow && throwError) {
                 throw new InvalidEntityException("Invalid entity ID: " + shard + "." + realm + "." + num);
@@ -101,8 +101,16 @@ public final class EntityId implements Comparable<EntityId> {
         return of(contractID.getShardNum(), contractID.getRealmNum(), contractID.getContractNum());
     }
 
+    public static EntityId tryOf(ContractID contractID) {
+        return tryOf(contractID.getShardNum(), contractID.getRealmNum(), contractID.getContractNum());
+    }
+
     public static EntityId of(FileID fileID) {
         return of(fileID.getShardNum(), fileID.getRealmNum(), fileID.getFileNum());
+    }
+
+    public static EntityId tryOf(FileID fileID) {
+        return tryOf(fileID.getShardNum(), fileID.getRealmNum(), fileID.getFileNum());
     }
 
     public static EntityId of(ScheduleID scheduleID) {
