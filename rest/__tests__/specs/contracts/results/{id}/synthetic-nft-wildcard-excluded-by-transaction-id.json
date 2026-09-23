@@ -1,5 +1,5 @@
 {
-  "description": "Single-item contract result by transaction id (not hash) includes a non-wildcard synthetic NFT transfer but excludes a wildcard (-1) one, resolved via the payer account id side of the fallback",
+  "description": "Single-item contract result by transaction id (not hash) includes a non-wildcard synthetic NFT transfer log, and still returns the synthetic result envelope with an empty logs array for a wildcard (-1) one, resolved via the payer account id side of the fallback",
   "setup": {
     "contracts": [
       {
@@ -134,15 +134,42 @@
     },
     {
       "url": "/api/v1/contracts/results/0.0.5000-187654-000223400",
-      "responseStatus": 404,
+      "responseStatus": 206,
       "responseJson": {
-        "_status": {
-          "messages": [
-            {
-              "message": "Not found"
-            }
-          ]
-        }
+        "access_list": [],
+        "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
+        "amount": null,
+        "block_gas_used": 400000,
+        "block_hash": "0xfbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1c",
+        "block_number": 10,
+        "bloom": "0x",
+        "call_result": "0x",
+        "chain_id": "0x128",
+        "contract_id": "0.0.5001",
+        "created_contract_ids": [],
+        "error_message": null,
+        "failed_initcode": null,
+        "from": "0x0000000000000000000000000000000000001388",
+        "function_parameters": "0x",
+        "gas_consumed": null,
+        "gas_limit": 0,
+        "gas_price": null,
+        "gas_used": null,
+        "hash": "0x285602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "logs": [],
+        "max_fee_per_gas": null,
+        "max_priority_fee_per_gas": null,
+        "nonce": null,
+        "r": null,
+        "result": "SUCCESS",
+        "s": null,
+        "state_changes": [],
+        "status": "0x1",
+        "timestamp": "187654.000223456",
+        "to": "0x0000000000000000000000000000000000001389",
+        "transaction_index": 1,
+        "type": 0,
+        "v": null
       }
     }
   ]

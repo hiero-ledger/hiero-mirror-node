@@ -231,7 +231,7 @@ class ContractService extends BaseService {
     return [query, params];
   }
 
-  getSyntheticContractResultsQuery(whereConditions, whereParams, order, limit) {
+  getSyntheticContractResultsQuery(whereConditions, whereParams, order, limit, excludeWildcard = true) {
     const params = [...whereParams];
     const contractResultAlias = `${ContractResult.tableAlias}.`;
     const clAlias = `${ContractLog.tableAlias}.`;
@@ -272,7 +272,9 @@ class ContractService extends BaseService {
       });
 
     allConditions.push(`${clAlias}${ContractLog.SYNTHETIC} is true`);
-    allConditions.push(`(${this.syntheticNftWildcardTransferPredicate(params)})`);
+    if (excludeWildcard) {
+      allConditions.push(`(${this.syntheticNftWildcardTransferPredicate(params)})`);
+    }
 
     const whereClause = `where ${allConditions.join(' and ')}`;
     params.push(limit);
@@ -435,13 +437,18 @@ class ContractService extends BaseService {
       });
     }
 
-    // No real contract_result exists at this timestamp - fall back to a synthetic result built from contract_log
-    const [syntheticQuery, syntheticParams] = this.getSyntheticContractResultsQuery(conditions, params, 'asc', 1);
+    // Fall back to a synthetic result built from contract_log.
+    const [syntheticQuery, syntheticParams] = this.getSyntheticContractResultsQuery(
+      conditions,
+      params,
+      'asc',
+      1,
+      false
+    );
     const syntheticRows = await super.getRows(syntheticQuery, syntheticParams);
     return syntheticRows.map((row) => {
       return {
         ...new ContractResult(row),
-        hash: row.hash,
         evmAddress: row.evm_address,
       };
     });
@@ -463,9 +470,7 @@ class ContractService extends BaseService {
       return [];
     }
 
-    // No real contract_transaction_hash row exists (synthetic-only transaction) - resolve the hash to its
-    // consensus timestamp via the indexed transaction_hash lookup, then fall back to contract_log filtered by
-    // that timestamp, excluding wildcard NFT treasury-change transfers.
+    // Resolve hash -> timestamp via the indexed transaction_hash table, then query contract_log by timestamp.
     const transactionHashRows = await getTransactionHash(hash, {order: 'asc'});
     if (transactionHashRows.length === 0) {
       return [];
@@ -473,13 +478,11 @@ class ContractService extends BaseService {
     const {consensus_timestamp: consensusTimestamp} = transactionHashRows[0];
 
     const clAlias = `${ContractLog.tableAlias}.`;
-    const params = [consensusTimestamp, hash];
+    const params = [consensusTimestamp];
     const conditions = [
       `${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} = $1`,
-      `${clAlias}${ContractLog.TRANSACTION_HASH} = $2`,
       `${clAlias}${ContractLog.SYNTHETIC} is true`,
     ];
-    this.appendSyntheticNftTransferExclusion(params, conditions);
 
     const query = `
       select
@@ -512,9 +515,7 @@ class ContractService extends BaseService {
       return null;
     }
 
-    // No real contract_transaction row exists (synthetic-only transaction) - fall back to contract_log, matching
-    // either the contract entity or the payer account id depending on the caller's intent, excluding wildcard NFT
-    // treasury-change transfers.
+    // Fall back to contract_log, matched by contract entity or payer per caller intent.
     const clAlias = `${ContractLog.tableAlias}.`;
     const params = [timestamp, contractId];
     const matchCondition = matchByPayerAccount
@@ -525,22 +526,28 @@ class ContractService extends BaseService {
       `${clAlias}${ContractLog.SYNTHETIC} is true`,
       matchCondition,
     ];
-    this.appendSyntheticNftTransferExclusion(params, conditions);
 
     const query = `
-      select
-        ${clAlias}${ContractLog.PAYER_ACCOUNT_ID} as ${ContractTransaction.PAYER_ACCOUNT_ID},
-        coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) as ${
+      with matched as (
+        select
+          ${clAlias}${ContractLog.PAYER_ACCOUNT_ID} as ${ContractTransaction.PAYER_ACCOUNT_ID},
+          coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) as ${
       ContractTransaction.ENTITY_ID
     },
-        array[coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID})] as ${
-      ContractTransaction.CONTRACT_IDS
-    },
-        ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} as ${ContractTransaction.CONSENSUS_TIMESTAMP}
-      from ${ContractLog.tableName} ${ContractLog.tableAlias}
-      where ${conditions.join(' and ')}
-      order by ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP}, ${clAlias}${ContractLog.INDEX}
-      limit 1
+          ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} as ${ContractTransaction.CONSENSUS_TIMESTAMP}
+        from ${ContractLog.tableName} ${ContractLog.tableAlias}
+        where ${conditions.join(' and ')}
+        order by ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP}, ${clAlias}${ContractLog.INDEX}
+        limit 1
+      ), involved_contracts as (
+        select array_agg(distinct coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${
+      ContractLog.CONTRACT_ID
+    })) as ${ContractTransaction.CONTRACT_IDS}
+        from ${ContractLog.tableName} ${ContractLog.tableAlias}
+        where ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} = $1 and ${clAlias}${ContractLog.SYNTHETIC} is true
+      )
+      select matched.*, involved_contracts.${ContractTransaction.CONTRACT_IDS}
+      from matched, involved_contracts
     `;
     const syntheticDetails = await super.getSingleRow(query, params);
     return syntheticDetails === null ? null : new ContractTransaction(syntheticDetails);
