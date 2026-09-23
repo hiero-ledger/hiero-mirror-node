@@ -274,32 +274,6 @@ class EntityRecordItemListenerEthereumTest extends AbstractEntityRecordItemListe
     }
 
     @Test
-    void ethereumTransactionPreExecutionFailureNotIndexedByHash() {
-        // given - an ethereum transaction that failed before execution, so the record has no ContractFunctionResult
-        final var recordItem = recordItemBuilder
-                .ethereumTransaction(false)
-                .record(r -> r.clearContractCallResult()
-                        .getReceiptBuilder()
-                        .clearContractID()
-                        .setStatus(ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE))
-                .sidecarRecords(List::clear)
-                .build();
-
-        // when
-        parseRecordItemAndCommit(recordItem);
-
-        // then - a default contract result is persisted, but with no contract_transaction row it must not be indexed
-        // in contract_transaction_hash, where it would shadow a genuine execution sharing the same hash
-        softly.assertThat(contractResultRepository.findAll())
-                .hasSize(1)
-                .first()
-                .returns(0L, ContractResult::getContractId);
-        softly.assertThat(contractTransactionRepository.count()).isZero();
-        softly.assertThat(contractTransactionHashRepository.count()).isZero();
-        softly.assertThat(ethereumTransactionRepository.count()).isOne();
-    }
-
-    @Test
     void ethereumTransactionLegacyBadBytes() {
         var transactionBytes = RLPEncoder.list(Integers.toBytes(1), Integers.toBytes(2), Integers.toBytes(3));
         RecordItem recordItem = recordItemBuilder

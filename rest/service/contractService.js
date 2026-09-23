@@ -214,9 +214,14 @@ class ContractService extends BaseService {
   static ethereumTransactionsByHashQuery = `select * from ${ContractTransactionHash.tableName}
         where ${ContractTransactionHash.HASH} = $1
         order by (${ContractTransactionHash.TRANSACTION_RESULT} = ${successTransactionResult}) desc,
-                 (${ContractTransactionHash.ENTITY_ID} <> 0) desc,
-                 ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc
-        limit 1`;
+                 ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc`;
+
+  // Given candidate (consensus_timestamp, entity_id) pairs, returns the ones that actually executed, i.e. have a
+  // matching contract_transaction row. Kept as a separate lookup so it stays citus-routable (contract_transaction is
+  // distributed by entity_id, contract_transaction_hash by hash, so the two can't be correlated in a single query).
+  static executedContractTransactionsQuery = `select ${ContractTransaction.CONSENSUS_TIMESTAMP}, ${ContractTransaction.ENTITY_ID}
+        from ${ContractTransaction.tableName}
+        where ${ContractTransaction.CONSENSUS_TIMESTAMP} = any($1) and ${ContractTransaction.ENTITY_ID} = any($2)`;
 
   getContractResultsByIdAndFiltersQuery(whereConditions, whereParams, order, limit) {
     const params = whereParams;
@@ -443,7 +448,38 @@ class ContractService extends BaseService {
    */
   async getContractTransactionDetailsByHash(hash) {
     const rows = await super.getRows(ContractService.ethereumTransactionsByHashQuery, [hash]);
-    return rows.map((row) => new ContractTransactionHash(row));
+    if (rows.length === 0) {
+      return [];
+    }
+    const preferred = await this.pickPreferredContractTransactionHash(rows);
+    return [new ContractTransactionHash(preferred)];
+  }
+
+  /**
+   * Selects the row that best represents a transaction hash shared by multiple results. A successful result always
+   * wins (the query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result
+   * sharing the hash by checking which candidates have a matching contract_transaction row, falling back to the latest
+   * by consensus timestamp (the input order).
+   */
+  async pickPreferredContractTransactionHash(rows) {
+    if (rows.length === 1 || Number(rows[0][ContractTransactionHash.TRANSACTION_RESULT]) === successTransactionResult) {
+      return rows[0];
+    }
+
+    const timestamps = rows.map((row) => row[ContractTransactionHash.CONSENSUS_TIMESTAMP]);
+    const entityIds = rows.map((row) => row[ContractTransactionHash.ENTITY_ID]);
+    const executed = await super.getRows(ContractService.executedContractTransactionsQuery, [timestamps, entityIds]);
+    const executedKeys = new Set(
+      executed.map((row) => `${row[ContractTransaction.CONSENSUS_TIMESTAMP]}_${row[ContractTransaction.ENTITY_ID]}`)
+    );
+
+    return (
+      rows.find((row) =>
+        executedKeys.has(
+          `${row[ContractTransactionHash.CONSENSUS_TIMESTAMP]}_${row[ContractTransactionHash.ENTITY_ID]}`
+        )
+      ) ?? rows[0]
+    );
   }
 
   async getInvolvedContractsByTimestampAndContractId(timestamp, contractId) {

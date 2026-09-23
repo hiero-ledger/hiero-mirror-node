@@ -119,7 +119,6 @@ final class ContractResultServiceImpl implements ContractResultService {
                 .callResult(DomainUtils.EMPTY_BYTE_ARRAY)
                 .consensusTimestamp(transaction.getConsensusTimestamp())
                 .contractId(0)
-                .contractTransactionHashSkipped(true)
                 .functionParameters(functionParameters)
                 .gasLimit(ethereumTransaction.getGasLimit())
                 .gasUsed(0L)

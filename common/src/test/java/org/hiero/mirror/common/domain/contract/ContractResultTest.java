@@ -25,21 +25,6 @@ final class ContractResultTest {
     }
 
     @Test
-    void contractTransactionHashSkippedDefaultsToFalse() {
-        // The negated field keeps the natural boolean default consistent between the no-args constructor and the
-        // builder, so contract_transaction_hash indexing stays enabled unless explicitly skipped.
-        assertThat(new ContractResult().isContractTransactionHashSkipped()).isFalse();
-        assertThat(ContractResult.builder().build().isContractTransactionHashSkipped())
-                .isFalse();
-
-        assertThat(ContractResult.builder()
-                        .contractTransactionHashSkipped(true)
-                        .build()
-                        .isContractTransactionHashSkipped())
-                .isTrue();
-    }
-
-    @Test
     void setErrorMessage() {
         final var errorMessagePrefix = "error message";
         final var contractResult = new ContractResult();

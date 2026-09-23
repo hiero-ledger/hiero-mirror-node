@@ -3,10 +3,13 @@
 package org.hiero.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.repository.projections.ContractTransactionHashLookup;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
@@ -14,94 +17,63 @@ class ContractTransactionHashRepositoryTest extends Web3IntegrationTest {
     private final ContractTransactionHashRepository contractTransactionHashRepository;
 
     @Test
-    void findByHashSuccessful() {
-        var contractTransactionHash = domainBuilder.contractTransactionHash().persist();
-        assertThat(contractTransactionHashRepository.findByHash(contractTransactionHash.getHash()))
-                .contains(contractTransactionHash);
+    void findAllByHashReturnsMatch() {
+        var hash = domainBuilder.contractTransactionHash().persist();
+        assertThat(contractTransactionHashRepository.findAllByHash(hash.getHash()))
+                .extracting(
+                        ContractTransactionHashLookup::getConsensusTimestamp,
+                        ContractTransactionHashLookup::getEntityId,
+                        ContractTransactionHashLookup::getPayerAccountId,
+                        ContractTransactionHashLookup::getTransactionResult)
+                .containsExactly(tuple(
+                        hash.getConsensusTimestamp(),
+                        hash.getEntityId(),
+                        hash.getPayerAccountId(),
+                        hash.getTransactionResult()));
     }
 
     @Test
-    void findByHashPrefersSuccessfulOverEarlierFailedAttempt() {
+    void findAllByHashOrdersSuccessFirstThenLatest() {
         final var hash = domainBuilder.bytes(32);
         // An earlier due-diligence failure (e.g. INSUFFICIENT_PAYER_BALANCE) records first at T1.
-        domainBuilder
-                .contractTransactionHash()
-                .customize(c -> c.hash(hash)
-                        .consensusTimestamp(domainBuilder.timestamp())
-                        .transactionResult(ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE))
-                .persist();
+        final var earlierFailure = persist(hash, ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE);
         // The genuine execution succeeds later at T2 > T1, sharing the same keccak hash.
-        final var successful = domainBuilder
-                .contractTransactionHash()
-                .customize(c -> c.hash(hash)
-                        .consensusTimestamp(domainBuilder.timestamp())
-                        .transactionResult(ResponseCodeEnum.SUCCESS_VALUE))
-                .persist();
+        final var successful = persist(hash, ResponseCodeEnum.SUCCESS_VALUE);
+        // A later duplicate failure at T3 > T2.
+        final var laterFailure = persist(hash, ResponseCodeEnum.DUPLICATE_TRANSACTION_VALUE);
 
-        assertThat(contractTransactionHashRepository.findByHash(hash)).contains(successful);
+        // Success first, then the remaining rows latest-first by consensus timestamp.
+        assertThat(contractTransactionHashRepository.findAllByHash(hash))
+                .extracting(ContractTransactionHashLookup::getConsensusTimestamp)
+                .containsExactly(
+                        successful.getConsensusTimestamp(),
+                        laterFailure.getConsensusTimestamp(),
+                        earlierFailure.getConsensusTimestamp());
     }
 
     @Test
-    void findByHashPrefersSuccessfulOverLaterFailedAttempt() {
+    void findAllByHashOrdersLatestFirstWhenNoSuccessExists() {
         final var hash = domainBuilder.bytes(32);
-        // The genuine execution succeeds and consumes the nonce.
-        final var successful = domainBuilder
-                .contractTransactionHash()
-                .customize(c -> c.hash(hash)
-                        .consensusTimestamp(domainBuilder.timestamp())
-                        .transactionResult(ResponseCodeEnum.SUCCESS_VALUE))
-                .persist();
-        domainBuilder
-                .contractTransactionHash()
-                .customize(c -> c.hash(hash)
-                        .consensusTimestamp(domainBuilder.timestamp())
-                        .transactionResult(ResponseCodeEnum.TRANSACTION_EXPIRED_VALUE))
-                .persist();
+        final var earlier = persist(hash, ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE);
+        final var latest = persist(hash, ResponseCodeEnum.CONTRACT_REVERT_EXECUTED_VALUE);
 
-        assertThat(contractTransactionHashRepository.findByHash(hash)).contains(successful);
+        assertThat(contractTransactionHashRepository.findAllByHash(hash))
+                .extracting(ContractTransactionHashLookup::getConsensusTimestamp)
+                .containsExactly(latest.getConsensusTimestamp(), earlier.getConsensusTimestamp());
     }
 
     @Test
-    void findByHashPrefersRealExecutionOverLaterFailedStub() {
-        final var hash = domainBuilder.bytes(32);
-        final long contractId = domainBuilder.entityId().getId();
-        // Transaction reverted while executing against a contract at T1, so it resolves to a non-zero entity id.
-        final var executed = domainBuilder
-                .contractTransactionHash()
-                .customize(c -> c.hash(hash)
-                        .consensusTimestamp(domainBuilder.timestamp())
-                        .entityId(contractId)
-                        .transactionResult(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED_VALUE))
-                .persist();
-        // Fails pre-execution, so only a default/stub hash row with entity 0 is produced later at T2 > T1.
-        domainBuilder
-                .contractTransactionHash()
-                .customize(c -> c.hash(hash)
-                        .consensusTimestamp(domainBuilder.timestamp())
-                        .entityId(0L)
-                        .transactionResult(ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE))
-                .persist();
-
-        assertThat(contractTransactionHashRepository.findByHash(hash)).contains(executed);
+    void findAllByHashReturnsEmptyWhenAbsent() {
+        assertThat(contractTransactionHashRepository.findAllByHash(domainBuilder.bytes(32)))
+                .isEmpty();
     }
 
-    @Test
-    void findByHashReturnsLatestNonSuccessWhenNoSuccessExists() {
-        final var hash = domainBuilder.bytes(32);
-        // With no SUCCESS row the ordering falls back to consensus_timestamp desc and returns the latest row
-        domainBuilder
+    private ContractTransactionHash persist(final byte[] hash, final int transactionResult) {
+        return domainBuilder
                 .contractTransactionHash()
                 .customize(c -> c.hash(hash)
                         .consensusTimestamp(domainBuilder.timestamp())
-                        .transactionResult(ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE))
+                        .transactionResult(transactionResult))
                 .persist();
-        final var latest = domainBuilder
-                .contractTransactionHash()
-                .customize(c -> c.hash(hash)
-                        .consensusTimestamp(domainBuilder.timestamp())
-                        .transactionResult(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED_VALUE))
-                .persist();
-
-        assertThat(contractTransactionHashRepository.findByHash(hash)).contains(latest);
     }
 }
