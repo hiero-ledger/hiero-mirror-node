@@ -183,6 +183,21 @@ final class OpcodeServiceImplTest {
         assertResolvesToTimestamp(hashRepository, transactionRepository, hash, 2L);
     }
 
+    @Test
+    void resolvesHashWhenTopCandidateHasNullTransactionResult() {
+        final var hash = DOMAIN_BUILDER.bytes(32);
+        final var nullResult = new ContractTransactionHashLookupRecord(
+                2L, 0L, DOMAIN_BUILDER.entityId().getId(), null);
+        final var other = lookup(1L, 0L, ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE);
+
+        final var hashRepository = mock(ContractTransactionHashRepository.class);
+        when(hashRepository.findAllByHash(hash)).thenReturn(List.of(nullResult, other));
+        final var transactionRepository = mock(ContractTransactionRepository.class);
+
+        // Null is treated as non-successful, and with nothing executed the latest (T2) is returned.
+        assertResolvesToTimestamp(hashRepository, transactionRepository, hash, 2L);
+    }
+
     private ContractTransactionHashLookupRecord lookup(
             final long consensusTimestamp, final long entityId, final int transactionResult) {
         return new ContractTransactionHashLookupRecord(

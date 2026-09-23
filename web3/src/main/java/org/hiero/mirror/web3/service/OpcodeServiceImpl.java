@@ -16,6 +16,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
@@ -175,7 +176,7 @@ public class OpcodeServiceImpl implements OpcodeService {
         }
 
         final var first = candidates.getFirst();
-        if (candidates.size() == 1 || first.getTransactionResult() == ResponseCodeEnum.SUCCESS_VALUE) {
+        if (candidates.size() == 1 || Objects.equals(first.getTransactionResult(), ResponseCodeEnum.SUCCESS_VALUE)) {
             return first;
         }
 
