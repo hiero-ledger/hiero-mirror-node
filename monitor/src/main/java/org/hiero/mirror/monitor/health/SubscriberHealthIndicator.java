@@ -7,6 +7,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import java.net.ConnectException;
+import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -156,7 +157,9 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
                     // Connection issue can be caused by database being down, since the rest API service will become
                     // unavailable eventually
                     var rootCause = ExceptionUtils.getRootCause(e);
-                    if (rootCause instanceof ConnectException || rootCause instanceof TimeoutException) {
+                    if (rootCause instanceof ConnectException
+                            || rootCause instanceof TimeoutException
+                            || rootCause instanceof UnknownHostException) {
                         status = Status.DOWN;
                     }
 
