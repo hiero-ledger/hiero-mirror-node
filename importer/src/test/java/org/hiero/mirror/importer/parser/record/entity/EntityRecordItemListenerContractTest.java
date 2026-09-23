@@ -573,6 +573,53 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
                         .returns(false, Entity::getDeclineReward));
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    void contractCreateInvalidProxyAccountId() {
+        var invalidProxy =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        var recordItem = recordItemBuilder
+                .contractCreate()
+                .recordItem(r -> r.hapiVersion(RecordFile.HAPI_VERSION_0_27_0))
+                .transactionBody(b -> b.clearAutoRenewAccountId().setProxyAccountID(invalidProxy))
+                .build();
+        var entityId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getContractID());
+
+        parseRecordItemAndCommit(recordItem);
+
+        assertThat(transactionRepository.count()).isEqualTo(1L);
+        assertThat(entityRepository.findById(entityId.getId()))
+                .get()
+                .returns(null, Entity::getProxyAccountId)
+                .returns(CONTRACT, Entity::getType);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    void contractUpdateInvalidProxyAccountId() {
+        var setupResult = setupContract(CONTRACT_ID, ContractIdType.PLAIN, true, true, c -> c.obtainerId(null));
+        var invalidProxy =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        var transaction =
+                contractUpdateAllTransaction(setupResult.protoContractId, true, b -> b.setProxyAccountID(invalidProxy));
+        var transactionBody = getTransactionBody(transaction);
+        var txnRecord = getContractTransactionRecord(transactionBody, ContractTransactionType.UPDATE);
+
+        parseRecordItemAndCommit(RecordItem.builder()
+                .hapiVersion(RecordFile.HAPI_VERSION_0_27_0)
+                .transactionRecord(txnRecord)
+                .transaction(transaction)
+                .build());
+
+        assertThat(transactionRepository.count()).isEqualTo(1L);
+        assertThat(entityRepository.findById(setupResult.entity.getId()))
+                .get()
+                .returns("contract update memo", Entity::getMemo)
+                .returns(false, Entity::getDeleted)
+                .returns(setupResult.entity.getProxyAccountId(), Entity::getProxyAccountId);
+    }
+
     @Test
     void contractUpdateAllWithMemoToExisting() {
         // first create the contract

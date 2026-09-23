@@ -17,7 +17,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "26.2.0")
-    set("blockNodeVersion", "0.41.0")
+    set("blockNodeVersion", "0.41.1")
     set("consensusNodeVersion", "0.78.0-rc.6")
     set("hederaCryptographyVersion", "3.15.0")
     set("jackson-bom.version", "3.2.2") // Temporary until next Spring Boot
@@ -42,7 +42,7 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.1")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-16")
+        api("com.github.luben:zstd-jni:1.5.7-17")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
@@ -72,10 +72,10 @@ dependencies {
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
-        api("org.bouncycastle:bcpkix-jdk18on:1.85") // Temporary until next hedera-app
+        api("org.bouncycastle:bcpkix-jdk18on:1.86") // Temporary until next hedera-app
         api("org.bouncycastle:bcprov-jdk18on:1.86")
-        api("org.gaul:s3proxy:4.1.0")
-        api("org.graalvm.nativeimage:svm:25.0.4.1")
+        api("org.gaul:s3proxy:4.1.1")
+        api("org.graalvm.nativeimage:svm:25.0.4.1.1")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu.internal:besu-crypto-algorithms:$besuVersion")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
@@ -84,7 +84,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.54.15")
+        api("software.amazon.awssdk:bom:2.54.20")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

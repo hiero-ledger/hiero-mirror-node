@@ -99,9 +99,7 @@ class ContractUpdateTransactionHandler extends AbstractEntityCrudTransactionHand
         }
 
         if (transactionBody.hasProxyAccountID()) {
-            var proxyAccountId = EntityId.of(transactionBody.getProxyAccountID());
-            entity.setProxyAccountId(proxyAccountId);
-            recordItem.addEntityId(proxyAccountId);
+            updateProxyAccountId(entity, recordItem, transactionBody.getProxyAccountID());
         }
 
         updateStakingInfo(recordItem, entity);

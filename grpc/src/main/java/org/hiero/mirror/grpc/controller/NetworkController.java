@@ -7,6 +7,7 @@ import com.hedera.mirror.api.proto.AddressBookQuery;
 import com.hedera.mirror.api.proto.NetworkServiceGrpc;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
+import io.grpc.Status;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import java.net.InetAddress;
@@ -18,6 +19,7 @@ import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.service.NetworkService;
+import org.hiero.mirror.grpc.util.GrpcFlowControlSubscriber;
 import org.hiero.mirror.grpc.util.ProtoUtil;
 import org.springframework.grpc.server.service.GrpcService;
 import reactor.core.publisher.Mono;
@@ -31,15 +33,17 @@ final class NetworkController extends NetworkServiceGrpc.NetworkServiceImplBase 
 
     @Override
     public void getNodes(final AddressBookQuery request, final StreamObserver<NodeAddress> responseObserver) {
-        final var disposable = Mono.fromCallable(() -> toFilter(request))
+        if (!(responseObserver instanceof ServerCallStreamObserver<NodeAddress> serverCallStreamObserver)) {
+            log.warn("Expected a ServerCallStreamObserver but got {}", responseObserver.getClass());
+            responseObserver.onError(Status.INTERNAL.asRuntimeException());
+            return;
+        }
+
+        Mono.fromCallable(() -> toFilter(request))
                 .flatMapMany(networkService::getNodes)
                 .map(this::toNodeAddress)
                 .onErrorMap(ProtoUtil::toStatusRuntimeException)
-                .subscribe(responseObserver::onNext, responseObserver::onError, responseObserver::onCompleted);
-
-        if (responseObserver instanceof ServerCallStreamObserver serverCallStreamObserver) {
-            serverCallStreamObserver.setOnCancelHandler(disposable::dispose);
-        }
+                .subscribe(new GrpcFlowControlSubscriber<>(serverCallStreamObserver));
     }
 
     private AddressBookFilter toFilter(final AddressBookQuery query) {

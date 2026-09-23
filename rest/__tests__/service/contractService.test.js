@@ -217,47 +217,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
           cl.transaction_hash, cl.transaction_index, cl.payer_account_id
         from contract_log cl
-        where cl.synthetic is true
-        order by cl.consensus_timestamp desc, cl.index desc
-        limit $1
-      ), contract_evm_address as (
-        select e.id, e.evm_address
-        from synth_raw
-        join entity e on synth_raw.contract_id = e.id
-        group by synth_raw.contract_id, e.id
-      )
-      select
-        null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
-        synth_raw.consensus_timestamp, synth_raw.contract_id,
-        null::bigint[] as created_contract_ids, null::text as error_message,
-        null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
-        null::bytea as function_result, null::bigint as gas_consumed, 0::bigint as gas_limit,
-        null::bigint as gas_used, synth_raw.payer_account_id, synth_raw.payer_account_id as sender_id,
-        synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
-        22::smallint as transaction_result,
-        coalesce((select evm_address from contract_evm_address where id = synth_raw.contract_id), '') as evm_address
-      from synth_raw
-      order by synth_raw.consensus_timestamp desc
-    `;
-    assertSqlQueryEqual(query, expected);
-    expect(params).toEqual([10]);
-  });
-
-  test('With timestamp conditions', () => {
-    const [query, params] = ContractService.getSyntheticContractResultsQuery(
-      ['cr.transaction_nonce = 0', 'cr.consensus_timestamp >= $1', 'cr.consensus_timestamp <= $2'],
-      [1000, 2000],
-      'desc',
-      10
-    );
-    const expected = `
-      with synth_raw as (
-        select distinct on (cl.consensus_timestamp)
-          cl.consensus_timestamp,
-          coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
-          cl.transaction_hash, cl.transaction_index, cl.payer_account_id
-        from contract_log cl
-        where cl.consensus_timestamp >= $1 and cl.consensus_timestamp <= $2 and cl.synthetic is true
+        where cl.synthetic is true and (cl.topic0 is distinct from $1 or cl.topic3 is distinct from $2)
         order by cl.consensus_timestamp desc, cl.index desc
         limit $3
       ), contract_evm_address as (
@@ -280,7 +240,48 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
       order by synth_raw.consensus_timestamp desc
     `;
     assertSqlQueryEqual(query, expected);
-    expect(params).toEqual([1000, 2000, 10]);
+    expect(params).toEqual([TRANSFER_EVENT_TOPIC0, SYNTHETIC_NFT_SERIAL_TOPIC3, 10]);
+  });
+
+  test('With timestamp conditions', () => {
+    const [query, params] = ContractService.getSyntheticContractResultsQuery(
+      ['cr.transaction_nonce = 0', 'cr.consensus_timestamp >= $1', 'cr.consensus_timestamp <= $2'],
+      [1000, 2000],
+      'desc',
+      10
+    );
+    const expected = `
+      with synth_raw as (
+        select distinct on (cl.consensus_timestamp)
+          cl.consensus_timestamp,
+          coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
+          cl.transaction_hash, cl.transaction_index, cl.payer_account_id
+        from contract_log cl
+        where cl.consensus_timestamp >= $1 and cl.consensus_timestamp <= $2 and cl.synthetic is true
+          and (cl.topic0 is distinct from $3 or cl.topic3 is distinct from $4)
+        order by cl.consensus_timestamp desc, cl.index desc
+        limit $5
+      ), contract_evm_address as (
+        select e.id, e.evm_address
+        from synth_raw
+        join entity e on synth_raw.contract_id = e.id
+        group by synth_raw.contract_id, e.id
+      )
+      select
+        null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
+        synth_raw.consensus_timestamp, synth_raw.contract_id,
+        null::bigint[] as created_contract_ids, null::text as error_message,
+        null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
+        null::bytea as function_result, null::bigint as gas_consumed, 0::bigint as gas_limit,
+        null::bigint as gas_used, synth_raw.payer_account_id, synth_raw.payer_account_id as sender_id,
+        synth_raw.transaction_hash, synth_raw.transaction_index, 0::integer as transaction_nonce,
+        22::smallint as transaction_result,
+        coalesce((select evm_address from contract_evm_address where id = synth_raw.contract_id), '') as evm_address
+      from synth_raw
+      order by synth_raw.consensus_timestamp desc
+    `;
+    assertSqlQueryEqual(query, expected);
+    expect(params).toEqual([1000, 2000, TRANSFER_EVENT_TOPIC0, SYNTHETIC_NFT_SERIAL_TOPIC3, 10]);
   });
 
   test('Transaction index condition is mapped to cl.transaction_index', () => {
@@ -292,7 +293,19 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
     );
     expect(query).toContain('cl.transaction_index = $1');
     expect(query).not.toContain('cr.transaction_index');
-    expect(params).toEqual([3, 10]);
+    expect(params).toEqual([3, TRANSFER_EVENT_TOPIC0, SYNTHETIC_NFT_SERIAL_TOPIC3, 10]);
+  });
+
+  test('Contract id condition is mapped to coalesce(cl.root_contract_id, cl.contract_id)', () => {
+    const [query, params] = ContractService.getSyntheticContractResultsQuery(
+      ['cr.contract_id = $1', 'cr.transaction_nonce = 0'],
+      [5001],
+      'desc',
+      10
+    );
+    expect(query).toContain('coalesce(cl.root_contract_id, cl.contract_id) = $1');
+    expect(query).not.toContain('cr.contract_id');
+    expect(params).toEqual([5001, TRANSFER_EVENT_TOPIC0, SYNTHETIC_NFT_SERIAL_TOPIC3, 10]);
   });
 });
 
@@ -553,7 +566,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
              evm_address
       from contract_log cl
       left join entity e on id = contract_id
-      where cl.contract_id = $1 and (cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
+      where cl.contract_id = $1 and (cl.synthetic is not true or cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
       order by cl.consensus_timestamp desc, cl.index desc
       limit $4`
     );
@@ -593,7 +606,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
              cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,evm_address
       from contract_log cl
       left join entity e on id = contract_id
-      where cl.contract_id = $1 and cl.topic0 in ($2) and cl.topic1 in ($3) and cl.topic2 in ($4) and cl.topic3 in ($5) and (cl.topic0 is distinct from $6 or cl.topic3 is distinct from $7)
+      where cl.contract_id = $1 and cl.topic0 in ($2) and cl.topic1 in ($3) and cl.topic2 in ($4) and cl.topic3 in ($5) and (cl.synthetic is not true or cl.topic0 is distinct from $6 or cl.topic3 is distinct from $7)
       order by cl.consensus_timestamp desc, cl.index desc
       limit $8`
     );
@@ -625,7 +638,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
           cl.topic1,cl.topic2,cl.topic3,cl.transaction_hash,cl.transaction_index,evm_address
         from contract_log cl
         left join entity e on id = contract_id
-        where cl.contract_id = $1 and cl.topic0 in ($2) and (cl.topic0 is distinct from $3 or cl.topic3 is distinct from $4) and cl.index >= $6 and cl.consensus_timestamp = $7
+        where cl.contract_id = $1 and cl.topic0 in ($2) and (cl.synthetic is not true or cl.topic0 is distinct from $3 or cl.topic3 is distinct from $4) and cl.index >= $6 and cl.consensus_timestamp = $7
         order by cl.consensus_timestamp desc, cl.index desc
         limit $5
       ) union (
@@ -634,7 +647,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
           cl.topic1,cl.topic2,cl.topic3,cl.transaction_hash,cl.transaction_index,evm_address
         from contract_log cl
         left join entity e on id = contract_id
-        where cl.contract_id = $1 and cl.topic0 in ($2) and (cl.topic0 is distinct from $3 or cl.topic3 is distinct from $4) and cl.consensus_timestamp > $8
+        where cl.contract_id = $1 and cl.topic0 in ($2) and (cl.synthetic is not true or cl.topic0 is distinct from $3 or cl.topic3 is distinct from $4) and cl.consensus_timestamp > $8
         order by cl.consensus_timestamp desc, cl.index desc
         limit $5
       )
@@ -690,7 +703,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
           left join entity e on id = contract_id
         where  cl.contract_id = $1
           and cl.topic0 in ($2)
-          and (cl.topic0 is distinct from $3 or cl.topic3 is distinct from $4)
+          and (cl.synthetic is not true or cl.topic0 is distinct from $3 or cl.topic3 is distinct from $4)
           and cl.index >= $6
           and cl.consensus_timestamp = $7
         order by
@@ -719,7 +732,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
         where
           cl.contract_id = $1
           and cl.topic0 in ($2)
-          and (cl.topic0 is distinct from $3 or cl.topic3 is distinct from $4)
+          and (cl.synthetic is not true or cl.topic0 is distinct from $3 or cl.topic3 is distinct from $4)
           and cl.consensus_timestamp > $8
           and cl.consensus_timestamp < $9
         order by
@@ -748,7 +761,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
         where
           cl.contract_id = $1
           and cl.topic0 in ($2)
-          and (cl.topic0 is distinct from $3 or cl.topic3 is distinct from $4)
+          and (cl.synthetic is not true or cl.topic0 is distinct from $3 or cl.topic3 is distinct from $4)
           and cl.index <= $10
           and cl.consensus_timestamp = $11
         order by cl.consensus_timestamp desc, cl.index desc
@@ -1005,8 +1018,9 @@ describe('ContractService.getContractLogsByTimestamps tests', () => {
         contract_id: entityId4.num,
         index: 0,
         root_contract_id: entityId4.num,
+        synthetic: true,
         topic0: TRANSFER_EVENT_TOPIC0,
-        topic3: SYNTHETIC_NFT_SERIAL_TOPIC3, // Transfer + sentinel serial (should be excluded)
+        topic3: SYNTHETIC_NFT_SERIAL_TOPIC3, // Synthetic Transfer + sentinel serial (should be excluded)
       },
       {
         consensus_timestamp: 100,
@@ -1039,11 +1053,20 @@ describe('ContractService.getContractLogsByTimestamps tests', () => {
         topic0: null,
         topic3: SYNTHETIC_NFT_SERIAL_TOPIC3, // Null topic0 + sentinel (should be included)
       },
+      {
+        consensus_timestamp: 100,
+        contract_id: entityId5.num,
+        index: 5,
+        root_contract_id: entityId4.num,
+        synthetic: false,
+        topic0: TRANSFER_EVENT_TOPIC0,
+        topic3: SYNTHETIC_NFT_SERIAL_TOPIC3, // Genuine EVM Transfer + max-uint64 tokenId (should be included)
+      },
     ]);
 
     const results = await ContractService.getContractLogsByTimestamps([100]);
-    expect(results).toHaveLength(4);
-    expect(results.map((log) => log.index)).toEqual([1, 2, 3, 4]);
+    expect(results).toHaveLength(5);
+    expect(results.map((log) => log.index)).toEqual([1, 2, 3, 4, 5]);
     expect(results.find((log) => log.index === 0)).toBeUndefined();
   });
 });
@@ -1312,8 +1335,9 @@ describe('ContractService.getContractLogs tests', () => {
         consensus_timestamp: 11,
         contract_id: entityId2.num,
         index: 0,
+        synthetic: true,
         topic0: TRANSFER_EVENT_TOPIC0,
-        topic3: SYNTHETIC_NFT_SERIAL_TOPIC3, // Transfer + sentinel serial (should be excluded)
+        topic3: SYNTHETIC_NFT_SERIAL_TOPIC3, // Synthetic Transfer + sentinel serial (should be excluded)
       },
       {
         consensus_timestamp: 12,
@@ -1342,12 +1366,21 @@ describe('ContractService.getContractLogs tests', () => {
         topic0: null,
         topic3: SYNTHETIC_NFT_SERIAL_TOPIC3, // Null topic0 + sentinel (should be included)
       },
+      {
+        consensus_timestamp: 16,
+        contract_id: entityId3.num,
+        index: 0,
+        synthetic: false,
+        topic0: TRANSFER_EVENT_TOPIC0,
+        topic3: SYNTHETIC_NFT_SERIAL_TOPIC3, // Genuine EVM Transfer + max-uint64 tokenId (should be included)
+      },
     ]);
 
     const response = await ContractService.getContractLogs({...defaultQuery, params: []});
 
-    expect(response).toHaveLength(5);
+    expect(response).toHaveLength(6);
     expect(response).toMatchObject([
+      {consensusTimestamp: 16, contractId: entityId3.getEncodedId()},
       {consensusTimestamp: 15, contractId: entityId3.getEncodedId()},
       {consensusTimestamp: 14, contractId: entityId2.getEncodedId()},
       {consensusTimestamp: 13, contractId: entityId3.getEncodedId()},
