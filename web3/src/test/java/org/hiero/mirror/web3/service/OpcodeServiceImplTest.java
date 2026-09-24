@@ -121,7 +121,7 @@ final class OpcodeServiceImplTest {
         final var hashRepository = mock(ContractTransactionHashRepository.class);
         when(hashRepository.findAllByHash(hash)).thenReturn(List.of(failure, executed));
         final var contractResultRepository = mock(ContractResultRepository.class);
-        when(contractResultRepository.findExecutedTimestamps(any())).thenReturn(List.of(1L));
+        when(contractResultRepository.findLatestExecutedTimestamp(any(), any())).thenReturn(Optional.of(1L));
 
         // The genuine execution at T1 is preferred over the later failure at T2.
         assertResolvesToTimestamp(hashRepository, contractResultRepository, hash, 1L);
@@ -139,7 +139,7 @@ final class OpcodeServiceImplTest {
         final var hashRepository = mock(ContractTransactionHashRepository.class);
         when(hashRepository.findAllByHash(hash)).thenReturn(List.of(failure, failedCreate));
         final var contractResultRepository = mock(ContractResultRepository.class);
-        when(contractResultRepository.findExecutedTimestamps(any())).thenReturn(List.of(1L));
+        when(contractResultRepository.findLatestExecutedTimestamp(any(), any())).thenReturn(Optional.of(1L));
 
         assertResolvesToTimestamp(hashRepository, contractResultRepository, hash, 1L);
     }
@@ -157,7 +157,7 @@ final class OpcodeServiceImplTest {
         final var contractResultRepository = mock(ContractResultRepository.class);
 
         assertResolvesToTimestamp(hashRepository, contractResultRepository, hash, 1L);
-        verify(contractResultRepository, never()).findExecutedTimestamps(any());
+        verify(contractResultRepository, never()).findLatestExecutedTimestamp(any(), any());
     }
 
     @Test
@@ -174,7 +174,8 @@ final class OpcodeServiceImplTest {
         when(hashRepository.findAllByHash(hash)).thenReturn(List.of(duplicate, insufficientGas));
         final var contractResultRepository = mock(ContractResultRepository.class);
 
-        // findExecutedTimestamps returns empty (Mockito default), so nothing executed and the latest (T2) is chosen.
+        // findLatestExecutedTimestamp returns empty (Mockito default), so nothing executed and the latest (T2) is
+        // chosen.
         assertResolvesToTimestamp(hashRepository, contractResultRepository, hash, 2L);
     }
 

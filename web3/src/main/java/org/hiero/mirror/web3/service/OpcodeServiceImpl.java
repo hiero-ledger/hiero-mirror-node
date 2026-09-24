@@ -16,7 +16,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -179,13 +178,19 @@ public class OpcodeServiceImpl implements OpcodeService {
         }
 
         final var timestamps = new ArrayList<Long>(candidates.size());
+        final var contractIds = new ArrayList<Long>(candidates.size());
         for (final var candidate : candidates) {
             timestamps.add(candidate.getConsensusTimestamp());
+            contractIds.add(candidate.getEntityId());
         }
-        final var executed = new HashSet<>(contractResultRepository.findExecutedTimestamps(timestamps));
+        final var executedTimestamp = contractResultRepository.findLatestExecutedTimestamp(timestamps, contractIds);
+        if (executedTimestamp.isEmpty()) {
+            return first;
+        }
 
+        final long winner = executedTimestamp.get();
         for (final var candidate : candidates) {
-            if (executed.contains(candidate.getConsensusTimestamp())) {
+            if (candidate.getConsensusTimestamp() == winner) {
                 return candidate;
             }
         }
