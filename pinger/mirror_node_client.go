@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -12,6 +13,11 @@ import (
 	"time"
 
 	hiero "github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
+)
+
+const (
+	maxMirrorNodesResponseBytes int64 = 1 << 20
+	maxMirrorNetworkEntries           = 1024
 )
 
 type nodesEnvelope struct {
@@ -85,6 +91,7 @@ func fetchMirrorNodeNetwork(
 	if err != nil {
 		return nil, true, fmt.Errorf("GET %s failed: %w", url, err)
 	}
+	resp.Body = http.MaxBytesReader(nil, resp.Body, maxMirrorNodesResponseBytes)
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -94,6 +101,9 @@ func fetchMirrorNodeNetwork(
 
 	var payload nodesEnvelope
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+			return nil, false, fmt.Errorf("GET %s: response exceeds %d bytes", url, maxMirrorNodesResponseBytes)
+		}
 		return nil, false, fmt.Errorf("decode mirror nodes: %w", err)
 	}
 
@@ -117,6 +127,10 @@ func fetchMirrorNodeNetwork(
 			}
 			if host == "" || ep.Port == 0 {
 				continue
+			}
+
+			if len(network) >= maxMirrorNetworkEntries {
+				return nil, false, fmt.Errorf("GET %s: more than %d usable service_endpoints", url, maxMirrorNetworkEntries)
 			}
 
 			addr := net.JoinHostPort(host, fmt.Sprintf("%d", ep.Port))
