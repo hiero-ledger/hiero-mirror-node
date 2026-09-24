@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import com.diffplug.gradle.spotless.SpotlessTask
 import com.github.gradle.node.npm.task.NpmSetupTask
 import java.nio.file.Paths
 import task.Release
@@ -18,7 +19,7 @@ plugins {
 extra.apply {
     set("besuVersion", "26.2.0")
     set("blockNodeVersion", "0.41.1")
-    set("consensusNodeVersion", "0.78.0-rc.6")
+    set("consensusNodeVersion", "0.78.0-rc.9")
     set("hederaCryptographyVersion", "3.15.0")
     set("jackson-bom.version", "3.2.2") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.2") // Temporary until next Spring Boot
@@ -266,6 +267,4 @@ tasks.register<Release>("release") {
     directory = layout.settingsDirectory
 }
 
-tasks.spotlessApply { dependsOn(tasks.nodeSetup) }
-
-tasks.spotlessCheck { dependsOn(tasks.nodeSetup) }
+tasks.withType<SpotlessTask>().configureEach { dependsOn(tasks.nodeSetup) }
