@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import com.diffplug.gradle.spotless.SpotlessTask
 import com.github.gradle.node.npm.task.NpmSetupTask
 import java.nio.file.Paths
 import task.Release
@@ -16,9 +17,10 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("besuVersion", "25.2.2")
+    set("besuVersion", "26.2.0")
     set("blockNodeVersion", "0.41.1")
-    set("consensusNodeVersion", "0.77.1")
+    set("consensusNodeVersion", "0.78.0-rc.9")
+    set("hederaCryptographyVersion", "3.15.0")
     set("jackson-bom.version", "3.2.2") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.2") // Temporary until next Spring Boot
     set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
@@ -35,6 +37,7 @@ dependencies {
         val besuVersion = rootProject.extra["besuVersion"] as String
         val blockNodeVersion = rootProject.extra["blockNodeVersion"] as String
         val consensusNodeVersion = rootProject.extra["consensusNodeVersion"] as String
+        val hederaCryptographyVersion = rootProject.extra["hederaCryptographyVersion"] as String
         val mapStructVersion = rootProject.extra["mapStructVersion"] as String
         val tuweniVersion = rootProject.extra["tuweniVersion"] as String
 
@@ -48,7 +51,8 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.cryptography:hedera-cryptography-wraps:3.15.0")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:$hederaCryptographyVersion")
+        api("com.hedera.cryptography:libsecp256k1:$hederaCryptographyVersion")
         // Needs to use variable for compare workflow
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
@@ -75,7 +79,6 @@ dependencies {
         api("org.graalvm.nativeimage:svm:25.0.4.1.1")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu.internal:besu-crypto-algorithms:$besuVersion")
-        api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
         api("org.hyperledger.besu:evm:$besuVersion")
         api("org.mapstruct:mapstruct:$mapStructVersion")
@@ -264,6 +267,4 @@ tasks.register<Release>("release") {
     directory = layout.settingsDirectory
 }
 
-tasks.spotlessApply { dependsOn(tasks.nodeSetup) }
-
-tasks.spotlessCheck { dependsOn(tasks.nodeSetup) }
+tasks.withType<SpotlessTask>().configureEach { dependsOn(tasks.nodeSetup) }

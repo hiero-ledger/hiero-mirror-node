@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.config;
 
-import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_FIELDS;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.METHODS_ONLY;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.NONE;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerAnnotatedPackage;
@@ -18,10 +17,8 @@ import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.hyperledger.besu.evm.MainnetEVMs;
-import org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
-import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.context.annotation.Configuration;
@@ -56,14 +53,6 @@ final class RuntimeHintsConfiguration {
                     "com.esaulpaugh.headlong.abi.Sextuple[]",
                     "com.esaulpaugh.headlong.abi.Triple[]");
 
-            hints.jni().registerType(LibSecp256k1.class, MemberCategory.INVOKE_PUBLIC_METHODS);
-            registerReflectionTypes(
-                    hints,
-                    CONSTRUCTORS_AND_FIELDS,
-                    LibSecp256k1.secp256k1_ecdsa_recoverable_signature.class,
-                    LibSecp256k1.secp256k1_ecdsa_signature.class,
-                    LibSecp256k1.secp256k1_pubkey.class);
-
             registerReflectionTypes(
                     hints,
                     ContractCallContext.class.getName(),
@@ -76,7 +65,7 @@ final class RuntimeHintsConfiguration {
             registerResourcePatterns(
                     hints,
                     "com/hedera/nativelib/hints/**",
-                    "com/hedera/nativelib/wraps/**",
+                    "com/hedera/nativelib/libsecp256k1/**",
                     "com/hedera/nativelib/wraps/**",
                     "darwin-aarch64/**", // besu
                     "darwin-x86-64/**", // besu
