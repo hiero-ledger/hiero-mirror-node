@@ -65,7 +65,6 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
-import org.hiero.mirror.web3.repository.ContractTransactionRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
@@ -136,9 +135,6 @@ class OpcodesControllerTest {
 
     @MockitoBean
     private ContractTransactionHashRepository contractTransactionHashRepository;
-
-    @MockitoBean
-    private ContractTransactionRepository contractTransactionRepository;
 
     @MockitoBean
     private ContractResultRepository contractResultRepository;
@@ -807,7 +803,6 @@ class OpcodesControllerTest {
                 final RecordFileService recordFileService,
                 final ContractDebugService contractDebugService,
                 final ContractTransactionHashRepository contractTransactionHashRepository,
-                final ContractTransactionRepository contractTransactionRepository,
                 final EthereumTransactionRepository ethereumTransactionRepository,
                 final TransactionRepository transactionRepository,
                 final ContractResultRepository contractResultRepository,
@@ -818,7 +813,6 @@ class OpcodesControllerTest {
                     recordFileService,
                     contractDebugService,
                     contractTransactionHashRepository,
-                    contractTransactionRepository,
                     ethereumTransactionRepository,
                     transactionRepository,
                     contractResultRepository,

@@ -11,7 +11,8 @@ import static org.hiero.mirror.web3.service.OpcodeServiceImpl.STORAGE_METRIC;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -23,7 +24,6 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
-import org.hiero.mirror.common.domain.contract.ContractTransaction;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
@@ -33,7 +33,6 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.TraceMemoryBud
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
-import org.hiero.mirror.web3.repository.ContractTransactionRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.repository.projections.ContractTransactionHashLookup;
@@ -63,7 +62,6 @@ final class OpcodeServiceImplTest {
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(anyLong(), any()))
                 .thenReturn(Optional.empty());
         final var contractTransactionHashRepository = mock(ContractTransactionHashRepository.class);
-        final var contractTransactionRepository = mock(ContractTransactionRepository.class);
         final var commonEntityAccessor = mock(CommonEntityAccessor.class);
 
         final var meterRegistry = new SimpleMeterRegistry();
@@ -83,7 +81,6 @@ final class OpcodeServiceImplTest {
                 recordFileService,
                 contractDebugService,
                 contractTransactionHashRepository,
-                contractTransactionRepository,
                 ethereumTransactionRepository,
                 transactionRepository,
                 contractResultRepository,
@@ -113,45 +110,43 @@ final class OpcodeServiceImplTest {
     }
 
     @Test
-    void resolvesHashToGenuineExecutionOverLaterStub() {
-        // Given two results sharing a hash: a genuine execution at T1 (has a contract_transaction row) and a later
-        // pre-execution stub at T2 (entity 0, no contract_transaction row). The repository returns them latest-first.
+    void resolvesHashToGenuineExecutionOverLaterFailure() {
+        // A genuine execution at T1 (non-empty function_result) and a later pre-execution failure result at T2 (empty
+        // function_result) share a hash. The repository returns them latest-first.
         final var hash = DOMAIN_BUILDER.bytes(32);
-        final long contractId = DOMAIN_BUILDER.entityId().getId();
-        final var executed = lookup(1L, contractId, ResponseCodeEnum.CONTRACT_REVERT_EXECUTED_VALUE);
-        final var stub = lookup(2L, 0L, ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE);
+        final var executed =
+                lookup(1L, DOMAIN_BUILDER.entityId().getId(), ResponseCodeEnum.CONTRACT_REVERT_EXECUTED_VALUE);
+        final var failure = lookup(2L, 0L, ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE);
 
         final var hashRepository = mock(ContractTransactionHashRepository.class);
-        when(hashRepository.findAllByHash(hash)).thenReturn(List.of(stub, executed));
-        final var transactionRepository = mock(ContractTransactionRepository.class);
-        when(transactionRepository.existsById(new ContractTransaction.Id(1L, contractId)))
-                .thenReturn(true);
+        when(hashRepository.findAllByHash(hash)).thenReturn(List.of(failure, executed));
+        final var contractResultRepository = mock(ContractResultRepository.class);
+        when(contractResultRepository.findExecutedTimestamps(any())).thenReturn(List.of(1L));
 
-        // The genuine execution at T1 is preferred over the later stub at T2.
-        assertResolvesToTimestamp(hashRepository, transactionRepository, hash, 1L);
+        // The genuine execution at T1 is preferred over the later failure at T2.
+        assertResolvesToTimestamp(hashRepository, contractResultRepository, hash, 1L);
     }
 
     @Test
-    void resolvesHashToFailedContractCreateOverLaterStubWithSameEntity() {
-        // The reviewer's original concern: a failed contract create executed (its constructor reverted) so it has a
-        // contract_transaction row, but its entity id is 0 because no contract was created. It must still be preferred
-        // over a later stub that also has entity 0 - the executed check must match on entity 0, not skip it.
+    void resolvesHashToFailedContractCreateOverLaterFailure() {
+        // A failed contract create executed (its constructor reverted) so it has a non-empty function_result, but its
+        // entity id is 0 because no contract was created. Keying on function_result rather than entity id still prefers
+        // it over a later failure result that also has entity 0.
         final var hash = DOMAIN_BUILDER.bytes(32);
         final var failedCreate = lookup(1L, 0L, ResponseCodeEnum.CONTRACT_REVERT_EXECUTED_VALUE);
-        final var stub = lookup(2L, 0L, ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE);
+        final var failure = lookup(2L, 0L, ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE);
 
         final var hashRepository = mock(ContractTransactionHashRepository.class);
-        when(hashRepository.findAllByHash(hash)).thenReturn(List.of(stub, failedCreate));
-        final var transactionRepository = mock(ContractTransactionRepository.class);
-        when(transactionRepository.existsById(new ContractTransaction.Id(1L, 0L)))
-                .thenReturn(true);
+        when(hashRepository.findAllByHash(hash)).thenReturn(List.of(failure, failedCreate));
+        final var contractResultRepository = mock(ContractResultRepository.class);
+        when(contractResultRepository.findExecutedTimestamps(any())).thenReturn(List.of(1L));
 
-        assertResolvesToTimestamp(hashRepository, transactionRepository, hash, 1L);
+        assertResolvesToTimestamp(hashRepository, contractResultRepository, hash, 1L);
     }
 
     @Test
     void resolvesHashToSuccessWithoutCheckingExecution() {
-        // A successful result always wins (the repository sorts it first), so the executed check is skipped entirely.
+        // A successful result always wins (the repository sorts it first), so the executed lookup is skipped entirely.
         final var hash = DOMAIN_BUILDER.bytes(32);
         final long contractId = DOMAIN_BUILDER.entityId().getId();
         final var success = lookup(1L, contractId, ResponseCodeEnum.SUCCESS_VALUE);
@@ -159,16 +154,16 @@ final class OpcodeServiceImplTest {
 
         final var hashRepository = mock(ContractTransactionHashRepository.class);
         when(hashRepository.findAllByHash(hash)).thenReturn(List.of(success, laterRevert));
-        final var transactionRepository = mock(ContractTransactionRepository.class);
+        final var contractResultRepository = mock(ContractResultRepository.class);
 
-        assertResolvesToTimestamp(hashRepository, transactionRepository, hash, 1L);
-        verifyNoInteractions(transactionRepository);
+        assertResolvesToTimestamp(hashRepository, contractResultRepository, hash, 1L);
+        verify(contractResultRepository, never()).findExecutedTimestamps(any());
     }
 
     @Test
     void resolvesHashToLatestWhenOnlyPreExecutionFailuresShareHash() {
         // Two attempts of the same eth transaction that never executed (INSUFFICIENT_GAS at T1,
-        // DUPLICATE_TRANSACTION at T2), neither with a contract_transaction row. With no genuine execution to prefer,
+        // DUPLICATE_TRANSACTION at T2), neither with a function_result. With no genuine execution to prefer,
         // resolution must still return one - the latest - rather than nothing.
         final var hash = DOMAIN_BUILDER.bytes(32);
         final var insufficientGas = lookup(1L, 0L, ResponseCodeEnum.INSUFFICIENT_GAS_VALUE);
@@ -177,14 +172,15 @@ final class OpcodeServiceImplTest {
         final var hashRepository = mock(ContractTransactionHashRepository.class);
         // The repository sorts non-successful results latest-first.
         when(hashRepository.findAllByHash(hash)).thenReturn(List.of(duplicate, insufficientGas));
-        final var transactionRepository = mock(ContractTransactionRepository.class);
+        final var contractResultRepository = mock(ContractResultRepository.class);
 
-        // No contract_transaction row exists for either candidate, so the latest (T2) is chosen.
-        assertResolvesToTimestamp(hashRepository, transactionRepository, hash, 2L);
+        // findExecutedTimestamps returns empty (Mockito default), so nothing executed and the latest (T2) is chosen.
+        assertResolvesToTimestamp(hashRepository, contractResultRepository, hash, 2L);
     }
 
     @Test
     void resolvesHashWhenTopCandidateHasNullTransactionResult() {
+        // Defensive: transaction_result is non-null in practice, but a null must not NPE the success check.
         final var hash = DOMAIN_BUILDER.bytes(32);
         final var nullResult = new ContractTransactionHashLookupRecord(
                 2L, 0L, DOMAIN_BUILDER.entityId().getId(), null);
@@ -192,10 +188,10 @@ final class OpcodeServiceImplTest {
 
         final var hashRepository = mock(ContractTransactionHashRepository.class);
         when(hashRepository.findAllByHash(hash)).thenReturn(List.of(nullResult, other));
-        final var transactionRepository = mock(ContractTransactionRepository.class);
+        final var contractResultRepository = mock(ContractResultRepository.class);
 
         // Null is treated as non-successful, and with nothing executed the latest (T2) is returned.
-        assertResolvesToTimestamp(hashRepository, transactionRepository, hash, 2L);
+        assertResolvesToTimestamp(hashRepository, contractResultRepository, hash, 2L);
     }
 
     private ContractTransactionHashLookupRecord lookup(
@@ -208,17 +204,16 @@ final class OpcodeServiceImplTest {
     // contract result lookup, which throws "Contract result not found: <timestamp>".
     private static void assertResolvesToTimestamp(
             final ContractTransactionHashRepository hashRepository,
-            final ContractTransactionRepository transactionRepository,
+            final ContractResultRepository contractResultRepository,
             final byte[] hash,
             final long expectedTimestamp) {
         final var opcodeService = new OpcodeServiceImpl(
                 mock(RecordFileService.class),
                 mock(ContractDebugService.class),
                 hashRepository,
-                transactionRepository,
                 mock(EthereumTransactionRepository.class),
                 mock(TransactionRepository.class),
-                mock(ContractResultRepository.class),
+                contractResultRepository,
                 mock(CommonEntityAccessor.class),
                 new OpcodesProperties(),
                 new TraceMemoryBudget(new OpcodesProperties()),

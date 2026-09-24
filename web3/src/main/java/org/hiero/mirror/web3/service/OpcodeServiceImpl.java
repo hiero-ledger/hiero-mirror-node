@@ -16,13 +16,13 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractResult;
-import org.hiero.mirror.common.domain.contract.ContractTransaction;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
@@ -41,7 +41,6 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.TraceMemoryBud
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
-import org.hiero.mirror.web3.repository.ContractTransactionRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.repository.projections.ContractTransactionHashLookup;
@@ -68,7 +67,6 @@ public class OpcodeServiceImpl implements OpcodeService {
     private final RecordFileService recordFileService;
     private final ContractDebugService contractDebugService;
     private final ContractTransactionHashRepository contractTransactionHashRepository;
-    private final ContractTransactionRepository contractTransactionRepository;
     private final EthereumTransactionRepository ethereumTransactionRepository;
     private final TransactionRepository transactionRepository;
     private final ContractResultRepository contractResultRepository;
@@ -165,8 +163,8 @@ public class OpcodeServiceImpl implements OpcodeService {
     /**
      * Selects the result that best represents a hash shared by multiple results. A successful result always wins (the
      * query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result sharing
-     * the hash by checking which candidates have a matching contract_transaction row, falling back to the latest by
-     * consensus timestamp (the query order).
+     * the hash by checking which candidates produced EVM output (a non-empty function_result), falling back to the
+     * latest by consensus timestamp (the query order).
      */
     private ContractTransactionHashLookup resolveContractTransactionHash(TransactionHashParameter transactionHash) {
         final var candidates = contractTransactionHashRepository.findAllByHash(
@@ -180,9 +178,14 @@ public class OpcodeServiceImpl implements OpcodeService {
             return first;
         }
 
+        final var timestamps = new ArrayList<Long>(candidates.size());
         for (final var candidate : candidates) {
-            final var id = new ContractTransaction.Id(candidate.getConsensusTimestamp(), candidate.getEntityId());
-            if (contractTransactionRepository.existsById(id)) {
+            timestamps.add(candidate.getConsensusTimestamp());
+        }
+        final var executed = new HashSet<>(contractResultRepository.findExecutedTimestamps(timestamps));
+
+        for (final var candidate : candidates) {
+            if (executed.contains(candidate.getConsensusTimestamp())) {
                 return candidate;
             }
         }

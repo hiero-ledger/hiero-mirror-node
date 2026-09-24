@@ -216,12 +216,14 @@ class ContractService extends BaseService {
         order by (${ContractTransactionHash.TRANSACTION_RESULT} = ${successTransactionResult}) desc,
                  ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc`;
 
-  // Given candidate (consensus_timestamp, entity_id) pairs, returns the ones that actually executed, i.e. have a
-  // matching contract_transaction row. Kept as a separate lookup so it stays citus-routable (contract_transaction is
-  // distributed by entity_id, contract_transaction_hash by hash, so the two can't be correlated in a single query).
-  static executedContractTransactionsQuery = `select ${ContractTransaction.CONSENSUS_TIMESTAMP}, ${ContractTransaction.ENTITY_ID}
-        from ${ContractTransaction.tableName}
-        where ${ContractTransaction.CONSENSUS_TIMESTAMP} = any($1) and ${ContractTransaction.ENTITY_ID} = any($2)`;
+  // Given candidate consensus timestamps, returns the ones whose result produced EVM output (non-empty
+  // function_result), i.e. that actually executed. Kept as a separate lookup so it stays citus-routable, and keyed on
+  // consensus_timestamp alone since function_result is a property of the result itself.
+  static executedContractResultsQuery = `select ${ContractResult.CONSENSUS_TIMESTAMP}
+        from ${ContractResult.tableName}
+        where ${ContractResult.CONSENSUS_TIMESTAMP} = any($1)
+          and ${ContractResult.FUNCTION_RESULT} is not null
+          and octet_length(${ContractResult.FUNCTION_RESULT}) > 0`;
 
   getContractResultsByIdAndFiltersQuery(whereConditions, whereParams, order, limit) {
     const params = whereParams;
@@ -458,8 +460,8 @@ class ContractService extends BaseService {
   /**
    * Selects the row that best represents a transaction hash shared by multiple results. A successful result always
    * wins (the query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result
-   * sharing the hash by checking which candidates have a matching contract_transaction row, falling back to the latest
-   * by consensus timestamp (the input order).
+   * sharing the hash by checking which candidates produced EVM output (non-empty function_result), falling back to the
+   * latest by consensus timestamp (the input order).
    */
   async pickPreferredContractTransactionHash(rows) {
     if (rows.length === 1 || Number(rows[0][ContractTransactionHash.TRANSACTION_RESULT]) === successTransactionResult) {
@@ -467,19 +469,10 @@ class ContractService extends BaseService {
     }
 
     const timestamps = rows.map((row) => row[ContractTransactionHash.CONSENSUS_TIMESTAMP]);
-    const entityIds = rows.map((row) => row[ContractTransactionHash.ENTITY_ID]);
-    const executed = await super.getRows(ContractService.executedContractTransactionsQuery, [timestamps, entityIds]);
-    const executedKeys = new Set(
-      executed.map((row) => `${row[ContractTransaction.CONSENSUS_TIMESTAMP]}_${row[ContractTransaction.ENTITY_ID]}`)
-    );
+    const executed = await super.getRows(ContractService.executedContractResultsQuery, [timestamps]);
+    const executedTimestamps = new Set(executed.map((row) => row[ContractResult.CONSENSUS_TIMESTAMP]));
 
-    return (
-      rows.find((row) =>
-        executedKeys.has(
-          `${row[ContractTransactionHash.CONSENSUS_TIMESTAMP]}_${row[ContractTransactionHash.ENTITY_ID]}`
-        )
-      ) ?? rows[0]
-    );
+    return rows.find((row) => executedTimestamps.has(row[ContractTransactionHash.CONSENSUS_TIMESTAMP])) ?? rows[0];
   }
 
   async getInvolvedContractsByTimestampAndContractId(timestamp, contractId) {

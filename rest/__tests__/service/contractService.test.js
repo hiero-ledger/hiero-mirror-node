@@ -2235,7 +2235,7 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
   const contractRevertResult = TransactionResult.getProtoId('CONTRACT_REVERT_EXECUTED');
   const insufficientPayerBalanceResult = TransactionResult.getProtoId('INSUFFICIENT_PAYER_BALANCE');
 
-  // Transaction reverted while executing against a contract at T1, so it has a matching contract_transaction row.
+  // Reverted while executing against a contract at T1, so it produced EVM output (non-empty function_result).
   const executedResult = {
     consensus_timestamp: 1,
     contract_id: entityId1.num,
@@ -2245,10 +2245,11 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
     transaction_index: 1,
     transaction_hash: ethereumTxHash,
     transaction_nonce: 11,
+    function_result: '0x1234',
     gasLimit: 1000,
   };
 
-  // Fails pre-execution, so only a stub result, without a matching contract_transaction row, is produced later at T2.
+  // Fails pre-execution, so it produced no EVM output (function_result stays null), later at T2.
   const stubResult = {
     consensus_timestamp: 2,
     contract_id: entityId0.num,
@@ -2261,10 +2262,8 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
     gasLimit: 1000,
   };
 
-  test('Prefers the real execution over a later pre-execution stub sharing the hash', async () => {
+  test('Prefers the real execution over a later pre-execution failure sharing the hash', async () => {
     await integrationDomainOps.loadContractResults([executedResult, stubResult]);
-    // Only the real execution gets a contract_transaction row, the stub result doesn't
-    await integrationDomainOps.loadContractTransactions(null, [executedResult], null);
 
     const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
     expect(transactionDetails).toEqual([
@@ -2278,13 +2277,12 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
     ]);
   });
 
-  test('Prefers a failed contract create (executed, entity 0) over a later stub also with entity 0', async () => {
+  test('Prefers a failed contract create (executed, entity 0) over a later failure with the same entity', async () => {
     // The reviewer's original concern: a failed contract create executed (its constructor reverted) so it has a
-    // contract_transaction row, but its entity id is 0 because no contract was created. It must still be preferred over
-    // a later pre-execution stub that also has entity 0 - i.e. the executed check must match on entity 0, not skip it.
+    // non-empty function_result, but its entity id is 0 because no contract was created. Keying on function_result
+    // rather than entity id still prefers it over a later failure result that also has entity 0.
     const failedCreate = {...executedResult, contract_id: entityId0.num};
     await integrationDomainOps.loadContractResults([failedCreate, stubResult]);
-    await integrationDomainOps.loadContractTransactions(null, [failedCreate], null);
 
     const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
     expect(transactionDetails).toEqual([
@@ -2298,9 +2296,9 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
     ]);
   });
 
-  test('Returns the stub when no genuine execution shares the hash', async () => {
-    // e.g. an ethereum transaction that only ever failed pre-execution (INSUFFICIENT_PAYER_BALANCE, then a later
-    // duplicate). Neither has a contract_transaction row, so the stub must still resolve rather than returning nothing.
+  test('Returns the failure result when no genuine execution shares the hash', async () => {
+    // e.g. an ethereum transaction that only ever failed pre-execution (INSUFFICIENT_PAYER_BALANCE). With no
+    // function_result on any candidate, it must still resolve rather than returning nothing.
     await integrationDomainOps.loadContractResults([stubResult]);
 
     const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
@@ -2316,9 +2314,8 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
   });
 
   test('Returns the latest when only pre-execution failures share the hash (INSUFFICIENT_GAS then DUPLICATE_TRANSACTION)', async () => {
-    // Two attempts of the same eth transaction that never executed, so neither has a
-    // contract_transaction row. With no genuine execution to prefer, the lookup must still resolve - to the latest -
-    // rather than returning nothing.
+    // Two attempts of the same eth transaction that never executed, so neither has a function_result. With no genuine
+    // execution to prefer, the lookup must still resolve - to the latest - rather than returning nothing.
     const insufficientGasResult = TransactionResult.getProtoId('INSUFFICIENT_GAS');
     const duplicateTransactionResult = TransactionResult.getProtoId('DUPLICATE_TRANSACTION');
     const insufficientGas = {...stubResult, consensus_timestamp: 1, transaction_result: insufficientGasResult};
