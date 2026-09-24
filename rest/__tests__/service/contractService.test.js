@@ -2333,6 +2333,24 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
       },
     ]);
   });
+
+  test('Prefers the latest genuine execution when several executed share the hash', async () => {
+    // Two genuine executions (non-empty function_result) share the hash; the latest by consensus timestamp wins.
+    const earlierExecution = {...executedResult, consensus_timestamp: 1};
+    const laterExecution = {...executedResult, consensus_timestamp: 2, transaction_nonce: 12};
+    await integrationDomainOps.loadContractResults([earlierExecution, laterExecution]);
+
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([
+      {
+        consensusTimestamp: 2,
+        entityId: entityId1.getEncodedId(),
+        hash: ethereumTxHashBuffer,
+        payerAccountId: entityId10.getEncodedId(),
+        transactionResult: Number.parseInt(contractRevertResult),
+      },
+    ]);
+  });
 });
 
 describe('ContractService.getInvolvedContractsByTimestampAndContractId tests', () => {
