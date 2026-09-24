@@ -113,6 +113,12 @@ configuration used for GitOps-based deployment.
   automatically.
 - **Java style**: Lombok and MapStruct are used heavily across JVM modules. Errorprone and NullAway are wired into
   `java-conventions`.
+- **Method ordering**: within a Java class, order methods by visibility (`public`, then `protected`, then
+  package-private, then `private`), and alphabetically by name within each visibility group. Constructors are
+  unaffected by this rule and keep their conventional placement above the methods.
+- **Field ordering**: within a Java class, order fields by visibility (`public`, then `protected`, then
+  package-private, then `private`), and alphabetically by name within each visibility group, the same rule as method
+  ordering above.
 - **Migrations are append-only**: never edit a Flyway SQL migration that has been merged. Add a new one.
 - **Commit/PR style**: PR description = imperative bullets ("Add ...", "Fix ..."), copied to the squash-merge commit.
   Every PR needs a linked issue (`Fixes #1234`) and a milestone. See [docs/contributing.md](docs/contributing.md).
