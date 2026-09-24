@@ -13,7 +13,7 @@ import org.hiero.mirror.web3.state.AbstractConcurrencyTest;
 import org.hiero.mirror.web3.state.core.FunctionWritableSingletonState;
 import org.junit.jupiter.api.Test;
 
-class WritableSingletonStateBaseConcurrencyTest extends AbstractConcurrencyTest {
+final class WritableSingletonStateBaseConcurrencyTest extends AbstractConcurrencyTest {
 
     private static final int STATE_ID = 103;
     private static final String SERVICE = "test-service";

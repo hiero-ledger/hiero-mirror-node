@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(ContextExtension.class)
-class ReadableSingletonStateBaseTest {
+final class ReadableSingletonStateBaseTest {
 
     private static final int STATE_ID = 101;
     private static final String SERVICE = "test-service";
