@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hiero.mirror.common.domain.entity.EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransactions;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mock.Strictness.LENIENT;
@@ -191,7 +190,6 @@ abstract class AbstractTransactionHandlerTest {
 
     @BeforeEach
     void beforeEach(TestInfo testInfo) {
-        System.getProperty(INVALID_ENTITY_EXCEPTION_PROPERTY, "false");
         log.info("Executing: {}", testInfo.getDisplayName());
         entityProperties.getPersist().setEntityTransactions(true);
         recordItemBuilder.setEntityTransactions(true);
