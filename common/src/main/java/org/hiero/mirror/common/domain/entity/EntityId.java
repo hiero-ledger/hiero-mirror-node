@@ -101,8 +101,16 @@ public final class EntityId implements Comparable<EntityId> {
         return of(contractID.getShardNum(), contractID.getRealmNum(), contractID.getContractNum());
     }
 
+    public static EntityId tryOf(ContractID contractID) {
+        return tryOf(contractID.getShardNum(), contractID.getRealmNum(), contractID.getContractNum());
+    }
+
     public static EntityId of(FileID fileID) {
         return of(fileID.getShardNum(), fileID.getRealmNum(), fileID.getFileNum());
+    }
+
+    public static EntityId tryOf(FileID fileID) {
+        return tryOf(fileID.getShardNum(), fileID.getRealmNum(), fileID.getFileNum());
     }
 
     public static EntityId of(ScheduleID scheduleID) {

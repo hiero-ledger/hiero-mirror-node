@@ -10,6 +10,7 @@ import com.hederahashgraph.api.proto.java.Key;
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.CustomLog;
+import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -206,12 +207,12 @@ class ContractCreateTransactionHandler extends AbstractEntityCrudTransactionHand
     }
 
     private void updateChildFromContractCreateParent(Contract contract, RecordItem recordItem) {
-        var transactionBody = recordItem.getTransactionBody().getContractCreateInstance();
+        final var transactionBody = recordItem.getTransactionBody().getContractCreateInstance();
 
         switch (transactionBody.getInitcodeSourceCase()) {
             case FILEID:
                 if (contract.getFileId() == null) {
-                    var fileId = EntityId.of(transactionBody.getFileID());
+                    final var fileId = EntityId.tryOf(transactionBody.getFileID());
                     contract.setFileId(fileId);
                     recordItem.addEntityId(fileId);
                 }
@@ -230,19 +231,23 @@ class ContractCreateTransactionHandler extends AbstractEntityCrudTransactionHand
         }
     }
 
-    private void updateChildFromEthereumTransactionParent(Contract contract, RecordItem recordItem) {
-        var body = recordItem.getTransactionBody().getEthereumTransaction();
+    private void updateChildFromEthereumTransactionParent(final Contract contract, final RecordItem parentRecordItem) {
+        final var body = parentRecordItem.getTransactionBody().getEthereumTransaction();
+        final var ethereumTransaction = parentRecordItem.getEthereumTransaction();
 
-        // use callData FileID if present
-        if (body.hasCallData() && contract.getFileId() == null) {
-            var fileId = EntityId.of(body.getCallData());
+        // use callData FileID if present and call data in transaction bytes are not present
+        if (body.hasCallData()
+                && ethereumTransaction != null
+                && ArrayUtils.isEmpty(ethereumTransaction.getCallData())
+                && contract.getFileId() == null) {
+            final var fileId = EntityId.tryOf(body.getCallData());
             contract.setFileId(fileId);
-            recordItem.addEntityId(fileId);
+            parentRecordItem.addEntityId(fileId);
             return;
         }
 
-        if (contract.getInitcode() == null && recordItem.getEthereumTransaction() != null) {
-            contract.setInitcode(recordItem.getEthereumTransaction().getCallData());
+        if (contract.getInitcode() == null && parentRecordItem.getEthereumTransaction() != null) {
+            contract.setInitcode(parentRecordItem.getEthereumTransaction().getCallData());
         }
     }
 }

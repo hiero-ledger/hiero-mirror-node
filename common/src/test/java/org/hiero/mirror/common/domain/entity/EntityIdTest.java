@@ -27,6 +27,15 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 @ExtendWith(OutputCaptureExtension.class)
 final class EntityIdTest {
 
+    @Test
+    void isEmpty() {
+        assertThat(EntityId.isEmpty(null)).isTrue();
+        assertThat(EntityId.isEmpty(EntityId.EMPTY)).isTrue();
+        assertThat(EntityId.isEmpty(EntityId.ZERO)).isTrue();
+        assertThat(EntityId.isEmpty(EntityId.of(0L))).isTrue();
+        assertThat(EntityId.isEmpty(EntityId.of(1L))).isFalse();
+    }
+
     @ParameterizedTest
     @CsvSource({
         "0, 0, 0, 0",

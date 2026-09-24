@@ -30,7 +30,7 @@ public final class ContractInitcodeServiceImpl implements ContractInitcodeServic
         if (contractCreate.hasInitcode()) {
             return DomainUtils.toBytes(contractCreate.getInitcode());
         } else if (contractCreate.hasFileID() && recordItem.isBlockstream()) {
-            final var fileId = EntityId.of(contractCreate.getFileID());
+            final var fileId = EntityId.tryOf(contractCreate.getFileID());
             final byte[] initcode = contractBytecodeService.get(fileId);
             if (initcode == null) {
                 Utility.handleRecoverableError(
