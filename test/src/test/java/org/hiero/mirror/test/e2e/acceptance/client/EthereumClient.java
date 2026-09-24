@@ -7,7 +7,6 @@ import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractFunctionResult;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.EthereumTransaction;
-import com.hedera.hashgraph.sdk.FileId;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
 import com.hedera.hashgraph.sdk.TransactionId;
@@ -60,25 +59,20 @@ public class EthereumClient extends AbstractNetworkClient {
                 acceptanceTestProperties.getFeatureProperties().getMaxContractFunctionGas());
     }
 
-    public NetworkTransactionResponse createContract(
-            PrivateKey signerKey, FileId fileId, String fileContents, long initialBalance) {
-
-        var value = WEIBARS_TO_TINYBARS.multiply(BigInteger.valueOf(initialBalance));
-
-        var rawTransaction = RawTransaction.createTransaction(
+    public NetworkTransactionResponse createContract(PrivateKey signerKey, String fileContents, long initialBalance) {
+        final var value = WEIBARS_TO_TINYBARS.multiply(BigInteger.valueOf(initialBalance));
+        final var rawTransaction = RawTransaction.createTransaction(
                 getNonce(signerKey), gasPrice, maxContractFunctionGas(), "", value, fileContents);
-        Credentials credentials = Credentials.create(signerKey.toStringRaw());
-        var signedTransaction = TransactionEncoder.signMessage(rawTransaction, credentials);
+        final var credentials = Credentials.create(signerKey.toStringRaw());
+        final var signedTransaction = TransactionEncoder.signMessage(rawTransaction, credentials);
 
-        EthereumTransaction ethereumTransaction = new EthereumTransaction()
-                .setCallDataFileId(fileId)
+        final var ethereumTransaction = new EthereumTransaction()
                 .setMaxGasAllowanceHbar(Hbar.from(100L))
                 .setEthereumData(signedTransaction);
+        final var memo = getMemo("Create contract");
 
-        var memo = getMemo("Create contract");
-
-        var response = executeTransactionAndRetrieveReceipt(ethereumTransaction, null, null);
-        var contractId = response.getReceipt().contractId;
+        final var response = executeTransactionAndRetrieveReceipt(ethereumTransaction, null, null);
+        final var contractId = response.getReceipt().contractId;
         log.info(
                 "Created new contract {} with memo '{}' via {} in {}",
                 contractId,
@@ -86,7 +80,7 @@ public class EthereumClient extends AbstractNetworkClient {
                 response.getTransactionId(),
                 response.getStopwatch());
 
-        TransactionRecord transactionRecord = getTransactionRecord(response.getTransactionId());
+        final var transactionRecord = getTransactionRecord(response.getTransactionId());
         logContractFunctionResult("constructor", transactionRecord.contractFunctionResult);
         return response;
     }

@@ -196,12 +196,11 @@ public class EthereumFeature extends AbstractEstimateFeature {
         try (var in = resource.getInputStream()) {
             CompiledSolidityArtifact compiledSolidityArtifact = readCompiledArtifact(in);
             var fileContent = compiledSolidityArtifact.getBytecode().replaceFirst(HEX_PREFIX, "");
-            var fileId = persistContractBytes(fileContent);
 
             networkTransactionResponse = ethereumClient.createContract(
-                    signerAccount.getPrivateKey(), fileId, fileContent, contractResource.getInitialBalance());
+                    signerAccount.getPrivateKey(), fileContent, contractResource.getInitialBalance());
             ContractId createdContractId = verifyCreateContractNetworkResponse();
-            return new DeployedContract(fileId, createdContractId, compiledSolidityArtifact);
+            return new DeployedContract(null, createdContractId, compiledSolidityArtifact, networkTransactionResponse);
         } catch (IOException e) {
             log.warn("Issue creating contract: {}, ex: {}", contractResource, e);
             throw new RuntimeException(e);

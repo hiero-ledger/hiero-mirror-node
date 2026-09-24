@@ -289,11 +289,5 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
             FileId fileId,
             ContractId contractId,
             CompiledSolidityArtifact compiledSolidityArtifact,
-            NetworkTransactionResponse createTransactionResponse) {
-
-        public DeployedContract(
-                FileId fileId, ContractId contractId, CompiledSolidityArtifact compiledSolidityArtifact) {
-            this(fileId, contractId, compiledSolidityArtifact, null);
-        }
-    }
+            NetworkTransactionResponse createTransactionResponse) {}
 }

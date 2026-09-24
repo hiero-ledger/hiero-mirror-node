@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.hiero.mirror.rest.model.ContractResponse;
 import org.hiero.mirror.rest.model.ContractResult;
+import org.hiero.mirror.rest.model.TimestampRange;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -31,17 +32,21 @@ public abstract class BaseContractFeature extends AbstractFeature {
                 .isEqualTo(deployedParentContract.contractId().toString());
         assertThat(mirrorContract.getCreatedTimestamp()).isNotBlank();
         assertThat(mirrorContract.getDeleted()).isEqualTo(isDeleted);
-        assertThat(mirrorContract.getFileId())
-                .isEqualTo(deployedParentContract.fileId().toString());
-        String address = mirrorContract.getEvmAddress();
-        assertThat(address)
+        assertThat(mirrorContract.getEvmAddress())
                 .isNotBlank()
                 .isNotEqualTo(HEX_PREFIX)
                 .isNotEqualTo("0x0000000000000000000000000000000000000000");
-        assertThat(mirrorContract.getTimestamp()).isNotNull();
-        assertThat(mirrorContract.getTimestamp().getFrom()).isNotNull();
+        assertThat(mirrorContract.getTimestamp())
+                .isNotNull()
+                .extracting(TimestampRange::getFrom)
+                .isNotNull();
         assertThat(mirrorContract.getNonce()).isNotNull();
         nonceVal = mirrorContract.getNonce();
+
+        if (deployedParentContract.fileId() != null) {
+            assertThat(mirrorContract.getFileId())
+                    .isEqualTo(deployedParentContract.fileId().toString());
+        }
 
         if (contractClient
                 .getSdkClient()
