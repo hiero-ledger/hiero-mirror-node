@@ -47,8 +47,8 @@ public abstract class ReadableSingletonStateBase<T> implements ReadableSingleton
     @Nullable
     public T get() {
         final var cache = getReadCache();
-        if (cache.containsKey(SINGLETON_KEY)) {
-            final var cached = cache.get(SINGLETON_KEY);
+        final var cached = cache.get(SINGLETON_KEY);
+        if (cached != null) {
             return cached == NULL_MARKER ? null : (T) cached;
         }
         final var value = readFromDataSource();
