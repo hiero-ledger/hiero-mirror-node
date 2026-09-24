@@ -1271,7 +1271,7 @@ class ContractController extends BaseController {
       ContractService.getContractResultsByTimestamps(
         contractDetails.consensusTimestamp,
         contractDetails.contractIds,
-        true
+        config.query.syntheticContractResults
       ),
       TransactionService.getEthTransactionByTimestampAndPayerId(
         contractDetails.consensusTimestamp,
