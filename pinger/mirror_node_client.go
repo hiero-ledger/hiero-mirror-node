@@ -16,8 +16,6 @@ import (
 )
 
 const (
-	// /network/nodes responses are tens of KB. Cap the read so a malicious,
-	// misconfigured, or MITM'd mirror cannot stream unbounded JSON.
 	maxMirrorNodesResponseBytes int64 = 1 << 20
 	maxMirrorNetworkEntries           = 1024
 )
@@ -53,7 +51,7 @@ func buildNetworkFromMirrorNodes(ctx context.Context, cfg config) (map[string]hi
 
 	httpClient := &http.Client{Timeout: cfg.mirrorNodeClientTimeout}
 
-	attempts := max(cfg.mirrorNodeClientMaxRetries+1, 1)
+	attempts := max(cfg.mirrorNodeClientMaxRetries + 1, 1)
 
 	var lastErr error
 
