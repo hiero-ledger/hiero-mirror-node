@@ -216,12 +216,14 @@ class ContractService extends BaseService {
         order by (${ContractTransactionHash.TRANSACTION_RESULT} = ${successTransactionResult}) desc,
                  ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc`;
 
-  // Given candidate consensus timestamps, returns the ones whose result produced EVM output (non-empty
-  // function_result), i.e. that actually executed. Kept as a separate lookup so it stays citus-routable, and keyed on
-  // consensus_timestamp alone since function_result is a property of the result itself.
+  // Given candidate consensus timestamps and their contract ids, returns the ones whose result produced EVM output
+  // (non-empty function_result), i.e. that actually executed. contract_id is the citus distribution column of
+  // contract_result and equals contract_transaction_hash.entity_id (see ContractResult.toContractTransactionHash), so
+  // constraining on it lets citus prune shards instead of scanning every one.
   static executedContractResultsQuery = `select ${ContractResult.CONSENSUS_TIMESTAMP}
         from ${ContractResult.tableName}
         where ${ContractResult.CONSENSUS_TIMESTAMP} = any($1)
+          and ${ContractResult.CONTRACT_ID} = any($2)
           and ${ContractResult.FUNCTION_RESULT} is not null
           and octet_length(${ContractResult.FUNCTION_RESULT}) > 0`;
 
@@ -469,7 +471,8 @@ class ContractService extends BaseService {
     }
 
     const timestamps = rows.map((row) => row[ContractTransactionHash.CONSENSUS_TIMESTAMP]);
-    const executed = await super.getRows(ContractService.executedContractResultsQuery, [timestamps]);
+    const contractIds = rows.map((row) => row[ContractTransactionHash.ENTITY_ID]);
+    const executed = await super.getRows(ContractService.executedContractResultsQuery, [timestamps, contractIds]);
     const executedTimestamps = new Set(executed.map((row) => row[ContractResult.CONSENSUS_TIMESTAMP]));
 
     return rows.find((row) => executedTimestamps.has(row[ContractTransactionHash.CONSENSUS_TIMESTAMP])) ?? rows[0];
