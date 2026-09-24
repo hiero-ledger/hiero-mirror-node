@@ -21,12 +21,13 @@ extra.apply {
     set("blockNodeVersion", "0.41.1")
     set("consensusNodeVersion", "0.78.0-rc.9")
     set("hederaCryptographyVersion", "3.15.0")
-    set("jackson-bom.version", "3.2.2") // Temporary until next Spring Boot
-    set("jackson-2-bom.version", "2.22.2") // Temporary until next Spring Boot
+    set("jackson-bom.version", "3.2.3") // Temporary until next Spring Boot
+    set("jackson-2-bom.version", "2.22.3") // Temporary until next Spring Boot
     set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
+    set("netty.version", "4.2.18.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.21.0")
-    set("tomcat.version", "11.0.25") // Temporary until next Spring Boot
+    set("tomcat.version", "11.0.26") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
 
