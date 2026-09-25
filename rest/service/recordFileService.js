@@ -2,8 +2,12 @@
 
 import BaseService from './baseService';
 import config from '../config';
+import {filterKeys, orderFilterValues} from '../constants';
 import {RecordFile} from '../model';
-import {orderFilterValues} from '../constants';
+import {opsMap} from '../utils';
+
+const recordFileWatermarkBound = (column) =>
+  `${column} <= coalesce((select consensus_end from record_file_watermark), ${column})`;
 
 const buildWhereSqlStatement = (whereQuery) => {
   let where = '';
@@ -40,12 +44,14 @@ class RecordFileService extends BaseService {
        ) as consensus_end
     from (select unnest($1::bigint[]) as timestamp) as tmp
       group by consensus_end
-    ) and ${RecordFile.CONSENSUS_END} >= $2 and ${RecordFile.CONSENSUS_END} <= $3`;
+    ) and ${RecordFile.CONSENSUS_END} >= $2 and ${RecordFile.CONSENSUS_END} <= $3
+      and ${recordFileWatermarkBound(RecordFile.CONSENSUS_END)}`;
 
   static recordFileBlockDetailsFromTimestampQuery = `select
     ${RecordFile.CONSENSUS_END}, ${RecordFile.GAS_USED}, ${RecordFile.HASH}, ${RecordFile.INDEX}
     from ${RecordFile.tableName}
     where  ${RecordFile.CONSENSUS_END} >= $1
+      and ${recordFileWatermarkBound(RecordFile.CONSENSUS_END)}
     order by ${RecordFile.CONSENSUS_END}
     limit 1`;
 
@@ -130,7 +136,6 @@ class RecordFileService extends BaseService {
    */
   async getRecordFileBlockDetailsFromIndex(index) {
     const row = await super.getSingleRow(RecordFileService.recordFileBlockDetailsFromIndexQuery, [index]);
-
     return row === null ? null : new RecordFile(row);
   }
 
@@ -142,17 +147,18 @@ class RecordFileService extends BaseService {
    */
   async getRecordFileBlockDetailsFromHash(hash) {
     const row = await super.getSingleRow(RecordFileService.recordFileBlockDetailsFromHashQuery, [`${hash}%`]);
-
     return row === null ? null : new RecordFile(row);
   }
 
   async getBlocks(filters) {
     const {where, params} = buildWhereSqlStatement(filters.whereQuery);
+    const bound = recordFileWatermarkBound(RecordFile.CONSENSUS_END);
+    const whereWithBound = where === '' ? `where ${bound}` : `${where} and ${bound}`;
 
     const query =
       RecordFileService.blocksQuery +
       `
-      ${where}
+      ${whereWithBound}
       order by ${filters.orderBy} ${filters.order}
       limit ${filters.limit}
     `;
@@ -176,6 +182,61 @@ class RecordFileService extends BaseService {
     const query = `${RecordFileService.blocksQuery} where ${whereStatement}`;
     const row = await super.getSingleRow(query, params);
     return row ? new RecordFile(row) : null;
+  }
+
+  /**
+   * A null watermark means the bound is not in effect, which is the case before the importer has advanced it and in
+   * tests.
+   *
+   * @param {[{key: string, operator: string, value: *}]} filters
+   * @returns {Promise<boolean>}
+   */
+  async isTimestampRangeReady(filters) {
+    const watermark = await this.getRecordFileWatermark();
+    if (watermark === null) {
+      return true;
+    }
+
+    let equal = null;
+    let lower = null;
+    let lowerOperator = null;
+    let upper = null;
+    for (const filter of filters) {
+      if (filter.key !== filterKeys.TIMESTAMP) {
+        continue;
+      }
+      const value = BigInt(filter.value);
+      if (filter.operator === opsMap.eq) {
+        equal = value;
+      } else if (filter.operator === opsMap.gt || filter.operator === opsMap.gte) {
+        lower = value;
+        lowerOperator = filter.operator;
+      } else if (filter.operator === opsMap.lt || filter.operator === opsMap.lte) {
+        upper = value;
+      }
+    }
+
+    const equalPastWatermark = equal !== null && equal > watermark;
+    const closedRangePastWatermark = upper !== null && (lower !== null || equal !== null) && upper > watermark;
+    const startsAfterWatermark =
+      upper === null &&
+      equal === null &&
+      lower !== null &&
+      (lower > watermark || (lowerOperator === opsMap.gt && lower >= watermark));
+    return !(equalPastWatermark || closedRangePastWatermark || startsAfterWatermark);
+  }
+
+  async isConsensusEndReady(consensusEnd) {
+    const watermark = await this.getRecordFileWatermark();
+    return watermark === null || BigInt(consensusEnd) <= watermark;
+  }
+
+  async getRecordFileWatermark() {
+    const row = await super.getSingleRow('select consensus_end from record_file_watermark limit 1', []);
+    if (row === null || row.consensus_end == null) {
+      return null;
+    }
+    return BigInt(row.consensus_end);
   }
 
   /**

@@ -5,7 +5,7 @@ import findLast from 'lodash/findLast';
 import last from 'lodash/last';
 
 import BaseController from './baseController';
-import {filterKeys, orderFilterValues, responseDataLabel} from '../constants';
+import {filterKeys, httpStatusCodes, orderFilterValues, responseDataLabel} from '../constants';
 import {getResponseLimit} from '../config';
 import {InvalidArgumentError, NotFoundError} from '../errors';
 import {RecordFile} from '../model';
@@ -118,6 +118,10 @@ class BlockController extends BaseController {
 
     if (!block) {
       throw new NotFoundError();
+    }
+
+    if (!(await RecordFileService.isConsensusEndReady(block.consensusEnd))) {
+      res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
     }
 
     res.locals[responseDataLabel] = new BlockViewModel(block);

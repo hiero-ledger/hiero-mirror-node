@@ -439,6 +439,7 @@ class ContractController extends BaseController {
     const transactionIndexInValues = [];
 
     let blockFilter;
+    let partial = false;
     const timestampFilters = [];
 
     for (const filter of filters) {
@@ -501,6 +502,7 @@ class ContractController extends BaseController {
           {key: filterKeys.TIMESTAMP, operator: utils.opsMap.gte, value: blockData.consensusStart},
           {key: filterKeys.TIMESTAMP, operator: utils.opsMap.lte, value: blockData.consensusEnd}
         );
+        partial = !(await RecordFileService.isConsensusEndReady(blockData.consensusEnd));
       } else {
         return {skip: true};
       }
@@ -546,6 +548,7 @@ class ContractController extends BaseController {
       order,
       limit,
       next,
+      partial,
     };
   };
 
@@ -792,6 +795,9 @@ class ContractController extends BaseController {
     );
     filters = alterTimestampRange(filters);
     checkTimestampsForTopics(filters);
+    if (!(await RecordFileService.isTimestampRangeReady(filters))) {
+      res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
+    }
 
     const contractId = await ContractService.computeContractIdFromString(contractIdParam);
 
@@ -829,6 +835,9 @@ class ContractController extends BaseController {
     // get sql filter query, params, limit and limit query from query filters
     const filters = alterTimestampRange(utils.buildAndValidateFilters(req.query, acceptedContractLogsParameters));
     checkTimestampsForTopics(filters);
+    if (!(await RecordFileService.isTimestampRangeReady(filters))) {
+      res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
+    }
 
     // Workaround: set the request path in handler so later in the router level generic middleware it won't be
     // set to /contracts/results/:transactionIdOrHash
@@ -879,10 +888,11 @@ class ContractController extends BaseController {
     if (contractId == null) {
       return;
     }
-    const {conditions, includeSynthetic, params, order, limit, skip} = await this.extractContractResultsByIdQuery(
-      filters,
-      contractId
-    );
+    const {conditions, includeSynthetic, params, order, limit, partial, skip} =
+      await this.extractContractResultsByIdQuery(filters, contractId);
+    if (partial) {
+      res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
+    }
     if (skip) {
       return;
     }
@@ -1055,7 +1065,10 @@ class ContractController extends BaseController {
     const ethTransaction = ethTransactions[0];
     const fileData = await this.getCallDataFileAtTimestamp(ethTransaction, contractResults[0].consensusTimestamp);
 
-    if (isNil(contractResults[0].callResult)) {
+    if (
+      isNil(contractResults[0].callResult) ||
+      !(await RecordFileService.isConsensusEndReady(contractResults[0].consensusTimestamp))
+    ) {
       // set 206 partial response
       res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
       logger.debug(`getContractResultsByTimestamp returning partial content`);
@@ -1102,9 +1115,11 @@ class ContractController extends BaseController {
       },
     };
     res.locals[responseDataLabel] = response;
-    const {conditions, includeSynthetic, params, order, limit, skip, next} = await this.extractContractResultsByIdQuery(
-      filters
-    );
+    const {conditions, includeSynthetic, params, order, limit, next, partial, skip} =
+      await this.extractContractResultsByIdQuery(filters);
+    if (partial) {
+      res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
+    }
     if (skip) {
       return;
     }
@@ -1256,7 +1271,10 @@ class ContractController extends BaseController {
       gasPrice
     );
 
-    if (isNil(contractResult.callResult)) {
+    if (
+      isNil(contractResult.callResult) ||
+      !(await RecordFileService.isConsensusEndReady(contractResult.consensusTimestamp))
+    ) {
       // set 206 partial response
       res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
       logger.debug(`getContractResultsByTransactionId returning partial content`);

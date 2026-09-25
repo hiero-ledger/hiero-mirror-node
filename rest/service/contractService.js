@@ -547,6 +547,13 @@ class ContractService extends BaseService {
    * @returns {Promise<ContractLog[]>} the result of the getContractLogs query
    */
   async getContractLogs(query) {
+    query.conditions.push(
+      `${ContractLog.getFullName(
+        ContractLog.CONSENSUS_TIMESTAMP
+      )} <= coalesce((select consensus_end from record_file_watermark), ${ContractLog.getFullName(
+        ContractLog.CONSENSUS_TIMESTAMP
+      )})`
+    );
     const [sqlQuery, params] = this.getContractLogsQuery(query);
     const rows = await super.getRows(sqlQuery, params);
     if (rows.length === 0) {
@@ -574,7 +581,10 @@ class ContractService extends BaseService {
       timestampsOpAndValue = `in (${positions})`;
     }
 
-    const conditions = [`${ContractLog.CONSENSUS_TIMESTAMP} ${timestampsOpAndValue}`];
+    const conditions = [
+      `${ContractLog.CONSENSUS_TIMESTAMP} ${timestampsOpAndValue}`,
+      `${ContractLog.CONSENSUS_TIMESTAMP} <= coalesce((select consensus_end from record_file_watermark), ${ContractLog.CONSENSUS_TIMESTAMP})`,
+    ];
     if (involvedContractIds.length) {
       conditions.push(`${ContractLog.CONTRACT_ID} in (${involvedContractIds.join(',')})`);
     }
